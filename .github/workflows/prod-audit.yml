@@ -1,0 +1,42 @@
+name: Production audit
+
+# Advisories are published when no build is running, so CI alone never
+# sees a new one. Once a day this audits the lockfile production runs
+# (bin/audit/prod.mjs) and pings a Healthchecks check: a plain ping when
+# clean, /fail with the findings when not, which Healthchecks pushes to
+# James. The run goes red on an alert too. GitHub starts scheduled runs
+# only from the default branch, so this takes effect when it reaches
+# main. The log is public, so it holds counts only; the findings go to
+# Healthchecks, which is private.
+#
+# PROD_AUDIT_PING_URL is the ping URL of a Healthchecks check named
+# "Production audit" with a one-day period and a grace of a few hours,
+# so a day with no run alerts as well. It is the only secret here. The
+# run's own token lifts the advisory API's rate limit for the lookups
+# that raise an exception again once its package ships a fix.
+
+on:
+  schedule:
+    - cron: "41 9 * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Audit production's lockfile
+        env:
+          PROD_AUDIT_PING_URL: ${{ secrets.PROD_AUDIT_PING_URL }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node bin/audit/prod.mjs

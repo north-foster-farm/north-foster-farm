@@ -14,16 +14,40 @@
 // order }. Any of them may be null (accounts off, no admin URL) and
 // the row leaves it out.
 
-import terms from "../../../data/delivery.json" with { type: "json" };
-import { cutoffFor } from "../../../assets/scripts/order/lib/dates.mjs";
+import accounts from "../../../data/accounts.json" with { type: "json" };
+import catalog from "../../../data/catalog.json" with { type: "json" };
+import aliases from "../../../data/skuAliases.json" with { type: "json" };
+import terms from "./terms.mjs";
+import {
+  isScheduled, orderOccurrence,
+} from "../../../assets/scripts/order/lib/dates.mjs";
 import { dollars } from "../../../assets/scripts/order/lib/totals.mjs";
 import {
-  addDays, label, today,
+  current, indexCatalog,
+} from "../../../assets/scripts/order/lib/catalog.mjs";
+import {
+  addDays, dayName, label, today,
 } from "../../../assets/scripts/order/lib/zoned.mjs";
 import { GUIDE, RUNBOOK_ALERTS } from "./alerts-guide.mjs";
 import { company } from "./company.mjs";
-import { between, methodName, whenWhere } from "./describe.mjs";
-import { needsAgreement } from "./records.mjs";
+import {
+  between, methodName, packetCounts, pickupWindow, placeOf, streetAddress,
+} from "./describe.mjs";
+import { now as clock } from "./clock.mjs";
+import {
+  currentOptIn, dueOn, keptFee, paymentsOf,
+} from "./records.mjs";
+
+// The delivery day by name, and how long a missed delivery is
+// held for the customer to choose, from data/delivery.json.
+const DELIVERY_DAY = dayName(terms.delivery.weekday);
+const HOLD_DAYS = terms.delivery.holdDays;
+
+// A small count in words, as the emails write it: 7 is "seven".
+const inWords = (n) => [
+  "zero", "one", "two", "three", "four", "five", "six", "seven",
+  "eight", "nine", "ten",
+][n] || String(n);
 
 const escape = (s) => String(s)
   .replace(/&/g, "&amp;")
@@ -48,7 +72,6 @@ const firstName = (who) => {
 
 // Blocks: text and HTML at once.
 const p = (text) => ({ text, html: `<p>${inline(text)}</p>` });
-const strong = (text) => p(`**${text}**`);
 const heading = (text) => ({
   text: `\n${text}`,
   html: `<h3 style="margin:24px 0 8px;font-size:16px">${escape(text)}</h3>`,
@@ -85,12 +108,6 @@ const mono = (text) => ({
   text,
   html: `<span style="font-family:${MONO};font-size:14px;` +
     `-webkit-user-select:all;user-select:all">${escape(text)}</span>`,
-});
-
-// A figure that wants attention: bold, in the site's danger red.
-const alarm = (text) => ({
-  text: `**${text}**`,
-  html: `<strong style="color:#b02a37">${escape(text)}</strong>`,
 });
 
 // A small table: aligned columns in text, a plain <table> in HTML that
@@ -165,24 +182,18 @@ const row = (pairs) => {
   };
 };
 
-// The site's look, inlined: Aller (served from the site, with the
-// system stack behind it), the wordmark in the header's green, cards
-// with the account page's border, radius and shadow. The <style>
-// block does what inline styles cannot: load the font and stop iOS
-// Mail restyling the address and phone in the footer as blue links.
+// The site's look, inlined: the system font stack (no web font, so no
+// font file leaves the site), the wordmark in the header's green,
+// cards with the account page's border, radius and shadow. The <style>
+// block does what inline styles cannot: stop iOS Mail restyling the
+// address and phone in the footer as blue links.
 const GREEN = "#186243"; // $primary: the brand green, shaded 20%.
 const INK = "#161a1e"; // $gray-900, the body text.
 const MUTED = "#5e5e5f"; // $gray-600.
-const FONT = "Aller,system-ui,-apple-system,'Segoe UI',Roboto," +
+const FONT = "system-ui,-apple-system,'Segoe UI',Roboto," +
   "'Helvetica Neue',Arial,sans-serif";
 
-const styles = (site) => `<style>${site ? `
-@font-face{font-family:Aller;font-weight:normal;font-style:normal;
-src:url("${site}/fonts/aller-regular.woff2") format("woff2")}
-@font-face{font-family:Aller;font-weight:bold;font-style:normal;
-src:url("${site}/fonts/aller-bold.woff2") format("woff2")}
-@font-face{font-family:Aller;font-weight:bold;font-style:italic;
-src:url("${site}/fonts/aller-bold-italic.woff2") format("woff2")}` : ""}
+const styles = () => `<style>
 a[x-apple-data-detectors]{color:inherit!important;
 text-decoration:none!important;font-size:inherit!important;
 font-family:inherit!important;font-weight:inherit!important;
@@ -218,7 +229,11 @@ const footer = {
 // The subject is the title; the body does not repeat it. A farm email
 // carries a `tag`, a small gray capital line at the top of the card
 // naming the kind of message, so the inbox reads at a glance.
-const render = (title, blocks, links = {}, { tag = null } = {}) => {
+// `center` aligns the card's text, button and links to the middle, as
+// the footer already is (the account emails, #360).
+const render = (title, blocks, links = {}, {
+  tag = null, center = false,
+} = {}) => {
   const tagged = tag
     ? [{
       text: tag.toUpperCase(),
@@ -231,15 +246,21 @@ const render = (title, blocks, links = {}, { tag = null } = {}) => {
     .join("\n");
   const html = `<!doctype html><html><head><meta charset="utf-8">` +
     `<meta name="viewport" content="width=device-width">` +
+    // Safari, and the staging outbox in it, would link the footer's
+    // phone number and paint it blue; iOS Mail is held off by the
+    // x-apple-data-detectors rule in the <style> block.
+    `<meta name="format-detection" ` +
+    `content="telephone=no, date=no, address=no, email=no">` +
     `<meta name="color-scheme" content="light">` +
     `<meta name="supported-color-schemes" content="light">` +
-    `<title>${escape(title)}</title>${styles(links.site)}</head>` +
+    `<title>${escape(title)}</title>${styles()}</head>` +
     `<body id="body" style="margin:0;padding:0;background:#fff;` +
     `font-family:${FONT};font-size:16px;color:${INK};line-height:1.63">` +
     `<div style="max-width:560px;margin:0 auto;padding:24px 16px">` +
     `${header(links.site)}` +
     `<div style="background:#fff;border:1px solid rgba(0,0,0,.175);` +
     `border-radius:5px;padding:20px 24px;` +
+    `${center ? "text-align:center;" : ""}` +
     `box-shadow:0 2px 3px rgba(7,6,6,.2)">${
       tagged.map((b) => b.html).join("")
     }</div>${footer.html}</div></body></html>`;
@@ -250,6 +271,17 @@ const render = (title, blocks, links = {}, { tag = null } = {}) => {
 const contactUrl = (links) =>
   (links && links.contact) || `mailto:${company.email}`;
 
+// The support address, a mailto link (#240): "[contact us]" in a
+// paragraph is a link to it in the HTML and "contact us at sales@..."
+// in the plain text. sales@, like every customer contact link (#400).
+const SUPPORT = company.email;
+const pSupport = (text) => ({
+  text: text.replace("[contact us]", `contact us at ${SUPPORT}`),
+  html: `<p>${inline(text).replace("[contact us]",
+    `<a href="mailto:${escape(SUPPORT)}" style="color:${GREEN}">contact ` +
+    "us</a>")}</p>`,
+});
+
 // The row every customer email ends on.
 const customerFooter = (links = {}) => row([
   ["Your orders", links.orders], ["Contact us", contactUrl(links)],
@@ -257,14 +289,60 @@ const customerFooter = (links = {}) => row([
 
 const adminFooter = (links = {}) => row([["Admin", links.admin]]);
 
-// Money is the invoice's job, so customer messages list what was
-// ordered without pricing it.
+const catalogIndex = indexCatalog(catalog);
+
+// What an order line is called now (#321). The record keeps the label
+// the customer saw at checkout, which goes stale when the catalog
+// renames a product, so a line is named from the catalog by its SKU,
+// through the aliases, as the order page names it. A SKU the catalog
+// no longer has keeps its stored label.
+const lineLabel = (l) => {
+  const item = catalogIndex.get(current(l.sku, aliases));
+
+  return item ? item.lineName : l.label;
+};
+
+// The payment's own receipt (Square's, or Venmo's) carries the money,
+// so customer messages list what was ordered without pricing it.
 const lines = (order, { prices = false } = {}) => list(order.lines.map(
-  (l) => `${l.qty} × ${l.label}${
+  (l) => `${l.qty} × ${lineLabel(l)}${
     prices ? ` (${dollars(l.lineTotal * 100)})` : ""}`
 ));
 
-const totalsBlock = (order) => {
+// What a change took out of an order, as "1 × Sausage" lines: a line
+// dropped whole, or the part of one that went down. `before` is the
+// edit's record of the order as it was. James (T4, #192): removals sit
+// in their own group at the top of every email that lists a change,
+// never "0 ×" or a struck-through or muted line, since an email client
+// may strip the styling.
+const removedGroup = (order, before) => {
+  const now = new Map(order.lines.map((l) => [l.sku, l.qty]));
+  const gone = before.lines
+    .map((l) => ({ ...l, qty: l.qty - (now.get(l.sku) || 0) }))
+    .filter((l) => l.qty > 0)
+    .map((l) => `${l.qty} × ${lineLabel(l)}`);
+
+  return gone.length ? [heading("Removed"), list(gone)] : [];
+};
+
+// The lines of an order a customer changed: what was removed first,
+// then the order as it stands, an increase marked "3 × Eggs (1 added)".
+const changedLines = (order, before) => {
+  const was = new Map(before.lines.map((l) => [l.sku, l.qty]));
+  const removed = removedGroup(order, before);
+  const current = list(order.lines.map((l) => {
+    const d = l.qty - (was.get(l.sku) || 0);
+
+    return `${l.qty} × ${lineLabel(l)}${d > 0 ? ` (${d} added)` : ""}`;
+  }));
+
+  return removed.length
+    ? [...removed, heading("Your order now"), current]
+    : [current];
+};
+
+// `total` follows the Total line: "(was $94, you paid $7 more)".
+const totalsBlock = (order, { total = "" } = {}) => {
   const t = order.totals;
   const items = [`Subtotal ${dollars(t.subtotal)}`];
 
@@ -274,16 +352,15 @@ const totalsBlock = (order) => {
     );
   }
   if (order.fulfilment.method === "delivery") {
-    items.push(t.deliveryFee
-      ? `Delivery fee +${dollars(t.deliveryFee)}`
-      : "Delivery fee waived");
+    const base = t.deliveryFee - (t.areaFee || 0);
+
+    items.push(base ? `Delivery fee +${dollars(base)}` : "Delivery fee waived");
+    if (t.areaFee) items.push(`Outside-area fee +${dollars(t.areaFee)}`);
   }
-  items.push(`Total ${dollars(t.total)}`);
+  items.push(`Total ${dollars(t.total)}${total ? ` ${total}` : ""}`);
 
   return list(items);
 };
-
-const payUrl = (order) => (order.square && order.square.invoiceUrl) || "";
 
 // The order number: a plain line by default; `copyable` sets it the
 // way a one-time code is shown, large, spaced, monospace, selected
@@ -303,68 +380,7 @@ const orderNumber = (order, {
   }
   : p(`${label}: **${order.id}**`));
 
-const clock = (hour) => `${((hour + 11) % 12) + 1} ${hour < 12 ? "AM" : "PM"}`;
-
-// "9 – 11 AM", "11 AM – 1 PM": a confirmed pickup range, on the hour.
-const hoursRange = (from, to) => {
-  const h = (x) => `${((x + 11) % 12) + 1}`;
-  const m = (x) => (x < 12 ? "AM" : "PM");
-
-  return m(from) === m(to)
-    ? `${h(from)} – ${h(to)} ${m(to)}`
-    : `${h(from)} ${m(from)} – ${h(to)} ${m(to)}`;
-};
-
-// "morning" until the farm has confirmed a range inside it, then
-// "9 – 11 AM (morning)".
-const pickupWindow = (order) => {
-  const o = order.fulfilment.onfarm || {};
-
-  return o.confirmed && !needsAgreement(order)
-    ? `${hoursRange(o.confirmed.from, o.confirmed.to)} (${o.window})`
-    : o.window;
-};
-
-const daysApart = (fromIso, toIso) => Math.round(
-  (Date.parse(`${toIso}T00:00:00Z`) - Date.parse(`${fromIso}T00:00:00Z`))
-  / 86_400_000
-);
-
-// A delivery is kept only by paying before the Wednesday-noon cutoff,
-// so the reminders name it. -> null for a pickup, which has no cutoff
-// worth a sentence. `days` is how many days off that Wednesday is.
-const deliveryCutoff = (order, now) => {
-  if (order.fulfilment.method !== "delivery") return null;
-
-  const at = cutoffFor(order.fulfilment.date, terms);
-  const date = today(at, terms.timeZone);
-
-  return {
-    date,
-    day: label(date).split(",")[0],
-    at: clock(terms.delivery.cutoffHour),
-    days: daysApart(today(now, terms.timeZone), date),
-  };
-};
-
-// "today", "tomorrow", "on Wednesday", or the full date a week or
-// more out.
-const onDay = (days, day, date) => {
-  if (days <= 0) return "today";
-  if (days === 1) return "tomorrow";
-
-  return `on ${days < 7 ? day : label(date)}`;
-};
-
-// "84 Foster Center Rd, Foster, RI 02825", skipping whatever the
-// record lacks.
-const streetAddress = (a = {}) => [
-  a.address1, a.address2, a.town,
-  [a.state, a.zip].filter(Boolean).join(" "),
-].filter(Boolean).join(", ");
-
-// "Order type: Delivery" and the two lines under it. An on-farm
-// window the farm has not agreed to yet is "Requested:", not "When:".
+// "Order type: Delivery" and the two lines under it.
 const orderType = (order) => {
   const f = order.fulfilment;
   const when = label(f.date);
@@ -373,29 +389,24 @@ const orderType = (order) => {
       `Arrives: ${when}, between ${between(terms.delivery.window)}`,
       `Address: ${streetAddress(f.delivery)}`,
     ]
-    : f.method === "scituate"
+    : isScheduled(f)
       ? [
-        `When: ${when}, between ${between(terms.scituate.window)}`,
-        `Where: ${terms.scituate.location}`,
+        `When: ${when}, between ${between(placeOf(order).window)}`,
+        `Where: ${placeOf(order).place}`,
       ]
       : [
-        `${needsAgreement(order) ? "Requested" : "When"}: ${when}, ${
-          pickupWindow(order)}`,
-        `Where: ${terms.onFarm.address}`,
+        `When: ${when}, ${pickupWindow(order)}`,
+        `Where: ${company.address.street}, ${company.address.city}, ` +
+          `${company.address.state} ${company.address.zip}`,
       ];
 
   return [p(`Order type: **${methodName(f.method)}**`), list(items)];
 };
 
-// The pickup window two ways: "Thursday, October 8, morning" for a
-// labelled line, "the morning of Thursday, October 8" in a sentence.
+// The pickup window for a labelled line: "Thursday, October 8,
+// 9 AM – noon".
 const windowPhrase = (order) =>
-  `${label(order.fulfilment.date)}, ${order.fulfilment.onfarm.window}`;
-
-const timeOf = (order) =>
-  `the ${order.fulfilment.onfarm.window} of ${label(order.fulfilment.date)}`;
-
-const capital = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+  `${label(order.fulfilment.date)}, ${pickupWindow(order)}`;
 
 // The block that names the order, in every customer email about one.
 const orderDetails = (order) => [
@@ -414,77 +425,20 @@ const instructions = (order) => {
   return notes.join(" ");
 };
 
-// The Venmo alternative, under the Square button in every pay link.
-// The customer presses "I paid by Venmo" on the order page, or, while
-// the account pages are off, replies. Nothing when the farm has no
-// Venmo handle in company.json.
-const venmoOffer = (order, orderUrl) => (company.venmo
-  ? p(`To pay by Venmo instead, send ${dollars(order.totals.total)} to ` +
-    `@${company.venmo} with ${order.id} in the note. Then ${orderUrl
-      ? "click \"I paid by Venmo\" on your order page"
-      : "reply to this email"} so we know to look for it.`)
-  : null);
-
-// Sent the moment the invoice is published, and again when the
-// customer asks for it (resendInvoice). The invoice itemizes and
-// totals the money, so this only names what was ordered. An on-farm
-// window is a request the farm has still to agree to, and paying does
-// not confirm it, so that version says so and promises the
-// confirmation separately. `orderUrl` is the order page (or a sign-in
-// link to it, for a guest who looked the order up).
-export const completeYourOrder = (order, { orderUrl, links } = {}) => {
-  const title = "One more step: pay for your order";
-  const total = dollars(order.totals.total);
-  const blocks = [
-    p(`Hi ${firstName(order.customer)},`),
-    strong("Your order isn't final until it's paid."),
-  ];
-
-  // The Venmo paragraph asks for the order number in the note, so the
-  // number follows it, set for copying.
-  const venmo = company.venmo
-    ? [venmoOffer(order, orderUrl), orderNumber(order, {
-      copyable: true, label: "Your order number, for the Venmo note",
-    })]
-    : [];
-
-  if (needsAgreement(order)) {
-    blocks.push(
-      p(`Here's your invoice for ${total}. Pay it to complete your ` +
-        "checkout."),
-      button("Pay and complete your checkout", payUrl(order)),
-      ...venmo,
-      p("We'll check to make sure we can accommodate your requested " +
-        "pick-up time, and confirm it in a separate email. Nothing else " +
-        "needed from you until then.")
-    );
-  } else {
-    blocks.push(
-      p(`Here's your invoice for ${total}. Pay it to complete your ` +
-        "checkout and confirm your order."),
-      button("Pay and confirm your order", payUrl(order)),
-      ...venmo
-    );
-  }
-  blocks.push(...orderDetails(order));
-  if (orderUrl) {
-    blocks.push(button("View or edit this order", orderUrl, { outline: true }));
-  }
-  blocks.push(customerFooter(links));
-
-  return { subject: title, ...render(title, blocks, links) };
-};
-
-// Sent when the order is both paid and, for an on-farm pickup, agreed:
-// by whichever of the two arrives second. Square sends the receipt,
-// so this one does not price anything either.
-export const orderConfirmed = (order, { orderUrl, links } = {}) => {
+// Sent when the order is paid, which books every way to get it,
+// pickup times included (W11d). Square sends the receipt, so this one
+// does not price anything either. On the customer's first order it
+// says, once, that the order made them an account (#114); that needs
+// the account pages, so only with `orderUrl`.
+export const orderConfirmed = (order, {
+  orderUrl, links, firstOrder = false,
+} = {}) => {
   const title = "Your order is confirmed";
   const total = dollars(order.totals.total);
   const blocks = [
     order.fulfilment.method === "onfarm"
-      ? p(`Thanks, ${firstName(order.customer)}. Your payment of ${total} ` +
-        "came through and your pickup time is set, so your order is " +
+      ? p(`Thanks, ${firstName(order.customer)}. We received your payment ` +
+        `of ${total}, and your pickup time is set. Your order is ` +
         "confirmed.")
       : p(`Thanks, ${firstName(order.customer)}. Your payment of ${total} ` +
         "came through and your order is confirmed."),
@@ -492,123 +446,15 @@ export const orderConfirmed = (order, { orderUrl, links } = {}) => {
   ];
 
   if (orderUrl) {
+    // Wording approved by James, 2026-10-22 (#114).
+    if (firstOrder) {
+      blocks.push(p("Your email address is your account with us. Sign " +
+        "in any time with a link we email you. There's no password."));
+    }
     blocks.push(button("View or edit this order", orderUrl));
     if (order.fulfilment.method === "onfarm") {
       blocks.push(button("Reschedule pickup", orderUrl, { outline: true }));
     }
-  }
-  blocks.push(customerFooter(links));
-
-  return { subject: title, ...render(title, blocks, links) };
-};
-
-// An on-farm order paid before the farm has agreed to the window.
-export const paymentReceived = (order, { orderUrl, links } = {}) => {
-  const title = "Payment received";
-  const blocks = [
-    p(`Thanks, ${firstName(order.customer)}. Your payment of ` +
-      `${dollars(order.totals.total)} came through.`),
-    p("We're checking the schedule to make sure we can accommodate your " +
-      "requested pick-up time, and will confirm it by " +
-      `${label(addDays(order.fulfilment.date, -1))}.`),
-    ...orderDetails(order),
-  ];
-
-  if (orderUrl) blocks.push(button("View or edit this order", orderUrl));
-  blocks.push(customerFooter(links));
-
-  return { subject: title, ...render(title, blocks, links) };
-};
-
-// The farm denied the requested window. `reason` is the farm's own
-// words from the command line, or empty; `pickUrl` signs the customer
-// in to the order page, and is null while the account pages are off,
-// when the customer answers by replying instead.
-export const pickNewTime = (order, { reason = "", pickUrl, links } = {}) => {
-  const title = "One more step: pick a new pickup time";
-  const blocks = [
-    p(`Hi ${firstName(order.customer)},`),
-    strong(`${capital(timeOf(order))} doesn't work for us.`),
-  ];
-
-  if (reason) blocks.push(p(`Here's why: _**${reason}**_`));
-  if (pickUrl) {
-    blocks.push(
-      p("Please pick another day or window, and we'll be in touch to " +
-        "confirm. If rescheduling isn't an option, you can cancel your " +
-        "order from the same page for a full refund."),
-      button("Pick a new time", pickUrl)
-    );
-  } else {
-    blocks.push(p("Please reply with another day or window, and we'll be " +
-      "in touch to confirm. If rescheduling isn't an option, reply and " +
-      "we'll cancel your order for a full refund."));
-  }
-  blocks.push(...orderDetails(order), customerFooter(links));
-
-  return { subject: title, ...render(title, blocks, links) };
-};
-
-// Unpaid reminders: soon after placing, the next day, and a final one
-// the Wednesday before delivery.
-export const paymentReminder = (order, stage, {
-  orderUrl, settingsUrl, links, now = new Date(),
-} = {}) => {
-  const total = dollars(order.totals.total);
-  const cutoff = deliveryCutoff(order, now);
-  const titles = {
-    soon: "Still waiting for payment",
-    nextDay: "Your order is waiting for payment",
-    final: "Last call: your unpaid order will be cancelled",
-  };
-  const title = titles[stage] || titles.soon;
-  const blocks = [p(`Hi ${firstName(order.customer)},`)];
-
-  if (stage === "final") {
-    blocks.push(strong("Your order will be cancelled and marked " +
-      "abandoned in your order history, unless you submit your payment " +
-      "today."));
-    if (cutoff) {
-      const days = daysApart(today(now, terms.timeZone),
-        order.fulfilment.date);
-
-      blocks.push(p(`Your invoice for ${total} is still unpaid. Pay ` +
-        `before ${cutoff.at} ${onDay(cutoff.days, cutoff.day, cutoff.date)} ` +
-        `to receive your delivery ${
-          onDay(days, label(order.fulfilment.date).split(",")[0],
-            order.fulfilment.date)}.`));
-    } else {
-      blocks.push(p(`Your invoice for ${total} is still unpaid, and ` +
-        `${whenWhere(order).charAt(0).toLowerCase()}${
-          whenWhere(order).slice(1)} is coming up. Pay now to keep your ` +
-        "spot."));
-    }
-  } else if (stage === "nextDay") {
-    blocks.push(p(`Your invoice for ${total} from yesterday hasn't been ` +
-      "paid yet. **Your order isn't final until we receive your " +
-      "payment.**"));
-    if (cutoff) {
-      blocks.push(p(`Confirm your order by ${cutoff.at} ${
-        onDay(cutoff.days, cutoff.day, cutoff.date)} to keep your delivery ` +
-        "appointment."));
-    }
-  } else {
-    blocks.push(p("You placed an order about an hour ago, and the " +
-      `invoice for ${total} is still open. **Your order isn't final ` +
-      "until it's paid.**"));
-  }
-
-  blocks.push(
-    button("Pay and confirm your order", payUrl(order)),
-    ...orderDetails(order)
-  );
-  if (orderUrl) {
-    blocks.push(button("View or cancel this order", orderUrl,
-      { outline: true }));
-  }
-  if (settingsUrl) {
-    blocks.push(button("Turn off payment reminders", settingsUrl,
-      { outline: true, tone: "secondary" }));
   }
   blocks.push(customerFooter(links));
 
@@ -647,17 +493,79 @@ export const deliveryReminder = (order, {
   return { subject: title, ...render(title, blocks, links) };
 };
 
-// After a customer changes the date or details of an order.
-export const orderChanged = (order, { orderUrl, links } = {}) => {
+// A year without interaction (#189, D-189): the one notice, sent once.
+// The account stays; they are off farm news if they were on it.
+// `wasSubscribed` says whether this run took them off. DRAFT: every
+// line is for James's approval (Q8).
+export const quietNotice = (customer, {
+  accountUrl = null, links, wasSubscribed = false,
+} = {}) => {
+  const title = "Your account is still here";
+  const name = firstName(customer);
+  const blocks = [
+    p(name ? `Hi ${name},` : "Hi,"),
+    p("It's been a year since you last signed in or ordered from us, " +
+      "so we wanted to let you know where things stand."),
+  ];
+
+  if (wasSubscribed) {
+    blocks.push(p("We've stopped sending you our Farm News emails. You " +
+      "can turn them back on in your account settings at any time."));
+  }
+  blocks.push(
+    p("You don't need to do anything. Your account stays open, and " +
+      "we'll be glad to see you whenever you're back."),
+    p("If you'd rather we didn't keep your details, you can delete them " +
+      "in one click in your account settings."),
+  );
+  if (accountUrl) blocks.push(button("Go to your account", accountUrl));
+  blocks.push(customerFooter(links));
+
+  return { subject: title, ...render(title, blocks, links) };
+};
+
+// After a customer changes the date, the details or the items of an
+// order. `difference` (cents) is set when the items changed: what they
+// paid more, or what went back, and the new totals. `before` is the
+// edit's record of the order as it was, which marks each line.
+export const orderChanged = (order, {
+  orderUrl, links, difference = null, before = null,
+} = {}) => {
   const title = "Your order is updated";
   const f = order.fulfilment;
   const notes = instructions(order);
   const blocks = [
-    p(`${firstName(order.customer)}, here's your current order.`),
+    p(`${firstName(order.customer)}, your order has been updated.`),
     orderNumber(order),
-    lines(order),
-    ...orderType(order),
+    ...(before ? changedLines(order, before) : [lines(order)]),
   ];
+
+  if (difference !== null) {
+    const was = before ? [`was ${dollars(before.totals.total)}`] : [];
+
+    if (difference > 0) {
+      was.push(`you paid ${dollars(difference)} more`);
+    } else if (difference < 0) {
+      was.push(`you were refunded ${dollars(-difference)}`);
+    }
+    blocks.push(totalsBlock(order, {
+      total: was.length ? `(${was.join(", ")})` : "",
+    }));
+    if (difference < 0) {
+      blocks.push(p("Most refunds arrive within a few business days."));
+    }
+  }
+  const idOf = (x) => (orderOccurrence(terms, x) || {}).id || null;
+  const was = before && before.method && before.date
+    && isScheduled(before) && isScheduled(f) && idOf(before) !== idOf(f)
+    ? placeOf({ fulfilment: before }) : null;
+
+  if (was) {
+    // Draft wording, for communications and James.
+    blocks.push(p(`Before: ${was.place}, ${label(before.date)}, between ${
+      between(was.window)}`));
+  }
+  blocks.push(...orderType(order));
 
   if (f.method === "delivery" && f.delivery) {
     blocks.push(p(`Where will we find your cooler? _**${
@@ -673,24 +581,198 @@ export const orderChanged = (order, { orderUrl, links } = {}) => {
   return { subject: title, ...render(title, blocks, links) };
 };
 
-// After a cancellation, by the customer or the farm.
-export const orderCancelled = (order, {
-  refund = false, links,
-} = {}) => {
-  const title = "Your order is cancelled";
-  const blocks = [p(`Hi ${firstName(order.customer)},`)];
+// "October 15": the drafts name the weekday themselves.
+const dayAfter = (iso, days) => label(addDays(iso, days)).replace(/^\w+, /, "");
 
-  if (refund) {
+// A customer's delivery the farm could not leave (#193), held seven
+// days for them to choose (C8). The fee the attempt kept decides the
+// wording: kept, the customer is warned before choosing that it stays
+// whatever they choose; waived, everything comes back (James, C3). A
+// farm or weather miss gets movedDelivery instead (C7). Policy-pages'
+// drafts of 2026-09-28, to approve. The hold runs to the order's
+// `question.until`; an email sent after the day of the miss (a resend,
+// a late mark) names that day instead of "today" (draft).
+
+// What we saw, not what the customer did (C6a, James's drafts).
+const missedReason = (order) => {
+  const a = order.attempted || {};
+  const d = order.fulfilment.delivery || {};
+  const where = [d.address1, d.town].filter(Boolean).join(", ");
+  const unreached = "and we couldn't reach you by phone, text, or the " +
+    "doorbell";
+
+  if (a.cause === "no-access") {
+    return "we couldn't get to where you asked us to leave it" +
+      `${a.detail ? ` (${a.detail})` : ""}, ${unreached}`;
+  }
+  if (a.cause === "no-address") {
+    return `we couldn't find your address as you gave it (${where}), ` +
+      "and we couldn't reach you";
+  }
+  if (a.cause === "no-cooler" && d.cooler) {
+    return `we didn't find a cooler where you told us (${d.cooler}), ${
+      unreached}`;
+  }
+
+  // F1's line, for no-cooler without a place and for an attempt
+  // recorded before the causes.
+  return "there was no cooler out, and we couldn't reach you";
+};
+
+export const missedDelivery = (order, {
+  pickUrl, links, now = new Date(),
+} = {}) => {
+  const title = "We couldn't deliver your order";
+  const fee = keptFee(order);
+  const { date } = order.fulfilment;
+  const late = today(now, terms.timeZone) > date;
+  const next = dayAfter(date, 7);
+  const hold = label((order.question && order.question.until)
+    || addDays(date, HOLD_DAYS));
+  const items = dollars(order.totals.total - fee);
+  const blocks = [
+    p(`Hi ${firstName(order.customer)},`),
+    p(`We came by ${late ? `on ${label(date)}` : "today"} with your order ` +
+      `but couldn't leave it: ${missedReason(order)}. Your order is back ` +
+      "at the farm."),
+  ];
+
+  if (fee) {
     blocks.push(
-      p(`We cancelled your order for ${
-        methodName(order.fulfilment.method).toLowerCase()} on ${
-        label(order.fulfilment.date)}.`),
-      p("**Your refund is on its way.** Most refunds arrive within a " +
-        "few business days.")
+      p("Please choose what you'd like us to do:"),
+      list([
+        `Deliver it next ${DELIVERY_DAY}, ${next}, for another ` +
+          "delivery fee " +
+          `of ${dollars(fee)}`,
+        // Draft wording, for communications and James.
+        "Have it ready for on-farm pickup or one of our pickup days, at " +
+          "no charge",
+        `Cancel it, and we'll refund ${items} for your items`,
+      ]),
+      p(`${late ? "That day's" : "Today's"} delivery fee of ${
+        dollars(fee)} isn't refunded, ` +
+        "whichever you choose."),
+      p(`We'll hold your order until ${hold}. If you haven't chosen by ` +
+        `then, we'll cancel it and refund ${items} for your items.`)
     );
   } else {
-    blocks.push(p("We cancelled your order. Your invoice is closed and " +
-      "you were not charged."));
+    blocks.push(
+      p("Please choose what you'd like us to do:"),
+      list([
+        `Deliver it next ${DELIVERY_DAY}, ${next}, at no extra charge`,
+        "Have it ready for on-farm pickup or one of our pickup days",
+        `Cancel it for a full refund of ${dollars(order.totals.total)}`,
+      ]),
+      p(`We'll hold your order until ${hold}. If you haven't chosen by ` +
+        "then, we'll cancel it and refund it in full.")
+    );
+  }
+  if (pickUrl) blocks.push(button("Reschedule or cancel", pickUrl));
+  blocks.push(...orderDetails(order), customerFooter(links));
+
+  return { subject: title, ...render(title, blocks, links) };
+};
+
+// Our own miss or the weather's (C7): no fee, no choice asked for. We
+// have moved it to the next delivery day; they may pick otherwise.
+// `order` is the moved record, and `attempted.date` the day we missed;
+// a holiday a week on puts the new day further out, and the email
+// names it without "next". Policy-pages' draft of 2026-09-28, to
+// approve; `orders attempted` sends it.
+export const movedDelivery = (order, { pickUrl, links } = {}) => {
+  const a = order.attempted || {};
+  const date = order.fulfilment.date;
+  const next = !a.date || addDays(a.date, 7) === date;
+  const when = next ? `next ${DELIVERY_DAY}` : DELIVERY_DAY;
+  const title = `Your delivery has moved to ${next ? when : label(date)}`;
+  const why = a.cause === "weather"
+    ? "The weather kept us from delivering your order today"
+    : "We weren't able to deliver your order today";
+  const blocks = [
+    p(`Hi ${firstName(order.customer)},`),
+    p(`${why}, so we've moved your delivery to ${when}, ${
+      dayAfter(date, 0)}. You don't need to do anything.`),
+    p(`If ${next ? when : "that day"} doesn't suit you, you can choose ` +
+      "another day, switch to on-farm pickup or one of our pickup days, " +
+      "or cancel for a full refund " +
+      `of ${dollars(order.totals.total)}, delivery fee included.`),
+  ];
+
+  if (pickUrl) blocks.push(button("Reschedule or cancel", pickUrl));
+  blocks.push(...orderDetails(order), customerFooter(links));
+
+  return { subject: title, ...render(title, blocks, links) };
+};
+
+// Why the farm cancelled (T2a, James's list of 2026-09-28): the
+// customer always gets a sentence written in advance, never one typed
+// in a hurry. The keys are `bin/nff orders cancel --reason`; anything
+// else is `--reason-text`. A customer we won't serve gets no reason by
+// email (T2b); James writes to them himself. A site bug is "mistake"
+// (T2c).
+export const CANCEL_REASONS = {
+  "sold-out": () => "Something in your order sold out before our stock " +
+    "count caught up. We're sorry we didn't catch it before you placed " +
+    "your order.",
+  delay: (order) => "We couldn't get your order ready in time for " +
+    `${label(order.fulfilment.date)}.`,
+  weather: (order) => `For everyone's safety, we won't ${
+    order.fulfilment.method === "delivery" ? "deliver" : "open for pickup"
+  } on ${label(order.fulfilment.date)} due to severe weather.`,
+  emergency: () => "Something urgent came up on the farm that needs us " +
+    "that day.",
+  mistake: () => "We made a mistake with your order, so we had to cancel " +
+    "it. We're sorry we didn't catch it before you placed your order.",
+};
+
+// After a cancellation: always a notice of the money that went back
+// (T1a), since an order is only placed once it is paid. `by` is who
+// ended it: "farm", "customer" or "hold" (the seven-day hold after a
+// miss ran out, C8). `refunded`, in cents, is what this cancellation
+// sends back: the items only when a missed delivery kept its fee.
+// `refundedOn` (ISO) says it went back earlier instead. The farm's
+// `reason` (a CANCEL_REASONS key) or `reasonText` is its one line why.
+export const orderCancelled = (order, {
+  by = "farm", refunded = 0, refundedOn = null, reason = null,
+  reasonText = "", links,
+} = {}) => {
+  const title = "Your order is canceled";
+  const blocks = [p(`Hi ${firstName(order.customer)},`)];
+  const fee = keptFee(order);
+  // The way as a customer names it, not the model's name.
+  const way = order.fulfilment.method === "delivery" ? "delivery"
+    : order.fulfilment.method === "onfarm" ? "on-farm pickup" : "pickup";
+  const cancelled = `We canceled your order for ${way} on ${
+    label(order.fulfilment.date)}`;
+
+  if (by === "hold") {
+    blocks.push(p(`We held your order for ${inWords(HOLD_DAYS)} days and ` +
+      "didn't hear from you, so we've canceled it."));
+  } else if (by === "customer") {
+    // After a missed delivery the miss prompted it, so no "as
+    // requested" (C4, 2A and 2B).
+    blocks.push(p(order.attempted ? `${cancelled}.` : `${cancelled}, ` +
+      "as requested."));
+  } else {
+    blocks.push(p(`${cancelled}.`));
+
+    const why = CANCEL_REASONS[reason]
+      ? CANCEL_REASONS[reason](order)
+      : String(reasonText || "").trim();
+
+    if (why) blocks.push(p(why));
+  }
+
+  if (refunded > 0) {
+    blocks.push(p(refundedOn
+      ? `**We refunded ${dollars(refunded)} on ${
+        label(today(new Date(refundedOn), terms.timeZone))}.**`
+      : `**A refund of ${dollars(refunded)} is on its way.**`));
+    if (fee) {
+      blocks.push(p(`The delivery fee of ${dollars(fee)} isn't refunded ` +
+        "because we made the trip."));
+    }
+    blocks.push(p("Most refunds arrive within a few business days."));
   }
   blocks.push(orderNumber(order), customerFooter(links));
 
@@ -713,9 +795,9 @@ export const addressDecision = (customer, decision, { links } = {}) => {
       blocks.push(button("Start a delivery order", links.order));
     }
   } else {
-    blocks.push(p(`We looked at ${where} and it's further than we can ` +
-      "drive on a Thursday. On-farm pickup and the Scituate drop site " +
-      "are open to everyone, with no minimum and no fee."));
+    blocks.push(p(`Unfortunately, ${where} is outside our delivery ` +
+      "area. On-farm pickup and our pickup days are open to everyone, " +
+      "with no minimum and no fee."));
   }
   blocks.push(customerFooter(links));
 
@@ -723,8 +805,10 @@ export const addressDecision = (customer, decision, { links } = {}) => {
 };
 
 // The sign-in link.
-export const magicLink = (email, url, { minutes = 15, links } = {}) => {
-  const title = "Your secure sign-in link to North Foster Farm";
+export const magicLink = (email, url, {
+  minutes = accounts.signInLinkMinutes, links,
+} = {}) => {
+  const title = `Your secure sign-in link to ${company.name}`;
   const blocks = [
     p("Click the button below to sign in. This link expires in " +
       `${minutes} minutes.`),
@@ -733,26 +817,393 @@ export const magicLink = (email, url, { minutes = 15, links } = {}) => {
     row([["Need help? Contact us", contactUrl(links)]]),
   ];
 
-  return { subject: title, ...render(title, blocks, links) };
+  return { subject: title, ...render(title, blocks, links, { center: true }) };
+};
+
+// A customer's own email change (#240), in two parts: the link to the
+// new email address, which alone moves the account, and the word to the
+// old one once it has moved. James's approved wording.
+export const emailChangeLink = (email, url, {
+  minutes = accounts.signInLinkMinutes, links,
+} = {}) => {
+  const title = `Confirm your new email address for ${company.name}`;
+  const blocks = [
+    p(`Click the button below to change your ${company.name} email ` +
+      `address. This link expires in ${minutes} minutes.`),
+    button("Confirm new email address", url),
+    p("If you didn't request this change, you can safely ignore it."),
+  ];
+
+  return { subject: title, ...render(title, blocks, links, { center: true }) };
+};
+
+export const emailChanged = (from, to, { links } = {}) => {
+  const title = `The email address on your ${company.name} account ` +
+    "was changed";
+  const blocks = [
+    p(`Your email address has been changed from ${from} to ${to}. ` +
+      "Order emails and Farm News, if you get it, will be sent to the " +
+      "new email address from now on."),
+    pSupport("If you didn't make this change, [contact us] right away."),
+  ];
+
+  return { subject: title, ...render(title, blocks, links, { center: true }) };
+};
+
+// --- List mail (#273) ----------------------------------------------
+//
+// Mail to the list, as against mail about an order: the welcome, the
+// old list's invitation and, later, newsletters. The same look as the
+// rest (the wordmark, the card, the green), with what list mail
+// needs on top: a hero image, images with captions, preview text, a
+// footer that says why it came and how to stop it, and the farm's
+// postal address (CAN-SPAM). It follows the reader's dark mode where
+// the mail app allows it; the order emails stay light.
+
+// The dark palette, from the site's colors lifted for a dark ground.
+const DARK = {
+  ground: "#111513",
+  card: "#1b201d",
+  ink: "#e7eae8",
+  muted: "#a9b0ac",
+  green: "#8fd1ae",
+  button: "#23794f",
+  edge: "rgba(255,255,255,.16)",
+};
+
+// Apple Mail, iOS Mail and Outlook for Mac honor the media query;
+// Outlook.com marks its dark mode with [data-ogsc]. Gmail ignores
+// both and shows the light version. The wordmark is dark green, so in
+// dark mode it is drawn light.
+const darkStyles = `<style>
+@media (prefers-color-scheme:dark){
+.nff-ground{background:${DARK.ground}!important}
+.nff-card{background:${DARK.card}!important;
+border-color:${DARK.edge}!important}
+.nff-ink,.nff-ink p,.nff-ink h1,.nff-ink h2{color:${DARK.ink}!important}
+.nff-muted,.nff-ink .nff-muted{color:${DARK.muted}!important}
+.nff-link{color:${DARK.green}!important}
+.nff-btn{background:${DARK.button}!important;
+border-color:${DARK.button}!important;color:#fff!important}
+.nff-logo{filter:brightness(0) invert(.92)}
+}
+[data-ogsc] .nff-ground{background:${DARK.ground}!important}
+[data-ogsc] .nff-card{background:${DARK.card}!important}
+[data-ogsc] .nff-ink{color:${DARK.ink}!important}
+[data-ogsc] .nff-muted{color:${DARK.muted}!important}
+[data-ogsc] .nff-link{color:${DARK.green}!important}
+@media (max-width:480px){
+.nff-pad{padding:20px 18px 8px!important}
+.nff-btn{display:block!important;text-align:center!important}
+}
+</style>`;
+
+const link = (text, url) =>
+  `<a href="${escape(url)}" class="nff-link" style="color:${GREEN}">${
+    escape(text)}</a>`;
+
+// One part of a rich paragraph. A link goes only to a web address or
+// a mail address, never to a script.
+const richPart = ({ text, strong, em, url }) => {
+  let html = escape(text);
+
+  if (url) {
+    if (!/^(https?:|mailto:)/i.test(url)) {
+      throw new Error(`list mail: a link to ${url}`);
+    }
+    html = `<a href="${escape(url)}" class="nff-link" style="color:${
+      GREEN}">${html}</a>`;
+  }
+  if (strong) html = `<strong>${html}</strong>`;
+  if (em) html = `<em>${html}</em>`;
+
+  return html;
+};
+
+// The blocks a list email is built from, exported for newsletters.
+// Each is { text, html }, like the order emails' blocks.
+export const listBlocks = {
+  p: (text) => ({
+    text, html: `<p style="margin:0 0 16px">${inline(text)}</p>`,
+  }),
+  heading: (text) => ({
+    text: `\n${text.toUpperCase()}`,
+    html: `<h2 style="margin:28px 0 10px;font-size:20px;line-height:1.3">${
+      escape(text)}</h2>`,
+  }),
+  button: (text, url) => ({
+    text: `${text}: ${url}`,
+    html: `<p style="margin:24px 0"><a href="${escape(url)}" class="nff-btn" ` +
+      `style="${BTN}padding:12px 22px;border:1px solid ${GREEN};` +
+      `color:#fff;background:${GREEN}">${escape(text)}</a></p>`,
+  }),
+  // An image across the card, with an optional caption under it.
+  image: (src, alt, caption = "") => ({
+    text: `[Photo: ${alt}]${caption ? `\n${caption}` : ""}`,
+    html: `<p style="margin:24px 0 ${caption ? "6px" : "24px"}"><img ` +
+      `src="${escape(src)}" alt="${escape(alt)}" width="512" ` +
+      `style="display:block;width:100%;max-width:512px;height:auto;` +
+      `border:0;border-radius:4px"></p>${caption
+        ? `<p class="nff-muted" style="margin:0 0 24px;font-size:14px;` +
+        `line-height:1.5;color:${MUTED}">${inline(caption)}</p>`
+        : ""}`,
+  }),
+  // A line with one link in it: `before`, the link, then `after`.
+  linked: (before, text, url, after = "") => ({
+    text: `${before}${text}: ${url}${after}`,
+    html: `<p style="margin:0 0 16px">${inline(before)}${link(text, url)}${
+      inline(after)}</p>`,
+  }),
+  // The blocks a post is sent in (#483). The post's title, above its
+  // first section.
+  title: (text) => ({
+    text,
+    html: `<h1 style="margin:0 0 20px;font-size:26px;line-height:1.25">${
+      escape(text)}</h1>`,
+  }),
+  // A paragraph of parts, { text, strong, em, url }: the words, in the
+  // marks they carry, and the address a link goes to. A link's text
+  // version prints its address after it.
+  rich: (parts) => ({
+    text: parts.map(({ text, url }) => (url
+      ? `${text} (${url.replace(/^mailto:/i, "")})`
+      : text)).join(""),
+    html: `<p style="margin:0 0 16px">${parts.map(richPart).join("")}</p>`,
+  }),
+  // A section break: three italic asterisks, centered, as the site's.
+  dinkus: () => ({
+    text: "* * *",
+    html: `<p role="separator" style="margin:28px 0;text-align:center;` +
+      `font-style:italic;letter-spacing:.4em">*&#8201;*&#8201;*</p>`,
+  }),
+  // The post's signature, set further from the body than paragraphs
+  // are from each other: "— James and Jim".
+  signature: (name) => ({
+    text: `— ${name}`,
+    html: `<p style="margin:32px 0 16px">— ${escape(name)}</p>`,
+  }),
+};
+
+// The page around the blocks. `reason` ends "You're getting this
+// because ..."; `unsubscribeUrl` is the one-click link, left out only
+// for the invitation, which goes to someone not on the list.
+// -> { subject, text, html }
+export const listMail = (subject, {
+  preview = "", hero = null, blocks = [], reason = "",
+  unsubscribeUrl = null, links = {},
+} = {}) => {
+  const site = links.site;
+  const address = `${company.address.street}, ${company.address.city}, ` +
+    `${company.address.state} ${company.address.zip}`;
+  const why = reason ? `You're getting this because ${reason}.` : "";
+  const text = [
+    ...(hero ? [`[Photo: ${hero.alt}]`, ""] : []),
+    ...blocks.flatMap((b) => [b.text, ""]),
+    "--",
+    why,
+    unsubscribeUrl ? `Unsubscribe in one click: ${unsubscribeUrl}` : "",
+    "",
+    company.name,
+    address,
+  ].filter((line, i, all) => line !== "" || all[i - 1] !== "").join("\n");
+  const logo = site
+    ? `<p style="margin:0 0 20px;text-align:center"><img class="nff-logo" ` +
+      `src="${site}/images/email/logo.png" width="280" ` +
+      `alt="${escape(company.name)}" style="display:block;margin:0 auto;` +
+      `width:280px;max-width:100%;height:auto;border:0"></p>`
+    : header(site);
+  // The preview text, hidden; the spaces after it keep the mail app
+  // from filling the rest of the preview with the body.
+  const pre = preview
+    ? `<div style="display:none;max-height:0;overflow:hidden;` +
+      `mso-hide:all">${escape(preview)}${"&#8199;&#847; ".repeat(40)}</div>`
+    : "";
+  const heroHtml = hero
+    ? `<img src="${escape(hero.src)}" alt="${escape(hero.alt)}" ` +
+      `width="560" style="display:block;width:100%;height:auto;border:0;` +
+      `border-radius:5px 5px 0 0">`
+    : "";
+  const html = `<!doctype html><html><head><meta charset="utf-8">` +
+    `<meta name="viewport" content="width=device-width,initial-scale=1">` +
+    `<meta name="format-detection" ` +
+    `content="telephone=no, date=no, address=no, email=no">` +
+    `<meta name="color-scheme" content="light dark">` +
+    `<meta name="supported-color-schemes" content="light dark">` +
+    `<title>${escape(subject)}</title>${styles()}${darkStyles}</head>` +
+    `<body id="body" class="nff-ground" style="margin:0;padding:0;` +
+    `background:#f6f7f6;font-family:${FONT};font-size:17px;color:${INK};` +
+    `line-height:1.6">${pre}` +
+    `<div class="nff-ground" style="background:#f6f7f6;padding:24px 12px">` +
+    `<div style="max-width:560px;margin:0 auto">${logo}` +
+    `<div class="nff-card" style="background:#fff;` +
+    `border:1px solid rgba(0,0,0,.175);border-radius:6px;` +
+    `box-shadow:0 2px 3px rgba(7,6,6,.2)">${heroHtml}` +
+    `<div class="nff-pad nff-ink" style="padding:28px 24px 12px;` +
+    `color:${INK}">${blocks.map((b) => b.html).join("")}</div></div>` +
+    `<div class="nff-muted" style="margin:20px 0 0;padding:0 12px;` +
+    `font-size:13px;line-height:1.6;text-align:center;color:${MUTED}">` +
+    `${why ? `<p style="margin:0 0 8px">${escape(why)}</p>` : ""}` +
+    `${unsubscribeUrl
+      ? `<p style="margin:0 0 8px">${link("Unsubscribe", unsubscribeUrl)}` +
+        " in one click.</p>"
+      : ""}` +
+    `<p style="margin:0">${escape(company.name)}<br>${escape(address)}` +
+    `</p></div></div></div></body></html>`;
+
+  return { subject, text, html };
+};
+
+// "July", from an ISO time, in the farm's zone.
+const month = (iso) => new Date(iso).toLocaleDateString("en-US", {
+  month: "long", timeZone: "America/New_York",
+});
+
+// "October 20, 2026"
+const longDate = (iso) => new Date(iso).toLocaleDateString("en-US", {
+  month: "long", day: "numeric", year: "numeric",
+  timeZone: "America/New_York",
+});
+
+// How someone came onto the list, in plain words, from their opt-in
+// event (records.mjs): "you signed up on our website". Draft (#267).
+export const optInPhrase = (event) => {
+  const detail = (event && event.detail) || "";
+
+  switch (event && event.type) {
+  case "website-form":
+    return "you signed up on our website";
+  case "checkout":
+    return "you ticked the Farm News box when you placed your order";
+  case "account-settings":
+    return "you turned on Farm News in your account";
+  case "reinvite-confirmation":
+    return "you confirmed you'd like to keep hearing from us";
+  case "market-sheet":
+    return `you signed up on our sign-up sheet at ${
+      detail || "one of our markets"} in ${month(event.at)}`;
+  case "in-person":
+    return `you asked us to add you when we met in person${
+      detail ? ` at ${detail}` : ""}`;
+  case "resend":
+    return "you asked us to add you to our list";
+  default:
+    return "you joined our Farm News list";
+  }
+};
+
+// The contacts who were on the list before it moved to Resend: the
+// market sheets and the old list's re-invite (#267).
+const MIGRATED = ["market-sheet", "reinvite-confirmation"];
+
+// Farm News: the confirmation, for a sign-up on the public form, the
+// one path that confirms (#303, 2026-10-25: the checkout and settings
+// boxes join at once, and the old list is imported, not asked,
+// comment 6404591477). It welcomes too, and carries no unsubscribe
+// and no reason line: the reader is not on the list until the click.
+// The subject is James's (2026-10-25); the rest is a draft on his
+// structure (#400, comments 6404615116 and 6404632787). The list
+// layout is #273's.
+export const newsConfirm = (email, url, {
+  days = accounts.newsInviteDays, links,
+} = {}) => listMail(
+  "Confirm your email address for Farm News", {
+    preview: "One click, and you're on the list.",
+    blocks: [
+      listBlocks.p("Welcome to Farm News. Please confirm your email " +
+        "address to start receiving it."),
+      listBlocks.button("Confirm my email address", url),
+      listBlocks.p(`This link works for ${days} days. If you didn't ` +
+        "sign up, you can ignore this email."),
+    ],
+    links,
+  },
+);
+
+// Farm News: the welcome, the one email of the welcome sequence
+// (#267), to everyone who comes onto the list: a sign-up here (after
+// the confirmation), the checkout or settings box, or the import of
+// the old list's sheets (#303). James's structure (#400, comments
+// 6404632787 and 6404652710): thanks, what to expect, where to catch
+// up, unsubscribe from the link in any email (never account settings:
+// a sign-up has no account), the chickens-and-sheep close. How they
+// opted in goes at the bottom, by the unsubscribe, from the consent
+// log; those who were on the list before it moved hear why a welcome
+// comes now. `unsubscribeUrl` takes them off in one click, no sign-in
+// (T6c). Every line is a draft for James (Q8).
+export const newsWelcome = (who, unsubscribeUrl, { links } = {}) => {
+  const name = firstName(who);
+  const event = currentOptIn(who);
+  const phrase = optInPhrase(event);
+  const migrated = !!event && MIGRATED.includes(event.type);
+  const site = links && links.site;
+  const b = listBlocks;
+  const blocks = [
+    b.p(name ? `Hi ${name},` : "Hi,"),
+    b.p(`${event && event.type === "reinvite-confirmation"
+      ? "Thanks for sticking with Farm News."
+      : "Thanks for joining Farm News."} ` +
+      "We don't take a place in your inbox lightly."),
+    ...(migrated
+      ? [b.p("We've moved our list to a new email provider, so this " +
+        "welcome reaches you even if you've been with us for years.")]
+      : []),
+    b.p("Every now and then, we'll email you what's happening on the " +
+      "farm: what's in stock, where to find us, and news from the " +
+      "pasture. We hope it goes without saying, but we will never sell " +
+      "or give out your email address."),
+    ...(site
+      ? [
+        b.linked("In the meantime, catch up on ",
+          "the news from our first year", `${site}/news/`, "."),
+        b.linked("New to us? ", "Here's how we raise our birds",
+          `${site}/about/`, "."),
+      ]
+      : []),
+    ...(links && links.order
+      ? [b.button("See what's in stock", links.order)]
+      : []),
+    b.p("You can unsubscribe any time from the link at the bottom of " +
+      "any of our emails. One click and you're off."),
+    b.p("Stay tuned for more pictures of chickens, sheep, and who knows " +
+      "what else."),
+    b.p("— James and Jim"),
+  ];
+
+  return listMail("Welcome to Farm News", {
+    preview: "Thanks for joining. Here's what to expect from us.",
+    blocks,
+    reason: event && event.at
+      ? `${phrase}${event.type === "market-sheet" ? ""
+        : ` on ${longDate(event.at)}`}`
+      : phrase,
+    unsubscribeUrl,
+    links,
+  });
 };
 
 // --- To the farm ---------------------------------------------------
 //
-// Square tells the farm nothing about an invoice the farm's own
-// account issued, so these are the only notice of an order. They go
-// to ADMIN_EMAILS and link into the admin dashboard; the pages they
-// point at arrive with the dashboard's order views.
+// These are the farm's notice of an order. They go to
+// FARM_NOTIFICATIONS_EMAIL
+// and carry the Admin link to the dashboard.
 
 const CONTACT_WORD = { text: "prefers a text", call: "prefers a call" };
 
 const adminUrl = (links, path) =>
   (links && links.admin ? `${links.admin}/${path}` : null);
 
-const customerUrl = (links, email) =>
-  adminUrl(links, `customers/${encodeURIComponent(email || "")}`);
+// The dashboard doesn't show the site's orders or customers yet, so
+// "View order" and "View customer" would open a list without them
+// (T5b, 2026-09-28). Set true when it does, and the buttons return.
+const DASHBOARD_VIEWS = false;
 
-const orderAdminUrl = (links, id) =>
-  adminUrl(links, `orders/${encodeURIComponent(id)}`);
+const customerUrl = (links, email) => (DASHBOARD_VIEWS
+  ? adminUrl(links, `customers/${encodeURIComponent(email || "")}`)
+  : null);
+
+const orderAdminUrl = (links, id) => (DASHBOARD_VIEWS
+  ? adminUrl(links, `orders/${encodeURIComponent(id)}`)
+  : null);
 
 const mapsUrl = (a) =>
   `https://maps.apple.com/?address=${encodeURIComponent(streetAddress(a))}`;
@@ -767,13 +1218,13 @@ export const addressReview = (customer, { links } = {}) => {
   const blocks = [
     url
       ? {
-        text: `${who} (${url}) saved an address outside of the ` +
+        text: `${who} (${url}) saved an address outside the ` +
           "published delivery area.",
         html: `<p><a href="${escape(url)}" style="color:${GREEN}">${
-          escape(who)}</a> saved an address outside of the published ` +
+          escape(who)}</a> saved an address outside the published ` +
           "delivery area.</p>",
       }
-      : p(`${who} (${customer.email}) saved an address outside of the ` +
+      : p(`${who} (${customer.email}) saved an address outside the ` +
         "published delivery area."),
     p(`Location: **${streetAddress(a)}**`),
     button("View location in Maps", mapsUrl(a)),
@@ -809,6 +1260,17 @@ const customerDetails = (order, links) => {
 const farmOrderType = (order) => {
   const f = order.fulfilment;
 
+  if (isScheduled(f)) {
+    const w = placeOf(order);
+
+    // The customer reads "Scheduled pickup"; the farm reads which one.
+    return [p(`Order type: **${methodName(f.method)}**`), list([
+      `Pickup: ${w.name}`,
+      `When: ${label(f.date)}${w.window ? `, between ${
+        between(w.window)}` : ""}`,
+      `Where: ${w.address}`,
+    ])];
+  }
   if (f.method !== "delivery") return orderType(order);
 
   const d = f.delivery || {};
@@ -826,39 +1288,47 @@ const farmOrderType = (order) => {
   return [p(`Order type: **${methodName(f.method)}**`), list(items)];
 };
 
-// The two commands that settle a requested pickup window. The farm's
-// "New order" notice is the queue, so it carries them.
-const confirmOrDeny = (order) => {
-  const window = order.fulfilment.onfarm.window;
-  const bounds = (terms.onFarm.windows || {})[window] || {};
-  const h24 = (h) => `${h}:00`;
-  const from = bounds.from;
-  const to = bounds.to;
-  const example = Math.min(from + 1, to - 2);
-
-  return [
-    p(`They asked for the ${window}, which runs ${h24(from)} to ${h24(to)}. ` +
-      "Confirming with no hours tells them you'll be there for the first " +
-      `two hours of it, ${h24(from)} to ${h24(from + 2)}:`),
-    command(`bin/nff orders confirm ${order.id}`),
-    p("To be there at other hours inside that window, give the start on " +
-      "the 24-hour clock with --at (two hours from there), and the end " +
-      `with --until if it is not two hours later. ${h24(example)} to ${
-        h24(example + 2)}, then ${h24(example)} to ${h24(to)}:`),
-    command(`bin/nff orders confirm ${order.id} --at ${example}`),
-    command(`bin/nff orders confirm ${order.id} --at ${example} --until ${to}`),
-    p("Or deny the window and they pick another day or window. What you " +
-      "give as the reason goes to them in that email, in your words:"),
-    command(`bin/nff orders deny ${order.id} --reason "..."`),
-  ];
+// How the money came, for the farm: "$55 by Visa ending 4242", "$55
+// by Venmo", "$55 by Apple Pay". Cash or a check, from the CLI, name
+// themselves.
+const WALLETS = {
+  applepay: "Apple Pay", googlepay: "Google Pay", cashapp: "Cash App Pay",
 };
 
-const paidWord = (order) => (order.status === "paid" ? "paid" : "unpaid");
+const onePayment = (p) => {
+  const total = dollars(p.amount);
+  const brand = (p.brand || "card").toLowerCase()
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
 
-// The moment an order is placed, paid or not.
+  if (p.via === "venmo") return `${total} by Venmo`;
+  if (WALLETS[p.method]) return `${total} by ${WALLETS[p.method]}`;
+  if (p.last4) return `${total} by ${brand} ending ${p.last4}`;
+  // Money the farm took in person (#181): "$55 by cash", "$55 by check".
+  // A tender Square holds whose kind the record never learned (a lost
+  // write found again) is "paid in person". Draft wording.
+  if (p.via === "external") return `${total} paid in person`;
+  if (p.via && p.via !== "square") return `${total} by ${p.via}`;
+
+  return `${total} by card`;
+};
+
+// "$42 by Visa ending 1111"; an order changed after paying names each
+// payment: "$42 by Visa ending 1111, then $12 by Venmo".
+export const paymentPhrase = (order) => {
+  const payments = paymentsOf(order);
+
+  return payments.length
+    ? payments.map(onePayment).join(", then ")
+    : onePayment({ amount: order.totals.total });
+};
+
+// The moment an order is placed, which is the moment it is paid.
 export const farmOrderPlaced = (order, { squareUrl, links } = {}) => {
-  const title = `New order ${order.id} — ${dollars(order.totals.total)}, ` +
-    `${methodName(order.fulfilment.method).toLowerCase()}`;
+  const title = `New order ${order.id}: ${dollars(order.totals.total)}, ` +
+    `${isScheduled(order.fulfilment)
+      ? `pickup at ${placeOf(order).name}`
+      : methodName(order.fulfilment.method).toLowerCase()}`;
   const url = orderAdminUrl(links, order.id);
   const blocks = [
     ...customerDetails(order, links),
@@ -872,14 +1342,13 @@ export const farmOrderPlaced = (order, { squareUrl, links } = {}) => {
     totalsBlock(order),
     ...farmOrderType(order)
   );
-  if (needsAgreement(order)) {
-    blocks.push(
-      p("Pickup time: **Requested, not yet confirmed**"),
-      ...confirmOrDeny(order)
-    );
+  blocks.push(p(`Paid: **${paymentPhrase(order)}**`));
+  // A pass the farm issued (#182): which one, and what it did.
+  if (order.pass) {
+    blocks.push(p(`Code: **${order.pass}**, which ${order.passWaivesFee
+      ? "waived the delivery fee" : "let this order under the minimum"}`));
   }
-  blocks.push(p("Invoice status: **Sent, unpaid**"));
-  if (squareUrl) blocks.push(button("View invoice in Square", squareUrl));
+  if (squareUrl) blocks.push(button("View order in Square", squareUrl));
   blocks.push(adminFooter(links));
 
   return {
@@ -887,96 +1356,311 @@ export const farmOrderPlaced = (order, { squareUrl, links } = {}) => {
   };
 };
 
-// The customer moved an on-farm order to another day or window from
-// their account page, so the farm has to agree to it again.
-export const farmPickupChanged = (order, { links } = {}) => {
+// The customer changed what is in a paid order, or how they get it,
+// from their account page. `before` is the edit's record of the order
+// as it was; `difference` what they paid more (or got back, below 0).
+export const farmOrderChanged = (order, {
+  before, difference = 0, links,
+} = {}) => {
   const c = order.customer;
-  const title = `Pickup time to confirm: ${order.id}`;
+  const title = `Order changed: ${order.id}, now ${
+    dollars(order.totals.total)}`;
   const url = orderAdminUrl(links, order.id);
   const blocks = [
-    p(`${c.name || c.email} moved order ${order.id} to a new pickup ` +
-      "time. It needs confirming again."),
-    p(`Requested: **${windowPhrase(order)}**`),
-    ...confirmOrDeny(order),
+    p(`${c.name || c.email} changed order ${order.id}.`),
+    ...(before ? removedGroup(order, before) : []),
+    heading("Now"),
+    lines(order, { prices: true }),
+    totalsBlock(order),
+    ...farmOrderType(order),
   ];
+
+  if (before) {
+    blocks.push(
+      heading("Before"),
+      lines({ lines: before.lines }, { prices: true }),
+      p(`Total ${dollars(before.totals.total)}, ${
+        methodName(before.method).toLowerCase()}`)
+    );
+  }
+  if (difference > 0) {
+    blocks.push(p(`They paid **${dollars(difference)} more**.`));
+  } else if (difference < 0) {
+    blocks.push(p(`**${dollars(-difference)} refunded** to them.`));
+  }
+  blocks.push(p(`Paid: **${paymentPhrase(order)}**`));
+  if (url) blocks.push(button("View order", url));
+  blocks.push(adminFooter(links));
+
+  return {
+    subject: title,
+    ...render(title, blocks, links, { tag: "Order changed" }),
+  };
+};
+
+// Someone changed a website order in Square itself (#293). The site's
+// record is untouched and is what the packing slips print from, so the
+// farm is told what differs. A draft; the words are James's.
+export const farmSquareChanged = (order, {
+  changes = [], printed = false, links, squareUrl,
+} = {}) => {
+  const title = `Changed in Square: ${order.id}`;
+  const url = orderAdminUrl(links, order.id);
+  const blocks = [
+    p(`Order ${order.id} was changed in Square, not on the site. The ` +
+      "site's record has not changed, and the packing slips print from it."),
+    heading("What differs"),
+    ...changes.map((c) => p(`- ${c}`)),
+    p(printed
+      ? "**A slip for this order has already printed.** It does not show " +
+        "this change, and no revision sheet will be made for it."
+      : "No slip has printed for this order yet, so the slip will show " +
+        "the site's record, not Square's."),
+    p("Make the change on the site with `bin/nff orders`, or put Square " +
+      "back. Nobody was charged or refunded."),
+  ];
+
+  if (url) blocks.push(button("View order", url));
+  if (squareUrl) blocks.push(button("View order in Square", squareUrl));
+  blocks.push(adminFooter(links));
+
+  return {
+    subject: title,
+    ...render(title, blocks, links, { tag: "Changed in Square" }),
+  };
+};
+
+// The customer moved an on-farm order to another time the schedule
+// offers, from their account page. Booked as it stands (W11d); the
+// farm only hears of it.
+export const farmPickupChanged = (order, { links, before = null } = {}) => {
+  const c = order.customer;
+  const title = `Pickup moved: ${order.id}`;
+  const url = orderAdminUrl(links, order.id);
+  const scheduled = (x) => isScheduled(x);
+  const moved = before && scheduled(before) && scheduled(order.fulfilment);
+  const at = (f) => {
+    const w = placeOf({ fulfilment: f });
+
+    return `${w.name}, ${w.address}, ${label(f.date)}${
+      w.window ? `, ${w.window}` : ""}`;
+  };
+  const blocks = moved
+    ? [
+      p(`${c.name || c.email} moved order ${order.id} to another scheduled ` +
+        "pickup."),
+      p(`Was: **${at(before)}**`),
+      p(`Now: **${at(order.fulfilment)}**`),
+    ]
+    : [
+      p(`${c.name || c.email} moved order ${order.id} to a new pickup ` +
+        "time."),
+      p(`Now: **${windowPhrase(order)}**`),
+    ];
 
   if (url) blocks.push(button("View order", url));
   blocks.push(adminFooter(links));
 
   return {
     subject: title,
-    ...render(title, blocks, links, { tag: "Pickup time to confirm" }),
+    ...render(title, blocks, links, { tag: "Pickup moved" }),
   };
 };
 
-// The customer pressed "I paid by Venmo" before Venmo's notification
-// reached the site, or the note had no order number in it.
-export const farmVenmoClaimed = (order, { links } = {}) => {
-  const c = order.customer;
-  const total = dollars(order.totals.total);
-  const title = `Venmo to check: order ${order.id} — ${total}`;
-  const url = orderAdminUrl(links, order.id);
-  const who = c.name || c.email;
+// A customer's own words, set off with the brand green.
+const quote = (text) => ({
+  text: `\n${text}\n`,
+  html: `<blockquote style="margin:16px 0;padding:8px 16px;` +
+    `border-left:3px solid ${GREEN};white-space:pre-wrap">${
+      escape(text)}</blockquote>`,
+});
+
+// A message from the contact page. Reply-to is the writer, so the
+// farm answers by replying. `order` says whether the order number
+// given belongs to the writer's email: true, false, or null for none.
+export const farmContactMessage = (message, { order = null, links } = {}) => {
+  const title = `Message from ${message.name}${
+    message.orderId ? ` about ${message.orderId}` : ""}`;
+  const about = message.orderId
+    ? [{
+      text: `Order ${message.orderId}${order
+        ? ", placed with this email address"
+        : ": no order by that number with this email address"}`,
+      html: `Order ${mono(message.orderId).html}${order
+        ? ", placed with this email address"
+        : ": no order by that number with this email address"}`,
+    }]
+    : [];
   const blocks = [
-    p(`${who} clicked "I paid by Venmo" on order ${order.id}.`),
-    p(`Open the Venmo app and look in the farm's transactions for **${
-      total} from ${who} with ${order.id} in the note**. Venmo's own ` +
-      "email usually reaches the site first and marks the order paid by " +
-      "itself; this notice means it hasn't yet, or the note had no order " +
-      "number."),
-    p("If the payment is there, mark the order paid. That sends the " +
-      "customer's confirmation and closes the Square invoice so it can't " +
-      "be paid twice:"),
-    command(`bin/nff orders paid ${order.id} --via venmo`),
-    p("If it never arrives, lift the hold so the payment reminders and " +
-      "the cutoff run again:"),
-    command(`bin/nff orders unpaid ${order.id}`),
-    p("Until one of those runs, the order waits: no reminders, and not " +
-      "cancelled at the cutoff. Every order in this state is listed in " +
-      "the morning report, and one older than a day raises an alert."),
+    p(`${message.name} wrote from the contact page. Reply to this ` +
+      "email to answer them."),
+    tree([mono(message.email), ...about]),
+    quote(message.message),
   ];
+  const url = order ? orderAdminUrl(links, message.orderId) : null;
 
   if (url) blocks.push(button("View order", url));
   blocks.push(adminFooter(links));
 
   return {
-    subject: title, ...render(title, blocks, links, { tag: "Venmo to check" }),
+    subject: title,
+    ...render(title, blocks, links, { tag: "Message from the website" }),
   };
 };
 
-// The evening report of Venmo payments the site could not apply: no
-// order number in the note, or an amount that is not the order's
-// total. Sent only when there is at least one.
-export const farmVenmoUnmatched = (payments, { date, links } = {}) => {
-  const title = `Venmo payments with no order: ${label(date)}`;
-  const blocks = [
-    p("These Venmo payments arrived with no order number in the note, " +
-      "or an amount that isn't the order's total. Market sales will show " +
-      "here. Anything else may be an online order whose note left out " +
-      "the number."),
-    table(["Amount", "Due", "From", "Note", "Order"], payments.map((v) => {
-      const short = v.orderTotal !== null && v.orderTotal > v.cents;
-      const due = v.orderTotal === null ? "" : dollars(v.orderTotal);
+// The account page's notices to the farm, on the same card as the
+// rest. `links` gives them their Admin link (and, once the dashboard
+// shows them, the View order and View customer buttons).
 
-      return [
-        short ? alarm(dollars(v.cents)) : dollars(v.cents),
-        short ? alarm(due) : due,
-        v.payer,
-        v.note || "(none)",
-        v.orderId
-          ? (v.orderTotal === null ? `${v.orderId} (no such order)`
-            : mono(v.orderId))
-          : "",
-      ];
-    }), { align: ["right", "right"] }),
-    p("The full record, with Venmo's transaction ids:"),
-    command("bin/nff venmo list"),
-    adminFooter(links),
-  ];
+// "delivery on Thursday, October 8".
+const methodOn = (f) =>
+  `${methodName(f.method).toLowerCase()} on ${label(f.date)}`;
 
-  return {
-    subject: title, ...render(title, blocks, links, { tag: "Venmo report" }),
-  };
+const farmCard = (title, tag, blocks, links, { orderId, customer } = {}) => {
+  const order = orderId ? orderAdminUrl(links, orderId) : null;
+  const who = customer ? customerUrl(links, customer) : null;
+
+  if (order) blocks.push(button("View order", order));
+  if (who) blocks.push(button("View customer", who, { outline: true }));
+  blocks.push(adminFooter(links));
+
+  return { subject: title, ...render(title, blocks, links, { tag }) };
+};
+
+// A customer cancelled a paid order; the farm refunds it by hand.
+export const farmRefundNeeded = (order, customer, { links } = {}) => {
+  const who = customer.name || customer.email;
+
+  return farmCard(
+    `Refund needed: ${order.id} canceled by ${customer.email}`,
+    "Refund needed",
+    [
+      p(`${who} canceled paid order ${order.id}, ${
+        methodOn(order.fulfilment)}. Refund it and close it:`),
+      command(`bin/nff orders cancel ${order.id}`),
+    ],
+    links, { orderId: order.id }
+  );
+};
+
+// Products the catalog marks archived while stock shows them on hand
+// (#267): hidden everywhere, so nobody can buy what came in. `items`
+// is [{ sku, name, count }], count null when the SKU is in stock by
+// its catalog flag and not counted. Also a section of the morning
+// report, until each is resolved.
+const archivedRows = (items) => table(["Product", "SKU", "On hand"],
+  items.map((i) => [i.name, mono(i.sku),
+    i.count === null ? "in stock, not counted" : String(i.count)]),
+  { align: ["left", "left", "right"] });
+const archivedFix = () => [
+  p("If it's back on sale, change its restock type in data/catalog.json " +
+    "and deploy. If not, zero its count:"),
+  command("bin/nff stock set <sku> 0"),
+];
+
+export const farmArchivedInStock = (items, { links } = {}) => farmCard(
+  items.length === 1
+    ? `Hidden but in stock: ${items[0].name}`
+    : `Hidden but in stock: ${items.length} products`,
+  "Stock check",
+  [
+    p("Each product below is archived in the catalog, so no customer " +
+      "can see or buy it, but stock shows it on hand:"),
+    archivedRows(items),
+    ...archivedFix(),
+  ],
+  links
+);
+
+// A customer's cancel, refunded on the spot (T1d): nothing to run,
+// only an order not to pack.
+export const farmOrderCancelled = (order, customer, { links } = {}) => {
+  const who = customer.name || customer.email;
+  const back = (order.refunds || [])
+    .filter((r) => r.source === "customer")
+    .reduce((s, r) => s + (r.amount || 0), 0);
+
+  return farmCard(
+    `Canceled: ${order.id} by ${customer.email}`,
+    "Order canceled",
+    [
+      p(`${who} canceled paid order ${order.id}, ${
+        methodOn(order.fulfilment)}. ${back
+        ? `We refunded ${dollars(back)} automatically, so there's ` +
+          "nothing to run."
+        : "Nothing was left to refund."} Don't pack it.`),
+    ],
+    links, { orderId: order.id }
+  );
+};
+
+// A customer's change saved here but not in Square.
+export const farmSquareOutOfSync = (order, customer, { links } = {}) =>
+  farmCard(`Square out of sync: ${order.id}`, "Square out of sync", [
+    p(`${customer.name || customer.email} changed order ${order.id}, but ` +
+      "Square could not be updated. Check the fulfillment in Square: " +
+      `${methodOn(order.fulfilment)}.`),
+  ], links, { orderId: order.id });
+
+// A fulfilled order Square could not be told about (#328): it stays
+// open in Square until someone completes it there.
+export const farmSquareNotCompleted = (order, { links } = {}) =>
+  farmCard(`Square still open: ${order.id}`, "Square still open", [
+    p(`Order ${order.id} is fulfilled here, but Square could not be ` +
+      "told, so it is still open there. Complete it in Square: " +
+      `${methodOn(order.fulfilment)}.`),
+  ], links, { orderId: order.id });
+
+// A return or problem report; `entry` is the request as recorded, its
+// items by SKU, named here by the order's lines.
+export const farmReturnRequest = (order, customer, entry, {
+  links,
+} = {}) => {
+  const who = customer.name || customer.email;
+  const named = (sku) => ((order.lines || []).find((l) => l.sku === sku)
+    || { sku, label: sku });
+  const items = entry.skus.map(named).map(lineLabel);
+
+  return farmCard(
+    `Return request: ${order.id} from ${customer.email}`,
+    "Return request",
+    [
+      p(`${who} asked about a return on order ${order.id}.`),
+      quote(entry.reason),
+      p(`Items: ${items.join(", ") || "not specified"}`),
+      p("Settle it with:"),
+      command(`bin/nff returns resolve ${order.id} ${entry.id}`),
+    ],
+    links, { orderId: order.id }
+  );
+};
+
+// A message from the account page, with the customer's details.
+// Reply-to is the customer, so the farm answers by replying.
+export const farmSupport = (customer, { subject, message, orderId }, {
+  links,
+} = {}) => {
+  const who = customer.name || customer.email;
+  const about = [mono(customer.email)];
+
+  if (customer.phone) about.push(customer.phone);
+  if (orderId) {
+    about.push({
+      text: `Order ${orderId}`, html: `Order ${mono(orderId).html}`,
+    });
+  }
+
+  return farmCard(
+    `Support: ${subject || "(no subject)"} from ${customer.email}`,
+    "Support",
+    [
+      p(`${who} wrote from their account page. Reply to this email to ` +
+        "answer them."),
+      tree(about),
+      quote(message),
+    ],
+    links, { orderId, customer: customer.email }
+  );
 };
 
 // --- Monitoring ----------------------------------------------------
@@ -984,17 +1668,19 @@ export const farmVenmoUnmatched = (payments, { date, links } = {}) => {
 const when = (iso) => (iso ? `${iso.replace("T", " ").slice(0, 16)} UTC`
   : "never");
 
-// A failure on the critical path, one per kind per hour, with the
-// runbook's entry for it in the body.
-export const farmAlert = (kind, detail = {}, { at, links } = {}) => {
+// A failure on the critical path, one per kind per hour unless `held`
+// is false, with the runbook's entry for it in the body.
+export const farmAlert = (kind, detail = {}, {
+  at, links, held = true,
+} = {}) => {
   const title = `Site alert: ${kind}`;
   const guide = GUIDE[kind];
   const rows = Object.entries(detail)
     .filter(([, v]) => v !== null && v !== undefined && v !== "")
     .map(([k, v]) => [k, typeof v === "string" ? v : JSON.stringify(v)]);
   const blocks = [
-    p(`**${kind}** at ${when(at ? at.toISOString() : null)}. Further ` +
-      "alerts of this kind are held for an hour."),
+    p(`**${kind}** at ${when(at ? at.toISOString() : null)}.${
+      held ? " Further alerts of this kind are held for an hour." : ""}`),
   ];
 
   if (rows.length) blocks.push(table(["Field", "Value"], rows));
@@ -1018,6 +1704,174 @@ export const farmAlert = (kind, detail = {}, { at, links } = {}) => {
   };
 };
 
+// The one message to ESCALATED_NOTIFICATIONS_EMAIL, in plain words
+// for someone who is not technical (a draft; the words are James's).
+export const escalation = ({ at, links, maintenanceOn } = {}) => {
+  const title = "Please switch on the order pause";
+  const blocks = [
+    p("James hasn't responded to an urgent problem with online " +
+      "orders: some payments may be going through without an order " +
+      "being saved."),
+    p("To stop more orders from coming in until James can look, " +
+      "switch on maintenance mode with the button below. Customers " +
+      "will see a short notice that the site is under maintenance."),
+  ];
+
+  if (maintenanceOn) {
+    blocks.push(button("Switch on maintenance mode", maintenanceOn));
+  }
+  // A plain line: `row` makes each pair a link, and a time is no URL.
+  const sent = when(at ? at.toISOString() : null);
+
+  blocks.push({
+    text: `\nSent: ${sent}`,
+    html: `<p style="margin:24px 0 0">Sent: ${escape(sent)}</p>`,
+  });
+
+  return {
+    subject: title, ...render(title, blocks, links, { tag: "Urgent" }),
+  };
+};
+
+// Maintenance mode flipped, to the developer on every flip.
+export const maintenanceFlipped = (on, {
+  by, at, links, context,
+} = {}) => {
+  const title = `Maintenance mode is ${on ? "ON" : "OFF"}`
+    + `${context && context !== "production" ? ` (${context})` : ""}`;
+  const blocks = [
+    p(on
+      ? "Ordering, checkout, sign-in, and the account area are closed. " +
+        "Customers see the maintenance message, and nothing they submit " +
+        "goes through. Payments and webhooks already under way still " +
+        "finish."
+      : "Ordering, sign-in, and the account area are open again."),
+    table(["Field", "Value"], [
+      ["Flipped by", by || "unknown"],
+      ["At", when(at ? at.toISOString() : null)],
+    ]),
+    adminFooter(links),
+  ];
+
+  return {
+    subject: title, ...render(title, blocks, links, { tag: "Maintenance" }),
+  };
+};
+
+// Every customer session ended at once, to the developer. A run that
+// nobody meant is the thing this email exists to reveal.
+export const sessionsEnded = ({ count, by, at, context } = {}) => {
+  const title = `Every session was ended${
+    context && context !== "production" ? ` (${context})` : ""}`;
+  const blocks = [
+    p("Every customer is signed out. Each signs in again by magic " +
+      "link. If you did not run this, treat it as an incident " +
+      "(docs/secrets.md)."),
+    table(["Field", "Value"], [
+      ["Sessions ended", String(count)],
+      ["Run by", by || "unknown"],
+      ["At", when(at ? at.toISOString() : null)],
+    ]),
+  ];
+
+  return {
+    subject: title, ...render(title, blocks, undefined, { tag: "Security" }),
+  };
+};
+
+// `bin/nff mail test-dev`: one message through the path the developer's
+// notices take, to prove the address is live.
+export const devMailTest = ({ at, context } = {}) => {
+  const title = `Developer notices test${
+    context && context !== "production" ? ` (${context})` : ""}`;
+  const blocks = [
+    p("This is a test of the address that receives deploy-failed, " +
+      "alert, and rotation notices. Nothing is wrong. If you can read " +
+      "this, those notices will reach you."),
+    table(["Field", "Value"], [
+      ["Context", context || "unknown"],
+      ["At", when(at ? at.toISOString() : null)],
+    ]),
+  ];
+
+  return {
+    subject: title, ...render(title, blocks, undefined, { tag: "Test" }),
+  };
+};
+
+// The yearly secret rotation, to the developer: Dec 1, then weekly
+// while the rotation log shows something not yet rotated this window.
+// `final` is the loud one in the last week of December.
+// `pending`: rotations whose old credential is still to be revoked
+// (lib/rotation.mjs, pendingRevocations).
+export const rotationReminder = ({
+  due = [], pending = [], start, final = false, logFound = true, links,
+} = {}) => {
+  const year = Number(start.slice(0, 4));
+  const revokeOnly = !due.length && pending.length && logFound;
+  let title = `Secrets are due for rotation: Dec 1 to Jan 1, ${year + 1}`;
+
+  if (final) {
+    title = `FINAL REMINDER: rotate the secrets by Jan 1, ${year + 1}`;
+  } else if (revokeOnly) {
+    title = "Old credentials are waiting to be revoked";
+  }
+  let intro = "**Every secret rotates between Dec 1 and Jan 1.** " +
+    "Tokens that can expire are set to expire Jan 31. Log each rotation " +
+    "in docs/rotation-log.md as you go. This reminder repeats weekly " +
+    "for what the log still shows as due.";
+
+  if (final) {
+    intro = "**The window closes in days.** Everything below is still " +
+      "unrotated in the log. Rotate it now, in the quiet hour " +
+      "docs/secrets.md names, and log each rotation.";
+  } else if (revokeOnly) {
+    intro = "**Every secret is rotated, but the old credentials below are " +
+      "still valid.** Revoke each at its vendor by the date shown, then " +
+      "log it as revoked in docs/rotation-log.md. This reminder repeats " +
+      "weekly until the log shows them all revoked.";
+  }
+
+  const blocks = [p(intro)];
+
+  if (!logFound) {
+    blocks.push(p("docs/rotation-log.md was not found, so the list " +
+      "below is empty. Work from the table in docs/secrets.md."));
+  }
+  if (due.length) {
+    blocks.push(
+      heading("Last rotated before Dec 1"),
+      table(["Secret", "Environment", "Last rotated", "Why"],
+        due.map((e) => [e.name, e.environment, e.date, e.reason]))
+    );
+  } else if (!pending.length) {
+    blocks.push(p("The log lists nothing as rotated yet. Check " +
+      "docs/secrets.md for the full set."));
+  }
+  if (pending.length) {
+    blocks.push(
+      heading("Old credentials still to revoke"),
+      p("Each was rotated and its replacement is live. The old one " +
+        "stays valid for 31 days, or until its Jan 31 expiry if that " +
+        "comes first. Revoke it at the vendor, then add a `revoked` " +
+        "line for it to docs/rotation-log.md."),
+      table(["Secret", "Environment", "Rotated", "Revoke by"],
+        pending.map((e) => [e.name, e.environment, e.date,
+          e.overdue ? `${e.by} (overdue)` : e.by]))
+    );
+  }
+  blocks.push(
+    p("Ping URLs, ids, and the build hook rotate only on a leak: skip " +
+      "them. The Square token rotates under maintenance mode."),
+    adminFooter(links)
+  );
+
+  return {
+    subject: title,
+    ...render(title, blocks, links, { tag: "Rotation" }),
+  };
+};
+
 // Every morning at 8:00: the site's vital signs for the last day, then
 // whatever waits on the farm. Sent even when nothing does, so its
 // absence is a signal.
@@ -1025,22 +1879,22 @@ export const farmAlert = (kind, detail = {}, { at, links } = {}) => {
 // this. GOOD is within limits, BAD outside them, PLAIN a number with
 // no limits, just worth knowing.
 const GOOD = "🐣";
-const BAD = "🤮";
+const BAD = "🙈";
 const PLAIN = "🫥";
 const within = (ok) => (ok ? GOOD : BAD);
+// Under the table, set off from it by a blank line in text.
+const legend = p(`${GOOD} within healthy limits, ${BAD} outside limits ` +
+  `and worth looking into, ${PLAIN} a number with no limits but worth ` +
+  "knowing");
+const key = { ...legend, text: `\n${legend.text}` };
 const VITALS = [
   ["placed", "Orders placed", () => PLAIN],
-  ["paid", "Paid", () => PLAIN],
-  ["paidByWebhook", "Paid the moment Square said so (webhook)",
-    () => PLAIN],
-  ["paidByPoll", "Paid by the 15-minute poll (webhook missed)",
-    (s) => (s.paidByPoll === 0 ? GOOD
-      : s.paidByWebhook === 0 ? BAD : PLAIN)],
-  ["paidByHand", "Paid by hand or Venmo", () => PLAIN],
-  ["abandoned", "Unpaid orders cancelled at the cutoff",
-    (s) => within(s.abandoned <= 3)],
-  ["cancelled", "Cancelled by a customer or the farm", () => PLAIN],
-  ["openUnpaid", "Open orders still unpaid", () => PLAIN],
+  ["paidByCard", "Paid by card or a wallet", () => PLAIN],
+  ["paidByVenmo", "Paid by Venmo", () => PLAIN],
+  ["declined", "Payments declined", (s) => within(s.declined <= 3)],
+  ["cancelled", "Canceled by a customer or the farm", () => PLAIN],
+  ["refunded", "Refunded", () => PLAIN],
+  ["open", "Open orders, paid and not yet fulfilled", () => PLAIN],
   ["mailFailures", "Emails that could not be sent",
     (s) => within(s.mailFailures === 0)],
   ["runs", "Jobs runs (one every 15 minutes is 96)",
@@ -1049,75 +1903,150 @@ const VITALS = [
   ["invariants", "Invariant violations", (s) => within(s.invariants === 0)],
 ];
 
-const age = (iso, now) => {
+export const age = (iso, now) => {
   const hours = Math.round((now.getTime() - Date.parse(iso)) / 3_600_000);
 
   return hours < 1 ? "under an hour" : hours < 48 ? `${hours} h`
     : `${Math.round(hours / 24)} days`;
 };
 
+// The most messages the morning report lists; the rest are counted,
+// and `bin/nff messages` lists them all (#167, security review).
+const MESSAGES_SHOWN = 30;
+
 export const farmMorningReport = (stats, pickups, {
-  date, links, holds = [], now = new Date(),
+  date, links, now = clock(), schedule = null, archived = [], messages = [],
+  square = null, reminders = [],
 } = {}) => {
   const title = `Morning report: ${label(date)}`;
   const blocks = [
     heading("Vital signs: the last 24 hours"),
-    p("How the site did since yesterday's report. " +
-      `${GOOD} within healthy limits, ${BAD} outside them, ${PLAIN} a ` +
-      "number with no limits, just worth knowing. Anything marked " +
-      `${BAD} is worth a look, and an alert will usually have said so ` +
-      "already."),
     table(["", "Last 24 h", ""],
       VITALS.map(([key, name, judge]) => [name, String(stats[key]),
         judge(stats)]),
       { align: ["left", "right", "center"] }),
+    key,
   ];
 
-  if (stats.paidByPoll > 0 && stats.paidByWebhook === 0) {
-    blocks.push(p("**Every payment came in by the poll.** Check the Square " +
-      "webhook: Square Developer Dashboard, the app's Webhooks page."));
-  }
-
-  if (holds.length) {
+  // The schedule running short is the farm's to fix, before the
+  // next deploy fails on it (W11d). `schedule`: { last, until }.
+  if (schedule && (!schedule.last || schedule.last < schedule.until)) {
     blocks.push(
-      heading("Waiting on a Venmo check"),
-      p("These customers said they paid by Venmo and the site has not " +
-        "seen the payment. Each is held: no reminders, not cancelled at " +
-        "the cutoff. They are at risk of being forgotten, so they stay " +
-        "here until you settle them."),
-      list(holds.map((o) => `${o.id}, ${o.customer.name || o.customer.email}` +
-        `, ${dollars(o.totals.total)}, ${methodName(o.fulfilment.method)} ${
-          label(o.fulfilment.date)}, waiting ${
-          age(o.paymentPending.at, now)}`)),
-      p("In the Venmo app, then mark it paid, or lift the hold:"),
-      command("bin/nff orders paid <id> --via venmo"),
-      command("bin/nff orders unpaid <id>")
+      heading("Pickup schedule"),
+      p(`**${schedule.last
+        ? `The pickup schedule's last window is on ${
+          label(schedule.last)}. It must reach the week of ${
+          label(schedule.until)}.`
+        : "The pickup schedule offers no windows."}**`),
+      p("Add windows and deploy, or the next deploy fails:"),
+      command("bin/nff schedule set <file>")
     );
   }
+  // Dated reminders for the farm (lib/reminders.mjs).
+  if (reminders.length) {
+    blocks.push(heading("Reminders"), ...reminders.map((r) => p(r)));
+  }
+  // Until the flag is flipped or the stock zeroed (#267).
+  if (archived.length) {
+    blocks.push(
+      heading("Hidden but in stock"),
+      p("Each product below is archived in the catalog, so no customer " +
+        "can see or buy it, but stock shows it on hand:"),
+      archivedRows(archived),
+      ...archivedFix()
+    );
+  }
+  // What the day's Square sweep found (#241). James's heading and the
+  // copy lane's approved lines; the paused line is a draft. `open`
+  // counts every order found, the cancelled ones among them; `paused`,
+  // the Square deletion kill switch is set.
+  const done = (n, verb) => (n
+    ? `, and ${n} ${n === 1 ? "was" : "were"} ${verb}` : "");
+  if (square && square.open) {
+    const found = `${square.open} order${square.open === 1 ? "" : "s"}`;
+    const left = square.open - square.cancelled;
+    const all = square.open === 1 ? "it" : "them";
+    const lead = `${square.open === 1 ? "A failed payment" : "Failed payments"
+    } left ${found} open in Square`;
+    const still = `${left} ${left === 1 ? "is" : "are"} still open`;
+    let text = `${lead}. To see ${all}:`;
 
+    if (square.cancelled && left) {
+      text = `${lead}. The sweep canceled ${square.cancelled}, and ${still}. ` +
+        "To see them:";
+    } else if (square.cancelled) {
+      text = `${lead}, and the sweep canceled ${all}. To see ${all}:`;
+    }
+    if (square.paused) {
+      text = `${lead}. The Square deletion kill switch is set, so the ` +
+        `sweep cancels nothing. To see ${all}:`;
+    }
+    blocks.push(
+      heading("Square sweep: open orders from failed payments"),
+      p(text),
+      command("bin/nff jobs square")
+    );
+  }
+  // The profiles failed checkouts made (#236). The heading is a draft,
+  // after James's for the orders.
+  if (square && square.profiles) {
+    const foundProfiles = `${square.profiles} customer profile${
+      square.profiles === 1 ? "" : "s"}`;
+    const allProfiles = square.profiles === 1 ? "it" : "them";
+
+    const madeLead = `Checkouts whose payment never went through made ${
+      foundProfiles} in Square`;
+
+    blocks.push(
+      heading("Square sweep: customer profiles from failed payments"),
+      p(square.paused
+        ? `${madeLead}. The Square deletion kill switch is set, so the ` +
+          `sweep deletes nothing. To see ${allProfiles}:`
+        : `${madeLead}${done(square.deleted, "deleted")}. To see ${
+          allProfiles}:`),
+      command("bin/nff jobs customers")
+    );
+  }
   if (pickups.length) {
     blocks.push(
-      heading("Pickups to confirm"),
-      p("These on-farm pickups are within two days and not confirmed, " +
-        "oldest order first."),
-      table(["Order", "Customer", "Requested", "Paid", "Waiting", "Status"],
+      heading("Pickups waiting on the customer"),
+      p("We couldn't keep these pickup times and the customer hasn't " +
+        "chosen another yet, oldest order first."),
+      table(["Order", "Customer", "Was", "Waiting"],
         pickups.slice().sort((a, b) => (a.submittedAt < b.submittedAt
           ? -1 : 1)).map((o) => [
           mono(o.id),
           o.customer.name || o.customer.email,
           windowPhrase(o),
-          paidWord(o),
-          age(o.submittedAt, now),
-          o.question && !o.question.answeredAt
-            ? alarm("denied, not re-picked") : "to confirm",
-        ])),
-      p("Confirm one by its order number, or run the command with no " +
-        "number to be shown how many wait and the oldest of them:"),
-      command("bin/nff orders confirm <id>"),
-      command("bin/nff orders confirm")
+          age(o.question.openedAt || o.submittedAt, now),
+        ]))
     );
   } else {
-    blocks.push(p("No pickups waiting on a decision."));
+    blocks.push(p("No pickups waiting on the customer."));
+  }
+  // Every message not yet marked answered, every morning until it is
+  // (#167). `messages`: admin's listMessages, oldest first.
+  if (messages.length) {
+    blocks.push(
+      heading("Messages waiting on an answer"),
+      p("From the contact page and the account page's help form, oldest " +
+        "first. Once you've answered one, mark it:"),
+      command("bin/nff messages done <id>"),
+      table(["Message", "From", "Order", "Waiting"],
+        messages.slice(0, MESSAGES_SHOWN).map((m) => [
+          mono(m.id),
+          m.name || m.email,
+          m.orderId ? `${m.orderId}${m.order === false
+            ? " (not their order)" : ""}` : "",
+          age(m.at, now),
+        ]))
+    );
+    if (messages.length > MESSAGES_SHOWN) {
+      blocks.push(p(`And ${messages.length - MESSAGES_SHOWN} more. To see `
+        + "every one:"), command("bin/nff messages"));
+    }
+  } else {
+    blocks.push(p("No messages waiting on an answer."));
   }
   blocks.push(adminFooter(links));
 
@@ -1135,21 +2064,25 @@ export const farmTomorrow = (orders, { date, links } = {}) => {
     orders.length === 1 ? "" : "s"}`;
   const by = (method) => orders.filter((o) => o.fulfilment.method === method);
   const deliveries = by("delivery");
-  const drops = by("scituate");
+  const scheduled = orders.filter((o) => isScheduled(o.fulfilment));
   const farm = by("onfarm");
   const blocks = [];
   const who = (o) => `${o.customer.name || o.customer.email}${
     o.customer.phone ? `, ${o.customer.phone}` : ""}`;
   const pack = (o) => ({
-    text: "Pack:", children: o.lines.map((l) => `${l.qty} × ${l.label}`),
+    text: "Pack:", children: o.lines.map((l) => `${l.qty} × ${lineLabel(l)}`),
   });
-  // A delivery is abandoned at the Wednesday cutoff if unpaid, so an
-  // unpaid one on this list means that step did not happen.
+  // An order the farm made for a customer who pays later (#181) is
+  // UNPAID with what is due; a delivery from the invoice era was
+  // abandoned at the Wednesday cutoff if unpaid, so one on this list
+  // means that step did not happen.
   const state = (o) => (o.status === "paid" ? "paid"
-    : o.fulfilment.method === "delivery"
-      ? "**UNPAID, past the cutoff: it should have been cancelled; " +
-        "check it before loading**"
-      : "UNPAID");
+    : o.status === "unpaid"
+      ? `UNPAID, ${dollars(dueOn(o))} due`
+      : o.fulfilment.method === "delivery"
+        ? "**UNPAID, past the cutoff: it should have been canceled. " +
+          "Check it before loading**"
+        : "UNPAID");
 
   if (!orders.length) {
     blocks.push(p(`Nothing due ${day}.`));
@@ -1169,22 +2102,28 @@ export const farmTomorrow = (orders, { date, links } = {}) => {
       blocks.push(p(`**${o.id}**, ${who(o)}, ${state(o)}`), tree(items));
     }
   }
-  if (drops.length) {
-    blocks.push(heading(`Scituate drop, ${terms.scituate.window} (${
-      drops.length})`));
-    for (const o of drops) {
+  // One heading for each occurrence: the series' name, the day, the
+  // place and the hours, earliest hours first.
+  const spot = (o) => placeOf(o).occurrence || placeOf(o).place;
+  const start = (o) => (orderOccurrence(terms, o.fulfilment) || {}).opens
+    || "";
+  const early = [...scheduled].sort((x, y) =>
+    start(x).localeCompare(start(y)) || spot(x).localeCompare(spot(y)));
+
+  for (const id of new Set(early.map(spot))) {
+    const here = scheduled.filter((o) => spot(o) === id);
+
+    blocks.push(heading(`${occasion(here[0])} (${here.length})`));
+    for (const o of here) {
       blocks.push(p(`**${o.id}**, ${who(o)}, ${state(o)}`), tree([pack(o)]));
     }
   }
   if (farm.length) {
     blocks.push(heading(`On-farm pickups (${farm.length})`));
     for (const o of farm) {
-      const agreed = needsAgreement(o)
-        ? `${o.fulfilment.onfarm.window}, NOT CONFIRMED`
-        : `${pickupWindow(o)}, confirmed`;
-
-      blocks.push(p(`**${o.id}**, ${who(o)}, ${agreed}, ${state(o)}`),
-        tree([pack(o)]));
+      blocks.push(p(`**${o.id}**, ${who(o)}, ${pickupWindow(o)}, ${
+        state(o)}`),
+      tree([pack(o)]));
     }
   }
   blocks.push(adminFooter(links));
@@ -1194,24 +2133,141 @@ export const farmTomorrow = (orders, { date, links } = {}) => {
   };
 };
 
-// When the invoice clears, from the webhook or the 15-minute poll.
-export const farmOrderPaid = (order, { squareUrl, links } = {}) => {
-  const title = `Paid: order ${order.id} — ${dollars(order.totals.total)}`;
-  const url = orderAdminUrl(links, order.id);
-  const blocks = [p("Payment received.")];
+// The packing slips (#292, lib/packing.mjs), 6:00 daily, always: the
+// PDF is attached, and the email lists what is in it. Wording is a
+// draft.
+const PACKET_KIND = {
+  new: "new", weekly: "reprint", changed: "**revised**",
+  cancelled: "**CANCELED**",
+};
 
-  if (url) blocks.push(button("View order", url));
-  if (squareUrl) blocks.push(button("View invoice in Square", squareUrl));
+// What a packet or report groups under: "Foster Farmers Market,
+// Sunday, October 25, Shady Acres Diner, 164 Danielson Pike, Foster,
+// 9 AM – 1 PM". The farm's own name for the series, never the
+// customer's "Scheduled pickup".
+const occasion = (order) => {
+  const w = placeOf(order);
+
+  return [w.name, label(order.fulfilment.date), w.address, w.window]
+    .filter(Boolean).join(", ");
+};
+
+// A packet's groups: one per occurrence, one per day of deliveries or
+// of on-farm pickups. Entries come sorted, so a group is a run.
+const packetGroups = (entries) => {
+  const groups = [];
+  const key = (e) => {
+    const f = e.order.fulfilment;
+
+    return isScheduled(f)
+      ? `${placeOf(e.order).occurrence || f.occurrence}`
+      : `${f.method} ${f.date}`;
+  };
+  const title = (e) => {
+    const f = e.order.fulfilment;
+
+    return isScheduled(f) ? occasion(e.order)
+      : `${methodName(f.method)}, ${label(f.date)}`;
+  };
+
+  for (const e of entries) {
+    const last = groups.at(-1);
+
+    if (last && last.key === key(e)) last.entries.push(e);
+    else groups.push({ key: key(e), title: title(e), entries: [e] });
+  }
+
+  return groups;
+};
+
+const packetLine = (e) => {
+  const who = e.order.customer && e.order.customer.name;
+
+  return `**${e.order.id}**${who ? `, ${who}` : ""}: ${PACKET_KIND[e.kind]}`;
+};
+
+export const farmPackingSlips = (entries, {
+  day, sunday = false, quiet = false, slips = 0, revised = 0,
+  cancelled = 0, filename = "", links,
+} = {}) => {
+  const when = label(day);
+
+  if (quiet) {
+    const title = `Packing slips, ${when}: nothing to print`;
+
+    return {
+      subject: title,
+      ...render(title, [
+        p("No order has come in, changed, or been canceled since the " +
+          "last packet."),
+        adminFooter(links),
+      ], links, { tag: "Packing slips" }),
+    };
+  }
+
+  const counts = packetCounts({ slips, revised, cancelled });
+  const title = sunday
+    ? `Packing slips for the week of ${when}: ${counts}`
+    : `Packing slips, ${when}: ${counts}`;
+
+  return {
+    subject: title,
+    ...render(title, [
+      p(`Print the attached PDF${filename ? `, ${filename}` : ""}. It ` +
+        "opens with the pick list for every slip in it."),
+      sunday
+        ? p(`It's Sunday, so it has a slip for every order due by ${
+          label(addDays(day, 6))}, as well as anything new, changed, or ` +
+          "canceled since yesterday, and replaces every earlier slip for " +
+          "this week.")
+        : null,
+      revised || cancelled
+        ? p("A **revised** order has a sheet saying what changed, then a " +
+          "new slip: throw away its old one. A **CANCELED** order has a " +
+          "sheet and no slip.")
+        : null,
+      heading("In this packet"),
+      ...packetGroups(entries).flatMap((g) => [
+        p(`**${g.title}**`), list(g.entries.map(packetLine)),
+      ]),
+      adminFooter(links),
+    ].filter(Boolean), links, { tag: "Packing slips" }),
+  };
+};
+
+// An order due today that changed after this morning's packet. The
+// sheets are attached. Wording is a draft.
+export const farmChangedAfterPrint = (entry, { date, links } = {}) => {
+  const id = entry.order.id;
+  const cancelled = entry.kind === "cancelled";
+  const title = cancelled
+    ? `Canceled after printing: ${id}`
+    : `Changed after printing: ${id}`;
+  const blocks = [
+    p(cancelled
+      ? `**${id}** is due today, ${label(date)}, and was canceled after ` +
+        "this morning's packing slips went out. Don't pack it. The " +
+        "attached sheet says so for the packing table."
+      : `**${id}** is due today, ${label(date)}, and changed after this ` +
+        "morning's packing slips went out. The attached PDF has a sheet " +
+        "saying what changed and a new slip: throw away the old one."),
+  ];
+
+  if (!cancelled && entry.changes.length) {
+    blocks.push(heading("What changed"), list(entry.changes));
+  }
   blocks.push(adminFooter(links));
 
   return {
     subject: title,
-    ...render(title, blocks, links, { tag: "Payment received" }),
+    ...render(title, blocks, links, { tag: "Packing slips" }),
   };
 };
 
-// A short line for the CLI and logs.
+// A short line for the CLI and logs, with the farm's own name for where
+// the order goes.
 export const summaryLine = (order) =>
   `${order.id} ${order.status} ${dollars(order.totals.total)} ` +
-  `${methodName(order.fulfilment.method)} ${order.fulfilment.date} ` +
+  `${placeOf(order).name} ` +
+  `${order.fulfilment.date} ` +
   `${order.customer.email}`;

@@ -7,28 +7,45 @@
 import { randomBytes } from "node:crypto";
 
 import avatars from "../../../data/avatars.json" with { type: "json" };
-import terms from "../../../data/delivery.json" with { type: "json" };
-import { datesFor } from "../../../assets/scripts/order/lib/dates.mjs";
+import catalog from "../../../data/catalog.json" with { type: "json" };
+import terms from "./terms.mjs";
+import { cartOf } from "../../../assets/scripts/order/lib/cart-sync.mjs";
+import { indexCatalog } from "../../../assets/scripts/order/lib/catalog.mjs";
+import {
+  fieldError,
+} from "../../../assets/scripts/utils/field-errors.mjs";
+import {
+  datesFor, isScheduled, orderOccurrence,
+} from "../../../assets/scripts/order/lib/dates.mjs";
+import {
+  legacyOccurrence, occurrenceId,
+} from "../../../assets/scripts/order/lib/events.mjs";
 import {
   phoneOk, zipInfo,
 } from "../../../assets/scripts/order/lib/validate.mjs";
-import { abandonAt } from "./jobs.mjs";
-import { adminEmails, sendMail } from "./mail.mjs";
+import { cancelOrder as cancelAndRefund } from "./admin.mjs";
+import { placeOf } from "./describe.mjs";
+import { AUTOPLAY } from "./auth.mjs";
+import { cutoffAt } from "./jobs.mjs";
+import { now as clock } from "./clock.mjs";
+import { farmEmails, mailbox, sendMail } from "./mail.mjs";
+import { alert, noteMail } from "./health.mjs";
 import { log } from "./log.mjs";
+import { joined, welcome } from "./news.mjs";
+import { notifyFarm, sendForOrder } from "./payments.mjs";
+import * as paypalApi from "./paypal.mjs";
+import { pickupSchedule } from "./pickups.mjs";
 import {
-  hold, notifyFarm, resendInvoice as resendPayLink, sendForOrder,
-} from "./payments.mjs";
-import {
-  REMINDERS, amendOrder, answerQuestion, getOrder, ordersFor, questionOpen,
-  reminderPrefs, saveCustomer, setStatus,
+  REMINDERS, amendOrder, answerQuestion, cartKey, cartOwner, dueOn, getOrder,
+  keptFee, ordersFor, paidByHand, paidTotal, paymentRef, paymentsOf,
+  questionOpen, refundedTotal, reminderPrefs, saveCustomer, settledRefunds,
 } from "./records.mjs";
-import { mailLinks, orderUrlFor, siteUrl } from "./site.mjs";
-import {
-  cancelInvoice, cancelFulfilment, updateFulfilment,
-} from "./square.mjs";
+import { mailLinks, orderUrlFor } from "./site.mjs";
+import * as squareApi from "./square.mjs";
 import { adjust } from "./stock.mjs";
 import {
-  addressReview, farmPickupChanged, farmVenmoClaimed, orderCancelled,
+  addressReview, farmOrderCancelled, farmPickupChanged, farmRefundNeeded,
+  farmReturnRequest, farmSquareOutOfSync, farmSupport, orderCancelled,
   orderChanged,
 } from "./templates.mjs";
 
@@ -37,21 +54,39 @@ export const AVATARS = avatars.map((a) => a.key);
 const text = (value, max = 200) =>
   typeof value === "string" ? value.trim().slice(0, max) : "";
 
+// One line, for a field that lands in a header, such as the support
+// note's subject: a CR or LF there could start a header of its own.
+const line = (value, max = 200) =>
+  text(typeof value === "string" ? value.replace(/[\r\n]+/g, " ") : value,
+    max);
+
 const fail = (status, errors) => ({ ok: false, status, errors });
 
 const shortId = () => randomBytes(6).toString("base64url");
 
-// Farm-side notice; never fails the customer's action.
-const tellFarm = async (message, { mail = sendMail, env = process.env }) => {
-  const to = adminEmails(env);
+// A farm notice about no order (an address to review, a support
+// note). It never fails the customer's action, but a failed send
+// alerts, as notifyFarm's does for a notice about an order (#268).
+const tellFarm = async (stores, template, message, {
+  mail = sendMail, env = process.env, now = clock(),
+}) => {
+  const to = farmEmails(env);
 
   if (!to.length) return null;
 
   try {
-    return await mail({ to, ...message }, { env });
+    const sent = await mail({ to, ...message }, { env });
+
+    await noteMail(stores, true, now);
+
+    return sent;
   } catch (error) {
-    log.error({
-      event: "mail.failed", template: "farm", error: String(error.message),
+    const reason = String(error && error.message);
+
+    log.error({ event: "mail.failed", template, error: reason });
+    await noteMail(stores, false, now, { error: reason });
+    await alert(stores, "mail.failed", { template, error: reason }, {
+      env, mail, now,
     });
 
     return null;
@@ -59,7 +94,23 @@ const tellFarm = async (message, { mail = sendMail, env = process.env }) => {
 };
 
 // The order as the account page shows it: nothing internal.
-export const publicOrder = (order, now = new Date()) => ({
+const pickupOf = (order) => {
+  const f = order.fulfilment;
+
+  if (!isScheduled(f)) return null;
+
+  const {
+    name, place, window, occurrence, site,
+  } = placeOf(order);
+
+  return {
+    name, place, window, occurrence: occurrence || null,
+    series: site || null,
+    gone: !orderOccurrence(terms, f),
+  };
+};
+
+export const publicOrder = (order, now = clock()) => ({
   id: order.id,
   status: order.status,
   submittedAt: order.submittedAt,
@@ -70,40 +121,101 @@ export const publicOrder = (order, now = new Date()) => ({
     lineTotal: l.lineTotal,
   })),
   totals: order.totals,
+  // What the order page needs to open the order for a change (#160).
+  code: order.code || null,
+  pass: order.pass || null,
+  passWaivesFee: !!order.passWaivesFee,
+  customer: {
+    firstName: order.customer.firstName || "",
+    lastName: order.customer.lastName || "",
+    phone: order.customer.phone || "",
+    contact: order.customer.contact || "",
+  },
   fulfilment: order.fulfilment,
+  // Where and when a pickup is handed over, read from the data files
+  // (nothing of it is stored), so the page prints the place without a
+  // copy. `gone` is a site no data file has any more.
+  pickup: pickupOf(order),
   notes: order.notes || "",
-  invoice: order.square ? {
-    number: order.square.invoiceNumber || null,
-    url: order.square.invoiceUrl || null,
-  } : null,
+  payments: paymentsOf(order).map((p) => ({
+    at: p.at || order.paidAt || null,
+    amount: p.amount,
+    via: p.via || null,
+    method: p.method || null,
+    brand: p.brand || null,
+    last4: p.last4 || null,
+    receiptUrl: squareApi.receiptLink(p.receiptUrl),
+    // PayPal gives a Venmo payment no receipt link, so the account
+    // page writes its own from these (#238).
+    paypalCaptureId: p.via === "venmo" ? p.paypalCaptureId || null : null,
+    payer: p.via === "venmo" && p.payer ? p.payer.name || null : null,
+  })),
+  // Which payment each refund came out of, by its place in `payments`
+  // (a refund that names none came out of the first).
+  refunds: settledRefunds(order).map((r) => ({
+    at: r.at,
+    amount: r.amount,
+    payment: Math.max(0, paymentsOf(order)
+      .findIndex((p) => paymentRef(p) === r.payment)),
+  })),
   returns: order.returns || [],
-  paymentPending: order.paymentPending
-    ? { source: order.paymentPending.source || null } : null,
+  // Paid and not refundable: a missed delivery's fee (#193). A change
+  // on the order page counts what is paid less this.
+  keptFee: keptFee(order),
+  // The day of that trip, so the ledger can name it.
+  keptDate: (order.attempted && order.attempted.date) || null,
   question: order.question ? {
     kind: order.question.kind,
     reason: order.question.reason || "",
     openedAt: order.question.openedAt,
+    until: order.question.until || null,
     answeredAt: order.question.answeredAt || null,
     answer: order.question.answer || null,
   } : null,
   canCancel: canCancel(order, now),
   canChange: canChange(order, now),
+  // What is still owed on an order the farm made (#181). The page's
+  // pay mode, and the Pay now button that leads to it, land together
+  // with the cart rebuild (#477).
+  due: dueOn(order),
 });
 
-// An order can be cancelled by the customer until the cutoff, while
-// it is unpaid or paid. Paid cancellations need a refund by hand. An
+// An order can be cancelled or changed by the customer until the
+// cutoff. A cancellation is a refund the farm makes from the CLI. An
 // open question from the farm (a denied pickup window) keeps both
 // doors open past the cutoff: the customer was asked to choose.
+// An order holding money the farm took by hand (#181) is cancelled or
+// changed with the farm, which hands the money back itself: the site
+// would otherwise promise a refund it cannot make.
 const actionable = (order, now) =>
-  ["submitted", "paid"].includes(order.status)
+  order.status === "paid"
   && !order.cancelRequested
-  && (now.getTime() < abandonAt(order).getTime() || questionOpen(order));
+  && !paymentsOf(order).some(paidByHand)
+  && (now.getTime() < cutoffAt(order).getTime() || questionOpen(order));
 
 export const canCancel = actionable;
 
-export const canChange = actionable;
+const index = indexCatalog(catalog);
 
-export const listOrders = async (stores, customer, { now = new Date() } = {}) =>
+// A pickup at an occurrence that no data file defines any more (a
+// series is archived, never deleted, so this should not happen): there
+// is no day to move it to, so the page shows the order without the
+// change control and says to call, text, or email.
+const siteGone = (order) => {
+  const f = order.fulfilment;
+
+  return isScheduled(f) && !orderOccurrence(terms, f);
+};
+
+// A change replays the order's lines through the catalog, so an order
+// holding a SKU the catalog doesn't know (one placed before the SKUs
+// were renamed, #267) can't be changed: saving would drop that line
+// and refund it. Cancelling, and calling the farm, still can.
+export const canChange = (order, now) => actionable(order, now)
+  && (order.lines || []).every((l) => index.has(l.sku))
+  && !siteGone(order);
+
+export const listOrders = async (stores, customer, { now = clock() } = {}) =>
   ({
     ok: true,
     orders: (await ordersFor(stores, customer.email))
@@ -117,14 +229,14 @@ const owned = async (stores, customer, id) => {
 };
 
 export const cancelOrder = async (stores, customer, id, {
-  now = new Date(), env = process.env, mail = sendMail,
-  square = { cancelInvoice, cancelFulfilment },
+  now = clock(), env = process.env, mail = sendMail,
+  square = squareApi, paypal = paypalApi, fetchImpl,
 } = {}) => {
   const order = await owned(stores, customer, id);
 
   if (!order) return fail(404, { order: "We can't find that order." });
   if (!canCancel(order, now)) {
-    return fail(409, { order: "This order can't be cancelled any more." });
+    return fail(409, { order: "This order can't be canceled any more." });
   }
 
   // Cancelling answers whatever the farm asked.
@@ -134,33 +246,36 @@ export const cancelOrder = async (stores, customer, id, {
     }, "question.answered", now);
   }
 
-  if (order.status === "submitted") {
-    const cancelled = await setStatus(stores, id, "cancelled", now, {
-      source: "customer",
+  // The money goes back now, as the farm's cancel sends it (T1d), so
+  // the email's "on its way" is true.
+  try {
+    await cancelAndRefund(stores, id, {
+      now, env, mail, square, paypal, fetchImpl, source: "customer",
+      key: `refund-cancel-${id}`, reason: `Order ${id}, canceled by you`,
     });
+    const cancelled = await getOrder(stores, id);
 
-    await adjust(stores, order.lines, 1);
-
-    if (order.square && order.square.invoiceId) {
-      try {
-        await square.cancelInvoice(order.square.invoiceId, { env });
-        if (order.square.squareOrderId) {
-          await square.cancelFulfilment(order.square.squareOrderId, { env });
-        }
-      } catch (error) {
-        log.error({
-          event: "square.cancel_failed", id, error: String(error.message),
-        });
-      }
-    }
-    await sendForOrder(stores, cancelled, "orderCancelled",
-      orderCancelled(cancelled, { refund: false, links: mailLinks(env) }),
+    await notifyFarm(stores, cancelled, "farmOrderCancelled",
+      farmOrderCancelled(cancelled, customer, { links: mailLinks(env) }),
       { mail, env, now });
 
     return { ok: true, order: publicOrder(await getOrder(stores, id), now) };
+  } catch (error) {
+    log.error({ event: "cancel.refund_failed", id, message: error.message });
   }
 
-  // Paid: the farm refunds through Square, then closes it in the CLI.
+  // The refund failed, so the farm refunds and closes it from the CLI.
+  const current = await getOrder(stores, id);
+
+  if (current.status === "cancelled") {
+    return { ok: true, order: publicOrder(current, now) };
+  }
+  // Handed over while the cancel was under way: nothing to ask the
+  // farm to refund and close.
+  if (current.status === "fulfilled") {
+    return fail(409, { order: "This order can't be canceled any more." });
+  }
+
   const flagged = await amendOrder(stores, id, {
     cancelRequested: true, cancelRequestedAt: now.toISOString(),
   }, "cancel.requested", now);
@@ -168,70 +283,118 @@ export const cancelOrder = async (stores, customer, id, {
   // The packs will not ship; put them back for the next customer.
   await adjust(stores, order.lines, 1);
 
+  // What the farm will send back (T1a): everything not yet back, less
+  // a fee a missed delivery kept.
   await sendForOrder(stores, flagged, "orderCancelled",
-    orderCancelled(flagged, { refund: true, links: mailLinks(env) }),
+    orderCancelled(flagged, {
+      by: "customer",
+      refunded: paidTotal(current) - refundedTotal(current) - keptFee(current),
+      links: mailLinks(env),
+    }), { mail, env, now });
+  await notifyFarm(stores, await getOrder(stores, id), "farmRefundNeeded",
+    farmRefundNeeded(order, customer, { links: mailLinks(env) }),
     { mail, env, now });
-  await tellFarm({
-    subject: `Refund needed: ${id} cancelled by ${customer.email}`,
-    text: `${customer.name || customer.email} cancelled paid order ${id} ` +
-      `(${order.fulfilment.method} ${order.fulfilment.date}). Refund it ` +
-      `in Square, then: bin/nff order cancel ${id}`,
-    html: `<p>${customer.name || customer.email} cancelled paid order ` +
-      `${id} (${order.fulfilment.method} ${order.fulfilment.date}). Refund ` +
-      `it in Square, then run <code>bin/nff order cancel ${id}</code>.</p>`,
-  }, { mail, env });
 
   return { ok: true, order: publicOrder(await getOrder(stores, id), now) };
 };
 
-// What can change without touching money: the date, the pickup
-// window and phone, the drop-off details, the notes.
-export const changeOrder = async (stores, customer, id, changes, {
-  now = new Date(), env = process.env, mail = sendMail,
-  square = { updateFulfilment },
-} = {}) => {
-  const order = await owned(stores, customer, id);
-
-  if (!order) return fail(404, { order: "We can't find that order." });
-  if (!canChange(order, now)) {
-    return fail(409, { order: "This order can't be changed any more." });
-  }
-
+// What a change without money does to the record: the date, the
+// pickup window, the drop-off details, the notes. Nothing is saved.
+// `by` is who answers a question the farm asked ("customer", "farm").
+// -> { errors } or { patch, moved }
+export const planChange = (order, changes, { now, env, by = "customer" }) => {
   const c = changes && typeof changes === "object" ? changes : {};
   const errors = {};
   const f = JSON.parse(JSON.stringify(order.fulfilment));
-  const method = f.method;
+  const was = order.fulfilment;
+  const wasScheduled = isScheduled(was);
+  const here = orderOccurrence(terms, was);
+  const wasId = here ? here.id : was.occurrence || null;
+  const method = wasScheduled ? "scheduled" : f.method;
+  // The occurrence the change asks for, if it asks for one.
+  let target = null;
 
-  if (c.date !== undefined) {
+  // Within scheduled pickup the customer may choose any open
+  // occurrence, not only another date of the same series. On-farm
+  // pickup and delivery cannot switch this way.
+  if (c.method !== undefined || c.occurrence !== undefined
+    || c.site !== undefined) {
+    const to = c.method !== undefined ? text(c.method, 20) : method;
+
+    if (!wasScheduled || !isScheduled({ method: to })) {
+      errors.method = "Only an order for a pickup day can move to " +
+        "another pickup day.";
+    } else if (c.occurrence !== undefined) {
+      target = text(c.occurrence, 20);
+    } else {
+      target = legacyOccurrence(terms.model, to, text(c.site, 40),
+        text(c.date, 10)) || "";
+    }
+  } else if (wasScheduled && c.date !== undefined
+    && text(c.date, 10) !== was.date) {
+    // A new date alone means the same series on that date.
+    target = here ? occurrenceId(here.series, text(c.date, 10)) : "";
+  }
+
+  const sameSite = target === null || target === wasId;
+
+  // The held occurrence stays valid for the order that already holds
+  // it (the farm booked it beyond the usual list).
+  const allowed = errors.method ? []
+    : datesFor(method, now, terms, pickupSchedule(env), by === "farm");
+
+  if (!sameSite && !errors.method) {
+    const day = allowed.find((d) => d.occurrence === target);
+
+    if (!day) {
+      errors[c.occurrence === undefined && c.date !== undefined
+        ? "date" : "occurrence"] = "That pickup isn't available.";
+    } else {
+      f.method = "scheduled";
+      f.occurrence = target;
+      f.date = day.date;
+      delete f.site;
+    }
+  }
+
+  // After the customer's miss, another delivery day charges the fee
+  // again (C1), which only the order page can take. Draft wording.
+  const refee = questionOpen(order) && order.question.kind === "missed"
+    && keptFee(order) > 0;
+
+  if (!wasScheduled && c.date !== undefined
+    && text(c.date, 10) !== order.fulfilment.date) {
     const date = text(c.date, 10);
-    const allowed = datesFor(method, now, terms);
 
-    if (!allowed.some((d) => d.date === date)) {
+    if (refee) {
+      errors.date = "Another delivery day has a new delivery fee. Choose " +
+        "it with Change items, where you can pay it.";
+    } else if (!allowed.some((d) => d.date === date)) {
       errors.date = "That date isn't available.";
     } else {
       f.date = date;
     }
   }
 
-  if (method === "onfarm" && c.onfarm && typeof c.onfarm === "object") {
-    const window = text(c.onfarm.window, 20);
-    const phone = text(c.onfarm.phone, 40);
+  if (method === "onfarm" && c.onfarm && typeof c.onfarm === "object"
+    && c.onfarm.window !== undefined) {
+    f.onfarm.window = text(c.onfarm.window, 20);
+  }
 
-    if (c.onfarm.window !== undefined) {
-      if (!["morning", "afternoon"].includes(window)) {
-        errors["onfarm.window"] = "Morning or afternoon?";
-      } else {
-        f.onfarm.window = window;
-      }
+  // A pickup moved to another day or time takes one the schedule
+  // offers now, and is booked as it stands (W11d).
+  const moved = method === "onfarm" && (f.date !== order.fulfilment.date
+    || f.onfarm.window !== order.fulfilment.onfarm.window);
+
+  if (moved && !errors.date) {
+    const day = allowed.find((d) => d.date === f.date);
+    const w = day && day.windows.find((x) => x.id === f.onfarm.window);
+
+    if (w) {
+      f.onfarm = { window: w.id, from: w.from, to: w.to };
+    } else {
+      errors["onfarm.window"] = "That pickup time isn't available.";
     }
-    if (c.onfarm.phone !== undefined) {
-      if (!phoneOk(phone)) {
-        errors["onfarm.phone"] = "That phone number doesn't look right.";
-      } else {
-        f.onfarm.phone = phone;
-      }
-    }
-    if (c.onfarm.textOk !== undefined) f.onfarm.textOk = !!c.onfarm.textOk;
   }
 
   if (method === "delivery" && c.delivery && typeof c.delivery === "object") {
@@ -247,124 +410,126 @@ export const changeOrder = async (stores, customer, id, changes, {
 
   const notes = c.notes !== undefined ? text(c.notes, 2000) : order.notes;
 
-  if (Object.keys(errors).length) return fail(422, errors);
+  if (Object.keys(errors).length) return { errors };
 
-  // A pickup moved to another day or window is a new request: the
-  // farm has to agree again, and a denied window is answered.
-  const moved = method === "onfarm" && (f.date !== order.fulfilment.date
-    || f.onfarm.window !== order.fulfilment.onfarm.window);
+  // A moved pickup answers a time the farm gave up; a delivery on
+  // another day answers a missed one.
   const patch = { fulfilment: f, notes };
 
-  if (moved) {
-    f.state = "requested";
-    f.agreedAt = null;
-    f.onfarm.confirmed = null;
-    patch.question = answerQuestion(order, "reschedule", "customer", now);
+  if (moved) f.state = "agreed";
+  if (moved || f.date !== order.fulfilment.date || !sameSite) {
+    patch.question = answerQuestion(order, "reschedule", by, now);
+  }
+  // A move to another occurrence is told in the history, before the
+  // change itself: where from, where to, by whom.
+  if (!sameSite) {
+    patch.history = [...(order.history || []), {
+      at: now.toISOString(), event: "fulfilment.moved", from: wasId,
+      to: target, by,
+    }];
   }
 
-  const changed = await amendOrder(stores, id, patch, "customer.changed", now);
+  return { patch, moved, from: !sameSite ? was : null };
+};
 
-  // Square carries the fulfilment the farm packs from; keep it in step.
+// Saves a planned change, keeps Square's fulfillment in step and tells
+// the customer, and the farm too when the customer made it. `by` names
+// the history event: customer.changed or farm.changed. -> the order.
+export const applyChange = async (stores, order, plan, {
+  now, env, mail, square, by = "customer",
+}) => {
+  const { id } = order;
+  const { patch, moved, from } = plan;
+  const f = patch.fulfilment;
+  const changed = await amendOrder(stores, id, patch, `${by}.changed`, now);
+
+  // Square carries the fulfillment the farm packs from; keep it in step.
   if (order.square && order.square.squareOrderId) {
     try {
-      await square.updateFulfilment(order.square.squareOrderId, changed, {
+      await square.updateFulfillment(order.square.squareOrderId, changed, {
         env,
       });
     } catch (error) {
       log.error({
         event: "square.update_failed", id, error: String(error.message),
       });
-      await amendOrder(stores, id, {
-        flags: { ...(changed.flags || {}), squareOutOfSync: true },
-      }, "square.out_of_sync", now);
-      await tellFarm({
-        subject: `Square out of sync: ${id}`,
-        text: `${customer.email} changed order ${id} but Square could not ` +
-          `be updated. Check the fulfilment in Square: ${f.method} ${f.date}.`,
-        html: `<p>${customer.email} changed order ${id} but Square could ` +
-          `not be updated. Check the fulfilment in Square: ${f.method} ` +
-          `${f.date}.</p>`,
-      }, { mail, env });
+      await amendOrder(stores, id, (f) => ({
+        flags: { ...(f.flags || {}), squareOutOfSync: true },
+      }), "square.out_of_sync", now);
+      await notifyFarm(stores, await getOrder(stores, id),
+        `farmSquareOutOfSync-${now.getTime()}`,
+        farmSquareOutOfSync({ id, fulfilment: f }, order.customer, {
+          links: mailLinks(env),
+        }), { mail, env, now });
     }
   }
 
   await sendForOrder(stores, changed, `orderChanged-${now.getTime()}`,
     orderChanged(changed, {
       orderUrl: orderUrlFor(env, changed.id), links: mailLinks(env),
+      // A move to another site names both places.
+      before: from ? { lines: changed.lines, totals: changed.totals,
+        method: from.method, site: from.site,
+        occurrence: from.occurrence, date: from.date } : null,
     }),
     { mail, env, now });
 
-  if (moved) {
+  if ((moved || from) && by === "customer") {
     await notifyFarm(stores, await getOrder(stores, id),
       `farmPickupChanged-${now.getTime()}`,
-      farmPickupChanged(changed, { links: mailLinks(env) }),
+      farmPickupChanged(changed, { links: mailLinks(env), before: from }),
       { mail, env, now });
   }
 
-  return { ok: true, order: publicOrder(await getOrder(stores, id), now) };
+  return getOrder(stores, id);
 };
 
-// The pay-link email again, from the order page.
-export const resendInvoice = async (stores, customer, id, {
-  now = new Date(), env = process.env, mail = sendMail,
+// What can change without touching money, for the signed-in owner.
+export const changeOrder = async (stores, customer, id, changes, {
+  now = clock(), env = process.env, mail = sendMail,
+  square = { updateFulfillment: squareApi.updateFulfillment },
 } = {}) => {
   const order = await owned(stores, customer, id);
 
   if (!order) return fail(404, { order: "We can't find that order." });
-  if (order.status !== "submitted") {
-    return fail(409, { order: "This order isn't waiting for payment." });
+  if (siteGone(order)) {
+    // Draft wording, for communications and James.
+    return fail(409, { order: "We can't change this pickup here. Please " +
+      "call, text, or email us, and we'll work it out." });
+  }
+  if (!canChange(order, now)) {
+    return fail(409, { order: "This order can't be changed any more." });
   }
 
-  const r = await resendPayLink(stores, order, {
-    orderUrl: orderUrlFor(env, id), mail, env, now,
-  });
+  const plan = planChange(order, changes, { now, env });
 
-  if (!r.ok) {
-    return fail(429, { order: "We've sent that a few times already. " +
-      "Check your spam folder, or write to us." });
-  }
+  if (plan.errors) return fail(422, plan.errors);
 
-  return { ok: true, order: publicOrder(r.order, now) };
-};
-
-// "I paid by Venmo": the order waits (no reminders, not abandoned)
-// while the farm checks the Venmo app, and the farm is told. Venmo's
-// own notification usually marks the order paid first; this is for
-// when it has not, or the note had no order number.
-export const claimVenmo = async (stores, customer, id, {
-  now = new Date(), env = process.env, mail = sendMail,
-} = {}) => {
-  const order = await owned(stores, customer, id);
-
-  if (!order) return fail(404, { order: "We can't find that order." });
-  if (order.status !== "submitted") {
-    return fail(409, { order: "This order isn't waiting for payment." });
-  }
-  if (order.paymentPending) {
-    return fail(409, { order: "We're already looking for that payment." });
-  }
-
-  const held = await hold(stores, order, now, "venmo");
-
-  await notifyFarm(stores, held, `farmVenmoClaimed-${now.getTime()}`,
-    farmVenmoClaimed(held, { links: mailLinks(env) }), { mail, env, now });
+  await applyChange(stores, order, plan, { now, env, mail, square });
 
   return { ok: true, order: publicOrder(await getOrder(stores, id), now) };
 };
 
-export const updateProfile = async (stores, customer, changes) => {
+export const updateProfile = async (stores, customer, changes, {
+  now = clock(), env = process.env, mail = sendMail,
+} = {}) => {
   const c = changes && typeof changes === "object" ? changes : {};
   const errors = {};
   const patch = {};
 
-  if (c.name !== undefined) {
-    patch.name = text(c.name, 120);
-    if (!patch.name) errors.name = "Please enter your name.";
+  // The name is kept in parts, as the order form takes it; the full
+  // name is rebuilt from them for the places that show it whole.
+  if (c.firstName !== undefined || c.lastName !== undefined) {
+    patch.firstName = text(c.firstName, 60);
+    patch.lastName = text(c.lastName, 60);
+    if (!patch.firstName) errors.firstName = "Please enter your first name.";
+    if (!patch.lastName) errors.lastName = "Please enter your last name.";
+    patch.name = `${patch.firstName} ${patch.lastName}`.trim();
   }
   if (c.phone !== undefined) {
     patch.phone = text(c.phone, 40);
     if (patch.phone && !phoneOk(patch.phone)) {
-      errors.phone = "That phone number doesn't look right.";
+      errors.phone = fieldError("phone", patch.phone);
     }
   }
   if (c.avatar !== undefined) {
@@ -372,6 +537,15 @@ export const updateProfile = async (stores, customer, changes) => {
       errors.avatar = "Pick one of the chickens.";
     } else {
       patch.avatar = c.avatar;
+    }
+  }
+  // Farm news by email is opt-in only: off unless the customer ticks
+  // the box, here or at checkout, and the change is dated.
+  if (c.marketing !== undefined) {
+    patch.marketing = c.marketing === true;
+    if (patch.marketing !== (customer.marketing === true)) {
+      patch.marketingAt = now.toISOString();
+      patch.marketingSource = "account";
     }
   }
   // The reminder emails, each on or off; a key left out is unchanged.
@@ -388,9 +562,27 @@ export const updateProfile = async (stores, customer, changes) => {
     }
   }
 
+  // Leave us a review (#303): Dismiss hides it for good, on every
+  // device, so only a first dismissal is dated and nothing undoes it.
+  if (c.reviewDismissed === true && !customer.reviewDismissedAt) {
+    patch.reviewDismissedAt = now.toISOString();
+  }
+
+  // Videos playing on their own: "on", "off", or null to leave it to
+  // each browser again (#161).
+  if (c.autoplay !== undefined) {
+    if (c.autoplay !== null && !AUTOPLAY.includes(c.autoplay)) {
+      errors.autoplay = "Choose on or off.";
+    } else {
+      patch.autoplay = c.autoplay;
+    }
+  }
+
   if (Object.keys(errors).length) return fail(422, errors);
 
   const saved = await saveCustomer(stores, { ...customer, ...patch });
+
+  if (joined(customer, saved)) await welcome(stores, saved, { env, mail, now });
 
   return { ok: true, customer: saved };
 };
@@ -398,7 +590,7 @@ export const updateProfile = async (stores, customer, changes) => {
 // An address inside the approved list is approved at once. Anything
 // else is pending until the farm decides, and the farm is told.
 export const saveAddress = async (stores, customer, address, {
-  now = new Date(), env = process.env, mail = sendMail,
+  now = clock(), env = process.env, mail = sendMail,
 } = {}) => {
   const a = address && typeof address === "object" ? address : {};
   const errors = {};
@@ -413,8 +605,8 @@ export const saveAddress = async (stores, customer, address, {
   };
 
   if (!next.address1) errors.address1 = "Please enter your street address.";
-  if (!next.town) errors.town = "Please enter your town.";
-  if (next.zip.length !== 5) errors.zip = "Please enter a five-digit ZIP.";
+  if (!next.town) errors.town = "Please enter your city or town.";
+  if (next.zip.length !== 5) errors.zip = fieldError("zip", next.zip);
   if (Object.keys(errors).length) return fail(422, errors);
 
   const info = zipInfo(next.zip, terms.area);
@@ -445,17 +637,69 @@ export const saveAddress = async (stores, customer, address, {
   const saved = await saveCustomer(stores, { ...customer, address: next });
 
   if (next.status === "pending") {
-    await tellFarm(addressReview(saved, { links: mailLinks(env) }),
-      { mail, env });
+    await tellFarm(stores, "addressReview",
+      addressReview(saved, { links: mailLinks(env) }), { mail, env, now });
   }
 
   return { ok: true, customer: saved };
 };
 
+export { cartOwner };
+
+// The cart the customer carries across devices (#149): the account's
+// copy, or null when it has never had one, and the account's tag.
+export const getCart = async (stores, customer) => ({
+  ok: true,
+  cart: (await stores.customers.get(cartKey(customer.email))) || null,
+  owner: cartOwner(customer.email),
+});
+
+// A device's copy, kept unless the account's is newer; either way the
+// answer is the copy that stands, and `kept` says whether it is this
+// one. No payload means the cart was cleared. A time ahead of the
+// server's clock is brought back to it, and the device takes that time
+// as its own, so a fast clock cannot win every race after.
+export const saveCart = async (stores, customer, body, {
+  now = new Date(),
+} = {}) => {
+  const b = body && typeof body === "object" ? body : {};
+  const savedAt = Number(b.savedAt);
+
+  if (!Number.isFinite(savedAt) || savedAt <= 0) {
+    return fail(422, { savedAt: "When was this cart saved?" });
+  }
+  if (b.payload !== null && typeof b.payload !== "object") {
+    return fail(422, { payload: "Expected a cart." });
+  }
+
+  const owner = cartOwner(customer.email);
+
+  // A draft tagged for another account never lands on this one: it
+  // holds that person's details, left when their session ended without
+  // a sign-out.
+  if (b.owner && b.owner !== owner) {
+    return fail(409, { owner: "This cart belongs to another account." });
+  }
+
+  const key = cartKey(customer.email);
+  const stored = await stores.customers.get(key);
+  const at = Math.min(savedAt, now.getTime());
+
+  if (stored && stored.savedAt >= at) {
+    return { ok: true, cart: stored, kept: false, owner };
+  }
+
+  const cart = { payload: b.payload ? cartOf(b.payload) : null, savedAt: at };
+
+  await stores.customers.set(key, cart);
+
+  return { ok: true, cart, kept: true, owner };
+};
+
 // A return or problem report on an order. The farm answers by email
 // and settles it in the CLI.
 export const requestReturn = async (stores, customer, id, request, {
-  now = new Date(), env = process.env, mail = sendMail,
+  now = clock(), env = process.env, mail = sendMail,
 } = {}) => {
   const order = await owned(stores, customer, id);
 
@@ -483,28 +727,22 @@ export const requestReturn = async (stores, customer, id, request, {
     returns: [...(order.returns || []), entry],
   }, "return.requested", now);
 
-  await tellFarm({
-    subject: `Return request: ${id} from ${customer.email}`,
-    text: `${customer.name || customer.email} asked about a return on ` +
-      `${id}.\n\n${reason}\n\nItems: ${skus.join(", ") || "not specified"}` +
-      `\n\nSettle it with: bin/nff return resolve ${id} ${entry.id}`,
-    html: `<p>${customer.name || customer.email} asked about a return on ` +
-      `${id}.</p><blockquote>${reason}</blockquote><p>Items: ` +
-      `${skus.join(", ") || "not specified"}</p><p>Settle it with ` +
-      `<code>bin/nff return resolve ${id} ${entry.id}</code>.</p>`,
-  }, { mail, env });
+  const noted = await notifyFarm(stores, changed,
+    `farmReturnRequest-${entry.id}`,
+    farmReturnRequest(order, customer, entry, { links: mailLinks(env) }),
+    { mail, env, now });
 
-  return { ok: true, order: publicOrder(changed, now), request: entry };
+  return { ok: true, order: publicOrder(noted, now), request: entry };
 };
 
 // A message to the farm, with the customer's details attached.
 export const sendSupport = async (stores, customer, request, {
-  now = new Date(), env = process.env, mail = sendMail,
+  now = clock(), env = process.env, mail = sendMail,
 } = {}) => {
   const r = request && typeof request === "object" ? request : {};
-  const subject = text(r.subject, 150);
+  const subject = line(r.subject, 150);
   const message = text(r.message, 4000);
-  const orderId = text(r.orderId, 40);
+  const orderId = line(r.orderId, 40);
 
   if (!message) return fail(422, { message: "Write us a note first." });
 
@@ -513,19 +751,12 @@ export const sendSupport = async (stores, customer, request, {
   await stores.customers.set(`support/${customer.email}/${id}`, {
     id, at: now.toISOString(), subject, message, orderId, status: "open",
   });
-  await tellFarm({
-    subject: `Support: ${subject || "(no subject)"} from ${customer.email}`,
-    text: `${customer.name || customer.email} <${customer.email}>` +
-      `${customer.phone ? ` · ${customer.phone}` : ""}` +
-      `${orderId ? `\nOrder ${orderId}` : ""}\n\n${message}\n\n` +
-      `Reply to this email to answer. Account: ${siteUrl(env)}/account/`,
-    html: `<p><strong>${customer.name || customer.email}</strong> ` +
-      `&lt;${customer.email}&gt;${customer.phone
-        ? ` · ${customer.phone}` : ""}</p>` +
-      `${orderId ? `<p>Order ${orderId}</p>` : ""}` +
-      `<blockquote>${message.replace(/\n/g, "<br>")}</blockquote>` +
-      "<p>Reply to this email to answer.</p>",
-  }, { mail, env });
+  await tellFarm(stores, "farmSupport", {
+    replyTo: mailbox(customer.name, customer.email),
+    ...farmSupport(customer, { subject, message, orderId }, {
+      links: mailLinks(env),
+    }),
+  }, { mail, env, now });
 
   return { ok: true, id };
 };

@@ -1,0 +1,39 @@
+name: E2E soak
+
+# The whole suite many times over on one commit, run by hand: the
+# one-time burn-in James asked for (#283, 6302479835), and any later
+# hunt for a flake. Never scheduled. Its check names (soak, shard N)
+# are required nowhere, so a run here can't stand in for e2e.
+
+on:
+  workflow_dispatch:
+    inputs:
+      repeat_each:
+        description: Runs of each test
+        default: "10"
+      workers:
+        description: Workers per shard
+        default: "2"
+      shards:
+        description: The shard numbers, as a JSON list
+        default: "[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]"
+      total:
+        description: How many shards in all
+        default: "12"
+      spec:
+        description: Spec files to soak, blank for all
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  soak:
+    uses: ./.github/workflows/e2e-run.yml
+    with:
+      passes: 1
+      args: --repeat-each=${{ inputs.repeat_each }} ${{ inputs.spec }}
+      shards: ${{ inputs.shards }}
+      total: ${{ fromJSON(inputs.total) }}
+      workers: ${{ fromJSON(inputs.workers) }}
+      timeout: 240

@@ -2,14 +2,21 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
-  alert, mark, noteMail, ping, readMark,
+  alert, alertTest, count, mark, noteMail, ping, raise, readCount, readMark,
 } from "../netlify/functions/lib/health.mjs";
 import { recordRun } from "../netlify/functions/lib/jobs.mjs";
 import {
-  configured, flush, log, pending,
+  alertCrash, configured, flush, log, pending, trimStack, withLog,
 } from "../netlify/functions/lib/log.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
 import { handle, snapshot } from "../netlify/functions/health.mjs";
+import { handle as jobsHandle } from "../netlify/functions/jobs.mjs";
+import { handle as stagingHandle } from "../netlify/functions/staging.mjs";
+
+const MAILS = {
+  FARM_NOTIFICATIONS_EMAIL: "farm@x.com",
+  DEV_NOTIFICATIONS_EMAIL: "dev@x.com",
+};
 
 const now = new Date("2026-10-06T13:00:00Z");
 const later = (minutes) => new Date(now.getTime() + minutes * 60_000);
@@ -39,11 +46,12 @@ const fakeFetch = (status = 200) => {
   return { calls, fetchImpl };
 };
 
+// A report as runJobs builds one (lib/jobs.mjs); recordRun summarises
+// it into the ledger.
 const run = (at, errors = [], invariants = []) => ({
-  at: at.toISOString(), paid: [], reminded: [], abandoned: [],
-  deliveryReminded: [], closed: [], bankTransferClosed: [], muted: [],
-  pickupsToConfirm: [], venmoReported: [], tomorrow: null, errors,
-  invariants,
+  at: at.toISOString(), deliveryReminded: [], closed: [], squareSynced: [],
+  muted: [], checkoutsSwept: 0, pickupsToConfirm: [], tomorrow: null,
+  errors, invariants,
 });
 
 describe("the log seam", () => {
@@ -96,9 +104,9 @@ describe("marks and heartbeats", () => {
     async () => {
       const stores = testStores();
 
-      await mark(stores, "webhook", { invoice: "INV-1" }, now);
+      await mark(stores, "webhook", { type: "refund.updated" }, now);
       assert.deepEqual(await readMark(stores, "webhook"),
-        { at: now.toISOString(), invoice: "INV-1" });
+        { at: now.toISOString(), type: "refund.updated" });
 
       const broken = { jobs: { set: async () => { throw new Error("no"); },
         get: async () => { throw new Error("no"); } } };
@@ -106,6 +114,28 @@ describe("marks and heartbeats", () => {
       assert.ok(await mark(broken, "x", {}, now));
       assert.equal(await readMark(broken, "x"), null);
     });
+
+  it("tallies a thing per day and reads the tally back", async () => {
+    const stores = testStores();
+    const monday = new Date("2026-10-05T23:30:00Z"); // 19:30 Sunday, ET.
+
+    assert.equal(await readCount(stores, "declined", "2026-10-06"), 0);
+    await count(stores, "declined", now);
+    await count(stores, "declined", later(30));
+    await count(stores, "declined", monday);
+    assert.equal(await readCount(stores, "declined", "2026-10-06"), 2);
+    assert.equal(await readCount(stores, "declined", "2026-10-05"), 1,
+      "the day is New York's, not UTC's");
+    assert.equal(await readCount(stores, "other", "2026-10-06"), 0);
+    assert.equal((await stores.jobs.get("health/declined/2026-10-06")).at,
+      later(30).toISOString());
+
+    const broken = { jobs: { set: async () => { throw new Error("no"); },
+      get: async () => { throw new Error("no"); } } };
+
+    await count(broken, "declined", now);
+    assert.equal(await readCount(broken, "declined", "2026-10-06"), 0);
+  });
 
   it("keeps a rolling hour of mail failures beside the last success",
     async () => {
@@ -155,14 +185,14 @@ describe("alerts", () => {
       const { sent, mail } = mailbox();
       const { calls, fetchImpl } = fakeFetch();
       const env = {
-        ADMIN_EMAILS: "farm@x.com", HEALTHCHECKS_ALERT_URL: "https://hc/a",
+        ...MAILS, HEALTHCHECKS_ALERT_URL: "https://hc/a",
       };
 
       assert.equal(await alert(stores, "mail.failed", {
         id: "NFF-1", error: "Resend 500",
       }, { env, mail, now, fetchImpl }), "sent");
       assert.equal(sent.length, 1);
-      assert.deepEqual(sent[0].to, ["farm@x.com"]);
+      assert.deepEqual(sent[0].to, ["dev@x.com"]);
       assert.equal(sent[0].subject, "Site alert: mail.failed");
       assert.match(sent[0].text, /NFF-1/);
       assert.match(sent[0].text, /Resend 500/);
@@ -176,7 +206,7 @@ describe("alerts", () => {
       assert.equal(sent.length, 1, "held for an hour");
       assert.equal((await readMark(stores, "alert/mail.failed")).muted, 1);
 
-      assert.equal(await alert(stores, "poll.failed", {}, {
+      assert.equal(await alert(stores, "jobs.errors", {}, {
         env, mail, now: later(30), fetchImpl,
       }), "sent", "another kind is its own clock");
       assert.equal(await alert(stores, "mail.failed", {}, {
@@ -193,14 +223,148 @@ describe("alerts", () => {
         env: {}, mail: async () => {}, now, fetchImpl: fakeFetch().fetchImpl,
       }), "skipped");
       assert.equal(await alert(stores, "y", {}, {
-        env: { ADMIN_EMAILS: "a@b" },
+        env: { FARM_NOTIFICATIONS_EMAIL: "a@b" },
         mail: async () => { throw new Error("down"); },
         now, fetchImpl: fakeFetch().fetchImpl,
       }), "skipped");
     });
 });
 
+describe("the phone channel (#248)", () => {
+  const env = {
+    ...MAILS,
+    HEALTHCHECKS_ALERT_URL: "https://hc/a",
+  };
+
+  it("re-arms the alert check with a success ping after each /fail",
+    async () => {
+      const { mail } = mailbox();
+      const { calls, fetchImpl } = fakeFetch();
+      const r = await raise(testStores(), "mail.failed", { id: "NFF-1" }, {
+        env, mail, now, fetchImpl,
+      });
+
+      assert.deepEqual(calls.map((c) => [c.method, c.url]), [
+        ["POST", "https://hc/a/fail"], ["GET", "https://hc/a"],
+      ]);
+      assert.equal(r.status, "sent");
+      assert.equal(r.failed, true);
+      assert.equal(r.rearmed, true);
+      assert.deepEqual(r.to, ["dev@x.com"]);
+    });
+
+  it("pings nothing when no alert check is set", async () => {
+    const { calls, fetchImpl } = fakeFetch();
+
+    await alert(testStores(), "mail.failed", {}, {
+      env: { ...MAILS }, mail: mailbox().mail, now,
+      fetchImpl,
+    });
+    assert.equal(calls.length, 0);
+  });
+
+  it("alert test goes past the hourly mute, every time", async () => {
+    const stores = testStores();
+    const { sent, mail } = mailbox();
+    const { calls, fetchImpl } = fakeFetch();
+
+    for (const at of [now, later(1)]) {
+      const r = await alertTest(stores, { env, mail, now: at, fetchImpl });
+
+      assert.equal(r.status, "sent");
+      assert.ok(r.failed && r.rearmed);
+    }
+    assert.equal(sent.length, 2, "the second in the hour is not muted");
+    assert.equal(sent[1].subject, "Site alert: alert.test");
+    assert.equal(calls.filter((c) => c.url.endsWith("/fail")).length, 2);
+    assert.equal(calls.filter((c) => c.method === "GET").length, 2);
+    assert.equal(await readMark(stores, "alert/alert.test"), null,
+      "and leaves no mute behind");
+  });
+
+  it("alert test counts an email delivered only by resend or outbox",
+    async () => {
+      const run = (driver) => alertTest(testStores(), {
+        env: { ...env, ...(driver ? { MAIL_DRIVER: driver } : {}) },
+        mail: mailbox().mail, now, fetchImpl: fakeFetch().fetchImpl,
+      });
+
+      for (const driver of ["resend", "outbox"]) {
+        const r = await run(driver);
+
+        assert.equal(r.delivered, true, driver);
+        assert.equal(r.driver, driver);
+      }
+      for (const driver of ["log", "file", undefined]) {
+        const r = await run(driver);
+
+        assert.equal(r.status, "sent", "the driver took it");
+        assert.equal(r.delivered, false, `${driver}: logged, not sent`);
+      }
+    });
+
+  it("alert test refuses without the alert check or a recipient",
+    async () => {
+      const { sent, mail } = mailbox();
+      const { calls, fetchImpl } = fakeFetch();
+
+      await assert.rejects(alertTest(testStores(), {
+        env: { DEV_NOTIFICATIONS_EMAIL: "dev@x.com" }, mail, fetchImpl,
+      }), /HEALTHCHECKS_ALERT_URL/);
+      await assert.rejects(alertTest(testStores(), {
+        env: { HEALTHCHECKS_ALERT_URL: "https://hc/a" }, mail, fetchImpl,
+      }), /DEV_NOTIFICATIONS_EMAIL/);
+      await assert.rejects(alertTest(testStores(), {
+        env: {}, mail, fetchImpl,
+      }), /HEALTHCHECKS_ALERT_URL, DEV_NOTIFICATIONS_EMAIL/);
+      assert.equal(sent.length + calls.length, 0, "nothing went out");
+    });
+});
+
 describe("GET /api/health", () => {
+  it("is 503 when production points at a sandbox or logs its mail",
+    async () => {
+      const stores = testStores();
+
+      await recordRun(stores, run(later(-10)), later(-10));
+      await noteMail(stores, true, later(-3));
+      const res = await handle(new Request("https://x/api/health"), {
+        stores,
+        now,
+        env: {
+          SITE_CONTEXT: "production", MAIL_DRIVER: "log",
+          SQUARE_ENV: "production", PAYPAL_ENV: "sandbox",
+        },
+      });
+      const s = await res.json();
+
+      assert.equal(res.status, 503);
+      assert.deepEqual(s.problems, [
+        "MAIL_DRIVER is log, not resend",
+        "PAYPAL_ENV is sandbox, not live",
+      ]);
+    });
+
+  it("is 200 when production is set the way paypal.mjs reads it",
+    async () => {
+      const stores = testStores();
+
+      await recordRun(stores, run(later(-10)), later(-10));
+      await noteMail(stores, true, later(-3));
+      const res = await handle(new Request("https://x/api/health"), {
+        stores,
+        now,
+        env: {
+          SITE_CONTEXT: "production", MAIL_DRIVER: "resend",
+          SQUARE_ENV: "production", PAYPAL_ENV: "live",
+        },
+      });
+      const s = await res.json();
+
+      assert.equal(res.status, 200, JSON.stringify(s));
+      assert.deepEqual(s.problems, []);
+    });
+
   it("is 200 with the picture when the run is fresh and mail is fine",
     async () => {
       const stores = testStores();
@@ -219,6 +383,8 @@ describe("GET /api/health", () => {
       assert.deepEqual(s.problems, []);
       assert.equal(s.jobs.minutesAgo, 10);
       assert.equal(s.jobs.runsLastDay, 1);
+      assert.equal(s.jobs.errorsLastRun, 0);
+      assert.equal(s.jobs.invariantsLastRun, 0);
       assert.equal(s.mail.driver, "resend");
       assert.equal(s.mail.failuresLastHour, 0);
       assert.equal(s.webhook.lastAt, later(-5).toISOString());
@@ -274,7 +440,7 @@ describe("POST /api/health, the checkout beacon", () => {
       kind: "checkout.failed", message: "We couldn't reach our payment " +
         "system after several tries.", method: "delivery", page: "/order/",
     }), {
-      stores, env: { ADMIN_EMAILS: "farm@x.com" }, now, mail,
+      stores, env: { ...MAILS }, now, mail,
       fetchImpl: fakeFetch().fetchImpl,
     });
 
@@ -294,10 +460,294 @@ describe("POST /api/health, the checkout beacon", () => {
     })).status, 400);
     for (let i = 0; i < 12; i += 1) {
       await handle(post({ kind: "checkout.failed" }), {
-        stores, env: { ADMIN_EMAILS: "farm@x.com" }, now, mail, ip: "1.2.3.4",
+        stores, env: { ...MAILS }, now, mail, ip: "1.2.3.4",
         fetchImpl: fakeFetch().fetchImpl,
       });
     }
     assert.equal(sent.length, 1, "one alert an hour, however many beacons");
+  });
+
+  const report = (kind, extra = {}) => new Request("https://x/api/health", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:143.0) " +
+        "Gecko/20100101 Firefox/143.0",
+    },
+    body: JSON.stringify({
+      kind, where: "square.load", message: "Could not load the SDK",
+      stack: "Error: Could not load\n    at x (https://x/s.js:1:2)",
+      build: "abc1234", page: "/order/", crumbs: ["page.load", "pay.load"],
+      sdks: { square: { state: "failed", ms: 3000 } },
+      orderId: "NFF-1234", ...extra,
+    }),
+  });
+
+  it("alerts on a page that cannot take payment, with no order",
+    async () => {
+      const stores = testStores();
+      const { sent, mail } = mailbox();
+      const { calls, fetchImpl } = fakeFetch();
+      const res = await handle(report("payment.unavailable"), {
+        stores, now, mail, fetchImpl,
+        env: {
+          ...MAILS, HEALTHCHECKS_ALERT_URL: "https://hc/a",
+        },
+      });
+
+      assert.equal(res.status, 202);
+      assert.equal(sent.length, 1);
+      assert.equal(sent[0].subject, "Site alert: client.payment_unavailable");
+      assert.match(sent[0].text, /square\.load/);
+      assert.match(sent[0].text, /Firefox/);
+      assert.doesNotMatch(sent[0].text, /NFF-1234/);
+
+      const ping = JSON.parse(calls[0].body);
+
+      assert.equal(calls[0].url, "https://hc/a/fail");
+      assert.equal(ping.kind, "client.payment_unavailable");
+      assert.equal(ping.browserVersion, 143);
+      assert.equal("orderId" in ping, false);
+      assert.equal(JSON.stringify(ping).includes("Mozilla"), false,
+        "the user agent itself is not kept");
+    });
+
+  it("logs a client error at warn and alerts nobody", async () => {
+    const stores = testStores();
+    const { sent, mail } = mailbox();
+    const { calls, fetchImpl } = fakeFetch();
+    const lines = [];
+    const warn = log.warn;
+
+    log.warn = (line) => lines.push(line);
+    try {
+      const res = await handle(report("error", {
+        where: "card.attach", message: "x".repeat(500),
+      }), {
+        stores, now, mail, fetchImpl,
+        env: {
+          ...MAILS, HEALTHCHECKS_ALERT_URL: "https://hc/a",
+        },
+      });
+
+      assert.equal(res.status, 202);
+    } finally {
+      log.warn = warn;
+    }
+    assert.equal(sent.length, 0);
+    assert.equal(calls.length, 0);
+    assert.equal(lines.length, 1);
+    assert.equal(lines[0].event, "client.error");
+    assert.equal(lines[0].where, "card.attach");
+    assert.equal(lines[0].message.length, 300);
+    assert.equal(lines[0].build, "abc1234");
+    assert.deepEqual(lines[0].crumbs, ["page.load", "pay.load"]);
+    assert.equal("orderId" in lines[0], false);
+  });
+});
+
+// The lines a wrapped call shipped, read off a fake Axiom.
+const shipped = () => {
+  const { calls, fetchImpl } = fakeFetch();
+  const flushImpl = () => flush({
+    env: { AXIOM_TOKEN: "t", AXIOM_DATASET: "d" }, fetchImpl,
+  });
+
+  return {
+    flushImpl,
+    lines: () => calls.flatMap((c) => JSON.parse(c.body)),
+  };
+};
+
+describe("an exception no handler caught", () => {
+  it("is logged as function.crashed, alerted once and thrown on",
+    async () => {
+      const boom = new Error("kaboom");
+      const crashes = [];
+      const ship = shipped();
+      const wrapped = withLog("orders", async () => {
+        throw boom;
+      }, {
+        onCrash: async (detail, error) => crashes.push({ detail, error }),
+        flushImpl: ship.flushImpl,
+      });
+
+      await assert.rejects(
+        wrapped(new Request("https://x/api/orders", { method: "POST" })),
+        (error) => error === boom
+      );
+      assert.equal(crashes.length, 1);
+      assert.equal(crashes[0].error, boom);
+      assert.equal(crashes[0].detail.function, "orders");
+      assert.equal(crashes[0].detail.path, "/api/orders");
+      assert.equal(crashes[0].detail.method, "POST");
+
+      const line = ship.lines().find((l) => l.event === "function.crashed");
+
+      assert.ok(line, "the crash is in the shipped lines");
+      assert.equal(line.level, "error");
+      assert.equal(line.function, "orders");
+      assert.equal(line.error, "kaboom");
+      assert.match(line.stack, /kaboom\n\s+at /);
+    });
+
+  it("leaves an answer alone, and reports nothing", async () => {
+    const crashes = [];
+    const wrapped = withLog("dates", async () => new Response("ok"), {
+      onCrash: async (d) => crashes.push(d), flushImpl: async () => 0,
+    });
+    const res = await wrapped(new Request("https://x/api/dates"));
+
+    assert.equal(await res.text(), "ok");
+    assert.equal(crashes.length, 0);
+  });
+
+  it("throws the same error when the alert itself fails", async () => {
+    const boom = new Error("first");
+    const wrapped = withLog("stock", async () => {
+      throw boom;
+    }, {
+      onCrash: async () => {
+        throw new Error("alert down");
+      },
+      flushImpl: async () => 0,
+    });
+
+    await assert.rejects(wrapped(new Request("https://x/api/stock")),
+      (error) => error === boom);
+  });
+
+  it("becomes one function.crashed alert email", async () => {
+    const stores = testStores();
+    const { sent, mail } = mailbox();
+    const env = { ...MAILS };
+    const wrapped = withLog("contact", async () => {
+      throw new Error("bad");
+    }, {
+      onCrash: (detail) => alert(stores, "function.crashed", detail, {
+        env, mail, now, fetchImpl: fakeFetch().fetchImpl,
+      }),
+      flushImpl: async () => 0,
+    });
+
+    await assert.rejects(wrapped(new Request("https://x/api/contact")));
+    assert.equal(sent.length, 1);
+    assert.equal(sent[0].subject, "Site alert: function.crashed");
+    assert.match(sent[0].text, /contact/);
+  });
+
+  it("is trimmed to the first frames", () => {
+    const error = new Error("deep");
+
+    error.stack = ["Error: deep", ...Array.from({ length: 40 },
+      (_, i) => `    at f${i} (file.mjs:${i}:1)`)].join("\n");
+    assert.equal(trimStack(error).split("\n").length, 12);
+    assert.equal(trimStack("plain"), "plain");
+  });
+
+  it("logs the one-argument form as \"unnamed\"", async () => {
+    const written = [];
+    const real = console.error;
+    const wrapped = withLog(async () => {
+      throw new Error("old way");
+    });
+
+    console.error = (text) => written.push(text);
+    try {
+      await assert.rejects(wrapped(new Request("https://x/api/old")),
+        /old way/);
+    } finally {
+      console.error = real;
+    }
+
+    const crash = written.map((t) => JSON.parse(t))
+      .find((l) => l.event === "function.crashed");
+
+    assert.equal(crash.function, "unnamed");
+    assert.equal(crash.path, "/api/old");
+  });
+
+  it("holds crashes for an hour per function, not across them",
+    async () => {
+      const stores = testStores();
+      const { sent, mail } = mailbox();
+      const options = {
+        stores, env: { ...MAILS }, mail, now,
+        fetchImpl: fakeFetch().fetchImpl,
+      };
+
+      assert.equal(await alertCrash({ function: "news" }, null, options),
+        "sent");
+      assert.equal(await alertCrash({ function: "news" }, null, options),
+        "muted", "the same function, within the hour");
+      assert.equal(await alertCrash({ function: "orders" }, null, options),
+        "sent", "another function's crash still arrives");
+      assert.equal(sent.length, 2);
+      assert.ok(sent.every((m) => m.subject ===
+        "Site alert: function.crashed"));
+    });
+
+  it("is not alerted twice by the jobs run, which catches its own",
+    async () => {
+      const s = testStores();
+      const { sent, mail } = mailbox();
+      const hc = fakeFetch();
+      const crashes = [];
+      const env = {
+        ...MAILS, HEALTHCHECKS_JOBS_URL: "https://hc/j",
+      };
+      const wrapped = withLog("jobs", () => jobsHandle({
+        s, env, mail, fetchImpl: hc.fetchImpl,
+        run: async () => {
+          throw new Error("run broke");
+        },
+      }), {
+        onCrash: async (d) => crashes.push(d), flushImpl: async () => 0,
+      });
+      const res = await wrapped();
+
+      assert.equal(res.status, 500);
+      assert.equal(crashes.length, 0, "no function.crashed");
+      assert.equal(sent.length, 1);
+      assert.equal(sent[0].subject, "Site alert: jobs.crashed");
+      assert.ok(hc.calls.some((c) => c.url === "https://hc/j/fail"));
+    });
+});
+
+describe("POST /api/staging/throw", () => {
+  const env = { SITE_CONTEXT: "deploy-preview" };
+  const post = (path = "/api/staging/throw", headers = {}) =>
+    new Request(`https://x${path}`, { method: "POST", headers });
+
+  it("is a 404 in production and wherever no token is set", async () => {
+    for (const e of [env, { SITE_CONTEXT: "production",
+      STAGING_TOKEN: "s3cret" }]) {
+      const res = await stagingHandle(post(), {
+        stores: testStores(), env: e,
+      });
+
+      assert.equal(res.status, 404);
+    }
+  });
+
+  it("refuses without the token", async () => {
+    const res = await stagingHandle(post(), {
+      stores: testStores(), env: { ...env, STAGING_TOKEN: "s3cret" },
+    });
+
+    assert.equal(res.status, 401);
+  });
+
+  it("throws with the token, for withLog to report", async () => {
+    const crashes = [];
+    const wrapped = withLog("staging", (req) => stagingHandle(req, {
+      stores: testStores(), env: { ...env, STAGING_TOKEN: "s3cret" },
+    }), { onCrash: async (d) => crashes.push(d), flushImpl: async () => 0 });
+
+    await assert.rejects(wrapped(post("/api/staging/throw",
+      { Authorization: "Bearer s3cret" })), /no handler caught/);
+    assert.equal(crashes.length, 1);
+    assert.equal(crashes[0].function, "staging");
+    assert.equal(crashes[0].path, "/api/staging/throw");
   });
 });

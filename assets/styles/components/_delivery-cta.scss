@@ -1,0 +1,13 @@
+// The down arrow on the delivery policy's map button
+// (shortcodes/delivery-area-button.html).
+
+.delivery-cta-arrow {
+  display: inline-flex;
+  margin-left: 0.15em;
+  vertical-align: -0.15em;
+
+  svg {
+    width: 1.1em;
+    height: 1.1em;
+  }
+}

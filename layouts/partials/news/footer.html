@@ -1,0 +1,17 @@
+{{/*
+  The footer of a full post, after its body wherever the post shows in
+  full (#483): the invitation to Farm News, then the way back to the
+  archive, quieter than both the invitation and the shop buttons. The
+  invitation sits in a [data-farm-list-block], so the same script that
+  hides the sign-up forms from people already on the list hides it; it
+  can tell only signed-in visitors, and visitors who signed up in this
+  browser, apart. scripts/news/farm-list.js scrolls the link to the
+  footer's field. The wording is James's (#483). Nothing here goes
+  into the post's Markdown, so none of it reaches the email.
+*/}}
+<div class="news-footer">
+  <div data-farm-list-block>
+    <a class="btn btn-primary" href="#farm-list-footer-email" data-farm-list-jump>Sign up for news like this.</a>
+  </div>
+  <a class="btn btn-outline-primary btn-sm" href="{{ relURL "news/" }}">More from the farm</a>
+</div>

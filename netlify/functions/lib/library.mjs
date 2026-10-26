@@ -1,0 +1,982 @@
+// Every email the site sends, and the list emails drafted for Farm
+// news, each built from realistic sample data: the catalog the staging
+// toolbar's email library reads (through /api/staging/emails, a 404 in
+// production) and .ignored/render-all.mjs renders for review. Nothing
+// here sends mail. Add an entry when a template is added.
+//
+// An entry: { id, name, when, audience, tags, approval, note?, build }.
+// `build(links)` returns { subject, text, html } from mailLinks(env).
+// `approval` is "approved" only where James approved the wording the
+// code prints today; `note` says what waits on him otherwise. What he
+// approves or rewrites in the library on staging is lib/review.mjs's
+// until it is ported here.
+
+import { launchEmail } from "./launch.mjs";
+import { postMailFromBuild } from "./post-mail.mjs";
+import {
+  attachment, byFulfillment, changesBetween, countsOf, fileName, packetPdf,
+  packetTitle, snapshotOf,
+} from "./packing.mjs";
+import * as t from "./templates.mjs";
+import { orderPathFor } from "./site.mjs";
+
+// --- Sample records -------------------------------------------------
+
+const ID = "NFF-2610-K3WM";
+
+const card = {
+  amount: 9400, via: "square", method: "card", brand: "VISA", last4: "4242",
+  at: "2026-10-06T13:00:00.000Z",
+};
+
+export const order = (over = {}) => ({
+  id: ID,
+  status: "paid",
+  submittedAt: "2026-10-06T13:00:00.000Z",
+  customer: {
+    firstName: "Dana", lastName: "Whitcomb", name: "Dana Whitcomb",
+    email: "dana@example.com", phone: "401-555-0142", contact: "text",
+  },
+  lines: [
+    { sku: "A", label: "Whole Chicken, 3.5 – 3.9 lbs", qty: 3, lineTotal: 90 },
+    { sku: "B", label: "Eggs, Grade A · Large", qty: 2, lineTotal: 14 },
+  ],
+  totals: {
+    subtotal: 10400, discountTier: 100, discountAmount: 1000,
+    discountLabel: "Bulk discount ($100+)", deliveryFee: 0, total: 9400,
+  },
+  notes: "Please leave the eggs on top.",
+  fulfilment: {
+    method: "delivery",
+    date: "2026-10-08",
+    onfarm: null,
+    delivery: {
+      address1: "84 Foster Center Rd", address2: "", town: "Foster",
+      state: "RI", zip: "02825", cooler: "Green cooler by the garage",
+      gate: "", notes: "Dog is friendly", zipStatus: "approved",
+    },
+  },
+  payments: [card],
+  square: { squareOrderId: "SO-1" },
+  ...over,
+});
+
+// A pickup booked from the schedule, 9 to noon (W11d).
+const onfarm = (extra = {}) => ({
+  method: "onfarm", date: "2026-10-08", state: "agreed",
+  onfarm: {
+    window: "09:00-12:00", from: "09:00", to: "12:00",
+    phone: "401-555-0142", ...extra,
+  },
+  delivery: null,
+});
+
+export const pickup = (over = {}) => order({
+  fulfilment: onfarm(),
+  payments: [{ ...card, method: "applepay", brand: null, last4: null }],
+  ...over,
+});
+
+// A delivery the farm could not leave, under $150 so it paid a $5 fee,
+// with `fee` cents of it kept (0: waived). `cause` is no cooler unless
+// given; weather and farm are the farm's own misses (C6a). Sent on the
+// day it missed, `missedOn`, however late the library is read.
+const missedOn = new Date("2026-10-08T20:00:00Z");
+const missed = (fee, over = {}, cause = "no-cooler", detail = "") => order({
+  totals: {
+    subtotal: 10400, discountTier: 100, discountAmount: 1000,
+    discountLabel: "Bulk discount ($100+)", deliveryFee: 500, total: 9900,
+  },
+  payments: [{ ...card, amount: 9900 }],
+  attempted: {
+    at: "2026-10-08T17:00:00.000Z", cause, fee, waived: !fee,
+    note: fee || ["weather", "farm"].includes(cause) ? "" :
+      "First delivery; we'll let it go.",
+    ...detail && { detail },
+  },
+  ...over,
+});
+
+// The farm's or the weather's miss, moved on a week (C7).
+const movedOn = (cause) => {
+  const o = missed(0, {}, cause);
+
+  return { ...o, fulfilment: { ...o.fulfilment, date: "2026-10-15" },
+    attempted: { ...o.attempted, date: o.fulfilment.date } };
+};
+
+// An on-farm window the farm has not agreed to yet.
+// A booked pickup time the farm had to give up (`orders deny`): the
+// customer is to pick another.
+export const gaveUp = (over = {}) => pickup({
+  question: {
+    kind: "window", reason: "We're at the market that morning.",
+    openedAt: "2026-10-06T14:00:00.000Z", answeredAt: null, answer: null,
+    by: null,
+  },
+  ...over,
+});
+
+export const dropSite = (over = {}) => order({
+  fulfilment: { method: "scheduled", occurrence: "VFVQ-261017",
+    date: "2026-10-17", onfarm: null,
+    delivery: null },
+  payments: [{ amount: 9400, via: "venmo", at: "2026-10-06T13:00:00.000Z" }],
+  ...over,
+});
+
+// A scheduled pickup at a market's occurrence (the Foster market, its
+// last Sunday), and at a pop-up's (the Village Family Fitness one).
+export const market = (over = {}) => dropSite({
+  fulfilment: { method: "scheduled", occurrence: "WAC5-261025",
+    date: "2026-10-25", onfarm: null, delivery: null },
+  payments: [card],
+  ...over,
+});
+
+export const popUp = (over = {}) => dropSite({
+  fulfilment: { method: "scheduled", occurrence: "VZF5-261018",
+    date: "2026-10-18", onfarm: null, delivery: null },
+  payments: [{ ...card, method: "applepay", brand: null, last4: null }],
+  ...over,
+});
+
+export const customer = {
+  firstName: "Dana", name: "Dana Whitcomb", email: "dana@example.com",
+  phone: "401-555-0142",
+  address: {
+    address1: "12 Plain Meeting House Rd", town: "West Greenwich",
+    state: "RI", zip: "02817", status: "pending",
+  },
+};
+
+// A subscriber whose consent log ends on one opt-in (#273).
+const subscriber = (type, detail, at = "2026-10-20T14:00:00.000Z") => ({
+  ...customer,
+  marketing: true,
+  marketingAt: "2026-10-20T14:00:00.000Z",
+  consent: [{
+    action: "in", type, detail, at,
+    recordedAt: "2026-10-20T14:00:00.000Z",
+    capturedBy: type === "in-person" || type === "market-sheet"
+      ? "James" : null,
+    evidence: type === "market-sheet" ? "foster-2026-07-12.pdf" : null,
+  }],
+});
+
+const unsub = (links) => `${links.site}/news/?unsubscribe=abc123`;
+
+// A news post as the email it would go out as (#483), from the build
+// in public/. Without a build there is nothing to show but how to get
+// one.
+const post = (slug, links) => {
+  try {
+    return postMailFromBuild(slug, { links, unsubscribeUrl: unsub(links) });
+  } catch (error) {
+    if (error.code !== "ENOENT") throw error;
+
+    return t.listMail(`Not built: ${slug}`, {
+      blocks: [t.listBlocks.p("This email is made from the post's " +
+        "Markdown, which Hugo writes into public/ when it builds the " +
+        "site. Build the site, then reload.")],
+      links,
+    });
+  }
+};
+
+// The welcome as each way onto the list words it.
+const WELCOMES = [
+  ["checkout", "order " + "NFF-2610-K3WM", "from the order box",
+    "The order box was ticked and the order is placed"],
+  ["account-settings", "account settings", "from account settings",
+    "Farm news turned on in account settings"],
+  ["reinvite-confirmation", "the confirmation link sent 2026-10-21",
+    "after the re-invite", "Not sent since #303: the old list is " +
+      "imported. Kept for a link mailed before"],
+  ["market-sheet", "the Foster Farmers Market", "from a market sheet",
+    "The old list's paper sheets are imported (bin/nff audience import)"],
+  ["in-person", "", "for an in-person opt-in",
+    "Someone asked in person to be added (recorded later, #267)"],
+];
+
+// A newsletter with every block, on photos whose source is recorded
+// in docs/media-provenance.md. The words are placeholders.
+const newsletter = (links) => {
+  const b = t.listBlocks;
+
+  return t.listMail("Sample: news from the pasture", {
+    preview: "A sample of the list template, with every block in it.",
+    hero: {
+      src: `${links.site}/images/email/sample-hero.jpg`,
+      alt: "Chicks under the heat lamp in the brooder",
+    },
+    blocks: [
+      b.p("Hi Dana,"),
+      b.p("**This is a sample of the farm news template.** The words are " +
+        "placeholders; the layout is what's on show: a hero image, body " +
+        "copy, a heading, a photo with a caption, and a button."),
+      b.heading("On the farm this week"),
+      b.p("The broilers moved to fresh pasture on Tuesday, and the hens " +
+        "are laying well into the shorter days."),
+      b.image(`${links.site}/images/email/sample-photo.jpg`,
+        "A hen in the grass", "One of the hens, in no hurry at all."),
+      b.button("Order for Saturday", links.order),
+      b.p("— James and Jim"),
+    ],
+    reason: "you signed up on our website on October 20, 2026",
+    unsubscribeUrl: unsub(links),
+    links,
+  });
+};
+
+// Another customer, for the farm's lists.
+const other = (firstName, lastName) => ({
+  firstName, lastName, name: `${firstName} ${lastName}`,
+  email: `${firstName.toLowerCase()}@example.com`, phone: "401-555-0199",
+  contact: "call",
+});
+
+// The order after Dana added a dozen eggs (paid more) or dropped one
+// chicken (refunded).
+const added = order({
+  lines: [
+    { sku: "A", label: "Whole Chicken, 3.5 – 3.9 lbs", qty: 3, lineTotal: 90 },
+    { sku: "B", label: "Eggs, Grade A · Large", qty: 3, lineTotal: 21 },
+  ],
+  totals: {
+    subtotal: 11100, discountTier: 100, discountAmount: 1000,
+    discountLabel: "Bulk discount ($100+)", deliveryFee: 0, total: 10100,
+  },
+  payments: [card, { ...card, amount: 700, at: "2026-10-07T01:10:00Z" }],
+});
+const dropped = order({
+  lines: [
+    { sku: "A", label: "Whole Chicken, 3.5 – 3.9 lbs", qty: 2, lineTotal: 60 },
+    { sku: "B", label: "Eggs, Grade A · Large", qty: 2, lineTotal: 14 },
+  ],
+  totals: {
+    subtotal: 7400, discountTier: 50, discountAmount: 500,
+    discountLabel: "Bulk discount ($50+)", deliveryFee: 0, total: 6900,
+  },
+});
+// The edit's record of the order as it was, before either change.
+const before = () => ({
+  lines: order().lines, totals: order().totals, method: "delivery",
+});
+
+// A Tuesday's packing slips (#292), all fake: two new orders for
+// Thursday, one changed since its slip, one owing money, and a drop-
+// site order cancelled since it was printed. -> { day, now, entries }.
+export const samplePacket = () => {
+  const day = "2026-10-06";
+  const lee = (over = {}) => order({
+    id: "NFF-2610-ZX4T", customer: other("Lee", "Marchetti"), notes: "",
+    fulfilment: {
+      ...order().fulfilment,
+      delivery: {
+        address1: "310 Danielson Pike", town: "Scituate", state: "RI",
+        zip: "02857", cooler: "On the front porch", gate: "4471", notes: "",
+      },
+    },
+    ...over,
+  });
+  const leeNow = lee({
+    lines: added.lines, totals: added.totals, payments: added.payments,
+  });
+  const robin = pickup({
+    id: "NFF-2610-HT6P", customer: other("Robin", "Ashby"), notes: "",
+    status: "submitted", payments: [],
+  });
+  const jo = dropSite({
+    id: "NFF-2610-WB2N", customer: other("Jo", "Pereira"), notes: "",
+    status: "cancelled",
+  });
+
+  return {
+    day,
+    now: new Date("2026-10-06T10:00:00.000Z"),
+    entries: [
+      { order: order(), kind: "new", changes: [] },
+      {
+        order: leeNow, kind: "changed",
+        changes: changesBetween(snapshotOf(lee()), snapshotOf(leeNow)),
+      },
+      {
+        order: pickup({
+          id: "NFF-2610-PQ7R", customer: other("Sam", "Okafor"),
+        }),
+        kind: "new", changes: [],
+      },
+      { order: robin, kind: "new", changes: [] },
+      {
+        order: market({
+          id: "NFF-2610-MK5D", customer: other("Ines", "Duarte"),
+          notes: "",
+        }),
+        kind: "new", changes: [],
+      },
+      { order: jo, kind: "cancelled", changes: [] },
+    ].sort(byFulfillment),
+  };
+};
+
+const packetMail = (links) => {
+  const { day, now, entries } = samplePacket();
+  const filename = fileName(day);
+
+  return {
+    ...t.farmPackingSlips(entries, {
+      day, ...countsOf(entries), filename, links,
+    }),
+    attachments: [attachment(filename, packetPdf({
+      entries, now, title: packetTitle(day),
+    }))],
+  };
+};
+
+// The sample's changed or cancelled order, mailed on its own day at
+// 9:30 AM, after that morning's packet went out.
+const afterPrintMail = (kind) => (links) => {
+  const e = samplePacket().entries.find((x) => x.kind === kind);
+  const day = e.order.fulfilment.date;
+
+  return {
+    ...t.farmChangedAfterPrint(e, { date: day, links }),
+    attachments: [attachment(fileName(day, `-${e.order.id}`), packetPdf({
+      entries: [e], now: new Date(`${day}T13:30:00.000Z`), cover: false,
+      title: "Changed after printing",
+    }))],
+  };
+};
+
+// The sample values above that no pattern in lib/review.mjs catches
+// (names, items, notes, messages), so a rewrite keeps them as tokens.
+export const SAMPLE_TEXT = [
+  "Dana Whitcomb", "Dana", "Sam Okafor", "Lee Marchetti", "Robin Ashby",
+  "Jo Pereira",
+  "Whole Chicken, 3.5 – 3.9 lbs", "Eggs, Grade A · Large",
+  "Green cooler by the garage", "Dog is friendly",
+  "Please leave the eggs on top.", "On the front porch",
+  "morning", "afternoon", "Village Green",
+  "Could I switch Thursday's delivery to the following week? " +
+    "We'll be away.",
+  "Two of the eggs were cracked.", "The rest were fine.",
+  "Eggs", "r7Kq2m", "Square 400", "Item not available at location",
+  "order.create_failed", "Apple Pay",
+];
+
+const orderUrl = (links) => `${links.site}${orderPathFor(ID)}`;
+const settingsUrl = (links) => `${links.site}/account/#settings`;
+const signIn = (links) => `${links.site}/api/auth/verify?token=abc123`;
+
+// The farm's reasons for a cancel (T2a), each a sample order; weather's
+// is a pickup, so its "open for pickup" shows.
+const REASONS = {
+  "sold-out": ["sold out", {}],
+  delay: ["processing delay", {}],
+  weather: ["weather", {
+    fulfilment: onfarm(),
+  }],
+  emergency: ["farm emergency", {}],
+  mistake: ["our mistake", {}],
+};
+const squareUrl = "https://app.squareup.com/dashboard/orders/overview/SO-1";
+
+// --- Farm news drafts -----------------------------------------------
+//
+// List emails go out by hand from Fastmail, as plain text. The drafts
+// are the email lane's (north-foster-farm/.ignored/email-updates/);
+// a body comes here, into data/emails/, once James agrees to publish
+// it in the repository.
+
+const plain = (subject, text) => {
+  const escape = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+
+  return {
+    subject,
+    text,
+    html: `<!doctype html><html><head><meta charset="utf-8">` +
+      `<meta name="viewport" content="width=device-width">` +
+      `<title>${escape(subject)}</title></head><body style="margin:0">` +
+      `<pre style="margin:0 auto;max-width:640px;padding:24px 16px;` +
+      `font:15px/1.6 system-ui,sans-serif;white-space:pre-wrap">` +
+      `${escape(text)}</pre></body></html>`,
+  };
+};
+
+
+// --- The catalog ----------------------------------------------------
+
+const C = "customer";
+const F = "farm";
+
+export const library = [
+  // To the customer
+  {
+    id: "order-confirmed-delivery", name: "Order confirmed, delivery",
+    when: "The moment a delivery order is paid", audience: C,
+    tags: ["paid", "placed", "delivery", "card"],
+    build: (links) => t.orderConfirmed(order(),
+      { orderUrl: orderUrl(links), links, firstOrder: true }),
+  },
+  {
+    id: "order-confirmed-dropsite", name: "Order confirmed, drop site",
+    when: "The moment a drop-site order is paid", audience: C,
+    tags: ["paid", "placed", "pickup", "drop site", "venmo"],
+    build: (links) => t.orderConfirmed(dropSite(),
+      { orderUrl: orderUrl(links), links }),
+  },
+  {
+    id: "order-confirmed-market",
+    name: "Order confirmed, scheduled pickup at a market",
+    when: "The moment an order for a market occurrence is paid",
+    audience: C, tags: ["paid", "placed", "pickup", "market", "card"],
+    build: (links) => t.orderConfirmed(market(),
+      { orderUrl: orderUrl(links), links }),
+  },
+  {
+    id: "order-confirmed-popup",
+    name: "Order confirmed, scheduled pickup at a pop-up",
+    when: "The moment an order for a pop-up occurrence is paid",
+    audience: C, tags: ["paid", "placed", "pickup", "pop-up", "wallet"],
+    build: (links) => t.orderConfirmed(popUp(),
+      { orderUrl: orderUrl(links), links }),
+  },
+  {
+    id: "order-confirmed-onfarm", name: "Order confirmed, on-farm pickup",
+    when: "The moment an on-farm order is paid", audience: C,
+    tags: ["paid", "placed", "pickup", "wallet"],
+    build: (links) => t.orderConfirmed(pickup(),
+      { orderUrl: orderUrl(links), links }),
+  },
+  {
+    id: "delivery-reminder", name: "Delivery tomorrow",
+    when: "Wednesday evening, for each paid delivery", audience: C,
+    tags: ["reminder", "delivery"],
+    build: (links) => t.deliveryReminder(order(), {
+      orderUrl: orderUrl(links), settingsUrl: settingsUrl(links), links,
+    }),
+  },
+  {
+    id: "order-changed", name: "Order updated, details",
+    when: "The customer changed the date or the instructions",
+    audience: C, tags: ["updated", "delivery"],
+    build: (links) => t.orderChanged(order(),
+      { orderUrl: orderUrl(links), links }),
+  },
+  {
+    id: "order-changed-paid-more", name: "Order updated, paid more",
+    when: "The customer added items and paid the difference",
+    audience: C, tags: ["updated", "paid", "delivery", "card"],
+    build: (links) => t.orderChanged(added, {
+      orderUrl: orderUrl(links), links, difference: 700, before: before(),
+    }),
+  },
+  {
+    id: "order-changed-refunded", name: "Order updated, refunded",
+    when: "The customer removed items and was refunded the difference",
+    audience: C, tags: ["updated", "refunded", "delivery"],
+    build: (links) => t.orderChanged(dropped, {
+      orderUrl: orderUrl(links), links, difference: -2500, before: before(),
+    }),
+  },
+  {
+    id: "order-cancelled-refund", name: "Canceled by the customer",
+    when: "The customer canceled on the account page; all refunded",
+    audience: C, tags: ["cancelled", "refunded", "account"],
+    build: (links) => t.orderCancelled(order({ status: "cancelled" }),
+      { by: "customer", refunded: 9400, links }),
+  },
+  ...Object.entries(REASONS).map(([key, [name, over]]) => ({
+    id: `order-cancelled-${key}`, name: `Canceled by the farm: ${name}`,
+    when: `The farm canceled with --reason ${key}; all refunded`,
+    audience: C, tags: ["cancelled", "refunded", "reason"],
+    build: (links) => t.orderCancelled(order({ status: "cancelled", ...over }),
+      { reason: key, refunded: 9400, links }),
+  })),
+  {
+    id: "order-cancelled-refunded-earlier",
+    name: "Canceled by the farm, refunded earlier",
+    when: "The farm canceled an order it had already refunded",
+    audience: C, tags: ["cancelled", "refunded"],
+    build: (links) => t.orderCancelled(order({ status: "cancelled" }), {
+      reason: "delay", refunded: 9400,
+      refundedOn: "2026-10-07T15:00:00.000Z", links,
+    }),
+  },
+  {
+    id: "missed-delivery-fee-kept", name: "Missed delivery, fee kept",
+    when: "The farm marked a delivery attempted: no cooler out",
+    audience: C, tags: ["missed delivery", "delivery"],
+    build: (links) => t.missedDelivery(missed(500), {
+      pickUrl: signIn(links), links, now: missedOn,
+    }),
+  },
+  {
+    id: "missed-delivery-no-fee", name: "Missed delivery, fee waived",
+    when: "The farm marked a customer's miss and waived the fee",
+    audience: C, tags: ["missed delivery", "delivery"],
+    build: (links) => t.missedDelivery(missed(0), {
+      pickUrl: signIn(links), links, now: missedOn,
+    }),
+  },
+  {
+    id: "missed-delivery-no-access", name: "Missed delivery, no access",
+    when: "The farm marked a delivery attempted: couldn't get to the spot",
+    audience: C, tags: ["missed delivery", "delivery"],
+    build: (links) => t.missedDelivery(
+      missed(500, {}, "no-access", "the gate was locked"),
+      { pickUrl: signIn(links), links, now: missedOn },
+    ),
+  },
+  {
+    id: "missed-delivery-no-address", name: "Missed delivery, no address",
+    when: "The farm marked a delivery attempted: couldn't find the address",
+    audience: C, tags: ["missed delivery", "delivery"],
+    build: (links) => t.missedDelivery(missed(500, {}, "no-address"), {
+      pickUrl: signIn(links), links, now: missedOn,
+    }),
+  },
+  {
+    id: "moved-delivery-weather", name: "Delivery moved, weather",
+    when: "The weather stopped a delivery; moved to next Thursday",
+    audience: C, tags: ["missed delivery", "delivery", "weather"],
+    build: (links) => t.movedDelivery(movedOn("weather"), {
+      pickUrl: signIn(links), links,
+    }),
+  },
+  {
+    id: "moved-delivery-farm", name: "Delivery moved, our miss",
+    when: "The farm missed a delivery itself; moved to next Thursday",
+    audience: C, tags: ["missed delivery", "delivery"],
+    build: (links) => t.movedDelivery(movedOn("farm"), {
+      pickUrl: signIn(links), links,
+    }),
+  },
+  {
+    id: "order-cancelled-hold-fee-kept",
+    name: "Hold ran out, fee kept",
+    when: "Seven days after a customer's miss, with no choice made",
+    audience: C, tags: ["cancelled", "refunded", "missed delivery"],
+    build: (links) => t.orderCancelled(missed(500, { status: "cancelled" }),
+      { by: "hold", refunded: 9400, links }),
+  },
+  {
+    id: "order-cancelled-hold-full-refund",
+    name: "Hold ran out, fee waived",
+    when: "Seven days after a waived miss, with no choice made",
+    audience: C, tags: ["cancelled", "refunded", "missed delivery"],
+    build: (links) => t.orderCancelled(missed(0, { status: "cancelled" }),
+      { by: "hold", refunded: 9900, links }),
+  },
+  {
+    id: "order-cancelled-missed-fee-kept",
+    name: "Canceled after a missed delivery, fee kept",
+    when: "A missed delivery canceled; the items refunded, the fee kept",
+    audience: C, tags: ["cancelled", "refunded", "missed delivery"],
+    build: (links) => t.orderCancelled(missed(500, { status: "cancelled" }),
+      { by: "customer", refunded: 9400, links }),
+  },
+  {
+    id: "order-cancelled-missed-full-refund",
+    name: "Canceled after a missed delivery, fee waived",
+    when: "A waived or farm miss canceled; everything refunded",
+    audience: C, tags: ["cancelled", "refunded", "missed delivery"],
+    build: (links) => t.orderCancelled(missed(0, { status: "cancelled" }),
+      { by: "customer", refunded: 9900, links }),
+  },
+  {
+    id: "address-approved", name: "We can deliver to your address",
+    when: "The farm approved an address outside the area", audience: C,
+    tags: ["address", "delivery"],
+    build: (links) => t.addressDecision(customer, "approved", { links }),
+  },
+  {
+    id: "address-denied", name: "We can't deliver to your address",
+    when: "The farm denied an address outside the area", audience: C,
+    tags: ["address", "delivery"],
+    build: (links) => t.addressDecision(customer, "denied", { links }),
+  },
+  {
+    id: "sign-in-link", name: "Sign-in link",
+    when: "A customer asks to sign in", audience: C,
+    tags: ["sign-in", "account"],
+    build: (links) => t.magicLink(customer.email,
+      `${links.site}/account/?token=abc123`, { links }),
+  },
+  {
+    id: "news-invite", name: "Farm News confirmation",
+    when: "Someone signs up with the field in the footer or on /news/ " +
+      "(the old list is imported, not asked, #303)",
+    audience: C, tags: ["list", "sign-up", "farm news"],
+    build: (links) => t.newsConfirm(customer.email,
+      `${links.site}/api/news/confirm?token=abc123`, { links }),
+  },
+  {
+    id: "news-welcome", name: "Farm news welcome",
+    when: "Someone follows the news field's confirmation link",
+    audience: C, tags: ["list", "sign-up", "farm news"],
+    build: (links) => t.newsWelcome(subscriber("website-form",
+      "the sign-up form on /news/"), unsub(links), { links }),
+  },
+  ...WELCOMES.map(([type, detail, name, when]) => ({
+    id: `news-welcome-${type}`, name: `Farm news welcome, ${name}`,
+    when, audience: C, tags: ["list", "farm news", "welcome"],
+    build: (links) => t.newsWelcome(subscriber(type, detail,
+      type === "market-sheet" ? "2026-07-12T14:00:00.000Z" : undefined),
+    unsub(links), { links }),
+  })),
+  {
+    id: "news-letter-sample", name: "Farm news letter, sample",
+    when: "Not sent: shows every block of the list template (#273)",
+    audience: C, tags: ["list", "farm news", "template"],
+    build: (links) => newsletter(links),
+  },
+  {
+    id: "news-post-three-quarters",
+    name: "Farm news post, Three Quarters of the Way",
+    when: "Not sent: the first Farm News broadcast, made from the " +
+      "post's Markdown (#483)",
+    audience: C, tags: ["list", "farm news", "post"],
+    build: (links) => post("three-quarters-of-the-way", links),
+  },
+
+  // To the farm
+  {
+    id: "farm-order-placed-delivery", name: "New order, delivery",
+    when: "The moment a delivery order is placed and paid", audience: F,
+    tags: ["placed", "paid", "delivery", "card"],
+    build: (links) => t.farmOrderPlaced(order(), { squareUrl, links }),
+  },
+  {
+    id: "farm-order-placed-onfarm", name: "New order, on-farm pickup",
+    when: "An on-farm order is placed and paid", audience: F,
+    tags: ["placed", "paid", "pickup", "wallet"],
+    build: (links) => t.farmOrderPlaced(pickup(), { squareUrl, links }),
+  },
+  {
+    id: "farm-order-placed-dropsite", name: "New order, scheduled pickup",
+    when: "An order for a scheduled pickup is placed and paid", audience: F,
+    tags: ["placed", "paid", "pickup", "drop site", "venmo"],
+    build: (links) => t.farmOrderPlaced(dropSite(), { links }),
+  },
+  {
+    id: "farm-order-placed-market",
+    name: "New order, scheduled pickup at a market",
+    when: "An order for a market occurrence is placed and paid",
+    audience: F, tags: ["placed", "paid", "pickup", "market", "card"],
+    build: (links) => t.farmOrderPlaced(market(), { squareUrl, links }),
+  },
+  {
+    id: "farm-order-changed", name: "Order changed",
+    when: "A customer changed a paid order's items", audience: F,
+    tags: ["updated", "paid", "delivery", "card"],
+    build: (links) => t.farmOrderChanged(added, {
+      before: before(), difference: 700, links,
+    }),
+  },
+  {
+    id: "farm-pickup-changed", name: "Pickup moved",
+    when: "A customer moved an on-farm pickup", audience: F,
+    tags: ["updated", "pickup"],
+    build: (links) => t.farmPickupChanged(pickup(), { links }),
+  },
+  {
+    id: "farm-contact-message", name: "Message from the website",
+    when: "Someone writes on the contact page", audience: F,
+    tags: ["contact"],
+    build: (links) => t.farmContactMessage({
+      name: "Dana Whitcomb", email: customer.email, orderId: ID,
+      message: "Could I switch Thursday's delivery to the following " +
+        "week? We'll be away.\n\nThanks, Dana",
+    }, { order: true, links }),
+  },
+  {
+    id: "farm-support", name: "Support message from an account",
+    when: "A signed-in customer writes from the account page",
+    audience: F, tags: ["support", "account"],
+    build: (links) => t.farmSupport(customer, {
+      subject: "Eggs", orderId: ID,
+      message: "Two of the eggs were cracked.\nThe rest were fine.",
+    }, { links }),
+  },
+  {
+    id: "farm-address-review", name: "Address to review",
+    when: "A customer saves an address outside the area", audience: F,
+    tags: ["address", "delivery"],
+    build: (links) => t.addressReview(customer, { links }),
+  },
+  {
+    id: "farm-order-cancelled", name: "Canceled by the customer",
+    when: "A customer cancels a paid order and it refunds on the spot",
+    audience: F, tags: ["cancelled", "refunded", "account"],
+    build: (links) => t.farmOrderCancelled(order({
+      status: "cancelled",
+      refunds: [{ amount: 9400, source: "customer", at: card.at }],
+    }), customer, { links }),
+  },
+  {
+    id: "farm-refund-needed", name: "Refund needed",
+    when: "A customer's cancel couldn't refund on the spot", audience: F,
+    tags: ["cancelled", "refunded", "account"],
+    build: (links) => t.farmRefundNeeded(order(), customer, { links }),
+  },
+  {
+    id: "farm-return-request", name: "Return request",
+    when: "A customer asks about a return", audience: F,
+    tags: ["support", "account", "refunded"],
+    build: (links) => t.farmReturnRequest(order(), customer, {
+      id: "r7Kq2m", reason: "Two of the eggs were cracked.", skus: ["B"],
+    }, { links }),
+  },
+  {
+    id: "farm-square-out-of-sync", name: "Square out of sync",
+    when: "A customer's change could not be written to Square",
+    audience: F, tags: ["alert", "updated"],
+    build: (links) => t.farmSquareOutOfSync(order(), customer, { links }),
+  },
+  {
+    id: "farm-square-not-completed", name: "Square still open",
+    when: "A fulfilled order could not be completed in Square",
+    audience: F, tags: ["alert", "fulfilled"],
+    build: (links) => t.farmSquareNotCompleted(order(), { links }),
+  },
+  {
+    id: "farm-alert", name: "Site alert",
+    when: "A failure on the order path, once an hour per kind",
+    audience: F, tags: ["alert"],
+    build: (links) => t.farmAlert("order.create_failed", {
+      id: ID, retryable: false, error: "Square 400",
+      detail: "Item not available at location",
+    }, { at: new Date("2026-10-06T13:05:00Z"), links }),
+  },
+  {
+    id: "farm-morning-report", name: "Morning report",
+    when: "Every day at 8:00", audience: F, tags: ["report", "pickup"],
+    build: (links) => t.farmMorningReport({
+      placed: 4, paidByCard: 3, paidByVenmo: 1, declined: 0, cancelled: 0,
+      refunded: 0, open: 6, mailFailures: 0, runs: 96, jobErrors: 0,
+      invariants: 0,
+    }, [gaveUp()], {
+      date: "2026-10-07", links, now: new Date("2026-10-07T12:00:00Z"),
+      schedule: { last: "2026-10-16", until: "2026-10-19" },
+      messages: [{
+        id: "q7Rk2wXa", name: "Sam Okafor", email: "sam@example.com",
+        orderId: "", order: null, at: "2026-10-05T19:30:00Z",
+      }],
+    }),
+  },
+  {
+    id: "farm-archived-in-stock", name: "Hidden but in stock",
+    when: "Stock shows an archived product on hand, once a day each",
+    audience: F, tags: ["alert", "report"],
+    build: (links) => t.farmArchivedInStock([
+      { sku: "NFF-CHK-WNG-10-19", name: "Wings, 1.0 – 1.9 lbs",
+        count: 6 },
+    ], { links }),
+  },
+  {
+    id: "farm-tomorrow", name: "Tomorrow's orders",
+    when: "Every day at 18:00", audience: F,
+    tags: ["report", "delivery", "pickup", "drop site"],
+    build: (links) => t.farmTomorrow([
+      order(),
+      pickup({ id: "NFF-2610-PQ7R", customer: other("Sam", "Okafor") }),
+      order({
+        id: "NFF-2610-ZX4T", customer: other("Lee", "Marchetti"),
+        fulfilment: {
+          ...order().fulfilment,
+          delivery: {
+            address1: "310 Danielson Pike", town: "Scituate", state: "RI",
+            zip: "02857", cooler: "On the front porch", gate: "4471",
+            notes: "",
+          },
+        },
+        notes: "",
+      }),
+    ], { date: "2026-10-08", links }),
+  },
+  {
+    id: "farm-tomorrow-scheduled", name: "Tomorrow's scheduled pickups",
+    when: "Every day at 18:00, when a market or pop-up is the next day",
+    audience: F, tags: ["report", "pickup", "market"],
+    build: (links) => t.farmTomorrow([
+      market(),
+      market({ id: "NFF-2610-MK5D", customer: other("Ines", "Duarte"),
+        notes: "" }),
+    ], { date: "2026-10-25", links }),
+  },
+  {
+    id: "farm-packing-slips", name: "Packing slips",
+    when: "Every day at 6:00, with the PDF to print; on Sunday, the " +
+      "whole week",
+    audience: F, tags: ["report", "delivery", "pickup", "drop site", "pdf"],
+    build: packetMail,
+  },
+  {
+    id: "farm-packing-quiet", name: "Packing slips, nothing to print",
+    when: "Every day at 6:00 when nothing is new, changed or canceled",
+    audience: F, tags: ["report"],
+    build: (links) => t.farmPackingSlips([], {
+      day: "2026-10-06", quiet: true, links,
+    }),
+  },
+  {
+    id: "farm-changed-after-print", name: "Changed after printing",
+    when: "An order due today changes or is canceled after the " +
+      "morning's slips go out",
+    audience: F, tags: ["alert", "delivery", "pdf"],
+    build: afterPrintMail("changed"),
+  },
+  {
+    id: "farm-cancelled-after-print", name: "Canceled after printing",
+    when: "An order due today changes or is canceled after the " +
+      "morning's slips go out",
+    audience: F, tags: ["alert", "drop site", "pdf"],
+    build: afterPrintMail("cancelled"),
+  },
+
+  // Farm news
+  {
+    id: "news-launch-email", name: "Farm news: we're online",
+    when: "To the old list at launch, from Resend once its send " +
+      "exists (#153); the list is not asked to opt in again (#303)",
+    audience: "list", tags: ["list", "farm news", "launch", "draft"],
+    build: () => {
+      const launch = launchEmail();
+      return plain(launch.subject,
+        `Preview text: ${launch.preview}\n\n---\n\n${launch.body}`);
+    },
+  },
+];
+
+// What James has approved, with its evidence; everything else is "to
+// approve", with what he has not seen. From an audit of his review
+// replies of 2026-09-22, the render notes, the commits since and the
+// liaison\x27s queue, on 2026-09-26, then his review in the library on
+// staging the same day. Unclear counts as to approve.
+const LIBRARY = "James approved in the library on 2026-09-26.";
+const T2A = "James approved the farm\x27s reasons on #233 (T2a, " +
+  "2026-09-28), rewriting sold out, weather and our mistake.";
+const C4 = "James approved it on #233 (C4, 2026-09-28): a cancel " +
+  "after a miss doesn\x27t say \"as requested\".";
+const T5A = "Decided on #233 (T5a, 2026-09-28): it uses the farm " +
+  "card, as the other farm notices do. No View order or View customer " +
+  "button until the dashboard shows the site\x27s orders (T5b).";
+const APPROVED = {
+  "order-confirmed-delivery": "James\x27s rewrite of 2026-09-22, verbatim.",
+  "order-confirmed-dropsite": LIBRARY,
+  "delivery-reminder": "James\x27s rewrite of 2026-09-22. Not yet seen: " +
+    "the gate or door code line, shown only when one is given.",
+  "order-changed": "James\x27s rewrite of 2026-09-22, and his opening " +
+    "line of 2026-09-26. Not yet seen: the gate or door code line, " +
+    "shown only when one is given.",
+  "address-approved": "James\x27s rewrite of 2026-09-22, verbatim.",
+  "sign-in-link": "James\x27s rewrite of 2026-09-22, verbatim.",
+  "farm-order-placed-delivery": LIBRARY,
+  "farm-order-placed-dropsite": LIBRARY,
+  "farm-contact-message": LIBRARY,
+  "farm-address-review": LIBRARY,
+  "farm-alert": LIBRARY,
+  "farm-tomorrow": LIBRARY,
+  "order-cancelled-refund": "James approved it on #233 (T1a, " +
+    "2026-09-28) with his two changes: \"as requested\" and no comma " +
+    "in the fee line.",
+  ...Object.fromEntries(Object.keys(REASONS).map((key) => [
+    `order-cancelled-${key}`, T2A,
+  ])),
+  "order-cancelled-refunded-earlier": `${T2A} The refund line is T1a\x27s.`,
+  "order-cancelled-missed-fee-kept": C4,
+  "order-cancelled-missed-full-refund": C4,
+  "order-cancelled-hold-fee-kept": `${C4} Sent by the job that ends ` +
+    "the hold (#193).",
+  "order-cancelled-hold-full-refund": `${C4} As above.`,
+  "farm-support": T5A,
+  "farm-refund-needed": T5A,
+  "farm-return-request": T5A,
+  "farm-square-out-of-sync": T5A,
+};
+
+// Rewrites of 2026-09-26 that have landed come back here to approve,
+// showing the landed text.
+const LANDED = "His rewrite of 2026-09-26, landed";
+const C3 = "Policy-pages\x27 draft of 2026-09-28 for C3, C7 and C8 " +
+  "(#192): it switches on the fee the missed delivery kept.";
+const REASON = " The reason line is his C6a draft for the cause " +
+  "(2026-09-28); the other causes have their own entries.";
+const T4 = "Removed items head the list under \"Removed\", as plain " +
+  "lines (T4, 2026-09-28). Draft: the heading \"Your order now\" above " +
+  "what is still coming.";
+const W11D = "W11d (2026-09-28): a pickup is booked by paying, from " +
+  "the farm\x27s schedule; no farm confirmation, and the window " +
+  "reads as its times (9 AM – noon).";
+const WELCOME = "Writer2\x27s redraft of 2026-10-25 on James\x27s " +
+  "structure (#400, comments 6404632787 and 6404652710): thanks for " +
+  "joining, what to expect, the news and About pages to catch up on, " +
+  "unsubscribe from the link in any email (never account settings), " +
+  "the chickens-and-sheep close. How they opted in sits at the bottom " +
+  "by the unsubscribe, from the consent log; the moved-provider " +
+  "paragraph only for the market sheets and the re-invite. Every line " +
+  "waits on him (Q8).";
+const WAITING = {
+  "news-post-three-quarters": "The words are the post's, as James " +
+    "approved them on #431. The layout, the dinkus, the signature and " +
+    "the title above the first section are drafts (#483). The photos " +
+    "load from this site's /mail/ addresses, so they show only where " +
+    "the site is built. The send's own footer carries Resend's " +
+    "unsubscribe link; here it is a sample.",
+  "farm-archived-in-stock": "#267: to sales@ only, and listed in the " +
+    "morning report until resolved. Draft wording.",
+  "order-confirmed-onfarm": `James approved it in the library on ` +
+    `2026-09-26. ${W11D}`,
+  "order-changed-paid-more": `${LANDED}: each line says what was added, ` +
+    "and the Total line what was paid.",
+  "order-changed-refunded": `${T4} Its refund line he kept (T3).`,
+  "farm-order-changed": `He approved it on 2026-09-26; since then ${T4}`,
+  "address-denied": `${LANDED}, verbatim.`,
+  "missed-delivery-fee-kept": `${C3}${REASON} Sent by ` +
+    "bin/nff orders attempted for the customer\x27s miss (#193).",
+  "missed-delivery-no-fee": `${C3}${REASON} A waived miss gets the ` +
+    "same seven-day hold (C8b).",
+  "missed-delivery-no-access": `${C3}${REASON} The words in brackets ` +
+    "are the farm\x27s --detail; without it the line goes without.",
+  "missed-delivery-no-address": `${C3}${REASON} The address is the one ` +
+    "the customer gave.",
+  "moved-delivery-weather": `${C3} It offers another day as well as ` +
+    "pickup or a refund (C7b, 2026-09-28). Sent by bin/nff orders attempted " +
+    "for a weather or farm miss, which moves the order (#193).",
+  "moved-delivery-farm": C3,
+  "farm-order-placed-onfarm": `He approved it on 2026-09-26. ${W11D} ` +
+    "The confirm and deny commands are gone from it.",
+  "farm-pickup-changed": `${W11D} Now a notice, "Pickup moved", with ` +
+    "nothing to run. Draft wording.",
+  "farm-order-cancelled": "Checkout\x27s draft of 2026-09-28 (T1d): a " +
+    "customer\x27s cancel now refunds by itself.",
+  "farm-morning-report": `${LANDED}: the key under the table, and 🙈 ` +
+    `for outside limits. ${W11D} Its pickups are now those waiting on ` +
+    "the customer, and it warns when the schedule runs short. Draft. " +
+    "So is its list of messages waiting on an answer (#167).",
+  "news-invite": "Subject is his (2026-10-25). The body is writer2\x27s " +
+    "redraft on his structure (#400, comment 6404632787): a welcome, " +
+    "the confirm button, the expiry and the ignore line, no " +
+    "unsubscribe. W19\x27s old-list line is retired with #303, which " +
+    "sends this to the public form alone.",
+  "news-welcome": WELCOME,
+  ...Object.fromEntries(WELCOMES.map(([type]) =>
+    [`news-welcome-${type}`, WELCOME])),
+  "news-letter-sample": "The list template (#273), for its look; " +
+    "the words and photos are placeholders. The photos have no public " +
+    "address yet, so here they show as broken images.",
+  "news-launch-email": "Subject and preview text are his (2026-09-26). " +
+    "The body is writer2\x27s redraft of 2026-10-25 for the #303 " +
+    "decision (the old list is not asked to opt in again) and waits on " +
+    "him (Q8). The send fills each reader\x27s unsubscribe link; here it " +
+    "is a placeholder.",
+};
+
+for (const e of library) {
+  e.approval = APPROVED[e.id] ? "approved" : "to approve";
+  e.note = APPROVED[e.id] || WAITING[e.id] || null;
+}
+
+export const entry = (id) => library.find((e) => e.id === id) || null;

@@ -1,0 +1,232 @@
+name: CI
+
+# Lint and the unit tests, on every pull request, every push to the
+# branches that matter and on demand. The check is named lint-and-test:
+# lgtm-automerge waits on it, and branch protection on staging and main
+# requires it, so a fast-forward to a SHA that never passed is refused.
+#
+# The run holds no secret. Each step runs under env -i, which drops
+# every runner variable (GITHUB_TOKEN included), checkout leaves no
+# token in .git/config, and test/setup.mjs keeps an allowlist of
+# variables and closes the network for the suite.
+
+on:
+  pull_request:
+  push:
+    branches: [next, staging, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  lint-and-test:
+    name: lint-and-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Lint
+        run: env -i PATH="$PATH" HOME="$HOME" npm run lint
+
+      # Every tracked SVG as the clean-up writes it (#295, docs/svg.md).
+      - name: SVG
+        run: env -i PATH="$PATH" HOME="$HOME" npm run check:svg
+
+      - name: Test
+        run: env -i PATH="$PATH" HOME="$HOME" npm test
+
+      # A reminder, never a gate (#467): the posts and policy pages this
+      # change touches, with the date each carries, as warnings and in
+      # the job summary. The script always exits 0, and the step may not
+      # fail the job either. Only the summary path survives env -i.
+      - name: Dates to confirm
+        continue-on-error: true
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: >
+          env -i PATH="$PATH" HOME="$HOME"
+          GITHUB_STEP_SUMMARY="$GITHUB_STEP_SUMMARY"
+          node bin/dated-pages.mjs "$BASE"
+
+  # The Record-shape trailer, as its own check: required on staging,
+  # and so on main, which takes only what staging has (James, #283).
+  # It fails on every branch, next included, so a commit that skipped
+  # the pre-push hook shows red on its own push. A pull request checks
+  # its own commits; a push checks the commits it added. A dispatched
+  # run has no base and checks against origin/main.
+  record-shape:
+    name: record-shape
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Record shape
+        run: >
+          env -i PATH="$PATH" HOME="$HOME"
+          npm run --silent check:record-shape --
+          "${{ github.event.pull_request.base.sha || github.event.before }}"
+
+  # The Hugo build and the checks on its HTML, as Netlify runs them, so
+  # a template error or a grid fault shows as a red check on the commit
+  # instead of a failed deploy after the push is accepted (#283, C4).
+  # It builds twice: as production does, and as staging and previews
+  # do, with drafts, expired and future posts. check:env,
+  # check:schedule and the gate install stay on Netlify: they read
+  # Netlify's own environment and clock. Hugo and Dart Sass are the
+  # versions netlify.toml and bin/prod use, pinned by SHA-256
+  # (.github/actions/setup-hugo).
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - uses: ./.github/actions/setup-hugo
+
+      - name: Build as production
+        run: >
+          env -i PATH="$PATH" HOME="$HOME" CONTEXT=production
+          HUGO_ENABLEGITINFO=true HUGO_BUILD_SHA="$GITHUB_SHA"
+          hugo --gc --environment production
+
+      - name: Last words, production
+        run: env -i PATH="$PATH" HOME="$HOME" npm run build:orphans
+
+      - name: Grid, production
+        run: env -i PATH="$PATH" HOME="$HOME" npm run check:grid
+
+      - name: Schema, production
+        run: env -i PATH="$PATH" HOME="$HOME" npm run check:schema
+
+      - name: Freshness, production
+        run: env -i PATH="$PATH" HOME="$HOME" npm run check:fresh
+
+      - name: News, production
+        run: env -i PATH="$PATH" HOME="$HOME" npm run check:news
+
+      # No staging tool in any file of production's build (#294).
+      - name: Staging tools, production
+        run: >
+          env -i PATH="$PATH" HOME="$HOME"
+          npm run check:staging -- production
+
+      - name: Build as staging
+        run: >
+          rm -rf public &&
+          env -i PATH="$PATH" HOME="$HOME" CONTEXT=branch-deploy
+          HUGO_ENABLEGITINFO=true HUGO_BUILD_SHA="$GITHUB_SHA"
+          hugo --gc --environment production
+          --buildDrafts --buildExpired --buildFuture
+          -b https://staging--north-foster-farm.netlify.app/
+
+      - name: Last words, staging
+        run: env -i PATH="$PATH" HOME="$HOME" npm run build:orphans
+
+      - name: Grid, staging
+        run: env -i PATH="$PATH" HOME="$HOME" npm run check:grid
+
+      - name: Schema, staging
+        run: env -i PATH="$PATH" HOME="$HOME" npm run check:schema
+
+      - name: Freshness, staging
+        run: env -i PATH="$PATH" HOME="$HOME" npm run check:fresh
+
+      - name: News, staging
+        run: env -i PATH="$PATH" HOME="$HOME" npm run check:news
+
+      - name: Staging tools, staging
+        run: >
+          env -i PATH="$PATH" HOME="$HOME"
+          npm run check:staging -- staging
+
+  # The supply chain checks need the network, which the suite above
+  # closes, so they run as their own check. Like the rest of the run it
+  # holds no secret and prints counts and package names only.
+  supply-chain:
+    name: supply-chain
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      # Fails on an invalid registry signature or provenance attestation.
+      - name: Signatures
+        run: env -i PATH="$PATH" HOME="$HOME" npm run check:signatures
+
+      # Fails on a version under 7 days old with no recorded waiver, and
+      # on a package with no attestation that James has not approved.
+      - name: Cooldown and attestations
+        run: env -i PATH="$PATH" HOME="$HOME" npm run check:supply
+
+  # npm audit over the lockfile and the GitHub advisory database over
+  # the Actions in use, set against security/exceptions.json. It fails
+  # while a known vulnerability has neither an update nor a recorded
+  # exception, or an excepted package has since shipped a patched
+  # version. Here it blocks nothing, on next or staging (#283): main's
+  # gate is release-audit (release-audit.yml), the same command on a
+  # pull request into main. The log is public: counts only. The
+  # token is the run's own, to lift the advisory API's rate limit.
+  audit:
+    name: audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Audit
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: npm run check:audit

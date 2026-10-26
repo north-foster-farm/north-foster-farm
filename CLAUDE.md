@@ -6,7 +6,58 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 North Foster Farm website - a static site built with Hugo (v0.164.0) and hosted on Netlify. The site uses Bootstrap 5.3.3, custom SCSS styling, and vanilla JavaScript with ES modules.
 
+## Working rules for agents (James, 2026-10-25)
+
+These apply to every lane, cloud run and the coordinator. They come from
+decisions James made on GitHub. The issue numbers point to the source.
+
+- **Do small work, don't file it.** If a fix can be done, checked and
+  landed in about 15 minutes, do it in the change you're making, or
+  batch it with others in the same area. Don't open an issue for a
+  follow-up smaller than the fix itself. #372 is the example of what not
+  to do.
+- **Keep the open issues honest.** Close what is done or superseded as
+  soon as you notice it. Steps only James can take go on #237, his
+  checklist, not into issues of their own. #303 is the one ordered
+  queue.
+- **Work has landed when it is on `next`.** Approved PRs are squashed
+  onto `next` and closed, so GitHub shows them as "closed", not
+  "merged". Check `next`'s history before calling anything stalled.
+- **e2e:** Claude cloud runs (`.github/workflows/claude.yml`) have no
+  browser, so never ask one to run Playwright. The suite runs in GitHub
+  Actions through `e2e.yml` and `e2e-run.yml` (a local build with fake
+  payments), or on James's Mac. Specs that need real staging or a real
+  phone are hands-on checks for James (#449).
+- **Customer copy follows the #400 house rules:**
+  - no semicolons and no em dashes in prose;
+  - no internal model names in customer text ("Pickup days", not
+    "scheduled pickup");
+  - "email address" when it means the address;
+  - drop sites are plural and unnamed unless the line is about one site;
+  - every rate-limit message names what was tried;
+  - an approved wording applies everywhere the same text appears;
+  - step-by-step instructions only for what the reader may not know
+    how to do, never for the obvious ("choose, say how you want it,
+    pay") just to fill space (#303, 2026-10-26).
+- **Contact links go to sales@** (`company.email`). info@ is
+  deliberately less public (#410).
+- **Confirm dates before production.** Any change to a news post, or to
+  a page with a "Last updated" line, has its date confirmed before it
+  ships. The right date is often not the commit date.
+- **This repo and its branches are public.** No customer data, no
+  credentials, and no full names of James's family members in code,
+  issues, comments or screenshots.
+
 ## Development Commands
+
+Env files: `.env.development.sample`, `.env.staging.sample` and
+`.env.production.sample` (tracked) name each environment's keys.
+`.env.development`, `.env.staging` and `.env.production` (ignored)
+each hold all of their sample's keys; `.env` is a symlink to
+`.env.development`. `bin/nff` reads `.env`; `--production` and
+`--staging` read their own file only, and `--preview` reads
+`.env.staging` (there is no `.env.preview`). Never read, print or copy
+any of the ignored ones.
 
 ```bash
 # Install dependencies (npm, not yarn -- package-lock.json is the
@@ -25,20 +76,37 @@ npm run lint                # All linters
 npm run lint:scripts        # ESLint for JS files
 npm run lint:styles         # Stylelint for SCSS
 
+# Lint and the unit tests; CI runs the same as `lint-and-test`, and
+# the pre-commit hook in .githooks/ (set up by `npm install`) runs it
+# before every commit
+npm run check
+
 # Production build. NETLIFY ONLY -- do not run this locally.
 # bin/prod installs Dart Sass into /opt/build/repo, a path that only
 # exists on the Netlify build image, so this fails on a dev machine.
-# Netlify runs it via `npm run deploy && hugo --gc`.
-npm run deploy
+# Netlify runs it via `bin/prod && hugo --gc`; it runs no tests.
+bin/prod
 ```
 
 To check a production build locally, run the linters and then
 `hugo --environment production` directly, skipping `bin/prod`.
 
+### Screenshots in issues and comments
+
+`gh` can't attach images, so `bin/gh-shot [--issue N] FILE...` uploads
+them to the `screenshots` branch (no shared history with `main`, never
+merged or deployed) and prints a markdown line for each to paste into
+`gh issue comment --body` or a body file. `--repo
+north-foster-farm/nff-dashboard` posts to the dashboard's branch. The
+branch is public and permanent: mockups and development or staging
+screens only, never customer data or production.
+
 ### Development Server Modes
 
 The `bin/dev` script supports two modes via environment variables:
-- **Default**: Standard Hugo server on localhost:1313
+- **Default**: Standard Hugo server on localhost:1313, or on
+  `HUGO_PORT`. `npm run start:functions -- --port <port>` picks a free
+  one, so one can run per worktree (`docs/order-form.md`)
 - **`HUGO_BIND_TO_IP=true`**: Binds to local network IP (requires /etc/hosts entries for `northfosterfarm.local`)
 
 ## Architecture
@@ -78,6 +146,7 @@ content/           # Markdown content files
   _index.md        # Homepage content
   accessibility.md # Accessibility statement
   privacy.md       # Privacy policy
+  news/            # Past updates, one post each; see layouts/news/
 
 data/              # YAML data files
   company.yaml     # Company info (name, address, phone, email)
@@ -109,12 +178,12 @@ bin/
 - Template metrics and debug output enabled
 
 **Production** (`bin/prod` + `hugo --gc`):
-1. Installs Dart Sass v1.79.5 to `node_modules/.bin`
-2. Runs linters (ESLint + Stylelint)
-3. Hugo processes SCSS via Dart Sass Embedded
-4. PostCSS runs autoprefixer and PurgeCSS
-5. JavaScript bundled via Hugo Pipes
-6. Output to `public/` directory
+1. Installs Dart Sass v1.79.5 to `node_modules/.bin` (all `bin/prod`
+   does; lint and tests run in GitHub Actions)
+2. Hugo processes SCSS via Dart Sass Embedded
+3. PostCSS runs autoprefixer and PurgeCSS
+4. JavaScript bundled via Hugo Pipes
+5. Output to `public/` directory
 
 ### Styling Architecture
 
@@ -142,7 +211,24 @@ ES6 modules with explicit imports:
 ## Netlify Configuration
 
 Deployment configured in `netlify.toml`:
-- Build command: `npm run deploy && hugo --gc`
+- Build command: `npm run check:env && npm run check:schedule &&
+  npm run check:events && bin/prod && HUGO_BUILD_SHA=$COMMIT_REF
+  hugo --gc && npm run
+  build:orphans && npm run check:grid`. `build:orphans` keeps the
+  last two words of every paragraph, heading and list item on one
+  line (see `bin/orphans/wrap.mjs`); `hugo server` skips it.
+  `check:grid` holds the built HTML to Bootstrap's grid
+  rules (see `bin/grid/check.mjs`), and `check:schema` the built
+  JSON-LD to schema.org's types and Google's required properties
+  (`bin/schema/check.mjs`), and `check:fresh` the sitemap, llms.txt
+  and web app manifest to the pages beside them (`bin/fresh/check.mjs`;
+  Hugo writes all three in the render, so none is a step to skip). The local build plugin
+  `plugins/source-maps` then moves the source maps out of `public/`
+  into Blobs (`docs/monitoring.md`). The build runs
+  no lint or tests: those run in GitHub Actions (`lint-and-test`,
+  `.github/workflows/ci.yml`), which `staging` and `main` require.
+  CI's `build` job repeats the Hugo build, `check:grid`, `check:schema`,
+  `check:fresh` and `check:news` on every push, so a template error shows on the commit
 - Hugo version: 0.164.0 (pinned; Node 26 via NODE_VERSION and .nvmrc)
 - Deploy previews build drafts/future/expired content
 - Custom redirects (e.g., `/venmo` → Venmo profile)

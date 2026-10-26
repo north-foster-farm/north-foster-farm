@@ -57,7 +57,10 @@ if [ -n "$HUGO_BIND_TO_IP" ]; then
     --templateMetricsHints \
     --logLevel info
 else
+  # HUGO_PORT lets several servers run at once; `npm run start:functions`
+  # sets it to a free port (bin/dev-functions.mjs).
   hugo server \
+    --port "${HUGO_PORT:-1313}" \
     --buildDrafts \
     --buildExpired \
     --buildFuture \

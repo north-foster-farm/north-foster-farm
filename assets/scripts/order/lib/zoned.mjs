@@ -68,6 +68,15 @@ export const addDays = (iso, n) => {
 // 0 = Sunday … 6 = Saturday.
 export const weekday = (iso) => new Date(utcMidnight(iso)).getUTCDay();
 
+const dayFormatter = new Intl.DateTimeFormat("en-US", {
+  timeZone: "UTC",
+  weekday: "long",
+});
+
+// The name of a weekday by its number, as data/delivery.json keeps
+// them: 4 is "Thursday". January 1, 2023 was a Sunday.
+export const dayName = (n) => dayFormatter.format(Date.UTC(2023, 0, 1 + n));
+
 const offsetMs = (date, timeZone) => {
   const p = parts(date, timeZone);
   const asUtc = Date.UTC(

@@ -1,0 +1,16 @@
+{{- /* The About page's markets as Markdown: each market from
+  the market series of data/series.json with the lines markets.html shows, then the photo
+  and its caption. */ -}}
+{{- $photo := resources.Get (.Get "photo") -}}
+{{- if not $photo -}}
+  {{- errorf "markets: no image at assets/%s (%s)" (.Get "photo") .Position -}}
+{{- end -}}
+{{- range (partial "lib/pickup-lists.html" .).markets }}
+- **{{ .name }}**: {{ .when }}, {{ partial "market/season.html" . }}. {{ .where }}, RI. {{ .href }}. When the farm opens a date here for pickup, you can order for it: {{ absURL "order/" }}?method=scheduled&series={{ .code }}
+{{- end }}
+
+![{{ .Get "alt" }}]({{ ($photo.Resize "700x webp q82").Permalink }})
+{{- with .Inner | strings.TrimSpace }}
+
+*{{ . }}*
+{{- end -}}

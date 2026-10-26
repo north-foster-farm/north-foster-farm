@@ -1,0 +1,22 @@
+{{/*
+  The card that confirms a change of email address (#240, #345). An
+  email-change link lands on the account page with #confirm=TOKEN in
+  the fragment, never the query string, so it never reaches a server
+  log; following it only peeked, and this card's Confirm is the POST
+  that moves the account. The sign-in page carries the same card for
+  a browser that holds no matching session. utils/email-confirm.js
+  runs both. The wording is James's, 2026-10-24; the banner is a draft.
+
+  Params:
+    prefix  "account" or "login": the ids' first word
+*/}}
+<div class="account-card account-confirm" id="{{ .prefix }}-confirm" role="status" aria-live="polite" tabindex="-1" data-support="{{ hugo.Data.company.email }}" hidden>
+  <h2 class="h4">Confirm your new email address</h2>
+  <p>Change your email address to <strong data-confirm-email></strong>?</p>
+  <div class="alert alert-danger">Once you confirm, you can no longer sign in with your current address.</div>
+  <div class="alert alert-danger" role="alert" data-confirm-error hidden></div>
+  <div class="account-confirm-actions">
+    {{ partial "busy-button.html" (dict "label" "Confirm new email address" "busy" "Confirming" "class" "btn-primary" "id" (printf "%s-confirm-submit" .prefix) "type" "button" "fit" true) }}
+    <button type="button" class="btn btn-outline-secondary" id="{{ .prefix }}-confirm-cancel">Cancel</button>
+  </div>
+</div>

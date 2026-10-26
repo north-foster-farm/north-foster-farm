@@ -1,0 +1,3067 @@
+# QA plan: checkout and the autumn refresh
+
+## How to run
+
+```sh
+npm install
+npx playwright install chromium   # only if chromium-1234 is not cached
+# bin/nff --staging needs .env.staging in the checkout root
+npm run e2e                                   # everything, both projects
+npm run e2e -- --grep @regression             # the regression list
+npm run e2e -- --project=desktop e2e/pricing.spec.mjs
+E2E_KEEP=1 npm run e2e -- e2e/payment.spec.mjs    # keep cancelled records
+STAGING_TOKEN=... npm run e2e                 # read the outbox over HTTP
+E2E_BASE_URL=https://deploy-preview-NNN--north-foster-farm.netlify.app \
+  npm run e2e -- e2e/order-page.spec.mjs e2e/pricing.spec.mjs
+npx playwright show-report
+bin/nff --staging orders list
+```
+
+**In CI** (#283), the suite runs in GitHub Actions against a local
+build instead: `npm run e2e:serve` (`bin/e2e/serve.mjs`) builds the
+site as staging does and serves it with the functions offline and
+fake payments, and the back office answers to a token made for the
+run.
+
+The server is a few hundred lines of Node of our own, not `netlify
+dev`: the Netlify CLI brings over a thousand packages, most without
+provenance, and would need James to approve each one. It does what
+the suite needs of Netlify, and no more:
+
+- **Emulated:** each function answers on its own `config.path` and
+  methods, with `context.ip` and `context.waitUntil`; `netlify.toml`'s
+  redirects (forced ones before files, the rest after, a 200 as a
+  rewrite) and its header rules; `/about` sends 301 to `/about/`; a
+  missing page is `404.html` with a 404.
+- **Not emulated:** edge functions, so the access gate never runs
+  (`gate.spec.mjs` stays with the staging run); Netlify Blobs, so the
+  stores are the functions' memory stores, gone when the server stops,
+  and one process shares them (CI starts a new server for each pass,
+  so rate limits and records never carry from one pass to the next); scheduled runs (the jobs answer only
+  when called); Netlify's own headers, caching, ETags, compression
+  and request limits; Square's and PayPal's real forms (the fakes
+  stand in).
+
+So a green `e2e` says the site and its functions work together. It
+says nothing about Netlify's platform: that is what staging is for,
+and anything that needs it belongs in the run against staging, never
+in a fake here. To run it the same way on a machine:
+
+```sh
+export E2E_STAGING_TOKEN=$(openssl rand -hex 24)
+npm run e2e:serve -- --port 8895 &   # once /api/dates answers:
+E2E_BASE_URL=http://localhost:8895 npm run e2e -- --retries=0
+```
+
+A push to `next` runs no e2e (#303, 2026-10-26). A dispatch of
+`e2e.yml` with `specs` runs the named specs; with `specs` empty, `e2e`
+runs the whole suite twice and fails if either pass fails: a flake is
+a failure, never retried away. That full run is kept for the final
+check before launch, on the frozen commit (#423).
+`e2e-burn-in` runs every spec changed since `staging` ten times on the
+pull request into `staging` (`e2e-burn-in-advisory` on `next`).
+`e2e-soak.yml` runs the whole suite many times over, by hand only.
+`gate.spec.mjs` and anything that needs Square's or PayPal's own
+forms stay with the run against staging.
+
+A deploy preview takes no payments (3a82919: the order page says so and
+`POST /api/orders` answers 403 `paymentsOff`), so on a preview only the
+specs that never reach the card form apply; OP-11 and the payment cases
+wait for staging.
+
+Staging sits behind the access gate (`docs/staging.md`). The suite
+passes it with `E2E_STAGING_TOKEN` from `.env.e2e-staging`, sent as the
+`nff_gate_machine` cookie for the deploy's host; without it every page
+answers 401 and the suite can prove nothing, except `gate.spec.mjs`,
+which runs as a stranger.
+
+The suite runs against the staging branch deploy and refuses any host
+without `--` in its name, so production is out of reach. Each test opens
+a fresh browser (empty `localStorage`) with the staging toolbar hidden,
+uses its own address (`qa-e2e-<tag>-<id>@example.com`), and cleans up
+after itself: paid orders are cancelled, which refunds them, and deleted,
+test customers are deleted, and their messages are removed from the
+outbox. The outbox is read from the jobs store with the CLI's Netlify
+credentials, or over `/api/staging/outbox` when `STAGING_TOKEN` is set.
+`POST /api/orders` answers 429 after 12 requests in 10 minutes. With
+`STAGING_TOKEN` in `.env.staging` the suite sends it as
+`X-Staging-Token` on every order post, which skips the limit off
+production; without it, one full run sends about ten, so leave ten
+minutes between runs that include the payment, API and account specs.
+`rate-limit.spec.mjs` (PY-18) never sends the token. It reaches
+the limit on purpose and runs only with `E2E_LOCKOUT=1`: run it alone,
+last in a pass.
+
+Two projects: `desktop` (Chromium, 1500 by 900) runs every spec;
+`phone` (Chromium, 390 by 664, touch) runs the order page and the forms.
+The layout spec sets 1500, 1198, 990, 575 and 390 itself.
+
+Every case below has a status. **Automated** names its spec and test.
+**Partial** automates part and says what is left. **Manual** says why a
+person must do it. **Pending** waits on an issue that is not built yet;
+its steps come from the issue's acceptance points.
+
+Sandbox cards: `4111 1111 1111 1111` approves (Visa ending 1111),
+`4000 0000 0000 0002` declines; any future expiry, CVV `111`, postal
+code `11111`. At the API, `cnon:card-nonce-ok` approves (Visa ending
+5858) and `cnon:card-nonce-declined` declines.
+
+## The order page and cart
+
+### OP-01 An empty cart owes nothing
+
+Automated: `order-page.spec.mjs`, "an empty cart owes nothing and cannot
+continue" (both projects).
+
+- **Scenario:** A customer opens the order page before choosing
+  anything; a $5 fee on an empty cart once read as a $5 order (finding
+  22).
+- **Setup:** Fresh browser, no draft.
+- **Test:**
+  1. Open `/order/`.
+- **Assert:** On-farm pickup is checked. With Delivery chosen, the cart
+  reads "0 items", Subtotal $0, Total $0, with no Delivery fee row and
+  no discount row. Proceed to checkout is disabled. The nudge reads
+  "Delivery orders need a $40 minimum." The Delivery card reads "You
+  need $40 or more in your cart to use this option."
+- **Teardown:** None.
+
+### OP-02 On-farm pickup comes first
+
+Automated: `order-page.spec.mjs`, "the ways to get an order: the farm
+first, then scheduled pickup, then delivery" (both projects).
+
+- **Scenario:** On-farm pickup is the default and leads the list
+  (#196; it reverses finding 17). The drop site, the markets and the
+  pop-ups are one way, Scheduled pickup (#309, #311).
+- **Setup:** Fresh browser.
+- **Test:**
+  1. Open `/order/`.
+  2. Choose Scheduled pickup (`SP-01` to `SP-03` cover its picker).
+- **Assert:** The method cards read, in order, "On-farm pickup",
+  "Scheduled pickup", "Delivery". The sections after the cart read, in
+  order, "Pickup or delivery", "Contact information", "Payment"
+  (`order-page.spec.mjs`, "the steps run items, pickup or delivery,
+  contact, payment"), and the farm-news box is the row right under
+  Email.
+- **Teardown:** None.
+
+### OP-03 Add becomes a stepper and the cart itemizes it
+
+Automated: `order-page.spec.mjs`, "Add becomes a stepper and the cart
+itemizes the line" (both projects).
+
+- **Scenario:** The first tap on a product adds one and turns the button
+  into a stepper; the cart shows the line.
+- **Setup:** Fresh browser, empty cart.
+- **Test:**
+  1. Press Add on Eggs, Large.
+  2. Fold the cart if it floats over the row, then press "One more".
+- **Assert:** The row's stepper is active with 1, then 2. The cart has
+  one group "Eggs" with one line "Large", "2 × $7", "$14". Count "2
+  items", Subtotal $14, Delivery fee +$5, Total $19.
+- **Teardown:** None.
+
+### OP-04 Minus at one removes the item
+
+Automated: `order-page.spec.mjs`, "the stepper's minus at one removes
+the item" (both projects).
+
+- **Scenario:** At one, the minus button is labeled Remove and empties
+  the row.
+- **Setup:** `/order/?add=NFF-CHK-EGG-LG:1`.
+- **Test:**
+  1. Fold the cart if it floats; press Remove on Eggs, Large.
+- **Assert:** Quantity 0, the row shows Add again, the cart reads "0
+  items".
+- **Teardown:** None.
+
+### OP-05 The cart's × takes every unit out
+
+Automated: `order-page.spec.mjs`, "the × on a cart line takes every unit
+out" (both projects).
+
+- **Scenario:** A customer removes a whole line from the cart.
+- **Setup:** `/order/?add=` 3 eggs and 2 wings.
+- **Test:**
+  1. Press "Remove Wings, 1.0 – 1.9 lbs from the cart".
+- **Assert:** Wings quantity 0; "3 items"; Subtotal $21.
+- **Teardown:** None.
+
+### OP-06 The × works right after typing
+
+Automated: `order-page.spec.mjs`, "the × works on the first click right
+after typing in a field" (both projects). Finding D1, fixed by #155.
+
+- **Scenario:** A customer types a ZIP (or any field), then removes a
+  cart line; leaving the field re-renders the cart, and the first click
+  is lost.
+- **Setup:** `/order/?add=` 5 wings and 1 egg.
+- **Test:**
+  1. Type `02857` in ZIP.
+  2. Without clicking elsewhere, press the × on the Wings line.
+- **Assert:** Wings quantity 0 and the cart reads "1 item" after one
+  click.
+- **Teardown:** None.
+
+### OP-07 Quantities keep to two digits
+
+Automated: `order-page.spec.mjs`, "a typed quantity keeps to two digits"
+(both projects). Passed on staging 2026-09-25, since 68ed426 (#168:
+an emptied box once folded back to Add and dropped the item before
+the new number was typed).
+
+- **Scenario:** Typed quantities cannot exceed 99 or hold letters.
+- **Setup:** 1 egg in the cart.
+- **Test:**
+  1. Clear the eggs box and type `150`; leave the field.
+  2. Type `abc`; leave the field.
+- **Assert:** The box reads 15, then 0.
+- **Teardown:** None.
+
+### OP-08 Reorder links fill the cart
+
+Automated: `order-page.spec.mjs`, "?add= fills the cart, names what it
+added and clears the query" (both projects).
+
+- **Scenario:** The account page's Add again and Reorder links open
+  `/order/?add=SKU:qty`; anything no longer sold is named, not added.
+- **Setup:** `/order/?add=NFF-CHK-EGG-LG:2,NFF-CHK-EGG-MD:1` (Medium is
+  sold out).
+- **Test:**
+  1. Open the link.
+- **Assert:** The notice reads "Added to your cart: 2 × Eggs, Grade A
+  Large. Not available: Eggs, Grade A Medium." Eggs, Large reads
+  2. The URL is
+  `/order/` with no query.
+- **Teardown:** None.
+
+### OP-09 The draft survives a reload
+
+Automated: `order-page.spec.mjs`, "the draft survives a reload" (both
+projects).
+
+- **Scenario:** A customer who leaves and comes back finds the order as
+  they left it.
+- **Setup:** 5 wings.
+- **Test:**
+  1. Choose Scheduled pickup and an occurrence; type "Draft" as the
+     first name.
+  2. Reload.
+- **Assert:** Wings 5, Scheduled pickup checked with the same
+  occurrence chosen, first name "Draft", Total $45.
+- **Teardown:** None (the browser context is discarded).
+
+The draft's date and window are `order-draft-date.spec.mjs` (#284):
+the last date on offer, not the first, kept for on-farm pickup and
+delivery, with `/api/dates` answering at once and 2.5 seconds late.
+
+### OP-10 The cart button goes to Pickup or delivery
+
+Automated: `order-page.spec.mjs`, "Proceed to checkout takes the
+customer to Pickup or delivery" (both projects).
+
+- **Scenario:** The cart's way on lands the customer on the next step,
+  choosing how to get the order (#196).
+- **Setup:** 5 wings.
+- **Test:**
+  1. Press Proceed to checkout.
+- **Assert:** The "Pickup or delivery" legend has focus and is on
+  screen.
+- **Teardown:** None.
+
+### OP-11 The site's scripts log no errors
+
+Automated: `order-page.spec.mjs`, "the site's own scripts log no errors"
+(both projects).
+
+- **Scenario:** Nothing of ours throws while the page and the payment
+  SDKs load. Vendor SDK noise (CSP reports from Cash App's telemetry,
+  inline-script reports from the wallet frames) is excluded.
+- **Setup:** 2 eggs.
+- **Test:**
+  1. Scroll to Payment and wait for the card form.
+- **Assert:** No `pageerror`, and no console error whose source is the
+  staging host (outside `/api/staging/`).
+- **Teardown:** None.
+
+### OP-12 Every product in stock has a row
+
+Automated: `order-page.spec.mjs`, "every in-stock product has a row and
+an Add button" (both projects).
+
+- **Scenario:** The page and `GET /api/stock` agree on what is for sale.
+- **Setup:** Fresh browser.
+- **Test:**
+  1. Open `/order/`; read `/api/stock`.
+- **Assert:** The set of rows equals the SKUs with `inStock` true and
+  `available` not 0.
+- **Teardown:** None.
+
+### OP-13 Proceed to checkout can always be reached
+
+Automated: `cart-keyboard.spec.mjs`, "the field, Apply, Hide and
+Proceed stay in reach", and `cart-float.spec.mjs`. The old `cart-
+layout.spec.mjs` case went with the cart rebuild (#477): the cart's
+placement, sheet, panel and column are `cart-float.spec.mjs`'s, its fold
+and foot `cart-fold.spec.mjs`'s.
+
+- **Scenario:** With a long cart the sticky pane was taller than the
+  window and cut the button off (finding 2).
+- **Setup:** The 20-item, $199 cart (`FULL_CART` in
+  `e2e/support/order.mjs`) at each width.
+- **Test:**
+  1. Scroll the button into view.
+  2. Press it.
+- **Assert:** The whole button is on screen, nothing covers it, and the
+  "Pickup or delivery" legend takes focus.
+- **Teardown:** None.
+
+### OP-14 Proceed to checkout is never wider than 370px
+
+Automated since #477: `cart-float.spec.mjs`. The old `cart-
+layout.spec.mjs` case went with the cart rebuild (#477): the cart's
+placement, sheet, panel and column are `cart-float.spec.mjs`'s, its fold
+and foot `cart-fold.spec.mjs`'s.
+
+- **Scenario:** Finding 21.
+- **Setup:** `FULL_CART`.
+- **Test:**
+  1. Measure the button.
+- **Assert:** Width 370px or less.
+- **Teardown:** None.
+
+### OP-15 The nudge sits under Continue
+
+Automated: `cart-money.spec.mjs`, "the nudge sits right-aligned under
+Proceed", at 390, 768 and 1280 (#477).
+
+- **Scenario:** The nudge had vanished at most widths (finding 20).
+- **Setup:** `FULL_CART` ($199).
+- **Test:**
+  1. Scroll the nudge into view.
+- **Assert:** It reads "Next discount: add $1 for $20 off.", is wholly
+  on screen, below the button, right edges within 2px.
+- **Teardown:** None.
+
+### OP-16 The total sits under the price column
+
+Automated: `cart-money.spec.mjs`, "the total sits under the column of
+prices", at 390, 768 and 1280 (#477).
+
+- **Scenario:** Finding 1.
+- **Setup:** `FULL_CART`.
+- **Test:**
+  1. Measure the total, the subtotal and the first line price.
+- **Assert:** The total's right edge is within 2px of the subtotal's; at
+  1500 and below 768 also within 2px of the line prices'.
+- **Teardown:** None.
+
+### OP-17 The cart's foot
+
+Automated since #477: `cart-fold.spec.mjs` and `cart-float.spec.mjs`.
+The old `cart-layout.spec.mjs` case went with the cart rebuild (#477):
+the cart's placement, sheet, panel and column are `cart-
+float.spec.mjs`'s, its fold and foot `cart-fold.spec.mjs`'s.
+
+- **Scenario:** Hide on the left, Continue on the right, below xl only
+  (finding 3).
+- **Setup:** `FULL_CART`.
+- **Test:**
+  1. Look at the foot.
+- **Assert:** At 1500 no Hide. Below 1200 Hide reads "Hide", sits left of
+  Continue, centers within 12px of it vertically.
+- **Teardown:** None.
+
+### OP-18 The settled cart keeps its lines inside
+
+Automated since #477: `cart-float.spec.mjs`. The old `cart-
+layout.spec.mjs` case went with the cart rebuild (#477): the cart's
+placement, sheet, panel and column are `cart-float.spec.mjs`'s, its fold
+and foot `cart-fold.spec.mjs`'s.
+
+- **Scenario:** At 1198 and 990 the settled cart's lines spilled over
+  Contact information (finding 4).
+- **Setup:** `FULL_CART`.
+- **Test:**
+  1. Scroll Pickup or delivery into view so the cart settles.
+- **Assert:** The foot ends inside the cart; below xl the cart ends above
+  the legend; no line is drawn below the cart's bottom edge.
+- **Teardown:** None.
+
+### OP-19 Nothing shows through the cart
+
+Automated since #477: `cart-float.spec.mjs`. The old `cart-
+layout.spec.mjs` case went with the cart rebuild (#477): the cart's
+placement, sheet, panel and column are `cart-float.spec.mjs`'s, its fold
+and foot `cart-fold.spec.mjs`'s.
+
+- **Scenario:** Catalog headings and buttons showed through the folded
+  cart at 575 (finding 7).
+- **Setup:** `FULL_CART`.
+- **Test:**
+  1. Hit-test a grid of points across the cart.
+  2. Below xl, press Hide and hit-test again.
+- **Assert:** Every point lands on the cart or its children, open and
+  folded.
+- **Teardown:** None.
+
+### OP-20 The item list scrolls on its own
+
+Automated: `cart-lines.spec.mjs` (the pills and the glide on a phone
+and in the column) and `cart-float.spec.mjs` (the panel) since #477.
+
+- **Scenario:** At 990 the wheel over the floating list did not scroll
+  it (finding 5).
+- **Setup:** `FULL_CART`; the cart floating.
+- **Test:**
+  1. Wheel over the item list.
+- **Assert:** The list's `scrollTop` rises above 0. Skipped where the
+  whole list fits.
+- **Teardown:** None.
+
+### OP-21 The total bar is flush with the top
+
+Automated since #477: `cart-float.spec.mjs`. The old `cart-
+layout.spec.mjs` case went with the cart rebuild (#477): the cart's
+placement, sheet, panel and column are `cart-float.spec.mjs`'s, its fold
+and foot `cart-fold.spec.mjs`'s.
+
+- **Scenario:** The sticky total bar sat below the top with page text
+  above it (finding 6).
+- **Setup:** `FULL_CART`.
+- **Test:**
+  1. Scroll past Pickup or delivery.
+- **Assert:** The bar (from lg the total bar, below lg the topbar)
+  reads "20 items" and "$184", its top is within 1px of the window's,
+  and below lg nothing shows through it.
+- **Teardown:** None.
+
+### OP-22 The Cart heading matches the other headings
+
+Automated since #477: `cart-float.spec.mjs`. The old `cart-
+layout.spec.mjs` case went with the cart rebuild (#477): the cart's
+placement, sheet, panel and column are `cart-float.spec.mjs`'s, its fold
+and foot `cart-fold.spec.mjs`'s.
+
+- **Scenario:** "Cart" rendered as an h4 (finding 9).
+- **Setup:** Any cart.
+- **Test:**
+  1. Compare computed styles.
+- **Assert:** Font size, weight and family equal the "Contact
+  information" legend's.
+- **Teardown:** None.
+
+### OP-23 Contact form spacing
+
+Partial: `order-layout.spec.mjs`, "each label sits with its own
+field", every width. Whether the form reads as
+grouped is a visual judgement.
+
+- **Scenario:** Findings 11 and 12.
+- **Setup:** 1 egg.
+- **Test:**
+  1. Measure the legend's bottom margin and the hint's inline style.
+  2. Where labels stack, measure label-to-field and field-to-next-label.
+  3. By eye at 575 and on an iPhone: the farm-news checkbox reads as
+     part of the Email field, closer to it than to the next field
+     (#228).
+- **Assert:** Margin 6px; no `-12px` inline margin; the gap between
+  groups is larger than the gap inside one.
+- **Teardown:** None.
+
+### OP-24 The phone cart floats and settles
+
+Manual: visual judgement and a real iPhone keyboard.
+
+- **Scenario:** Findings 8 and 10: pinched with a back shadow while
+  floating, flat and borderless once settled, no big gap before Contact
+  information, and a tap in the discount field does not shift it.
+- **Setup:** iPhone, Safari, `FULL_CART`.
+- **Test:**
+  1. Scroll the catalog; watch the floating cart.
+  2. Scroll until it settles.
+  3. Tap the discount code field.
+- **Assert:** Floating: inset on both sides, shadow on its back edge.
+  Settled: no border, no inset, the gap to "Pickup or delivery" matches
+  the gaps between sections. The cart does not jump when the keyboard
+  opens; the lines scroll with a finger.
+- **Teardown:** Clear the draft (Safari settings, or remove the lines).
+
+### OP-25 Badges explain themselves and celebrate
+
+Manual: animation and tooltip behavior are visual.
+
+- **Scenario:** A tap on a badge explains it; a badge that lights sends
+  chicks.
+- **Setup:** 4 wings, Delivery.
+- **Test:**
+  1. Tap "Delivery"; tap elsewhere.
+  2. Add a fifth wing.
+- **Assert:** The tooltip reads "Orders of $40 or more after discounts
+  can be delivered on Thursdays. $5 fee, waived at $150." and closes on
+  the next tap. At $50 the "$50+" badge turns green and italic and a few
+  chicks hop out of it once.
+- **Teardown:** None.
+
+### OP-26 Stock counts, restock labels and Show
+
+Manual on staging: the stock counts are shared by everyone using
+staging, so a test that sets them would disturb other runs.
+Automated with a stubbed `/api/stock`: `order-page.spec.mjs`, "a
+product whose count reaches 0 loses its row, and its category when
+empty", `search.spec.mjs`, "a product whose count reaches 0 shows its
+restock label", and every rule in `restock.spec.mjs` (both projects).
+
+- **Scenario:** The page shows "N left" at five or fewer and clamps
+  the cart. With Show on "In stock", the default, it hides sold-out
+  rows (and a category left empty, with its sidebar link); on "Full
+  catalog" it shows them greyed with their restock label, not
+  addable. Search shows them with their label whatever Show says
+  (#267).
+- **Setup:** Pick an unused SKU, for example `NFF-CHK-DRM-15-99`
+  (`seasonal`, spring). `bin/nff --staging stock set
+  NFF-CHK-DRM-15-99 3`.
+- **Test:**
+  1. Open `/order/?add=NFF-CHK-DRM-15-99:5`.
+  2. `bin/nff --staging stock set NFF-CHK-DRM-15-99 0`; return to the
+     tab.
+  3. Choose Show "Full catalog", then reload.
+  4. Choose "In stock". Search for "drum", then "sausage" and "Cornish".
+- **Assert:** Step 1: the row says "3 left" and the quantity is clamped
+  to 3 with a notice. Step 2: the row is gone, with no "Sold out" row
+  in its place, and the cart line is removed with a notice ending "sold
+  out and was removed". Step 3: "Full catalog" stays chosen after the reload;
+  the row is back, greyed, saying "Back in spring", with no Add;
+  Medium and Small eggs say "On hiatus" and "Grade A", with no
+  price; every egg says "Grade A"; Feet say "Returning soon" where Add
+  goes and keep their price; Cornish Hens and Ground
+  Chicken, archived, have no section or sidebar link. Step 4: the
+  row hides again. Search lists both drumsticks, this one "Back in
+  spring" with Add off; Sweet Italian Sausage says "On hiatus";
+  "Cornish" finds nothing.
+- **Teardown:** `bin/nff --staging stock set NFF-CHK-DRM-15-99 none`.
+  Choose Show "In stock" again.
+
+### OP-27 The phone cart after the first Add
+
+Manual: a judgement for James.
+
+- **Scenario:** On a 390 by 664 screen, the first Add opens the floating
+  cart over about two thirds of the catalog, covering the row just used.
+- **Setup:** Phone, empty cart.
+- **Test:**
+  1. Tap Add on Eggs, Large.
+  2. Try to tap + on the same row.
+- **Assert:** Decide whether the row should stay reachable without Hide.
+  Screenshot of today's state:
+  `.ignored/qa/2026-09-24-launch/phone-floating-cart-covers-catalog.png`.
+- **Teardown:** None.
+
+### OP-28 The phone cart's panes
+
+Superseded by the cart rebuild (#477): the count and the total are a
+readout at every width, not tabs, and the sheet has one scroller.
+The sheet's height and floor are `cart-float.spec.mjs`'s, the
+keyboard `cart-keyboard.spec.mjs`'s, the row's controls
+`cart-way.spec.mjs`'s, the pills `cart-lines.spec.mjs`'s. The notch,
+Safari's toolbar and the feel of the glide stay manual (OP-29). The
+scenario below is the old cart's.
+
+- **Scenario:** On a phone the count and the total are one segmented
+  control. The lines and the sums take turns, one side always showing;
+  neither pane passes 66% of the visible height, unless the floor (three
+  rows, the total row and Continue) needs more, and then the pane grows
+  up to the visible area. The shared row's controls are one height, so
+  nothing moves when the discount field opens.
+- **Setup:** `FULL_CART`, a phone-sized window: 390 by 664, 390 by 844,
+  375 by 667 and 667 by 375.
+- **Test:**
+  1. Tap "Total", then "N items", then the side already showing. Press
+     the arrow keys and Home and End with the focus on the control.
+  2. Measure each open pane at each size.
+  3. At each size, count the line rows whole in the list, and find the
+     total row and Continue.
+  4. Measure Add discount, the three ways, the code field and Apply.
+  5. Manual, on an iPhone: tap the discount field; turn the phone
+     sideways; tap "N more" on a long cart.
+- **Assert:** The fill slides to the side showing, and the tab under it
+  is `aria-selected`; a second tap changes nothing. Each pane is 66% of
+  the visible height or less, or the floor's height. The delivery
+  badges go first when the cap has no room for them. Three rows, the
+  total row and Continue are whole and on screen at every size. Every
+  control is 36px tall. By hand: the cart rides above the keyboard with
+  the field in sight; the page clears the notch in landscape; the list
+  glides to the row that was hidden and stops on it, with no overshoot.
+- **Teardown:** Clear the draft.
+
+### OP-29 The phone cart above Safari's toolbar
+
+Manual, on an iPhone: a spec cannot see Safari's chrome (#267).
+
+- **Scenario:** The open cart pane's foot sits just above Safari's
+  bottom toolbar, with a small margin, and never behind it. The toolbar
+  is translucent and the page runs under it, so a pane at the layout
+  viewport's foot would hide controls that cannot then be tapped.
+- **Setup:** An iPhone with Safari, on the order page with six items
+  and Delivery chosen. Repeat in both toolbar states (expanded, and
+  collapsed after scrolling down), in portrait and in landscape, and on
+  a small phone such as an SE.
+- **Test:**
+  1. Scroll the catalog so the cart floats; open "N items", then
+     "Total".
+  2. Scroll a little to collapse the toolbar, then back to expand it.
+  3. Turn the phone sideways and repeat.
+  4. In each state, tap every control in the pane: the tabs, each
+     row's ×, "N more", the way, Add discount, Hide and Continue.
+- **Assert:** The pane's foot is a small, even margin above the
+  toolbar's top edge in every state: no gap of a row's height, and no
+  overlap. The pane is at most 66% of the visible height, or taller only
+  when three rows, the total row and Continue need it, and then no
+  taller than the visible area. Every control is tappable.
+- **Teardown:** Clear the draft.
+
+### OP-30 The cart's word for an Add
+
+Partial: `cart-fold.spec.mjs`, "the first Add of a session" (#477).
+How the pulse and the slide look on an iPhone is manual (#267).
+
+- **Scenario:** The first Add of a browser session opens the phone cart
+  on the new line, shuts the pane after 3.5 seconds and pulses the
+  Hide/Show pill in three pairs, a second apart (#278, #274). A
+  later Add leaves the pane shut: the bar says "Added: {item}", the
+  count ticks and the pill pulses once. A screen reader hears "Added
+  {item} to cart" every time.
+- **Setup:** A phone-sized window, an empty cart, a fresh session.
+- **Test:**
+  1. Press Add on a row. Watch the pane, the new line and the pill.
+  2. Press Add on another row, and again on the first.
+  3. Press Add, then touch the pane before it shuts.
+  4. Reload and press Add again.
+  5. With reduced motion on, repeat 1 and 2.
+  6. Manual, with VoiceOver: press Add and listen.
+- **Assert:** One: the pane opens on the lines, the new line in view and
+  not outlined; it shuts in about 3.5 seconds and the pill pulses in
+  three pairs. Two:
+  the pane stays shut, the bar names the item for a moment, the count
+  ticks and the pill pulses once. Three: the pane stays open. Four: the
+  pane stays shut (the session's first Add is spent). Five: no pulse
+  and no slide, only the states; the pill holds a still ring for a
+  moment. Six: "Added {item} to cart", each time, with the focus still
+  on the item's control.
+- **Teardown:** Clear the draft.
+
+## Pricing and discounts
+
+Wings are $10, eggs $7, thighs $12. Tiers: $5 off at $50, $10 at $100,
+$15 at $150, $20 at $200, never stacked. The $5 delivery fee is waived
+at $150 before discounts; an unlisted Rhode Island ZIP adds $3, never
+waived. Delivery needs $40 after discounts.
+
+### PR-01 Bulk tiers and the delivery fee
+
+Automated: `pricing.spec.mjs`, the seven "... of goods by delivery"
+tests. Tagged `@regression`.
+
+- **Scenario:** Every threshold, with Delivery chosen.
+- **Setup:** One fresh page per row, filled by `?add=`.
+- **Test:**
+  1. Open the cart below; read the totals.
+- **Assert:**
+
+  | Cart           | Subtotal | Discount                     | Fee  | Total |
+  | -------------- | -------- | ---------------------------- | ---- | ----- |
+  | 7 eggs         | $49      | none                         | +$5  | $54   |
+  | 5 wings        | $50      | Bulk discount ($50+) −$5     | +$5  | $50   |
+  | 10 wings       | $100     | Bulk discount ($100+) −$10   | +$5  | $95   |
+  | 13 wings, 1 egg, 1 thigh | $149 | Bulk discount ($100+) −$10 | +$5 | $144 |
+  | 15 wings       | $150     | Bulk discount ($150+) −$15   | Free | $135  |
+  | 20 wings       | $200     | Bulk discount ($200+) −$20   | Free | $180  |
+  | 25 wings       | $250     | Bulk discount ($200+) −$20   | Free | $230  |
+
+- **Teardown:** None.
+
+### PR-02 Pickup and scheduled pickup carry no fee
+
+Automated: `pricing.spec.mjs`, "pickup and the drop site carry no fee".
+
+- **Scenario:** Only delivery is charged for.
+- **Setup:** 7 eggs ($49).
+- **Test:**
+  1. Choose On-farm pickup, then Scheduled pickup and any occurrence
+     on offer (the drop site's, a market's).
+- **Assert:** No fee row either way; Total $49.
+- **Teardown:** None.
+
+### PR-03 Badges light with the tiers
+
+Automated: `pricing.spec.mjs`, "the badges light as the tiers are
+reached".
+
+- **Scenario:** The dotted line of badges agrees with the totals.
+- **Setup:** 15 wings.
+- **Test:**
+  1. Read each badge's `data-on`.
+- **Assert:** Delivery, Free delivery, $50+, $100+, $150+ on; $200+
+  off. One line, on any way (#278, #274).
+- **Teardown:** None.
+
+### PR-04 The nudge names the next tier
+
+Automated: `pricing.spec.mjs`, "the nudge names the next tier, and says
+nothing at the top".
+
+- **Scenario:** The nudge promises only what the breakdown will show.
+- **Setup:** 10 wings.
+- **Test:**
+  1. Read the nudge with Delivery, then On-farm pickup.
+  2. Make it 20 wings.
+- **Assert:** "Next discount: add $50 for $15 off and free delivery.",
+  then "Next discount: add $50 for $15 off."; at $200 (Total $180) no
+  nudge.
+- **Teardown:** None.
+
+### PR-05 Exactly $40 meets the minimum
+
+Automated: `pricing.spec.mjs`, "exactly $40 meets the delivery minimum".
+
+- **Scenario:** The minimum is inclusive.
+- **Setup:** 4 wings.
+- **Test:**
+  1. Read the cart.
+- **Assert:** No red warning, Continue enabled, fee +$5, Total $45, the
+  Delivery badge on.
+- **Teardown:** None.
+
+### PR-06 Under the minimum, delivery is blocked
+
+Automated: `pricing.spec.mjs`, "$35 by delivery is short; the drop site
+takes it". Tagged `@regression`.
+
+- **Scenario:** A small order learns about the minimum at the choice,
+  and the drop site takes it.
+- **Setup:** 5 eggs ($35).
+- **Test:**
+  1. Read the nudge and the Delivery card.
+  2. Choose Drop site.
+- **Assert:** "Add $5 to reach the $40 delivery minimum."; "You need $40
+  or more in your cart to use this option. Add $5 more."; Continue
+  disabled. After step 2: no warning, Continue enabled, Total $35.
+- **Teardown:** None.
+
+### PR-07 The outside-area fee
+
+Automated: `pricing.spec.mjs`, "an unlisted Rhode Island ZIP adds $3,
+never waived".
+
+- **Scenario:** An unlisted 028 or 029 ZIP pays $3 more, even when the
+  $5 is waived.
+- **Setup:** 5 wings, Delivery.
+- **Test:**
+  1. ZIP `02830`.
+  2. Make it 15 wings.
+  3. ZIP `02857`.
+- **Assert:** Fee +$8, Total $53; then fee +$3, Total $138; then Free,
+  Total $135.
+- **Teardown:** None.
+
+### PR-08 The outside-area note on the order page
+
+Automated: `pricing.spec.mjs`, "the unlisted-ZIP note states the fee in
+dollars and charges now". Passed on staging 2026-09-25, since ff8afe7
+(the wording) and 0f23b38 (the dollar sign); finding D2.
+
+- **Scenario:** The note under the ZIP must state the fee as money and
+  must not promise a check before charging, since the card is charged on
+  the page with the fee in it.
+- **Setup:** 5 wings, Delivery.
+- **Test:**
+  1. ZIP `02830`.
+- **Assert:** The note contains "$3" and not "before we charge you".
+- **Teardown:** None.
+
+### PR-09 The delivery policy's ZIP check
+
+Automated: `pricing.spec.mjs`, "the delivery policy's ZIP check hedges
+the same way". Passed on staging 2026-09-25, since ff8afe7.
+
+- **Scenario:** The "Do we deliver to you?" widget says the same as the
+  order page.
+- **Setup:** `/delivery-policy/`.
+- **Test:**
+  1. ZIP `02830`, then `02857`.
+- **Assert:** "A little outside our usual area: delivery is $3 more",
+  without "before we charge you"; then "Yes! We deliver to ...".
+- **Teardown:** None.
+
+### PR-10 A ZIP outside the area
+
+Automated: `pricing.spec.mjs`, "a ZIP outside the area is refused at the
+field".
+
+- **Scenario:** A New York ZIP is refused where it is typed.
+- **Setup:** 5 wings, Delivery.
+- **Test:**
+  1. ZIP `10001`.
+- **Assert:** "That's outside our delivery area. On-farm pickup and the
+  drop site are open to everyone."
+- **Teardown:** None.
+
+### PR-11 Connecticut takes eggs only
+
+Automated: `pricing.spec.mjs`, "Connecticut takes eggs only".
+
+- **Scenario:** Chicken cannot be delivered to Connecticut yet.
+- **Setup:** 5 wings, Delivery.
+- **Test:**
+  1. ZIP `06239`.
+  2. Set wings to 0; add eggs.
+- **Assert:** "We can only deliver eggs to Connecticut for now. Remove
+  the chicken, or choose pickup."; then the state's note, "We are only
+  able to deliver eggs in Connecticut at this time. ..."
+- **Teardown:** None.
+
+### PR-12 An unknown discount code
+
+Automated: `pricing.spec.mjs`, "an unknown code says so and changes
+nothing".
+
+- **Scenario:** A code the site does not know is harmless.
+- **Setup:** 5 wings.
+- **Test:**
+  1. Type `nosuchcode`; press Apply.
+- **Assert:** "That code isn't valid."; the field reads NOSUCHCODE;
+  the discount stays "Bulk discount ($50+)"; Total $50.
+- **Teardown:** None.
+
+### PR-13 EGGBOI
+
+Partial: `pricing.spec.mjs`, "EGGBOI counts up $40 a minute and changes
+no real figure" covers the page. Paying with it is manual, to spare the
+order endpoint's rate limit.
+
+- **Scenario:** The joke counts up on screen and changes nothing real
+  (#127).
+- **Setup:** 5 wings.
+- **Test:**
+  1. Type `eggboi`; press Enter.
+  2. Wait two seconds.
+  3. Manual: pay with the sandbox card, on-farm pickup.
+- **Assert:** "Code applied."; the field empties; a row "Discount
+  (EGGBOI, $40/min)" whose amount climbs past $1; the real discount and
+  Total $50 unchanged. Step 3 (on-farm, so no fee): charged $45;
+  `bin/nff --staging orders show <id>` has no code and the emails
+  mention none.
+- **Teardown:** `bin/nff --staging orders cancel <id> --reason-text
+  "Test order."`, then `bin/nff --staging orders delete <id>`.
+
+### PR-14 A real discount code
+
+Pending: `data/discount-codes.json` has no codes.
+
+- **Scenario:** A known code shows its discount; the largest discount
+  wins; a code never takes more than the subtotal.
+- **Setup:** A code added to the data file on a preview, for example
+  `{ "code": "QA5", "label": "QA test", "off": 5 }`.
+- **Test:**
+  1. 3 eggs ($21), code `qa5`.
+  2. 10 wings ($100), code `QA5`.
+  3. Pay step 1's cart by card.
+- **Assert:** "Code applied: $5 off."; row "QA test −$5", Total $16 by
+  pickup. With $100 the bulk $10 wins. The record's `code` is QA5 and
+  Square's order carries the $5 discount.
+- **Teardown:** Refund, cancel and delete the order; remove the code.
+
+### PR-15 A pricing group
+
+Manual: needs a signed-in customer whose record carries a group.
+
+- **Scenario:** Friends and family get 10%, never stacked with the bulk
+  tier; the server takes the group from the session, not the payload.
+- **Setup:** Sign in once as `qa-group@example.com` (AO-01), then
+  `bin/nff --staging customers set qa-group@example.com group=friends`.
+- **Test:**
+  1. Signed in, open `/order/?add=NFF-CHK-WNG-10-19:12`.
+  2. Make it 12 wings and 1 necks ($125).
+- **Assert:** At $120: "Friends & family (10%)" −$12 (beats the $10
+  tier). At $125: check whether the discount is $12.50. Every charge is
+  meant to be a whole dollar; the code rounds to the cent, so this is a
+  question for James (finding D6).
+- **Teardown:** `bin/nff --staging customers delete qa-group@example.com`.
+
+## Contact and pickup forms
+
+### FM-01 The phone is required for delivery only
+
+Automated: `forms.spec.mjs`, "On-farm pickup is the default; only
+delivery needs a phone" (both projects).
+
+- **Scenario:** Finding 14: phone required for delivery, optional for
+  pickup and the drop site.
+- **Setup:** 5 wings.
+- **Test:**
+  1. Read the phone label with Delivery, On-farm pickup, Scheduled
+     pickup.
+- **Assert:** Delivery: no "(optional)", the field `required`. The
+  others: "(optional)" shown.
+- **Teardown:** None.
+
+### FM-02 An empty delivery order names every field
+
+Automated: `forms.spec.mjs`, "an empty delivery order names every
+missing field and sends nothing" (both projects). Tagged `@regression`.
+
+- **Scenario:** The form validates before any processor is asked.
+- **Setup:** 5 wings, Delivery.
+- **Test:**
+  1. Open Card and press Place your order with every field empty.
+- **Assert:** "Please enter your first name.", "Please enter your last
+  name.", "Please enter an email address.", "Please enter a phone
+  number.", "Please enter your street address.", "Please enter your
+  town.", "Please enter a ZIP code.", "Tell us where the cooler will
+  be."; first name marked invalid and focused; every field
+  marked red is `aria-invalid="true"` (f27ed0e); no request to
+  `/api/orders`.
+- **Teardown:** None.
+
+### FM-03 Pickup without a phone, and a bad phone
+
+Automated: `forms.spec.mjs`, "on-farm pickup needs no phone, but a phone
+given must work" (both projects).
+
+- **Scenario:** An empty phone is fine for pickup; a wrong one is not.
+- **Setup:** 1 egg, On-farm pickup, a date, name and email.
+- **Test:**
+  1. Press Place your order with an empty card form.
+  2. Type `401555` as the phone; press again.
+- **Assert:** Step 1: no phone error, the card form's own error shows,
+  nothing sent. Step 2: "Please enter a valid phone number.", nothing
+  sent.
+- **Teardown:** None.
+
+### FM-04 Errors clear as fields are fixed
+
+Automated: `forms.spec.mjs`, "errors clear as each field is fixed,
+without refocusing" (both projects). Tagged `@regression`.
+
+- **Scenario:** Finding 16: errors stayed after autofill until the field
+  was focused again.
+- **Setup:** 1 egg, On-farm pickup, a date; one failed attempt.
+- **Test:**
+  1. Type a first name.
+  2. Set the last name as autofill does (value, `input`, `change`, no
+     focus).
+  3. Type `ada@`, leave; click it, type `ada@example.com`, leave.
+- **Assert:** Each error disappears as its field becomes valid, and
+  with it the red border and `aria-invalid`; "Please enter a valid
+  email address." shows while it is wrong.
+- **Teardown:** None.
+
+### FM-05 A field emptied later shows its error on leaving
+
+Automated: `forms.spec.mjs`, "after a failed attempt, a field emptied
+and left shows its error" (both projects).
+
+- **Scenario:** Once an attempt has failed, leaving a field shows its own
+  error even if it had none.
+- **Setup:** Pickup order with no last name; one failed attempt.
+- **Test:**
+  1. Click the first name, clear it, leave.
+- **Assert:** "Please enter your first name." appears.
+- **Teardown:** None.
+
+### FM-06 The phone formats itself
+
+Automated: `forms.spec.mjs`, "the phone formats itself and then offers
+text or call" (both projects).
+
+- **Scenario:** A usable number brings "Prefer text or call?".
+- **Setup:** 1 egg.
+- **Test:**
+  1. Type `4015550100`.
+- **Assert:** The field reads "(401) 555-0100"; the row is shown with
+  Text checked.
+- **Teardown:** None.
+
+### FM-07 The minimum warning is red and blocks
+
+Automated: `forms.spec.mjs`, "delivery under the minimum warns in red at
+the choice and blocks the order" (both projects).
+
+- **Scenario:** Finding 17.
+- **Setup:** 5 eggs ($35), Delivery, every field filled.
+- **Test:**
+  1. Read the Delivery card; press Place your order.
+- **Assert:** "You need $40 or more in your cart to use this option. Add
+  $5 more." in a red color; Continue disabled; nothing sent.
+- **Teardown:** None.
+
+### FM-08 Every order agrees to the policy, above Pay
+
+Automated: `forms.spec.mjs`, "every way to get an order agrees to the
+policy, above Pay" (both projects).
+
+- **Scenario:** The policy carries pickup, cancellation and refund
+  terms, so every order agrees to it (W8, #196).
+- **Setup:** 5 wings.
+- **Test:**
+  1. Choose each of On-farm pickup, Scheduled pickup and Delivery.
+- **Assert:** "By placing an order you agree to our delivery policy."
+  shows for each, once, directly above the Pay button, with no
+  dismiss.
+- **Teardown:** None.
+
+### FM-09 The delivery countdown
+
+Automated: `forms.spec.mjs`, "the delivery countdown names the next
+delivery day" (both projects).
+
+- **Scenario:** The countdown to the Wednesday-noon cutoff.
+- **Setup:** 5 wings, Delivery.
+- **Test:**
+  1. Read the countdown.
+- **Assert:** Starts "Order in the next" and contains "to get your order
+  on our next delivery day".
+- **Teardown:** None.
+
+### FM-10 The farm-news box at checkout
+
+Automated: `forms.spec.mjs`, "ticking the farm-news box sends no
+email" (both projects).
+
+- **Scenario:** No double opt-in on the site (W1): the ticked box joins
+  the list when the order is placed, and ticking it asks for nothing.
+- **Setup:** 1 egg; a unique email.
+- **Test:**
+  1. Type the email; tick "Sign up and stay up-to-date with North Foster
+     Farm."; move to the phone field.
+- **Assert:** The box is ticked and its label still reads "Sign up and
+  stay up-to-date with North Foster Farm."; chicks hop out of it (none
+  under reduced motion); no note under it; no request to `/api/news/`;
+  no order is sent.
+- **Teardown:** None.
+
+### FM-11 Autofill on an iPhone
+
+Manual: Safari's autofill cannot be driven from Playwright.
+
+- **Scenario:** Finding 16 as James met it.
+- **Setup:** iPhone with a contact card; 1 egg, pickup.
+- **Test:**
+  1. Press Place your order empty.
+  2. Autofill the name, email and phone from the keyboard bar.
+- **Assert:** Every filled field's error disappears without tapping into
+  it; "Prefer text or call?" fades in without a jump.
+- **Teardown:** Clear the draft.
+
+### FM-12 A signed-in customer's details
+
+Manual: automatable with the account spec's sign-in; not yet written.
+
+- **Scenario:** Name, email and phone arrive filled in, as ordinary
+  fields.
+- **Setup:** Signed in as a customer with a name and phone (AO-01).
+- **Test:**
+  1. Open `/order/`; click the email; change it; leave.
+- **Assert:** All three are inputs throughout, with no "Click on a field
+  to edit it." line; the edited email stays an input on leaving.
+- **Teardown:** Sign out; delete the customer.
+
+### FM-13 A date that closes while the page is open
+
+Partial: `orders-api.spec.mjs`, "a date no longer offered answers 409
+with a fresh list" covers the server. The page's message is manual.
+
+- **Scenario:** A delivery cutoff passes between choosing and paying.
+- **Setup:** A delivery order started before Wednesday noon; or a
+  preview whose clock can be moved.
+- **Test:**
+  1. API: post an order dated `2026-01-02`.
+  2. Page: choose the first delivery date, wait past the cutoff, pay.
+- **Assert:** API: 409, "That date is no longer available.", a non-empty
+  `dates`. Page: the blocking dialog (W11d, U3) "That delivery day is no
+  longer available", "Nothing has been charged.", the open days as
+  radios; "Use this day" puts it on the form and says "Delivery is now
+  ... Pay to place your order." by the Pay button; nothing charged.
+- **Teardown:** None.
+
+### FM-14 The date lists
+
+Manual: automatable; not yet written.
+
+- **Scenario:** Pickup days and times follow the farm's schedule
+  (`PICKUP_SCHEDULE`, W11d); the other dates follow
+  `data/delivery.json`.
+- **Setup:** Fresh page.
+- **Test:**
+  1. Open each method's date list; for On-farm pickup, change the day.
+  2. Choose Scheduled pickup and read its pickups.
+- **Assert:** On-farm: exactly the schedule's days from tomorrow on
+  (a Saturday or holiday included if listed), and under Pickup time
+  that day's windows as radios, "9 AM – noon". Scheduled pickup: no
+  date list but one radio per occurrence `/api/dates` lists in
+  `scheduled`, by date, each "<day>, <hours>, <place>, <town>": every
+  date with a `pickup` line in `PICKUP_SCHEDULE` from today through
+  the horizon (never more than 13 days), the cutoff 11:59 PM the day
+  before; none with `attend`, `skip` or no line. None is chosen until
+  the customer chooses. Delivery: the next two Thursdays whose
+  Wednesday-noon cutoff has not passed.
+- **Teardown:** None.
+
+## Payments
+
+### PY-01 A card pays for an on-farm pickup
+
+Automated: `payment.spec.mjs`, "a card pays for an on-farm pickup, booked
+by paying (W11d)". Tagged `@regression`.
+
+- **Scenario:** The main path, end to end: page, Square, record, emails.
+- **Setup:** 1 egg, On-farm pickup, first date, name, unique email.
+- **Test:**
+  1. Press Card; the button reads "Place your order".
+  2. Enter `4111 1111 1111 1111`, `12/30`, `111`, `11111`; press it.
+  3. Reload `/order/`.
+- **Assert:** `/api/orders` answers 200. "Thank you, Card. Your order is
+  placed."; "$7" paid with "Visa ending 1111"; the email; an order
+  number like `NFF-2609-AB2C`; the when line "<day>, <window>, at the
+  farm.";
+  a receipt link to Square; no cart count on the header's Order link
+  (AR-29). `bin/nff --staging orders show <id>`:
+  `status` paid, `payment.via` square, `method` card, `last4` 1111,
+  `square.squareOrderId` set, `fulfilment.state` agreed, `total`
+  700. Outbox: "Your order is confirmed" to the customer with "Your
+  payment of $7 came through and your pickup time is set" and "When:";
+  the farm's "New order <id>" for "$7, on-farm pickup" with "$7 by Visa
+  ending 1111" and no confirm command. After the reload: "0 items".
+- **Teardown:** `bin/nff --staging orders cancel <id> --reason-text
+  "Test order."`, then `orders delete <id>`, `customers delete <email>`,
+  outbox cleared.
+
+### PY-02 A delivery paid by card is confirmed at once
+
+Automated: `payment.spec.mjs`, "a delivery paid by card is confirmed at
+once". Tagged `@regression`.
+
+- **Scenario:** Delivery needs no farm agreement.
+- **Setup:** 5 wings, Delivery, phone, 12 Test Road, Scituate, 02857,
+  cooler, first date.
+- **Test:**
+  1. Pay with the approved card.
+- **Assert:** "$50"; "..., delivered to 12 Test Road."; no pickup
+  request line. Record: `fulfilment.state` agreed; subtotal 5000,
+  discount 500, fee 500, total 5000; phone kept. Outbox: "Your order is
+  confirmed" with "Your payment of $50 came through and your order is
+  confirmed."; the farm's "New order <id>" for "$50, delivery".
+- **Teardown:** As PY-01.
+
+### PY-03 A decline, then a good card for the new total
+
+Automated: `payment.spec.mjs`, "a declined card says so, and the next
+card pays the new total". Tagged `@regression`.
+
+- **Scenario:** A decline is not a failure; the customer changes the
+  cart and pays with another card, and is charged the new figure.
+- **Setup:** 1 egg, Scheduled pickup, the drop site's first
+  occurrence.
+- **Test:**
+  1. Pay with `4000 0000 0000 0002`.
+  2. Add one more egg (Total $14); enter `4111 1111 1111 1111`; pay.
+- **Assert:** Step 1: 402 with `declined: true`; the red message under
+  the card form contains "declined"; the form stays;
+  `bin/nff --staging orders list --email=<email>` prints "No orders.".
+  Step 2: 200, "$14", Visa ending 1111; record total 1400 and
+  `meta.attempt` 2 or more.
+- **Teardown:** As PY-01.
+
+### PY-04 A decline at the API
+
+Automated: `orders-api.spec.mjs`, "a declined card answers 402 with the
+customer's words and records nothing".
+
+- **Scenario:** The server's decline answer and its record keeping.
+- **Setup:** A valid one-egg pickup payload (`e2e/support/api.mjs`).
+- **Test:**
+  1. Post it with `cnon:card-nonce-declined`.
+- **Assert:** 402, `declined` true, a `code`, a `message`; no order for
+  the address.
+- **Teardown:** None.
+
+### PY-05 A total that moved is refused
+
+Automated: `orders-api.spec.mjs`, "a total that differs from the
+server's is refused, not charged".
+
+- **Scenario:** The customer authorized the figure on screen; a
+  different one is never charged.
+- **Setup:** The payload with `claimedTotal` 600.
+- **Test:**
+  1. Post it.
+- **Assert:** 422, "The total changed while you were on this page. Check
+  it and pay again.", `totals.total` 700.
+- **Teardown:** None.
+
+### PY-06 Bad fields at the API
+
+Automated: `orders-api.spec.mjs`, "bad fields answer 422, field by
+field".
+
+- **Scenario:** The server is the gate, whatever the page let through.
+- **Setup:** No first name, email `not-an-email`, delivery to `10001`
+  with one egg.
+- **Test:**
+  1. Post it.
+- **Assert:** 422 with the first-name, email, phone ("Please enter a
+  phone number."), ZIP ("That's outside our delivery area.") and
+  minimum ("$40 or more") errors.
+- **Teardown:** None.
+
+### PY-07 The honeypot
+
+Automated: `orders-api.spec.mjs`, "the honeypot is dropped silently".
+
+- **Scenario:** A bot that fills the hidden field learns nothing.
+- **Setup:** The payload with `website` set.
+- **Test:**
+  1. Post it.
+- **Assert:** 204, empty body.
+- **Teardown:** None.
+
+### PY-08 A transient failure is retried once
+
+Automated: `recovery.spec.mjs`, "a transient failure is tried once
+more, then stops".
+
+- **Scenario:** A 503 is sent once more a few seconds later while the
+  button spins, then stops (#154).
+- **Setup:** `/api/orders` stubbed in the browser to answer 503; a
+  pickup order and the approved card (tokenized, never charged).
+- **Test:**
+  1. Press Place your order.
+- **Assert:** The button shows the egg spinner; no retry panel shows;
+  exactly two posts reach `/api/orders`; the by-hand card then shows
+  "We couldn't reach our payment system."; nothing is left under
+  `nff-order-pending` in `localStorage`.
+- **Teardown:** None.
+
+### PY-09 A permanent failure goes to the by-hand card
+
+Automated: `recovery.spec.mjs`, "a permanent failure shows the order to
+send by hand". Finding D3, fixed by #156.
+
+- **Scenario:** A 502 from the server is permanent (`docs/order-form.md`)
+  and should not be retried for eight minutes.
+- **Setup:** `/api/orders` stubbed to answer 502 `retryable: false`.
+- **Test:**
+  1. Press Place your order.
+- **Assert:** Within 20 seconds, "Send this to us and we'll finish it by
+  hand" with a summary containing "1 × Eggs" and "Total $7", a
+  `mailto:` whose subject is "Order from the website", and a `tel:`
+  link. The endpoint was called once.
+- **Teardown:** None.
+
+### PY-10 The card box
+
+Partial: `order-layout.spec.mjs`, "the card box hugs Square's field"
+at 1500, 1198 and 390. The two-row box on a phone is Square's own layout;
+whether it looks right is a judgement.
+
+- **Scenario:** Finding 13: an oversized card box.
+- **Setup:** 1 egg, pickup; Card pressed.
+- **Test:**
+  1. Measure the iframe, Square's guidance line and the holder.
+- **Assert:** Only Square's "Enter your card number" line sits under the
+  field (within 16px); from 576 up the field is one row (60px or less).
+  On an iPhone: the two rows look deliberate.
+- **Teardown:** None.
+
+### PY-11 Google Pay
+
+Manual: the Google Pay sheet needs a signed-in Google account with a
+card, which headless Chromium cannot provide. What the suite does
+prove, on staging (`e2e/wallets.spec.mjs`, #457): the SDK mounts the
+Google Pay and Cash App Pay buttons, and a Google Pay press with the
+form unfilled marks the fields and opens nothing.
+
+- **Scenario:** A wallet pays the whole order in one step.
+- **Setup:** Desktop Chrome signed in to Google with a test card; 1 egg,
+  pickup, details filled.
+- **Test:**
+  1. Press Buy with G Pay; approve.
+- **Assert:** The sheet shows $7; "paid with Google Pay"; record
+  `payment.method` googlepay; emails as PY-01.
+- **Teardown:** Cancel (it refunds), delete, as PY-01.
+
+### PY-12 Apple Pay
+
+Manual: needs a real iPhone or Mac with Safari and the verified domain.
+
+- **Scenario:** Apple Pay on the phone (worked for James on 2026-09-24).
+- **Setup:** iPhone, Safari, sandbox Apple Pay; 1 egg, pickup, details.
+- **Test:**
+  1. Press Apple Pay; empty a required field first, then fill it and
+     press again; approve with Face ID.
+- **Assert:** With a field empty, nothing opens and the field is marked
+  (the check runs inside the tap). Then "paid with Apple Pay", record
+  `method` applepay.
+- **Teardown:** As PY-11.
+
+### PY-13 Cash App Pay
+
+Manual: needs the Cash App sandbox approval on a phone.
+
+- **Scenario:** The third wallet.
+- **Setup:** Desktop, 1 egg, pickup, details.
+- **Test:**
+  1. Press Cash App Pay; scan the QR with the sandbox app; approve.
+- **Assert:** "paid with Cash App Pay"; record `method` cashapp.
+- **Teardown:** As PY-11.
+
+### PY-14 Venmo, end to end
+
+Manual: approval happens in PayPal's sandbox window with a sandbox buyer
+account; never done yet (#151).
+
+- **Scenario:** The full Venmo payment.
+- **Setup:** A PayPal sandbox personal account with Venmo; 1 egg,
+  pickup, details.
+- **Test:**
+  1. Press the Venmo button; sign in as the sandbox buyer; approve.
+- **Assert:** "paid with Venmo"; record `payment.via` venmo,
+  `paypalOrderId`, `paypalCaptureId`, `square.squareOrderId` and
+  `payment.squarePaymentId` set; the Square sandbox order shows an
+  external "Venmo" tender for $7; outbox "Your order is confirmed" and
+  the farm's notice with "$7 by Venmo".
+- **Teardown:** `bin/nff --staging orders cancel <id> --reason-text
+  "Test order."` (PayPal refunds; RF-05), then delete.
+
+### PY-15 Venmo cancelled during approval
+
+Manual: PayPal's window.
+
+- **Scenario:** The customer closes PayPal's window.
+- **Setup:** As PY-14.
+- **Test:**
+  1. Press Venmo; close the window.
+  2. Next day, after PayPal has deleted the unapproved order: run the
+     jobs (`bin/nff --staging jobs run`) and read the outbox.
+- **Assert:** No order, no message; the form as it was. The jobs raise
+  no alert for the abandoned checkout (a PayPal 404 means nothing to
+  rescue, since 1c740aa), and the sweep drops it after a day.
+- **Teardown:** None.
+
+### PY-16 Venmo finished by the jobs
+
+Manual: needs the network cut between approval and capture. Rewritten
+for 384e37c: the capture webhook no longer finishes orders; the jobs
+do, once PayPal has left the checkout alone for ten minutes.
+
+- **Scenario:** The browser closes after approval, before the page
+  sends its capture; the jobs capture and record the order.
+- **Setup:** As PY-14, DevTools open.
+- **Test:**
+  1. Approve; set the network offline before the capture request.
+  2. Wait ten minutes; run the jobs (`bin/nff --staging jobs run`, or
+     wait for the schedule).
+  3. Go back online and let the page retry its capture.
+- **Assert:** One order, paid, with `paypalCaptureId` set; stock taken
+  once; one "Your order is confirmed" and one farm notice in the
+  outbox. The
+  page's retry answers with the same record rather than asking the
+  customer to start again. No `paypal.webhook` line finishes the
+  order; it only notes the delivery.
+- **Teardown:** As PY-14.
+
+### PY-16b A Venmo capture the page finishes is written once
+
+Manual: PayPal's window.
+
+- **Scenario:** Before 384e37c the capture webhook and the page both
+  finished the order, writing it twice.
+- **Setup:** As PY-14.
+- **Test:**
+  1. Pay by Venmo normally; wait a minute for the webhook.
+- **Assert:** One record for the PayPal order; stock taken once; one
+  "Your order is confirmed" and one farm notice.
+- **Teardown:** As PY-14.
+
+### PY-17 Venmo when Square is down
+
+Manual: needs a preview with a broken Square token.
+
+- **Scenario:** Captured money is recorded even when Square is not.
+- **Setup:** A preview with a wrong `SQUARE_ACCESS_TOKEN`.
+- **Test:**
+  1. Pay by Venmo.
+  2. Restore the token; run the jobs.
+- **Assert:** The record is written with `square: null`; the farm gets
+  "Site alert: square.record_failed"; after the jobs run the record has
+  its Square copy.
+- **Teardown:** Refund and delete.
+
+### PY-18 A rate-limited order must not say it is placed
+
+Automated: `rate-limit.spec.mjs`, both tests, with `E2E_LOCKOUT=1`
+only, since it locks this address out of `/api/orders` for ten minutes;
+the page alone, stubbed, in `recovery.spec.mjs`, "too many tries says
+so by the Pay button and keeps the order" and "an empty 204 is never
+taken for a placed order". Finding D4, fixed by #154; passed on staging
+2026-09-24 and again on 2026-09-25 at 7426b9a, after 19f8f60 changed
+the order handler.
+
+- **Scenario:** After 12 requests from one address in 10 minutes the
+  endpoint once answered 204, and the page showed "Your order is placed"
+  for an order that was never charged or recorded.
+- **Setup:** None; the spec sends cheap requests (no submission key,
+  refused with 422 after they are counted) until the limit answers.
+- **Test:**
+  1. Post until the endpoint answers 429; post the honeypot.
+  2. On the page: 1 egg, pickup, details, the approved card; press
+     Place your order.
+- **Assert:** 429 with `Retry-After: 600` and the message "There have
+  been too many tries to place your order. Wait a few minutes and try
+  again."; the honeypot still gets 204. The page
+  shows that message by the Pay button, no "Your order is placed", the
+  button enabled, the cart kept; `orders list` finds nothing.
+- **Teardown:** None (nothing is recorded).
+
+### PY-18b A rate-limited contact message must not be thanked
+
+Automated: `rate-limit.spec.mjs`, "contact rate limit", both tests,
+with `E2E_LOCKOUT=1` only, since it locks this address out of
+`/api/contact` for ten minutes; the page alone, stubbed, in
+`contact.spec.mjs`, "too many messages says so by Send and keeps the
+message". Fixed by #178 (c2ce825): past the limit the endpoint once
+answered the honeypot's quiet 200, and the page said "Thanks, we have
+it" for a message it dropped. The limit is kept per function
+instance, so more than six posts may be needed to reach it.
+
+- **Scenario:** A writer past five messages in ten minutes from one
+  address is told so, and keeps what they wrote.
+- **Setup:** None; the spec posts blank fields (counted, then refused
+  with 422, so nothing is kept or mailed) until the limit answers.
+- **Test:**
+  1. Post until the endpoint answers 429; post the honeypot.
+  2. On `/contact/`: name, email, message; press Send.
+- **Assert:** 429 with a `Retry-After` of 1 to 600 seconds and the
+  message "There have been too many tries to send a message. Please
+  wait a few minutes and send it again. What you wrote is still
+  here."; the
+  honeypot still gets 200 `{ ok: true }`. The page shows that message
+  under Send (`role="alert"`), no thanks card, the message kept; no
+  `messages/<id>` record for the address.
+- **Teardown:** Any record or farm email for the address removed
+  (none is expected).
+
+## After the order
+
+### AO-01 A sign-in link, used once
+
+Automated: `account.spec.mjs`, "a link by email signs in, once". Tagged
+`@regression`.
+
+- **Scenario:** Magic-link sign-in, and its single use.
+- **Setup:** A paid order for a unique address, placed at the API with
+  `cnon:card-nonce-ok`.
+- **Test:**
+  1. `/login/`; request a link for the address.
+  2. Open the link from the outbox.
+  3. Clear cookies; open it again.
+- **Assert:** "Check your email." and the link's lifetime; the outbox has
+  "Your secure sign-in link to North Foster Farm" with a link to the
+  staging host; it lands on `/account/` showing the address, and
+  `/about/` then shows the account menu at once, though `/login/`
+  cached "signed out" in that tab (16122c2); the second use lands on
+  `/login/` with "already used".
+- **Teardown:** The order cancelled (it refunds) and deleted; the
+  customer deleted; the outbox cleared.
+
+### AO-02 Orders and receipts on the account page
+
+Automated: `account.spec.mjs`, "the account page lists the order and its
+receipt".
+
+- **Scenario:** A customer sees their order and its payment.
+- **Setup:** As AO-01, signed in.
+- **Test:**
+  1. Read the Orders tab; open Receipts.
+- **Assert:** The order number, and no "we'll confirm it" note (W11d);
+  a receipt row with the number, "Visa ending" and four
+  digits, $7. No "Pay now" and no "I paid by Venmo" anywhere.
+- **Teardown:** As AO-01.
+
+### AO-03 Find my order (removed)
+
+The feature was removed on 2026-09-25 (#150); a customer reaches an
+order by signing in. The number stays so later cases keep theirs.
+
+### AO-04 Sign-in links are rate limited
+
+Automated: `account.spec.mjs`, "a fourth link is refused quietly, the
+first three kept". Passed on staging 2026-09-25.
+
+- **Scenario:** Three links per address per 15 minutes.
+- **Setup:** A unique address.
+- **Test:**
+  1. Request four links from `/login/`.
+- **Assert:** The same "Check your email" each time; three messages in
+  the outbox; the first and third links still sign in.
+- **Teardown:** Delete the customer; clear its messages.
+
+### AO-05 Retired
+
+The farm no longer confirms a pickup: a time the schedule offers is
+booked by paying (W11d). PY-01 covers the confirmation email.
+
+### AO-06 The farm can't keep a booked pickup
+
+Manual: a CLI cancel and its email.
+
+- **Scenario:** The farm can't keep a booked time, so it cancels the
+  order like any other (19ee3de, T2d); `orders deny` is gone.
+- **Setup:** Two paid on-farm orders.
+- **Test:**
+  1. `bin/nff --staging orders cancel <id> --reason weather`
+  2. On the second, `orders cancel <id> --reason-text "Frost."`
+  3. `bin/nff --staging orders deny <id>`
+- **Assert:** Each is refunded in full on the spot (T1d), `status`
+  cancelled, with "Your order is cancelled": "We cancelled your order
+  for on-farm pickup on <day>.", then the reason line (the first:
+  "For everyone's safety, we won't open for pickup on <day> due to
+  severe weather."; the second: "Frost.") and "A refund of $<total>
+  is on its way." No "We can't make your pickup time" email and no
+  `question` on either record. Step 3 is refused as an unknown
+  command.
+- **Teardown:** delete both.
+
+### AO-07 A customer cancels
+
+Manual: as AO-06, step 3, on a delivery order.
+
+- **Scenario:** Cancel before the cutoff from the account page.
+- **Setup:** A paid delivery order; signed in.
+- **Test:**
+  1. Cancel from the order card.
+- **Assert:** "Your order is cancelled" saying the refund is on its way;
+  the order refunded in full and `cancelled` at once (T1d); the farm's
+  "Cancelled: <id>"; stock released. If the refund fails, the order
+  stays paid with `cancelRequested` and the farm gets "Refund needed"
+  naming `orders cancel <id>`.
+- **Teardown:** delete.
+
+### AO-08 A customer changes an order
+
+Manual: automatable; not yet written.
+
+- **Scenario:** Date, window, phone and drop-off details change; items
+  do not.
+- **Setup:** A paid delivery order; signed in.
+- **Test:**
+  1. Change the date and the cooler note; save.
+- **Assert:** "Your order is updated"; the Square order's fulfillment
+  moves; no `squareOutOfSync`.
+- **Teardown:** Cancel (it refunds); delete.
+
+### AO-09 The morning report and the manifest
+
+Manual: needs the toolbar (James's gate session) or `STAGING_TOKEN` for the
+jobs.
+
+- **Scenario:** The daily reports the farm lives by.
+- **Setup:** A paid on-farm order for tomorrow.
+- **Test:**
+  1. Toolbar: tick "Send today's reports again"; press As 8:00 today.
+  2. Press As 18:00 today.
+- **Assert:** "Morning report: <today>" with the vitals (placed, by card,
+  by Venmo, declined, cancelled, refunded, open) and no "Pickups
+  waiting on the customer" (nothing opens that question since
+  19ee3de); "Tomorrow, <date>: N orders" grouped by method.
+- **Teardown:** Cancel and delete the order; clear the reports' mail.
+
+### AO-10 The delivery reminder
+
+Manual: needs a delivery order due tomorrow and a jobs run at 18:00.
+
+- **Scenario:** The cooler reminder the evening before, and its opt-out.
+- **Setup:** A paid delivery order for the next delivery date, the day
+  before it.
+- **Test:**
+  1. As 18:00 today; then turn reminders off in Settings and repeat on
+     another order.
+- **Assert:** "Your delivery is tomorrow" with a "Turn off delivery
+  reminders" link; with it off, the run reports it `muted` and sends
+  nothing.
+- **Teardown:** Cancel and delete.
+
+### AO-11 The emails on an iPhone
+
+Manual: real iOS Mail rendering.
+
+- **Scenario:** Finding 19: the farm's phone number turns blue and
+  underlined on iOS.
+- **Setup:** A real send to James's inbox (a preview with Resend), or
+  the outbox HTML opened in iOS Safari.
+- **Test:**
+  1. Open "Your order is confirmed" and the farm-news confirmation in
+     iOS Mail.
+- **Assert:** The footer's phone number keeps the text color, no
+  underline; layout intact.
+- **Teardown:** None.
+
+### AO-12 The order tells the customer they have an account
+
+Pending: #114.
+
+- **Scenario:** One line at order time: this email is now an account,
+  signed in by emailed link.
+- **Setup:** `ACCOUNTS_ENABLED=true`; a card order.
+- **Test:**
+  1. Pay; read the success card and the confirmation email.
+- **Assert:** One line on each, in James's wording, only when accounts
+  are on.
+- **Teardown:** Cancel and delete.
+
+### AO-13 No retired copy remains
+
+Partial: `wording.spec.mjs` (desktop) reads eleven pages, as served
+and as shown once their scripts settle (a signed-out `/account/` moves
+on to `/login/`, so its served HTML is what covers it), and
+`llms.txt`, and follows the retired paper form. Passed on staging
+2026-09-25, since ff8afe7 and 704412f, and with "Scituate drop site"
+since 540c9e1 (the identifier rule below changed with #309). The
+cancel dialog needs a signed-in customer with an order and stays
+manual. The account menu is settled: "Your orders"
+has its own icon, and the invoice icon marks "Receipts".
+
+- **Scenario:** The invoice era's words are gone, and "the Scituate
+  drop site" is "the drop site" (James, 2026-09-25). Since #309 the
+  method is `scheduled` and the thing chosen is an occurrence id, a
+  series code, a dash and the date (`VFVQ-261107`); `scituate` is no
+  longer an identifier anywhere a customer or the farm reads, and
+  Scituate is only a town. An old `?method=scituate` link still works
+  (SP-09), and so does an order stored under it until the migration
+  (SP-06) rewrites it.
+- **Setup:** Staging.
+- **Test:**
+  1. Open `/`, `/order/`, `/login/`, `/account/`, `/delivery-policy/`,
+     `/privacy/`, `/about/`, `/contact/`, `/news/`, `/accessibility/`
+     and the September post; fetch `/llms.txt`.
+  2. Request `/order-form.pdf` without following redirects.
+  3. By hand: open the cancel dialog on an order.
+- **Assert:** No "invoice", "invoices", "payment link", "Pay to
+  confirm" or "Scituate drop site" in any page's text, meta
+  description or share description, in `llms.txt`, or in the dialog;
+  no "market pickup" in `llms.txt`; the paper form answers 301 to
+  `/order/`.
+- **Teardown:** None.
+
+### AO-14 The Account menu on a desktop (#159)
+
+Automated: `account.spec.mjs`, "the Account menu on a desktop", four
+tests (desktop: they need a mouse), with `/api/me` answered in the
+browser. Passed on staging 2026-09-25 (6100be0).
+
+- **Scenario:** The header's Account menu opens on hover; a click on a
+  hover-opened menu once closed it.
+- **Setup:** Signed in; `/about/` at 1500.
+- **Test:**
+  1. Hover Account; move away.
+  2. Hover; click Account; move away; wait; click Account.
+  3. Hover; click; move away; click elsewhere. Again, with Escape.
+- **Assert:** A hover opens it and leaving closes it. After a click it
+  stays open once the pointer leaves, and the second click closes it.
+  A kept menu closes on a click elsewhere and on Escape.
+- **Teardown:** None.
+
+### AO-15 Fewer items in a paid order: the difference goes back (#160)
+
+Automated: `edit-order.spec.mjs`, "fewer items: the difference goes
+back". Tagged `@regression`.
+
+- **Scenario:** Change items on the account page opens the order on the
+  order page; a smaller order refunds the difference.
+- **Setup:** A paid on-farm order of 2 × Eggs, Large ($14), signed in.
+- **Test:**
+  1. Account page, the order's Change items.
+  2. Set Eggs, Large to 1; press Save changes.
+- **Assert:** The page reads "Change your order" and names the order.
+  Under the total: Paid $14, To refund $7. The payment section and the
+  card's Pay button are hidden; only Save changes shows. After it, the
+  account page; the record has 1 × Eggs and one $7 refund, source
+  `customer`; "Your order is updated" says "We refunded $7" and the farm
+  gets "Order changed". The header's cart count is untouched.
+- **Teardown:** `bin/nff orders cancel <id> --reason-text "Test order."
+  --staging`, then delete.
+
+### AO-16 More items: the difference is charged (#160)
+
+Automated in part: `edit-order.spec.mjs`, "more items: the difference
+is charged" (through the endpoint, with `cnon:card-nonce-ok`).
+
+- **Scenario:** A larger order pays only the difference, by card,
+  wallet or Venmo, on a Square order of its own.
+- **Setup:** As AO-15.
+- **Test:**
+  1. Change items; set Eggs, Large to 3.
+  2. Pay by card (`4111 1111 1111 1111`); then again with Venmo.
+- **Assert:** To pay $7 and "Pay $7 and save". The record gains a second
+  payment of $7; `square.changes` names a Square order of 1 × Eggs,
+  Large (`bin/nff orders show <id> --staging`). A decline leaves the
+  order as it was. Venmo waits on #164's sandbox login.
+- **Teardown:** As AO-15.
+
+### AO-17 A switch between delivery and pickup (#160)
+
+- **Scenario:** The same order, now delivered, or now picked up.
+- **Setup:** A paid on-farm order over the delivery minimum.
+- **Test:** Change items; choose Delivery, fill the address, pay the
+  fee; and on another order, switch delivery to the drop site.
+- **Assert:** The record's method changes; `square.fulfilmentOrderId`
+  names a new Square order carrying the new fulfillment, and the old
+  one's fulfillment is cancelled in Square. A switch to on-farm pickup
+  takes a time the schedule offers, booked as it stands. With nothing
+  to pay, the
+  new Square order is $0 and paid.
+- **Teardown:** As AO-15.
+
+## Refunds and the CLI
+
+Every command here runs from the checkout root with `.env.staging`
+present. The automated specs refund and delete their own orders, so
+place one for the purpose: by hand, or at the API as
+`e2e/support/api.mjs` does with `cnon:card-nonce-ok`.
+
+### RF-01 A partial card refund
+
+Manual: money leaves through the CLI, by design.
+
+- **Scenario:** Short one dozen.
+- **Setup:** A paid card order <id>.
+- **Test:**
+  1. `bin/nff --staging orders refund <id> --amount 5 --reason "Short
+     one dozen"`
+  2. The same again.
+- **Assert:** "Refunded $5 of $X by Visa ending 1111"; `refund.amount`
+  500, `refund.total` false; the Square sandbox shows the refund; the
+  account card says "Refunded $5 on <date>". The second run is refused:
+  "Already refunded $5 on <date>".
+- **Teardown:** `bin/nff --staging orders cancel <id> --reason-text
+  "Test order."`; delete.
+
+### RF-02 Cancel with refund
+
+Manual; every automated payment's teardown runs it, without asserting.
+
+- **Scenario:** The farm cancels and refunds.
+- **Setup:** A paid card order.
+- **Test:**
+  1. `bin/nff --staging orders cancel <id> --reason-text "Test order."`
+- **Assert:** `status` cancelled, `refund.total` true, stock back, the
+  Square fulfillment Canceled, "Your order is cancelled" saying the
+  refund is on its way.
+- **Teardown:** `bin/nff --staging orders delete <id>`.
+
+### RF-03 Cancel without refund
+
+Manual.
+
+- **Scenario:** An order cancelled without money back, which the CLI
+  does only when told (T1c).
+- **Setup:** A paid order.
+- **Test:**
+  1. `bin/nff --staging orders cancel <id> --no-refund`
+- **Assert:** The email says "Nothing more will be charged"; no
+  `refund`.
+- **Teardown:** Refund in the Square sandbox dashboard (which is RF-04);
+  delete.
+
+### RF-04 A refund made in Square's dashboard
+
+Manual: Square's dashboard.
+
+- **Scenario:** `refund.updated` reaches the record.
+- **Setup:** A paid card order.
+- **Test:**
+  1. Refund it in the Square sandbox dashboard.
+- **Assert:** Within a minute `orders show <id>` has `refund` with
+  `source` square.
+- **Teardown:** Cancel; delete.
+
+### RF-05 A Venmo refund from the CLI
+
+Manual: needs a Venmo order (PY-14).
+
+- **Scenario:** Venmo money goes back through PayPal (#151).
+- **Setup:** Two paid Venmo orders.
+- **Test:**
+  1. `bin/nff --staging orders refund <id1> --amount 2`
+  2. `bin/nff --staging orders cancel <id2> --reason-text "Test order."`
+- **Assert:** PayPal refunds each capture; the Square tender is noted as
+  refunded; <id2> cancelled with stock back and the refund email. The
+  refund webhook PayPal sends afterwards adds nothing: Square's
+  refunded amount for each order equals the CLI's, not twice it
+  (7743382 brings Square up to PayPal's running total).
+- **Teardown:** Delete both.
+
+### RF-06 A refund made in PayPal
+
+Manual: PayPal's sandbox dashboard. Before 7d86478 this failed: the
+webhook looked the order up by the refund's id and answered "unknown
+capture"; it now takes the capture from the refund's "up" link.
+
+- **Scenario:** `PAYMENT.CAPTURE.REFUNDED` reaches the record.
+- **Setup:** A paid Venmo order.
+- **Test:**
+  1. Refund the capture in the PayPal sandbox; do it once in full and,
+     on a second order, once in part.
+  2. Read the function log's `paypal.webhook` line, the record and
+     the order in the Square sandbox.
+  3. Resend the webhook from PayPal's dashboard.
+- **Assert:** No "unknown capture" in the log; `refund.source` paypal
+  on the record, `refund.amount` what PayPal refunded, and
+  `refund.total` true for the full refund and false for the partial
+  one, as RF-01 records a partial card refund. Since 7743382 Square's
+  external payment shows the same refunded amount as PayPal; the
+  resent webhook refunds nothing more. If Square refuses, the PayPal
+  refund is still recorded and the outbox has a
+  `square.refund_failed` alert.
+- **Teardown:** Cancel; delete.
+
+### RF-07 Retired
+
+`orders confirm` and `orders deny` are both gone (W11d, 19ee3de): a
+pickup is booked by paying, and one the farm can't keep is cancelled
+(AO-06).
+
+### RF-08 Nothing left unpaid before the deploy
+
+Manual: James only; it reads production.
+
+- **Scenario:** `docs/order-form.md`, "Before it ships", item 4.
+- **Setup:** `.env.production`.
+- **Test:**
+  1. `bin/nff --production orders list --status=submitted`
+- **Assert:** "No orders."
+- **Teardown:** None.
+
+## Farm news
+
+### FN-01 Sign up, confirmed by the link
+
+Automated: `news.spec.mjs`, "the footer sign-up joins at once and
+sends a welcome". Tagged `@regression`. Pins the single opt-in that
+#303 replaced; the spec needs rewriting to this case.
+
+- **Scenario:** Confirmed opt-in from the public footer field (James,
+  #303, 2026-10-25, replacing W1), then a welcome that carries a
+  one-click unsubscribe (T6, 6166efa).
+- **Setup:** A unique address.
+- **Test:**
+  1. Home page footer: type the address; press Sign me up.
+  2. Check the record and the outbox.
+  3. Open the confirmation link; check the record and the outbox.
+- **Assert:** The note says "Check your email: click the link we sent
+  you to join." and the field empties. Before the click the record is
+  absent or not consenting, and the outbox holds one message, "Confirm
+  your email address for Farm News". The link lands on
+  `/news/` with "You're on the list. Thanks!"; the record has
+  `marketing` true, a `marketingAt` and `marketingSource` signup, and
+  the outbox adds "Welcome to Farm News", with a link
+  carrying `?unsubscribe=`.
+- **Teardown:** `customers delete`; both messages are removed from the
+  outbox.
+
+### FN-02 A bad address
+
+Automated: `news.spec.mjs`, "an address that is not one is refused at
+the field".
+
+- **Scenario:** No request for a malformed address.
+- **Setup:** Home page.
+- **Test:**
+  1. Type `not-an-email`; press Sign me up.
+- **Assert:** "Enter a valid email address, like you@example.com." (the
+  wording since #141); no request sent.
+- **Teardown:** None.
+
+### FN-03 The news page has the sign-up
+
+Automated: `news.spec.mjs`, "the news page carries the same sign-up".
+
+- **Scenario:** The second place to sign up.
+- **Setup:** None.
+- **Test:**
+  1. Open `/news/`.
+- **Assert:** A sign-up form is visible.
+- **Teardown:** None.
+
+### FN-04 Sign-up requests are rate limited
+
+Manual: automatable; not yet written.
+
+- **Scenario:** The sign-up cannot be hammered, and the answer never
+  reveals who is on the list.
+- **Setup:** A unique address.
+- **Test:**
+  1. Sign up four times in a minute.
+- **Assert:** "Check your email: click the link we sent you to join."
+  each time; three links are mailed and the fourth request is refused
+  quietly (`news.subscribed` logged with reason rate).
+- **Teardown:** Delete the customer.
+
+### FN-05 The confirmation link, clicked twice and expired
+
+Manual: the link lives seven days.
+
+- **Scenario:** The confirmation the public sign-up field mails
+  (#303).
+- **Setup:** A unique address, signed up in the footer. For the
+  expired case, a preview with a shortened lifetime.
+- **Test:**
+  1. Read the outbox; open the link; open it again.
+  2. Open an expired link.
+- **Assert:** The email's subject is "Confirm your email address for
+  Farm News"; it reads "Welcome to Farm News. Please confirm your
+  email address to start receiving it.", has a "Confirm my email
+  address" button and "This link works for 7 days. If you didn't
+  sign up, you can ignore this email." Before the click the
+  record is absent or not consenting. The link, to the staging host,
+  lands on `/news/` with "You're on the list. Thanks!"; the record has
+  `marketing` true and `marketingSource` signup. The second click
+  says "That link was already used or isn't valid." An expired link
+  says "That link has expired."
+- **Teardown:** Delete the customer; the messages removed.
+
+### FN-05b The old list, imported
+
+Manual: runs `bin/nff` against staging.
+
+- **Scenario:** The old list joins at once from its paper sheets, with
+  no confirmation round (#303).
+- **Setup:** A one-line CSV with a unique address;
+  `bin/nff --staging audience import <csv> --date=2024-07-12
+  --market="the Foster Farmers Market"`.
+- **Test:**
+  1. Read the report, the record and the outbox.
+- **Assert:** The report lists the address under `imported`. The record
+  has `marketing` true and `marketingSource` import; its last consent
+  event is a `market-sheet` dated 2024-07-12 with the market as its
+  detail. The outbox holds one message, the welcome, saying "you
+  signed up on our sign-up sheet at the Foster Farmers Market in July"
+  and that the list moved; no confirmation email.
+- **Teardown:** Delete the customer; the message removed.
+
+### FN-06 The settings box
+
+Manual: automatable with a sign-in; not yet written.
+
+- **Scenario:** The account page's "Farm News" box writes the same
+  consent.
+- **Setup:** Signed in.
+- **Test:**
+  1. Tick the box; untick it.
+- **Assert:** `marketing` true, then false, each with a new
+  `marketingAt`, and `marketingSource` account.
+- **Teardown:** Delete the customer.
+
+### FN-07 The audience sync
+
+Pending: `RESEND_AUDIENCE_ID` and `RESEND_AUDIENCE_KEY` are not set.
+
+- **Scenario:** Consent flows to Resend and unsubscribes flow back.
+- **Setup:** A Resend test audience; one consenting and one withdrawn
+  record.
+- **Test:**
+  1. `bin/nff --staging audience sync --dry-run`, then without it.
+  2. Unsubscribe the first in Resend; sync again.
+- **Assert:** The consenting record is added, the withdrawn one marked
+  unsubscribed; after step 2 the record says `marketing` false with
+  `marketingSource` resend.
+- **Teardown:** Remove both contacts and records.
+
+## The autumn refresh
+
+None of these is built yet. Each case is written from its issue so it
+is ready when the pull request reaches staging; most can be automated
+then.
+
+### AR-01 Hero video (#133)
+
+Automated: `home.spec.mjs`, "the photograph paints first, then the
+light clip plays over it" (both projects). The absence of a flash was
+judged by eye on 2026-09-24.
+
+- **Scenario:** The hero plays the coop video, muted and looping, over
+  its poster.
+- **Setup:** Home page.
+- **Test:**
+  1. Load the page; watch the network and the hero.
+- **Assert:** The video is `muted`, `playsinline` and `loop`; it has no
+  sources until the photograph has painted (better than the issue's
+  `preload="metadata"`), and the first request for the clip comes
+  after the photograph's; it plays, the hero gains `is-ready`, and
+  the encode chosen is under 1.5 MB.
+- **Teardown:** None.
+
+### AR-02 Pausing offers to stop autoplay (#133)
+
+Automated: `home.spec.mjs`, "a pause offers to stop autoplay, and the
+choice holds site-wide" (both projects; hover on desktop) and "the
+play button can be reached by keyboard" (desktop). Wording is a draft
+for James.
+
+- **Scenario:** A visitor who pauses is offered to stop videos playing
+  on their own.
+- **Setup:** Home page.
+- **Test:**
+  1. Hover the hero; press pause; press Turn off autoplay; reload.
+  2. Play and pause again; open the about page's clip.
+  3. Tab to the control with the keyboard; press Enter.
+- **Assert:** The control shows on hover and on focus. After a pause
+  it reads "Play video" and the note offers "Stop videos playing on
+  their own? Turn off autoplay"; after the click it reads "Videos here
+  will wait for you to press play." and `nff:autoplay` is `off`. After
+  the reload no clip is fetched and the photograph and the button
+  show; a second pause offers nothing; the about page's clip waits
+  too. Enter on the focused control pauses.
+- **Teardown:** None (a fresh browser per test).
+
+### AR-03 Reduced motion and the account setting (#133)
+
+Partial: with reduced motion the hero fetches no clip and waits for
+play, and a pause then offers nothing, in `home.spec.mjs`, "with
+reduced motion the photograph stays until play"; the about page's clip
+obeys reduced motion and a stored `off` (AR-24). Save-Data and the
+account setting are still to come: the account half of #133 has not
+landed.
+
+- **Scenario:** `prefers-reduced-motion` and Save-Data count as autoplay
+  off; a signed-in customer's choice follows them.
+- **Setup:** Emulated reduced motion; then a signed-in customer.
+- **Test:**
+  1. Load the home page with reduced motion.
+  2. Signed in, turn autoplay off in Settings; sign in on a second
+     browser.
+- **Assert:** No autoplay with reduced motion or Save-Data; the setting
+  on the record is adopted by the second browser; the about page's
+  video obeys it too.
+- **Teardown:** Delete the customer.
+
+### AR-04 Hero size, type and wash (#134, #173)
+
+Automated: `home.spec.mjs`, "the hero's height, wash and type (#134,
+#173)" (both projects). Passed on staging 2026-09-25 (859d95b). The
+wordmark is the header's logo. The accent word's contrast over the
+picture (3:1 or better, per 859d95b) is judged by eye.
+
+- **Scenario:** James's hero adjustments, and #173's blurred picture
+  under a green wash in place of outlined type.
+- **Setup:** Home page at 320, 390, 575, 576, 768, 990, 1500 and 2560
+  wide.
+- **Test:**
+  1. Measure the hero, the title and the h1 at each width.
+- **Assert:** The title runs three lines below 576 and two from 576 up,
+  and its words stay inside the window and their column at every width
+  (it never wraps on its own); height at most 1300px; below 576 the big
+  line at least 1.8 times the h1; no text stroke at any width; the
+  picture under `blur(4px) brightness(0.82)`; from 992 a wash of
+  `--bs-primary` from the right at 0.75 and the words in the lower
+  right, below 992 a black veil at 0.6 and the words centred (James,
+  2026-09-25, 6e9a992: the green was too heavy centred); the
+  header's wordmark in `--bs-primary`.
+- **Teardown:** None.
+
+### AR-04b The hero and header fill the window
+
+Automated: `home.spec.mjs`, "the hero and header fill the window
+exactly" (both projects). Failed from 768 up until 97adf24; passes
+since.
+
+- **Scenario:** The hero reserves the header's height so the two fill
+  the first screen and nothing of the next section peeks in.
+- **Setup:** Home page at 390, 767, 768, 1199 and 1500 wide, 900 tall,
+  and 1500 by 1300.
+- **Test:**
+  1. Read the hero's bottom edge.
+- **Assert:** Within 1px of the window's bottom. Today it stops 13px
+  short from 768 up (header 55px, 4.25rem reserved).
+- **Teardown:** None.
+
+### AR-05 Hero buttons on hover (#135)
+
+Automated: `home.spec.mjs`, "Order now stays pure white on hover and
+lifts" (desktop). Whether the softer shadow looks right is by eye.
+
+- **Scenario:** The white CTA stays pure white on hover.
+- **Setup:** Home page, desktop.
+- **Test:**
+  1. Hover "Order now".
+- **Assert:** Background and border `rgb(255, 255, 255)` on hover, the
+  text color unchanged, a shadow that it lacks at rest.
+- **Teardown:** None.
+
+### AR-06 Header button border on hover (#135)
+
+Automated: `home.spec.mjs`, "header links ease in a gray border without
+changing size" (desktop, at 1500 and 390). Checked by eye 2026-09-24:
+light but visible.
+
+- **Scenario:** A light gray border eases in without moving anything.
+- **Setup:** A header text link at 1500; the menu toggle at 390.
+- **Test:**
+  1. Measure the link; hover; measure again.
+- **Assert:** Transparent border at rest, a colored one of the same
+  width on hover, `border-color` in the transition; same width and
+  height; the same lift shadow as every other button.
+- **Teardown:** None.
+
+### AR-07 Only the hero's buttons run wide on a phone (#135)
+
+Automated: `home.spec.mjs`, "only the hero's buttons are wide on a
+phone" (desktop, at 1500 and 390). James, 2026-09-25 (8269aef): every
+other button is as wide as its words.
+
+- **Scenario:** "Shop all products" matches the hero buttons' padding,
+  and only the hero's buttons fill a phone's width.
+- **Setup:** 1500 and 390.
+- **Test:**
+  1. Compare its horizontal padding with the hero buttons'.
+- **Assert:** Equal padding and narrower than 24rem at 1500; at 390,
+  "Shop all products" and the touch actions under 300px, the hero's
+  Order now 300px or more.
+- **Teardown:** None.
+
+### AR-08 The home news section (#136)
+
+Automated: `home.spec.mjs`, "the post in full, linked to its own page"
+and "the post's page is canonical, and the home page is its own" (both
+projects); `map.spec.mjs`, "the news post's ZIP link leads to the
+map's check", which passes on the phone since 7e757ac put the check
+above the map when stacked (#159). The invoice wording on `/` is
+AO-13's.
+
+- **Scenario:** The ordering-tour post lives at `/news/<slug>/` and is
+  shown in full on the home page.
+- **Setup:** Home page; the post page; the news list.
+- **Test:**
+  1. Read the home section; press Check your ZIP code.
+  2. Open the post; open the news list.
+- **Assert:** "News and updates"; "A Tour of Our New Ordering System"
+  linking to `/news/ordering-tour/`; "October 18, 2026" dated
+  `2026-10-18`; a "Check your ZIP code" link in the Delivery list, with
+  no "Do we deliver to you?" card and no ZIP check in the card (#211);
+  "More news and updates", an outline button to `/news/`, below the
+  card; the text no wider than 600px and, from 992 up, 52px of padding
+  each side. The link lands on the map with its ZIP field on screen.
+  The post's canonical URL is its own, the home page's is `/`, its ZIP
+  link points at `/#map`, and the news list links to it.
+- **Teardown:** None.
+
+### AR-09 The off-season band (#137)
+
+Automated: `home.spec.mjs`, "three ways to buy, in the market band's
+place" and one test per button (both projects). Passed on staging
+2026-09-25, since 89e8896 (#163). That the market band returns on May 15
+needs a build in season and is not tested; the switch is in
+`layouts/index.html`.
+
+- **Scenario:** Three ways to buy (On-farm pickup, Scheduled pickup,
+  Delivery), each with a button that preselects it on the order page.
+  Scheduled pickup lists the places open now when `/api/dates`
+  answers (#313) and falls back to the drop site's line when it does
+  not.
+- **Setup:** Home page, out of season.
+- **Test:**
+  1. Read the three columns; press each button.
+- **Assert:** "No off-season" and "Three ways to get your order, all
+  winter"; each column's icon, name, when, where and cost as
+  `data/delivery.json` has them (by appointment at the farm's
+  address; scheduled pickup: Saturdays 10:00 – 11:00 AM at the drop
+  site, "starting October 17" until then, and one line per open
+  occurrence once `/api/dates` answers; every Thursday 10:00 AM – 4:00 PM, $40
+  minimum, $5 fee); "The farmers markets return in June."; each
+  button lands on `/order/` with that method checked (Scheduled
+  pickup's reads `?method=scheduled`).
+- **Teardown:** None.
+
+### AR-10 The map's areas (#138)
+
+Automated: `map.spec.mjs`, "three fills: ours, the rest of Rhode
+Island, the neighbours" and "the key's swatches match the map's fills"
+(both projects). Rewritten for 17b929e, which gave Rhode Island's
+other ZIPs their own fill. Connecticut's eggs-only rule is still not
+on the map (raised on #138).
+
+- **Scenario:** Delivery ZIPs, the rest of Rhode Island and the
+  neighbours each in their own fill, from the same data as the form.
+- **Setup:** Home page map row.
+- **Test:**
+  1. Compare every ZIP on the map with the delivery area the page's
+     ZIP check carries; read each fill and the key's swatches.
+- **Assert:** Every ZIP is five digits (the minifier once dropped the
+  leading zero); each has exactly one of `is-ours`, `is-away`,
+  `is-land`, and `is-ours` exactly when the area lists it; Rhode
+  Island's (028, 029) are never plain land; one fill per class, three
+  in all; the swatches "We deliver here" and "A little outside our
+  area" match their fills; the SVG is titled; no request leaves the
+  site.
+- **Teardown:** None.
+
+### AR-11 The ZIP check drops a pin (#138)
+
+Automated: `map.spec.mjs`, "a ZIP typed in drops a visible pin on its
+middle", "a tap on a town runs the check and drops the pin", "a town
+names itself under the pointer" (desktop) and "with reduced motion the
+pin appears without falling" (both projects).
+
+Until 17b929e the dropped pin never showed: the script set a `hidden`
+property that SVG groups do not have. The earlier test read that same
+property and passed; it now asks whether the pin renders.
+
+- **Scenario:** Typing or tapping a ZIP drops a pin at its center with
+  the answer.
+- **Setup:** Map row.
+- **Test:**
+  1. Type `02857`, `02802`, `10001`; type `02857` and clear the field.
+  2. Tap North Scituate on the map.
+  3. Hover a town.
+  4. Again with reduced motion.
+- **Assert:** `autocomplete="off"`. No pin at first. 02857: a visible
+  pin, "02857 <town>: We deliver here", its outline drawn, the pin at
+  its middle. 02802: "… A little outside our area", amber, likewise.
+  10001, off the map, and a cleared field: no pin, and the words still
+  answer. A tap fills the field with 02857, the check answers "We
+  deliver to …", and the pin shows. Hovering names the town and our
+  answer. Under reduced motion the pin shows without the fall.
+- **Teardown:** None.
+
+### AR-11b Pin cards and zoom (#138)
+
+Automated: `map.spec.mjs`, "a pin opens its card; Escape closes it to
+the pin", "a line in the key opens the same card" and "zoom in and
+out; pins keep their size" (both projects). Pinch, trackpad pinch and
+drag-to-pan are by hand on a phone and a laptop.
+
+- **Scenario:** 17b929e made the map interactive.
+- **Setup:** Map row.
+- **Test:**
+  1. Focus pin 1; press Enter; press Escape.
+  2. Press the key's line for pin 3; press its Close.
+  3. Press Zoom in, then Show the whole map.
+- **Assert:** Pin 1's card opens with focus on "Our farm", the pin
+  `aria-pressed`, a Google Maps "Directions" link and "Shop for pickup"
+  to `/order/?method=onfarm`, which lands on On-farm pickup (#163),
+  inside the map's frame; Escape closes it and returns focus to
+  the pin. The key opens pin 3's card, on screen, reading "Out of
+  season". Zoom in halves the view, enables Zoom out and shows the
+  reset, and pins stay the same size on screen; the reset restores the
+  whole map.
+- **Teardown:** None.
+
+### AR-12 The map on the delivery policy (#138)
+
+Automated: `map.spec.mjs`, "the delivery policy carries the same map"
+(both projects).
+
+- **Scenario:** The same map on `/delivery-policy/`.
+- **Setup:** Delivery policy page.
+- **Test:**
+  1. Load it; type `02857` in its ZIP check.
+- **Assert:** The map renders with our ZIPs filled; the field has
+  `autocomplete="off"`; the pin drops as on the home page.
+- **Teardown:** None.
+
+### AR-13 Places on the map (#138, #314)
+
+Partial: `map.spec.mjs`, the Places tests (both projects): "the Places
+list is one list, matching the pins", "pins stand on their places",
+"one location, one card", "every series' open date links to the order
+page for it" and "a skipped date is absent". Since #314 the map is
+built from `data/locations.json` and `data/series.json`; a place is a
+location, and its card lists the series that meet there with their
+next dates. Dropping a finished pop-up from the list needs a build
+after its date and stays manual.
+
+- **Scenario:** Every location is a numbered pin and one row of the
+  Places list, with one card naming its series and their dates. A
+  date the schedule marks `skip` is absent; an `attend` date shows
+  but takes no orders; a `pickup` date links to
+  `/order/?method=scheduled&series=<code>`. A series with no date left
+  shows its season.
+- **Setup:** Home page; for the rollover, a build with the clock set to
+  2027-01-01 (preview).
+- **Test:**
+  1. Read the pins and the list.
+  2. Compare every pair of pins' boxes.
+  3. Open the drop site's card and a market's; press an open date.
+  4. By hand: after the last date of a pop-up, build and read the
+     pins.
+- **Assert:** One pin per list row, alike in number and name. "Our
+  farm" first, with no number (the hen). One card per location, never
+  two for the same place. A `pickup` date's link lands on
+  `/order/` with Scheduled pickup checked and that series' next date
+  chosen (`?method=scheduled&series=`). No two pins share more than a
+  quarter of their box. When `/api/events` cannot load, seasons stay
+  and only the drop site links.
+- **Teardown:** None.
+
+### AR-14 The pop-up banner (#139)
+
+Automated: `top-bar.spec.mjs`, every test (both projects). The build
+side of retiring (the next build skips an ended event) needs a build
+after October 18 and is not tested. The wording is a draft for James;
+there is no dismissal.
+
+- **Scenario:** A thin site-wide bar for the October 18 pop-up that
+  retires itself.
+- **Setup:** The home page and six others; the browser's clock set
+  either side of 2:00 PM on 2026-10-18.
+- **Test:**
+  1. Read the bar at 1500, 990, 576, 575, 390 and 320.
+  2. Open `/order/`, `/about/`, `/contact/`, `/news/`,
+     `/delivery-policy/`, `/login/`.
+  3. Load the home page at 1:59 PM and 2:01 PM that day.
+- **Assert:** From 576 up "Pop-up at The Village Family Fitness in
+  Warwick, Sunday, October 18, 10:00 AM – 2:00 PM"; below, "Pop-up at
+  The Village Family Fitness, Sun, Oct 18"; always one 30px line, with
+  no ellipsis from 390 up, the header right under it, and a link to
+  the host's Instagram in a new tab. On every page. At 1:59 the bar
+  shows; at 2:01 it is gone and the hero reserves no room for it.
+- **Teardown:** None.
+
+### AR-15a The contact page (#140, #176)
+
+Automated: `contact.spec.mjs`, every test (both projects), with
+`/api/contact` stubbed so the busy state and the failures can be held,
+and `/api/me` and `/api/account/orders` stubbed for the order row's
+three cases. The real function (c47e66d) is AR-15 and AR-16.
+
+- **Scenario:** The page and its form; the order row as #176 made it,
+  a choice of the customer's own orders.
+- **Setup:** `/contact/`.
+- **Test:**
+  1. Read the heading, the lead, the ways to reach the farm and the
+     note under them.
+  2. At 390, compare the ways and the form.
+  3. Send empty; send with `you@farm`, then add `.com`.
+  4. Send a good message while the answer is held; press again;
+     release.
+  5. Send with a 422 for the email, then with a 500.
+  6. Signed out; signed in with no orders; signed in with two orders,
+     picking the older; signed in with seven, picking one, then typing
+     `QA5`, then `Sep`, then Enter in the filter.
+- **Assert:** "Don't be a chicken. Talk to us." and the lead "Get in
+  touch by calling, texting, sending us an email, or leaving us a
+  message through the contact form below." with no link in it (#267); call
+  or text, email, Instagram and the farm; the note "Visits are by
+  appointment only. Contact us to set up a farm visit. To pick up an
+  order at the farm, choose on-farm pickup on the order page." with the
+  order page linked; the form sits directly below; the honeypot is
+hidden and out of the tab
+  order. On a phone the form sits under the ways. Empty: "Tell us your
+  name.", "Enter your email address, so we can answer.", "Write us a
+  message first.", Name focused, nothing sent. A bad address is named
+  and its error clears once put right. The post carries name, message,
+  an empty `orderId` and an empty `website`; the button shows the egg
+  and "Sending" at its width; one request only; then "Thanks, we have
+  it" with the address. A 422 lands under its field; a 500 shows the
+  alert and keeps the message. Signed out, or signed in with no
+  orders, no order row and `orderId` ""; signed in, name and email
+  filled. With orders, a native select labelled "Order (optional)":
+  "No particular order", then "NFF-…, Sep 2, 2026, $21" newest first,
+  no filter, and the pick is posted. With seven, a filter labelled
+  "Find an order" that narrows the list, keeps the chosen order listed,
+  says "1 order matches" and "7 orders match", and never sends on
+  Enter.
+- **Teardown:** None.
+
+### AR-15 The contact form (#140, #176)
+
+Automated: `contact-send.spec.mjs` (desktop), its first three tests.
+The acknowledgement to the writer that #140 proposed is optional and
+waits on #167. The page and the API share a limit of five posts per IP
+in ten minutes; past it they answer 429 (PY-18b), so leave ten
+minutes between runs, and after any hand test from the same machine.
+
+- **Scenario:** A visitor, and a signed-in customer, write to the farm.
+- **Setup:** A unique address and name; for the last step, a paid
+  order for that address placed at the API with `cnon:card-nonce-ok`.
+- **Test:**
+  1. Signed out, send a message from `/contact/`.
+  2. At the API, send one with an order number that is not the
+     writer's.
+  3. Sign in by the emailed link, opened in a new tab as from a mail
+     app; on `/contact/`, pick the order and send.
+- **Assert:** Signed out: no order row; "Thanks, we have it"; the
+  farm's "Message from <name>" with reply-to set to the writer and the
+  message; one `messages/<id>` record, open, `orderId` "" and `order`
+  null; nothing to the writer. Someone else's number: 200 `{ ok: true
+  }`, and only the farm is told "no order by that number with this
+  email" (`order: false`). Signed in: the row lists the order ending
+  "$7"; the farm's "Message from <name> about <id>" says "placed with
+  this email"; the record has `order: true`.
+- **Teardown:** The order cancelled (it refunds) and deleted; the
+  records deleted from the customers store (no CLI command until
+  #167); the customer deleted; the outbox cleared.
+
+### AR-16 The contact form refuses abuse (#140)
+
+Partial: `contact-send.spec.mjs`, "the honeypot and bad fields are
+refused at the API" (desktop). Passed on staging 2026-09-25. The limit
+of five posts per IP in ten minutes is PY-18b.
+
+- **Scenario:** Validation, the honeypot and a cross-site post.
+- **Setup:** A unique address.
+- **Test:**
+  1. Post with `website` filled; post a blank name, `you@farm` and no
+     message; post with a foreign `Origin`.
+- **Assert:** The honeypot gets 200 `{ ok: true }`; the bad fields get
+  422 with the page's three messages; the foreign post gets 403. No
+  record and no email from any of them.
+- **Teardown:** As AR-15.
+
+### AR-17 Unanswered messages are chased (#140)
+
+Pending: #167 (after launch). `bin/nff messages` does not exist yet.
+
+- **Scenario:** The farm is reminded daily until every message is
+  answered.
+- **Setup:** One unanswered message.
+- **Test:**
+  1. `bin/nff --staging messages`; As 8:00 today; `messages done <id>`;
+     As 8:00 again with "Send today's reports again".
+- **Assert:** Listed with its age; in the morning report; gone from both
+  once done.
+- **Teardown:** Clear the outbox.
+
+### AR-18 The footer sign-up (#141)
+
+Automated: `footer.spec.mjs`, "a bad address is marked at the field,
+and fixing it clears it" and "while it sends, the button shows the egg
+and keeps its width" (both projects). The request is stubbed and held,
+so nobody is added; FN-01 covers the real sign-up.
+
+- **Scenario:** An input group with a floating label and an egg
+  spinner.
+- **Setup:** Home page.
+- **Test:**
+  1. Press Sign me up empty; submit `nope` and `you@farm`; type a
+     valid address.
+  2. Submit a valid address while the answer is held; press again.
+- **Assert:** Nothing under the field at rest. "Enter your email
+  address." when empty; "Enter a valid email address, like
+  you@example.com." with the field marked invalid and focused for both
+  bad addresses; the mark clears once the address is valid. While
+  held: `data-state="busy"`, "Submitting" and the egg spinner faded in,
+  "Sign me up" faded out, the button's width unchanged, the line under
+  the field empty, and the second press sends nothing. Then the
+  "Check your email: click the link we sent you to join." answer at
+  the same width (#303).
+- **Teardown:** None.
+
+### AR-19 The footer layout (#141)
+
+Automated: `footer.spec.mjs`, "the links, then how to reach the farm,
+then the copyright" and "no row of the dotted lines opens with a dot,
+at any width" (both projects). "More room above" is by eye: checked at
+1500 and 390 on 2026-09-24.
+
+- **Scenario:** More room above; links on one line with dots that never
+  start a wrapped line.
+- **Setup:** Home page.
+- **Test:**
+  1. Read the footer's lines.
+  2. At 1500, 990, 575, 390 and 320, group each line's items by row.
+- **Assert:** Links in the order About, Account, News, Accessibility,
+  Privacy, Delivery, Contact (once `/contact/` exists, #140), Order,
+  llms.txt; then the phone, the email and @northfosterfarm, linked;
+  then the copyright with this year. Every row opens without a dot and
+  every other item has one; at least one line wraps.
+- **Teardown:** None.
+
+### AR-19b No Delivery link in the main navigation (#267)
+
+Automated: `footer.spec.mjs`, "not in the main navigation, in the
+footer and on the order page".
+
+- **Scenario:** The header's links no longer include the delivery
+  policy (James, 2026-10-18); the order page covers delivery.
+- **Setup:** Home page at 1280 and 390; open the phone menu.
+- **Test:**
+  1. Read the header's links in the row and in the phone menu.
+  2. Read the footer's links; open the order page and read its links.
+- **Assert:** The header has News, About, Contact and the Account menu,
+  no Delivery. The footer still links Delivery, and the order page
+  links the delivery policy. `/delivery-policy/` loads.
+- **Teardown:** None.
+
+### AR-20 The search palette opens and closes (#142)
+
+Automated: `search.spec.mjs`, "cmd/ctrl K opens it, arrows move,
+Escape closes to the button", "the button opens it; a click outside,
+or Esc, closes it", "it reopens right after it closes" and "words
+people use find the products, and nonsense says so". Passed on
+staging 2026-09-25; the reopen, since bec5681.
+
+- **Scenario:** Command or Control K, from any page.
+- **Setup:** Home page.
+- **Test:**
+  1. Press Control K; type "wing"; arrow down; Tab twelve times;
+     Escape.
+  2. Open with the search button; click outside (on a phone, press
+     Esc).
+  3. Open, Escape, and press Control K again 250 ms later.
+  4. Search "egg", "breast", "drumstick", "whole", then "zzz".
+- **Assert:** Focus in the combobox; the button's `aria-expanded` is
+  true; the first match is selected and named by
+  `aria-activedescendant`, and its card shows its group and price; the
+  arrow moves both. Tab never reaches the page behind (a modal dialog
+  hands focus to the browser's own controls after its last field,
+  which is acceptable). Escape or a click outside closes it and focus
+  returns to the button. It reopens at once. Each word finds its
+  group; "zzz" says "Nothing matches “zzz”. Try eggs, whole, breast or
+  wings." with no card.
+- **Teardown:** None.
+
+### AR-21 Add to cart from the palette (#142)
+
+Automated: `search.spec.mjs`, "add from any page, and the order page
+has it", "on the order page it fills the row and the cart at once" and
+"stock arriving late keeps the quantity chosen". Passed on staging
+2026-09-25; the last, since 6745a35 (#162).
+
+- **Scenario:** A product added from search lands in the order page's
+  cart.
+- **Setup:** A fresh browser.
+- **Test:**
+  1. On `/about/`, search "eggs"; press One more; Add to cart; open
+     `/order/`.
+  2. On `/order/?add=` 1 wing, search "wings"; Enter; Escape.
+  3. With `/api/stock` held, search "eggs", press One more, then let
+     the stock answer.
+- **Assert:** "Large", "In stock"; "Added 2 × Eggs, Grade A Large. 2
+  items in your cart." and the button reads "Added · 2 in cart"; the order page
+  shows 2 eggs, "2 items", $14. On the order page the wings row reads
+  2, "2 items", $20. The late stock answer leaves the quantity at 2.
+- **Teardown:** None.
+
+### AR-22 The palette on a phone (#142)
+
+Automated: `search.spec.mjs`, "on a phone it is a full-screen sheet"
+(both projects); the combobox attributes are checked in AR-20.
+
+- **Scenario:** A full-screen sheet with the combobox pattern.
+- **Setup:** 390 by 664.
+- **Test:**
+  1. Open search from the nav; search "egg".
+- **Assert:** The dialog covers the screen; the card and its Add
+  button are on screen.
+- **Teardown:** None.
+
+### AR-23 The news page (#143)
+
+Automated: `news-page.spec.mjs`, every test (both projects). Checked by
+eye at 390 on 2026-09-25.
+
+- **Scenario:** Posts grouped by year, each with a featured image or a
+  leaf card, loading ten at a time.
+- **Setup:** `/news/`.
+- **Test:**
+  1. With scripts off, follow "Older posts" to the end.
+  2. With scripts on, scroll to the end.
+  3. Again with page 2 answering 500.
+  4. Reload and compare each post's picture or leaf; load the
+     pictures.
+  5. Read the captions on `/about/` and the September post.
+- **Assert:** The pager walks every post once, at most ten a page. The
+  pager is hidden and scrolling appends exactly the same posts in the
+  same order; one heading per year, newest first, each post under its
+  own year; one "older posts loaded" announcement; no request fails.
+  A failed fetch shows the pager again, "Older posts" pointing at page
+  2, with the first ten kept. Every post has a picture or a leaf, some
+  of each, and the same one after a reload; pictures load at 4:3.
+  Captions have no background.
+- **Teardown:** None.
+
+### AR-24 The about page (#144)
+
+Automated: `about.spec.mjs`, every test (both projects). The
+paragraph's wording is James's to approve.
+
+- **Scenario:** The rule under "How we raise them" clears Linus's
+  photo; a new paragraph; the tight-quarters video.
+- **Setup:** `/about/` at 1500, 990, 575 and 390.
+- **Test:**
+  1. Measure the heading against the floated figure.
+  2. Read what follows "What we sell".
+  3. Fetch the poster and both encodes.
+  4. Scroll the clip on screen; pause it; scroll away and back.
+  5. Again with reduced motion, then with `nff:autoplay` set to `off`.
+- **Assert:** The heading's box, and so its rule, never overlaps the
+  figure. "What we sell" opens with the pasture paragraph, then the
+  clip captioned "Morning chores in one of the mobile pens". The clip
+  is muted, looping, inline, `preload="none"`, labeled; poster, MP4
+  and WebM answer 200 with their types. On screen it plays and its
+  button reads "Pause video"; once paused it stays paused, with the
+  button showing. With reduced motion or autoplay off it waits, button
+  showing, until play is pressed.
+- **Teardown:** None.
+
+### AR-25 The favicon (#145)
+
+Partial: `favicon.spec.mjs` (desktop), all but the look at 16px in a
+tab, which stays by eye. Passed on staging 2026-09-25 (1adb47f,
+1908b57).
+
+- **Scenario:** The gingham egg replaces the NF monogram.
+- **Setup:** `/` and `/order/` (the hrefs are relative).
+- **Test:**
+  1. Read the icon links, the manifest and `browserconfig.xml`; fetch
+     each file, and `/favicon.ico` and `/apple-touch-icon.png` at the
+     root.
+- **Assert:** Every file in `static/favicons/` answers 200 with its
+  type and the bytes built by `bin/favicons/build`; each linked PNG is
+  the size its `sizes` names; the manifest is
+  `application/manifest+json` and lists one maskable icon; the pinned
+  tab SVG is one color and the tile color is `#1e7b54`; the root paths
+  answer with the set. The Windows tiles are drawn at 1.8 times
+  (`mstile-150x150.png` is 270px), as before.
+- **Teardown:** None.
+
+### AR-26 The privacy policy (#146)
+
+Partial: `policies.spec.mjs` (desktop) checks the topics and facts
+below, not the wording, which is a draft for James (4d58b76); the
+storage periods are read by hand. Passed on staging 2026-09-25. The
+same spec checks `lang="en-US"` on the three policy pages (99e4717).
+
+- **Scenario:** The policy covers farm news, accounts, payments and
+  storage.
+- **Setup:** `/privacy/`.
+- **Test:**
+  1. Read it.
+- **Assert:** Sections on the farm-news list (Resend, joining at once
+  with no email to confirm, one-click unsubscribe), accounts and magic
+  links, payments (Square and PayPal; card numbers never reach the
+  site), what is stored where and for how long, what the browser keeps;
+  no "Square, which creates your invoice"; a new effective date.
+- **Teardown:** None.
+
+### AR-27 The cart follows a signed-in customer (#149)
+
+Pending.
+
+- **Scenario:** A signed-in customer's cart and code appear on their
+  other devices.
+- **Setup:** Two browser contexts signed in as the same customer.
+- **Test:**
+  1. In A, add 3 wings and apply a code.
+  2. Load `/order/` in B.
+  3. As a guest with a local cart, sign in to an account with none.
+- **Assert:** B shows 3 wings and the code; the newer draft wins; the
+  guest cart becomes the account's.
+- **Teardown:** Delete the customer.
+
+### AR-28 How to buy (#150)
+
+Automated: `home.spec.mjs`, "How to buy walks four steps without the
+invoice era" (both projects). The step titles are #173's draft,
+pending James (8855002); the test pins them so a change shows.
+
+- **Scenario:** James's wording for paying on the page replaces the
+  emailed payment link.
+- **Setup:** Home page.
+- **Test:**
+  1. Read `#how-to-buy`; press Shop all products.
+- **Assert:** "From our pasture to your table"; steps "Step 1: Shop
+  what’s fresh", "Step 2: Pick your day", "Step 3: Change of plans?",
+  "Step 4: Taste the difference", each with its icon; no "invoice",
+  "payment link" or "Pay to confirm"; the button lands on `/order/`.
+- **Teardown:** None.
+
+### AR-29 The cart count and the mini cart (#166, #173)
+
+Automated: `cart-badge.spec.mjs`, every test (both projects), and
+PY-01 for the placed order. Passed on staging 2026-09-25 at 810174c,
+with the split Order button of a8e6e52.
+
+- **Scenario:** The header shows how many items the cart holds: off
+  the order page on the cart half of a split Order button, a second
+  link to the order page that lands on the cart (#402); on the order
+  page on Order itself; and in the phone menu.
+- **Setup:** A fresh browser.
+- **Test:**
+  1. Open `/`.
+  2. `/order/?add=` 3 eggs and 2 wings; open `/about/`; on a phone,
+     open the menu; clear storage and reload.
+  3. On `/about/`, add 2 eggs from search.
+  4. With 1 egg on `/order/`, open `/about/` in a second tab; press
+     One more in the first.
+  5. With 2 eggs, open `/about/`; press the cart half.
+  6. Block `localStorage`; open `/about/`.
+  7. Place an order (PY-01).
+- **Assert:** Empty, no badge and no cart half. Then "5" on the order
+  page and on `/about/`, where the cart half reads "Your cart, 5
+  items" and the disc is `aria-hidden`; "5" in the phone menu; Order
+  keeps its width when the cart empties and the cart half goes.
+  Search's add shows "2" at once; the second tab goes from "1" to "2"
+  with no reload. The cart half lands on `/order/#order-cart`, the
+  cart in view, with "2 items". Blocked storage shows no badge and no
+  page error; a placed order leaves no badge.
+- **Teardown:** None.
+
+### AR-30 The skip link (#159)
+
+Automated: `skip-link.spec.mjs` (desktop: it needs a keyboard). Passed
+on staging 2026-09-25 (c1b1ff6). The wording is a draft for James.
+
+- **Scenario:** A keyboard reaches the content without walking the top
+  bar and the header (WCAG 2.4.1).
+- **Setup:** `/`, `/order/`, `/about/`, `/news/`.
+- **Test:**
+  1. Press Tab; press Enter; press Tab.
+- **Assert:** "Skip to main content" is off screen until the first
+  Tab, then focused and in view; Enter moves to `#main`; the next Tab
+  lands inside `<main>`.
+- **Teardown:** None.
+
+## Scheduled pickup
+
+The drop site, the markets and the pop-ups are one way to get an
+order, Scheduled pickup (#309). An occurrence is one date of a series,
+named by the series code and the date (`VFVQ-261107`). The schedule
+decides each one with a line `<date> <code> pickup|attend|skip`.
+Setup for the cases below: staging, with `PICKUP_SCHEDULE` giving at
+least a drop site occurrence and a market or pop-up occurrence a
+`pickup` line (`bin/nff events` lists the series and their lines).
+
+The order page's scheduled card is described as #323 leaves it: the
+label "Pickup day", white address cards, and the When line "During
+markets, pop-ups, and drops". Until #323 lands, the card reads as it
+does on staging; the specs read the radios, never the card's words.
+
+### SP-01 A scheduled order at a market
+
+Automated: `scheduled-pickup.spec.mjs`, "the order page places a
+market order". Tagged `@regression`. The picker is also
+`order-scheduled.spec.mjs`.
+
+- **Scenario:** A customer pays for an order at a market occurrence.
+- **Setup:** 1 egg, Scheduled pickup, the first occurrence of a series
+  that is not the drop site, name, unique email.
+- **Test:**
+  1. Choose Scheduled pickup; read the list; choose the market's day.
+  2. Pay with `4111 1111 1111 1111`.
+- **Assert:** The list is one radio per open occurrence, by date, each
+  "<day>, <hours>, <place>, <town>"; none is chosen until the customer
+  chooses; the cart's way reads "Scheduled pickup: <day>, <hours>, at
+  <market>". 200. The when line ends "at <market name>." and never
+  says "the drop site". `orders show <id>`: `fulfilment.method`
+  `scheduled`, `occurrence` the id chosen, `date` that day,
+  `state` agreed. Outbox: "Your order is confirmed" naming the market;
+  the farm's "New order <id>" with the market in its subject.
+- **Teardown:** As PY-01.
+
+### SP-02 A scheduled order at a pop-up
+
+Manual: `payment.spec.mjs` covers a market; the pop-up differs in
+its single date.
+
+- **Scenario:** A pop-up is a series with one date; it orders like a
+  market.
+- **Setup:** A pop-up with a `pickup` line. 1 egg.
+- **Test:**
+  1. Open `/order/?method=scheduled&series=<its code>`.
+  2. Pay with the approved card.
+- **Assert:** The pop-up's one date is chosen on load. The thank-you
+  card, the record, the emails and the Square order name the pop-up
+  and its hours, as SP-01 does a market. A pop-up with only an
+  `attend` line, or past the horizon, is not on the list.
+- **Teardown:** As PY-01.
+
+### SP-03 The drop site
+
+Automated: `order-scheduled.spec.mjs`, "a lapsed scheduled pickup";
+the drop site's pay is `payment.spec.mjs`.
+
+- **Scenario:** The drop site is a series like the others.
+- **Setup:** 1 egg, its next Saturday.
+- **Test:**
+  1. Choose Scheduled pickup and the drop site's day; pay.
+- **Assert:** The when line "<day>, 10 – 11 AM, at the drop site."
+  (never "Scituate drop site"). No reminder is sent for a scheduled
+  pickup, and the order closes the day after its date.
+- **Teardown:** As PY-01.
+
+### SP-04 The schedule: pickup, attend, skip, and a missing line
+
+Automated: `bin/check-schedule.mjs` (`npm run check:schedule`, run in
+the Netlify build); the refusal itself is manual.
+
+- **Scenario:** Every in-season date of every live series from
+  tomorrow through the coverage window needs a line.
+- **Setup:** A schedule file with a `pickup`, an `attend` and a `skip`
+  line for three dates of a market, and a copy that drops the line of
+  one date inside the window.
+- **Test:**
+  1. `bin/nff schedule check <file>` on each.
+  2. `bin/nff schedule set <file> --staging`, deploy staging, and read
+     `/api/dates` and the order page.
+- **Assert:** The first passes. The copy fails, naming the series and
+  the date, and `schedule set` is refused; on a deploy the build
+  stops and the last good deploy stays live. After the first is
+  deployed, `pickup` is on the list, `attend` is not (the map shows
+  the farm going but the order page does not offer it), `skip` is on
+  neither; a window narrower than the series' hours shows the narrower
+  hours; a window outside them, an unknown or archived code, a date
+  the series lacks and two lines for one occurrence each fail the
+  check.
+- **Teardown:** Set the staging schedule back.
+
+### SP-05 Moving an order on the account page
+
+Automated: `scheduled-pickup.spec.mjs`, "the account page shows the
+order, and moves it to the drop site" (live), and `account.spec.mjs`,
+"a scheduled pickup on the account page" (canned). Tagged
+`@regression` (live).
+
+- **Scenario:** A customer moves a market order to the drop site and
+  finds the emails.
+- **Setup:** The order of SP-01, the customer signed in by the emailed
+  link.
+- **Test:**
+  1. Open Orders; read the card; press Change.
+  2. Choose the drop site's day; Save changes.
+  3. Read `orders show <id>` and the outbox.
+- **Assert:** The card reads "Scheduled pickup, <day>, <hours>, at
+  <market>"; Change lists every open occurrence and starts on the
+  order's own. After saving it reads "at the drop site", with no
+  mention of the market. `fulfilment.occurrence` is the drop site's,
+  `date` follows, history has `fulfilment.moved` `{ from, to }`.
+  Outbox: "Your order is updated" to the customer naming the drop site
+  only; the farm's "Pickup moved: <id>". An occurrence gone from the
+  data reads "Pickup, <id>", the card says to call, text, or email us,
+  and there is no Change button.
+- **Teardown:** As PY-01.
+
+### SP-06 The migration: dry run, then the real run
+
+Manual (`bin/nff migrate scheduled-pickup`, once, staging first).
+
+- **Scenario:** Orders stored before the model (method `scituate`, or
+  `market` with a `site`) become `scheduled` with an occurrence.
+- **Setup:** Staging holds at least one order of each old shape
+  (place them before the deploy that drops the old spelling, or by
+  hand with `orders show` to check).
+- **Test:**
+  1. `bin/nff --staging migrate scheduled-pickup --dry-run`.
+  2. The same without `--dry-run`; then again.
+  3. `orders show <id>` for one of each shape.
+- **Assert:** The dry run lists every change and writes nothing. The
+  real run backs up the orders first, migrates them and prints
+  "N order(s) migrated."; an order it cannot map is listed and stops
+  the run before anything is changed. The second run changes
+  nothing. Every order reads `method` `scheduled` with an
+  `occurrence`; no Square call was made and no money moved. Before
+  the real run, old orders still read the same in the account, the
+  packing slips and the emails.
+- **Teardown:** None; the backup stays.
+
+### SP-07 The farm changes an order's pickup
+
+Manual: `bin/nff orders change`.
+
+- **Scenario:** The farm moves an order to an occurrence a customer
+  could not choose, quietly.
+- **Setup:** A paid market order (SP-01); an occurrence of an
+  archived-free series that customers are not offered (an `attend`
+  date).
+- **Test:**
+  1. `orders change <id> --method scheduled --occurrence <id>
+     --no-email --dry-run`.
+  2. The same without `--dry-run`, with `--no-email`.
+  3. Again with `--no-square`.
+  4. A change that would add a fee (to delivery) without, then with,
+     `--force`.
+- **Assert:** The dry run lists every side effect (emails, Square
+  calls, stock, money, history) and applies nothing. Step 2 overrides
+  the customer's rules with a warning each, sends the customer
+  nothing (`emails[key].suppressed` is set; the history has
+  `mail.suppressed.<key>`) and leaves the farm unemailed; Square's
+  pickup note and time follow. Step 3 says aloud that Square was
+  skipped and records it. Step 4 is refused without `--force`; with
+  it the record changes, no money moves and the CLI reports what
+  Square kept. `--window` with `--occurrence` is refused. An
+  occurrence that does not exist is refused.
+- **Teardown:** As PY-01.
+
+### SP-08 Packing slips, the 6 PM report and the Square order
+
+Manual.
+
+- **Scenario:** Every output the farm reads names the occurrence, in
+  the farm's words.
+- **Setup:** Paid orders at the drop site and at a market on the same
+  day; one more on-farm and one delivery.
+- **Test:**
+  1. Run the 6:00 packing slips (`bin/nff --staging jobs run`, or the
+     toolbar's "As 6:00") and read the PDF.
+  2. The 6 PM "Tomorrow" report the day before.
+  3. Open each order in the Square sandbox dashboard.
+- **Assert:** Slips: Type is the series' name ("Drop site",
+  "Foster Farmers Market"), never "Scheduled pickup"; Place is the
+  address; the Window is the occurrence's; orders of one occurrence
+  sit together. The report: after Deliveries, one heading per
+  occurrence, "<series name>, <day>, <place>, <hours> (n)", earliest
+  hours first, then On-farm pickups. Square: the pickup note reads
+  "Pickup at <name>, <address> · ..." and the pickup time is the
+  occurrence's opening hour on its date. After SP-05 the Square
+  order has moved with it.
+- **Teardown:** As PY-01.
+
+### SP-09 The old `?method=scituate` link
+
+Automated: `order-scheduled.spec.mjs`, "the old ?method=scituate
+chooses the drop site's next date".
+
+- **Scenario:** A link or bookmark from before #309.
+- **Setup:** None.
+- **Test:**
+  1. Open `/order/?method=scituate`.
+  2. By hand: post an order with `method: "scituate"` and a drop site
+     date to a staging deploy.
+- **Assert:** Scheduled pickup is checked with the drop site's next
+  occurrence chosen, and the draft stores `scheduled`. The posted
+  order is stored `scheduled` with the occurrence of that date.
+  `?method=scheduled`, `&series=<code>` and an unknown series (nothing
+  chosen) behave as `order-scheduled.spec.mjs` reads.
+- **Teardown:** As PY-01 for the posted order.
+
+### SP-10 The integrity check refuses a lost code
+
+Automated: `bin/check-events.mjs` (`npm run check:events`, in the
+Netlify build); the refusal is manual.
+
+- **Scenario:** A code once issued is never lost, so an order's
+  occurrence always resolves.
+- **Setup:** A branch that deletes a series from `data/series.json`
+  (not `"archived": true`) and one that adds a series with a code not
+  in `data/registry.json`.
+- **Test:**
+  1. `npm run check:events` on each; push each to a deploy preview.
+- **Assert:** Both fail, naming the code ("a registered code that no
+  longer resolves", "missing from the registry"); the preview build
+  stops. Archiving the series instead passes: it is never offered and
+  still resolves for the orders it holds.
+- **Teardown:** Delete the branches.
+
+## Staging
+
+### ST-01 The toolbar is for gate sessions only
+
+Automated: `staging-toolbar.spec.mjs`, "the suite's machine gets no
+toolbar, and the API refuses".
+
+- **Scenario:** The toolbar opens for any gate session (#294); the
+  suite's machine cookie passes the gate but is no session.
+- **Setup:** Toolbar not hidden; the machine cookie only.
+- **Test:**
+  1. Open `/`; `GET /api/staging/info` and `/api/staging/outbox`.
+- **Assert:** `#staging` stays hidden; both 401.
+- **Teardown:** None.
+
+### ST-02 Reset to first visit
+
+Automated: `staging-toolbar.spec.mjs`, "Reset to first visit leaves a
+fresh browser". Runs only with a gate session's `nff_gate` cookie
+value in `E2E_GATE_SESSION`; otherwise it skips. So do ST-05 and
+ST-06.
+
+- **Scenario:** The toolbar's reset leaves the browser as a stranger's.
+- **Setup:** A gate session; seeded storage and cookies.
+- **Test:**
+  1. Open the panel; press Reset to first visit.
+- **Assert:** No site storage or cookie survives; the news forms are
+  back.
+- **Teardown:** None.
+
+### ST-03 Production carries no staging code
+
+Manual: James only; the suite never touches production.
+
+- **Scenario:** `docs/staging.md`: nothing staging-only in production.
+- **Setup:** The production site.
+- **Test:**
+  1. View source of `/order/`; `GET /api/staging/info`.
+- **Assert:** No `#staging` element or staging script; 404.
+- **Teardown:** None.
+
+### ST-04 A deploy preview carries no staging code
+
+Automated: `staging-toolbar.spec.mjs`, "a deploy preview carries no
+toolbar", run with `E2E_BASE_URL` set to a deploy preview (#255).
+
+- **Scenario:** The toolbar is for the staging branch deploy alone, and
+  the staging API answers only where `STAGING_TOKEN` is set.
+- **Setup:** A pull request's deploy preview.
+- **Test:**
+  1. Open `/`; `GET /api/staging/info` without a token.
+- **Assert:** No `#staging` element or staging script; 404 once the
+  preview context holds no `STAGING_TOKEN` (#251).
+- **Teardown:** None.
+
+### ST-05 The card overlay shows once per gate session
+
+Automated: `staging-toolbar.spec.mjs`, "the card overlay shows once
+per gate session".
+
+- **Scenario:** The order page's first visit in a gate session shows
+  Square's sandbox card as a modal (#294 §4).
+- **Setup:** A gate session; a fresh browser.
+- **Test:**
+  1. Open `/order/`; Tab eight times; copy the card number.
+  2. Escape; reload.
+  3. Open the panel; press Reset to first visit.
+- **Assert:** A modal dialog with James's lines and the card; focus
+  never reaches the page; the clipboard holds `4111111111111111`
+  beside "Copied"; Escape closes it and focus is on the page; after
+  the reload it stays closed and the panel lists the card; after the
+  reset it shows again.
+- **Teardown:** None.
+
+### ST-06 The clock is this browser's alone
+
+Automated: `staging-toolbar.spec.mjs`, "the clock moves the site's
+time for this browser alone".
+
+- **Scenario:** The toolbar's clock moves the server's time for one
+  browser and says so (#294 §3).
+- **Setup:** A gate session.
+- **Test:**
+  1. Set the clock to January 7, 2027, 6:00 AM.
+  2. `GET /api/dates` from this browser and from a second one on the
+     same gate session.
+  3. Reset to now.
+- **Assert:** The banner and the tab show the time set; this
+  browser's `now` is 2027-01-07 11:00 UTC; the other's is the real
+  time; after the reset the banner is gone.
+- **Teardown:** The clock reset (the test does it).
+
+## Regression list
+
+Run before every staging push that matters:
+`npm run e2e -- --grep @regression`, then PY-14 by hand once Venmo is
+wired.
+
+1. PY-01 A card pays for an on-farm pickup
+2. PY-02 A delivery paid by card is confirmed at once
+3. PY-03 A decline, then a good card for the new total
+4. PR-01 Bulk tiers and the delivery fee
+5. PR-06 Under the minimum, delivery is blocked
+6. FM-02 An empty delivery order names every field
+7. FM-04 Errors clear as fields are fixed
+8. OP-13 Proceed to checkout can always be reached
+9. AO-01 A sign-in link, used once
+10. FN-01 Sign up, opted in at once
+11. AO-15 Fewer items in a paid order: the difference goes back
+12. SP-01 A scheduled order at a market
+13. SP-05 Moving an order on the account page

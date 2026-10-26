@@ -1,12 +1,10 @@
 ---
-description: "The North Foster Farm website privacy policy."
-menu:
-  footer:
-    weight: 3
+description: "A detailed policy that describes what the North Foster Farm site collects when you order or sign in, who sees it, and how to see, change, or delete your data."
 slug: "privacy"
 title: "Privacy policy"
 type: "policy"
 layout: "policy/single.html"
+outputs: ["html", "markdown"]
 ---
 
 This policy applies to all information collected or submitted on the North
@@ -18,19 +16,135 @@ We collect personal information you provide to us.
 
 The order form at [/order](/order) collects your name, email address, phone
 number and your order, plus a delivery address if you choose delivery. We
-send that to Square, which creates your invoice and processes the payment.
-We never see your card details.
+send that to Square, which records your order and takes card and wallet
+payments. Venmo payments go through PayPal. We never see your card number.
 
 While you fill out the form, a draft is kept in your browser until you
-submit or discard it. It never leaves your device.
+place your order. When you're signed in, your account keeps a copy too, so
+the same cart is waiting on your other devices.
 
-If you contact us using one of the email or phone links on the site, we
+If you write to us through the contact page or your account, we keep your
+message with your name and email address and email it to the farm, so we can
+reply. If you use one of the email or phone links on the site instead, we
 receive whatever you choose to send us.
+
+### Accounts and sign-in links
+
+You don't need an account to order. To sign in, you enter your email address
+and we email you a link. There is no password. The link works once, within
+{{< fact "accounts" "signInLinkMinutes" >}} minutes. A link we send about a
+particular order, such as one asking you to pick a new pickup time, works
+for {{< fact "accounts" "orderLinkDays" >}} days.
+
+Signing in keeps you signed in on that browser for
+{{< fact "accounts" "sessionDays" >}} days, or until you sign out. Your
+account holds your name, phone number, delivery address and drop-off notes,
+the picture you chose, your email settings, whether videos autoplay, your
+orders, the order you're filling out and the messages you have sent us from
+it.
+
+### Farm News
+
+We send Farm News only to people who ask for it. You can sign up on the site,
+tick "I want to get email from North Foster Farm" when you place an order, or
+turn Farm News on in your account. The box starts unticked. Ticking it, or
+turning Farm News on, adds you to the list at once, and we send you a welcome
+email. Signing up on the site sends you an email with a link instead, and you
+join only if you follow it within
+{{< fact "accounts" "newsInviteDays" >}} days, so nobody can sign up an
+address that isn't theirs. If you signed up on one of our paper sheets at a
+market, we added you from the sheet, and your welcome email says so. We add
+an address only when its owner asks, and we record when and how you signed
+up.
+
+Resend keeps the list and sends the emails. Every Farm News email has an
+unsubscribe link that takes you off the list in one click. You can also turn
+Farm News off in your account. We never track whether you open our emails.
+
+Emails about your order are separate from Farm News. We send a receipt when
+you pay, and a reminder the evening before a delivery. You can turn the
+reminder off in your account or from the link in the reminder itself.
+
+### What we store and where
+
+Orders, customer records and your messages to us are stored in Netlify
+Blobs, storage run by Netlify, which hosts the site.
+
+An order holds your name, email address, phone number, what you ordered, how
+and when you'll get it, any delivery address and notes, and what you paid and
+any refund. For a card, Square tells us the card's brand and its last four
+digits. For Venmo, PayPal tells us the name and email address on the Venmo
+account. We keep no other payment details.
+
+Square keeps its own copy of your order, your payment, and your name, email
+address, phone number and delivery details. It does so from the moment you
+press Pay. If the payment doesn't go through, we delete that profile shortly
+afterwards, unless you already had one with us, and the order is marked
+canceled.
+
+If you start paying with Venmo and don't finish, we delete your order details
+within a day, and PayPal lets the unfinished payment expire.
+
+Your account stays until you close it. To delete your details, choose Delete
+my account in your account settings and confirm with your email address. If
+you delete your details, your past orders stay in our records with no name on
+them, for our own reporting. Seven years after
+an order, we remove your name, email address, phone number and street address
+from it. The order keeps what was bought, the prices, the date, how it reached
+you, and the town and ZIP code. Deleting your details also deletes the
+customer profile we made for you
+at Square, which keeps the payments themselves. We delete the messages you send
+us seven years after you send them, or when you delete your details. Deleted
+details can remain in our encrypted backups for up to 30 days.
 
 ### Technical basics
 
-Our server software may store basic technical information, such as your IP
-address, in temporary memory or logs.
+The site uses your IP address to limit how often a form can be sent. It is
+kept only in the server's memory and is never written to our records or
+logs.
+
+The site's server code keeps a log of what it does, stored by Axiom. Netlify,
+which runs that code, also keeps them. Log lines name orders by number, not by
+customer. When something goes wrong with an order, the line may hold what you
+ordered, without your contact details, so we can put it right. The order page
+reports its own errors to that log: what went wrong, on which page, and your
+browser and its version, but never your name, your contact details or your
+order. Axiom deletes log lines after 30 days.
+
+### What your browser keeps
+
+The site sets two cookies, and only when you sign in. One holds a random code
+that tells the site you're signed in, and scripts on the page can't read it.
+The other holds only the time you signed in. Scripts on the page read it to
+notice when you sign in or out. Both last
+{{< fact "accounts" "sessionDays" >}} days, and signing out deletes both.
+
+Your browser also keeps:
+
+- the order draft, with your details and your cart. Signing out removes your
+  details from it and keeps the cart.
+- an order that couldn't be sent yet, so the form can try again, until it
+  goes through or you change it.
+- a note that you've seen the delivery policy on the order form.
+- whether you turned off videos playing on their own.
+- whether the order page shows only what's in stock or the full catalog.
+- a note that you signed up for Farm News, so the sign-up forms stay out of
+  your way. It holds no email address.
+- for up to {{< fact "accounts" "sessionCacheMinutes" >}} minutes at a time,
+  whether you're signed in and your account
+  details, so each page doesn't have to ask the site again. This is gone when
+  you close the tab.
+- two random codes that PayPal's script stores, with the time it first
+  stored them, when the payment buttons appear on the order page. They hold
+  nothing about you.
+
+Other companies set a few things of their own. When the payment section of
+the order page appears, Square sets a cookie that identifies your device.
+[Cloudflare](https://www.cloudflare.com/privacypolicy/), which guards
+Square's service, sets one that lasts 30 minutes, and Google sets one for the
+Google Pay button. A news post with a YouTube video lets YouTube keep two
+entries in your browser, but no cookie. Each company's own policy, linked on
+this page, covers what it sets. Your browser may block some of these.
 
 ### Hosting and service providers
 
@@ -38,8 +152,17 @@ We use the following hosting and service providers, which also have access to
 basic technical information passing through their services, and data stored
 using their resources:
 
-- [Netlify](https://www.netlify.com/) ([Privacy policy](https://www.netlify.com/privacy/))
-- [Square](https://squareup.com/) ([Privacy policy](https://squareup.com/us/en/legal/general/privacy))
+- [Netlify](https://www.netlify.com/), which hosts the site ([Privacy policy](https://www.netlify.com/privacy/))
+- [Square](https://squareup.com/), which records orders and takes card, Apple Pay, Google Pay and Cash App Pay payments ([Privacy policy](https://squareup.com/us/en/legal/general/privacy))
+- [PayPal](https://www.paypal.com/), which takes Venmo payments ([Privacy statement](https://www.paypal.com/us/legalhub/paypal/privacy-full)), and [Venmo](https://venmo.com/) ([Privacy notice](https://venmo.com/legal/us-privacy-policy/))
+- [Resend](https://resend.com/), which delivers our email ([Privacy policy](https://resend.com/legal/privacy-policy))
+- [Axiom](https://axiom.co/), which stores the site's logs ([Privacy policy](https://axiom.co/docs/legal/privacy))
+
+If you pay with a wallet or watch a video on the site, that company's
+own policy covers what it collects: [Apple](https://www.apple.com/legal/privacy/)
+for Apple Pay, [Google](https://policies.google.com/privacy) for Google
+Pay and YouTube, and [Cash App](https://cash.app/legal/us/en-us/privacy)
+for Cash App Pay.
 
 ### Ads and analytics
 
@@ -47,16 +170,18 @@ We don't collect any data for advertising or analytics.
 
 ## Information usage
 
-We use the information we collect to communicate with you, provide our
-services, and deliver promotional communications about our products and
-services. We do not share personal information with outside parties except to
-the extent necessary to provide our services.
+We use the information we collect to fill your orders, to communicate with
+you, and to send Farm News if you asked for it. We do not share personal
+information with outside parties except to the extent necessary to provide our
+services.
 
-We may disclose your information in response to subpoenas, court orders, or
-other legal requirements; to exercise our legal rights or defend against legal
-claims; to investigate, prevent, or take action regarding illegal activities,
-suspected fraud or abuse, violations of our policies; or to protect our rights
-and property.
+We may disclose your information:
+
+- in response to subpoenas, court orders, or other legal requirements
+- to exercise our legal rights or defend against legal claims
+- to investigate, prevent, or take action regarding illegal activities,
+  suspected fraud or abuse, or violations of our policies
+- to protect our rights and property
 
 In the future, we may sell to, buy, merge with, or partner with other
 businesses. In such transactions, user information may be among the transferred
@@ -64,8 +189,12 @@ assets.
 
 ## Accessing, changing, or deleting information
 
-You may email info@northfosterfarm.com to request access to, changes to, or
-deletion of your information.
+When you're signed in, your account page lets you see your orders, change
+your name, phone number, address and email settings, and delete your details.
+
+You may email {{% company "email-info" %}} to request access to,
+changes to, or deletion of your information. Square and PayPal keep
+their own records of your payments under their own policies.
 
 We may delete your information at any time and for any reason, such as
 technical needs, legal concerns, or data loss.
@@ -77,4 +206,6 @@ By using our website, you consent to our privacy policy.
 ## Contacting us
 
 If you have questions regarding this privacy policy, you may email
-info@northfosterfarm.com.
+{{% company "email-info" %}}.
+
+Last updated October 24, 2026.

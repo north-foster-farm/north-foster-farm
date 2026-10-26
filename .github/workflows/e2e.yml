@@ -1,0 +1,169 @@
+name: E2E
+
+# A push to next runs no e2e (James, #303, 2026-10-26: full runs cost
+# too much). Run the specs a change touches with the specs input on a
+# lane branch. The one full run left is the final one before launch,
+# on the frozen commit (#423), dispatched by hand with specs empty.
+#
+# What a dispatched full run checks (James, #283, 6302479835):
+#
+#   e2e                  the full suite, run twice with retries off; a
+#                        test must pass both times. Required on staging
+#                        and main, which take only commits next had.
+#   e2e-burn-in-advisory every spec added or changed since staging, ten
+#                        times over, retries off. It blocks nothing
+#                        here, so the agent sees a flaky new spec
+#                        first; the PR into staging runs the same as
+#                        e2e-burn-in (e2e-burn-in.yml), which is
+#                        required. The names differ so this run can
+#                        never satisfy that one.
+#
+# A newer push to next cancels the run on the older one: a promotion
+# takes the newest commit. A dispatched run is the same, for a branch.
+#
+# A dispatched run may name specs (-f specs="e2e/a.spec.mjs ..."). It
+# then runs only those, once, in one shard, and skips the burn-in. The
+# input is untrusted: it reaches a script only through env, and the
+# plan job lets through nothing but spec paths under e2e/. A path is
+# safer than --grep text, which has no short safe subset: its quoting
+# and regex syntax are the injection surface. Name the file instead.
+#
+# A named-specs run never reports as e2e or e2e-burn-in-advisory: its
+# gate jobs are called e2e-named and e2e-burn-in-named, so it cannot
+# put a passing required check on a commit. It is refused on next,
+# staging and main, where it would cancel the full run.
+
+on:
+  workflow_dispatch:
+    inputs:
+      specs:
+        description: >-
+          Only these specs, once, no burn-in: space-separated paths
+          under e2e/ (e2e/foo.spec.mjs). Empty runs the full suite.
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      specs: ${{ steps.check.outputs.specs }}
+    steps:
+      - name: Check the named specs
+        id: check
+        env:
+          SPECS: ${{ inputs.specs }}
+          REF: ${{ github.ref }}
+        run: |
+          # Named specs never run on a promoted branch: the run would
+          # cancel that branch's full run through the concurrency group.
+          case "$REF" in
+            refs/heads/next|refs/heads/staging|refs/heads/main)
+              if [ -n "$SPECS" ]; then
+                echo "::error title=specs::Named specs run on lane" \
+                  "branches only."
+                exit 1
+              fi ;;
+          esac
+          list=""
+          # No globbing in the unquoted split below.
+          set -f
+          # Unquoted on purpose: split on any whitespace. Each word
+          # must be a plain path under e2e/ ending in .spec.mjs.
+          # shellcheck disable=SC2086
+          for spec in $SPECS; do
+            case "$spec" in
+              *..*|*//*) bad=1 ;;
+              *) bad="" ;;
+            esac
+            if [ -n "$bad" ] || ! printf '%s' "$spec" |
+              grep -Eq '^e2e/[A-Za-z0-9._/-]+[.]spec[.]mjs$'
+            then
+              echo "::error title=specs::Not a spec path under e2e/."
+              exit 1
+            fi
+            list="$list $spec"
+          done
+          echo "specs=${list# }" >> "$GITHUB_OUTPUT"
+
+  full:
+    needs: plan
+    if: needs.plan.outputs.specs == ''
+    uses: ./.github/workflows/e2e-run.yml
+    with:
+      passes: 2
+
+  narrow:
+    needs: plan
+    if: needs.plan.outputs.specs != ''
+    uses: ./.github/workflows/e2e-run.yml
+    with:
+      passes: 1
+      shards: "[1]"
+      total: 1
+      args: ${{ needs.plan.outputs.specs }}
+
+  # The gate jobs are named from the plan: a check run attaches to the
+  # commit, so a named-specs run must never publish a passing check
+  # under a required name. If plan fails its output is empty and the
+  # job keeps the required name, and fails.
+  e2e:
+    name: ${{ needs.plan.outputs.specs == '' && 'e2e' || 'e2e-named' }}
+    needs: [plan, full, narrow]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Every shard passed both passes
+        env:
+          PLAN: ${{ needs.plan.result }}
+          NAMED: ${{ needs.plan.outputs.specs }}
+          FULL: ${{ needs.full.result }}
+          NARROW: ${{ needs.narrow.result }}
+        run: |
+          test "$PLAN" = success
+          if [ -z "$NAMED" ]; then
+            test "$FULL" = success
+          else
+            test "$NARROW" = success
+          fi
+
+  burn-in:
+    needs: plan
+    if: needs.plan.outputs.specs == ''
+    uses: ./.github/workflows/e2e-run.yml
+    with:
+      passes: 1
+      args: >-
+        --only-changed=origin/staging --repeat-each=10
+        --pass-with-no-tests
+      shards: "[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]"
+      total: 12
+      timeout: 240
+
+  e2e-burn-in-advisory:
+    name: >-
+      ${{ needs.plan.outputs.specs == '' && 'e2e-burn-in-advisory'
+      || 'e2e-burn-in-named' }}
+    needs: [plan, burn-in]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Every changed spec passed ten times
+        env:
+          PLAN: ${{ needs.plan.result }}
+          NAMED: ${{ needs.plan.outputs.specs }}
+          RESULT: ${{ needs.burn-in.result }}
+        run: |
+          test "$PLAN" = success
+          if [ -z "$NAMED" ]; then
+            test "$RESULT" = success
+          else
+            test "$RESULT" = skipped
+          fi

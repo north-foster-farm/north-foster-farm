@@ -1,0 +1,976 @@
+/* The staging toolbar: fixed in the corner, above everything, in its
+   own file so the site's bundle is untouched. Built only when the
+   partial renders, which is never in production. It follows the
+   system's light or dark setting; the emails it shows stay light, as
+   they declare. */
+
+.staging {
+  --stg-bg: #fff;
+  --stg-ink: #1d1c1b;
+  --stg-muted: #5e5e5f;
+  --stg-line: #d6d6d6;
+  --stg-hover: #f3f3f3;
+  --stg-field: #fff;
+  --stg-flag: #ffe02b;
+  --stg-flag-ink: #1d1c1b;
+  --stg-wait-bg: #fff3cd;
+  --stg-wait-ink: #664d03;
+  --stg-ok-bg: #d1e7dd;
+  --stg-ok-ink: #0f5132;
+  --stg-focus: #186243;
+  --stg-shadow: rgb(0 0 0 / 30%);
+  --stg-new-bg: #cfe2ff;
+  --stg-new-ink: #084298;
+  --stg-token: #e2e8f0;
+  --stg-error: #b02a37;
+
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 2147483000;
+  font: 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: var(--stg-ink);
+}
+
+@media (prefers-color-scheme: dark) {
+  .staging {
+    --stg-bg: #1f2123;
+    --stg-ink: #e9e9e9;
+    --stg-muted: #a5a7a9;
+    --stg-line: #3a3d40;
+    --stg-hover: #2c2f32;
+    --stg-field: #16181a;
+    --stg-wait-bg: #3d3212;
+    --stg-wait-ink: #ffda6a;
+    --stg-ok-bg: #133524;
+    --stg-ok-ink: #75d3a4;
+    --stg-focus: #75d3a4;
+    --stg-shadow: rgb(0 0 0 / 60%);
+    --stg-new-bg: #112a4d;
+    --stg-new-ink: #9ec5fe;
+    --stg-token: #34404d;
+    --stg-error: #f1959f;
+  }
+}
+
+.staging button,
+.staging input {
+  font: inherit;
+  color: inherit;
+}
+
+.staging button {
+  cursor: pointer;
+}
+
+.staging :focus-visible {
+  outline: 2px solid var(--stg-focus);
+  outline-offset: 1px;
+}
+
+.staging-tab {
+  padding: 0.35rem 0.75rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--stg-flag);
+  color: var(--stg-flag-ink) !important;
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 25%);
+}
+
+/* #303: wider than the old single column, and no taller: it holds one
+   height and the right-hand pane scrolls inside it. */
+.staging-panel {
+  width: min(42rem, calc(100vw - 2rem));
+  height: min(34rem, calc(100dvh - 2rem));
+  display: flex;
+  flex-direction: column;
+  border-radius: 0.75rem;
+  background: var(--stg-bg);
+  box-shadow: 0 6px 24px var(--stg-shadow);
+  overflow: hidden;
+  /* Bootstrap gives the active nav item z-index 2. Without a stacking
+     context of its own, that item drew over the open libraries. */
+  isolation: isolate;
+  container: staging-panel / inline-size;
+}
+
+.staging-panel[hidden] {
+  display: none;
+}
+
+.staging-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--stg-flag);
+  color: var(--stg-flag-ink);
+  font-family: inherit;
+}
+
+.staging-head strong {
+  font-size: 14px;
+}
+
+/* The deployed commit, linked to it on GitHub. */
+.staging-sha {
+  flex: 1;
+  font: 12px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: #3d3d3e !important;
+}
+
+a.staging-sha {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+a.staging-sha:hover {
+  color: var(--stg-flag-ink) !important;
+}
+
+.staging-head button {
+  width: 1.75rem;
+  height: 1.75rem;
+  flex: none;
+  border: 0;
+  border-radius: 0.375rem;
+  background: rgb(0 0 0 / 8%);
+  color: var(--stg-flag-ink);
+}
+
+.staging-head button:hover {
+  background: rgb(0 0 0 / 15%);
+}
+
+/* The sidebar and the pane. The body is the flyout's frame, and the
+   pane is not positioned, so Bootstrap's scrollspy reads its sections'
+   offsets against the same parent as the pane's own. */
+.staging-body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.staging-nav {
+  flex: none;
+  min-width: 9.5rem; /* holds still when a badge comes or goes */
+  overflow: auto;
+  border-right: 1px solid var(--stg-line);
+  background: var(--stg-bg);
+}
+
+/* Bootstrap's flush list group, in the toolbar's colors. */
+.staging .list-group {
+  --bs-list-group-color: var(--stg-ink);
+  --bs-list-group-bg: transparent;
+  --bs-list-group-border-color: var(--stg-line);
+  --bs-list-group-item-padding-x: 0.875rem;
+  --bs-list-group-item-padding-y: 0.55rem;
+  --bs-list-group-action-color: var(--stg-ink);
+  --bs-list-group-action-hover-color: var(--stg-ink);
+  --bs-list-group-action-hover-bg: var(--stg-hover);
+  --bs-list-group-action-active-color: var(--stg-ink);
+  --bs-list-group-action-active-bg: var(--stg-hover);
+  --bs-list-group-active-color: var(--stg-ink);
+  --bs-list-group-active-bg: var(--stg-hover);
+  --bs-list-group-active-border-color: var(--stg-line);
+}
+
+.staging .list-group-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.staging .list-group-item.active {
+  font-weight: 700;
+  box-shadow: inset 3px 0 0 var(--stg-focus);
+}
+
+.staging .list-group-item[hidden] {
+  display: none;
+}
+
+.staging-dot {
+  margin-left: auto;
+  padding: 0.15em 0.5em;
+  border-radius: 999px;
+  background: #f08c00;
+  color: #1d1c1b;
+  font-size: 11px;
+}
+
+.staging-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.staging-pane {
+  flex: 1;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 0.75rem 1rem 1rem;
+}
+
+.staging-pane:focus-visible {
+  outline-offset: -2px;
+}
+
+.staging-pane > section:focus:not(:focus-visible) {
+  outline: none;
+}
+
+.staging-pane > section + section {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--stg-line);
+}
+
+/* Room for the last section to reach the top fifth, where scrollspy
+   marks it current. */
+.staging-pane > section:last-of-type {
+  min-height: 85%;
+}
+
+.staging-pane section[hidden],
+.staging-pane [data-staging-scope][hidden] {
+  display: none;
+}
+
+.staging h2 {
+  margin: 0 0 0.5rem;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--stg-ink);
+}
+
+.staging h3 {
+  margin: 0 0 0.35rem;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--stg-muted);
+}
+
+.staging-pane [data-staging-scope] + [data-staging-scope] {
+  margin-top: 1rem;
+}
+
+.staging-pane p {
+  margin: 0 0 0.5rem;
+}
+
+/* Where the list would wrap beside the pane, it becomes a flyout over
+   it, behind the header's menu button. */
+.staging-nav-toggle {
+  display: none;
+}
+
+@container staging-panel (width < 30rem) {
+  .staging-head .staging-nav-toggle {
+    display: block;
+  }
+
+  .staging-nav {
+    position: absolute;
+    inset: 0 auto 0 0;
+    z-index: 1;
+    min-width: 12rem;
+    box-shadow: 4px 0 16px var(--stg-shadow);
+    visibility: hidden;
+    transform: translateX(-100%);
+    /* Hidden only once it has slid away. */
+    transition: transform 0.2s ease, visibility 0s linear 0.2s;
+  }
+
+  /* Visible at once on opening, so its items take focus straight
+     away (nav.js). */
+  .staging-nav-open .staging-nav {
+    visibility: visible;
+    transform: none;
+    transition: transform 0.2s ease, visibility 0s;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .staging-nav {
+    transition: none !important;
+  }
+}
+
+.staging-muted {
+  color: var(--stg-muted);
+}
+
+.staging .staging-action {
+  padding: 0.3rem 0.6rem;
+  margin: 0 0.25rem 0.25rem 0;
+  border: 1px solid var(--stg-line);
+  border-radius: 0.375rem;
+  background: var(--stg-bg);
+}
+
+/* A busy button (#299) here sits in the line, as the others do. */
+.staging .staging-action.busy-button {
+  display: inline-grid;
+}
+
+.staging .staging-action:hover {
+  border-color: var(--stg-ink);
+}
+
+.staging-list {
+  margin: 0 0 0.5rem;
+  padding: 0;
+  list-style: none;
+}
+
+.staging-mail {
+  display: block;
+  width: 100%;
+  padding: 0.4rem 0.5rem;
+  border: 0;
+  border-radius: 0.375rem;
+  background: none;
+  text-align: left;
+}
+
+.staging-mail:hover {
+  background: var(--stg-hover);
+}
+
+.staging-mail-subject {
+  display: block;
+  font-weight: 600;
+}
+
+.staging-mail-meta {
+  display: block;
+  color: var(--stg-muted);
+  font-size: 12px;
+}
+
+.staging-out {
+  flex: none;
+  margin: 0 0.75rem 0.75rem;
+  padding: 0.5rem;
+  max-height: 7rem;
+  overflow: auto;
+  border-radius: 0.375rem;
+  background: var(--stg-hover);
+  font-size: 11px;
+  white-space: pre-wrap;
+}
+
+.staging label {
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.staging-check input {
+  margin-right: 0.35rem;
+  vertical-align: -2px;
+}
+
+/* The email library: a sidebar on the left, the open email beside it.
+   On a phone the sidebar fills the screen, and an open email covers
+   it with a back button. */
+
+html.staging-library-open {
+  overflow: hidden;
+}
+
+.staging-library {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  background: rgb(0 0 0 / 35%);
+}
+
+.staging-library[hidden],
+.staging-reader[hidden] {
+  display: none;
+}
+
+.staging-shelf {
+  width: 22rem;
+  max-width: 100%;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  background: var(--stg-bg);
+  border-right: 1px solid var(--stg-line);
+  box-shadow: 0 0 24px var(--stg-shadow);
+}
+
+.staging-shelf-head,
+.staging-reader-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--stg-line);
+  background: var(--stg-bg); /* over the site's own header rule */
+  font-family: inherit;
+}
+
+.staging-shelf-head span {
+  flex: 1;
+}
+
+.staging-icon {
+  width: 2rem;
+  height: 2rem;
+  flex: none;
+  border: 0;
+  border-radius: 0.375rem;
+  background: var(--stg-hover);
+  font-size: 1.1rem !important;
+  line-height: 1;
+}
+
+.staging-shelf-tools {
+  padding: 0.625rem 0.75rem;
+  border-bottom: 1px solid var(--stg-line);
+}
+
+.staging-search {
+  width: 100%;
+  padding: 0.45rem 0.6rem;
+  margin-bottom: 0.5rem;
+  border: 1px solid var(--stg-line);
+  border-radius: 0.375rem;
+  background: var(--stg-field);
+  font-size: 16px !important; /* no zoom on focus in iOS Safari */
+}
+
+.staging-filters,
+.staging-views {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.staging-filter {
+  padding: 0.25rem 0.6rem;
+  border: 1px solid var(--stg-line);
+  border-radius: 999px;
+  background: var(--stg-bg);
+}
+
+.staging-filter[aria-pressed="true"] {
+  border-color: var(--stg-ink);
+  background: var(--stg-ink);
+  color: var(--stg-bg) !important;
+}
+
+.staging-shelf-list {
+  flex: 1;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 0.5rem 0.5rem 1rem;
+}
+
+.staging-pad {
+  padding: 0.5rem;
+}
+
+.staging-shelf .staging-group h2 {
+  margin: 0.75rem 0.5rem 0.25rem;
+}
+
+.staging-group ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.staging-item {
+  display: block;
+  padding: 0.5rem;
+  border-radius: 0.375rem;
+  color: inherit !important;
+  text-decoration: none !important;
+}
+
+.staging-item:hover {
+  background: var(--stg-hover);
+}
+
+.staging-item[aria-current="true"] {
+  background: var(--stg-hover);
+  box-shadow: inset 3px 0 0 var(--stg-focus);
+}
+
+.staging-item-name {
+  display: block;
+  font-weight: 600;
+}
+
+.staging-item-subject {
+  display: block;
+  color: var(--stg-muted);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.staging-item-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: 0.3rem;
+}
+
+.staging-badge,
+.staging-tag {
+  padding: 0 0.4rem;
+  border-radius: 999px;
+  font-size: 11px;
+  line-height: 1.6;
+  white-space: nowrap;
+}
+
+.staging-badge {
+  font-weight: 700;
+  background: var(--stg-wait-bg);
+  color: var(--stg-wait-ink);
+}
+
+.staging-badge[data-approval="approved"] {
+  background: var(--stg-ok-bg);
+  color: var(--stg-ok-ink);
+}
+
+.staging-badge[data-approval="rewritten"] {
+  background: var(--stg-new-bg);
+  color: var(--stg-new-ink);
+}
+
+.staging-tag {
+  border: 1px solid var(--stg-line);
+  background: none;
+  color: var(--stg-muted) !important;
+}
+
+.staging-tag:hover {
+  border-color: var(--stg-muted);
+}
+
+.staging-reader {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--stg-bg);
+}
+
+/* A script focuses the panel and the open item (#357); only a keyboard
+   shows the ring. */
+.staging-library:focus:not(:focus-visible),
+.staging-reader:focus:not(:focus-visible) {
+  outline: none;
+}
+
+.staging .staging-reader-head .staging-action {
+  margin: 0;
+}
+
+.staging-back {
+  display: none;
+}
+
+.staging-reader-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.staging-reader-title > * {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.staging-reader-meta,
+.staging-reader-note {
+  margin: 0;
+  padding: 0.5rem 0.75rem 0;
+}
+
+.staging-reader-meta label:not([hidden]) {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-right: 0.75rem;
+}
+
+.staging-reader-meta .staging-badge {
+  margin-right: 0.375rem;
+}
+
+.staging-reader-note {
+  white-space: pre-wrap;
+}
+
+.staging-frame,
+.staging-text {
+  flex: 1;
+  min-height: 0;
+  margin: 0.5rem 0 0;
+  border: 0;
+  border-top: 1px solid var(--stg-line);
+}
+
+.staging-frame {
+  width: 100%;
+  background: #fff;
+}
+
+.staging-frame[hidden],
+.staging-text[hidden] {
+  display: none;
+}
+
+.staging-text {
+  overflow: auto;
+  padding: 1rem;
+  background: var(--stg-field);
+  font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* James's review of the open email, and the rewrite editor. */
+
+.staging-review {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 0.75rem 0;
+}
+
+.staging-review[hidden],
+.staging-review [hidden],
+.staging-editor[hidden],
+.staging-editor [hidden] {
+  display: none;
+}
+
+.staging .staging-review .staging-action {
+  margin: 0;
+}
+
+.staging-review-status {
+  color: var(--stg-muted);
+}
+
+.staging .staging-primary {
+  border-color: var(--stg-ink);
+  background: var(--stg-ink);
+  color: var(--stg-bg) !important;
+}
+
+.staging .staging-primary:hover {
+  opacity: 0.85;
+}
+
+.staging-error {
+  color: var(--stg-error);
+}
+
+.staging-token {
+  padding: 0 0.15rem;
+  border-radius: 0.25rem;
+  background: var(--stg-token);
+}
+
+.staging-editor {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  margin: 0.5rem 0 0;
+  padding: 0.75rem;
+  overflow: auto;
+  border-top: 1px solid var(--stg-line);
+}
+
+.staging-editor > * {
+  flex: none; /* the editor scrolls; its fields keep their height */
+}
+
+.staging-editor p {
+  margin: 0;
+}
+
+.staging-edit-label {
+  margin-top: 0.25rem;
+  font-weight: 600;
+}
+
+.staging-date {
+  padding: 0.2rem 0.4rem;
+  border: 1px solid var(--stg-line);
+  border-radius: 0.375rem;
+  background: var(--stg-field);
+}
+
+.staging-link[aria-disabled] {
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+.staging-edit {
+  min-height: 14rem;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--stg-line);
+  border-radius: 0.375rem;
+  background: var(--stg-field);
+  font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.staging-edit-subject {
+  min-height: 0;
+}
+
+.staging-edit-actions {
+  display: flex;
+  gap: 0.375rem;
+}
+
+@media (max-width: 47.99rem) {
+  .staging-shelf {
+    width: 100%;
+  }
+
+  .staging-reading .staging-shelf {
+    display: none;
+  }
+
+  .staging-back {
+    display: block;
+  }
+
+  .staging-reader-head {
+    flex-wrap: wrap;
+  }
+
+  .staging-reader-title {
+    flex-basis: calc(100% - 3rem);
+  }
+
+  .staging-edit {
+    font-size: 16px !important; /* no zoom on focus in iOS Safari */
+  }
+}
+
+/* The signature library reuses the email library's shelf and reader;
+   only its list needs a reset. */
+
+.staging-sigs-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.staging .staging-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* The clock (#294): plain when off; when set, the tab and the
+   sidebar's badge say so in orange, so nobody forgets it is on. */
+.staging-is-clocked .staging-tab {
+  background: #f08c00;
+  color: #1d1c1b !important;
+}
+
+.staging-tab-clock {
+  font-weight: 600;
+}
+
+.staging-clock {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+  margin: 0 0 0.35rem;
+}
+
+.staging .staging-clock input {
+  padding: 0.25rem 0.4rem;
+  border: 1px solid var(--stg-line);
+  border-radius: 0.375rem;
+  background: var(--stg-field);
+  color-scheme: light dark;
+}
+
+/* The sandbox card's details (partials/staging/sandbox-card.html),
+   one component in the toolbar and in the order page's overlay
+   (#303): an inset grid with every value in one column and every
+   copy button in the next, level with its value. Where the card is
+   too narrow for the label beside them, each label sits above its
+   row and the values and buttons keep their columns. The box is the
+   container the card measures, in its own font's em. */
+.staging-card-box {
+  container: staging-card / inline-size;
+}
+
+.staging-card {
+  display: grid;
+  grid-template-columns: max-content max-content auto minmax(0, 1fr);
+  gap: 0.25rem 0.75rem;
+  align-items: center;
+  margin: 0.25rem 0 0.75rem 0.75rem;
+  padding-left: 0.75rem;
+  border-left: 2px solid var(--stg-line, #d6d6d6);
+}
+
+.staging-card-row {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: center;
+}
+
+.staging-card dt {
+  font-weight: 600;
+}
+
+.staging-card dd {
+  display: contents;
+}
+
+@container staging-card (width < 26em) {
+  .staging-card {
+    grid-template-columns: max-content auto minmax(0, 1fr);
+    row-gap: 0.125rem;
+  }
+
+  .staging-card dt {
+    grid-column: 1 / -1;
+  }
+
+  .staging-card-row + .staging-card-row dt {
+    margin-top: 0.375rem;
+  }
+}
+
+.staging-card-value {
+  font: 0.95em/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas,
+    monospace;
+  color: inherit;
+}
+
+.staging-copy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2rem;
+  min-height: 2rem;
+  padding: 0.3rem;
+  border: 1px solid currentcolor;
+  border-radius: 0.375rem;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.85em;
+  cursor: pointer;
+}
+
+.staging-copy svg {
+  display: block;
+  width: 1.1em;
+  height: 1.1em;
+}
+
+.staging-copy:hover {
+  background: rgb(127 127 127 / 15%);
+}
+
+.staging-copy:focus-visible {
+  outline: 2px solid #186243;
+  outline-offset: 2px;
+}
+
+.staging-copied {
+  font-size: 0.85em;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--stg-focus, #186243);
+}
+
+/* The toolbar's buttons are smaller, to its 13px type. */
+.staging .staging-copy {
+  min-width: 1.75rem;
+  min-height: 1.75rem;
+  padding: 0.2rem;
+}
+
+/* The order page's first-visit overlay: a modal that takes the whole
+   screen. The page behind is inert (showModal) and does not scroll. */
+.staging-modal-open,
+.staging-modal-open body {
+  overflow: hidden;
+}
+
+.staging-card-dialog {
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  max-height: none;
+  margin: 0;
+  padding: 16px;
+  border: 0;
+  background: rgb(15 18 23 / 72%);
+  color: #161a1e;
+}
+
+.staging-card-dialog[open] {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.staging-card-dialog::backdrop {
+  background: transparent;
+}
+
+.staging-card-sheet {
+  width: 100%;
+  max-width: 34rem;
+  max-height: 100%;
+  overflow: auto;
+  padding: 1.5rem;
+  border-top: 4px solid #186243;
+  border-radius: 0.5rem;
+  background: #fff;
+  box-shadow: 0 20px 48px rgb(0 0 0 / 35%);
+}
+
+.staging-card-sheet > p {
+  margin: 0 0 1rem;
+}
+
+.staging-card-sheet .staging-copy {
+  min-width: 2.25rem;
+  min-height: 2.25rem;
+  color: #186243;
+}
+
+@media (max-width: 575.98px) {
+  .staging-card-sheet {
+    padding: 1.25rem 1rem;
+  }
+}

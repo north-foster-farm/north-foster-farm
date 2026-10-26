@@ -1,0 +1,7 @@
+{
+  "signInLinkMinutes": 15,
+  "orderLinkDays": 7,
+  "sessionDays": 30,
+  "sessionCacheMinutes": 5,
+  "newsInviteDays": 7
+}

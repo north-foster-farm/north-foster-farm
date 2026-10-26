@@ -1,0 +1,26 @@
+{{- /*
+  The prices and rules in force on the day of the build, in the farm's
+  zone: data/delivery.json's `money` with every change in
+  `money.changes` whose `from` has come applied, as
+  assets/scripts/order/lib/money-on.mjs does at run time. A page built
+  before a change shows the old figures until the next build; the order
+  page and the functions follow the date by themselves, and the jobs
+  start a build on the day (lib/jobs.mjs, rebuildDaily). The day is
+  the farm's, in `timeZone`.
+*/ -}}
+{{- $terms := hugo.Data.delivery -}}
+{{- $zone := (time.AsTime "2000-01-01T00:00:00" $terms.timeZone).Location -}}
+{{- $day := (now.In $zone).Format "2006-01-02" -}}
+{{- $money := dict -}}
+{{- range $k, $v := $terms.money }}{{ if ne $k "changes" }}{{ $money = merge $money (dict $k $v) }}{{ end }}{{ end -}}
+{{- range sort ($terms.money.changes | default slice) "from" -}}
+  {{- if le .from $day -}}
+    {{- $change := . -}}
+    {{- range $k, $v := $change }}{{ if not (in (slice "from" "dropTiers") $k) }}{{ $money = merge $money (dict $k $v) }}{{ end }}{{ end -}}
+    {{- $drop := $change.dropTiers | default slice -}}
+    {{- $tiers := slice -}}
+    {{- range $money.bulkTiers }}{{ if not (in $drop .threshold) }}{{ $tiers = $tiers | append . }}{{ end }}{{ end -}}
+    {{- $money = merge $money (dict "bulkTiers" $tiers) -}}
+  {{- end -}}
+{{- end -}}
+{{- return $money -}}

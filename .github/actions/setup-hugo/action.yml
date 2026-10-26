@@ -1,0 +1,35 @@
+name: Set up Hugo and Dart Sass
+description: >
+  Hugo extended and Dart Sass at the versions netlify.toml and bin/prod
+  use, from their release tarballs, each checked against a pinned
+  SHA-256 before it is unpacked. Puts both on PATH.
+
+runs:
+  using: composite
+  steps:
+    - name: Install Hugo and Dart Sass
+      shell: bash
+      env:
+        HUGO_VERSION: 0.164.0
+        HUGO_SHA256: >-
+          fea17b8c076f950bb2e9f9486667bdaa29422883888d509d63931c73e8a9b3a4
+        SASS_VERSION: 1.79.5
+        SASS_SHA256: >-
+          a2a776abc777f2b8594b7410c2d057d7aa7a9090b55ed20382eea72cde6a10ce
+      run: |
+        set -euo pipefail
+        tools="$RUNNER_TEMP/tools"
+        mkdir -p "$tools"
+        cd "$RUNNER_TEMP"
+        base=https://github.com/gohugoio/hugo/releases/download
+        hugo="hugo_extended_${HUGO_VERSION}_linux-amd64.tar.gz"
+        curl -fsSL -o hugo.tgz "$base/v$HUGO_VERSION/$hugo"
+        echo "$HUGO_SHA256  hugo.tgz" | sha256sum -c -
+        tar -xzf hugo.tgz -C "$tools" hugo
+        base=https://github.com/sass/dart-sass/releases/download
+        sass="dart-sass-${SASS_VERSION}-linux-x64.tar.gz"
+        curl -fsSL -o sass.tgz "$base/$SASS_VERSION/$sass"
+        echo "$SASS_SHA256  sass.tgz" | sha256sum -c -
+        tar -xzf sass.tgz
+        cp -r dart-sass/* "$tools"
+        echo "$tools" >> "$GITHUB_PATH"

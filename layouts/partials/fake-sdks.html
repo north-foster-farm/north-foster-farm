@@ -1,0 +1,16 @@
+{{/*
+  The stub payment SDKs for SQUARE_ENV=fake and PAYPAL_ENV=fake (#265,
+  netlify/functions/lib/fake.mjs), published at /scripts/fake-square.js
+  and /scripts/fake-paypal.js by a local `hugo server` only (which
+  `netlify dev` runs, in Hugo's production environment, so the
+  environment cannot decide this). Nothing is rendered here; the page
+  loads them when /api/checkout/config names them. A Netlify build is
+  never a server, so no deploy carries either file.
+*/}}
+{{ if hugo.IsServer }}
+  {{ range $name := slice "square" "paypal" }}
+    {{ with resources.Get (printf "scripts/fake/%s.js" $name) }}
+      {{ (. | resources.Copy (printf "scripts/fake-%s.js" $name)).Publish }}
+    {{ end }}
+  {{ end }}
+{{ end }}

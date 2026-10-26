@@ -2,11 +2,16 @@
 // @extend, no mixins, no colour functions, so it survives the
 // Tailwind migration unchanged.
 
+@use "sass:map";
+@use "sass:math";
+
 .order {
   --order-gutter: 1rem;
   --order-radius: var(--bs-border-radius);
   --order-shadow: var(--bs-box-shadow-sm);
   --order-topbar-h: 3rem;
+  --order-edge-l: var(--order-gutter);
+  --order-edge-r: var(--order-gutter);
   --order-ease: cubic-bezier(0.2, 0.8, 0.25, 1);
   --order-hover: 70ms;
   --order-fast: 140ms;
@@ -17,18 +22,15 @@
     max-width: 1040px;
   }
 
-  .order-section legend {
-    margin-bottom: 1rem;
+  // The Show control on its own, centered over the catalog at every
+  // size, in the heading's place (#327).
+  .order-intro-row {
+    display: flex;
+    justify-content: center;
   }
 
-  .order-section-hint {
-    margin: -0.5rem 0 1rem;
-    font-size: 0.875rem;
-    color: var(--bs-secondary-color);
-
-    &[hidden] {
-      display: none;
-    }
+  .order-section legend {
+    margin-bottom: 1rem;
   }
 
   // Layout: sidebar and main column from lg up; from xl the main
@@ -46,6 +48,23 @@
 
   // Category sidebar. Below lg it is Bootstrap's offcanvas drawer; the
   // drawer chrome is Bootstrap's, only the list is styled here.
+
+  // Closed, the drawer is gone from the page, as the phone menu is:
+  // iOS Safari 26 tints its bars from any fixed layer at least 80% as
+  // wide as the screen that touches its top or bottom, hidden or not,
+  // and on a phone this white drawer is the screen's full width.
+
+  @media (max-width: 991.98px) {
+    .order-side.offcanvas-lg:not(.show, .showing, .hiding) {
+      display: none;
+    }
+
+    @starting-style {
+      .order-side.offcanvas-lg.showing {
+        transform: translateX(-100%);
+      }
+    }
+  }
 
   .order-side-title {
     margin: 0 0 0.5rem;
@@ -78,41 +97,122 @@
     }
   }
 
-  // Phone-only bar with the drawer toggle, stuck to the top.
+  .order-side-nav .order-side-sub {
+    padding-left: 0.75rem;
+
+    .nav-link {
+      padding: 0.2rem 0.75rem;
+      font-size: 0.9375rem;
+    }
+  }
+
+  // Outer items are plain and bold, and turn green when current;
+  // the bar-and-wash treatment is the inner items' alone.
+  .order-side-nav > .nav > .nav-item > .nav-link {
+    padding: 0.5rem 0.75rem;
+    border-left: 0;
+    border-radius: var(--order-radius);
+    font-weight: bold;
+
+    &:hover {
+      background: none;
+      color: var(--bs-primary);
+    }
+
+    &.active {
+      background: none;
+      color: var(--bs-primary);
+    }
+  }
+
+  .order-side-nav > .nav > .nav-item + .nav-item {
+    margin-top: 0.375rem;
+  }
+
+  // Phone-only bar with the drawer toggle, stuck to the top, over
+  // the cart as the cart scrolls under it. Its white is painted by
+  // ::before, not background-color: Safari 26 tints its bars from the
+  // background-color of a fixed or sticky layer at the screen's edge
+  // and ignores pseudo-elements. With the white on the bar itself,
+  // the status bar turned white once the bar stuck and stayed white
+  // back at the top, over the brand green (#205). The total bar below
+  // does the same.
 
   .order-topbar {
     position: sticky;
     top: 0;
-    z-index: 20;
+    z-index: 35;
     display: flex;
     align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
     min-height: var(--order-topbar-h);
-    margin: 0 calc(-1 * var(--order-gutter)) 0.75rem;
-    padding: 0.375rem var(--order-gutter);
+    margin: 0 calc(-1 * var(--order-edge-r)) 0.75rem
+      calc(-1 * var(--order-edge-l));
+    padding: 0.375rem var(--order-edge-r) 0.375rem var(--order-edge-l);
+    box-shadow: 0 0 0 transparent;
+    clip-path: inset(0 0 -1rem);
+    transition: box-shadow var(--order-base) ease;
+
+    // Flat at rest; stuck, a shadow along its lower edge only. The
+    // blur spilled over the top edge as a faint line in Safari (O5).
+    &[data-stuck="true"] {
+      box-shadow: var(--order-shadow);
+    }
+  }
+
+  .order-topbar::before,
+  .order-total-bar::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
     background-color: var(--bs-body-bg);
-    box-shadow: var(--order-shadow);
   }
 
   // The page title rides in the bar below lg, so it stays in view
   // while the bar is stuck; the heading above the list is then read
   // by screen readers only.
   .order-topbar-title {
-    margin-left: 0.875rem;
+    min-width: 0;
+    overflow: hidden;
     font-size: 1.25rem;
     font-weight: bold;
     line-height: 1.2;
+    white-space: nowrap;
+    text-overflow: ellipsis;
   }
 
-  @media (max-width: 991.98px) {
-    .order-head .page-heading {
-      position: absolute;
-      width: 1px;
-      height: 1px;
-      margin: 0;
-      overflow: hidden;
-      clip: rect(0 0 0 0);
-      clip-path: inset(50%);
-    }
+  // Once the cart has scrolled away, the count and total: a button
+  // back to the cart (#203). The lg-xl total bar's is the same.
+  .order-topbar-total,
+  .order-total-bar-sum {
+    display: inline-flex;
+    flex: none;
+    align-items: baseline;
+    gap: 0.5rem;
+    padding: 0.25rem 0;
+    border: 0;
+    background: none;
+    font-size: 0.875rem;
+    color: inherit;
+  }
+
+  .order-topbar-total {
+    opacity: 0;
+    transition: opacity var(--order-base) ease;
+  }
+
+  // The heading stays the page's h1 for a screen reader; the Show
+  // switcher takes its place (#327).
+  .order-head .page-heading {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
   }
 
   .order-topbar-btn {
@@ -131,11 +231,9 @@
   }
 
   // Product list: each category is a heading and a stack of row cards.
-  // The active category's heading slides right to make room for a
-  // chevron that slides in from the left.
 
   .order-cat + .order-cat {
-    margin-top: 2rem;
+    margin-top: 2.75rem;
   }
 
   .order-cat-title {
@@ -147,42 +245,53 @@
     padding: 0 0.25rem;
     font-size: 1.0625rem;
     scroll-margin-top: calc(var(--order-topbar-h) + 0.75rem);
-    transition: padding-left var(--order-base) var(--order-ease);
   }
 
-  .order-cat-chev {
-    position: absolute;
-    top: 50%;
-    left: 0;
+  // A failed load's Try again (#271), tabbed to, clears the top bar.
+  .skeleton-failed a {
+    scroll-margin-top: calc(var(--order-topbar-h) + 0.75rem);
+  }
+
+  // The sticky bar's name. A category's carries a double chevron that
+  // slides in from the left: the bar is always in view, a heading not
+  // (#274). Double, since a single one read as an accordion's toggle
+  // (#228).
+  .order-bar-title {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+  }
+
+  .order-bar-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .order-bar-chev {
     display: inline-flex;
+    flex: none;
+    width: 0;
+    overflow: hidden;
     color: var(--bs-primary);
     opacity: 0;
-    translate: -0.75rem -50%;
+    translate: -0.75rem 0;
     transition:
+      width var(--order-base) var(--order-ease),
       translate var(--order-base) var(--order-ease),
       opacity var(--order-base) ease;
 
     svg {
+      flex: none;
       width: 1.125rem;
       height: 1.125rem;
     }
   }
 
-  .order-cat.is-active {
-    .order-cat-title {
-      padding-left: 1.375rem;
-    }
-
-    .order-cat-chev {
-      opacity: 1;
-      translate: 0.125rem -50%;
-    }
-  }
-
-  .order-cat-note {
-    font-size: 0.75rem;
-    font-weight: normal;
-    color: var(--bs-secondary-color);
+  .order-bar-title[data-cat] .order-bar-chev {
+    width: 1.5rem;
+    opacity: 1;
+    translate: 0 0;
   }
 
   .order-items {
@@ -190,9 +299,14 @@
     gap: 0.625rem;
   }
 
+  // Every row has the same columns, out of stock or not, so the
+  // prices and the Add column line up down the list (#437). The price
+  // column is wide enough for "$100", and the prices end on one line.
   .order-item {
+    --order-price-w: 3.5rem;
+
     display: grid;
-    grid-template-columns: 1fr max-content 7.5rem;
+    grid-template-columns: minmax(0, 1fr) var(--order-price-w) 7.5rem;
     grid-template-areas:
       "name  price qty"
       "error error error";
@@ -236,27 +350,29 @@
     }
   }
 
-  // A detail after the price, such as the count in a pack, so every
-  // row is a name on one line and its price line under or beside it.
+  // A detail after the name, such as the count in a pack or an egg's
+  // grade, so the price column holds only prices.
   .order-item-note {
     font-size: 0.8125rem;
+    color: var(--bs-secondary-color);
   }
 
   .order-item-price {
     grid-area: price;
+    justify-self: end;
     color: var(--bs-secondary-color);
     font-variant-numeric: tabular-nums;
-  }
-
-  .order-item-unit {
-    font-size: 0.8125rem;
   }
 
   .order-item-error {
     grid-area: error;
   }
 
-  // Live stock: a note under the name, and a closed row when sold out.
+  // Live stock: a note under the name, "N left" at five or fewer. An
+  // item out of stock has no row while Show is on "In stock"; under
+  // "Full catalog" its row looks like any other, with its restock label
+  // ("Back in spring") in a disabled button where Add would be and no
+  // quantity control (#267, #318).
   .order-item-stock {
     grid-area: name;
     align-self: end;
@@ -280,19 +396,10 @@
     grid-area: stock;
   }
 
-  .order-item[data-stock="out"] {
-    background-color: var(--bs-tertiary-bg);
-    box-shadow: none;
-
-    .order-item-name label {
-      color: var(--bs-secondary-color);
-      text-decoration: line-through;
-      cursor: default;
-    }
-
-    .order-item-stock {
-      color: var(--bs-secondary-color);
-    }
+  // Out of stock is the same row as any other (#318): no tint, the
+  // restock label in Add's place (.order-qty-out below).
+  .order-item[data-stock="out"] .order-item-name label {
+    cursor: default;
   }
 
   @media (max-width: 30rem) {
@@ -314,6 +421,7 @@
     }
 
     .order-item-price {
+      justify-self: start;
       font-size: 0.9375rem;
     }
   }
@@ -346,6 +454,8 @@
   .order-qty-step {
     display: grid;
     grid-template-columns: 2.25rem 1fr 2.25rem;
+    width: 100%;
+    min-width: 0;
     overflow: hidden;
     border: 1px solid var(--bs-border-color);
     border-radius: var(--order-radius);
@@ -401,377 +511,70 @@
     animation: order-tick 200ms var(--order-ease);
   }
 
-  .order-item[data-stock="out"] .order-qty {
-    visibility: hidden;
-  }
-
-  // The cart. Below xl it floats above the list while it scrolls and
-  // settles into the flow after the last row; a caret folds it down
-  // to the total and the Next button. From xl it is a column beside
-  // the catalog that sticks to the top for the length of the page.
-
-  .order-cart {
-    position: sticky;
-    bottom: 0.75rem;
-    z-index: 30;
-    display: flex;
-    flex-direction: column;
-
-    // Small viewport units: the cap does not move as the phone's
-    // browser bars slide in and out while the list scrolls.
-    max-height: 50svh;
-    margin-top: 1.25rem;
-    padding: 1rem var(--order-gutter);
-    border: 1px solid var(--bs-border-color-translucent);
-    border-radius: var(--order-radius);
-    background-color: var(--bs-body-bg);
-    box-shadow:
-      var(--order-shadow),
-      0 0.75rem 2rem rgb(0 0 0 / 12%);
-  }
-
-  // Folds with the one height transition that works on auto.
-  .order-cart-body {
-    display: grid;
-    grid-template-rows: 1fr;
-    flex: 1 1 auto;
-    min-height: 0;
-    transition: grid-template-rows var(--order-base) var(--order-ease);
-
-    > .order-cart-inner {
-      display: flex;
-      flex-direction: column;
-      min-height: 0;
-      overflow: hidden;
-    }
-  }
-
-  // Never taller than half the screen: past that, the lines scroll
-  // inside this wrapper while the badges and the sums stay put. A
-  // fade at an edge says there is more beyond it.
-  .order-cart-scroll {
-    position: relative;
-    display: flex;
-    flex: 1 1 auto;
-    flex-direction: column;
-    min-height: 0;
-    margin: 0 0 0.75rem;
-    border-bottom: 1px solid var(--bs-border-color);
-
-    &::before,
-    &::after {
-      content: "";
-      position: absolute;
-      right: 0;
-      left: 0;
-      z-index: 1;
-      height: 2.5rem;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity var(--order-fast) ease;
-    }
-
-    // "3 more ↓", centred on the bottom fade; a tap scrolls a screen.
-    .order-cart-more {
-      position: absolute;
-      bottom: 0.5rem;
-      left: 50%;
-      z-index: 2;
-      translate: -50% 0;
-      padding: 0.2rem 0.625rem;
-      border: 1px solid var(--bs-border-color);
-      border-radius: 999px;
-      background-color: var(--bs-body-bg);
-      box-shadow: var(--order-shadow);
-      font-size: 0.75rem;
-      font-weight: bold;
-      line-height: 1.2;
-      white-space: nowrap;
-      color: var(--bs-primary);
-
-      &[hidden] {
-        display: none;
-      }
-    }
-
-    &::before {
-      top: 0;
-      background: linear-gradient(var(--bs-body-bg), transparent);
-    }
-
-    &::after {
-      bottom: 0;
-      background: linear-gradient(transparent, var(--bs-body-bg));
-    }
-
-    &[data-top]::before,
-    &[data-more]::after {
-      opacity: 1;
-    }
-  }
-
-  // Badges: one tight line of small text, delimited by dots like the
-  // footer nav. Muted until earned; earned ones turn the primary green
-  // and italic. A tap explains one.
-  .order-badges {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    margin: 0 0 0.875rem;
-    padding: 0;
-    font-size: 0.7rem;
-    font-weight: bold;
-    line-height: 1.4;
-    color: var(--bs-tertiary-color);
-
-    li {
-      display: inline-flex;
-      align-items: baseline;
-    }
-
-    li + li::before {
-      content: "·";
-      padding: 0 0.325rem;
-      color: var(--bs-breadcrumb-divider-color);
-    }
-  }
-
-  .order-badge {
-    padding: 0;
+  // Out of stock: a disabled button stands where Add goes, labeled
+  // with the restock label, and reads as a label: no border, no
+  // outline (#318). Its row keeps the price and note, except that
+  // "Back in spring", "On hiatus" and "Not available" drop the
+  // price and keep the note (#303). The label never wraps (#324): it
+  // is as wide as its words and centered on Add's column at every
+  // width, past its edges if it must be (#437).
+  .order-qty-out {
+    display: none;
+    justify-self: center;
+    width: max-content;
     border: 0;
-    background: none;
-    font: inherit;
-    color: inherit;
+    background: transparent;
+    padding-inline: 0.25rem;
+    color: var(--bs-secondary-color);
     white-space: nowrap;
-    transition:
-      color var(--order-base) ease,
-      font-style var(--order-base) ease;
+    opacity: 1;
+    outline: 0;
+    box-shadow: none;
+    letter-spacing: 0;
+  }
 
-    &:hover {
-      color: var(--bs-secondary-color);
+  .order-item[data-stock="out"] {
+    grid-template-areas:
+      "name  price qty"
+      "error error error";
+
+    @media (max-width: 30rem) {
+      grid-template-areas:
+        "name  qty"
+        "price qty"
+        "error error";
     }
 
-    &[data-on="true"] {
-      color: var(--bs-primary);
-      font-style: italic;
-    }
-  }
-
-  // The lines: what is in the cart, grouped under its category with
-  // the tiers indented beneath, then the sum. Related things sit
-  // closer together than unrelated ones.
-  .order-cart-items {
-    display: grid;
-    gap: 0.75rem;
-    flex: 1 1 auto;
-    min-height: 0;
-    margin: 0;
-    padding-bottom: 0.75rem;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    scrollbar-width: thin;
-    font-size: 0.875rem;
-  }
-
-  .order-cart-group-name {
-    display: block;
-    font-weight: bold;
-  }
-
-  .order-cart-group-items {
-    display: grid;
-    gap: 0.25rem;
-    margin: 0.25rem 0 0;
-    padding-left: 0.875rem;
-  }
-
-  .order-cart-item {
-    display: grid;
-    grid-template-columns: 1fr auto auto auto;
-    column-gap: 0.75rem;
-    align-items: center;
-    line-height: 1.5;
-  }
-
-  // Takes every unit of the line out of the cart in one tap.
-  .order-cart-remove {
-    display: grid;
-    place-items: center;
-    width: 1.75rem;
-    height: 1.75rem;
-    margin: -0.125rem -0.375rem -0.125rem 0;
-    padding: 0;
-    border: 0;
-    border-radius: 50%;
-    background: none;
-    font-size: 1.25rem;
-    line-height: 1;
-    color: var(--bs-secondary-color);
-    transition:
-      background-color var(--order-hover) ease,
-      color var(--order-hover) ease;
-
-    &:hover,
-    &:focus-visible {
-      background-color: var(--bs-tertiary-bg);
-      color: var(--bs-danger);
-    }
-  }
-
-  .order-cart-item-name {
-    min-width: 0;
-    overflow: hidden;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-  }
-
-  .order-cart-item-qty {
-    white-space: nowrap;
-    color: var(--bs-secondary-color);
-    font-variant-numeric: tabular-nums;
-  }
-
-  .order-cart-item-sub {
-    min-width: 3.5rem;
-    text-align: right;
-    font-variant-numeric: tabular-nums;
-  }
-
-  .order-cart-none {
-    color: var(--bs-secondary-color);
-
-    &[hidden] {
+    .order-qty-add,
+    .order-qty-step {
       display: none;
     }
+
+    .order-qty-out {
+      display: block;
+    }
+
   }
 
-  .order-cart-lines {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    row-gap: 0.375rem;
-    margin: 0 0 0.75rem;
-    font-size: 0.875rem;
+  .order-item[data-stock="out"]:not([data-restock="soon"])
+    .order-item-price {
+    display: none;
+  }
 
-    .order-cart-row {
-      display: contents;
-    }
+  // The farm-news box closes the Place your order pane, under the
+  // agreement (#352; #228 had it under the email).
+  .order-optin-title {
+    margin: 1.5rem 0 0.5rem;
 
-    // One line each, whatever the width.
-    dt {
-      overflow: hidden;
-      font-weight: normal;
-      white-space: nowrap;
-      text-overflow: ellipsis;
-    }
-
-    dd {
-      margin: 0;
+    // On a phone the subheading aligns right with the box under it,
+    // as one column with the button above.
+    @media (max-width: 767.98px) {
       text-align: right;
-      white-space: nowrap;
-      font-variant-numeric: tabular-nums;
     }
   }
 
-  .order-cart-credit {
-    dt,
-    dd {
-      color: var(--bs-success-text-emphasis);
-    }
-  }
-
-  .order-cart-free {
-    font-weight: bold;
-    color: var(--bs-success-text-emphasis);
-  }
-
-  // The foot: caret, Total, the amount under the line, and Next.
-  .order-cart-foot {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding-top: 0.75rem;
-    border-top: 2px solid var(--bs-body-color);
-    transition:
-      padding-top var(--order-base) var(--order-ease),
-      border-color var(--order-base) ease;
-  }
-
-  // The fold control reads as one: the item count in a pill with a
-  // caret that turns when the cart is folded.
-  .order-cart-toggle {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.375rem;
-    height: 2rem;
-    padding: 0 0.625rem 0 0.75rem;
-    border: 1px solid var(--bs-border-color);
-    border-radius: 999px;
-    background-color: var(--bs-tertiary-bg);
-    font-size: 0.8125rem;
-    font-weight: bold;
-    line-height: 1;
-    white-space: nowrap;
-    color: var(--bs-body-color);
-    transition: background-color var(--order-hover) ease;
-
-    &:hover {
-      background-color: var(--bs-secondary-bg);
-    }
-  }
-
-  .order-cart-caret {
-    transition: transform var(--order-base) var(--order-ease);
-  }
-
-  .order-cart-sum-label {
-    font-weight: bold;
-  }
-
-  .order-cart-total {
-    display: inline-block;
-    font-size: 1.375rem;
-    font-weight: bold;
-    font-variant-numeric: tabular-nums;
-
-    &.is-bumped {
-      animation: order-bump 260ms var(--order-ease);
-    }
-  }
-
-  .order-cart-next {
-    margin-left: auto;
-    padding-inline: 1.5rem;
-  }
-
-  .order-cart-nudge {
-    margin: 0.5rem 0 0;
-    font-size: 0.8125rem;
-    color: var(--bs-secondary-color);
-
-    &[hidden] {
-      display: none;
-    }
-  }
-
-  // Folded: only the foot shows. Written flat, after the rules above,
-  // so the selectors compile in the right order.
-  .order-cart[data-open="false"] {
-    .order-cart-body {
-      grid-template-rows: 0fr;
-    }
-
-    .order-cart-foot {
-      padding-top: 0;
-      border-top: 0;
-    }
-
-    .order-cart-caret {
-      transform: rotate(180deg);
-    }
-
-    .order-cart-nudge {
-      display: none;
-    }
+  .order-optin {
+    margin: 0.25rem 0 0;
   }
 
   // Phones and tablets: the list is a plain column of hairline rows,
@@ -781,27 +584,58 @@
   @media (max-width: 991.98px) {
     & {
       --order-topbar-h: 3.5rem;
+      --order-gutter: 1.25rem;
+
+      // A phone turned sideways: clear of the notch and the Dynamic
+      // Island (viewport-fit=cover), the bar still bleeding to the
+      // glass.
+      --order-edge-l: max(var(--order-gutter), env(safe-area-inset-left, 0px));
+      --order-edge-r: max(
+        var(--order-gutter), env(safe-area-inset-right, 0px)
+      );
     }
 
+    // Room at the sides, less of it on a phone.
+    .order-page {
+      padding-inline: var(--order-edge-l) var(--order-edge-r);
+    }
+
+    // The switcher has the same room above it, to the header, as below
+    // it, to the first category: spacer 4 (1.5rem), which is the
+    // intro's mb-4 (#384). The page's own top padding is off below lg.
+    .order-layout {
+      padding-top: map.get($spacers, 4);
+    }
+
+    @media (max-width: 575.98px) {
+      & {
+        --order-gutter: 1rem;
+      }
+    }
+
+    // 56px exactly, the name centered in it (O6); the total button
+    // alone would make it 57.3. At the top of the page the bar is
+    // blank (#327), so it takes no room there: the negative margin
+    // cancels its height and it is invisible until it sticks.
+    // Appearing then moves nothing, as it overlays what scrolled under
+    // it (#384).
     .order-topbar {
-      margin-bottom: 1.25rem;
-      padding: 0.625rem var(--order-gutter);
+      height: var(--order-topbar-h);
+      margin-bottom: calc(-1 * var(--order-topbar-h));
+      padding: 0 var(--order-edge-r) 0 var(--order-edge-l);
+      visibility: hidden;
+
+      &[data-stuck="true"] {
+        visibility: visible;
+      }
     }
 
     .order-cat + .order-cat {
-      margin-top: 1.75rem;
+      margin-top: 3rem;
     }
 
     .order-cat-title {
       padding: 0;
-    }
-
-    .order-cat-chev {
-      display: none;
-    }
-
-    .order-cat.is-active .order-cat-title {
-      padding-left: 0;
     }
 
     .order-items {
@@ -810,8 +644,8 @@
     }
 
     .order-item {
-      grid-template-columns: 1fr max-content 6.25rem;
-      padding: 0.75rem 0;
+      grid-template-columns: minmax(0, 1fr) var(--order-price-w) 6.25rem;
+      padding: 0.75rem 0.5rem 0.75rem 0;
       border: 0;
       border-bottom: 1px solid var(--bs-border-color-translucent);
       border-radius: 0;
@@ -832,12 +666,8 @@
         padding-left: 0.75rem;
         border-color: var(--bs-border-color-translucent);
         background-color: transparent;
-        box-shadow: inset 3px 0 0 var(--bs-success);
+        box-shadow: inset 3px 0 0 var(--bs-success-border-subtle);
       }
-    }
-
-    .order-item[data-stock="out"] {
-      background-color: transparent;
     }
 
     .order-qty {
@@ -845,51 +675,96 @@
       justify-self: end;
     }
 
-    .order-qty-add {
-      width: auto;
-      min-width: 4.5rem;
-      justify-self: end;
-      padding-inline: 0.875rem;
-    }
 
     .order-qty-step {
       grid-template-columns: 1.875rem 1fr 1.875rem;
     }
-
-    .order-cart {
-      margin-top: 1.5rem;
-      border-color: var(--bs-border-color);
-      border-top: 3px solid var(--bs-primary);
-      box-shadow:
-        0 -0.25rem 1.5rem rgb(0 0 0 / 10%),
-        0 0.75rem 2rem rgb(0 0 0 / 16%);
-    }
   }
 
+  // Phones: one quantity column for every row (#325), as wide as the
+  // longest restock label needs on one line. Add and the stepper fill
+  // it and the label centers in it, so their centers line up. The
+  // name or price wraps first.
   @media (max-width: 30rem) {
     .order-item {
-      grid-template-columns: 1fr 6.25rem;
+      grid-template-columns: minmax(0, 1fr) var(--order-qty-w, 7rem);
+    }
+
+    .order-item .order-qty {
+      width: 100%;
     }
   }
 
   // The sections after the list
 
   .order-section {
-    margin-top: 2.5rem;
+    margin-top: 4rem;
   }
 
-  // The horizontal form layout itself is shared with the sign-in page
-  // and lives at the end of this file; only the click-to-edit look of
-  // a signed-in customer's details is the order page's.
-  .order-hform {
-    .form-control-plaintext {
-      cursor: pointer;
-      border-radius: var(--order-radius);
-      transition: background-color var(--order-hover) ease;
+  // Narrower than the column, name and email alike. The cap is on what
+  // the column holds, not the column: the grid owns a column's width.
+  .order-details .col-sm-9 > * {
+    max-width: 24rem;
+  }
 
-      &:hover {
-        background-color: var(--bs-tertiary-bg);
+  // The four fields in a frame like the cart pane's: its border,
+  // radius, padding and shadow (#352).
+  .order-details .order-hform,
+  .order-confirm .order-pane {
+    padding: 1rem var(--order-gutter);
+    border: 1px solid var(--bs-border-color-translucent);
+    border-radius: var(--order-radius);
+    background-color: var(--bs-body-bg);
+    box-shadow: var(--order-shadow);
+
+    // The cart's shadow at each width: the lighter one alone from xl,
+    // below it the one off its back edge.
+    @media (max-width: 1199.98px) {
+      box-shadow:
+        var(--order-shadow),
+        -1rem 0.25rem 1rem rgb(0 0 0 / 12%);
+    }
+
+    @media (max-width: 575.98px) {
+      padding: 0.75rem var(--order-gutter);
+    }
+  }
+
+  // The news opt-in closes the Place your order pane, under the agreement
+  // (#352). On a phone it aligns right with the button and the line
+  // above it, as one column; from md it stands at the left.
+  .order-confirm .order-optin {
+    margin-top: 0;
+
+    @media (max-width: 767.98px) {
+      display: flex;
+      flex-direction: row-reverse;
+      justify-content: flex-start;
+      gap: 0.5rem;
+      padding-left: 0;
+      text-align: right;
+
+      .form-check-input {
+        float: none;
+        margin-left: 0;
       }
+    }
+  }
+
+  // "Prefer text or call?" is hidden until there is a phone number,
+  // and fades in when it appears (order-form.js showContact).
+  .order-contact-row {
+    transition:
+      opacity var(--order-base) ease,
+      transform var(--order-base) var(--order-ease);
+
+    &[data-shown="false"] {
+      display: none;
+    }
+
+    &.is-entering {
+      opacity: 0;
+      transform: translateY(-0.25rem);
     }
   }
 
@@ -901,6 +776,122 @@
 
     .form-check {
       margin: 0;
+    }
+  }
+
+  // The scheduled pickups: a vertical list of radio cards, white until
+  // chosen (#323), in the secondary color so they read apart from the
+  // card's own (primary) radio. Each shows its day and hours, the
+  // pickup's name, and the address, one part to a line on a narrow
+  // card and written out on one line on a wide one.
+  .order-pickups {
+    display: grid;
+    gap: 0.5rem;
+    padding-top: 0.25rem;
+
+    &:focus {
+      outline: 0;
+    }
+
+    &.is-invalid {
+      border-radius: var(--order-radius);
+      outline: 1px solid var(--bs-form-invalid-border-color);
+      outline-offset: 0.25rem;
+    }
+  }
+
+  .order-pickup {
+    position: relative;
+    container-type: inline-size;
+    display: flex;
+    align-items: baseline;
+    gap: 0.625rem;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: var(--order-radius);
+    background-color: var(--bs-white);
+    transition:
+      border-color var(--order-hover) ease,
+      background-color var(--order-hover) ease;
+
+    &:hover {
+      border-color: var(--bs-secondary);
+    }
+
+    &:has(> input:checked) {
+      border-color: var(--bs-secondary);
+      background-color: var(--bs-secondary-bg-subtle);
+    }
+
+    > .form-check-input {
+      flex: none;
+      margin: 0;
+      transform: translateY(0.15rem);
+
+      &:checked {
+        border-color: var(--bs-secondary);
+        background-color: var(--bs-secondary);
+      }
+
+      &:focus {
+        border-color: var(--bs-secondary);
+        box-shadow: 0 0 0 0.25rem rgb(var(--bs-secondary-rgb) / 25%);
+      }
+    }
+  }
+
+  .order-pickup-label {
+    display: flex;
+    flex: 1;
+    flex-wrap: wrap;
+    gap: 0 0.5rem;
+    cursor: pointer;
+
+    // The day's dot ends it, so the hours follow on its line.
+    > .order-pickup-date::after {
+      margin-left: 0.5rem;
+      color: var(--bs-secondary-color);
+      content: "·";
+    }
+
+    // Where the hours drop to their own row, the dot goes.
+    @container (max-width: 30rem) {
+      > .order-pickup-date::after {
+        display: none;
+      }
+    }
+  }
+
+  .order-pickup-date {
+    font-weight: bold;
+  }
+
+  .order-pickup-time {
+    white-space: nowrap;
+  }
+
+  .order-pickup-name,
+  .order-pickup-address {
+    flex-basis: 100%;
+  }
+
+  // The subtitle, small and secondary as on the Places cards.
+  .order-pickup-name {
+    color: var(--bs-secondary-color);
+    font-size: 0.875em;
+  }
+
+  .order-pickup-address {
+    display: flex;
+    flex-wrap: wrap;
+    color: var(--bs-secondary-color);
+
+    // Written out on as few lines as fit, the parts joined by commas.
+    // A part goes to the next line whole, so none breaks mid-phrase
+    // unless it is longer than a line (#439).
+    > span:not(:last-child)::after {
+      margin-right: 0.3em;
+      content: ",";
     }
   }
 
@@ -917,6 +908,7 @@
     grid-template-rows: 0fr;
     transition: grid-template-rows var(--order-base) var(--order-ease);
 
+    // stylelint-disable-next-line no-descending-specificity
     > * {
       overflow: hidden;
       opacity: 0;
@@ -935,6 +927,7 @@
       background-color var(--order-hover) ease,
       box-shadow var(--order-hover) ease;
 
+    // stylelint-disable-next-line no-descending-specificity
     > .form-check-input {
       position: absolute;
       top: 1.1rem;
@@ -968,10 +961,105 @@
     }
   }
 
+  // Show "In stock" or "Full catalog", in the intro (#267): the cart's
+  // segmented control, a pill track with a fill that slides to the
+  // chosen side. Here the fill is the page's white on the grey track,
+  // so the chosen side is lighter, never darker. The radios stay in
+  // place under their labels, unseen, so arrows move between them.
+  .order-filter {
+    display: flex;
+    flex: none;
+    gap: 0.75rem;
+    align-items: center;
+  }
+
+  .order-filter-seg {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    border-radius: 999px;
+    background-color: $pill-bg;
+    box-shadow: inset 0 0 0 1px var(--bs-border-color-translucent);
+  }
+
+  .order-filter-fill {
+    position: absolute;
+    inset: 2px calc(50% + 2px) 2px 2px;
+    border-radius: 999px;
+    background-color: var(--bs-body-bg);
+    box-shadow: var(--bs-box-shadow-sm);
+    transition: transform var(--order-base) var(--order-ease);
+  }
+
+  .order-filter-seg:has(.order-filter-input[value="all"]:checked)
+    .order-filter-fill {
+    transform: translateX(calc(100% + 4px));
+  }
+
+  // Over its whole label, unseen: focus brings the label into view.
+  .order-filter-input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    opacity: 0;
+    cursor: pointer;
+    scroll-margin-top: calc(var(--order-topbar-h) + 0.75rem);
+  }
+
+  .order-filter-option {
+    position: relative;
+    min-height: 2rem;
+    padding: 0.3125rem 0.875rem;
+    border-radius: 999px;
+    font-size: 0.875rem;
+    text-align: center;
+    white-space: nowrap;
+    color: var(--bs-body-color);
+    cursor: pointer;
+  }
+
+  .order-filter-option:has(.order-filter-input:focus-visible) {
+    outline: 2px solid var(--bs-primary);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .order-filter-fill {
+      transition: none;
+    }
+  }
+
   .order-method-label {
     display: block;
     margin: 0;
     cursor: pointer;
+  }
+
+  .order-method-warn {
+    margin: 0.5rem 0 0;
+    font-size: 0.875rem;
+    font-weight: bold;
+    color: var(--bs-danger-text-emphasis);
+
+    &[hidden] {
+      display: none;
+    }
+  }
+
+  // A way with nothing open (scheduled pickup, empty): its facts dim,
+  // its note stays plain, and it cannot be chosen.
+  .order-method:has(> .form-check-input:disabled) {
+    > .form-check-input,
+    > .order-method-label {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    > .order-method-warn {
+      color: var(--bs-body-color);
+    }
   }
 
   .order-method-title {
@@ -988,9 +1076,13 @@
     font-size: 0.8125rem;
     color: var(--bs-secondary-color);
 
+    &[hidden] {
+      display: none;
+    }
+
     dt {
       font-weight: normal;
-      color: var(--bs-tertiary-color);
+      color: var(--bs-secondary-color);
     }
 
     dd {
@@ -1023,18 +1115,162 @@
     }
   }
 
-  // The agreement: one sentence in the note style above it, in the
-  // yellow, with a dismiss that is remembered.
+  // The agreement: one plain sentence under the Pay button, smaller
+  // than the page's text, for every way to get an order (#196, #274).
   .order-agree {
-    display: flex;
-    gap: 0.75rem;
-    align-items: flex-start;
-    justify-content: space-between;
-    margin-bottom: 1.25rem;
-    font-weight: bold;
+    margin: 0.75rem 0 2rem;
+    font-size: 0.875rem;
 
     a {
       text-decoration: underline;
+    }
+  }
+
+  // Pay and the agreement sit at the right on a phone, at the left
+  // from md (#274, round 5).
+  @media (max-width: 767.98px) {
+    .order-submit {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+
+      > :not(.btn) {
+        align-self: stretch;
+      }
+    }
+
+    .order-agree {
+      text-align: right;
+    }
+  }
+
+  // What the order says after the lapsed-time dialog, by Pay.
+  .order-moved {
+    margin-bottom: 0.75rem;
+    font-weight: bold;
+
+    &[hidden] {
+      display: none;
+    }
+  }
+
+  .order-windows-none {
+    margin: 0;
+    color: var(--bs-secondary-color);
+  }
+
+  // The lapsed-time dialog (W11d): blocking, one column, the choices
+  // as a list of radios.
+  .order-lapsed {
+    width: min(32rem, calc(100vw - 2rem));
+    padding: 0;
+    border: 0;
+    border-radius: 0.75rem;
+    box-shadow: 0 1.5rem 3rem rgb(0 0 0 / 30%);
+
+    &::backdrop {
+      background: rgb(10 16 13 / 55%);
+    }
+  }
+
+  .order-lapsed-panel {
+    padding: 1.5rem;
+  }
+
+  .order-lapsed-choices {
+    margin: 1rem 0 1.25rem;
+
+    &[hidden] {
+      display: none;
+    }
+  }
+
+  .order-lapsed-list {
+    display: grid;
+    gap: 0.5rem;
+
+    .form-check {
+      margin: 0;
+    }
+  }
+
+  .order-lapsed-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+
+    .btn-primary {
+      margin-bottom: 0.5rem;
+    }
+
+    [hidden] {
+      display: none;
+    }
+  }
+
+  // Flush left as links; the one that leads, when nothing is left,
+  // is a button with its own padding.
+  .order-lapsed-link.btn-link {
+    padding-inline: 0;
+  }
+
+  // Payment: the card form the SDK mounts, and the wallet buttons
+  // beside it. The states are set by scripts/order/pay.js.
+
+  // A layer of its own: the vendors' iframes carry z-indexes far above
+  // the page's, and loose in the page's stacking they drew over the
+  // sticky bars and the open menu as the page scrolled (#267).
+  .order-pay {
+    container-type: inline-size;
+    isolation: isolate;
+    padding: 1rem 1.25rem;
+    border: 1px solid var(--bs-border-color-translucent);
+    border-radius: var(--order-radius);
+    box-shadow: var(--order-shadow);
+  }
+
+  .order-pay-card {
+    margin-top: 1rem;
+  }
+
+  // Unchosen, the card form is laid out but unseen: under display:
+  // none the SDK measures no width, takes the narrow two-row height,
+  // and keeps it once the fields show.
+  .order-pay[data-card-open="false"] .order-pay-card {
+    height: 0;
+    margin-top: 0;
+    overflow: hidden;
+    visibility: hidden;
+  }
+
+  .order-pay-method-icon {
+    display: inline-flex;
+    line-height: 0;
+  }
+
+  .order-pay-method {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    font-weight: bold;
+
+    svg {
+      width: 1.25rem;
+      height: 1.25rem;
+    }
+
+    &[aria-pressed="true"] {
+      box-shadow: inset 0 0 0 1px var(--bs-primary);
+    }
+
+    // Pressed, the inset line must not replace Bootstrap's focus ring,
+    // which is a box-shadow too: a keyboard user on the Card button
+    // saw no focus (#284).
+    &[aria-pressed="true"]:focus-visible {
+      box-shadow: inset 0 0 0 1px var(--bs-primary),
+        var(--bs-btn-focus-box-shadow);
     }
 
     &[hidden] {
@@ -1042,17 +1278,212 @@
     }
   }
 
-  .order-agree-dismiss {
-    flex: none;
-    margin-top: 0.1875rem;
-    font-size: 0.625rem;
+  // Square's fields are an iframe; give it room before it arrives so
+  // the page does not jump.
+  .order-card-fields {
+    min-height: 3.5rem;
+
+    // Square's hint line under the fields ("Enter your card number")
+    // carries a bottom margin that would double the card's padding.
+    > * > :last-child {
+      margin-bottom: 0;
+    }
+
+    // With no text, the message line takes no height at all; Square
+    // puts its text in and the line gets its own spacing back. The
+    // !important is for any inline spacing the SDK sets (#388).
+    .sq-card-message:empty {
+      height: 0 !important;
+      min-height: 0 !important;
+      margin: 0 !important;
+      padding: 0 !important;
+    }
+  }
+
+
+  // Every way to pay, equal cells: four across while they fit, then
+  // two by two, then a stack. The vendors' buttons fill their cells.
+  .order-pay-buttons {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+
+    &[hidden] {
+      display: none;
+    }
+  }
+
+  @container (min-width: 26rem) {
+    .order-pay-buttons {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  @container (min-width: 50rem) {
+    .order-pay-buttons {
+      grid-template-columns: repeat(4, 1fr);
+    }
+  }
+
+  .order-pay-button,
+  .order-apple-pay,
+  .order-pay-method {
+    height: 2.75rem;
+    min-width: 0;
+  }
+
+  .order-pay-button {
+    display: grid;
+    align-items: stretch;
+    overflow: hidden;
+    border-radius: 4px;
+
+    // The vendor's element, whatever it is.
+    // stylelint-disable-next-line no-descending-specificity
+    > * {
+      width: 100%;
+      height: 100%;
+    }
+
+    &[hidden] {
+      display: none;
+    }
+  }
+
+  // Venmo's cell: the button, and under it "Coming soon" while Venmo
+  // is held back, when the button is inert and greyed.
+  .order-pay-venmo {
+    display: grid;
+    gap: 0.25rem;
+    min-width: 0;
+
+    &[hidden] {
+      display: none;
+    }
+
+    // stylelint-disable-next-line no-descending-specificity
+    .order-pay-button[inert] {
+      opacity: 0.45;
+      filter: grayscale(1);
+    }
+  }
+
+  .order-pay-soon {
+    margin: 0;
+    font-size: 0.8125rem;
+    text-align: center;
+    color: var(--bs-secondary-color);
+
+    &[hidden] {
+      display: none;
+    }
+  }
+
+  // Apple's own button, drawn by Safari.
+  .order-apple-pay {
+    display: block;
+    width: 100%;
+    height: 2.75rem;
+    border: 0;
+    border-radius: 4px;
+    appearance: -apple-pay-button;
+    -apple-pay-button-type: pay;
+    -apple-pay-button-style: black;
+
+    &[hidden] {
+      display: none;
+    }
+  }
+
+
+  .order-pay-unavailable {
+    margin: 0;
+  }
+
+  // Said where the card fields and the Pay button would be, when
+  // another way to pay is on offer but the card is not.
+  .order-pay-card-down {
+    display: none;
+    margin: 1rem 0 0;
+  }
+
+  .order-pay[data-pay-state="venmo-only"][data-card-open="false"]
+    .order-pay-card-down {
+    display: block;
+  }
+
+  // Block without Bootstrap's d-block, whose !important would beat
+  // [hidden] and keep the empty line's margin under the buttons.
+  .order-pay-error {
+    display: block;
+    margin: 0.75rem 0 0;
+    font-weight: bold;
+
+    &[hidden] {
+      display: none;
+    }
+  }
+
+  .order-pay-busy {
+    opacity: 0.7;
+    pointer-events: none;
+  }
+
+  .order-pay[data-pay-state="loading"] {
+    .order-pay-buttons,
+    .order-pay-unavailable {
+      display: none;
+    }
+  }
+
+  .order-pay[data-pay-state="ready"],
+  .order-pay[data-pay-state="venmo-only"] {
+    .order-pay-unavailable {
+      display: none;
+    }
+  }
+
+  // A preview takes no payment: say so, and nothing else about paying.
+  .order-pay-off {
+    display: none;
+    margin: 0;
+  }
+
+  .order-pay[data-pay-state="off"] {
+    .order-pay-card,
+    .order-pay-buttons,
+    .order-pay-unavailable {
+      display: none;
+    }
+
+    .order-pay-off {
+      display: block;
+    }
+  }
+
+  .order-pay[data-pay-state="venmo-only"] .order-pay-card {
+    display: none;
+  }
+
+  .order-pay[data-pay-state="unavailable"] {
+    .order-pay-card,
+    .order-pay-buttons {
+      display: none;
+    }
   }
 
   // Notices, submit and results
 
+  // The spinning button and the notice stay at full strength.
   .order-busy {
-    opacity: 0.6;
     pointer-events: none;
+
+    > :not(.order-rest),
+    .order-rest > :not(.order-submit, .order-confirm),
+    .order-confirm > :not(.order-pane),
+    .order-pane > :not(.order-submit) {
+      opacity: 0.6;
+    }
   }
 
   .order-hp {
@@ -1064,8 +1495,8 @@
     overflow: hidden;
   }
 
-  // The one thing a customer must not miss: the order is not done
-  // until the invoice is paid.
+  // The one thing a customer must not miss: the button takes the
+  // money.
   .order-submit-note {
     margin-bottom: 1.25rem;
     padding: 1.125rem 1.25rem;
@@ -1081,7 +1512,7 @@
     }
   }
 
-  // Background retries: attempt count, live countdown, a way to stop.
+  // An order on its way when no button of ours shows it.
   .order-pending {
     margin-top: 1rem;
     padding: 1rem 1.125rem;
@@ -1110,33 +1541,8 @@
   }
 
   .order-pending-text {
-    margin-bottom: 0.5rem;
+    margin-bottom: 0;
     font-size: 0.9375rem;
-  }
-
-  .order-pending-meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.25rem 1rem;
-    margin-bottom: 0.75rem;
-    font-size: 0.875rem;
-    color: var(--bs-secondary-color);
-  }
-
-  .order-pending-countdown {
-    font-weight: bold;
-    font-variant-numeric: tabular-nums;
-    color: var(--bs-body-color);
-
-    &:empty {
-      display: none;
-    }
-  }
-
-  .order-pending-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
   }
 
   .order-result-card {
@@ -1233,34 +1639,71 @@
       grid-column: 1 / -1;
     }
 
-    .order-cart {
+    .order-cart-slot {
       grid-area: cart;
-      position: sticky;
-      top: 1rem;
-      bottom: auto;
-      max-height: calc(100svh - 2rem);
-      margin-top: 0;
-      box-shadow: var(--order-shadow);
+      align-self: stretch;
     }
+  }
 
-    .order-cart-toggle {
-      display: none;
-    }
+  // From lg to xl, once the pane has scrolled away, the section's name
+  // and the total ride along at the top of the sections that follow,
+  // over the pane. The bar reaches into the gutters, so its shadow is
+  // clipped to the lower edge: on its sides it drew borders over the
+  // column (#204).
+  .order-total-bar {
+    position: sticky;
+    top: 0;
+    z-index: 35;
+    display: flex;
+    flex-wrap: wrap;
+    place-content: center flex-end;
+    align-items: baseline;
+    gap: 0.5rem;
+    height: 2.75rem;
+    margin: 0 calc(-1 * var(--order-gutter)) -2.75rem;
+    padding: 0 var(--order-gutter);
+    border-bottom: 1px solid var(--bs-border-color-translucent);
+    box-shadow: var(--order-shadow);
+    clip-path: inset(0 0 -1rem);
+    font-size: 0.875rem;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--order-base) ease;
+  }
 
-    // Never folded in the column.
-    .order-cart[data-open="false"] {
-      .order-cart-body {
-        grid-template-rows: 1fr;
-      }
+  .order-total-bar-title {
+    min-width: 0;
+    margin-right: auto;
+    overflow: hidden;
+    font-size: 1.125rem;
+    font-weight: bold;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
 
-      .order-cart-foot {
-        padding-top: 0.5rem;
-        border-top: 2px solid var(--bs-body-color);
-      }
+  .order-form[data-cart-passed="true"] .order-total-bar,
+  .order-form[data-cart-passed="true"] .order-topbar-total {
+    opacity: 1;
+  }
 
-      .order-cart-nudge {
-        display: block;
-      }
+  .order-form[data-cart-passed="true"] .order-total-bar-sum {
+    pointer-events: auto;
+  }
+
+  .order-total-bar-total {
+    font-size: 1.125rem;
+    font-weight: bold;
+    font-variant-numeric: tabular-nums;
+  }
+
+  // Too short for anything to ride along (#274, round 4): the top bar
+  // scrolls away with the page, and the cart sits where it settles,
+  // below the catalog or at the head of its column, never floating.
+  // Below xl, order-form.js keeps it settled (SHORT); the total bar
+  // that stands in for it once passed stays hidden.
+  @media #{$cart-short} {
+    .order-topbar {
+      position: relative;
     }
   }
 }
@@ -1273,40 +1716,9 @@
   pointer-events: none;
 }
 
-@keyframes order-tick {
-  0% {
-    transform: translateY(0) scale(1);
-  }
-
-  35% {
-    transform: translateY(-3px) scale(1.14);
-  }
-
-  100% {
-    transform: translateY(0) scale(1);
-  }
-}
-
 @keyframes order-spin {
   to {
     transform: rotate(360deg);
-  }
-}
-
-@keyframes order-bump {
-  0% {
-    transform: scale(1);
-    color: var(--bs-body-color);
-  }
-
-  40% {
-    transform: scale(1.07);
-    color: var(--bs-success-text-emphasis);
-  }
-
-  100% {
-    transform: scale(1);
-    color: var(--bs-body-color);
   }
 }
 
@@ -1324,10 +1736,24 @@
 // forms use it too, so it is not scoped to .order.
 .order-hform {
   .row + .row {
-    margin-top: 0.75rem;
+    margin-top: 0.375rem;
   }
 
   .col-form-label {
     font-size: 0.875rem;
+  }
+
+  // Stacked on a phone, a label belongs to the field under it: less
+  // room between the two than between one pair and the next.
+  @media (max-width: 575.98px) {
+    .row + .row {
+      margin-top: 1rem;
+    }
+
+    .col-form-label {
+      padding-top: 0;
+      padding-bottom: 0.25rem;
+      line-height: 1.3;
+    }
   }
 }

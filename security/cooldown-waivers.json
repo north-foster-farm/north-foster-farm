@@ -1,0 +1,9 @@
+[
+  {
+    "package": "fast-uri",
+    "version": "3.1.9",
+    "advisory": "GHSA-w74x-v6f9-j3xg",
+    "reason": "James decided on 2026-10-25 (PR #401, comment 6398273346) not to wait out the cooldown: six of the seven days is enough for this development-only fix to the four fast-uri advisories (north-foster-farm#330). Remove after 2026-10-26 23:05 UTC.",
+    "date": "2026-10-25"
+  }
+]

@@ -3,7 +3,7 @@
     {{ $address := partial "address.html" . }}
     {{ $phone := partial "phone.html" . }}
     <p class="card-text text-center">
-      <span class="text-nowrap"><strong>North Foster Farm</strong></span> is located at {{ $address.street }} in {{ $address.city }}, <span class="text-nowrap">Rhode Island</span>.
+      <span class="text-nowrap"><strong>{{ hugo.Data.company.name }}</strong></span> is located at {{ $address.street }} in {{ $address.city }}, <span class="text-nowrap">Rhode Island</span>.
     </p>
     <p class="card-text text-center">
       <strong>Call or text:</strong> <a class="text-decoration-none" href="{{ $phone.href }}">{{ $phone.display }}</a>
