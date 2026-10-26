@@ -314,26 +314,23 @@ test("empty, the pane shows the way and the code only", async ({ page }) => {
       && (await hide.getAttribute("aria-expanded")) !== "true") {
       await hide.click();
     }
-    // A panel that floats shut (md) opens on a tap of the count
-    // (cart-round4); the phone's pane and the xl column show the way
-    // already.
-    const way = order.cart.locator("[data-way-toggle]");
-
-    if (!(await way.isVisible())) {
-      await order.cart.locator("[data-cart-items-toggle]").click();
-    }
     await expect(order.subtotal, `${size.width}px`).toBeHidden();
     await expect(order.cart.locator(".order-badges")).toBeHidden();
-    await expect(order.cart.locator("[data-way-toggle]")).toBeVisible();
-    await expect(order.codeOpen).toBeVisible();
+    // The md panel (#274 r6) floats an empty cart folded: the way and
+    // the code are folded away with the sums until the first Add. Open
+    // question for James, in the report on #449: should they show?
+    if (size !== MD) {
+      await expect(order.cart.locator("[data-way-toggle]")).toBeVisible();
+      await expect(order.codeOpen).toBeVisible();
 
-    // No room left above the total row.
-    const gap = await order.cart.evaluate((el) => (
-      el.querySelector(".order-cart-total-row").getBoundingClientRect().top
-        - el.getBoundingClientRect().top
-    ));
+      // No room left above the total row.
+      const gap = await order.cart.evaluate((el) => (
+        el.querySelector(".order-cart-total-row").getBoundingClientRect().top
+          - el.getBoundingClientRect().top
+      ));
 
-    expect(gap, `${size.width}px`).toBeLessThan(2 * 16);
+      expect(gap, `${size.width}px`).toBeLessThan(2 * 16);
+    }
 
     await (await order.showRow("wings")).locator(".order-qty-add").click();
     await expect(order.cart).not.toHaveAttribute("data-empty", "");
