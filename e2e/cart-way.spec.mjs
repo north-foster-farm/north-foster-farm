@@ -6,7 +6,7 @@
 // part in Chromium.
 
 import {
-  FULL_CART, OrderPage, expect, test, unfoldCart as unfold,
+  FULL_CART, OrderPage, expect, settleCart as unfold, test,
 } from "./support/order.mjs";
 
 const SIZES = [
