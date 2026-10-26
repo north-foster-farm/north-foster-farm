@@ -40,9 +40,14 @@ const rateLimited = (ip, now) => {
   return recent.length > RATE.max;
 };
 
+// Netlify copies the request's query onto a function's redirect whose
+// Location has none, and on a link that is its token: the next page's
+// request line would carry it. An empty query stops the copy.
+const noCopy = (location) => location.replace(/^([^?#]*)(#|$)/, "$1?$2");
+
 // Headers as [name, value] pairs, so Set-Cookie can repeat.
 const redirect = (location, headers = []) => new Response(null, {
-  status: 302, headers: [["Location", location], ...headers],
+  status: 302, headers: [["Location", noCopy(location)], ...headers],
 });
 
 export const handle = async (req, {
