@@ -299,9 +299,14 @@
     gap: 0.625rem;
   }
 
+  // Every row has the same columns, out of stock or not, so the
+  // prices and the Add column line up down the list (#437). The price
+  // column is wide enough for "$100", and the prices end on one line.
   .order-item {
+    --order-price-w: 3.5rem;
+
     display: grid;
-    grid-template-columns: 1fr max-content 7.5rem;
+    grid-template-columns: minmax(0, 1fr) var(--order-price-w) 7.5rem;
     grid-template-areas:
       "name  price qty"
       "error error error";
@@ -345,18 +350,18 @@
     }
   }
 
-  // A detail after the price, such as the count in a pack, so every
-  // row is a name on one line and its price line under or beside it.
+  // A detail after the name, such as the count in a pack or an egg's
+  // grade, so the price column holds only prices.
   .order-item-note {
     font-size: 0.8125rem;
+    color: var(--bs-secondary-color);
   }
 
-  // A long note wraps without leaving one word alone on its line.
   .order-item-price {
     grid-area: price;
+    justify-self: end;
     color: var(--bs-secondary-color);
     font-variant-numeric: tabular-nums;
-    text-wrap: pretty;
   }
 
   .order-item-error {
@@ -416,6 +421,7 @@
     }
 
     .order-item-price {
+      justify-self: start;
       font-size: 0.9375rem;
     }
   }
@@ -509,10 +515,13 @@
   // with the restock label, and reads as a label: no border, no
   // outline (#318). Its row keeps the price and note, except that
   // "Back in spring", "On hiatus" and "Not available" drop the
-  // price and keep the note (#303).
+  // price and keep the note (#303). The label never wraps (#324): it
+  // is as wide as its words and centered on Add's column at every
+  // width, past its edges if it must be (#437).
   .order-qty-out {
     display: none;
-    width: 100%;
+    justify-self: center;
+    width: max-content;
     border: 0;
     background: transparent;
     padding-inline: 0.25rem;
@@ -545,35 +554,11 @@
       display: block;
     }
 
-    // The label never wraps (#324): its column is as wide as the
-    // longest label needs, and the name or price gives way instead.
-    .order-item-name,
+  }
+
+  .order-item[data-stock="out"]:not([data-restock="soon"])
     .order-item-price {
-      min-width: 0;
-    }
-
-    @media (min-width: 30.0625rem) {
-      .order-qty {
-        width: auto;
-      }
-    }
-  }
-
-  @media (min-width: 30.0625rem) {
-    .order-item[data-stock="out"] {
-      grid-template-columns: minmax(0, 1fr) max-content max-content;
-    }
-  }
-
-  .order-item[data-stock="out"]:not([data-restock="soon"]) {
-    .order-item-price:not(:has(.order-item-note)) {
-      display: none;
-    }
-
-    .order-item-amount,
-    .order-item-dot {
-      display: none;
-    }
+    display: none;
   }
 
   // The heading stands in the flow where the pane settles, a
@@ -1590,7 +1575,7 @@
     }
 
     .order-item {
-      grid-template-columns: 1fr max-content 6.25rem;
+      grid-template-columns: minmax(0, 1fr) var(--order-price-w) 6.25rem;
       padding: 0.75rem 0.5rem 0.75rem 0;
       border: 0;
       border-bottom: 1px solid var(--bs-border-color-translucent);
@@ -1637,12 +1622,11 @@
   }
 
   // Phones: one quantity column for every row (#325), as wide as the
-  // longest restock label needs on one line. Add, the stepper and the
-  // label fill it, so their centers line up; the name or price wraps
-  // first.
+  // longest restock label needs on one line. Add and the stepper fill
+  // it and the label centers in it, so their centers line up. The
+  // name or price wraps first.
   @media (max-width: 30rem) {
-    .order-item,
-    .order-item[data-stock="out"] {
+    .order-item {
       grid-template-columns: minmax(0, 1fr) var(--order-qty-w, 7rem);
     }
 
