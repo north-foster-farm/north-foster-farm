@@ -25,7 +25,8 @@ test.describe("the header's chicken", () => {
       "href", "#avatar-hen-brown"
     );
     await expect(button).toHaveAccessibleName("Account");
-    await expect(button).not.toContainText(/^\s*Account\s*$/);
+    // The word is for screen readers only; the chicken is what shows.
+    await expect(button.locator(".visually-hidden")).toHaveText("Account");
   });
 
   test("shows the brown hen before one is picked", async ({ page }) => {
