@@ -9,6 +9,7 @@
 
 import { cannedDates } from "./support/canned.mjs";
 import { OrderPage, expect, test } from "./support/order.mjs";
+import { cannedScheduled, payable } from "./support/scheduled.mjs";
 
 const FAKE = {
   first: "Zebulon",
@@ -95,7 +96,10 @@ const setUp = async (page, {
   let release;
   const filled = new Promise((resolve) => { release = resolve; });
 
-  await cannedDates(page);
+  // A scheduled pickup needs the drop site on offer, which the plain
+  // canned dates do not list.
+  if (scheduled) await cannedScheduled(page, payable());
+  else await cannedDates(page);
   await page.route("**/api/health", (route) => {
     if (route.request().method() === "POST") {
       reports.push(route.request().postData() || "");
