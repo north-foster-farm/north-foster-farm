@@ -2,7 +2,7 @@
 // so the order page can offer the group's pickup and price by its
 // locked list. With no code, a signed-in member's own group. The
 // answer is the group's name, its place and series (which the page
-// never embeds), the price lock and its open rounds. The order
+// never embeds), the member price list and its open rounds. The order
 // handler checks the code again when the order is placed.
 //
 //   200 { ok: true, group, dates }     404 { ok: false, message }

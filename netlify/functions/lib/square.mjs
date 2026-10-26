@@ -418,7 +418,7 @@ export const buildOrder = (order, customerId, cfg) => {
     fulfillments: [fulfillment(order)],
   };
 
-  // A buying group's price lock (#471) is per item, whole dollars, so
+  // A buying group's member price (#471) is per item, whole dollars, so
   // the receipt shows each item at retail with its own discount, as
   // #132 wants member pricing recorded. Every other discount is one
   // order-scope amount.
@@ -427,7 +427,7 @@ export const buildOrder = (order, customerId, cfg) => {
 
     out.discounts = t.lockLines.map((l) => ({
       uid: uid(l.sku),
-      name: t.discountLabel || "Price lock",
+      name: t.discountLabel || "Member price",
       amount_money: money(l.amount),
       scope: "LINE_ITEM",
     }));

@@ -1,6 +1,6 @@
 // Buying groups (#471): a group's members hold a private code that
 // unlocks the group's pickup place, which is listed nowhere, and
-// prices their orders by the group's locked price list. The group
+// prices their orders by the group's member price list. The group
 // itself is data (data/groups.json); its code is a record in the
 // orders store under `group/<key>`, minted or set from the CLI, so a
 // leaked code is replaced without a deploy. The code is checked on the

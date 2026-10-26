@@ -55,7 +55,7 @@ test.describe("a buying group's code (#471)", () => {
       const chosen = `label[for='scheduled-${round.toLowerCase()}']`;
 
       await expect(page.locator(chosen)).toContainText(GYM);
-      // Priced at retail today: the locked prices are the retail ones.
+      // Priced at retail today: the member prices are the retail ones.
       await expect(order.discountLabel).toContainText("Bulk discount");
 
       await order.contact({ first: "Group", email });

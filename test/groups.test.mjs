@@ -256,7 +256,7 @@ describe("the real group data", () => {
   });
 });
 
-describe("a buying group's price lock", () => {
+describe("a buying group's member price", () => {
   const { money } = terms;
   // Retail as the catalog has it today, and a catalog after a rise.
   const index = indexCatalog(catalog);
@@ -279,7 +279,7 @@ describe("a buying group's price lock", () => {
     assert.equal(Object.keys(lock.prices).length, index.size);
   });
 
-  it("holds nothing down while the locked prices are retail", () => {
+  it("holds nothing down while the member prices are retail", () => {
     assert.equal(lockDiscountFor(lines, index, lock), null);
 
     const t = at(index);
@@ -293,11 +293,11 @@ describe("a buying group's price lock", () => {
     assert.equal(t.total, 6200);
   });
 
-  it("charges the locked price once retail rises, per item", () => {
+  it("charges the member price once retail rises, per item", () => {
     const found = lockDiscountFor(lines, raised, lock);
 
     assert.equal(found.amount, 600);
-    assert.equal(found.label, "Price lock");
+    assert.equal(found.label, "Member price");
     assert.deepEqual(found.lines, [
       { sku: "NFF-CHK-WHL-35-39", off: 200, qty: 2, amount: 400 },
       { sku: "NFF-CHK-EGG-LG", off: 200, qty: 1, amount: 200 },
@@ -308,7 +308,7 @@ describe("a buying group's price lock", () => {
     // $73 at the new retail, $6 held down: more than the $50 tier.
     assert.equal(t.subtotal, 7300);
     assert.equal(t.discountAmount, 600);
-    assert.equal(t.discountLabel, "Price lock");
+    assert.equal(t.discountLabel, "Member price");
     assert.equal(t.discountTier, null);
     assert.equal(t.discountLock, true);
     assert.equal(t.lockLines.length, 2);
@@ -403,9 +403,9 @@ describe("a buying group's price lock", () => {
     const built = buildOrder(order, "CUST", cfg);
 
     assert.deepEqual(built.discounts, [
-      { uid: "lock-NFF-CHK-WHL-35-39", name: "Price lock",
+      { uid: "lock-NFF-CHK-WHL-35-39", name: "Member price",
         amount_money: { amount: 400, currency: "USD" }, scope: "LINE_ITEM" },
-      { uid: "lock-NFF-CHK-EGG-LG", name: "Price lock",
+      { uid: "lock-NFF-CHK-EGG-LG", name: "Member price",
         amount_money: { amount: 200, currency: "USD" }, scope: "LINE_ITEM" },
     ]);
     assert.deepEqual(built.line_items[0].applied_discounts,
@@ -423,7 +423,7 @@ describe("a buying group's price lock", () => {
   });
 });
 
-describe("the price lock's last day", () => {
+describe("the member price's last day", () => {
   const lock = groupData.groups[0].priceLock;
   const index = indexCatalog(catalog);
   const raised = new Map([...index].map(([sku, item]) =>
