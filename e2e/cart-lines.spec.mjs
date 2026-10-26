@@ -55,6 +55,41 @@ test("the lines are kept in catalog order as quantities change",
       .toHaveText(["Eggs", "Other Items"]);
   });
 
+// A line taken out in another tab (search, or the order page there)
+// leaves this one too, so the next change here does not save the old
+// cart back over the draft (#356).
+test("another tab's change to the cart arrives here", async ({
+  page, context,
+}) => {
+  await page.setViewportSize(XL);
+
+  const order = new OrderPage(page);
+
+  await order.open({ eggs: 2, wings: 1 });
+  await expect(order.count).toHaveText("3 items");
+
+  const other = await context.newPage();
+
+  await other.goto("/about/");
+  await other.evaluate(() => {
+    const draft = JSON.parse(localStorage.getItem("nff-order-draft"));
+
+    draft.payload.lines = [{ sku: "NFF-CHK-EGG-LG", qty: 1 }];
+    draft.savedAt = Date.now();
+    localStorage.setItem("nff-order-draft", JSON.stringify(draft));
+  });
+  await expect(order.qty("eggs")).toHaveValue("1");
+  await expect(order.qty("wings")).toHaveValue("0");
+  await expect(order.count).toHaveText("1 item");
+
+  // A change here saves the lines as they now are.
+  await order.item("eggs").getByRole("button", { name: "One more" }).click();
+  await expect(order.count).toHaveText("2 items");
+  expect(await page.evaluate(() => JSON.parse(
+    localStorage.getItem("nff-order-draft")
+  ).payload.lines)).toEqual([{ sku: "NFF-CHK-EGG-LG", qty: 2 }]);
+});
+
 test.describe("a long list on a phone", () => {
   test.use({ viewport: PHONE });
 
