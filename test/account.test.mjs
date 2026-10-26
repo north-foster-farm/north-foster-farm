@@ -106,8 +106,8 @@ const harness = () => {
 };
 
 describe("listOrders", () => {
-  it("says what an order the farm made still owes, and that it can be " +
-    "paid (#181)", async () => {
+  it("says what an order the farm made still owes, and keeps the site " +
+    "off money the farm took by hand (#181)", async () => {
     const stores = testStores();
 
     await saveOrder(stores, {
@@ -115,17 +115,27 @@ describe("listOrders", () => {
       payments: [],
     });
     await saveOrder(stores, order("P"));
+    await saveOrder(stores, {
+      ...order("C"), payment: undefined,
+      payments: [{ amount: 1900, via: "cash", method: "cash",
+        squarePaymentId: "PAY-C", by: "farm" }],
+    });
 
     const { orders } = await listOrders(stores, customerOf(), { now });
     const u = orders.find((o) => o.id === "U");
     const p = orders.find((o) => o.id === "P");
+    const c = orders.find((o) => o.id === "C");
 
     assert.equal(u.due, u.totals.total);
-    assert.equal(u.canPay, true);
     assert.equal(u.canChange, false);
     assert.equal(u.canCancel, false);
     assert.equal(p.due, 0);
-    assert.equal(p.canPay, false);
+    assert.equal(p.canCancel, true);
+    // Paid in cash: cancelled or changed with the farm, which hands
+    // the money back itself.
+    assert.equal(c.due, 0);
+    assert.equal(c.canCancel, false);
+    assert.equal(c.canChange, false);
   });
 
   it("shows only the customer's orders, newest first, in public shape",
@@ -864,6 +874,7 @@ describe("the account endpoints", () => {
     const calls = [];
     const square = {
       ...opts.square,
+      getOrder: async (id) => ({ id, tenders: [] }),
       createPayment: async (args) => {
         calls.push([args.squareOrderId, args.amount]);
 

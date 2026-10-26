@@ -508,6 +508,27 @@ describe("refunds over several payments", () => {
     };
   };
 
+  it("records a refund of money the farm took by hand without asking " +
+    "Square (#181)", async () => {
+    const stores = testStores();
+    const { calls, opts } = harness();
+    const base = order("H");
+
+    await saveOrder(stores, {
+      ...base, payment: undefined,
+      payments: [{ at: now.toISOString(), amount: 1400, via: "cash",
+        method: "cash", squarePaymentId: "PAY-H", by: "farm" }],
+      refunds: [],
+    }, now);
+
+    const r = await refundOrder(stores, "H", opts);
+
+    assert.deepEqual(calls, [], "Square only noted the cash");
+    assert.deepEqual(r.refunds.map((x) => [x.amount, x.status, x.byHand,
+      x.squareRefundId]), [[1400, "COMPLETED", true, null]]);
+    assert.equal(r.refunds[0].total, true);
+  });
+
   it("takes a refund out of the newest payment first", async () => {
     const stores = testStores();
     const { calls, opts } = harness();
@@ -573,6 +594,33 @@ describe("an attempted delivery keeps its fee", () => {
         delivery: { address1: "5 Far Rd", zip: "01234" } },
     };
   };
+
+  it("will not cancel an unpaid order while a payment of it is under " +
+    "way (#181)", async () => {
+    const stores = testStores();
+    const { opts } = harness();
+
+    await saveOrder(stores, {
+      ...delivered("P"), status: "unpaid", payments: [], payment: undefined,
+    }, now);
+    await stores.orders.create("pay-pending/P", {
+      key: "0f7c1e3a-9c9b-4b3a-8e9d-1a2b3c4d5e6f", attempt: 1,
+      at: now.toISOString(),
+    });
+
+    await assert.rejects(cancelOrder(stores, "P", {
+      ...opts, now, reasonText: "QA",
+    }), /A payment is under way; try again in a minute\./);
+    assert.equal((await getOrder(stores, "P")).status, "unpaid");
+
+    // A claim older than ten minutes no longer holds it.
+    const later = new Date(now.getTime() + 11 * 60_000);
+    const cancelled = await cancelOrder(stores, "P", {
+      ...opts, now: later, reasonText: "QA",
+    });
+
+    assert.equal(cancelled.status, "cancelled");
+  });
 
   it("marks an unpaid delivery the farm made, too (#181)", async () => {
     const stores = testStores();

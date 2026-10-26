@@ -370,8 +370,9 @@ describe("changed and canceled orders", () => {
 
       assert.deepEqual(paymentState(owing),
         { paid: false, due: 2200, refunded: 0 });
-      assert.deepEqual(paymentState({ ...order("L"), status: "submitted" }),
-        { paid: false, due: 3700, refunded: 0 }, "an old unpaid record");
+      assert.deepEqual(paymentState({ ...order("L"), status: "submitted",
+        payments: [] }),
+      { paid: false, due: 3700, refunded: 0 }, "an old unpaid record");
       assert.match(text, /\(UNPAID\)/);
       assert.match(text, /\(Amount due at pickup: \$22\)/);
       assert.match(text, /\(PAID\)/);

@@ -197,11 +197,20 @@ export const paidTotal = (order) => sum(paymentsOf(order));
 export const refundedTotal = (order) => sum(settledRefunds(order));
 
 // What the customer still owes on the order: the total less what has
-// been paid (#181). A refund never makes an order owe (lib/packing.mjs
-// says why), and a record from the invoice era owes its whole total.
-export const dueOn = (order) => (order.status === "submitted"
-  ? order.totals.total
-  : Math.max(0, order.totals.total - paidTotal(order)));
+// been paid (#181), a record from the invoice era included, so money
+// recorded on one counts once. A refund never makes an order owe
+// (lib/packing.mjs says why).
+export const dueOn = (order) =>
+  Math.max(0, order.totals.total - paidTotal(order));
+
+// Money the farm took outside the site (#181): cash, a check, or Venmo
+// with no PayPal capture behind it. Square holds a note of it, not the
+// money, so a refund of it is the farm's to hand back, and the site
+// never promises one.
+export const paidByHand = (payment) => !!payment
+  && (payment.via === "cash" || payment.via === "check"
+    || payment.via === "external"
+    || (payment.via === "venmo" && !payment.paypalCaptureId));
 
 // The delivery fee an attempted delivery keeps: "the delivery fee is
 // not refundable once we attempt the delivery" (James, F1). The farm
@@ -279,7 +288,11 @@ export const setStatus = async (
   if (status === "paid" && ["cancelled", "fulfilled"].includes(order.status)) {
     return order;
   }
-  if (status === "fulfilled" && order.status !== "paid") return order;
+  // Handed over from paid, or from unpaid: the farm delivers first and
+  // records the money after (#181).
+  if (status === "fulfilled" && !["paid", "unpaid"].includes(order.status)) {
+    return order;
+  }
   if (status === "cancelled" && order.status === "fulfilled") return order;
 
   const at = now.toISOString();

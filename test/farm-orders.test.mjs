@@ -2,12 +2,14 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
-  TENDERS, createFarmOrder, payFarmOrder, payOrder, planFarmOrder,
+  PENDING_MS, TENDERS, createFarmOrder, payFarmOrder, payOrder,
+  planFarmOrder,
 } from "../netlify/functions/lib/farm-orders.mjs";
 import { SquareError } from "../netlify/functions/lib/square.mjs";
 import { readMark } from "../netlify/functions/lib/health.mjs";
 import {
-  dueOn, getCustomer, getOrder, openOrders, paymentsOf, setStatus,
+  amendOrder, dueOn, getCustomer, getOrder, openOrders, paymentsOf,
+  setStatus, updateOrder,
 } from "../netlify/functions/lib/records.mjs";
 import { getCounts, setCount } from "../netlify/functions/lib/stock.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
@@ -60,6 +62,8 @@ const fakeSquare = ({ repeat = false } = {}) => {
 
       return { id, completed: true };
     },
+    findPaid: async () => null,
+    getOrder: async (id) => ({ id, tenders: [] }),
   };
 
   return { square, calls };
@@ -232,20 +236,36 @@ describe("createFarmOrder", () => {
     assert.equal(paymentsOf(check.r.order)[0].via, "check");
   });
 
-  it("refuses a tender it does not know, and an amount over the total",
+  it("refuses a tender it does not know before anything is made",
     async () => {
       const stores = testStores();
       const odd = await make(stores, { paid: { tender: "goats" } });
-      const much = await make(stores, {
-        paid: { tender: "cash", amount: 5501 },
-      });
 
       assert.equal(odd.r.ok, false);
       assert.ok(odd.r.errors.paid);
-      assert.equal(much.r.ok, false);
-      assert.ok(much.r.errors.amount);
-      assert.deepEqual(much.calls, [], "nothing reached Square");
+      assert.deepEqual(odd.calls, [], "nothing reached Square");
+      assert.deepEqual(await openOrders(stores), []);
     });
+
+  it("leaves the order unpaid and names the fix when the tender fails " +
+    "after the order is made", async () => {
+    const stores = testStores();
+    const { square, calls } = fakeSquare();
+
+    square.createPayment = async () => { throw new Error("Square 503"); };
+
+    const r = await createFarmOrder(stores, body(), {
+      key: KEY, now, env, mail: mailbox().mail, square,
+      paid: { tender: "cash" },
+    });
+
+    assert.equal(r.ok, false);
+    assert.match(r.errors.paid, /was made and is unpaid/);
+    assert.match(r.errors.paid, new RegExp(`orders pay ${r.order.id} --cash`));
+    assert.equal(r.order.status, "unpaid");
+    assert.deepEqual(calls.map((c) => c[0]), ["order"]);
+    assert.equal((await openOrders(stores)).length, 1);
+  });
 
   it("a dry run prices and checks, and changes nothing", async () => {
     const stores = testStores();
@@ -289,66 +309,107 @@ describe("payFarmOrder", () => {
       ["unpaid", "farm.paid", "paid"]);
   });
 
-  it("takes part of what is due, then the rest; never more; whole cents",
+  it("takes the whole of what is due, once: a second tender finds " +
+    "nothing due", async () => {
+    const stores = testStores();
+    const order = await unpaid(stores);
+    const { square, calls } = fakeSquare();
+    const { mail } = mailbox();
+    const opts = { now, env, mail, square };
+    const first = await payFarmOrder(stores, order.id,
+      { tender: "venmo", ref: "V-1" }, opts);
+    const again = await payFarmOrder(stores, order.id, { tender: "cash" },
+      opts);
+
+    assert.equal(first.ok, true);
+    assert.equal(first.payment.amount, 5500);
+    assert.equal(again.ok, false);
+    assert.ok(again.errors.order);
+    assert.equal(calls.filter((c) => c[0] === "payment").length, 1);
+    assert.equal(await stores.orders.get(`pay-pending/${order.id}`), null,
+      "the claim is released");
+  });
+
+  it("records a tender Square already holds instead of taking the " +
+    "farm's, and says so", async () => {
+    const stores = testStores();
+    const order = await unpaid(stores);
+    const { square, calls } = fakeSquare();
+    const { sent, mail } = mailbox();
+
+    // A cash write that died after Square took it; the farm runs the
+    // command again.
+    square.getOrder = async (id) => ({
+      id, tenders: [{ id: "T-3", "payment_id": "PAY-CASH", type: "CASH",
+        "amount_money": { amount: 5500, currency: "USD" } }],
+    });
+
+    const r = await payFarmOrder(stores, order.id, { tender: "cash" },
+      { now, env, mail, square });
+
+    assert.equal(r.ok, true);
+    assert.equal(r.found, true);
+    assert.equal(r.order.status, "paid");
+    assert.deepEqual([r.payment.via, r.payment.by, r.payment.squarePaymentId],
+      ["cash", "farm", "PAY-CASH"]);
+    assert.deepEqual(calls.filter((c) => c[0] === "payment"), []);
+    assert.ok(sent.length, "the confirmation goes");
+  });
+
+  it("refuses a tender while a payment of the order is under way",
     async () => {
       const stores = testStores();
       const order = await unpaid(stores);
       const { square, calls } = fakeSquare();
-      const { sent, mail } = mailbox();
-      const opts = { now, env, mail, square };
-      const part = await payFarmOrder(stores, order.id,
-        { tender: "cash", amount: 2000 }, opts);
 
-      assert.equal(part.ok, true);
-      assert.equal(part.order.status, "unpaid");
-      assert.equal(dueOn(part.order), 3500);
-      assert.deepEqual(sent, [], "not paid yet, no confirmation");
+      await stores.orders.create(`pay-pending/${order.id}`, {
+        key: "0f7c1e3a-9c9b-4b3a-8e9d-1a2b3c4d5e6f", attempt: 1,
+        at: now.toISOString(),
+      });
 
-      const over = await payFarmOrder(stores, order.id,
-        { tender: "cash", amount: 3501 }, opts);
-      const cents = await payFarmOrder(stores, order.id,
-        { tender: "cash", amount: 35.5 }, opts);
+      const r = await payFarmOrder(stores, order.id, { tender: "cash" },
+        { now, env, square });
 
-      assert.equal(over.ok, false);
-      assert.ok(over.errors.amount);
-      assert.equal(cents.ok, false);
-      assert.ok(cents.errors.amount);
-      assert.equal(calls.length, 1, "neither reached Square");
+      assert.equal(r.ok, false);
+      assert.match(r.errors.order, /under way/);
+      assert.deepEqual(calls, []);
 
-      const rest = await payFarmOrder(stores, order.id,
-        { tender: "venmo", ref: "V-1" }, opts);
+      // A claim older than PENDING_MS no longer holds the order.
+      const later = new Date(now.getTime() + PENDING_MS + 1000);
+      const after = await payFarmOrder(stores, order.id, { tender: "cash" },
+        { now: later, env, mail: mailbox().mail, square });
 
-      assert.equal(rest.ok, true);
-      assert.equal(rest.order.status, "paid");
-      assert.deepEqual(paymentsOf(rest.order).map((p) => [p.via, p.amount]),
-        [["cash", 2000], ["venmo", 3500]]);
-      assert.notEqual(calls[0][1], calls[1][1], "each tender its own key");
-
-      const none = await payFarmOrder(stores, order.id, { tender: "cash" },
-        opts);
-
-      assert.equal(none.ok, false);
-      assert.ok(none.errors.order);
+      assert.equal(after.ok, true);
     });
 
-  it("records a tender Square already holds once: a retry after a lost " +
-    "answer does not double it", async () => {
+  it("keeps a write made between its read and its swap", async () => {
     const stores = testStores();
     const order = await unpaid(stores);
-    const { square, calls } = fakeSquare({ repeat: true });
+    const { square } = fakeSquare();
     const { mail } = mailbox();
-    const opts = { now, env, mail, square };
-    const first = await payFarmOrder(stores, order.id,
-      { tender: "cash", amount: 2000 }, opts);
-    // The same amount again: Square answers with the same payment.
-    const again = await payFarmOrder(stores, order.id,
-      { tender: "cash", amount: 2000 }, opts);
+    const orders = stores.orders;
+    const swap = orders.swap;
+    let raced = false;
 
-    assert.equal(first.ok, true);
-    assert.equal(again.ok, true);
-    assert.equal(paymentsOf(again.order).length, 1);
-    assert.equal(dueOn(again.order), 3500);
-    assert.equal(calls.length, 2, "Square was asked, and said the same");
+    // Another writer notes the order while the tender is being written.
+    orders.swap = async (...args) => {
+      if (!raced && args[0] === `order/${order.id}`) {
+        raced = true;
+        await amendOrder(stores, order.id, { notes: "Ring twice" },
+          "farm.changed", now);
+      }
+
+      return swap(...args);
+    };
+
+    const r = await payFarmOrder(stores, order.id, { tender: "cash" },
+      { now, env, mail, square });
+
+    assert.equal(r.ok, true);
+    assert.equal(r.order.notes, "Ring twice");
+    assert.equal(r.order.status, "paid");
+    assert.equal(paymentsOf(r.order).length, 1);
+    assert.ok(raced);
   });
 
   it("completes a delivered-first order in Square once it is paid",
@@ -411,7 +472,6 @@ describe("payOrder: the customer pays later", () => {
     assert.equal(r.difference, 5500);
     assert.equal(r.order.status, "paid");
     assert.equal(r.order.due, 0);
-    assert.equal(r.order.canPay, false);
     assert.deepEqual(r.order.payments.map((p) => [p.via, p.method,
       p.amount]), [["square", "card", 5500]]);
     assert.deepEqual(calls.map((c) => c[0]), ["payment"],
@@ -468,6 +528,334 @@ describe("payOrder: the customer pays later", () => {
     const settled = await payOrder(stores, PAT, order.id, card, opts);
 
     assert.equal(settled.status, 409);
+  });
+
+  it("refuses a second submission while one is under way, and Square's " +
+    "own source names", async () => {
+    const stores = testStores();
+    const order = await unpaid(stores);
+    const { square, calls } = fakeSquare();
+    const opts = { now, env, square };
+
+    await stores.orders.create(`pay-pending/${order.id}`, {
+      key: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee", attempt: 1,
+      at: now.toISOString(),
+    });
+
+    const busy = await payOrder(stores, PAT, order.id, card, opts);
+
+    assert.equal(busy.status, 409);
+    assert.match(busy.errors.order, /under way/);
+
+    await stores.orders.delete(`pay-pending/${order.id}`);
+
+    for (const sourceId of ["CASH", "EXTERNAL", "external"]) {
+      const r = await payOrder(stores, PAT, order.id, {
+        ...card, payment: { method: "card", sourceId },
+      }, opts);
+
+      assert.equal(r.status, 422, sourceId);
+    }
+    assert.deepEqual(calls, []);
+  });
+
+  it("a later attempt records the payment Square already took instead " +
+    "of charging again, read from the order's own Square order", async () => {
+    const stores = testStores();
+    const order = await unpaid(stores);
+    const { square, calls } = fakeSquare();
+    const { sent, mail } = mailbox();
+
+    // The Square order was made days ago, outside findPaid's window
+    // (it answers null): its tenders are the record of the money.
+    square.getOrder = async (id) => ({
+      id, state: "COMPLETED",
+      "created_at": new Date(now.getTime() - 5 * 86_400_000).toISOString(),
+      tenders: [{ id: "T-1", "payment_id": "PAY-LOST", type: "CARD",
+        "amount_money": { amount: 5500, currency: "USD" } }],
+    });
+
+    const r = await payOrder(stores, PAT, order.id, { ...card, attempt: 2 },
+      { now, env, mail, square });
+
+    assert.equal(r.ok, true);
+    assert.equal(r.order.status, "paid");
+    assert.deepEqual(paymentsOf(await getOrder(stores, order.id))
+      .map((p) => [p.squarePaymentId, p.by]), [["PAY-LOST", "customer"]]);
+    assert.deepEqual(calls.filter((c) => c[0] === "payment"), [],
+      "nothing charged");
+    assert.ok(sent.length);
+  });
+
+  it("charges once when a second tab pays between the first tab's read " +
+    "and its claim", async () => {
+    const stores = testStores();
+    const order = await unpaid(stores);
+    const { square, calls } = fakeSquare();
+    const { mail } = mailbox();
+    const opts = { now, env, mail, square };
+    const other = {
+      ...card, idempotencyKey: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+    };
+    const create = stores.orders.create.bind(stores.orders);
+    let crossed = false;
+
+    // Tab B has read the order unpaid; before its claim lands, tab A
+    // pays, records and releases.
+    stores.orders.create = async (key, value) => {
+      if (!crossed && key === `pay-pending/${order.id}`) {
+        crossed = true;
+        stores.orders.create = create;
+        await payOrder(stores, PAT, order.id, other, opts);
+      }
+
+      return create(key, value);
+    };
+
+    const b = await payOrder(stores, PAT, order.id, card, opts);
+
+    assert.ok(crossed);
+    assert.equal(b.ok, false);
+    assert.equal(b.status, 409);
+    assert.equal(calls.filter((c) => c[0] === "payment").length, 1,
+      "Square took the money once");
+    assert.equal(paymentsOf(await getOrder(stores, order.id)).length, 1);
+    assert.equal(await stores.orders.get(`pay-pending/${order.id}`), null);
+  });
+
+  it("charges nothing when the farm's tender lands between the page's " +
+    "read and its claim, and the farm's tender finds nothing due after " +
+    "a customer's", async () => {
+    const stores = testStores();
+    const order = await unpaid(stores);
+    const { square, calls } = fakeSquare();
+    const { mail } = mailbox();
+    const opts = { now, env, mail, square };
+    const create = stores.orders.create.bind(stores.orders);
+    let crossed = false;
+
+    stores.orders.create = async (key, value) => {
+      if (!crossed && key === `pay-pending/${order.id}`) {
+        crossed = true;
+        stores.orders.create = create;
+        await payFarmOrder(stores, order.id, { tender: "cash" }, opts);
+      }
+
+      return create(key, value);
+    };
+
+    const page = await payOrder(stores, PAT, order.id, card, opts);
+
+    assert.ok(crossed);
+    assert.equal(page.status, 409);
+    assert.equal(calls.filter((c) => c[0] === "payment").length, 1);
+
+    const second = (await make(stores, { key: `${KEY}-2` })).r.order;
+
+    crossed = false;
+    stores.orders.create = async (key, value) => {
+      if (!crossed && key === `pay-pending/${second.id}`) {
+        crossed = true;
+        stores.orders.create = create;
+        await payOrder(stores, PAT, second.id, card, opts);
+      }
+
+      return create(key, value);
+    };
+
+    const farm = await payFarmOrder(stores, second.id, { tender: "cash" },
+      opts);
+
+    assert.ok(crossed);
+    assert.equal(farm.ok, false);
+    assert.match(farm.errors.order, /Nothing is due/);
+    assert.equal(calls.filter((c) => c[0] === "payment").length, 2);
+  });
+
+  it("records money Square already holds under a fresh key instead of " +
+    "charging again, on the first attempt", async () => {
+    const stores = testStores();
+    const order = await unpaid(stores);
+    const { square, calls } = fakeSquare();
+    const { mail } = mailbox();
+
+    // The first request died after the charge; its marker is stale and
+    // the customer presses Pay again with a new submission.
+    square.getOrder = async (id) => ({
+      id, tenders: [{ id: "T-1", "payment_id": "PAY-LOST", type: "CARD",
+        "amount_money": { amount: 5500, currency: "USD" } }],
+    });
+
+    const r = await payOrder(stores, PAT, order.id, {
+      ...card, idempotencyKey: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+    }, { now, env, mail, square });
+
+    assert.equal(r.ok, true);
+    assert.equal(r.order.status, "paid");
+    assert.deepEqual(calls.filter((c) => c[0] === "payment"), []);
+    assert.deepEqual(paymentsOf(await getOrder(stores, order.id))
+      .map((p) => [p.squarePaymentId, p.via, p.by]),
+    [["PAY-LOST", "square", "customer"]]);
+  });
+
+  it("reads a found cash tender as the farm's, not the customer's card",
+    async () => {
+      const stores = testStores();
+      const order = await unpaid(stores);
+      const { square, calls } = fakeSquare();
+      const { mail } = mailbox();
+
+      square.getOrder = async (id) => ({
+        id, tenders: [{ id: "T-2", "payment_id": "PAY-CASH", type: "CASH",
+          "amount_money": { amount: 5500, currency: "USD" } }],
+      });
+
+      const r = await payOrder(stores, PAT, order.id, card, {
+        now, env, mail, square,
+      });
+      const record = await getOrder(stores, order.id);
+
+      assert.equal(r.ok, true);
+      assert.deepEqual(calls.filter((c) => c[0] === "payment"), []);
+      assert.deepEqual(paymentsOf(record).map((p) => [p.via, p.by]),
+        [["cash", "farm"]]);
+      assert.equal(r.order.canCancel, false, "handed back by the farm");
+    });
+
+  it("leaves a cancelled order alone when the money lands after the " +
+    "cancel, and raises the alarm", async () => {
+    const stores = testStores();
+    const order = await unpaid(stores);
+    const { square } = fakeSquare();
+    const { sent, mail } = mailbox();
+    const pay = square.createPayment;
+
+    // The farm cancels the unpaid order while Square is taking the card.
+    square.createPayment = async (args) => {
+      await setStatus(stores, order.id, "cancelled", now, { source: "farm" });
+
+      return pay(args);
+    };
+
+    await payOrder(stores, PAT, order.id, card, {
+      now, env: { ...env, DEV_NOTIFICATIONS_EMAIL: "dev@x.com" }, mail, square,
+    });
+
+    const record = await getOrder(stores, order.id);
+
+    assert.equal(record.status, "cancelled");
+    assert.deepEqual(paymentsOf(record), []);
+    assert.ok(sent.some((m) => /paid_twice/.test(m.subject)
+      && /cancelled/.test(m.text || "")), "the farm hears, with the status");
+  });
+
+  it("lets exactly one of two takers have a stale claim", async () => {
+    const stores = testStores();
+    const order = await unpaid(stores);
+    const { square, calls } = fakeSquare();
+    const { mail } = mailbox();
+    const stale = new Date(now.getTime() - PENDING_MS - 60_000);
+
+    await stores.orders.create(`pay-pending/${order.id}`, {
+      key: "dead-dead-dead", attempt: 1, at: stale.toISOString(),
+    });
+
+    const [a, b] = await Promise.all([
+      payOrder(stores, PAT, order.id, card, { now, env, mail, square }),
+      payOrder(stores, PAT, order.id, {
+        ...card, idempotencyKey: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+      }, { now, env, mail, square }),
+    ]);
+
+    assert.deepEqual([a.ok, b.ok].sort(), [false, true]);
+    assert.equal(calls.filter((c) => c[0] === "payment").length, 1);
+  });
+
+  it("refuses a later attempt of the same key while its first stands",
+    async () => {
+      const stores = testStores();
+      const order = await unpaid(stores);
+      const { square, calls } = fakeSquare();
+
+      await stores.orders.create(`pay-pending/${order.id}`, {
+        key: card.idempotencyKey, attempt: 1, at: now.toISOString(),
+      });
+
+      const r = await payOrder(stores, PAT, order.id, { ...card, attempt: 2 },
+        { now, env, square });
+
+      assert.equal(r.status, 409);
+      assert.deepEqual(calls, []);
+    });
+
+  it("raises the alarm, keeping the record as it is, when money reaches " +
+    "Square for an order already settled", async () => {
+    const stores = testStores();
+    const order = await unpaid(stores);
+    const { square } = fakeSquare();
+    const { sent, mail } = mailbox();
+    const pay = square.createPayment;
+
+    // The farm's tender lands on the record while Square is taking the
+    // card: the record will not take a second payment.
+    square.createPayment = async (args) => {
+      await updateOrder(stores, order.id, (o) => ({
+        ...o, status: "paid", payments: [{ amount: 5500, via: "cash",
+          method: "cash", squarePaymentId: "PAY-CASH", by: "farm" }],
+      }));
+
+      return pay(args);
+    };
+
+    const r = await payOrder(stores, PAT, order.id, card, {
+      now, env: { ...env, DEV_NOTIFICATIONS_EMAIL: "dev@x.com" }, mail, square,
+    });
+
+    assert.equal(r.ok, true, "the customer is not told to pay again");
+    assert.equal(r.refused, true);
+    assert.deepEqual(paymentsOf(await getOrder(stores, order.id))
+      .map((p) => p.squarePaymentId), ["PAY-CASH"]);
+    assert.ok(sent.some((m) => /paid_twice/.test(m.subject)
+      || /paid_twice/.test(m.text || "")), "the farm hears");
+    // No confirmation and no mark for a payment the record refused, and
+    // the claim is released.
+    assert.ok(!sent.some((m) => /order/i.test(m.subject)
+      && !/paid_twice/.test(m.subject)), "no confirmation");
+    assert.equal(await readMark(stores, "paid"), null);
+    assert.equal(await stores.orders.get(`pay-pending/${order.id}`), null);
+  });
+
+  it("tells the farm to refund in Square, not \"Recorded\", when the " +
+    "record refuses its tender", async () => {
+    const stores = testStores();
+    const order = await unpaid(stores);
+    const { square } = fakeSquare();
+    const { sent, mail } = mailbox();
+    const pay = square.createPayment;
+
+    // A customer's card lands on the record while Square takes the
+    // farm's cash.
+    square.createPayment = async (args) => {
+      await updateOrder(stores, order.id, (o) => ({
+        ...o, status: "paid", payments: [{ amount: 5500, via: "square",
+          method: "card", squarePaymentId: "PAY-CARD", by: "customer" }],
+      }));
+
+      return pay(args);
+    };
+
+    const r = await payFarmOrder(stores, order.id, { tender: "cash" }, {
+      now, env: { ...env, DEV_NOTIFICATIONS_EMAIL: "dev@x.com" }, mail, square,
+    });
+
+    assert.equal(r.ok, false);
+    assert.match(r.errors.order, /This order is paid/);
+    assert.match(r.errors.order, /refund Square payment PAY-1/);
+    assert.deepEqual(paymentsOf(await getOrder(stores, order.id))
+      .map((p) => p.squarePaymentId), ["PAY-CARD"]);
+    assert.ok(sent.some((m) => /paid_twice/.test(m.subject)));
+    assert.ok(!sent.some((m) => /order/i.test(m.subject)
+      && !/paid_twice/.test(m.subject)), "no confirmation");
   });
 
   it("answers a decline as the order endpoint does, recording nothing",

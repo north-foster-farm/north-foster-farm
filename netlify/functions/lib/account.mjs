@@ -37,8 +37,8 @@ import * as paypalApi from "./paypal.mjs";
 import { pickupSchedule } from "./pickups.mjs";
 import {
   REMINDERS, amendOrder, answerQuestion, cartKey, cartOwner, dueOn, getOrder,
-  keptFee, ordersFor, paidTotal, paymentRef, paymentsOf, questionOpen,
-  refundedTotal, reminderPrefs, saveCustomer, settledRefunds,
+  keptFee, ordersFor, paidByHand, paidTotal, paymentRef, paymentsOf,
+  questionOpen, refundedTotal, reminderPrefs, saveCustomer, settledRefunds,
 } from "./records.mjs";
 import { mailLinks, orderUrlFor } from "./site.mjs";
 import * as squareApi from "./square.mjs";
@@ -174,19 +174,23 @@ export const publicOrder = (order, now = clock()) => ({
   } : null,
   canCancel: canCancel(order, now),
   canChange: canChange(order, now),
-  // What is still owed on an order the farm made (#181), and whether
-  // the page may take it: the Pay button on the account page.
+  // What is still owed on an order the farm made (#181). The page's
+  // pay mode, and the Pay now button that leads to it, land together
+  // with the cart rebuild (#477).
   due: dueOn(order),
-  canPay: order.status === "unpaid" && dueOn(order) > 0,
 });
 
 // An order can be cancelled or changed by the customer until the
 // cutoff. A cancellation is a refund the farm makes from the CLI. An
 // open question from the farm (a denied pickup window) keeps both
 // doors open past the cutoff: the customer was asked to choose.
+// An order holding money the farm took by hand (#181) is cancelled or
+// changed with the farm, which hands the money back itself: the site
+// would otherwise promise a refund it cannot make.
 const actionable = (order, now) =>
   order.status === "paid"
   && !order.cancelRequested
+  && !paymentsOf(order).some(paidByHand)
   && (now.getTime() < cutoffAt(order).getTime() || questionOpen(order));
 
 export const canCancel = actionable;

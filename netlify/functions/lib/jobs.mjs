@@ -856,7 +856,7 @@ export const checkInvariants = (orders, now) => {
       if (o.status === "submitted") {
         found.push({ rule: "legacy.unpaid", id: o.id });
       }
-      if (o.status === "paid" && !o.square
+      if (OPEN.includes(o.status) && !o.square
         && t - Date.parse(o.paidAt || o.submittedAt) > SQUARE_SYNC_GRACE) {
         found.push({ rule: "square.missing", id: o.id });
       }
@@ -930,7 +930,7 @@ export const funnel = async (stores, now, { since } = {}) => {
     cancelled: orders.filter((o) => within(o.cancelledAt)).length,
     refunded: orders
       .filter((o) => refundsOf(o).some((r) => within(r.at))).length,
-    open: orders.filter((o) => o.status === "paid").length,
+    open: orders.filter((o) => OPEN.includes(o.status)).length,
     mailFailures: (days[day] || 0) + (days[yesterday] || 0),
     runs: runs.length,
     jobErrors: runs.reduce((n, r) => n + (r.errors || []).length, 0),

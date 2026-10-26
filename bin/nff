@@ -167,9 +167,8 @@ const USAGE = `Usage:
                         --town ... --zip ...] [--cooler ...] [--gate ...]
                         [--delivery-notes ...] [--phone ...]
                         [--contact text|call] [--notes ...] [--code ...]
-                        [--paid cash|venmo|check [--amount 12.34]
-                        [--ref <id>]] [--waive-minimum] [--key <key>]
-                        [--dry-run]
+                        [--paid cash|venmo|check [--ref <id>]]
+                        [--waive-minimum] [--key <key>] [--dry-run]
                                       an order the farm makes for a
                                       customer (#181): priced and
                                       checked as the page prices one,
@@ -183,17 +182,17 @@ const USAGE = `Usage:
                                       --dry-run prices and changes
                                       nothing. The same --key again
                                       finds the order it made
-  bin/nff orders pay <id> --cash|--venmo|--check [--amount 12.34]
-                          [--ref <id>]
+  bin/nff orders pay <id> --cash|--venmo|--check [--ref <id>]
                                       money the farm took on an unpaid
                                       order, recorded in Square on the
                                       order's own Square order and on
-                                      the record: what is due unless
-                                      --amount says less, never more.
+                                      the record: the whole of what is
+                                      due, one payment (Square takes
+                                      no part payments on an order).
                                       --ref is the Venmo transaction or
-                                      the check number. Paid once
-                                      nothing is due; the customer gets
-                                      the confirmation then
+                                      the check number. The order is
+                                      paid and the customer gets the
+                                      confirmation
   bin/nff orders fulfill <id>
   bin/nff orders delete <id>
   bin/nff passes issue [--email <email>] [--days 14] [--note "..."]
@@ -399,7 +398,7 @@ const [
   { importSubscribers, parseCsv, syncAudience },
   { dollars, toCents },
   { snapshot },
-  { dueOn, keptFee, paidTotal, refundedTotal },
+  { dueOn, keptFee, paidTotal, refundedTotal, refundsOf },
   { library },
   review,
   { mailLinks },
@@ -515,6 +514,20 @@ const [group, action, ...rest] = words;
 const out = (value) => console.log(
   typeof value === "string" ? value : JSON.stringify(value, null, 2)
 );
+// A refund of money the farm took by hand (#181) is recorded, not
+// made: say what to hand back, and how it was paid.
+const byHandLine = (before, after) => {
+  const seen = refundsOf(before).length;
+  const mine = refundsOf(after).slice(seen).filter((r) => r.byHand);
+
+  if (!mine.length) return;
+
+  const sum = mine.reduce((s, r) => s + (r.amount || 0), 0);
+
+  out(`Hand back ${dollars(sum)} yourself: it was paid by ${
+    paymentPhrase(after)}, which Square only notes. The record says it ` +
+    "went back.");
+};
 const kv = (pairs) => Object.fromEntries(pairs.map((p) => {
   const eq = p.indexOf("=");
 
@@ -1114,14 +1127,18 @@ const run = async () => {
         to}… Pass --no-refund to cancel without refunding.`);
     }
 
-    return out(summaryLine(await admin.cancelOrder(stores, rest[0], {
+    const cancelled = await admin.cancelOrder(stores, rest[0], {
       // A refund unless the farm says otherwise (T1c); --refund,
       // once required, still reads as the default.
       refund: !flags["no-refund"],
       amount,
       reason,
       reasonText,
-    })));
+    });
+
+    byHandLine(order, cancelled);
+
+    return out(summaryLine(cancelled));
   }
   case "orders refund": {
     const before = await admin.showOrder(stores, rest[0]);
@@ -1132,6 +1149,7 @@ const run = async () => {
     });
 
     out(summaryLine(refunded));
+    byHandLine(before, refunded);
 
     return out(`Refunded ${dollars(refundedTotal(refunded)
       - refundedTotal(before))} of ${paymentPhrase(refunded)}.`);
@@ -1288,10 +1306,7 @@ const run = async () => {
         && flags["waive-minimum"] !== "false",
     };
     const paid = given("paid") ? {
-      tender: given("paid"),
-      amount: given("amount") !== undefined ? toCents(given("amount"))
-        : undefined,
-      ref: given("ref") || "",
+      tender: given("paid"), ref: given("ref") || "",
     } : null;
 
     if (!lines.length) throw new Error("Give at least one --line SKU=qty.");
@@ -1321,7 +1336,7 @@ const run = async () => {
         : ""}`);
     if (r.dryRun) {
       return out(`--dry-run: nothing was made. It would be ${
-        paid ? `paid, ${dollars(paid.amount ?? o.totals.total)} by ${
+        paid ? `paid, ${dollars(o.totals.total)} by ${
           paid.tender}` : "unpaid"}.`);
     }
     if (r.found) out(`Already made by this key: ${o.id}.`);
@@ -1344,8 +1359,6 @@ const run = async () => {
 
     const r = await payFarmOrder(stores, rest[0], {
       tender: tender[0],
-      amount: typeof flags.amount === "string" ? toCents(flags.amount)
-        : undefined,
       ref: typeof flags.ref === "string" ? flags.ref : "",
     });
 
@@ -1355,8 +1368,13 @@ const run = async () => {
     }
 
     out(summaryLine(r.order));
+    if (r.found) {
+      out(`Square already held a payment for this order (${
+        r.payment.via === "square" ? "the customer's card" : r.payment.via
+      }); recorded that instead of taking the ${tender[0]}.`);
+    }
 
-    return out(`Recorded ${dollars(r.payment.amount)} by ${tender[0]}. ${
+    return out(`Recorded ${dollars(r.payment.amount)} by ${r.payment.via}. ${
       dueOn(r.order) > 0
         ? `${dollars(dueOn(r.order))} still due.`
         : "Paid in full; the customer has the confirmation."}`);

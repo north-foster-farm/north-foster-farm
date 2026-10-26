@@ -392,6 +392,16 @@ the `detail` is Square's answer). `bin/nff orders show <id>` shows
 what is still due. If the customer does not retry, take the money
 another way and record it with `bin/nff orders pay`.
 
+**`order.paid_twice`.** Money reached Square for an order the farm
+made (#181) that would not take it: the order was already settled
+(two payments crossed in the last moment, one from the customer's
+page or the farm's tender), or it was cancelled while the money was
+being taken. The record is left as it was, so the `squarePaymentId`
+in the alert is money Square holds that no record answers for;
+`status` says which case. Refund that payment in Square's dashboard
+(the alert names its id and amount), and tell the customer if it was
+their card. `bin/nff orders show <id>` shows what the record kept.
+
 **`mail.failed`.** An email could not be sent: to a customer or the
 farm about an order, or a contact-form message to the farm. Any order
 and its record are fine; the email is not. A contact message is kept
