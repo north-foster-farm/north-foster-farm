@@ -20,7 +20,7 @@ const VERIFY = /\/api\/auth\/verify\?token=/;
 test.describe.configure({ mode: "serial" });
 
 test.describe("changing your own email", () => {
-  test.skip(!backOffice().cli, BACK_OFFICE_MISSING);
+  test.skip(!backOffice().ready, BACK_OFFICE_MISSING);
 
   const from = uniqueEmail("email-from");
   const to = uniqueEmail("email-to");
