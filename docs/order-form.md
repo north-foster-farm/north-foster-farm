@@ -381,7 +381,11 @@ payment is unavailable.
 
 The form validates before any processor is asked (`prepare()`,
 synchronous, because Apple Pay must tokenise inside the click), and
-checks stock too where it can wait (`prepareAsync()`). The card is
+checks stock too where it can wait (`prepareAsync()`). A press that
+comes before the dates or the first stock answer waits for them
+there, the button spinning, rather than checking the order against
+nothing and sending nothing (#284); `prepare()` itself, refused while
+stock is still unknown, says so by the payment section. The card is
 tokenised with the customer's details for the bank's verification
 (`card.tokenize(verificationDetails)`; Square's own step, no separate
 `verifyBuyer`). The submit button reads "Place your order"; the cart

@@ -1699,9 +1699,16 @@ export class OrderForm {
 
   prepare() {
     if (this.busy) return null;
-    // No order is taken while stock is unknown (#333).
+    // No order is taken while stock is unknown (#333). Shut behind the
+    // notice, the notice is brought into view; not yet answered, the
+    // press says so rather than nothing (#284).
     if (this.stock.locked) {
       this.stock.warn();
+      // Draft wording.
+      if (!this.stock.down) {
+        this.payment.fail("We're still checking what's in stock. "
+          + "Please try again in a moment.");
+      }
 
       return null;
     }
@@ -1743,6 +1750,17 @@ export class OrderForm {
     // Pressed before the dates came: wait for them, rather than check
     // the order against no dates at all and send nothing (#284).
     if (!this.dates.lists) await this.dates.refresh();
+    // Pressed before stock answered: wait for that too. Save on a
+    // change to a paid order waits on no SDK, so it can be pressed
+    // within a moment of the page asking for stock; refused then, it
+    // had nothing to say, since the notice only shows once the first
+    // load has given up, and Save did nothing (#284). The button spins
+    // while it waits.
+    if (this.stock.locked && !this.stock.down) {
+      this.setBusy(true);
+      await this.stock.ready();
+      this.setBusy(false);
+    }
 
     const payload = this.prepare();
 

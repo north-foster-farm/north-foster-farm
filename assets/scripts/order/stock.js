@@ -46,7 +46,7 @@ export class Stock {
   }
 
   start() {
-    this.first();
+    this.loading = this.first();
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "visible") this.refresh();
     });
@@ -94,6 +94,16 @@ export class Stock {
     return items;
   }
 
+  // The first answer, for a press that comes before it (#284): settles
+  // once stock is known, or once the first load has given up and the
+  // notice is up; at once when either has already happened. -> the
+  // items, or null.
+  ready() {
+    if (this.gate.known || !this.loading) return Promise.resolve(this.items);
+
+    return this.loading;
+  }
+
   // -> { sku: state }, or null.
   async fetchItems() {
     const res = await fetch("/api/stock", {
@@ -109,6 +119,11 @@ export class Stock {
   // shows.
   get locked() {
     return this.gate.locked;
+  }
+
+  // Whether the notice is up: locked with something to point at.
+  get down() {
+    return this.gate.down;
   }
 
   // A failed check. Shuts the page when the gate says so, and tells
