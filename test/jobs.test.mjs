@@ -204,6 +204,29 @@ describe("runJobs", () => {
     assert.deepEqual(done, []);
   });
 
+  it("closes an unpaid order after its day without completing it in " +
+    "Square (#181)", async () => {
+    const stores = testStores();
+    const { opts } = harness();
+    const done = [];
+    const square = {
+      completeOrder: async (id) => { done.push(id); return { id }; },
+    };
+
+    await saveOrder(stores, {
+      ...order("A"), status: "unpaid", paidAt: undefined, payment: undefined,
+      payments: [],
+    }, placed);
+
+    const r = await runJobs(stores, {
+      ...opts, square, now: at("2026-10-09", 9),
+    });
+
+    assert.deepEqual(r.closed, ["A"]);
+    assert.deepEqual(done, [], "Square completes it once it is paid");
+    assert.equal((await getOrder(stores, "A")).status, "fulfilled");
+  });
+
   it("closes the order and tells the farm when Square cannot (#328)",
     async () => {
       const stores = testStores();

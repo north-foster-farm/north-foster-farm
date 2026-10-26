@@ -5,6 +5,10 @@
 //
 // Order statuses:
 //   paid        born paid: the record exists once the money is taken
+//   unpaid      made by the farm (`bin/nff orders create`, #181) for a
+//               customer who pays later, on the account page or in
+//               person; the money is on `payments`, never the status,
+//               so `dueOn` says what is still owed
 //   fulfilled   delivered or picked up (set by the jobs or the CLI)
 //   cancelled   by the customer or the farm; `refund` says what went
 //               back
@@ -13,8 +17,8 @@
 // `submitted` (invoice out, unpaid) or `abandoned`; nothing makes
 // those any more and the jobs flag any `submitted` one they find.
 //
-// "Open" means the job runner still has something to do: a paid
-// order waits for its delivery reminder and fulfillment.
+// "Open" means the job runner still has something to do: a paid or
+// unpaid order waits for its delivery reminder and fulfillment.
 //
 // Beside the orders sit the checkouts: a Venmo payment is approved
 // in the Venmo app and captured afterwards, so the validated order
@@ -25,7 +29,7 @@ import { createHash } from "node:crypto";
 
 import { now as clock } from "./clock.mjs";
 
-export const OPEN = ["paid"];
+export const OPEN = ["paid", "unpaid"];
 
 // A question the farm put to the customer: `missed`, a delivery we
 // couldn't leave, held until `until` for them to choose (#193); or,
@@ -191,6 +195,13 @@ export const settledRefunds = (order) => refundsOf(order)
 
 export const paidTotal = (order) => sum(paymentsOf(order));
 export const refundedTotal = (order) => sum(settledRefunds(order));
+
+// What the customer still owes on the order: the total less what has
+// been paid (#181). A refund never makes an order owe (lib/packing.mjs
+// says why), and a record from the invoice era owes its whole total.
+export const dueOn = (order) => (order.status === "submitted"
+  ? order.totals.total
+  : Math.max(0, order.totals.total - paidTotal(order)));
 
 // The delivery fee an attempted delivery keeps: "the delivery fee is
 // not refundable once we attempt the delivery" (James, F1). The farm

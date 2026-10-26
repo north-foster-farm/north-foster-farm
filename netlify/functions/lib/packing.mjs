@@ -900,8 +900,9 @@ export const attachment = (filename, bytes) => ({
 
 // --- Reading the records ---------------------------------------------
 
-// Every order that gets a slip: paid, or an older record still unpaid.
-export const PACKED = ["paid", "submitted"];
+// Every order that gets a slip: paid, unpaid (made by the farm, #181),
+// or an older record still unpaid.
+export const PACKED = ["paid", "unpaid", "submitted"];
 const GONE = ["cancelled", "abandoned"];
 
 // The orders to pack, and each printed order since cancelled (or

@@ -106,6 +106,28 @@ const harness = () => {
 };
 
 describe("listOrders", () => {
+  it("says what an order the farm made still owes, and that it can be " +
+    "paid (#181)", async () => {
+    const stores = testStores();
+
+    await saveOrder(stores, {
+      ...order("U"), status: "unpaid", paidAt: undefined, payment: undefined,
+      payments: [],
+    });
+    await saveOrder(stores, order("P"));
+
+    const { orders } = await listOrders(stores, customerOf(), { now });
+    const u = orders.find((o) => o.id === "U");
+    const p = orders.find((o) => o.id === "P");
+
+    assert.equal(u.due, u.totals.total);
+    assert.equal(u.canPay, true);
+    assert.equal(u.canChange, false);
+    assert.equal(u.canCancel, false);
+    assert.equal(p.due, 0);
+    assert.equal(p.canPay, false);
+  });
+
   it("shows only the customer's orders, newest first, in public shape",
     async () => {
       const stores = testStores();

@@ -86,10 +86,11 @@ import { sendForOrder } from "./payments.mjs";
 import { checkRefunds } from "./settle.mjs";
 import * as paypalApi from "./paypal.mjs";
 import {
-  allOrders, amendOrder, answerQuestion, dropMadeCustomer, getCustomer,
-  getOrder, listCheckouts, listMadeCustomers, openOrders, ordersFor,
-  paymentsOf, questionOpen, refundsOf, reminderPrefs, setStatus, sweepAuth,
-  sweepCheckouts,
+  OPEN, allOrders, amendOrder, answerQuestion, dropMadeCustomer,
+  dueOn as owedOn,
+  getCustomer, getOrder, listCheckouts, listMadeCustomers, openOrders,
+  ordersFor, paymentsOf, questionOpen, refundsOf, reminderPrefs, setStatus,
+  sweepAuth, sweepCheckouts,
 } from "./records.mjs";
 import { remindersOn } from "./reminders.mjs";
 import { rotationDaily } from "./rotation.mjs";
@@ -216,7 +217,7 @@ export const runJobs = async (stores, {
   };
 
   const workOrder = async (order) => {
-    if (order.status !== "paid") return;
+    if (!OPEN.includes(order.status)) return;
 
     const first = paymentsOf(order)[0];
 
@@ -230,8 +231,9 @@ export const runJobs = async (stores, {
 
     // The emails of a paid order are sent after the answer that took
     // the payment (lib/checkout.mjs announceNew); one that never went
-    // out, for any reason, goes now.
-    if (!sent(order, "orderConfirmed")) {
+    // out, for any reason, goes now. An unpaid order the farm made
+    // (#181) gets its confirmation when it is paid, not here.
+    if (order.status === "paid" && !sent(order, "orderConfirmed")) {
       await announceNew(stores, order, opts);
       report.announced.push(order.id);
     }
@@ -299,9 +301,14 @@ export const runJobs = async (stores, {
       // Cancelled since the list was read: the cancel stands.
       if (closed.status !== "fulfilled") return;
 
-      await completeInSquare(stores, closed, {
-        now, env, mail, square, fetchImpl,
-      });
+      // An order still owed (#181) is closed here and completed in
+      // Square when the farm records the money (`orders pay`): Square
+      // will not complete an order nobody has paid for.
+      if (owedOn(closed) === 0) {
+        await completeInSquare(stores, closed, {
+          now, env, mail, square, fetchImpl,
+        });
+      }
       report.closed.push(order.id);
     }
   };
@@ -839,7 +846,7 @@ export const checkInvariants = (orders, now) => {
 
   for (const o of orders) {
     try {
-      if (o.status === "paid" && !questionOpen(o)
+      if (OPEN.includes(o.status) && !questionOpen(o)
         && day > addDays(o.fulfilment.date, 1)) {
         found.push({ rule: "paid.not_closed", id: o.id });
       }

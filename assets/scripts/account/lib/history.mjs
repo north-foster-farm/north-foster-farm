@@ -14,6 +14,9 @@ export const METHOD = {
 
 const STATUS = {
   paid: "Paid",
+  // An order the farm made for a customer who pays later (#181).
+  // Draft wording.
+  unpaid: "Unpaid",
   fulfilled: "Delivered",
   cancelled: "Canceled",
   // From before the checkout moved onto the page.
