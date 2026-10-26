@@ -1,5 +1,25 @@
 # Compacting staging for main
 
+> **Superseded for the launch (James, 2026-10-26).** `main` does not
+> take compacted commits. It takes one merge commit from
+> `release/launch`: its first parent is the old `main`, its second is
+> the `staging` commit being released, and its tree is that commit's
+> tree. Every staging commit stays reachable from `main`, so a rollback
+> or a reference can land on any point of staging's history, and
+> `staging` and `next` are never rewritten. So steps 5 to 8 below do not
+> happen: no archive tags, no reset of `next` and `staging`, no window
+> with the `no force-push` ruleset off, no open lane branches to
+> rebase. `bin/nff promote main release/launch` is the promotion
+> (`docs/security.md`), and #237 holds the release-day order.
+>
+> What still holds: the hard rule, in its simpler form (the merge
+> commit's tree equals `staging`'s, which `promote` checks). The map
+> below is still a ready-made changelog: `v1.0.0` goes on the merge
+> commit, and `git log --first-parent` shows one commit for the whole
+> release, so the units are what the release notes should list. Its
+> hashes are those of `staging` on 2026-10-25; rebuild the ranges from
+> `origin/main` if the notes need the final ones.
+
 At launch `main` takes the whole of `staging`, but not as the thousand
 commits the lanes made one at a time, and not as one squash (James,
 #303, #452). This plan groups them into 68 units and says how to build
