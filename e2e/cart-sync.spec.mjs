@@ -7,7 +7,7 @@ import { expect, test } from "./support/order.mjs";
 
 const EMAIL = "qa-e2e-cartsync@example.com";
 const EGGS = "NFF-CHK-EGG-LG";
-const WHOLE = "NFF-CHK-WHL-0200-0250";
+const WHOLE = "NFF-CHK-WHL-20-24";
 
 const cart = (lines, savedAt) => ({
   payload: {
