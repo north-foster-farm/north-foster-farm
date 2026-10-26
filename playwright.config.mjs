@@ -61,6 +61,7 @@ const desktopOnly = [
   "**/cart-fold.spec.mjs",
   "**/cart-float.spec.mjs",
   "**/cart-keyboard.spec.mjs",
+  "**/cart-one-render.spec.mjs",
 ];
 
 // What only a deployed non-production site can show: the access gate
