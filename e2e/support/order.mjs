@@ -41,6 +41,18 @@ export const paneStill = (cart) => expect.poll(
 export const foldCart = (page, cart) => setFold(cart, "closed");
 export const unfoldCart = (order) => setFold(order.cart, "open");
 
+// Brings the cart into the page, settled and open, at every width:
+// below xl the heading at the top of the screen settles it inline; from
+// xl it is the column. Layout is measured there, never mid-fold.
+export const settleCart = async (order) => {
+  await order.page.evaluate(() => document.getElementById(
+    "order-cart-heading"
+  ).scrollIntoView({ block: "start" }));
+  await order.scrollSettled();
+  await paneStill(order.cart);
+  await expect(order.cart).toHaveAttribute("data-fold", "open");
+};
+
 // A cart as ?add= wants it: { eggs: 2 } -> "NFF-CHK-EGG-LG:2".
 export const addQuery = (cart) => Object.entries(cart)
   .map(([name, qty]) => `${SKU[name] || name}:${qty}`)

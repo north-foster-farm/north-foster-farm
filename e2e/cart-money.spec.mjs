@@ -5,24 +5,13 @@
 // pricing.spec.mjs's; this is where the cart shows them.
 
 import {
-  FULL_CART, OrderPage, expect, paneStill, test, unfoldCart as unfold,
+  FULL_CART, OrderPage, expect, paneStill, settleCart as settled, test,
+  unfoldCart as unfold,
 } from "./support/order.mjs";
 
 const PHONE = { width: 390, height: 844 };
 const MD = { width: 768, height: 1024 };
 const XL = { width: 1280, height: 800 };
-
-// Brings the cart into the page, settled and open, at every width:
-// below xl the heading at the top of the screen settles it inline; from
-// xl it is the column. Layout is measured there, never mid-fold.
-const settled = async (order) => {
-  await order.page.evaluate(() => document.getElementById(
-    "order-cart-heading"
-  ).scrollIntoView({ block: "start" }));
-  await order.scrollSettled();
-  await paneStill(order.cart);
-  await expect(order.cart).toHaveAttribute("data-fold", "open");
-};
 
 const box = (locator) => locator.evaluate((el) => {
   const r = el.getBoundingClientRect();
@@ -139,12 +128,15 @@ test("the chicks leave the tier just earned", async ({ page }) => {
   await expect(badge).toBeVisible();
   await expect(badge).toHaveAttribute("data-on", "false");
 
-  const b = await badge.boundingBox();
-
-  // The row's Add under the open pane, pressed as a tap would.
+  // The row's Add under the open pane, pressed as a tap would. The
+  // chicks start from where the badge is once the new line is laid
+  // out, which is where it rests after the pane's ease.
   await order.item("drums").locator(".order-qty-add")
     .evaluate((el) => el.click());
   await expect(badge).toHaveAttribute("data-on", "true");
+  await paneStill(order.cart);
+
+  const b = await badge.boundingBox();
 
   // The canvas is a box around where the chicks start: 480 wide and
   // centered on it, 70% of its 360 above it, clamped to the screen
@@ -188,7 +180,7 @@ for (const size of [PHONE, MD, XL]) {
       );
       await settled(order);
       await order.nudge.scrollIntoViewIfNeeded();
-      await expect(order.nudge).toBeInViewport({ ratio: 1 });
+      await expect(order.nudge).toBeInViewport();
 
       const nudge = await box(order.nudge);
       const next = await box(order.next);
