@@ -145,9 +145,10 @@ $hero-text-shadow: 0 1px 3px rgb(0 0 0 / 50%);
 
   // Nothing wraps; the title breaks only after its marked spans: three
   // lines on a phone, so it can stand well above the h1, and two from
-  // sm up. The breaks are generated rather than <br>s because the
-  // minifier strips the spaces beside a <br>, and those spaces join
-  // the words wherever that break is off.
+  // sm up. Either way the last line is "like chicken.", never the one
+  // word (#428). The breaks are generated rather than <br>s because
+  // the minifier strips the spaces beside a <br>, and those spaces
+  // join the words wherever that break is off.
   .home-hero-title {
     margin-bottom: 0;
     font-family: $headings-font-family;
@@ -159,6 +160,7 @@ $hero-text-shadow: 0 1px 3px rgb(0 0 0 / 50%);
     text-shadow: $hero-text-shadow;
   }
 
+  .home-hero-br::after,
   .home-hero-br-xs::after {
     content: "\A";
     white-space: pre;
@@ -610,11 +612,6 @@ $hero-text-shadow: 0 1px 3px rgb(0 0 0 / 50%);
 
     .home-hero-br-xs::after {
       content: none;
-    }
-
-    .home-hero-br-sm::after {
-      content: "\A";
-      white-space: pre;
     }
 
     .home-hero-actions {
