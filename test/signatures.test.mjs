@@ -7,6 +7,7 @@ import {
   alone, library, missing, render, entry,
 } from "../netlify/functions/lib/signatures.mjs";
 import { COOKIE } from "../netlify/functions/lib/gate.mjs";
+import data from "../data/signatures.json" with { type: "json" };
 import { testStores } from "../netlify/functions/lib/store.mjs";
 import { handle } from "../netlify/functions/staging.mjs";
 
@@ -75,6 +76,53 @@ describe("email signatures", () => {
     assert.match(render(entry("jim")).html, /<b>Jim Boynton<\/b>/);
   });
 
+  it("come once per closing for each person, labeled to pick", () => {
+    const people = data.variants;
+    const ids = library().map((s) => s.id);
+
+    assert.deepEqual(data.closings,
+      ["Thanks,", "Thank you,", "Best,", "Talk soon!"]);
+    assert.equal(ids.length, people.length * (data.closings.length + 1));
+    assert.equal(new Set(ids).size, ids.length);
+
+    const labels = library().map((s) => s.label);
+
+    for (const label of ["James: Thanks", "James: Thank you", "James: Best",
+      "James: Talk soon", "Jim: Thanks", "The NFF Team: Talk soon"]) {
+      assert.ok(labels.includes(label), label);
+    }
+    assert.equal(entry("james-thank-you").label, "James: Thank you");
+    assert.equal(entry("team-talk-soon").closing, "Talk soon!");
+  });
+
+  it("put the closing as listed, then the name, then the block", () => {
+    const { name } = entry("james");
+    const plain = render(entry("james")).text;
+
+    for (const closing of data.closings) {
+      const id = `james-${closing.replace(/[,!]$/, "").toLowerCase()
+        .replace(/ /g, "-")}`;
+      const { html, text } = render(entry(id));
+      const cells = [...html.matchAll(/<td[^>]*>\s*([\s\S]*?)\s*<\/td>/g)]
+        .map((m) => m[1]);
+
+      assert.deepEqual(cells.slice(0, 3),
+        ["&nbsp;", closing, `<b>${name}</b>`], id);
+      assert.equal(text, `${closing}\n${plain}`, id);
+      // Exactly the one mark it was listed with, never a second.
+      assert.doesNotMatch(html, /[,!.][,!.]/, id);
+    }
+  });
+
+  it("leave the closing out of the plain variants", () => {
+    for (const id of ["james", "jim", "team"]) {
+      const { text } = render(entry(id));
+
+      assert.equal(text.split("\n")[0], entry(id).name);
+      assert.equal(entry(id).closing, undefined);
+    }
+  });
+
   it("open alone as exactly head, body and the signature", () => {
     assert.equal(alone("<p>x</p>"),
       "<html><head></head><body><p>x</p></body></html>");
@@ -98,6 +146,13 @@ describe("the signatures routes", () => {
     assert.equal(page.status, 200);
     assert.match(body, /^<html><head><\/head><body><table /);
     assert.match(body, /<\/table><\/body><\/html>$/);
+
+    const best = await handle(ask("/api/staging/signatures/james-best"), {
+      stores: signed(), env,
+    });
+
+    assert.equal(best.status, 200);
+    assert.match(await best.text(), />\s*Best,\s*<\/td>/);
 
     const none = await handle(ask("/api/staging/signatures/nobody"), {
       stores: signed(), env,

@@ -10,9 +10,28 @@ const escape = (s) => String(s)
   .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
   .replace(/"/g, "&quot;");
 
-export const variants = () => data.variants;
+// A closing without its mark, for labels and ids: "Talk soon!" is
+// "Talk soon" and talk-soon. The signature keeps the mark as listed.
+const bare = (closing) => closing.replace(/[,.!]+$/, "");
 
-export const entry = (id) => data.variants.find((v) => v.id === id);
+const slug = (closing) => bare(closing).toLowerCase()
+  .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+
+// Each person's signature as James made it, then one per closing in
+// data/signatures.json with the closing baked in, so an email never
+// ends on "Thanks," with nothing under it (James, 2026-10-25). A
+// label reads "James: Thanks", for picking one in the mail app.
+export const variants = () => data.variants.flatMap((v) => [
+  v,
+  ...data.closings.map((closing) => ({
+    ...v,
+    id: `${v.id}-${slug(closing)}`,
+    label: `${v.label}: ${bare(closing)}`,
+    closing,
+  })),
+]);
+
+export const entry = (id) => variants().find((v) => v.id === id);
 
 // Nothing is left to fill in: James's final markup has a name, the
 // logo, two links and the thanks line, and no role, email or phone.
@@ -29,8 +48,9 @@ const row = (pad, inner) => `  <tr>
   </tr>`;
 
 // James's markup for a signature (2026-10-24), the same for every
-// variant but the name. The pictures load from the live site, which
-// serves them only once a release carries static/email-signature/.
+// variant but the name and the closing, a line of its own just above
+// the name. The pictures load from the live site, which serves them
+// only once a release carries static/email-signature/.
 const build = (v, images) => {
   const { shared } = data;
   const link = (href, text) => `<a href="${escape(href)}" style="color: ${
@@ -53,13 +73,15 @@ const build = (v, images) => {
   <tr>
     <td>&nbsp;</td>
   </tr>
-${row(0, `<b>${escape(v.name)}</b>`)}
+${v.closing ? `${row(0, escape(v.closing))}\n` : ""}${
+  row(0, `<b>${escape(v.name)}</b>`)}
 ${row(7, logo)}
 ${row(11, links)}
 ${row(11, `<i>${escape(shared.thanks)}</i>`)}
 </table>`;
 
   const text = [
+    ...v.closing ? [v.closing] : [],
     v.name,
     shared.site,
     shared.instagram.url,
@@ -84,7 +106,7 @@ export const preview = (v) => build(v, previewImages).html;
 export const alone = (html) =>
   `<html><head></head><body>${html}</body></html>`;
 
-export const library = () => data.variants.map((v) => ({
+export const library = () => variants().map((v) => ({
   id: v.id,
   label: v.label,
   missing: missing(v),

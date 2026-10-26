@@ -12,6 +12,7 @@
     "color": "#297D5B",
     "thanks": "Thank you for supporting local farms."
   },
+  "closings": ["Thanks,", "Thank you,", "Best,", "Talk soon!"],
   "variants": [
     { "id": "james", "label": "James", "name": "James Boynton" },
     { "id": "jim", "label": "Jim", "name": "Jim Boynton" },
