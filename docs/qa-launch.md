@@ -1254,7 +1254,10 @@ whether it looks right is a judgement.
 ### PY-11 Google Pay
 
 Manual: the Google Pay sheet needs a signed-in Google account with a
-card, which headless Chromium cannot provide.
+card, which headless Chromium cannot provide. What the suite does
+prove, on staging (`e2e/wallets.spec.mjs`, #457): the SDK mounts the
+Google Pay and Cash App Pay buttons, and a Google Pay press with the
+form unfilled marks the fields and opens nothing.
 
 - **Scenario:** A wallet pays the whole order in one step.
 - **Setup:** Desktop Chrome signed in to Google with a test card; 1 egg,
