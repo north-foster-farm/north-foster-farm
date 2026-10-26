@@ -359,21 +359,24 @@ export class Cart {
 
     if (moved) {
       next.empty = count === 0;
+      // The badges after the ease: a badge that lights sends its chicks
+      // from where it is seen, and mid-ease it may lie past the pane's
+      // old edge.
       animateFold(root, () => {
         this.apply(next);
         draw();
       }, { reduce: reduced() }).then(() => {
         this.placement.refresh();
         this.lines.sync();
+        this.renderBadges(s);
       });
     } else {
       this.state = next;
       draw();
       this.placement.refresh();
       this.lines.sync();
+      this.renderBadges(s);
     }
-
-    this.renderBadges(s);
 
     const nudge = qs(root, "[data-nudge]");
 

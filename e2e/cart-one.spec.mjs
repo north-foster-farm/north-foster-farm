@@ -110,5 +110,35 @@ for (const size of SIZES) {
       expect(changed.total).not.toBe(settled.total);
       await settleCart(order);
       expect(await agree(page, order)).toEqual(changed);
+
+      // A line taken out while settled is gone once it floats again,
+      // and a way picked while floating holds once it settles.
+      await order.cart.getByRole("button", {
+        name: "Remove Wings, 1.0 – 1.9 lbs from your cart",
+      }).click();
+      await expect(order.count).toHaveText("17 items");
+      await paneStill(order.cart);
+
+      const fewer = await agree(page, order);
+
+      expect(fewer.lines).toHaveLength(6);
+      await page.evaluate(() => window.scrollTo(0, 300));
+      await expect(order.cart).toHaveAttribute("data-placement", "floating");
+      await unfoldCart(order);
+      await paneStill(order.cart);
+      expect(await agree(page, order)).toEqual(fewer);
+
+      await order.cart.locator("[data-way-toggle]").click();
+      await order.cart.locator("[data-way='onfarm']").click();
+      await expect(order.cart.locator("[data-way-name]"))
+        .toHaveText("On-farm pickup");
+      await paneStill(order.cart);
+
+      const picked = await agree(page, order);
+
+      expect(picked.fee).toBe("");
+      await settleCart(order);
+      expect(await agree(page, order)).toEqual(picked);
+      await expect(page.locator("#method-onfarm")).toBeChecked();
     });
 }

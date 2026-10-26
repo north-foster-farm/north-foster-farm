@@ -907,7 +907,9 @@
 
   // The column (xl): beside the catalog, stuck to the top for the
   // length of the page, never settling and never folding. The lines
-  // scroll inside; the heading and the pill are gone.
+  // give way first, down to three rows, and scroll inside with the
+  // pills, as the old column did; past that the body scrolls. The
+  // heading and the pill are gone.
   .order-cart[data-placement="column"] {
     position: sticky;
     top: 1rem;
@@ -916,6 +918,8 @@
     box-shadow: var(--order-shadow);
 
     .order-cart-lines {
+      flex: 1 1 auto;
+      min-height: var(--cart-lines-min);
       max-height: none;
     }
 
