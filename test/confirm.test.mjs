@@ -40,6 +40,10 @@ describe("bin/nff's production confirmation (#268)", () => {
     assert.equal(phrase("address", "deny", ["a@example.com"]),
       "a@example.com");
     assert.equal(phrase("passes", "revoke", ["PASS-1"]), "PASS-1");
+    assert.equal(phrase("orders", "pay", ["NFF-1"]), "NFF-1");
+    assert.equal(phrase("orders", "create", []), "orders create");
+    assert.equal(phrase("orders", "create", [], { "dry-run": true }),
+      undefined);
     assert.equal(phrase("maintenance", "on"), "maintenance on");
     assert.equal(phrase("schedule", "set", ["file.json"]), "schedule set");
     assert.equal(phrase("jobs", "run"), "jobs run");

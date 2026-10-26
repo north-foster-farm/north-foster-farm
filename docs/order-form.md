@@ -572,18 +572,28 @@ email. `lib/records.mjs` owns the documents and the indexes:
 still watch (paid), `by-payment/<id>` from the Square payment id and
 the PayPal capture id, for the refund webhooks, and `checkout/<key>`
 with `by-paypal/<id>` for Venmo payments in flight. Statuses: paid,
-fulfilled, cancelled. Records from before the checkout moved onto the
-page may still say `submitted` or `abandoned`; nothing makes those any
-more and the jobs flag any `submitted` one they find
+unpaid, fulfilled, cancelled. An `unpaid` order is one the farm made
+(`bin/nff orders create`, #181) for a customer who pays later; it is
+open like a paid one, gets a slip and the account page shows what is
+due, from `dueOn` in `lib/records.mjs` (the money is on `payments`,
+never the status, so a delivered-first order is `fulfilled` and owes
+until the farm records the cash). Records from before the checkout
+moved onto the page may still say `submitted` or `abandoned`; nothing
+makes those any more and the jobs flag any `submitted` one they find
 (`legacy.unpaid`). Square stays the system of record for money.
 
 Every order carries `payments`, a list, oldest first: `{ at, amount,
 via, method, squarePaymentId, receiptUrl, brand, last4, wallet }`, and
 for Venmo `paypalOrderId`, `paypalCaptureId` and `payer`. An order has
 one payment until it is changed after paying (#160), which can add
-more. `via` is `square` or `venmo` (a record made by hand may say
-`cash` or `check`); `method` is `card`, `applepay`, `googlepay`,
-`cashapp` or `venmo`. `paymentPhrase(order)` in `lib/templates.mjs`
+more. `via` is `square` or `venmo`, or `cash` or `check` for money the
+farm took in person (`bin/nff orders pay`, #181: each goes to Square
+on the order's own Square order, cash as Square's cash payment, a
+check as an EXTERNAL payment of type CHECK, Venmo outside the site as
+the SOCIAL tender; the payment keeps `ref`, the Venmo transaction or
+check number, and `by: "farm"`); `method` is `card`, `applepay`,
+`googlepay`, `cashapp`, `venmo`, `cash` or `check`.
+`paymentPhrase(order)` in `lib/templates.mjs`
 turns them into "$55 by Visa ending 4242", or "$55 by Visa ending
 4242, then $6 by Venmo". Each refund is added to `refunds`: `{ at,
 source, amount, payment, total, squareRefundId, paypalRefundId,
@@ -1003,7 +1013,11 @@ customers (list, show, set, delete), address (approve, deny), orders
 <why> | --reason-text | --no-reason [--no-refund] [--amount]`, which
 says what it refunds; attempted; change `[--method] [--date] ...
 [--dry-run]`; refund
-`[--amount] [--reason]`; fulfill; delete), returns resolve, stock
+`[--amount] [--reason]`; create, the farm's own order for a customer,
+unpaid or `--paid cash|venmo|check` for money already in hand, with
+`--dry-run`; pay `--cash|--venmo|--check [--amount] [--ref]`, a
+tender on an unpaid order (`lib/farm-orders.mjs`, #181); fulfill;
+delete), returns resolve, stock
 (list, set), schedule (check, set), login and masquerade (a
 single-use sign-in link, opened for you), audience (invite, sync),
 jobs (run, history), health.

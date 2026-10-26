@@ -20,6 +20,11 @@ const DESTRUCTIVE = {
   "orders change": { does: "change the pickup or delivery of order",
     unless: "dry-run" },
   "orders move": { does: "move the delivery of order" },
+  // Makes an order in Square and the stores, and may record money
+  // (#181); it names no id yet, so the command itself is typed.
+  "orders create": { does: "make an order for a customer, running",
+    unless: "dry-run", whole: true },
+  "orders pay": { does: "record money in Square on order" },
   "orders fulfil": { does: "mark order delivered" },
   "orders fulfill": { does: "mark order delivered" },
   "orders attempted": { does: "mark order attempted" },

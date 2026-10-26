@@ -601,10 +601,13 @@ const paymentRecord = (payment) => {
 };
 
 // Takes the money for an order. `source` is the SDK's token for a
-// card or wallet, or { external: { source, sourceId } } for money
-// that came another way (Venmo through PayPal), which Square records
-// on the order as an external tender so the dashboard, the reports
-// and the refunds keep one shape.
+// card or wallet, or { external: { source, sourceId, type } } for
+// money that came another way (Venmo through PayPal, a check handed
+// to the farm), which Square records on the order as an external
+// tender so the dashboard, the reports and the refunds keep one
+// shape; `type` is SOCIAL unless said (CHECK for a check, #181). Or
+// { cash: true } for cash the farm took (#181): Square's own cash
+// payment, the buyer's money being the amount, so there is no change.
 //
 // -> { squarePaymentId, status, receiptUrl, brand, last4, wallet }
 // throws SquareError { declined, code } when Square would not take
@@ -634,10 +637,13 @@ export const createPayment = async ({
     note: `${company.name} order ${order.id}`,
   };
 
-  if (source.external) {
+  if (source.cash) {
+    body.source_id = "CASH";
+    body.cash_details = { buyer_supplied_money: money(amount) };
+  } else if (source.external) {
     body.source_id = "EXTERNAL";
     body.external_details = {
-      type: "SOCIAL",
+      type: source.external.type || "SOCIAL",
       source: source.external.source,
       source_id: source.external.sourceId || undefined,
     };

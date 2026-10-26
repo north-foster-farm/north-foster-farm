@@ -67,7 +67,7 @@ export const createPayment = async ({ order, key, source }) => {
       status: 402, declined: true, code, detail: [{ code }],
     });
   }
-  if (!source || (!source.external && !token)) {
+  if (!source || (!source.external && !source.cash && !token)) {
     throw new SquareError("Square 400 on /v2/payments", {
       status: 400, code: "INVALID_VALUE",
     });
@@ -78,7 +78,7 @@ export const createPayment = async ({ order, key, source }) => {
     });
   }
 
-  const card = !source.external;
+  const card = !source.external && !source.cash;
 
   return {
     squarePaymentId: fakeId("FAKE-PAYMENT", key),
