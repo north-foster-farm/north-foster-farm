@@ -3,8 +3,9 @@
 Every credential the site holds, where each copy lives, and how to
 replace it. Names only: values belong in Netlify, the vendor's
 dashboard, the password manager and the ignored `.env.*` files, never
-here. `.env.sample` is the list of names the code reads; this is what
-to do with them. The dashboard's secrets follow the same rules and
+here. The tracked samples (`.env.development.sample`,
+`.env.staging.sample` and `.env.production.sample`) list the names
+each environment reads; this is what to do with them. The dashboard's secrets follow the same rules and
 have their own page in its repository (`docs/secrets.md` there, not
 yet written; it is after-launch work).
 
@@ -81,7 +82,7 @@ yet written; it is after-launch work).
     `revoked` records that date, so a pending revocation is a
     rotation with no `revoked` line after it. Names and dates only,
     never a value. The log covers every secret: each name in the
-    table below, and each secret name in `.env.sample`, has a seed
+    table below, and each secret name in the three samples, has a seed
     entry in it. A `lint-and-test` check fails on any name without
     one, because the December reminder sees only logged secrets, and
     an unlogged one would silently never rotate.
@@ -171,7 +172,7 @@ share one set of Square, PayPal and Axiom values. Delete this note with
 
 `SQUARE_APPLICATION_ID`, `SQUARE_LOCATION_ID` and `PAYPAL_CLIENT_ID`
 are public: the order page receives them. The sandbox PayPal logins
-sit in `.env.staging` only and are not in `.env.sample`.
+sit in `.env.staging` only and are not in `.env.staging.sample`.
 
 The three notification addresses are configuration, each required in
 production and each with its own value in staging, never
@@ -201,15 +202,16 @@ if the name is present in any sample, env file or Netlify context
 also reads the local file and Netlify). For a stray `ADMIN_EMAILS` on
 Netlify, `env check` prints the unset command; it never deletes.
 
-The rest of `.env.sample` is configuration, not secret:
-`ACCOUNTS_ENABLED`, `ADMIN_URL`, `AXIOM_DATASET`, `CONTACT_URL`,
-`GATE_MAIL_FROM` and `GATE_TOOLBAR_EMAIL` (staging only; see
-Staging), `MAIL_*`, `NETLIFY_SITE_ID`, `PAYPAL_ENV`,
-`PICKUP_SCHEDULE`, `RESEND_AUDIENCE_ID`, `RESEND_SENDING_KEY_NAME`
-(the sending key's name in Resend, which the send breaker uses to find
-it), `SITE_CONTEXT`, `SITE_URL`, `SQUARE_ENV`, `SQUARE_VERSION`,
-`SQUARE_WEBHOOK_URL`, `VENMO_HIDDEN`, and Netlify's own `HUGO_*` and
-`NODE_VERSION`.
+The rest of the samples' names are configuration, not secret:
+`ACCOUNTS_ENABLED`, `AXIOM_DATASET`, `GATE_MAIL_FROM` and
+`GATE_TOOLBAR_EMAIL` (staging only; see Staging), `MAIL_*`,
+`NETLIFY_SITE_ID`, `PAYPAL_ENV`, `PICKUP_SCHEDULE`,
+`RESEND_AUDIENCE_ID`, `RESEND_SENDING_KEY_NAME` (the sending key's
+name in Resend, which the send breaker uses to find it),
+`SITE_CONTEXT`, `SITE_URL`, `SQUARE_ENV`, `VENMO_HIDDEN`, and
+Netlify's own `HUGO_*` and `NODE_VERSION`. `ADMIN_URL`,
+`CONTACT_URL`, `SQUARE_VERSION` and `SQUARE_WEBHOOK_URL` are
+overrides in no sample: the code has a default for each.
 
 **Launch blocker: previews and `dev` hold no production value.** Every
 value on `deploy-preview` and `dev` is removed except `SITE_CONTEXT`

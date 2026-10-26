@@ -3,7 +3,6 @@
 *.bak
 *.env
 .env.*
-!.env.sample
 !.env.*.sample
 *.log
 .hugo_build.lock

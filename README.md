@@ -44,10 +44,12 @@ and expects `northfosterfarm.local` and `www.northfosterfarm.local` in
 
 ### Environment files
 
-`.env.sample` names every key the functions, `bin/nff` and the e2e
-suite read. Keep three ignored copies with values, each complete:
-`.env.development`, `.env.staging` and `.env.production`. Link `.env`
-to the one you work in, normally development:
+Each environment has a tracked sample that names its keys:
+`.env.development.sample`, `.env.staging.sample` and
+`.env.production.sample`. Keep three ignored copies with values, each
+complete against its sample: `.env.development`, `.env.staging` and
+`.env.production`. There is no `.env.preview`. Link `.env` to the one
+you work in, normally development:
 
 ```bash
 ln -sf .env.development .env
@@ -55,7 +57,9 @@ ln -sf .env.development .env
 
 `bin/nff` reads `.env` and acts on the `dev-` stores. `bin/nff
 --production` and `bin/nff --staging` read their own file and never
-`.env`, so reaching production takes the flag, not a relink.
+`.env`, so reaching production takes the flag, not a relink. `bin/nff
+--preview` reaches the deploy previews' stores with `.env.staging`,
+since previews use staging's sandbox.
 
 Development needs no `PICKUP_SCHEDULE`: `bin/nff`, `npm test` and
 `npm run start:functions` make one up when `.env` has none: weekday

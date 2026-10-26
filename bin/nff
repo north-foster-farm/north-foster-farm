@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 // The farm's command line for orders, customers, stock and sign-in.
 // Reads one env file from the repo root: .env (linked to
-// .env.development) with no flag, or .env.production, .env.staging or
-// .env.preview when that flag is given. Off Netlify the records live
-// in the site's Blobs stores only with a context flag (or --scratch)
-// and a NETLIFY_SITE_ID; the token is read from the macOS Keychain
-// (bin/env/keychain.mjs), never an env file. Otherwise everything is
-// in memory and lost on exit, which the banner says.
+// .env.development) with no flag, .env.production with --production,
+// or .env.staging with --staging or --preview (previews share
+// staging's sandbox, so there is no .env.preview). Off Netlify the
+// records live in the site's Blobs stores only with a context flag (or
+// --scratch) and a NETLIFY_SITE_ID; the token is read from the macOS
+// Keychain (bin/env/keychain.mjs), never an env file. Otherwise
+// everything is in memory and lost on exit, which the banner says.
 
 import { spawn } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
@@ -291,19 +292,26 @@ ${PROMOTE_USAGE}
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
-// Each env file is complete (.env.sample names every key), so a flag
-// reads its own file and nothing else: production's keys never mix
-// with the sandbox's. The deploy context is set by the flag, not the
-// file, so no flag can reach production's stores by accident.
+// Each env file is complete (its tracked .env.<name>.sample names
+// every key), so a flag reads its own file and nothing else:
+// production's keys never mix with the sandbox's. --preview reads
+// .env.staging, the same sandbox. The deploy context is set by the
+// flag, not the file, so no flag can reach production's stores by
+// accident.
 const CONTEXTS = {
   production: "production",
   staging: "branch-deploy",
   preview: "deploy-preview",
 };
+const ENV_FILES = {
+  production: ".env.production",
+  staging: ".env.staging",
+  preview: ".env.staging",
+};
 const context = Object.keys(CONTEXTS)
   .find((name) => process.argv.includes(`--${name}`)) || null;
 
-loadEnv(join(root, context ? `.env.${context}` : ".env"));
+loadEnv(join(root, context ? ENV_FILES[context] : ".env"));
 
 // The Netlify token comes from the Keychain and nowhere else (#267):
 // not from an env file, not from the shell. Development runs on
