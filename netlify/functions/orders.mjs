@@ -35,7 +35,9 @@ import {
   payWithSquare, startVenmo,
 } from "./lib/checkout.mjs";
 import { now as clock, real } from "./lib/clock.mjs";
-import { creditBalance } from "./lib/credit.mjs";
+import {
+  creditBalance, restoreCredit, spendCredit,
+} from "./lib/credit.mjs";
 import { json, ORDER_BUDGET_MS, readJson } from "./lib/http.mjs";
 import { alert, count } from "./lib/health.mjs";
 import { log, withLog } from "./lib/log.mjs";
@@ -403,6 +405,10 @@ export const handle = async (req, {
         viaCode: !!groupCode,
       }
       : null,
+    // Whose credit the order spends (security review, 6425904452):
+    // the signed-in account's, never the email typed on the form.
+    ...(result.order.totals.credit > 0 && session
+      ? { creditFrom: session.email } : {}),
     fulfilment: { ...result.order.fulfilment, state: "agreed" },
     meta: {
       formVersion: catalog.version,
@@ -412,6 +418,67 @@ export const handle = async (req, {
   };
   const options = {
     env, mail, now, fetchImpl, sleep, square, paypal, deadline,
+  };
+
+  // The credit comes off the ledger before any money moves (security
+  // review, 6425904452): a conditional write keyed on the order, so
+  // two checkouts at once can spend the same balance only once, and a
+  // balance that fell short since the page looked answers "the total
+  // changed" with nothing charged. Venmo's first step takes no money,
+  // so the spend waits for its capture.
+  const credit = order.totals.credit || 0;
+  const spendsNow = credit > 0 && order.creditFrom
+    && !(method === "venmo" && String(payment.stage || "") === "create");
+  let spent = false;
+
+  if (credit > 0 && !order.creditFrom) {
+    return json(422, { errors: { payment: "Sign in to use your credit." } });
+  }
+  if (spendsNow) {
+    try {
+      await spendCredit(stores, order.creditFrom, {
+        orderId: id, amount: credit, now,
+      });
+      spent = true;
+    } catch (error) {
+      log.warn({
+        event: "credit.short", id, credit,
+        error: String(error && error.message),
+      });
+
+      const fresh = validateOrder(payload, {
+        index, terms: memberTerms(terms, buying), now, group,
+        codes: discountCodes.codes,
+        lock: buying
+          ? lockOn(buying.priceLock || null, today(now, terms.timeZone))
+          : null,
+        deliverTo: buying ? terms.model.location(buying.location) || null
+          : null,
+        credit: await creditBalance(stores, order.creditFrom, now),
+        schedule: pickupSchedule(env),
+        waive: {
+          minimum: !!passCode && !problem,
+          fee: !!passCode && !problem && waivesFee(pass),
+        },
+      });
+
+      return json(422, {
+        errors: {
+          total: "The total changed while you were on this page. Check " +
+            "it and pay again.",
+        },
+        totals: fresh.ok ? fresh.order.totals : order.totals,
+      });
+    }
+  }
+  // A payment that certainly took no money gives the credit back.
+  const giveBack = async () => {
+    if (!spent) return;
+    await restoreCredit(stores, order.creditFrom, {
+      orderId: id, amount: credit, now,
+    }).catch((e) => log.warn({
+      event: "credit.restore_failed", id, error: String(e.message),
+    }));
   };
 
   try {
@@ -424,6 +491,8 @@ export const handle = async (req, {
 
     if (covered || method === "credit") {
       if (!covered) {
+        await giveBack();
+
         return json(422, { errors: { payment: "Choose how to pay." } });
       }
 
@@ -451,6 +520,8 @@ export const handle = async (req, {
         const paypalOrderId = String(payment.paypalOrderId || "");
 
         if (!paypalOrderId) {
+          await giveBack();
+
           return json(422, {
             errors: { payment: "Missing the PayPal order." },
           });
@@ -461,6 +532,8 @@ export const handle = async (req, {
         }, options)));
       }
 
+      await giveBack();
+
       return json(422, { errors: {
         payment: "The Venmo payment didn't come through. Start it again.",
       } });
@@ -469,6 +542,8 @@ export const handle = async (req, {
     const sourceId = String(payment.sourceId || "");
 
     if (!sourceId) {
+      await giveBack();
+
       return json(422, { errors: { payment: "Enter your card details." } });
     }
 
@@ -501,6 +576,8 @@ export const handle = async (req, {
         }));
       }
 
+      await giveBack();
+
       return json(402, {
         declined: true,
         code,
@@ -509,6 +586,11 @@ export const handle = async (req, {
       });
     }
     if (error && error.name === "CheckoutError") {
+      // A payment the checkout refused before taking money; a
+      // timeout or an unknown failure keeps the spend, since the
+      // retry under the same key may find the money taken.
+      await giveBack();
+
       return json(409, { errors: { payment: error.message }, code });
     }
     if (error && error.name === "OrderCollisionError") return collided();

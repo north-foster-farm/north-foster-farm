@@ -27,7 +27,6 @@ import { now as clock } from "./clock.mjs";
 import { log } from "./log.mjs";
 import { sendMail } from "./mail.mjs";
 import { welcome } from "./news.mjs";
-import { spendCredit } from "./credit.mjs";
 import { joinGroup } from "./groups.mjs";
 import * as paypalApi from "./paypal.mjs";
 import { usePass } from "./passes.mjs";
@@ -126,13 +125,8 @@ export const completeOrder = async (stores, order, { square, payment }, {
     await touchCustomer(stores, order.customer, now, {
       orderId: order.id,
     });
-    // The credit the order spent comes off the ledger, once; a retry
-    // of the write finds its spend there.
-    if (credit > 0) {
-      await spendCredit(stores, order.customer.email, {
-        orderId: order.id, amount: credit, now,
-      });
-    }
+    // The credit the order spent came off the ledger before any money
+    // moved (orders.mjs); nothing to do here.
     // An order placed with a buying group's code makes its customer a
     // member (#471): the next order needs no code when signed in.
     if (order.group && order.group.key) {

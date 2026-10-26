@@ -92,14 +92,22 @@ export const grantCredit = async (stores, email, {
   ));
 };
 
+// What an order still holds of a ledger, across its grants: its
+// spends less what refunds put back.
+export const heldBy = (ledger, orderId) => ledger.entries
+  .reduce((s, e) => s + (e.spent || [])
+    .filter((x) => x.orderId === orderId)
+    .reduce((t, x) => t + x.amount, 0), 0);
+
 // Spends `amount` on an order, from the grants that expire soonest.
-// Once per order: a retry finds its spend and leaves the ledger.
-// Throws when the balance is short. -> the ledger.
+// Once per order: a retry finds the order holding its credit and
+// leaves the ledger; an order whose credit went back (a refused
+// payment) may spend again. Throws when the balance is short.
+// -> the ledger.
 export const spendCredit = (stores, email, {
   orderId, amount, now = new Date(),
 }) => swapLedger(stores, email, (ledger) => {
-  if (ledger.entries.some((e) => (e.spent || []).some((x) =>
-    x.orderId === orderId))) return null;
+  if (heldBy(ledger, orderId) > 0) return null;
   if (balanceOf(ledger, now) < amount) {
     throw new Error(`${emailOf(email)} has less credit than ${amount}.`);
   }

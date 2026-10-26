@@ -265,3 +265,180 @@ describe("credit in Square's order", () => {
     ]);
   });
 });
+
+// The security review's change 1 (6425904452): the credit spent is
+// the signed-in account's, spent before any money moves, once, and
+// given back when the payment certainly took none.
+describe("whose credit, and when", () => {
+  const OTHER = "other@example.com";
+  const fakeSquare = ({ decline = false } = {}) => {
+    const calls = [];
+    const square = {
+      createOrder: async (order, key) => {
+        calls.push(["order", key]);
+
+        return { squareOrderId: "SQO", customerId: "CUST" };
+      },
+      createPayment: async (args) => {
+        calls.push(["payment", args.amount || args.order.totals.total]);
+        if (decline) {
+          const error = new Error("Declined");
+
+          error.declined = true;
+          error.code = "CARD_DECLINED";
+          throw error;
+        }
+
+        return {
+          squarePaymentId: "PAY", status: "COMPLETED", receiptUrl: null,
+          brand: "VISA", last4: "4242", wallet: null,
+        };
+      },
+      payZeroOrder: async (id) => {
+        calls.push(["zero", id]);
+
+        return { squareOrderId: id };
+      },
+      cancelOrder: async (id) => ({ id, cancelled: true }),
+      findPaid: async () => null,
+    };
+
+    return { square, calls };
+  };
+  const body = (overrides = {}) => ({
+    idempotencyKey: "0f7c1e3a-9c9b-4b3a-8e9d-1a2b3c4d5e6f",
+    customer: {
+      firstName: "Pat", lastName: "Example", email: EMAIL,
+      phone: "401-555-0100", contact: "call",
+    },
+    lines: [{ sku: SKU, qty: 2 }],
+    fulfilment: { method: "scheduled", occurrence: "36TS-261108" },
+    claimedTotal: 3500,
+    payment: { method: "card", sourceId: "cnon:tok" },
+    ...overrides,
+  });
+  const member = async (credit, email = EMAIL) => {
+    const stores = testStores();
+
+    await setGroupCode(stores, "vff", { code: "GYM-2026", now });
+
+    const session = await createSession(stores, email, { now });
+
+    await joinGroup(stores, email, "vff", { now });
+    if (credit) {
+      await grantCredit(stores, email, { amount: credit, from, now,
+        timeZone: terms.timeZone });
+    }
+
+    return { stores, cookie: { cookie: `nff_session=${session.id}` } };
+  };
+  const send = (stores, square, payload, headers = {}) => placeOrder(
+    new Request("http://x/api/orders", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...headers },
+      body: JSON.stringify(payload),
+    }),
+    { stores, square, now, env, mail: async () => ({}),
+      sleep: async () => {} }
+  );
+
+  it("spends the signed-in account's, never the typed address's",
+    async () => {
+      // Member A signs in and types member B's email address.
+      const { stores, cookie } = await member(2000);
+      const { square } = fakeSquare();
+
+      await joinGroup(stores, OTHER, "vff", { now });
+      await grantCredit(stores, OTHER, { amount: 9000, from, now,
+        timeZone: terms.timeZone });
+
+      const res = await send(stores, square, body({
+        customer: { firstName: "Oth", lastName: "Er", email: OTHER,
+          phone: "401-555-0100", contact: "call" },
+      }), cookie);
+      const data = await res.json();
+
+      assert.equal(res.status, 200, JSON.stringify(data));
+      assert.equal(data.totals.credit, 2000);
+
+      const order = await getOrder(stores, data.orderId);
+
+      assert.equal(order.creditFrom, EMAIL);
+      assert.equal(order.customer.email, OTHER);
+      assert.equal(await creditBalance(stores, EMAIL, now), 0);
+      assert.equal(await creditBalance(stores, OTHER, now), 9000);
+
+      // A refund goes back to A, whose credit it was.
+      await refundOrder(stores, data.orderId, { now, env, amount: 2000,
+        square });
+      assert.equal(await creditBalance(stores, EMAIL, now), 2000);
+      assert.equal(await creditBalance(stores, OTHER, now), 9000);
+    });
+
+  it("runs out: a second covered order is refused, nothing charged",
+    async () => {
+      const { stores, cookie } = await member(5500);
+      const { square, calls } = fakeSquare();
+      const first = await send(stores, square, body({
+        claimedTotal: 0, payment: { method: "credit" },
+      }), cookie);
+
+      assert.equal(first.status, 200);
+      assert.equal(await creditBalance(stores, EMAIL, now), 0);
+
+      // The page still believes in the balance it saw.
+      const second = await send(stores, square, body({
+        idempotencyKey: "1f7c1e3a-9c9b-4b3a-8e9d-1a2b3c4d5e6f",
+        claimedTotal: 0, payment: { method: "credit" },
+      }), cookie);
+      const data = await second.json();
+
+      assert.equal(second.status, 422);
+      assert.match(data.errors.total, /total changed/);
+      assert.equal(data.totals.credit, undefined);
+      assert.equal(data.totals.total, 5500);
+      assert.deepEqual(calls.map((c) => c[0]), ["order", "zero"]);
+    });
+
+  it("spends a balance once across two checkouts at once", async () => {
+    const { stores, cookie } = await member(2000);
+    const { square, calls } = fakeSquare();
+    // Both pages read $20 of credit before either paid.
+    const [a, b] = await Promise.all([
+      send(stores, square, body(), cookie),
+      send(stores, square, body({
+        idempotencyKey: "2f7c1e3a-9c9b-4b3a-8e9d-1a2b3c4d5e6f",
+      }), cookie),
+    ]);
+    const statuses = [a.status, b.status].sort();
+
+    assert.deepEqual(statuses, [200, 422]);
+    assert.equal(calls.filter((c) => c[0] === "payment").length, 1);
+    assert.equal(await creditBalance(stores, EMAIL, now), 0);
+  });
+
+  it("gives the credit back on a declined card", async () => {
+    const { stores, cookie } = await member(2000);
+    const { square } = fakeSquare({ decline: true });
+    const res = await send(stores, square, body(), cookie);
+
+    assert.equal(res.status, 402);
+    assert.equal(await creditBalance(stores, EMAIL, now), 2000);
+
+    // And spends it again on the next try.
+    const again = await send(stores, square, body({
+      idempotencyKey: "3f7c1e3a-9c9b-4b3a-8e9d-1a2b3c4d5e6f",
+    }), cookie);
+
+    assert.equal(again.status, 402);
+    assert.equal(await creditBalance(stores, EMAIL, now), 2000);
+
+    const ok = fakeSquare();
+    const paid = await send(stores, ok.square, body({
+      idempotencyKey: "4f7c1e3a-9c9b-4b3a-8e9d-1a2b3c4d5e6f",
+    }), cookie);
+
+    assert.equal(paid.status, 200);
+    assert.equal(await creditBalance(stores, EMAIL, now), 0);
+  });
+});

@@ -374,7 +374,8 @@ export const refundOrder = async (stores, id, {
       // A member's credit (#471) goes back on the ledger it came
       // from, first (it is the newest payment), and the record says
       // so. Nothing is asked of Square or PayPal.
-      const { restored } = await restoreCredit(stores, order.customer.email,
+      const { restored } = await restoreCredit(stores,
+        order.creditFrom || order.customer.email,
         { orderId: id, amount: take, now });
 
       refund = { status: "COMPLETED", via: "credit", restored };
