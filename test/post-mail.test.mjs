@@ -73,8 +73,7 @@ describe("a post as Farm News mail", () => {
   it("carries the list's footer, with Resend's unsubscribe link", () => {
     assert.match(mail.html, /99 East Killingly Road/);
     assert.match(mail.text, /Unsubscribe in one click: \{\{\{RESEND_UNSUB/);
-    assert.match(mail.html, new RegExp(
-      `href="${RESEND_UNSUBSCRIBE.replace(/[{}]/g, "\\$&")}"`));
+    assert.ok(mail.html.includes(`href="${RESEND_UNSUBSCRIBE}"`));
     assert.match(mail.text, /because you joined our Farm News list/);
   });
 
