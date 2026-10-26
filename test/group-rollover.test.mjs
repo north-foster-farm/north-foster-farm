@@ -138,7 +138,7 @@ describe("a round under the minimum", () => {
     await saveOrder(stores, order("NFF-2611-RL0001", "a@x.com", 100));
 
     const r = await workRounds(stores, {
-      now: ny("2026-11-08", 0, 1), terms, env, mail: h.mail,
+      now: ny("2026-11-09", 0, 1), terms, env, mail: h.mail,
       square: h.square,
     });
 

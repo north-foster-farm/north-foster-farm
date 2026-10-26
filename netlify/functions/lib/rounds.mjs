@@ -21,7 +21,7 @@ import {
   cutoffOf, seriesDates,
 } from "../../../assets/scripts/order/lib/events.mjs";
 import {
-  addDays, today,
+  addDays, instant, today,
 } from "../../../assets/scripts/order/lib/zoned.mjs";
 import { applyChange, planChange } from "./account.mjs";
 import { grantCredit } from "./credit.mjs";
@@ -84,6 +84,42 @@ export const belowMinimum = (group, sum) =>
   Number.isFinite(group.roundMinimum) && group.roundMinimum > 0
   && sum.net < group.roundMinimum * 100;
 
+// When a round's books close: the end of its pickup day, so the
+// walk-in sales of the morning count (security review, 6425904452).
+// Ordering still closes at 11:59 PM the day before (lib/dates.mjs).
+export const closeAt = (round, timeZone) =>
+  instant(round, 23, 59, timeZone);
+
+// How many times a change to a round reads it again after losing a
+// swap to another writer before giving up.
+const SWAPS = 5;
+
+// Reads the round, lets `change` decide from what is stored, and
+// writes only if no one wrote in between (the scheduled job and the
+// farm's `groups close` can meet). `change` -> the next record, or
+// null to write nothing. -> what is stored after.
+const swapRound = async (stores, key, round, change) => {
+  const k = roundKey(key, round);
+
+  for (let i = 0; i < SWAPS; i++) {
+    const found = await stores.orders.getTagged(k);
+
+    if (!found) throw new Error(`Round ${round} is not closed yet.`);
+
+    const next = change(found.value);
+
+    if (!next) return found.value;
+    if (await stores.orders.swap(k, next, found.etag)) return next;
+  }
+
+  throw new Error(`Round ${round} kept changing; try again.`);
+};
+
+// Closes a round once: its orders added up as they stand, the reward
+// worked out. The record is written only if absent, before any order
+// is moved, so two closers at once move nothing twice; a round
+// already closed is answered as it is.
+// -> { round, closed } with `closed` true when this call did it.
 export const closeRound = async (stores, group, round, {
   now = new Date(), terms, env = process.env, mail = sendMail,
   square = squareApi,
@@ -99,31 +135,17 @@ export const closeRound = async (stores, group, round, {
   const rollsTo = belowMinimum(group, sum) && open.length && s
     ? seriesDates(s, addDays(round, 1), addDays(round, LOOK_BACK))[0] || null
     : null;
-  const moved = [];
-  const stuck = [];
-
-  for (const o of rollsTo ? open : []) {
-    const plan = planChange(o, {
-      method: "scheduled", occurrence: roundOccurrence(group, rollsTo),
-    }, { now, env, by: "farm", member: group });
-
-    if (plan.errors) {
-      stuck.push({ id: o.id, errors: plan.errors });
-      continue;
-    }
-    await applyChange(stores, o, plan, { now, env, mail, square, by: "farm" });
-    moved.push(o.id);
-  }
   const creditOf = (email) => orders
     .filter((o) => o.customer.email === email)
-    .reduce((s, o) => s + creditPaid(o), 0);
-  const credited = orders.reduce((s, o) => s + creditPaid(o), 0);
+    .reduce((t, o) => t + creditPaid(o), 0);
+  const credited = orders.reduce((t, o) => t + creditPaid(o), 0);
   const real = sum.net - credited;
   const record = {
     group: group.key,
     round,
     occurrence: roundOccurrence(group, round),
     cutoff: cutoffOf(round, terms.timeZone).toISOString(),
+    closesAt: closeAt(round, terms.timeZone).toISOString(),
     closedAt: now.toISOString(),
     count: sum.count,
     net: sum.net,
@@ -134,7 +156,7 @@ export const closeRound = async (stores, group, round, {
     minimum: group.roundMinimum || null,
     // Rolled over: its orders count in the next round, and this one
     // earns nothing of its own.
-    ...(rollsTo ? { rolledTo: rollsTo, moved, stuck } : {}),
+    ...(rollsTo ? { rolledTo: rollsTo, moved: [], stuck: [] } : {}),
     reward: rollsTo
       ? { earned: false, amount: 0, leftover: 0, rolled: true }
       : rewardFor(real, group.hostReward),
@@ -147,9 +169,31 @@ export const closeRound = async (stores, group, round, {
     settled: null,
   };
 
-  await stores.orders.set(roundKey(group.key, round), record);
+  if (!(await stores.orders.create(roundKey(group.key, round), record))) {
+    return { round: await getRound(stores, group.key, round), closed: false };
+  }
+  if (!rollsTo) return { round: record, closed: true };
 
-  return { round: record, closed: true };
+  const moved = [];
+  const stuck = [];
+
+  for (const o of open) {
+    const plan = planChange(o, {
+      method: "scheduled", occurrence: roundOccurrence(group, rollsTo),
+    }, { now, env, by: "farm", member: group });
+
+    if (plan.errors) {
+      stuck.push({ id: o.id, errors: plan.errors });
+      continue;
+    }
+    await applyChange(stores, o, plan, { now, env, mail, square, by: "farm" });
+    moved.push(o.id);
+  }
+
+  const rolled = await swapRound(stores, group.key, round,
+    (stored) => ({ ...stored, moved, stuck }));
+
+  return { round: rolled, closed: true };
 };
 
 // The host's choice for a round's reward, until it is settled.
@@ -160,23 +204,18 @@ export const chooseReward = async (stores, group, round, kind, {
     throw new Error(`The choice is one of: ${CHOICES.join(", ")}.`);
   }
 
-  const record = await getRound(stores, group.key, round);
+  return swapRound(stores, group.key, round, (record) => {
+    if (!record.reward.earned) {
+      throw new Error(`Round ${round} earned no reward (real money ${
+        record.real} cents, under $${record.threshold}).`);
+    }
+    if (record.settled) {
+      throw new Error(`Round ${round}'s reward is already ${
+        record.settled.kind === "share" ? "shared out" : "credited"}.`);
+    }
 
-  if (!record) throw new Error(`Round ${round} is not closed yet.`);
-  if (!record.reward.earned) {
-    throw new Error(`Round ${round} earned no reward (real money ${
-      record.real} cents, under $${record.threshold}).`);
-  }
-  if (record.settled) {
-    throw new Error(`Round ${round}'s reward is already ${
-      record.settled.kind === "share" ? "shared out" : "credited"}.`);
-  }
-
-  const next = { ...record, choice: { kind, at: now.toISOString(), by } };
-
-  await stores.orders.set(roundKey(group.key, round), next);
-
-  return next;
+    return { ...record, choice: { kind, at: now.toISOString(), by } };
+  });
 };
 
 // The shares of `amount` among members by their real spend, each
@@ -199,15 +238,32 @@ export const splitReward = (amount, members) => {
 
 // Settles `prior`'s reward at the close of `next`: kept, as credit
 // on the host's account, or shared among `next`'s members by their
-// real spend. Once. Throws when the host's email is not on record
-// and the reward is to be kept, so the farm hears and sets it; the
-// next run settles it then. -> the prior round as settled.
+// real spend. Once: the settlement is claimed on the record with a
+// conditional write before any credit is granted, so two settlers at
+// once grant nothing twice. Throws when the host's email is not on
+// record and the reward is to be kept, so the farm hears and sets
+// it; the claim is let go and the next run settles it then.
+// -> the prior round as settled.
 export const settleReward = async (stores, group, prior, next, {
   now = new Date(), terms,
 }) => {
   if (prior.settled || !prior.reward.earned) return prior;
 
-  const kind = prior.choice ? prior.choice.kind : "keep";
+  const claimed = await swapRound(stores, group.key, prior.round,
+    (stored) => (stored.settled ? null : {
+      ...stored, settled: { pending: true, at: now.toISOString() },
+    }));
+
+  // Someone else holds or finished the settlement.
+  if (!claimed.settled || !claimed.settled.pending
+    || claimed.settled.at !== now.toISOString()) {
+    return claimed;
+  }
+
+  const letGo = () => swapRound(stores, group.key, prior.round,
+    (stored) => (stored.settled && stored.settled.pending
+      ? { ...stored, settled: null } : null));
+  const kind = claimed.choice ? claimed.choice.kind : "keep";
   const from = (what) => ({ group: group.key, round: prior.round, kind: what });
   const grant = (email, amount, what) => grantCredit(stores, email, {
     amount, from: from(what), now, timeZone: terms.timeZone,
@@ -217,7 +273,7 @@ export const settleReward = async (stores, group, prior, next, {
   let settledAs = kind;
 
   if (kind === "share") {
-    const split = splitReward(prior.reward.amount, next.members);
+    const split = splitReward(claimed.reward.amount, next.members);
 
     shares = split.shares.filter((s) => s.amount > 0);
     leftover = split.leftover;
@@ -229,28 +285,29 @@ export const settleReward = async (stores, group, prior, next, {
     const record = await getGroupRecord(stores, group.key);
 
     if (!record || !record.host) {
+      await letGo();
       throw new Error(`The host of ${group.key} has no email address on ` +
         "record: bin/nff groups set " + `${group.key} host=<email>`);
     }
-    shares = [{ email: record.host, real: null, amount: prior.reward.amount }];
+    shares = [{ email: record.host, real: null,
+      amount: claimed.reward.amount }];
     leftover = 0;
   }
 
+  // Grants are keyed on the round and kind, so a retry after a
+  // failure here finds the ones made; the claim stands meanwhile, so
+  // no other settler runs.
   for (const s of shares) {
     await grant(s.email, s.amount, settledAs === "share" ? "share" : "host");
   }
 
-  const settled = {
-    ...prior,
+  return swapRound(stores, group.key, prior.round, (stored) => ({
+    ...stored,
     settled: {
       at: now.toISOString(), kind: settledAs, by: next.round,
-      chosen: !!prior.choice, shares, leftover,
+      chosen: !!claimed.choice, shares, leftover,
     },
-  };
-
-  await stores.orders.set(roundKey(group.key, prior.round), settled);
-
-  return settled;
+  }));
 };
 
 // The rounds of every group whose close has passed and that have no
@@ -270,7 +327,7 @@ export const workRounds = async (stores, {
     if (!s) continue;
 
     const dates = seriesDates(s, addDays(day, -LOOK_BACK), day)
-      .filter((d) => now.getTime() > cutoffOf(d, terms.timeZone).getTime());
+      .filter((d) => now.getTime() > closeAt(d, terms.timeZone).getTime());
 
     for (const round of dates) {
       try {
