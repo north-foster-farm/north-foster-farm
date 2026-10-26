@@ -1,0 +1,34 @@
+# The product photos on the order page (#486), keyed by the stem the
+# cut's SKUs share (NFF-CHK-WHL-20-24 -> nff-chk-whl), which is also
+# the file under assets/images/products/. order/photo.html finds the
+# file by the stem; this file holds what the markup says about it.
+#
+# `alt` describes the photo for a reader who cannot see it. Every alt
+# here is a DRAFT until James approves it.
+nff-chk-whl:
+  alt: A whole raw chicken lying breast up on a maple cutting board, its legs toward the camera.
+nff-chk-wng:
+  alt: A pile of raw chicken wings on a maple cutting board.
+nff-chk-lvr:
+  alt: Raw chicken livers heaped in a square glass tub on a maple cutting board.
+nff-chk-brsbl:
+  alt: Two raw boneless chicken breasts side by side on a maple cutting board.
+nff-chk-drm:
+  alt: Two raw chicken drumsticks crossed on a maple cutting board.
+nff-chk-thgbn:
+  alt: Two raw bone-in chicken thighs, skin on, on a maple cutting board.
+nff-chk-fet:
+  alt: A row of raw chicken feet lying side by side on a maple cutting board.
+nff-chk-tnd:
+  alt: Raw chicken tenders fanned out in a heap on a maple cutting board.
+nff-chk-saumpl:
+  alt: Five raw chicken breakfast sausage links stacked on a maple cutting board.
+nff-chk-nck:
+  alt: Raw chicken necks curled in a heap on a maple cutting board.
+nff-chk-bck:
+  alt: A raw chicken back, skin on, standing on a maple cutting board.
+all-cuts:
+  alt: A whole raw chicken on a wooden board outdoors among its cuts, with feet, necks, tenders, wings and drumsticks around it.
+# Any product with no photo yet (eggs, the sweet Italian sausage).
+placeholder:
+  alt: No photo yet.
