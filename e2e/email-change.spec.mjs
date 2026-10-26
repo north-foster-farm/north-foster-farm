@@ -100,10 +100,10 @@ test.describe("changing your own email", () => {
         }
       });
       await page.goto(linkIn(mail, VERIFY));
-      // The redirect carries an empty query, so Netlify copies nothing
+      // The redirect has a query of its own, so Netlify copies none
       // onto it: the token stays in the fragment the page then drops.
       await expect(page, hops.join("\n"))
-        .toHaveURL(/\/account\/\??#settings$/);
+        .toHaveURL(/\/account\/\?via=link#settings$/);
       await expect(page.locator("#account-confirm")).toBeVisible();
       await expect(page.locator("#account-confirm [data-confirm-email]"))
         .toHaveText(to);

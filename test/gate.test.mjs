@@ -418,8 +418,8 @@ describe("the gate's function", () => {
     });
 
     assert.equal(res.status, 302);
-    // The empty query keeps Netlify from copying the token onto it.
-    assert.equal(res.headers.get("location"), "/order/?");
+    // A query of its own keeps Netlify from copying the token onto it.
+    assert.equal(res.headers.get("location"), "/order/?via=link");
 
     const cookie = res.headers.get("set-cookie");
 

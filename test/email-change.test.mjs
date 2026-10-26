@@ -211,7 +211,7 @@ describe("the endpoints (#240)", () => {
 
     assert.equal(res.status, 302);
     assert.equal(res.headers.get("location"),
-      `/account/?#confirm=${token}&email=${encodeURIComponent(NEW)}` +
+      `/account/?via=link#confirm=${token}&email=${encodeURIComponent(NEW)}` +
       `&from=${encodeURIComponent(OLD)}`);
     assert.equal(res.headers.get("set-cookie"), null);
     assert.ok(await getCustomer(stores, OLD));

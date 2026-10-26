@@ -322,8 +322,8 @@ describe("the auth endpoints", () => {
     );
 
     assert.equal(verified.status, 302);
-    // The empty query keeps Netlify from copying the token onto it.
-    assert.equal(verified.headers.get("location"), "/account/?");
+    // A query of its own keeps Netlify from copying the token onto it.
+    assert.equal(verified.headers.get("location"), "/account/?via=link");
 
     const cookie = verified.headers.get("set-cookie");
 

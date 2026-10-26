@@ -2,9 +2,11 @@
 
 // Netlify copies the request's query onto a function's redirect whose
 // Location has none, and on a sign-in link that is its token: the next
-// page's request line would carry it. An empty query stops the copy.
+// page's request line would carry it. A query of its own stops the
+// copy; an empty one does not (staging run 40307434203), so it carries
+// a harmless marker.
 export const noCopy = (location) => location.replace(
-  /^([^?#]*)(#|$)/, "$1?$2"
+  /^([^?#]*)(#|$)/, "$1?via=link$2"
 );
 
 export const json = (status, body, headers = {}) =>

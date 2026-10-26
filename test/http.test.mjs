@@ -4,13 +4,13 @@ import { describe, it } from "node:test";
 import { noCopy } from "../netlify/functions/lib/http.mjs";
 
 describe("noCopy", () => {
-  it("gives a path with no query an empty one", () => {
-    assert.equal(noCopy("/account/"), "/account/?");
+  it("gives a path with no query one of its own", () => {
+    assert.equal(noCopy("/account/"), "/account/?via=link");
   });
 
-  it("puts the empty query before a fragment", () => {
+  it("puts the query before a fragment", () => {
     assert.equal(noCopy("/account/#confirm=t&email=a%40b.c"),
-      "/account/?#confirm=t&email=a%40b.c");
+      "/account/?via=link#confirm=t&email=a%40b.c");
   });
 
   it("leaves a next with a query of its own alone", () => {
@@ -19,6 +19,6 @@ describe("noCopy", () => {
   });
 
   it("does not take a ? inside the fragment for a query", () => {
-    assert.equal(noCopy("/account/#a?b"), "/account/?#a?b");
+    assert.equal(noCopy("/account/#a?b"), "/account/?via=link#a?b");
   });
 });
