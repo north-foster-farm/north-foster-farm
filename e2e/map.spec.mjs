@@ -969,10 +969,14 @@ test.describe("map (#138, #214)", () => {
       (els) => [...new Set(els.map((el) => getComputedStyle(el).fill))]
     );
 
-    // The towns we don't deliver to are away or plain land (#214); a
-    // pin tints none of them.
-    expect(fills.length).toBeLessThanOrEqual(2);
+    // The towns we don't deliver to are away or plain land (#214), the
+    // only two fills; a pin tints none of them. $map-land and $map-away
+    // in _map.scss.
+    const LAND = "rgb(242, 238, 229)";
+    const AWAY = "rgb(229, 215, 183)";
+
     for (const fill of fills) {
+      expect([LAND, AWAY], "land or away, by name").toContain(fill);
       const [r, , b] = fill.match(/\d+/g).map(Number);
 
       expect(b, `${fill} is not blue`).toBeLessThanOrEqual(r);
