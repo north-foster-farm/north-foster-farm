@@ -2734,6 +2734,9 @@
     // dark rule's own room goes with the scroll, and the badges lay on
     // the toggle (#448). Only while open: padding would keep a strip
     // of the fold open when it closes. measureFloor counts the gap.
+    // The open code row, the dark rule and the gap keep their room
+    // (--cart-keep): shrunk beside a long list, the scroller once left
+    // less than the row, and the lines give way instead (#476).
     .order-cart[data-tight] .order-cart-after {
       flex: 0 1 auto;
       min-height: 0;
@@ -2760,6 +2763,7 @@
     }
 
     .order-cart[data-open="true"][data-tight] .order-cart-after {
+      min-height: var(--cart-keep, 0);
       padding-top: 0.75rem;
     }
 

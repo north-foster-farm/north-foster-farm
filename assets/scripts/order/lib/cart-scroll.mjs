@@ -85,12 +85,24 @@ export const rowsFloor = (rows, listHeight, padding, strip, keep = 3) => {
 // beside the pane and the kept row, and the room left otherwise: then
 // it scrolls as a whole, never clipped, and the field and Apply keep
 // their room on the smallest phones.
-export const paneFit = ({ pane, fold, below, keep = 0 }, room) => {
+//
+// On the lines, `rows` is their part of the fold: three rows and the
+// "more" strip. Under the keyboard on a small phone the room is short
+// of the fold beside the pane and the kept row (#476), and the rows
+// give way first, by what the fold lacks, down to none: the list stays
+// behind its "more" strip and the total row, Hide and Proceed to
+// checkout keep the pane. `keep` comes back as the room the parts
+// under the total row hold at the least, the kept row or what the pane
+// leaves of it.
+export const paneFit = ({ pane, fold, below, keep = 0, rows = 0 }, room) => {
   const floor = pane + fold + below;
+  const fits = Math.min(fold, Math.max(0, room - pane - keep));
 
   return {
     floor: Math.ceil(floor),
-    fold: Math.ceil(Math.min(fold, Math.max(0, room - pane - keep))),
+    fold: Math.ceil(fits),
+    rows: Math.ceil(Math.max(0, rows - (fold - fits))),
+    keep: Math.ceil(Math.min(keep, Math.max(0, room - pane))),
     tight: floor > room,
   };
 };

@@ -1582,6 +1582,11 @@ export class OrderForm {
   // keep their whole height (--cart-sums-min) and what is under the
   // total row gives way instead, down to the code row and the dark
   // rule above it, which the sums never take.
+  //
+  // The lines' floor was the one part that never gave way, and under
+  // the keyboard on a small phone it was taller than the room: Hide and
+  // Proceed to checkout lay past the pane's foot (#476). Now the rows
+  // give way as the sums do, down to none behind the "more" strip.
   measureFloor(list, wrap) {
     const fold = qs(this.cart, ".order-cart-fold");
     const after = qs(this.cart, ".order-cart-after");
@@ -1613,20 +1618,20 @@ export class OrderForm {
       .reduce((n, el) => n + outer(el), 0);
     const spacer = 0.3 * rem;
     let foldMin;
+    let rowsMin = 0;
 
     if (lines) {
       const rows = all(list, ".order-cart-item").map((li) => ({
         top: li.offsetTop - list.offsetTop,
         bottom: li.offsetTop - list.offsetTop + li.offsetHeight,
       }));
-      const room = rowsFloor(
+      const listBox = wrap.parentElement;
+
+      rowsMin = rowsFloor(
         rows, list.scrollHeight,
         parseFloat(getComputedStyle(list).paddingBottom) || 0, 1.75 * rem
       );
-      const listBox = wrap.parentElement;
-
-      set(wrap, "--cart-scroll-min", room);
-      foldMin = room + others(wrap.parentElement, wrap)
+      foldMin = rowsMin + others(wrap.parentElement, wrap)
         + others(listBox.parentElement, listBox) + spacer;
     } else {
       // The sums and their rule at full height, mid-unfold or not.
@@ -1654,11 +1659,17 @@ export class OrderForm {
     const keep = outer(qs(after, "[data-share]"))
       + outer(qs(after, ".order-cart-rule-dark")) + gap;
     const fit = paneFit(
-      { pane, fold: foldMin, below, keep }, visible - rem - bar
+      { pane, fold: foldMin, below, keep, rows: rowsMin }, visible - rem - bar
     );
 
-    if (lines) set(this.cart, "--cart-fold-min", Math.ceil(foldMin));
-    else set(this.cart, "--cart-sums-min", fit.fold);
+    // Short of the lines' floor (the keyboard up on a small phone), the
+    // rows give way, down to none, before the kept row or anything
+    // under the total row does (#476).
+    if (lines) {
+      set(wrap, "--cart-scroll-min", fit.rows);
+      set(this.cart, "--cart-fold-min", fit.fold);
+    } else set(this.cart, "--cart-sums-min", fit.fold);
+    set(this.cart, "--cart-keep", fit.keep);
     set(this.cart, "--cart-min-h", fit.floor);
 
     // Too short for the floor itself, what is under the total row

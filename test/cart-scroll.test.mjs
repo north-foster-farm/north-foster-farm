@@ -127,21 +127,21 @@ describe("paneFit", () => {
 
   it("is not tight while the room holds the floor", () => {
     assert.deepEqual(paneFit(parts, 600), {
-      floor: 364, fold: 104, tight: false,
+      floor: 364, fold: 104, rows: 0, keep: 44, tight: false,
     });
   });
 
   it("is tight under the keyboard, the sums still whole", () => {
     // 364 visible, less the margin and the top bar.
     assert.deepEqual(paneFit(parts, 292), {
-      floor: 364, fold: 104, tight: true,
+      floor: 364, fold: 104, rows: 0, keep: 44, tight: true,
     });
   });
 
   it("keeps the sums whole until only they, the pane and the row fit",
     () => {
       assert.deepEqual(paneFit(parts, 288), {
-        floor: 364, fold: 104, tight: true,
+        floor: 364, fold: 104, rows: 0, keep: 44, tight: true,
       });
     });
 
@@ -149,28 +149,69 @@ describe("paneFit", () => {
     // 320 by 568, 300px of it keyboard: room for the pane and the row,
     // not for the sums too.
     assert.deepEqual(paneFit(parts, 230), {
-      floor: 364, fold: 46, tight: true,
+      floor: 364, fold: 46, rows: 0, keep: 44, tight: true,
     });
   });
 
   it("gives the sums nothing where not even the pane and row fit", () => {
     assert.deepEqual(paneFit(parts, 170), {
-      floor: 364, fold: 0, tight: true,
+      floor: 364, fold: 0, rows: 0, keep: 30, tight: true,
     });
     assert.deepEqual(paneFit(parts, 100), {
-      floor: 364, fold: 0, tight: true,
+      floor: 364, fold: 0, rows: 0, keep: 0, tight: true,
     });
   });
 
   it("keeps nothing back without a kept row", () => {
     assert.deepEqual(paneFit({ ...parts, keep: undefined }, 200), {
-      floor: 364, fold: 60, tight: true,
+      floor: 364, fold: 60, rows: 0, keep: 0, tight: true,
     });
   });
 
   it("rounds up to whole pixels", () => {
     assert.deepEqual(paneFit({ pane: 140.2, fold: 103.4, below: 0 }, 600), {
-      floor: 244, fold: 104, tight: false,
+      floor: 244, fold: 104, rows: 0, keep: 0, tight: false,
+    });
+  });
+});
+
+// The Items tab under a keyboard 300px tall (#476): the room is the
+// visible height less the 16px margin and the 56px top bar. The lines'
+// fold is three rows and the "more" strip, 174px, with their rule and
+// the spacer, 196px; the rest as on the Total tab above.
+describe("paneFit on the lines", () => {
+  const parts = { pane: 140, fold: 196, below: 120, keep: 44, rows: 174 };
+  const room = (height) => height - 300 - 16 - 56;
+
+  it("keeps three rows at 390 by 844", () => {
+    assert.deepEqual(paneFit(parts, room(844)), {
+      floor: 456, fold: 196, rows: 174, keep: 44, tight: false,
+    });
+  });
+
+  it("gives up rows, not the kept row, at 375 by 667", () => {
+    const fit = paneFit(parts, room(667));
+
+    assert.deepEqual(fit, {
+      floor: 456, fold: 111, rows: 89, keep: 44, tight: true,
+    });
+    // The pane, the fold and the kept row fill the room, no more: Hide
+    // and Proceed to checkout stay inside it.
+    assert.equal(parts.pane + fit.fold + fit.keep, room(667));
+  });
+
+  it("gives up every row at 320 by 568, never the total row", () => {
+    const fit = paneFit(parts, room(568));
+
+    assert.deepEqual(fit, {
+      floor: 456, fold: 12, rows: 0, keep: 44, tight: true,
+    });
+    assert.ok(parts.pane + fit.fold + fit.keep <= room(568));
+  });
+
+  it("gives the kept row what the pane leaves where it alone fits", () => {
+    assert.deepEqual(paneFit(parts, 160), {
+      floor: 456, fold: 0, rows: 0, keep: 20, tight: true,
     });
   });
 });
