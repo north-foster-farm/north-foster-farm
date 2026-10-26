@@ -5,7 +5,9 @@
 // a tap keeps it, a later Add shows the strip and pulses once. It sets
 // its own sizes, so it runs in the desktop project only.
 
-import { FULL_CART, OrderPage, expect, test } from "./support/order.mjs";
+import {
+  FULL_CART, OrderPage, expect, test, unfoldCart,
+} from "./support/order.mjs";
 
 const PHONE = { width: 390, height: 844 };
 const TABLET = { width: 768, height: 1024 };
@@ -13,6 +15,16 @@ const TABLET = { width: 768, height: 1024 };
 const hidden = (locator) => locator.evaluate((el) => (
   getComputedStyle(el).display === "none"
 ));
+
+// ?add= settles the cart in the page; a scroll back up lifts it off
+// closed. Floats it, open, at the catalog's top.
+const floatOpen = async (page, order) => {
+  await order.scrollSettled();
+  await page.evaluate(() => window.scrollTo(0, 300));
+  await order.scrollSettled();
+  await expect(order.cart).toHaveAttribute("data-placement", "floating");
+  await unfoldCart(order);
+};
 
 test.describe("the pill", () => {
   test("closes a phone's sheet to the total row and the foot", async ({
@@ -24,9 +36,7 @@ test.describe("the pill", () => {
     const pill = order.cart.locator("[data-cart-toggle]");
 
     await order.open(FULL_CART);
-    await page.evaluate(() => window.scrollTo(0, 300));
-    await expect(order.cart).toHaveAttribute("data-placement", "floating");
-    await expect(order.cart).toHaveAttribute("data-fold", "open");
+    await floatOpen(page, order);
     await expect(pill).toHaveAttribute("aria-expanded", "true");
     await expect(pill).toHaveText(/Hide/);
 
@@ -57,8 +67,7 @@ test.describe("the pill", () => {
     const pill = order.cart.locator("[data-cart-toggle]");
 
     await order.open(FULL_CART);
-    await page.evaluate(() => window.scrollTo(0, 300));
-    await expect(order.cart).toHaveAttribute("data-placement", "floating");
+    await floatOpen(page, order);
     await pill.click();
     await expect(order.cart).toHaveAttribute("data-fold", "closed");
     expect(await hidden(order.cart.locator("[data-part='lines']"))).toBe(true);
@@ -78,8 +87,7 @@ test.describe("the pill", () => {
     const pill = order.cart.locator("[data-cart-toggle]");
 
     await order.open(FULL_CART);
-    await page.evaluate(() => window.scrollTo(0, 300));
-    await expect(order.cart).toHaveAttribute("data-fold", "open");
+    await floatOpen(page, order);
     await order.cart.locator("[data-remove]").first().focus();
     await page.keyboard.press("Escape");
     await expect(order.cart).toHaveAttribute("data-fold", "closed");
@@ -131,7 +139,7 @@ test.describe("the first Add of a session", () => {
       const row = await order.showRow("wings");
 
       await expect(order.cart).toHaveAttribute("data-placement", "floating");
-      await row.getByRole("button", { name: "Add" }).click();
+      await row.locator(".order-qty-add").click();
       await expect(order.cart).toHaveAttribute("data-fold", "open");
       await expect(order.cart.locator("[data-remove]")).toBeVisible();
       // The pane shuts on its own after the dwell and the pill pulses.
@@ -150,7 +158,7 @@ test.describe("the first Add of a session", () => {
     await order.open();
     const row = await order.showRow("wings");
 
-    await row.getByRole("button", { name: "Add" }).click();
+    await row.locator(".order-qty-add").click();
     await expect(order.cart).toHaveAttribute("data-fold", "open");
     await order.cart.locator("[data-cart-count]").click();
     await page.waitForTimeout(4_500);
@@ -167,7 +175,7 @@ test.describe("the first Add of a session", () => {
     await order.open();
     let row = await order.showRow("wings");
 
-    await row.getByRole("button", { name: "Add" }).click();
+    await row.locator(".order-qty-add").click();
     await expect(order.cart).toHaveAttribute("data-fold", "closed", {
       timeout: 6_000,
     });
@@ -176,7 +184,7 @@ test.describe("the first Add of a session", () => {
     });
 
     row = await order.showRow("eggs");
-    await row.getByRole("button", { name: "Add" }).click();
+    await row.locator(".order-qty-add").click();
     await expect(order.cart).toHaveAttribute("data-fold", "closed");
     await expect(strip).toHaveAttribute("data-show", "");
     await expect(strip.locator("[data-cart-added]")).toHaveText(/Added: Eggs/);
@@ -200,8 +208,7 @@ test("with reduced motion the fold moves without easing", async ({
   const pill = order.cart.locator("[data-cart-toggle]");
 
   await order.open(FULL_CART);
-  await page.evaluate(() => window.scrollTo(0, 300));
-  await expect(order.cart).toHaveAttribute("data-fold", "open");
+  await floatOpen(page, order);
   await pill.click();
   await expect(order.cart).toHaveAttribute("data-fold", "closed");
   expect(await order.cart.evaluate((el) => el.getAnimations().length)).toBe(0);

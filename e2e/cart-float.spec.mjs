@@ -7,7 +7,9 @@
 // is the right column closed and the full column open. It sets its
 // own sizes, so it runs in the desktop project only.
 
-import { FULL_CART, OrderPage, expect, test } from "./support/order.mjs";
+import {
+  FULL_CART, OrderPage, expect, test, unfoldCart,
+} from "./support/order.mjs";
 
 const PHONE = { width: 390, height: 844 };
 const PHONE_SIDE = { width: 844, height: 390 };
@@ -168,9 +170,11 @@ test.describe("the phone's sheet", () => {
       const order = new OrderPage(page);
 
       await order.open(FULL_CART);
+      await order.scrollSettled();
       await page.evaluate(() => window.scrollTo(0, 300));
       await order.scrollSettled();
-      await expect(order.cart).toHaveAttribute("data-fold", "open");
+      await expect(order.cart).toHaveAttribute("data-placement", "floating");
+      await unfoldCart(order);
 
       const pane = await box(order.cart);
       const bar = await box(page.locator(".order-topbar"));
@@ -227,10 +231,11 @@ test.describe("the tablet's panel", () => {
         const pill = order.cart.locator("[data-cart-toggle]");
 
         await order.open(FULL_CART);
+        await order.scrollSettled();
         await page.evaluate(() => window.scrollTo(0, 300));
         await order.scrollSettled();
         await expect(order.cart).toHaveAttribute("data-placement", "floating");
-        await expect(order.cart).toHaveAttribute("data-fold", "open");
+        await unfoldCart(order);
 
         const col = await box(column(page));
         const open = await box(order.cart);
@@ -268,8 +273,11 @@ test.describe("the tablet's panel", () => {
     const order = new OrderPage(page);
 
     await order.open({ ...FULL_CART, whole: 2 });
+    await order.scrollSettled();
     await page.evaluate(() => window.scrollTo(0, 300));
     await order.scrollSettled();
+    await expect(order.cart).toHaveAttribute("data-placement", "floating");
+    await unfoldCart(order);
 
     const list = order.cart.locator("[data-cart-items]");
     const scrolls = await list.evaluate((el) => (
@@ -313,8 +321,7 @@ test.describe("the column", () => {
     const order = new OrderPage(page);
 
     await order.open({ wings: 1 });
-    await order.qty("eggs").locator("..").getByRole("button", { name: "Add" })
-      .click();
+    await order.item("eggs").locator(".order-qty-add").click();
     // Caught mid-ease: an animation runs on the pane.
     const eased = await order.cart.evaluate((el) => (
       el.getAnimations().some((a) => a.playState === "running")

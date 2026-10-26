@@ -5,9 +5,20 @@
 // regions polite; the rings inside the body whole. Runs in the phone
 // and desktop projects, and in WebKit as the iphone project.
 
-import { FULL_CART, OrderPage, expect, test } from "./support/order.mjs";
+import {
+  FULL_CART, OrderPage, expect, foldCart, test, unfoldCart,
+} from "./support/order.mjs";
 
 const PHONE = { width: 390, height: 844 };
+
+// ?add= settles the cart in the page; a scroll back up lifts it off
+// closed. Floats it, closed, at the catalog's top.
+const float = async (page, order) => {
+  await order.scrollSettled();
+  await page.evaluate(() => window.scrollTo(0, 300));
+  await order.scrollSettled();
+  await expect(order.cart).toHaveAttribute("data-placement", "floating");
+};
 
 test("the pane is named by its heading and its controls say their state",
   async ({ page }) => {
@@ -66,10 +77,8 @@ test.describe("on a phone", () => {
     const pill = order.cart.locator("[data-cart-toggle]");
 
     await order.open(FULL_CART);
-    await page.evaluate(() => window.scrollTo(0, 300));
-    await expect(order.cart).toHaveAttribute("data-placement", "floating");
-    await pill.click();
-    await expect(order.cart).toHaveAttribute("data-fold", "closed");
+    await float(page, order);
+    await foldCart(page, order.cart);
     await expect(pill).toHaveAttribute("aria-expanded", "false");
 
     // Every focusable control inside the pane that can take focus now.
@@ -90,7 +99,8 @@ test.describe("on a phone", () => {
     const order = new OrderPage(page);
 
     await order.open(FULL_CART);
-    await page.evaluate(() => window.scrollTo(0, 300));
+    await float(page, order);
+    await unfoldCart(order);
     await order.codeOpen.click();
     await order.codeInput.focus();
     expect(await order.codeInput.evaluate((el) => (
@@ -108,12 +118,14 @@ test.describe("on a phone", () => {
       const order = new OrderPage(page);
 
       await order.open(FULL_CART);
+      await order.scrollSettled();
       await page.evaluate(() => window.scrollTo(0, 0));
       await order.scrollSettled();
       await expect(order.cart).toHaveAttribute("data-placement", "floating");
 
-      // A row under the pane: focus its Add and it comes up clear.
-      const add = order.item("drums").getByRole("button", { name: /Add/ });
+      // A row under the pane: focus its Add (hidden from the
+      // accessibility tree, so by class) and it comes up clear.
+      const add = order.item("drums").locator(".order-qty-add");
 
       await order.item("drums").evaluate((el) => {
         el.scrollIntoView({ block: "end", behavior: "instant" });
