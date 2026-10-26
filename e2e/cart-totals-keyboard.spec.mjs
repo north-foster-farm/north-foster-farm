@@ -202,6 +202,27 @@ test.describe("after the settle and float round trip", () => {
     // The room costs the code row nothing: it stays in reach.
     await rowInReach(parts, pane);
   });
+
+  // #448, round 3: the field's focus ring was drawn outside it, and the
+  // scroller cut it where the row sat flush on its edge. In the tight
+  // pane the rings are drawn inside the field and the buttons, so a
+  // control in the scroller's view shows its whole ring.
+  test("the field's and Apply's rings are whole", async ({ page }) => {
+    const parts = await totalsUnderKeyboard(page, size, { roundTrip: true });
+    const { order } = parts;
+    const ring = (locator) => locator.evaluate(
+      (el) => getComputedStyle(el).boxShadow
+    );
+
+    expect(await ring(order.codeInput)).toContain("inset");
+
+    // Tab, so Apply's ring shows as it does for a keyboard.
+    await page.keyboard.press("Tab");
+    await expect(order.codeApply).toBeFocused();
+    expect(await ring(order.codeApply)).toContain("inset");
+
+    await rowInReach(parts, await paneInRoom(parts.cart, size));
+  });
 });
 
 test.describe(`at ${SMALL.width} by ${SMALL.height}`, () => {
