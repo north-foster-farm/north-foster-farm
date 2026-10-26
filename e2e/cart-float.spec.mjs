@@ -234,7 +234,8 @@ test.describe("the tablet's panel", () => {
 
         const col = await box(column(page));
         const open = await box(order.cart);
-        const sumsOpen = await box(order.subtotal);
+        const sums = order.cart.locator("[data-part='sums']");
+        const sumsOpen = await box(sums);
 
         expect(Math.abs(open.left - col.left)).toBeLessThanOrEqual(1);
         expect(Math.abs(open.right - col.right)).toBeLessThanOrEqual(1);
@@ -244,7 +245,7 @@ test.describe("the tablet's panel", () => {
         await page.waitForTimeout(500);
 
         const closed = await box(order.cart);
-        const sumsClosed = await box(order.subtotal);
+        const sumsClosed = await box(sums);
         const width = col.right - col.left;
         const expected = Math.min(width, Math.max(width / 2, 22 * 16));
 
