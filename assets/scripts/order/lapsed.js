@@ -99,9 +99,9 @@ export class Lapsed {
       ? `That ${NOUN[method]} is no longer available`
       : NONE[method];
     this.lead.textContent = some
-      ? `Nothing has been charged. Choose another ${
+      ? `Nothing has been charged. Pay again once you've chosen another ${
         method === "onfarm" ? "time" : method === "scheduled" ? "pickup" : "day"
-      }, then pay as before.`
+      }.`
       : "Nothing has been charged. You can still choose another way to " +
         "get your order.";
     this.legend.textContent = LEGEND[method];

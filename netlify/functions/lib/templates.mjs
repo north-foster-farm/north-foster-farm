@@ -815,10 +815,10 @@ export const magicLink = (email, url, {
 } = {}) => {
   const title = `Your secure sign-in link to ${company.name}`;
   const blocks = [
-    p("Click the button below to sign in. This link expires in " +
+    p(`Sign in to ${company.name}. This link works once, for the next ` +
       `${minutes} minutes.`),
     button("Sign in", url),
-    p("If you didn't request this email, you can safely ignore it."),
+    p("If you didn't ask for this, you can ignore it."),
     row([["Need help? Contact us", contactUrl(links)]]),
   ];
 
@@ -827,16 +827,17 @@ export const magicLink = (email, url, {
 
 // A customer's own email change (#240), in two parts: the link to the
 // new email address, which alone moves the account, and the word to the
-// old one once it has moved. James's approved wording.
+// old one once it has moved. James's approved wording (#303,
+// 2026-10-26: say what the link does, never "click the button").
 export const emailChangeLink = (email, url, {
   minutes = accounts.signInLinkMinutes, links,
 } = {}) => {
   const title = `Confirm your new email address for ${company.name}`;
   const blocks = [
-    p(`Click the button below to change your ${company.name} email ` +
-      `address. This link expires in ${minutes} minutes.`),
+    p(`Confirm your new ${company.name} email address. This link works ` +
+      `once, for the next ${minutes} minutes.`),
     button("Confirm new email address", url),
-    p("If you didn't request this change, you can safely ignore it."),
+    p("If you didn't ask for this, you can ignore it."),
   ];
 
   return { subject: title, ...render(title, blocks, links, { center: true }) };

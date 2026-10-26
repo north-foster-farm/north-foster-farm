@@ -936,11 +936,10 @@ describe("addresses and sign-in", () => {
       { links });
 
     assert.equal(m.subject, "Your secure sign-in link to North Foster Farm");
-    assert.match(m.text,
-      /Click the button below to sign in\. This link expires in 15 minutes\./);
+    has(m.text, "Sign in to North Foster Farm. This link works once, " +
+      "for the next 15 minutes.");
     assert.match(m.html, /href="https:\/\/x\/api\/auth\/verify\?t=1"/);
-    has(m.text, "If you didn't request this email, you can safely ignore " +
-      "it.");
+    has(m.text, "If you didn't ask for this, you can ignore it.");
     has(m.text, "Need help? Contact us: mailto:sales@northfosterfarm.com");
   });
 

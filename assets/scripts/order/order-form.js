@@ -1367,7 +1367,7 @@ export class OrderForm {
       status.textContent = `${method === "onfarm"
         ? `Pickup is now ${day}, ${times}`
         : method === "scheduled" ? `Pickup is now ${day}, ${place}`
-          : `Delivery is now ${day}`}. Pay to place your order.`;
+          : `Delivery is now ${day}`}. Pay again to place your order.`;
       status.hidden = false;
     }
 

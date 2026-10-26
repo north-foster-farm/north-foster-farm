@@ -344,7 +344,7 @@ test.describe("a lapsed scheduled pickup", () => {
       await expect(pickupChosen(page)).toHaveValue(market.occurrence);
       await expect(page.locator("[data-lapsed-status]")).toHaveText(
         `Pickup is now ${market.label}, ${DROP.window}, at ` +
-        "the drop site. Pay to place your order."
+        "the drop site. Pay again to place your order."
       );
     });
 

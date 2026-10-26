@@ -84,7 +84,7 @@ describe("asking to change the email (#240)", () => {
       assert.equal(sent.length, 1);
       assert.equal(sent[0].to, NEW);
       assert.match(sent[0].subject, /Confirm your new email address for/);
-      assert.match(sent[0].text, /If you didn't request this change/);
+      assert.match(sent[0].text, /If you didn't ask for this/);
       assert.ok(await getCustomer(stores, OLD));
       assert.equal(await getCustomer(stores, NEW), null);
     });
