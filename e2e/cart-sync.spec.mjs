@@ -4,6 +4,7 @@
 
 import { cannedDates } from "./support/canned.mjs";
 import { expect, test } from "./support/order.mjs";
+import { clearSession } from "./support/staging.mjs";
 
 const EMAIL = "qa-e2e-cartsync@example.com";
 const EGGS = "NFF-CHK-EGG-LG";
@@ -173,7 +174,7 @@ test.describe("the cart across devices (#149)", () => {
         json: { orders: [] },
       }));
       await page.route("**/api/auth/signout", async (route) => {
-        await context.clearCookies();
+        await clearSession(context);
 
         return route.fulfill({ json: {} });
       });
@@ -195,7 +196,6 @@ test.describe("the cart across devices (#149)", () => {
   // nor receives the first customer's details.
   test("a session ended without signing out leaves nothing of theirs",
     async ({ page, context, baseURL }) => {
-      test.fixme(true, "#477 cart rebuild");
 
       const ada = {
         email: EMAIL, firstName: "Ada", lastName: "Hen",
@@ -259,7 +259,7 @@ test.describe("the cart across devices (#149)", () => {
       expect((await draft()).owner).toBe("owner-ada");
 
       // The session ends without Sign out; a guest opens the page.
-      await context.clearCookies();
+      await clearSession(context);
       who = null;
       await page.reload();
       await expect(qty(page, EGGS)).toHaveValue("2");
