@@ -132,7 +132,7 @@
 
     // One rule between neighbours, drawn by the later of the two, so a
     // list that is built or joined in pieces cannot lose one.
-    & + & {
+    + .news-item {
       border-top: 1px solid var(--bs-border-color-translucent);
     }
 
