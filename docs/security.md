@@ -238,6 +238,24 @@ check belongs to its SHA. So:
   audits the commit's own lockfile first: reported now, blocking once
   `AUDIT_BLOCKS` is set, because a check that passed earlier cannot
   see an advisory published since.
+- **A release branch to `main`:** `bin/nff promote main release/<name>`
+  (James, 2026-10-26) takes `main` one step by a merge commit, so that
+  every staging commit stays reachable from `main`. It is still a
+  fast-forward of `main`. The commit must have exactly two parents: the
+  first is `main` as it is now, the second is a commit `staging`
+  already holds, and the commit's tree is that second parent's, so the
+  merge adds nothing `staging` did not. The checks, the pull request and
+  the `LGTM` label are those of this commit and its own branch, not
+  `staging`'s: the pull request is the open one from `release/<name>`
+  into `main`, and the label must be newer than the push (a creation or
+  a force-push, which the activity records apart from a push) that left
+  the branch at this commit. A rebuilt branch is a new commit, so the
+  checks and the label start again. The name must match
+  `release/[a-z0-9-]+`. `main`'s ruleset allows this because linear
+  history is required on `next` and `staging` only. Once `main` holds
+  a release merge, that commit is on `main` alone, so `staging` is no
+  fast-forward of `main` and plain `promote main` refuses: every later
+  release, a hotfix included, is a release branch too.
 
 **There is no pull-request rule on `main`.** It would reject the
 fast-forward, and the only way past it is a bypass for the one account

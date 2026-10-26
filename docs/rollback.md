@@ -422,6 +422,20 @@ staging-to-main pull request, put on after the revert reached
 `staging`. If no
 such pull request is open, the first run opens it and stops.
 
+**After the launch merge, promote `main` from a release branch.** The
+launch put a merge commit on `main` alone, and the linear-history rule
+keeps it off `staging`, so `staging` is no fast-forward of `main` any
+more and plain `promote main` refuses. Every later release, a revert
+included, goes as `release/<name>` (first parent `main`, second parent
+the `staging` commit, same tree) and `bin/nff promote main
+release/<name>`; see `docs/security.md`. To undo the launch itself,
+put one commit on `next` that restores the first parent's tree
+(`ff6270cf`), carry it through `staging`, and release it that way.
+Resetting `main` to that first parent instead needs the `no
+force-push` ruleset off, which only James can do, and it republishes
+the invoice checkout beside records the new code wrote, which the
+fix-forward rule above exists to avoid.
+
 If auto publishing is locked, the promotion to `main` builds but does
 not publish: unlock, or publish the new deploy. To go forward again,
 revert the revert the same way.
