@@ -41,6 +41,8 @@ highest tier you reach applies, automatically.
 Discounts never combine: if more than one applies, your order takes
 whichever saves you more.
 
+{{% coming-changes %}}
+
 A Rhode Island address outside our delivery area (below) costs
 {{< terms "outside-fee" >}} more, on every order, even one of
 {{< terms "waived-at" >}} or more. The order page shows

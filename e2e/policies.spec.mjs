@@ -4,6 +4,8 @@
 // language tag is checked on the policy pages too (99e4717).
 // docs/qa-launch.md, "The autumn refresh".
 
+import terms from "../data/delivery.json" with { type: "json" };
+import { today } from "../assets/scripts/order/lib/zoned.mjs";
 import { expect, test } from "./support/order.mjs";
 
 const PRIVACY_TOPICS = [
@@ -63,6 +65,46 @@ test.describe("policies", () => {
       expect(section).toMatch(/no minimum or fee/i);
       expect(section).not.toMatch(/Farmers Market|9:00 AM|Tilted Barn/);
       expect(text).toMatch(/Pickup days:\s+11:59 PM the day before/);
+    });
+
+  // #426: a money change still ahead (data/delivery.json
+  // `money.changes`) is announced under the fee table, from the data;
+  // once its day comes the sentence goes and the figures above change.
+  test("the delivery policy announces the next money change (#426)",
+    async ({ page }) => {
+      const day = today(new Date(), terms.timeZone);
+      const ahead = (terms.money.changes || []).filter((c) => c.from > day);
+
+      await page.goto("/delivery-policy/");
+
+      const text = await page.locator("main").innerText();
+
+      if (!ahead.length) {
+        expect(text).not.toMatch(/^From [A-Z][a-z]+ \d+, \d{4}, /m);
+
+        return;
+      }
+      for (const change of ahead) {
+        const [y, m, d] = change.from.split("-").map(Number);
+        const when = new Date(Date.UTC(y, m - 1, d)).toLocaleDateString(
+          "en-US", { month: "long", day: "numeric", year: "numeric",
+            timeZone: "UTC" }
+        );
+
+        expect(text).toContain(`From ${when}, `);
+        if (change.deliveryMinimum) {
+          expect(text).toContain(`delivery is available for orders of $${
+            change.deliveryMinimum} or more`);
+        }
+        for (const threshold of change.dropTiers || []) {
+          const tier = terms.money.bulkTiers.find(
+            (t) => t.threshold === threshold
+          );
+
+          expect(text).toContain(`the $${tier.off} off $${threshold} ` +
+            "discount ends");
+        }
+      }
     });
 
   for (const path of ["/privacy/", "/delivery-policy/", "/accessibility/"]) {

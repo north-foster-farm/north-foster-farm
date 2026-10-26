@@ -1,0 +1,30 @@
+{{- /* The money changes still ahead in data/delivery.json
+  (`money.changes`), one sentence each, so the delivery policy tells
+  customers what changes and when (#426). Call it as
+  {{% coming-changes %}}. A change whose day has come renders nothing:
+  money.html has applied it by then, and the figures above it are the
+  new ones. It reads the two kinds of change the data has, a new
+  delivery minimum and tiers that end. The words are a draft for James. */ -}}
+{{- $terms := hugo.Data.delivery -}}
+{{- $money := partial "money.html" -}}
+{{- $zone := (time.AsTime "2000-01-01T00:00:00" $terms.timeZone).Location -}}
+{{- $day := (now.In $zone).Format "2006-01-02" -}}
+{{- range sort ($terms.money.changes | default slice) "from" -}}
+  {{- if gt .from $day -}}
+    {{- $parts := slice -}}
+    {{- with .deliveryMinimum -}}
+      {{- $parts = $parts | append (printf "delivery is available for orders of $%v or more" .) -}}
+    {{- end -}}
+    {{- range .dropTiers -}}
+      {{- $gone := . -}}
+      {{- range $money.bulkTiers -}}
+        {{- if eq .threshold $gone -}}
+          {{- $parts = $parts | append (printf "the $%v off $%v discount ends" .off .threshold) -}}
+        {{- end -}}
+      {{- end -}}
+    {{- end -}}
+    {{- if $parts -}}
+From {{ (time.AsTime .from $terms.timeZone).Format "January 2, 2006" }}, {{ delimit $parts ", and " }}.
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
