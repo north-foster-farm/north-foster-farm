@@ -254,12 +254,18 @@ describe("the completion scripts", () => {
         const lines = out.stdout.split("\n");
 
         assert.equal(out.status, 0, out.stderr);
-        assert.equal(lines[0], "cancel");
-        assert.equal(lines[1], "list.csv waivers.json", "a CSV is a file");
-        assert.equal(lines[2], "--skip --skip-welcome");
-        assert.equal(lines[3], "list.csv waivers.json", "--file is a file");
-        assert.equal(lines[4], "", "nothing after a positional argument");
-        assert.equal(lines[5], "--development");
+        // What is offered, as a sorted list: the order of a file listing
+        // follows the filesystem, and sort's follows the locale.
+        const words = (n) => lines[n].split(" ").filter(Boolean).sort();
+
+        assert.deepEqual(words(0), ["cancel"]);
+        assert.deepEqual(words(1), ["list.csv", "waivers.json"],
+          "a CSV is a file");
+        assert.deepEqual(words(2), ["--skip", "--skip-welcome"]);
+        assert.deepEqual(words(3), ["list.csv", "waivers.json"],
+          "--file is a file");
+        assert.deepEqual(words(4), [], "nothing after a positional argument");
+        assert.deepEqual(words(5), ["--development"]);
         const offered = lines[6].split(" ");
 
         assert.equal(new Set(offered).size, offered.length, "no flag twice");
