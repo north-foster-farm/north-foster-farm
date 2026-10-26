@@ -1,0 +1,427 @@
+#!/usr/bin/env bash
+
+# Records real responses from Square's sandbox (and Resend's test
+# address) for the tests' fixtures (#471). Run it once, by hand:
+#
+#   bin/fixtures/record .env.staging
+#   bin/fixtures/record ~/Code/nff/north-foster-farm/.env.staging
+#
+# It reads SQUARE_ACCESS_TOKEN and SQUARE_LOCATION_ID from the env file
+# and refuses unless the file says SQUARE_ENV=sandbox, so it can never
+# touch production. RESEND_API_KEY, MAIL_FROM and MAIL_REPLY_TO are read
+# too, for the one Resend send, and only if the file has a key.
+#
+# Each request is the one our own code sends: bin/fixtures/request.mjs
+# runs the real functions of netlify/functions/lib/square.mjs and
+# mail.mjs against a stub and prints what they would send. This script
+# only sends it with HTTPie, chaining the ids from one response into the
+# next, and keeps what comes back.
+#
+# Every raw response goes to .ignored/fixtures-raw/<name>.json (git
+# ignores it) as { name, service, status, request, response }. No secret
+# is printed or written: the token goes to HTTPie, never to a file. Then
+# bin/fixtures/scrub turns the raw files into test/fixtures/.
+#
+# Needs: http (HTTPie), jq, node. Works with the bash that ships with
+# macOS (3.2).
+
+set -euo pipefail
+
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT="$(cd "$HERE/../.." && pwd)"
+RAW="$ROOT/.ignored/fixtures-raw"
+
+SQ_HOST="https://connect.squareupsandbox.com"
+RS_HOST="https://api.resend.com"
+
+# The value of KEY in an env file: the first `KEY=...` line, split on
+# the first `=`, with surrounding quotes removed.
+env_value() {
+  local line
+  line="$(grep -m1 -E "^[[:space:]]*(export[[:space:]]+)?$1=" "$2" || true)"
+  line="${line#*=}"
+  line="${line%\"}"; line="${line#\"}"
+  line="${line%\'}"; line="${line#\'}"
+  printf '%s' "$line"
+}
+
+die() {
+  echo "$*" >&2
+  exit 1
+}
+
+ENV_FILE="${1:-}"
+[ -n "$ENV_FILE" ] && [ -f "$ENV_FILE" ] \
+  || die "Usage: bin/fixtures/record ENV_FILE (with SQUARE_ENV=sandbox)"
+[ "$(env_value SQUARE_ENV "$ENV_FILE")" = "sandbox" ] \
+  || die "Refusing: $ENV_FILE does not say SQUARE_ENV=sandbox."
+
+for tool in http jq node; do
+  command -v "$tool" > /dev/null || die "Needs $tool on the PATH."
+done
+
+SQ_TOKEN="$(env_value SQUARE_ACCESS_TOKEN "$ENV_FILE")"
+LOC="$(env_value SQUARE_LOCATION_ID "$ENV_FILE")"
+RS_TOKEN="$(env_value RESEND_API_KEY "$ENV_FILE")"
+MAIL_FROM="$(env_value MAIL_FROM "$ENV_FILE")"
+MAIL_REPLY_TO="$(env_value MAIL_REPLY_TO "$ENV_FILE")"
+[ -n "$SQ_TOKEN" ] || die "$ENV_FILE has no SQUARE_ACCESS_TOKEN."
+[ -n "$LOC" ] || die "$ENV_FILE has no SQUARE_LOCATION_ID."
+
+# Only the tests of this script point it anywhere else, and only at this
+# machine.
+if [ -n "${FIXTURES_TEST_HOST:-}" ]; then
+  case "$FIXTURES_TEST_HOST" in
+    http://127.0.0.1:*|http://localhost:*)
+      SQ_HOST="$FIXTURES_TEST_HOST"; RS_HOST="$FIXTURES_TEST_HOST" ;;
+    *) die "FIXTURES_TEST_HOST must be http://127.0.0.1:PORT." ;;
+  esac
+fi
+
+mkdir -p "$RAW"
+rm -f "$RAW"/*.json
+
+RUN="$(date +%s)"
+K="fx$RUN"
+EMAIL="fixture-$RUN@example.com"
+STATUS=""
+OUT=""
+SEQ=0
+FAILED=0
+
+# Sends one request and keeps the answer.
+#   send NAME SERVICE REQUEST_JSON [WANT]
+# REQUEST_JSON is { method, path, headers, body } as request.mjs prints
+# it. WANT is the class of status expected (2 by default, 4 for a call
+# meant to be refused); anything else is flagged, not fatal, since the
+# chain may still go on. Sets STATUS and OUT (the file written).
+send() {
+  local name="$1" service="$2" request="$3" want="${4:-2}"
+  local host token method path body url attempt=1 flag=""
+  local -a headers=() data=()
+  local tmp="$RAW/.tmp"
+
+  case "$service" in
+    square) host="$SQ_HOST"; token="$SQ_TOKEN" ;;
+    resend) host="$RS_HOST"; token="$RS_TOKEN" ;;
+    *) die "Unknown service $service" ;;
+  esac
+
+  request="$(printf '%s' "$request" | jq -c 'del(.host)')"
+  method="$(printf '%s' "$request" | jq -r .method)"
+  path="$(printf '%s' "$request" | jq -r .path)"
+  body="$(printf '%s' "$request" | jq -c .body)"
+  url="$host$path"
+
+  local line
+  while IFS= read -r line; do
+    [ -n "$line" ] && headers+=("$line")
+  done < <(printf '%s' "$request" \
+    | jq -r '(.headers // {}) | to_entries[] | "\(.key):\(.value)"')
+  if [ "$body" != "null" ]; then
+    data=(--raw "$body")
+  fi
+
+  while :; do
+    http --ignore-stdin --pretty=none --print=hb --timeout=40 \
+      --auth-type=bearer -a "$token" "$method" "$url" \
+      ${headers[@]+"${headers[@]}"} ${data[@]+"${data[@]}"} \
+      > "$tmp.raw" 2> "$tmp.err" || true
+    STATUS="$(head -n1 "$tmp.raw" | awk '{print $2}')"
+    case "$STATUS" in
+      [0-9][0-9][0-9]) ;;
+      *) echo "  $name: no answer from $host ($(head -n1 "$tmp.err"))" >&2
+         exit 1 ;;
+    esac
+    # A busy or failing server is asked again, up to three times.
+    if { [ "$STATUS" = 429 ] || [ "$STATUS" -ge 500 ]; } \
+      && [ "$attempt" -lt 3 ]; then
+      attempt=$((attempt + 1)); sleep 3; continue
+    fi
+    break
+  done
+
+  awk 'b{print} /^\r?$/{b=1}' "$tmp.raw" > "$tmp.body"
+  jq -e . "$tmp.body" > /dev/null 2>&1 || printf 'null' > "$tmp.body"
+
+  OUT="$RAW/$name.json"
+  SEQ=$((SEQ + 1))
+  jq -n --arg name "$name" --arg service "$service" --argjson seq "$SEQ" \
+    --argjson status "$STATUS" --argjson request "$request" \
+    --slurpfile response "$tmp.body" \
+    '{name: $name, service: $service, seq: $seq, status: $status,
+      request: $request, response: $response[0]}' > "$OUT"
+  rm -f "$tmp.raw" "$tmp.err" "$tmp.body"
+
+  if [ "${STATUS%${STATUS#?}}" != "$want" ]; then
+    flag="  <-- expected a ${want}xx"
+    FAILED=$((FAILED + 1))
+  fi
+  printf '  %-34s %s%s\n' "$name" "$STATUS" "$flag"
+}
+
+# A Square request that has no body to build.
+sq() {
+  jq -nc --arg method "$1" --arg path "$2" --arg v "$VERSION" \
+    '{method: $method, path: $path, headers: {"Square-Version": $v},
+      body: null}'
+}
+
+# Arguments for request.mjs: the shared ones plus whatever follows, as
+# jq options (--arg name value, --argjson name json).
+margs() {
+  jq -nc --arg locationId "$LOC" --arg email "$EMAIL" "$@" '$ARGS.named'
+}
+
+# What our code sends: request.mjs CALL ARGS_JSON -> a JSON array.
+helper() {
+  node "$HERE/request.mjs" "$1" "$2"
+}
+
+# The nth request of a call, with __CUSTOMER_ID__ (and the like) filled
+# in. pick CALL ARGS_JSON INDEX
+pick() {
+  helper "$1" "$2" | jq -c ".[$3]"
+}
+
+# A value from the last response; stops the run when it is missing,
+# since everything after it depends on it.
+got() {
+  local value
+  value="$(jq -r "$1 // empty" "$OUT")"
+  [ -n "$value" ] || die "No $1 in $(basename "$OUT") (HTTP $STATUS)," \
+    "and the steps after it need it."
+  printf '%s' "$value"
+}
+
+# Orders. new_order NAME KIND creates one for the customer; sets
+# ORDER_ID and ORDER_TOTAL.
+new_order() {
+  local name="$1" kind="$2" variation="${3:-}" args req
+  args="$(margs --arg key "$K-$name" --arg kind "$kind" \
+    --arg variationId "$variation")"
+  req="$(pick create-order "$args" 2 \
+    | jq -c --arg c "$CUSTOMER_ID" '.body.order.customer_id = $c')"
+  send "order-create-$name" square "$req"
+  ORDER_ID="$(got .response.order.id)"
+  ORDER_TOTAL="$(got .response.order.total_money.amount)"
+}
+
+# Pays ORDER_ID. pay NAME SOURCE_JSON [AMOUNT] [WANT]
+pay() {
+  local name="$1" source="$2" amount="${3:-$ORDER_TOTAL}" want="${4:-2}"
+  local args
+
+  args="$(margs --arg key "$K-$name" --arg orderId "$ORDER_ID" \
+    --arg customerId "$CUSTOMER_ID" --argjson amount "$amount" \
+    --argjson source "$source")"
+  PAY_REQUEST="$(pick create-payment "$args" 0)"
+  send "payment-$name" square "$PAY_REQUEST" "$want"
+}
+
+echo "Recording from Square's sandbox (location ${LOC:0:4}...)."
+
+# ---- Locations and the version the code sends ---------------------------
+VERSION="$(pick find-paid "$(margs)" 0 | jq -r '.headers["Square-Version"]')"
+[ -n "$VERSION" ] || die "request.mjs gave no Square-Version."
+echo "Square-Version $VERSION; run $RUN."
+
+send locations-list square "$(sq GET /v2/locations)"
+
+# ---- The customer: search (none), create, search (found) ----------------
+ARGS="$(margs --arg key "$K-cust" --arg kind pickup --arg variationId "")"
+send customers-search-none square "$(pick create-order "$ARGS" 0)"
+CUST_REQUEST="$(pick create-order "$ARGS" 1)"
+send customer-create square "$CUST_REQUEST"
+CUSTOMER_ID="$(got .response.customer.id)"
+
+# Search sees a new profile after a moment.
+for _ in 1 2 3 4 5 6; do
+  send customers-search-found square "$(pick create-order "$ARGS" 0)"
+  [ -n "$(jq -r '.response.customers[0].id // empty' "$OUT")" ] && break
+  sleep 2
+done
+
+# ---- A pickup order, paid by card, refunded, completed ------------------
+new_order pickup pickup
+PICKUP_ORDER="$ORDER_ID"
+PICKUP_REQUEST="$(pick create-order "$(margs --arg key "$K-pickup" \
+  --arg kind pickup --arg variationId "")" 2 \
+  | jq -c --arg c "$CUSTOMER_ID" '.body.order.customer_id = $c')"
+
+pay card-ok '{"sourceId": "cnon:card-nonce-ok"}'
+PAYMENT_ID="$(got .response.payment.id)"
+PAID_REQUEST="$PAY_REQUEST"
+
+# The same key and body again answers with the first payment; the same
+# key with another amount is refused.
+send payment-replay square "$PAID_REQUEST"
+send payment-key-reused square "$(printf '%s' "$PAID_REQUEST" \
+  | jq -c '.body.amount_money.amount += 100')" 4
+
+send order-get-paid square "$(sq GET "/v2/orders/$PICKUP_ORDER")"
+send payment-get square "$(sq GET "/v2/payments/$PAYMENT_ID")"
+
+# A partial refund, asked twice under one key, read back, then too much.
+ARGS="$(margs --arg paymentId "$PAYMENT_ID" --argjson amount 1000 \
+  --arg key "$K-refund" --arg reason "Fixture refund")"
+send refund-create square "$(pick refund "$ARGS" 0)"
+REFUND_ID="$(got .response.refund.id)"
+send refund-replay square "$(pick refund "$ARGS" 0)"
+send refund-get square "$(sq GET "/v2/refunds/$REFUND_ID")"
+send payment-get-refunded square "$(sq GET "/v2/payments/$PAYMENT_ID")"
+ARGS="$(margs --arg paymentId "$PAYMENT_ID" --argjson amount 999900 \
+  --arg key "$K-refund-big" --arg reason "Fixture too large")"
+send refund-too-large square "$(pick refund "$ARGS" 0)" 4
+
+# Completing the order: the fulfillment and the order go to COMPLETED.
+send order-get-after-refund square "$(sq GET "/v2/orders/$PICKUP_ORDER")"
+ARGS="$(margs --arg orderId "$PICKUP_ORDER" \
+  --argjson current "$(jq -c .response.order "$OUT")")"
+send order-complete square "$(pick complete-order "$ARGS" 0)"
+send order-get-completed square "$(sq GET "/v2/orders/$PICKUP_ORDER")"
+
+# The same order and customer asked for again.
+send order-create-replay square "$PICKUP_REQUEST"
+send order-create-key-reused square "$(printf '%s' "$PICKUP_REQUEST" \
+  | jq -c '.body.order.reference_id = "NFF-2610-DIFF"')" 4
+send customer-create-replay square "$CUST_REQUEST"
+
+# ---- A delivery order, declined four ways, edited, cancelled ------------
+new_order delivery delivery
+DELIVERY_ORDER="$ORDER_ID"
+DELIVERY_TOTAL="$ORDER_TOTAL"
+
+pay card-declined '{"sourceId": "cnon:card-nonce-declined"}' \
+  "$DELIVERY_TOTAL" 4
+pay card-rejected-cvv '{"sourceId": "cnon:card-nonce-rejected-cvv"}' \
+  "$DELIVERY_TOTAL" 4
+pay card-rejected-postalcode \
+  '{"sourceId": "cnon:card-nonce-rejected-postalcode"}' "$DELIVERY_TOTAL" 4
+pay card-rejected-expiration \
+  '{"sourceId": "cnon:card-nonce-rejected-expiration"}' "$DELIVERY_TOTAL" 4
+
+send order-get-open square "$(sq GET "/v2/orders/$DELIVERY_ORDER")"
+CURRENT="$(jq -c .response.order "$OUT")"
+ARGS="$(margs --arg kind delivery --arg orderId "$DELIVERY_ORDER" \
+  --argjson current "$CURRENT")"
+send order-update-fulfillment square "$(pick update-fulfillment "$ARGS" 0)"
+
+send order-get-before-cancel square "$(sq GET "/v2/orders/$DELIVERY_ORDER")"
+ARGS="$(margs --arg orderId "$DELIVERY_ORDER" \
+  --argjson current "$(jq -c .response.order "$OUT")")"
+send order-cancel square "$(pick cancel-order "$ARGS" 0)"
+send order-get-canceled square "$(sq GET "/v2/orders/$DELIVERY_ORDER")"
+
+# ---- A pickup paid as an external (Venmo) tender, fulfillment cancelled -
+new_order external pickup
+EXTERNAL_ORDER="$ORDER_ID"
+pay external '{"external": {"source": "Venmo",
+  "sourceId": "FIXTURE-VENMO-1", "type": "SOCIAL"}}'
+send order-get-paid-external square "$(sq GET "/v2/orders/$EXTERNAL_ORDER")"
+ARGS="$(margs --arg orderId "$EXTERNAL_ORDER" \
+  --argjson current "$(jq -c .response.order "$OUT")")"
+CANCEL_REQUEST="$(pick cancel-fulfillment "$ARGS" 0)"
+send fulfillment-cancel square "$CANCEL_REQUEST"
+# The same version a second time: stale.
+send order-update-stale-version square "$CANCEL_REQUEST" 4
+
+# ---- A pickup paid in cash (the farm's own, #181) -----------------------
+new_order cash pickup
+pay cash '{"cash": true}'
+CASH_ORDER="$ORDER_ID"
+send order-get-paid-cash square "$(sq GET "/v2/orders/$CASH_ORDER")"
+
+# ---- A change order with nothing to pay, completed with PayOrder --------
+ARGS="$(margs --arg key "$K-zero" --arg kind pickup)"
+ZERO_REQUEST="$(pick create-change-order "$ARGS" 2 \
+  | jq -c --arg c "$CUSTOMER_ID" '.body.order.customer_id = $c')"
+send order-create-zero square "$ZERO_REQUEST"
+ZERO_ORDER="$(got .response.order.id)"
+ARGS="$(margs --arg orderId "$ZERO_ORDER" --arg key "$K-zero")"
+send order-pay-zero square "$(pick pay-zero "$ARGS" 0)"
+send order-get-zero-paid square "$(sq GET "/v2/orders/$ZERO_ORDER")"
+
+# ---- The catalog and stock ----------------------------------------------
+send catalog-search square "$(pick catalog-search "$(margs)" 0)"
+IDS="$(jq -c '[.response.objects[]? | select(.is_deleted != true) | .id]
+  | .[0:3]' "$OUT")"
+VARIATION="$(printf '%s' "$IDS" | jq -r '.[0] // empty')"
+
+if [ -z "$VARIATION" ]; then
+  echo "  (no catalog in this sandbox: no catalog-line order, stock asked"
+  echo "   about an id it does not hold)"
+  IDS='["FIXTURE-NO-SUCH-VARIATION"]'
+else
+  new_order catalog catalog "$VARIATION"
+  CATALOG_ORDER="$ORDER_ID"
+  send order-get-catalog square "$(sq GET "/v2/orders/$CATALOG_ORDER")"
+  ARGS="$(margs --arg orderId "$CATALOG_ORDER" \
+    --argjson current "$(jq -c .response.order "$OUT")")"
+  send order-cancel-catalog square "$(pick cancel-order "$ARGS" 0)"
+fi
+send inventory-counts square \
+  "$(pick inventory-counts "$(margs --argjson ids "$IDS")" 0)"
+
+# ---- Searches (the index may take a moment, so these come late) ---------
+sleep 3
+send orders-search-recent square "$(pick find-paid "$(margs)" 0)"
+send orders-search-open square "$(pick search-open "$(margs)" 0)"
+send orders-search-customer square "$(pick customer-orders \
+  "$(margs --arg customerId "$CUSTOMER_ID")" 1)"
+
+# ---- The customer: renamed, deleted, deleted again ----------------------
+ARGS="$(margs --arg from "$EMAIL" --arg to "renamed-$EMAIL" \
+  --argjson found true)"
+send customer-update square "$(pick rename-customer "$ARGS" 1 \
+  | jq -c --arg c "$CUSTOMER_ID" '.path |= sub("__CUSTOMER_ID__"; $c)')"
+ARGS="$(margs --arg customerId "$CUSTOMER_ID")"
+send customer-delete square "$(pick delete-customer "$ARGS" 0)"
+send customer-delete-gone square "$(pick delete-customer "$ARGS" 0)" 4
+
+# ---- Resend: one send to its test address, if the file has a key --------
+if [ -n "$RS_TOKEN" ] && [ -n "$MAIL_FROM" ]; then
+  message='{"to": ["delivered@resend.dev"],
+    "subject": "Fixture recorder",
+    "text": "A test message from the fixture recorder.",
+    "html": "<p>A test message from the fixture recorder.</p>",
+    "idempotencyKey": "fixture-recorder-RUN",
+    "headers": {"X-Fixture": "yes"},
+    "attachments": [{"filename": "note.txt",
+      "contentType": "text/plain", "content": "Zml4dHVyZQ=="}]}'
+  message="$(printf '%s' "$message" \
+    | jq -c --arg k "$K-mail" '.idempotencyKey = $k')"
+  ARGS="$(jq -nc --arg from "$MAIL_FROM" --arg replyTo "$MAIL_REPLY_TO" \
+    --argjson message "$message" '$ARGS.named')"
+  send resend-send resend "$(pick resend-send "$ARGS" 0)" 2
+  if [ "${STATUS%${STATUS#?}}" != "2" ]; then
+    # MAIL_FROM is not a sender the key may use; Resend's own may be.
+    mv "$OUT" "$RAW/resend-send-refused.json"
+    ARGS="$(jq -nc --arg from "onboarding@resend.dev" \
+      --argjson message "$message" '$ARGS.named')"
+    send resend-send resend "$(pick resend-send "$ARGS" 0)" 2
+  fi
+  BAD="$(printf '%s' "$message" \
+    | jq -c '.to = ["not-an-address"] | .idempotencyKey += "-bad"')"
+  ARGS="$(jq -nc --arg from "onboarding@resend.dev" \
+    --argjson message "$BAD" '$ARGS.named')"
+  send resend-send-invalid resend "$(pick resend-send "$ARGS" 0)" 4
+else
+  echo "  (no RESEND_API_KEY and MAIL_FROM in $ENV_FILE: Resend skipped;"
+  echo "   staging holds no Resend key by design, 2026-10-17)"
+fi
+
+echo
+echo "Recorded $(ls "$RAW"/*.json | wc -l | tr -d ' ') responses in"
+echo "$RAW"
+if [ "$FAILED" -gt 0 ]; then
+  echo "$FAILED answered with an unexpected class of status (flagged above);"
+  echo "they are recorded as they came."
+fi
+echo
+echo "Scrubbing them into test/fixtures/ ..."
+"$HERE/scrub"
+echo
+echo "Hands-on, for James (PayPal and Venmo need a buyer's approval in a"
+echo "browser, so they are not scripted): see test/fixtures/README.md,"
+echo "\"Still to record by hand\"."
