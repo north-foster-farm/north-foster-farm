@@ -15,6 +15,10 @@
 //   customer can try again.
 // - A help or contact message is deleted seven years after it was
 //   sent, or at once when its sender deletes their details.
+// - A minimum pass (lib/passes.mjs) tied to an email loses the email
+//   once it can no longer be used (used up, revoked or expired; #301).
+//   Deleting details revokes the customer's open passes and scrubs
+//   the email off every pass of theirs.
 //
 // A scrubbed order keeps its date, lines, prices, totals, payments,
 // how it was fulfilled, the pickup window or the scheduled pickup's
@@ -26,6 +30,7 @@
 import { normalizeEmail } from "./auth.mjs";
 import { log } from "./log.mjs";
 import * as newsApi from "./news.mjs";
+import { endPass, passEnded } from "./passes.mjs";
 import {
   OPEN, allOrders, byEmailKey, deleteCustomer, getCustomer, getOrder,
   listCheckouts, ordersFor, paymentsOf, saveOrder,
@@ -154,6 +159,34 @@ export const deleteOldMessages = async (stores, now = new Date()) => {
   return keys.sort();
 };
 
+// Every pass in the orders store, with the email it is tied to.
+const emailedPasses = async (stores) => {
+  const passes = [];
+
+  for (const { key } of await stores.orders.list("pass/")) {
+    const pass = await stores.orders.get(key);
+
+    if (pass && pass.email) passes.push(pass);
+  }
+
+  return passes;
+};
+
+// Every pass tied to an email that can no longer be used loses the
+// email (#301): nothing else on a pass names a person. The write is a
+// swap (endPass), so a hold or a use in between is kept. -> the codes
+// scrubbed, sorted.
+export const scrubPasses = async (stores, now = new Date()) => {
+  const codes = [];
+
+  for (const pass of await emailedPasses(stores)) {
+    if (!passEnded(pass, now)) continue;
+    if (await endPass(stores, pass.code, { now })) codes.push(pass.code);
+  }
+
+  return codes.sort();
+};
+
 // Why a deletion must wait, or null. The farm still needs to reach
 // the customer about an order being delivered or picked up, a return,
 // or a Venmo payment under way.
@@ -227,6 +260,11 @@ export const forgetCustomer = async (stores, rawEmail, {
     if (m && normalizeEmail(m.email) === email) messages.push(key);
   }
 
+  // The customer's minimum passes (#301): each loses the email, and
+  // one still open is revoked, since no one is left to use it.
+  const passes = (await emailedPasses(stores))
+    .filter((p) => normalizeEmail(p.email) === email);
+
   const report = {
     ok: true, apply,
     customer: !!customer,
@@ -234,6 +272,7 @@ export const forgetCustomer = async (stores, rawEmail, {
     supportMessages: support.length,
     contactMessages: messages.length,
     authRecords: auth.length,
+    passes: passes.length,
     squareProfiles: profiles.length,
   };
   const resend = async () => {
@@ -280,6 +319,9 @@ export const forgetCustomer = async (stores, rawEmail, {
   for (const key of support) await stores.customers.delete(key);
   for (const key of messages) await stores.customers.delete(key);
   for (const key of auth) await stores.auth.delete(key);
+  for (const pass of passes) {
+    await endPass(stores, pass.code, { revoke: true, now });
+  }
   await resend();
   if (customer) await deleteCustomer(stores, email);
 

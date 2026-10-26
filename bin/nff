@@ -1315,7 +1315,8 @@ const run = async () => {
     const list = await passes.listPasses(stores);
 
     for (const p of list) {
-      out(`${p.code}  ${passes.passState(p)}  ${p.email || "any email"}${
+      out(`${p.code}  ${passes.passState(p)}  ${p.email
+        || (passes.passEnded(p) ? "" : "any email")}${
         p.note ? `  ${p.note}` : ""}`);
     }
     if (!list.length) out("No passes.");

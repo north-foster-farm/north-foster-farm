@@ -65,6 +65,12 @@ export const PASS_MESSAGES = {
 export const waivesFee = (pass) => !!pass
   && (pass.lifts || []).includes("fee");
 
+// A pass that can never be used again: used up, revoked or past its
+// expiry. Retention (#189, lib/forget.mjs) scrubs the email off one.
+export const passEnded = (pass, now = new Date()) => !!pass
+  && !!(pass.revokedAt || pass.usedBy
+    || (pass.expiresAt && now.toISOString() > pass.expiresAt));
+
 export const getPass = async (stores, value) => {
   const code = passCodeOf(value);
 
@@ -176,6 +182,22 @@ export const usePass = async (stores, code, orderId, now = new Date()) => {
 
   return used || getPass(stores, code);
 };
+
+// Retention (#301, lib/forget.mjs): the pass loses its email, and with
+// `revoke` is revoked too if it is still open, by a swap, so a use or a
+// hold written in between is kept and decides. -> the pass as written,
+// or null when its email was already gone.
+export const endPass = (stores, code, {
+  revoke = false, now = new Date(),
+} = {}) =>
+  swapPass(stores, passCodeOf(code), (stored) => (
+    stored.email == null ? null : {
+      ...stored,
+      email: null,
+      revokedAt: revoke && !passEnded(stored, now)
+        ? now.toISOString() : stored.revokedAt,
+    }
+  ));
 
 export const revokePass = async (stores, value, now = new Date()) => {
   const pass = await getPass(stores, value);

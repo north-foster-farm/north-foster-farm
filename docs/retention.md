@@ -13,15 +13,19 @@ on #189 (comment 6333138859).
   deletes it (`forgetCustomer`). Never deleted for being quiet.
 - **Help and contact messages**: seven years, or until the sender
   deletes their details (`deleteOldMessages`).
+- **Minimum passes** (Blobs `orders`, `pass/`): the code and its
+  dates stay; the email it is tied to goes once the pass is used up,
+  revoked or expired (`scrubPasses`), or when the customer deletes
+  their details, which also revokes their open passes (#301).
 - **Sign-in links, sessions and unconfirmed farm-news sign-ups**
   (Blobs `auth`): until each expires (`sweepAuth` in
   `lib/records.mjs`).
 - **Unfinished Venmo checkouts**: a day (`sweepCheckouts`).
 - **Backups**: 30 days (`docs/backup.md`).
 
-The scheduled jobs run the scrub, the message expiry, both sweeps and
-the quiet-account step once a day (`lib/jobs.mjs`). `bin/nff jobs run`
-runs them by hand.
+The scheduled jobs run the scrub, the message and pass expiry, both
+sweeps and the quiet-account step once a day (`lib/jobs.mjs`).
+`bin/nff jobs run` runs them by hand.
 
 ## Deleting details
 

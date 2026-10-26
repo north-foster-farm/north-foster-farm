@@ -5,8 +5,11 @@ import { handle } from "../netlify/functions/account.mjs";
 import { createSession } from "../netlify/functions/lib/auth.mjs";
 import {
   DELETED_HOUSEHOLD, deleteOldMessages, forgetCustomer, scrubOldOrders,
-  scrubOrder,
+  scrubOrder, scrubPasses,
 } from "../netlify/functions/lib/forget.mjs";
+import {
+  getPass, issuePass, revokePass, usePass,
+} from "../netlify/functions/lib/passes.mjs";
 import { SquareError } from "../netlify/functions/lib/square.mjs";
 import { forgottenKey, syncAudience } from "../netlify/functions/lib/news.mjs";
 import {
@@ -119,6 +122,19 @@ describe("forgetCustomer", () => {
     return stores;
   };
 
+  // One pass of each kind for Pat, and Sam's, which must not change.
+  const passes = async (stores) => {
+    const open = await issuePass(stores, { email: PAT, now });
+    const used = await issuePass(stores, { email: PAT, now });
+    const sams = await issuePass(stores, {
+      email: "sam@example.com", now,
+    });
+
+    await usePass(stores, used.code, "A", now);
+
+    return { open: open.code, used: used.code, sams: sams.code };
+  };
+
   it("reports and changes nothing on a dry run", async () => {
     const stores = await seed();
     const n = news();
@@ -160,6 +176,61 @@ describe("forgetCustomer", () => {
       "sam@example.com");
     assert.deepEqual(n.calls, [[PAT, true]]);
   });
+
+  it("counts their passes on a dry run and leaves them", async () => {
+    const stores = await seed();
+    const codes = await passes(stores);
+    const r = await forgetCustomer(stores, PAT, { news: news(), now });
+
+    assert.equal(r.passes, 2);
+    assert.equal((await getPass(stores, codes.open)).email, PAT);
+  });
+
+  it("revokes their open passes and scrubs the email off all",
+    async () => {
+      const stores = await seed();
+      const codes = await passes(stores);
+      const r = await forgetCustomer(stores, PAT, {
+        apply: true, news: news(), now,
+      });
+
+      assert.equal(r.passes, 2);
+
+      const open = await getPass(stores, codes.open);
+      const used = await getPass(stores, codes.used);
+
+      assert.equal(open.email, null);
+      assert.equal(open.revokedAt, now.toISOString());
+      assert.equal(used.email, null);
+      assert.equal(used.revokedAt, null);
+      assert.equal(used.usedBy, "A");
+      assert.equal((await getPass(stores, codes.sams)).email,
+        "sam@example.com");
+    });
+
+  it("keeps a use written between its read and its swap (#301)",
+    async () => {
+      const stores = await seed();
+      const codes = await passes(stores);
+      const orders = stores.orders;
+      const swap = orders.swap;
+
+      // Another instance uses the open pass while forget is writing it.
+      orders.swap = async (...args) => {
+        if (args[0] !== `pass/${codes.open}`) return swap(...args);
+        orders.swap = swap;
+        await usePass(stores, codes.open, "B", now);
+
+        return swap(...args);
+      };
+      await forgetCustomer(stores, PAT, { apply: true, news: news(), now });
+
+      const open = await getPass(stores, codes.open);
+
+      assert.equal(open.usedBy, "B");
+      assert.equal(open.revokedAt, null);
+      assert.equal(open.email, null);
+    });
 
   it("waits while an order is still to come", async () => {
     const stores = await seed();
@@ -325,6 +396,37 @@ describe("deleteOldMessages", () => {
     assert.ok(await stores.customers.get(`support/${PAT}/new`));
     assert.ok(await stores.customers.get(`support/${PAT}/undated`));
   });
+});
+
+describe("scrubPasses", () => {
+  it("scrubs the email off used, revoked and expired passes only",
+    async () => {
+      const stores = testStores();
+      const email = PAT;
+      const open = await issuePass(stores, { email, now });
+      const used = await issuePass(stores, { email, now });
+      const revoked = await issuePass(stores, { email, now });
+      const expired = await issuePass(stores, { email, days: 1, now });
+      const standing = await issuePass(stores, {
+        email, days: null, standing: true, now,
+      });
+      const anyone = await issuePass(stores, { now });
+      const later = new Date(now.getTime() + 2 * 86_400_000);
+
+      await usePass(stores, used.code, "A", now);
+      await revokePass(stores, revoked.code, now);
+
+      assert.deepEqual(await scrubPasses(stores, later),
+        [expired.code, revoked.code, used.code].sort());
+      assert.deepEqual(await scrubPasses(stores, later), []);
+      assert.equal((await getPass(stores, used.code)).email, null);
+      assert.equal((await getPass(stores, used.code)).usedBy, "A");
+      assert.equal((await getPass(stores, revoked.code)).email, null);
+      assert.equal((await getPass(stores, expired.code)).email, null);
+      assert.equal((await getPass(stores, open.code)).email, email);
+      assert.equal((await getPass(stores, standing.code)).email, email);
+      assert.equal((await getPass(stores, anyone.code)).email, null);
+    });
 });
 
 describe("scrubOldOrders", () => {

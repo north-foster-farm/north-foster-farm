@@ -71,7 +71,9 @@ import {
 import { announceNew, rescueCheckout, syncSquare } from "./checkout.mjs";
 import { reconcile } from "./drift.mjs";
 import { finishEditVenmo } from "./edit.mjs";
-import { deleteOldMessages, scrubOldOrders } from "./forget.mjs";
+import {
+  deleteOldMessages, scrubOldOrders, scrubPasses,
+} from "./forget.mjs";
 import { alert, escalate, ping, readCount, readMark } from "./health.mjs";
 import { now as clock } from "./clock.mjs";
 import { log } from "./log.mjs";
@@ -411,8 +413,9 @@ export const runJobs = async (stores, {
 };
 
 // Retention (#189), once a day: orders placed more than seven years
-// ago lose their customer's details, and help and contact messages
-// more than seven years old are deleted (lib/forget.mjs). -> the ids.
+// ago lose their customer's details, help and contact messages more
+// than seven years old are deleted, and a minimum pass that can no
+// longer be used loses its email (lib/forget.mjs). -> the order ids.
 const scrubDaily = async (stores, now) => {
   const key = `retention/${today(now, tz)}`;
 
@@ -420,9 +423,11 @@ const scrubDaily = async (stores, now) => {
 
   const ids = await scrubOldOrders(stores, now);
   const messages = await deleteOldMessages(stores, now);
+  const passes = await scrubPasses(stores, now);
 
   await stores.jobs.set(key, {
     at: now.toISOString(), scrubbed: ids.length, messages: messages.length,
+    passes: passes.length,
   });
 
   return ids;
