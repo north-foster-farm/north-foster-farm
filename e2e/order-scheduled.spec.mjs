@@ -303,7 +303,8 @@ test.describe("a lapsed scheduled pickup", () => {
   ));
 
   const pay = async (order) => {
-    await order.contact({ email: "lapsed@example.com" });
+    // Delivery asks for a phone number.
+    await order.contact({ email: "lapsed@example.com", phone: "4015550100" });
     await order.openCard();
     await order.card();
     await order.submit.click();
