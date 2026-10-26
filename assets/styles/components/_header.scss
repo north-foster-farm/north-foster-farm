@@ -713,8 +713,11 @@ $nav-link-transition:
     padding: 0;
   }
 
+  // The chicken is 8px wider than the icon it stands for, so centered
+  // in the button it leaves 4px less to the search icon. The margin
+  // moves it 4px off center, away from search, and the gaps are even.
   .site-account-chick {
-    margin: 0;
+    margin: 0 0.5rem 0 0;
   }
 
   .site-account-chick:not([hidden]) + .site-account-icon {

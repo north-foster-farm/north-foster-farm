@@ -189,16 +189,8 @@ test.describe("restock types (#267)", () => {
     await expect(page.locator(".site-account-chick:visible")).toHaveCount(1);
 
     const gaps = await page.evaluate(() => {
-      // The chicken is larger than the icon it replaces (28px to 20px,
-      // #347), so it counts as the icon's 20px, centered where it is.
       const edge = (el) => {
         const r = el.getBoundingClientRect();
-
-        if (el.classList.contains("site-account-chick")) {
-          const mid = (r.left + r.right) / 2;
-
-          return [mid - 10, mid + 10];
-        }
 
         return [r.left, r.right];
       };
