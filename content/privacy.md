@@ -46,11 +46,11 @@ it.
 ### Farm News
 
 We send Farm News only to people who ask for it. You can sign up on the site,
-tick "I want to get email from North Foster Farm" when you place an order, or
-turn Farm News on in your account. The box starts unticked. Ticking it, or
-turning Farm News on, adds you to the list at once, and we send you a welcome
-email. Signing up on the site sends you an email with a link instead, and you
-join only if you follow it within
+tick "Sign up and stay up to date with North Foster Farm." when you place an
+order, or turn Farm News on in your account. The box starts unticked. Ticking
+it, or turning Farm News on, adds you to the list at once, and we send you a
+welcome email. Signing up on the site sends you an email with a link instead,
+and you join only if you follow it within
 {{< fact "accounts" "newsInviteDays" >}} days, so nobody can sign up an
 address that isn't theirs. If you signed up on one of our paper sheets at a
 market, we added you from the sheet, and your welcome email says so. We add
@@ -208,4 +208,4 @@ By using our website, you consent to our privacy policy.
 If you have questions regarding this privacy policy, you may email
 {{% company "email-info" %}}.
 
-Last updated October 24, 2026.
+Last updated October 26, 2026.
