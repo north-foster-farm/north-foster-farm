@@ -188,3 +188,31 @@ describe("the pass ops (#182)", () => {
       400);
   });
 });
+
+describe("an op's error", () => {
+  it("carries Square's own words when Square refused", async () => {
+    const stores = testStores();
+    const { SquareError } = await import(
+      "../netlify/functions/lib/square.mjs");
+    const { OPS } = await import("../netlify/functions/lib/e2e.mjs");
+    const was = OPS.orderDelete;
+
+    OPS.orderDelete = async () => {
+      throw new SquareError("Square 400 on /v2/refunds", {
+        detail: [{
+          category: "INVALID_REQUEST_ERROR", code: "BAD_REQUEST",
+          detail: "Refund is not allowed yet.",
+        }],
+      });
+    };
+    try {
+      const res = await runOp(stores, { op: "orderDelete", id: "x" }, env);
+
+      assert.equal(res.status, 400);
+      assert.equal(res.body.error, "Square 400 on /v2/refunds " +
+        "(INVALID_REQUEST_ERROR BAD_REQUEST Refund is not allowed yet.)");
+    } finally {
+      OPS.orderDelete = was;
+    }
+  });
+});
