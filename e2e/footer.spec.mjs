@@ -77,10 +77,10 @@ test.describe("footer (#141)", () => {
       await expect(reach.nth(2).locator("a"))
         .toHaveAttribute("href", /instagram\.com\/northfosterfarm$/);
 
-      // In reading order (#226, R-FT, #303): sign-up, links, contact
-      // line, copyright. The APPPA mark is gone.
+      // In reading order (#226, R-FT, #303, #341): links, sign-up,
+      // contact line, copyright. The APPPA mark is gone.
       const order = await footer.evaluate((el) => [
-        "[data-farm-list-form]", "nav[aria-label='Footer']",
+        "nav[aria-label='Footer']", "[data-farm-list-form]",
         ".footer-contact", "#copyright-year",
       ].map((sel) => {
         const all = [...el.querySelectorAll("*")];
