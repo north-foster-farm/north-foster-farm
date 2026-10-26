@@ -53,8 +53,11 @@ npm run e2e:serve -- --port 8895 &   # once /api/dates answers:
 E2E_BASE_URL=http://localhost:8895 npm run e2e -- --retries=0
 ```
 
-`e2e` runs the whole suite twice on each push to `next`, and fails if
-either pass fails: a flake is a failure, never retried away.
+A push to `next` runs no e2e (#303, 2026-10-26). A dispatch of
+`e2e.yml` with `specs` runs the named specs; with `specs` empty, `e2e`
+runs the whole suite twice and fails if either pass fails: a flake is
+a failure, never retried away. That full run is kept for the final
+check before launch, on the frozen commit (#423).
 `e2e-burn-in` runs every spec changed since `staging` ten times on the
 pull request into `staging` (`e2e-burn-in-advisory` on `next`).
 `e2e-soak.yml` runs the whole suite many times over, by hand only.

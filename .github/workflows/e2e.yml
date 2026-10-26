@@ -1,6 +1,11 @@
 name: E2E
 
-# The e2e checks on every push to next (James, #283, 6302479835):
+# A push to next runs no e2e (James, #303, 2026-10-26: full runs cost
+# too much). Run the specs a change touches with the specs input on a
+# lane branch. The one full run left is the final one before launch,
+# on the frozen commit (#423), dispatched by hand with specs empty.
+#
+# What a dispatched full run checks (James, #283, 6302479835):
 #
 #   e2e                  the full suite, run twice with retries off; a
 #                        test must pass both times. Required on staging
@@ -29,8 +34,6 @@ name: E2E
 # staging and main, where it would cancel the full run.
 
 on:
-  push:
-    branches: [next]
   workflow_dispatch:
     inputs:
       specs:
