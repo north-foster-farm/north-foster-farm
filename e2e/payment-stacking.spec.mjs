@@ -55,8 +55,12 @@ test.describe("payment buttons stay under the page's own layers", () => {
       await page.locator("[data-venmo]").evaluate(frame);
       await page.evaluate(() => {
         document.querySelector("[data-venmo-cell]").hidden = false;
-        document.querySelector("#payment").scrollIntoView();
-        window.scrollBy(0, 40);
+        // Instantly: the page scrolls smoothly, and a second scroll
+        // would cut the first short.
+        const top = document.querySelector("#payment")
+          .getBoundingClientRect().top + window.scrollY + 40;
+
+        window.scrollTo({ top, behavior: "instant" });
       });
 
       // The bar is unseen until it sticks (#327); before that its box
