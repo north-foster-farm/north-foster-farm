@@ -97,7 +97,9 @@ test.describe("the farm refunds and cancels", () => {
 
       const record = await orderRecord(id);
 
-      expect(record.status).toBe("cancelled");
+      expect(record.status, JSON.stringify({
+        refunds: record.refunds, history: (record.history || []).slice(-6),
+      })).toBe("cancelled");
       expect(record.refunds || []).toEqual([]);
 
       const mail = await waitForMail({

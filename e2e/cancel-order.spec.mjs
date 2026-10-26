@@ -46,12 +46,23 @@ test.describe("a customer cancels a paid order", () => {
 
       const yes = page.getByRole("button", { name: "Yes, cancel it" });
 
-      await yes.click();
+      const [res] = await Promise.all([
+        page.waitForResponse((r) => r.url().endsWith(
+          `/api/account/orders/${orderId}/cancel`
+        )),
+        yes.click(),
+      ]);
+
+      expect(res.status(), await res.text()).toBe(200);
       await expect(yes).toBeHidden();
 
       const record = await orderRecord(orderId);
 
-      expect(record.status).toBe("cancelled");
+      // The record's own account of a cancel that did not complete.
+      expect(record.status, JSON.stringify({
+        cancelRequested: record.cancelRequested, refunds: record.refunds,
+        history: (record.history || []).slice(-6),
+      })).toBe("cancelled");
       expect(record.cancelRequested).toBeFalsy();
       expect(record.refunds.map((r) => [r.amount, r.source, r.total]))
         .toEqual([[700, "customer", true]]);
