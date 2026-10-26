@@ -31,8 +31,11 @@ import {
   PREVIEW_ALLOWED, PREVIEW_CONTEXTS, TARGETS, checkEnv, envRunner, planPush,
   preflight, previewLeaks, pushEnv, redact, remoteFor, remoteVars,
 } from "./env/netlify.mjs";
+import { checkFilled } from "./env/filled.mjs";
 import { keychainToken, tokenInFiles } from "./env/keychain.mjs";
-import { readSample, readValues, sampleFile } from "./env/sample.mjs";
+import {
+  ENVIRONMENTS, readSample, readValues, sampleFile,
+} from "./env/sample.mjs";
 import { verifyEnv } from "./env/verify.mjs";
 import { setSchedule } from "./schedule-env.mjs";
 import { USAGE as PROMOTE_USAGE, promoteCommand } from "./promote.mjs";
@@ -317,6 +320,14 @@ const USAGE = `Usage:
                                       any value on deploy-preview or dev
                                       beyond SITE_CONTEXT and the
                                       pickup schedule
+  bin/nff env filled [--development|--staging|--production]
+                                      offline: does the env file fill in
+                                      every key its sample lists? Fails
+                                      on a key that is missing or empty,
+                                      by name only, unless the sample
+                                      marks it Optional:. Development
+                                      when no flag is given. Needs no
+                                      Netlify token
   bin/nff --production export [--label before-release] [--out <file>]
                                       the backup export, now: encrypted
                                       to BACKUP_AGE_RECIPIENT and put in
@@ -419,8 +430,11 @@ loadEnv(join(root, context ? ENV_FILES[context] : ".env"));
 // falling back to memory stores that lose the work.
 delete process.env.NETLIFY_AUTH_TOKEN;
 const passthrough = process.argv[2] === "netlify";
+// `env filled` only reads two files, so it asks for no token.
+const offline = process.argv[2] === "env" && process.argv[3] === "filled";
 
-if (context || passthrough || process.argv.includes("--scratch")) {
+if (!offline
+  && (context || passthrough || process.argv.includes("--scratch"))) {
   try {
     process.env.NETLIFY_AUTH_TOKEN = keychainToken();
   } catch (error) {
@@ -779,7 +793,29 @@ const askLine = (question) => new Promise((resolve) => {
   });
 });
 
+// The env file and its sample, offline: key names only, no value is
+// printed and nothing leaves the machine.
+const envFilled = () => {
+  const named = ENVIRONMENTS.filter((name) => flagOn(flags[name]));
+
+  if (named.length > 1) {
+    throw new Error("Say one: --development, --staging or --production.");
+  }
+
+  const found = checkFilled(root, named[0] || "development");
+
+  for (const line of found.problems) console.error(`  ${line}`);
+  if (found.problems.length) {
+    throw new Error(`Env filled: ${found.problems.length} problem${
+      found.problems.length === 1 ? "" : "s"} in ${found.file}.`);
+  }
+
+  return out(found.summary);
+};
+
 const envCommand = async () => {
+  if (action === "filled") return envFilled();
+
   const { file, sample, local } = envFiles();
   const { context: target } = TARGETS[context];
 

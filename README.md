@@ -81,7 +81,14 @@ file beside each:
 ```bash
 bin/nff env push --staging    # one env:set per key; never deletes
 bin/nff env check --staging   # sample, file and Netlify agree, by name
+bin/nff env filled --staging  # offline: the file fills every sample key
 ```
+
+`filled` needs no Netlify token. It reads the sample and the env file
+(`--development`, `--staging` or `--production`; development when none
+is given) and fails on a key that is missing or empty, naming it and
+never its value. A key whose comment says `Optional:` may stay empty
+or out of the file.
 
 `push` sets every key the sample lists except those marked
 `# Local only:`, a key left empty in the sample as a secret, and reads
