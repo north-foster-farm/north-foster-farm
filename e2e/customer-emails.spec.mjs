@@ -5,7 +5,7 @@
 //   a customer's missed delivery        orders attempt <id> no-cooler
 //   the farm's or weather's miss moves  orders attempt <id> weather
 //   an address decided                  customers address approved|denied
-//   the old list's confirmation         audience invite, then the link
+//   the news confirmation               sign-up form request, then the link
 //   a year of quiet                     the daily job, for one address
 //
 // The words of the emails are drafts under #304 and #189; these checks
@@ -155,15 +155,13 @@ test.describe("customer emails, from their triggers", () => {
       expect((await customerRecord(email)).address.status).toBe("denied");
     });
 
-  test("the old list's invitation joins them when they confirm",
+  test("the news confirmation joins them when they confirm",
     { tag: "@regression" }, async ({ request }) => {
       const email = uniqueEmail("invite");
 
       emails.push(email);
 
-      const { report } = await op("newsInvite", { email });
-
-      expect(report.invited).toEqual([email]);
+      expect((await op("newsSubscribeRequest", { email })).ok).toBe(true);
 
       const invite = await waitForMail({
         to: email, subject: "Confirm your email address for Farm News",

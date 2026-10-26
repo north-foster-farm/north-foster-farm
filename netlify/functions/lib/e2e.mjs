@@ -17,7 +17,7 @@ import { MAX_OFFSET } from "./clock.mjs";
 import { runJobs } from "./jobs.mjs";
 import { links, readState, setState } from "./maintenance.mjs";
 import { OUTBOX_PREFIX } from "./mail.mjs";
-import { inviteSubscribers } from "./news.mjs";
+import { requestSubscribe } from "./news.mjs";
 import { getCustomer, saveCustomer } from "./records.mjs";
 import { quietAccounts } from "./retention.mjs";
 import * as squareApi from "./square.mjs";
@@ -97,11 +97,17 @@ export const OPS = {
     customer: await decideAddress(stores, need(email, "email"),
       need(decision, "decision"), { env }),
   }),
-  // The old list's confirmation email, as `bin/nff audience invite`.
-  newsInvite: async (stores, { email }, env) => ({
-    report: await inviteSubscribers(stores, [{ email: need(email, "email") }],
-      { env }),
-  }),
+  // The confirmation email the public sign-up form sends (#129: the
+  // old list is imported, not invited). Nobody is on the list until
+  // its link is followed.
+  newsSubscribeRequest: async (stores, { email }, env) => {
+    const r = await requestSubscribe(stores, { email: need(email, "email") },
+      { env, limit: false });
+
+    if (!r.ok) throw new Error(`Could not ask: ${r.reason}.`);
+
+    return { ok: true, email: r.email };
+  },
   // A customer last seen `years` years ago, for the quiet notice. No
   // order or session of theirs is touched.
   customerSeedQuiet: async (stores, { email, years = 2 }) => {

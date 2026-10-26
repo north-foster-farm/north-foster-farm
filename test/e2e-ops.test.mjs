@@ -142,15 +142,15 @@ describe("the order ops", () => {
     assert.equal(yes.body.customer.address.status, "approved");
   });
 
-  it("invite an address to the list, which it joins only on confirming",
+  it("ask an address to confirm, which joins the list only on confirming",
     async () => {
       const stores = testStores();
       const res = await runOp(stores, {
-        op: "newsInvite", email: "lee@example.com",
+        op: "newsSubscribeRequest", email: "lee@example.com",
       }, env);
 
       assert.equal(res.status, 200);
-      assert.deepEqual(res.body.report.invited, ["lee@example.com"]);
+      assert.deepEqual(res.body, { ok: true, email: "lee@example.com" });
       assert.equal(await getCustomer(stores, "lee@example.com"), null,
         "not on the list until the link is followed");
     });
