@@ -667,9 +667,12 @@ $hero-text-shadow: 0 1px 3px rgb(0 0 0 / 50%);
       margin-bottom: 0;
     }
 
+    // The button starts where the step text does, past the icon
+    // column and its gap (#432).
     .how-cta {
       align-self: start;
       justify-content: flex-start;
+      padding-left: 6rem;
     }
 
     .how-step {
