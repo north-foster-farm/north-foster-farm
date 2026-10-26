@@ -291,6 +291,10 @@ export const runJobs = async (stores, {
         stores, order.id, "fulfilled", now, { source: "jobs" }
       );
 
+      // Null when the order was deleted since the list was read
+      // (#357): nothing to close in Square, and nothing to report.
+      if (!closed) return;
+
       await completeInSquare(stores, closed, {
         now, env, mail, square, fetchImpl,
       });

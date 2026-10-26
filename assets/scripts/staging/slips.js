@@ -136,6 +136,7 @@ export const mountSlips = ({ root, api, onOpen }) => {
     reader.hidden = false;
     box.classList.add("staging-reading");
     drawList();
+    reader.focus();
   };
 
   const load = async () => {
@@ -151,16 +152,22 @@ export const mountSlips = ({ root, api, onOpen }) => {
     drawList();
   };
 
+  // Focus goes into the list or the open slip on open and back to
+  // whatever opened it on close (#357), so a keyboard user never lands
+  // at the top of the page.
+  let opener = null;
+
   const open = async (id = null) => {
     onOpen();
+    opener = document.activeElement;
     box.hidden = false;
     document.documentElement.classList.add("staging-library-open");
+    box.focus();
     await load();
     if (!slips) return;
     if (id) read(id);
-    else if (!current && !window.matchMedia(NARROW).matches) {
-      read(slips[0].id);
-    }
+    else if (current) reader.focus();
+    else if (!window.matchMedia(NARROW).matches) read(slips[0].id);
   };
 
   const close = () => {
@@ -169,6 +176,8 @@ export const mountSlips = ({ root, api, onOpen }) => {
     if (/^#slips?\b/.test(location.hash)) {
       history.replaceState(null, "", location.pathname + location.search);
     }
+    if (opener && opener.focus) opener.focus();
+    opener = null;
   };
 
   const fromHash = () => {
@@ -196,6 +205,7 @@ export const mountSlips = ({ root, api, onOpen }) => {
     box.classList.remove("staging-reading");
     history.replaceState(null, "", "#slips");
     drawList();
+    box.focus();
   });
   // The toolbar's button is a link that opens #slips in a new tab.
   for (const b of root.querySelectorAll("[data-staging-slips-close]")) {

@@ -840,9 +840,8 @@ export const completeOrder = async (squareOrderId, {
   const open = (current.fulfillments || []).filter(
     (f) => !["COMPLETED", "CANCELED", "FAILED"].includes(f.state)
   );
-  const closed = current.state && current.state !== "OPEN";
-
-  if (closed || (!open.length && current.state === "COMPLETED")) {
+  // Any state but OPEN is closed, COMPLETED included.
+  if (current.state && current.state !== "OPEN") {
     return { id: squareOrderId, completed: false };
   }
 

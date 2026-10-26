@@ -425,6 +425,7 @@ export const mountLibrary = ({
     if (!current) return;
     if (current.approval === "rewritten") view = "rewrite";
     drawReader();
+    reader.focus();
   };
 
   // A review saved: the server's answer replaces the email everywhere
@@ -530,13 +531,20 @@ export const mountLibrary = ({
 
   // --- Opening and closing -------------------------------------------
 
+  // Focus goes into the library on open (the search, or the open
+  // email) and back to whatever opened it on close (#357), so a
+  // keyboard user never lands at the top of the page.
+  let opener = null;
+
   const open = (id = null) => {
     onOpen();
+    opener = document.activeElement;
     box.hidden = false;
     document.documentElement.classList.add("staging-library-open");
     load();
     if (id) read(id);
-    else if (!current) search.focus();
+    else if (current) reader.focus();
+    else search.focus();
   };
 
   const close = () => {
@@ -545,6 +553,8 @@ export const mountLibrary = ({
     if (/^#emails?\b/.test(location.hash)) {
       history.replaceState(null, "", location.pathname + location.search);
     }
+    if (opener && opener.focus) opener.focus();
+    opener = null;
   };
 
   const fromHash = () => {
@@ -595,6 +605,7 @@ export const mountLibrary = ({
     box.classList.remove("staging-reading");
     history.replaceState(null, "", "#emails");
     drawShelf();
+    search.focus();
   });
   qs("[data-staging-copy-link]").addEventListener("click", async (ev) => {
     const link = `${location.origin}/#email=${encodeURIComponent(current.id)}`;

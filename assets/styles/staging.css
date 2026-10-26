@@ -571,6 +571,13 @@ html.staging-library-open {
   background: var(--stg-bg);
 }
 
+/* A script focuses the panel and the open item (#357); only a keyboard
+   shows the ring. */
+.staging-library:focus:not(:focus-visible),
+.staging-reader:focus:not(:focus-visible) {
+  outline: none;
+}
+
 .staging .staging-reader-head .staging-action {
   margin: 0;
 }

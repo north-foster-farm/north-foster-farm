@@ -175,6 +175,31 @@ describe("runJobs", () => {
     assert.equal((await getOrder(stores, "A")).status, "fulfilled");
   });
 
+  it("leaves an order deleted while the run is on (#357)", async () => {
+    const stores = testStores();
+    const { opts } = harness();
+    const done = [];
+    const square = {
+      completeOrder: async (id) => { done.push(id); return { id }; },
+    };
+    const get = stores.orders.get.bind(stores.orders);
+    let reads = 0;
+
+    await saveOrder(stores, order("A"), placed);
+    // The run lists A, then A is gone before its status is set.
+    stores.orders.get = async (key) => (
+      key === "order/A" && reads++ ? null : get(key)
+    );
+
+    const r = await runJobs(stores, {
+      ...opts, square, now: at("2026-10-09", 9),
+    });
+
+    assert.deepEqual(r.closed, []);
+    assert.deepEqual(r.errors, []);
+    assert.deepEqual(done, []);
+  });
+
   it("closes the order and tells the farm when Square cannot (#328)",
     async () => {
       const stores = testStores();

@@ -132,7 +132,7 @@
     {{/* The email library: every email the site sends, built from sample
       data by /api/staging/emails, in a sidebar with the open one beside
       it. #email=<id> on any page opens it there. */}}
-    <div class="staging-library" data-staging-library hidden>
+    <div class="staging-library" data-staging-library tabindex="-1" hidden>
       <aside class="staging-shelf" aria-label="Email library">
         <header class="staging-shelf-head">
           <strong>Emails</strong>
@@ -152,7 +152,7 @@
           <p class="staging-muted staging-pad" data-staging-shelf-empty hidden>No email matches.</p>
         </div>
       </aside>
-      <section class="staging-reader" data-staging-reader aria-label="Email" hidden>
+      <section class="staging-reader" data-staging-reader aria-label="Email" tabindex="-1" hidden>
         <header class="staging-reader-head">
           <button type="button" class="staging-icon staging-back" data-staging-reader-back title="Back to the library" aria-label="Back to the library">‹</button>
           <div class="staging-reader-title">
@@ -215,7 +215,7 @@
       with the variants listed and the open one previewed exactly as
       Copy puts it on the clipboard, and the Open alone page that holds
       nothing else (#267). #signatures or #signature=<id> opens it. */}}
-    <div class="staging-library" data-staging-sigs hidden>
+    <div class="staging-library" data-staging-sigs tabindex="-1" hidden>
       <aside class="staging-shelf" aria-label="Signature library">
         <header class="staging-shelf-head">
           <strong>Signatures</strong>
@@ -227,7 +227,7 @@
           <ol class="staging-sigs-list" data-staging-sigs-list></ol>
         </div>
       </aside>
-      <section class="staging-reader" data-staging-sigs-reader aria-label="Signature" hidden>
+      <section class="staging-reader" data-staging-sigs-reader aria-label="Signature" tabindex="-1" hidden>
         <header class="staging-reader-head">
           <button type="button" class="staging-icon staging-back" data-staging-sigs-back title="Back to the signatures" aria-label="Back to the signatures">‹</button>
           <div class="staging-reader-title">
@@ -257,7 +257,7 @@
       hold, from fixed fake orders, and today's packet from staging's
       own orders. The open one shows as the PDF itself (#334).
       #slips or #slip=<id> opens it. */}}
-    <div class="staging-library" data-staging-slips hidden>
+    <div class="staging-library" data-staging-slips tabindex="-1" hidden>
       <aside class="staging-shelf" aria-label="Packing slips">
         <header class="staging-shelf-head">
           <strong>Packing slips</strong>
@@ -269,7 +269,7 @@
           <ol class="staging-sigs-list" data-staging-slips-list></ol>
         </div>
       </aside>
-      <section class="staging-reader" data-staging-slips-reader aria-label="Packing slip" hidden>
+      <section class="staging-reader" data-staging-slips-reader aria-label="Packing slip" tabindex="-1" hidden>
         <header class="staging-reader-head">
           <button type="button" class="staging-icon staging-back" data-staging-slips-back title="Back to the packing slips" aria-label="Back to the packing slips">‹</button>
           <div class="staging-reader-title">

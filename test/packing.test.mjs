@@ -137,26 +137,36 @@ describe("the PDF writer", () => {
     const capped = wrap(note, 400, { size: 11, rows: 12 });
 
     // In time: eight times the note takes about eight times as long, not
-    // the sixty-four a quadratic wrap would. A ratio, best of five, so a
-    // loaded machine slows both sides alike (#159).
-    const best = (n) => {
-      const long = "é".repeat(n);
-      let fastest = Infinity;
+    // the sixty-four a quadratic wrap would. The two sizes are timed
+    // turn and turn about, best of five each, so a loaded machine slows
+    // both sides alike (#159), and a run the full suite still disturbed
+    // is measured again before it counts (#357).
+    const timed = (long) => {
+      const started = performance.now();
 
+      wrap(long, 400, { size: 11 });
+
+      return performance.now() - started;
+    };
+    const ratio = () => {
+      const short = "é".repeat(500);
+      const long = "é".repeat(4000);
+      let shortest = Infinity;
+      let longest = Infinity;
+
+      timed(long);
       for (let i = 0; i !== 5; i += 1) {
-        const started = performance.now();
-
-        wrap(long, 400, { size: 11 });
-        fastest = Math.min(fastest, performance.now() - started);
+        shortest = Math.min(shortest, timed(short));
+        longest = Math.min(longest, timed(long));
       }
 
-      return fastest;
+      return longest / shortest;
     };
+    let seen = ratio();
 
-    best(500);
-    const ratio = best(4000) / best(500);
+    for (let i = 0; i !== 2 && seen >= 24; i += 1) seen = ratio();
 
-    assert.ok(ratio < 24, `8x the note took ${ratio.toFixed(1)}x as long`);
+    assert.ok(seen < 24, `8x the note took ${seen.toFixed(1)}x as long`);
     assert.equal(all.join(""), note, "nothing lost");
     assert.equal(capped.length, 12);
     assert.ok(capped[11].endsWith("…"));
