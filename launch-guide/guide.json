@@ -1,5 +1,5 @@
 {
- "revision": 52,
+ "revision": 53,
  "updated": "2026-10-26",
  "notice": null,
  "phases": [
@@ -4705,6 +4705,28 @@
       }
      ],
      "recommendation": "1: use the draft line. 2: send the customer nothing."
+    }
+   ],
+   "device": "phone",
+   "type": "decide"
+  },
+  {
+   "id": "D-354-46",
+   "section": "rv-decide",
+   "title": "Sign-in page: a card, or keep it plain (#443)",
+   "area": "#443",
+   "revisions": [
+    {
+     "rev": 1,
+     "date": "2026-10-26",
+     "summary": "The UX lane read your audit clip as asking for the sign-in form in a centered card at desktop, and on phones the email field over a full-width button. squash2 built it (lane/squash2, d184430f) with screenshots at 390 and 1280 on the issue. It is held, not landed, because it reverses an earlier choice of no card on that page (#303), and on phones it splits the field and button that today share one focus ring.\n\nAnswer: land it as built, or keep the page plain.",
+     "look": [
+      {
+       "label": "#443 with the screenshots",
+       "url": "https://github.com/north-foster-farm/north-foster-farm/issues/443"
+      }
+     ],
+     "recommendation": "Look at the two screenshots on #443 and pick one."
     }
    ],
    "device": "phone",
