@@ -275,7 +275,7 @@ export const cancelOrder = async (stores, customer, id, {
   await sendForOrder(stores, flagged, "orderCancelled",
     orderCancelled(flagged, {
       by: "customer",
-      refunded: paidTotal(order) - refundedTotal(order) - keptFee(order),
+      refunded: paidTotal(current) - refundedTotal(current) - keptFee(current),
       links: mailLinks(env),
     }), { mail, env, now });
   await notifyFarm(stores, await getOrder(stores, id), "farmRefundNeeded",
@@ -440,9 +440,9 @@ export const applyChange = async (stores, order, plan, {
       log.error({
         event: "square.update_failed", id, error: String(error.message),
       });
-      await amendOrder(stores, id, {
-        flags: { ...(changed.flags || {}), squareOutOfSync: true },
-      }, "square.out_of_sync", now);
+      await amendOrder(stores, id, (f) => ({
+        flags: { ...(f.flags || {}), squareOutOfSync: true },
+      }), "square.out_of_sync", now);
       await notifyFarm(stores, await getOrder(stores, id),
         `farmSquareOutOfSync-${now.getTime()}`,
         farmSquareOutOfSync({ id, fulfilment: f }, order.customer, {

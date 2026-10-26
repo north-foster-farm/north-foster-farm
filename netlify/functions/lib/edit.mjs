@@ -377,9 +377,9 @@ const syncFulfillment = async (stores, saved, change, { changeOrderId, k,
       id: saved.id, error: String(error && error.message),
     }, { env, mail, now });
 
-    return amendOrder(stores, saved.id, {
-      flags: { ...(saved.flags || {}), squareOutOfSync: true },
-    }, "square.out_of_sync", now);
+    return amendOrder(stores, saved.id, (f) => ({
+      flags: { ...(f.flags || {}), squareOutOfSync: true },
+    }), "square.out_of_sync", now);
   }
 };
 
@@ -423,27 +423,32 @@ export const applyEdit = async (stores, plan, {
     const charged = await charge(after, change, k, payment, {
       square, paypal, env, fetchImpl, sleep, mail, now, stores,
     });
-    const payments = paymentsOf(order);
 
     changeOrderId = charged.squareOrderId;
-    order = await amendOrder(stores, id, {
-      ...patch,
-      ...moneyPatch(order, {
-        payments: payments.some((p) => paymentRef(p)
-          === paymentRef(charged.payment))
-          ? payments
-          : [...payments, {
-            at: now.toISOString(), amount: change.difference, edit: key,
-            ...charged.payment,
-          }],
-      }),
-      // A Square copy that failed has no change order to list.
-      square: order.square && changeOrderId ? { ...order.square, changes: [
-        ...(order.square.changes || [])
-          .filter((c) => c.squareOrderId !== changeOrderId),
-        { squareOrderId: changeOrderId, at: now.toISOString(),
-          amount: change.difference },
-      ] } : order.square,
+    // Built on the record as the write finds it: the charge took
+    // seconds, and a refund or note recorded meanwhile stays.
+    order = await amendOrder(stores, id, (fresh) => {
+      const payments = paymentsOf(fresh);
+
+      return {
+        ...patch,
+        ...moneyPatch(fresh, {
+          payments: payments.some((p) => paymentRef(p)
+            === paymentRef(charged.payment))
+            ? payments
+            : [...payments, {
+              at: now.toISOString(), amount: change.difference, edit: key,
+              ...charged.payment,
+            }],
+        }),
+        // A Square copy that failed has no change order to list.
+        square: fresh.square && changeOrderId ? { ...fresh.square, changes: [
+          ...(fresh.square.changes || [])
+            .filter((c) => c.squareOrderId !== changeOrderId),
+          { squareOrderId: changeOrderId, at: now.toISOString(),
+            amount: change.difference },
+        ] } : fresh.square,
+      };
     }, "edit.paid", now);
   } else if (!started) {
     // Nothing to charge: the change is recorded first, so a refund that

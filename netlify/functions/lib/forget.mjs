@@ -33,7 +33,7 @@ import * as newsApi from "./news.mjs";
 import { endPass, passEnded } from "./passes.mjs";
 import {
   OPEN, allOrders, byEmailKey, deleteCustomer, getCustomer, getOrder,
-  listCheckouts, ordersFor, paymentsOf, saveOrder,
+  listCheckouts, ordersFor, paymentsOf, updateOrder,
 } from "./records.mjs";
 import * as squareApi from "./square.mjs";
 
@@ -106,10 +106,10 @@ const scrub = async (stores, order, event, now) => {
   const email = order.customer && order.customer.email;
   const next = scrubOrder(order, now);
 
-  await saveOrder(stores, {
-    ...next,
-    history: [...(order.history || []), { at: now.toISOString(), event }],
-  }, now);
+  await updateOrder(stores, order.id, (fresh) => ({
+    ...scrubOrder(fresh, now),
+    history: [...(fresh.history || []), { at: now.toISOString(), event }],
+  }));
   if (email) await stores.orders.delete(byEmailKey(email, order.id));
 
   return next;

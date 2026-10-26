@@ -178,12 +178,12 @@ export const announceNew = async (stores, order, {
     if (!(current.emails && current.emails.welcome)
       && joinedBy(customer, current)
       && await welcome(stores, customer, { env, mail, now })) {
-      current = await amendOrder(stores, current.id, {
+      current = await amendOrder(stores, current.id, (f) => ({
         emails: {
-          ...(current.emails || {}),
+          ...(f.emails || {}),
           welcome: { at: now.toISOString() },
         },
-      }, "mail.welcome", now);
+      }), "mail.welcome", now);
     }
 
     return current;
@@ -684,14 +684,14 @@ export const syncSquare = async (stores, order, {
 
   if (!copy.square) return order;
 
-  return amendOrder(stores, order.id, {
+  return amendOrder(stores, order.id, (fresh) => ({
     square: copy.square,
-    ...moneyPatch(order, {
-      payments: [
-        { ...p, squarePaymentId: copy.squarePaymentId }, ...payments.slice(1),
-      ],
+    ...moneyPatch(fresh, {
+      payments: paymentsOf(fresh).map((x, i) => (i === 0
+        ? { ...x, squarePaymentId: copy.squarePaymentId }
+        : x)),
     }),
-  }, "square.recorded", now);
+  }), "square.recorded", now);
 };
 
 // A record that is not this submission's turned up where its own

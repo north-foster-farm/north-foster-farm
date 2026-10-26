@@ -43,7 +43,7 @@ import { now as clock } from "./clock.mjs";
 import { sendMail } from "./mail.mjs";
 import { customerEmailWithheld, sendForOrder } from "./payments.mjs";
 import { pickupSchedule } from "./pickups.mjs";
-import { getCustomer, getOrder, saveOrder } from "./records.mjs";
+import { getCustomer, getOrder, updateOrder } from "./records.mjs";
 import { mailLinks, orderUrlFor } from "./site.mjs";
 import * as squareApi from "./square.mjs";
 import { methodName, placeOf } from "./describe.mjs";
@@ -484,14 +484,17 @@ export const applyAmend = async (stores, plan, {
   const squareState = noSquare ? "skipped (--no-square)"
     : kept ? `kept the old fulfillment (--force): ${kept}`
       : plan.holder && plan.fulfilmentMoved ? "updated" : "none";
-  const saved = await saveOrder(stores, {
-    ...order,
+  // Written on the record as it is now: a Square call took time, and a
+  // customer's cancel, a refund or an email note recorded meanwhile
+  // stays. An order that changed status meanwhile is not amended.
+  const amended = (fresh) => ({
+    ...fresh,
     fulfilment: next.fulfilment,
     customer: next.customer,
     notes: next.notes,
     square: squareNow,
-    ...kept && { flags: { ...(order.flags || {}), squareOutOfSync: true } },
-    history: [...(order.history || []), ...movedEvent(order, next, now), {
+    ...kept && { flags: { ...(fresh.flags || {}), squareOutOfSync: true } },
+    history: [...(fresh.history || []), ...movedEvent(order, next, now), {
       at: now.toISOString(),
       event: "farm.changed",
       before: plan.before,
@@ -504,7 +507,15 @@ export const applyAmend = async (stores, plan, {
       ...plan.warnings.length && { overrode: plan.warnings },
       ...(price.unknown || price.difference) && { forced: true },
     }],
-  }, now);
+  });
+  const saved = await updateOrder(stores, id, (fresh) => {
+    if (fresh.status !== order.status) {
+      throw new Error(`This order became ${fresh.status} while it was ` +
+        "being changed. Look at it and try again.");
+    }
+
+    return amended(fresh);
+  });
 
   const links = mailLinks(env);
   const sent = order.status === "cancelled" ? saved

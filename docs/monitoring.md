@@ -511,6 +511,15 @@ missed. Look up the refund in Square or PayPal for the reason (often a
 card or account that has closed). Refund again with `bin/nff orders
 refund <id>`, or pay the customer another way and tell them.
 
+**`refund.unrecorded`.** Square or PayPal took a refund and the
+order's record could not be written to say so: the store failed, or
+the record was changing too fast to save. The customer has the money
+back, but the order still shows it owed. Do not refund it again. Run
+`bin/nff orders show <id>` in a few minutes: once the processor's
+webhook has recorded the refund it shows it. If it never does, look
+the refund up in Square or PayPal by the id in the alert and note it
+on the order.
+
 **`refund.stalled`.** The daily refund check found a refund made five
 or more days ago that has still not settled, or one with no Square or
 PayPal id to check it by. The customer was told it takes a few days.

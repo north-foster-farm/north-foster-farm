@@ -59,12 +59,12 @@ export const sendForOrder = async (stores, order, key, message, {
     // A send already noted keeps its time and Resend id.
     if ((current.emails || {})[key]) return current;
 
-    return amendOrder(stores, order.id, {
+    return amendOrder(stores, order.id, (f) => ({
       emails: {
-        ...(current.emails || {}),
+        ...(f.emails || {}),
         [key]: { at: now.toISOString(), suppressed: true },
       },
-    }, `mail.suppressed.${key}`, now);
+    }), `mail.suppressed.${key}`, now);
   }
 
   try {
@@ -74,15 +74,15 @@ export const sendForOrder = async (stores, order, key, message, {
       ...message,
     }, { env });
 
-    // Re-read before merging: two sends about one order in a row
-    // would otherwise write the second note over the first.
-    const current = await getOrder(stores, order.id) || order;
-    const noted = await amendOrder(stores, order.id, {
+    // Merged into the record as it is when the write lands: two sends
+    // about one order in a row would otherwise write the second note
+    // over the first.
+    const noted = await amendOrder(stores, order.id, (current) => ({
       emails: {
         ...(current.emails || {}),
         [key]: { at: now.toISOString(), ...sent },
       },
-    }, `mail.${key}`, now);
+    }), `mail.${key}`, now);
 
     await noteMail(stores, true, now);
 
@@ -177,30 +177,55 @@ export const announcePaid = async (stores, id, {
 // processors' ids. `total` says whether, with it, everything paid has
 // gone back. Built on the record as it is now, so a refund recorded
 // meanwhile (a webhook, the CLI) is kept.
-export const recordRefund = async (stores, order, refund, source, now) => {
-  const current = (await getOrder(stores, order.id)) || order;
-  // An edit retried by its key meets the same refund at the processor,
-  // and records it once.
+export const recordRefund = async (
+  stores, order, refund, source, now, { env, mail } = {},
+) => {
+  // The list is built on the record as the write finds it, so two
+  // refunds recorded together both stay. A refund the processor
+  // already gave an id that the record holds (an edit retried by its
+  // key, or a webhook for a refund the CLI is recording) is recorded
+  // once.
   const same = (r, field) => !!refund[field] && r[field] === refund[field];
-  const seen = !!refund.edit && refundsOf(current)
-    .some((r) => same(r, "squareRefundId") || same(r, "paypalRefundId"));
+  const saved = await amendOrder(stores, order.id, (current) => {
+    if (refundsOf(current).some((r) => same(r, "squareRefundId")
+      || same(r, "paypalRefundId"))) {
+      return null;
+    }
 
-  if (seen) return current;
+    return moneyPatch(current, {
+      refunds: [...refundsOf(current), {
+        at: now.toISOString(),
+        source,
+        amount: refund.amount,
+        payment: refund.payment || paymentRef(paymentsOf(current)[0]),
+        total: refundedTotal(current) + refund.amount >= paidTotal(current),
+        squareRefundId: refund.squareRefundId || null,
+        paypalRefundId: refund.paypalRefundId || null,
+        status: refund.status || null,
+        ...(refund.edit ? { edit: refund.edit } : {}),
+      }],
+    });
+  }, "refund.recorded", now).catch(async (error) => {
+    // The processor has the money back and the record does not say so.
+    // The farm hears of it before the caller does, so nobody refunds
+    // the same money again; the processor's webhook records it in the
+    // end.
+    await alert(stores, "refund.unrecorded", {
+      id: order.id, amount: refund.amount,
+      squareRefundId: refund.squareRefundId || null,
+      paypalRefundId: refund.paypalRefundId || null,
+      error: String(error && error.message),
+    }, {
+      now, env, mail,
+      // One mute per refund: a second one lost is news of its own.
+      mute: `refund.unrecorded-${refund.squareRefundId
+        || refund.paypalRefundId || order.id}`,
+    });
 
-  const refunds = [...refundsOf(current), {
-    at: now.toISOString(),
-    source,
-    amount: refund.amount,
-    payment: refund.payment || paymentRef(paymentsOf(current)[0]),
-    total: refundedTotal(current) + refund.amount >= paidTotal(current),
-    squareRefundId: refund.squareRefundId || null,
-    paypalRefundId: refund.paypalRefundId || null,
-    status: refund.status || null,
-    ...(refund.edit ? { edit: refund.edit } : {}),
-  }];
+    throw error;
+  });
 
-  return amendOrder(stores, order.id, moneyPatch(current, { refunds }),
-    "refund.recorded", now);
+  return saved || order;
 };
 
 // A refund made in the Square dashboard rather than the CLI reaches
@@ -256,8 +281,8 @@ export const applyRefundEvent = async (stores, event, {
     // A refund the CLI made is recorded PENDING; Square's word on how
     // it ended is the one change worth noting.
     if (changed) {
-      await amendOrder(stores, order.id, moneyPatch(order, {
-        refunds: refunds.map((r, i) => (i === known
+      await amendOrder(stores, order.id, (fresh) => moneyPatch(fresh, {
+        refunds: refundsOf(fresh).map((r) => (r.squareRefundId === refund.id
           ? { ...r, status: refund.status }
           : r)),
       }), failed ? "refund.failed" : "refund.completed", now);

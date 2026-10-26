@@ -380,7 +380,7 @@ export const refundOrder = async (stores, id, {
 
     saved = await recordRefund(stores, order, {
       ...refund, amount: take, payment: paymentRef(p), edit,
-    }, source, now);
+    }, source, now, { env });
     owed -= take;
   }
 
@@ -523,7 +523,7 @@ export const markAttempted = async (stores, id, {
   const note = waive.trim();
   const theirs = CUSTOMER_CAUSES.includes(cause);
   const waived = !theirs || !!note;
-  const marked = await amendOrder(stores, id, {
+  const marked = await amendOrder(stores, id, (fresh) => ({
     attempted: {
       at: now.toISOString(),
       date: order.fulfilment.date,
@@ -534,14 +534,14 @@ export const markAttempted = async (stores, id, {
       detail: detail.trim(),
     },
     ...theirs && {
-      emails: { ...order.emails, missedDelivery: undefined },
+      emails: { ...fresh.emails, missedDelivery: undefined },
       question: {
         kind: "missed", reason: "", openedAt: now.toISOString(),
         until: addDays(order.fulfilment.date, terms.delivery.holdDays),
         answeredAt: null, answer: null, by: null,
       },
     },
-  }, "delivery.attempted", now);
+  }), "delivery.attempted", now);
 
   // Ours or the weather's: moved to the next delivery day, no fee, no
   // question (C7).
@@ -652,9 +652,9 @@ export const moveDelivery = async (stores, id, date, {
       await square.updateFulfillment(holder, moved, { env, fetchImpl });
     } catch (error) {
       console.error(`Square could not follow the move: ${error.message}`);
-      saved = await amendOrder(stores, id, {
-        flags: { ...(moved.flags || {}), squareOutOfSync: true },
-      }, "square.out_of_sync", now);
+      saved = await amendOrder(stores, id, (f) => ({
+        flags: { ...(f.flags || {}), squareOutOfSync: true },
+      }), "square.out_of_sync", now);
     }
   }
 
@@ -679,6 +679,12 @@ export const fulfillOrder = async (stores, id, {
     await setStatus(stores, id, "fulfilled", now, { source: "farm" }),
     "order"
   );
+
+  // Only a paid order is handed over: a cancelled one is refunded, not
+  // completed in Square.
+  if (order.status !== "fulfilled") {
+    throw new Error(`This order is ${order.status}.`);
+  }
 
   return completeInSquare(stores, order, {
     now, env, mail, square, fetchImpl,

@@ -9,7 +9,7 @@
 
 import terms from "./terms.mjs";
 import { modelled } from "../../../assets/scripts/order/lib/dates.mjs";
-import { allOrders, getOrder, saveOrder } from "./records.mjs";
+import { allOrders, getOrder, updateOrder } from "./records.mjs";
 import { now as clock } from "./clock.mjs";
 
 const OLD = ["scituate", "market"];
@@ -79,16 +79,16 @@ export const migrateScheduledPickup = async (stores, {
 
     if (!change) continue;
 
-    await saveOrder(stores, {
-      ...order,
-      fulfilment: modelled(model, order.fulfilment),
-      history: [...(order.history || []), {
+    await updateOrder(stores, id, (fresh) => ({
+      ...fresh,
+      fulfilment: modelled(model, fresh.fulfilment),
+      history: [...(fresh.history || []), {
         at: now.toISOString(),
         event: "fulfilment.migrated",
         from: change.from,
         to: change.to,
       }],
-    }, now);
+    }));
     written.push(change);
   }
 

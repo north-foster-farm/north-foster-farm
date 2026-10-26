@@ -46,9 +46,9 @@ export const completeInSquare = async (stores, order, {
       id: order.id, error: String(error && error.message),
     }, { env, mail, now });
 
-    const flagged = await amendOrder(stores, order.id, {
-      flags: { ...(order.flags || {}), squareOutOfSync: true },
-    }, "square.out_of_sync", now);
+    const flagged = await amendOrder(stores, order.id, (f) => ({
+      flags: { ...(f.flags || {}), squareOutOfSync: true },
+    }), "square.out_of_sync", now);
 
     await notifyFarm(stores, await getOrder(stores, order.id),
       "farmSquareNotCompleted",
