@@ -112,7 +112,8 @@ test.describe("the cart's word for an Add", () => {
         .not.toHaveAttribute("data-show", "", { timeout: 5_000 });
     });
 
-  test("a customer's touch keeps the pane open", async ({ page }) => {
+  // A touch is judged when it ends (#473): e2e/cart-touch.spec.mjs.
+  test("a customer's press keeps the pane open", async ({ page }) => {
     const order = new OrderPage(page);
 
     await order.open();

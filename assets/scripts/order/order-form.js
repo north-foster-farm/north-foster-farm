@@ -8,6 +8,7 @@ import {
   keyboardInset, moreStop, paneFit, ringsCart, rowsFloor, scrollIntoPane,
   visibleArea,
 } from "./lib/cart-scroll.mjs";
+import { strayed, touchKind } from "./lib/cart-touch.mjs";
 import { buildModel } from "./lib/events.mjs";
 import { moneyOn } from "./lib/money-on.mjs";
 import {
@@ -519,11 +520,12 @@ export class OrderForm {
     // toggle, the way on and the nudge.
     const cartToggle = qs(this.cart, "[data-cart-toggle]");
 
-    for (const type of ["pointerdown", "touchstart", "focusin", "keydown"]) {
+    for (const type of ["focusin", "keydown"]) {
       this.cart.addEventListener(type, () => this.keepOpen(), {
         passive: true,
       });
     }
+    this.watchTouch();
     cartToggle.addEventListener("click", () => {
       if (this.panel()) {
         this.setPart("items", this.cart.dataset.items !== "open");
@@ -1731,6 +1733,7 @@ export class OrderForm {
 
     clearTimeout(this.addedTimer);
     clearTimeout(this.closeTimer);
+    this.shut = null;
 
     if (first && floating) {
       const panel = this.panel();
@@ -1741,10 +1744,17 @@ export class OrderForm {
       // Once the pane has opened, the line is in reach: bring it into
       // view inside the list.
       setTimeout(() => this.reveal(sku), reduced ? 0 : 260);
-      this.closeTimer = setTimeout(() => {
+      this.shut = () => {
+        this.shut = null;
         if (panel) this.setPart("items", false);
         else this.setOpen(false);
         this.pulsePill(pill, "teach");
+      };
+      // A finger still down on the pane when the time is up has the
+      // last word: watchTouch() shuts it if that touch is a scroll.
+      this.closeTimer = setTimeout(() => {
+        if (this.touch) this.touch.due = true;
+        else this.shut();
       }, TEACH_DWELL);
 
       return;
@@ -1824,10 +1834,55 @@ export class OrderForm {
     }, RING_MS);
   }
 
-  // The pane is the customer's once they touch it or focus in it: the
-  // timer that was to shut it lapses.
+  // The pane is the customer's once they tap it, click it or focus in
+  // it: the timer that was to shut it lapses.
   keepOpen() {
     clearTimeout(this.closeTimer);
+    this.shut = null;
+  }
+
+  // A mouse or pen press on the pane keeps it at once. A touch is
+  // judged when it ends, since a scroll lands as a touch too (#473): a
+  // tap keeps the pane, a scroll (one the browser cancels, or one that
+  // strays past the slop) leaves the timer to shut it.
+  watchTouch() {
+    const point = (e) => ({ x: e.clientX, y: e.clientY });
+    const mine = (e) => this.touch && e.pointerId === this.touch.id;
+
+    this.cart.addEventListener("pointerdown", (e) => {
+      if (e.pointerType !== "touch") {
+        this.keepOpen();
+
+        return;
+      }
+      this.touch = {
+        id: e.pointerId, start: point(e), far: 0,
+        due: Boolean(this.touch && this.touch.due),
+      };
+    }, { passive: true });
+    this.cart.addEventListener("pointermove", (e) => {
+      if (!mine(e)) return;
+      this.touch.far = strayed(this.touch.start, point(e), this.touch.far);
+    }, { passive: true });
+
+    const ended = (e) => {
+      if (!mine(e)) return;
+
+      const touch = this.touch;
+      const cancelled = e.type === "pointercancel";
+
+      this.touch = null;
+      if (!cancelled) touch.far = strayed(touch.start, point(e), touch.far);
+      if (touchKind({ cancelled, far: touch.far }) === "tap") {
+        this.keepOpen();
+      } else if (touch.due && this.shut) {
+        this.shut();
+      }
+    };
+
+    for (const type of ["pointerup", "pointercancel"]) {
+      this.cart.addEventListener(type, ended, { passive: true });
+    }
   }
 
   method() {
