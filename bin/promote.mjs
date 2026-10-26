@@ -21,6 +21,18 @@
 // When no staging-to-main pull request is open, it opens one and stops
 // (#283): release-audit runs only on a pull request into main, and
 // James's LGTM goes on it. Run it again once both are in.
+//
+// A release branch (`promote main release/<name>`, James, 2026-10-26)
+// takes main one step by a merge commit instead of moving it to a
+// staging commit: its first parent is exactly main, its second parent
+// is a commit already on staging, and its tree is that commit's tree,
+// so the merge adds nothing staging did not already hold. It is still
+// a fast-forward of main, and the commit itself, not staging's, must
+// carry the green checks and the approval: the pull request is the one
+// from the release branch, and the label is dated against the push of
+// that branch. A release branch is rebuilt by force-push, which the
+// activity records apart from a push, and its first push as a branch
+// creation; both count here and only here.
 
 import { execFile } from "node:child_process";
 import { mkdtempSync, writeFileSync } from "node:fs";
@@ -52,8 +64,18 @@ export const REQUIRED_CHECKS = {
 export const AUDIT_BLOCKS = false;
 export const APPROVAL_LABEL = "LGTM";
 
+// The only branch names a release may come from, so the name that goes
+// into API paths and refs is one this code chose the shape of.
+export const RELEASE_BRANCH = /^release\/[a-z0-9][a-z0-9-]*$/;
+
+// The activity types that mean "this branch was pushed to this commit".
+// Staging is only ever fast-forwarded. A release branch is created,
+// then rebuilt by force-push.
+export const PUSH_TYPES = ["push"];
+export const RELEASE_PUSH_TYPES = ["push", "force_push", "branch_creation"];
+
 export const USAGE = `
-  bin/nff promote staging|main [--dry-run]
+  bin/nff promote staging|main [release/<name>] [--dry-run]
                                       fast-forward staging to next, or
                                       main to staging, and nothing else.
                                       Refuses a non-fast-forward, a
@@ -63,7 +85,11 @@ export const USAGE = `
                                       For main, opens that pull request
                                       when none is open, and stops.
                                       Reports the dependency audit
-                                      without blocking on it`
+                                      without blocking on it. With a
+                                      release branch, main takes its
+                                      merge commit: first parent main,
+                                      second parent on staging, staging's
+                                      tree`
   .slice(1);
 
 const git = async (args) => (await run("git", args)).stdout.trim();
@@ -86,28 +112,66 @@ const ghApi = async (path, { fields, all = false } = {}) => {
 // The pull request from staging into main, when none is open: the one
 // release-audit runs on and James approves. It follows staging, so the
 // body names no commit.
-export const pullRequest = () => ({
-  title: "Promote staging to main",
-  head: FROM.main,
-  base: "main",
-  body: "Fast-forwards main to the head of staging. Opened by "
-    + "`bin/nff promote main` so release-audit runs on it. Label it LGTM "
-    + "to approve, then run `bin/nff promote main` again. It is never "
-    + "merged here: main moves only by fast-forward.\n\n"
-    + "Release checklist:\n\n"
-    + "- [ ] Dates confirmed on every changed post and policy page",
-});
+export const pullRequest = (branch = FROM.main) => {
+  const staging = branch === FROM.main;
+  const lead = staging
+    ? "Fast-forwards main to the head of staging."
+    : `Moves main to the merge commit at the head of ${branch}.`;
 
-// The open pull requests into main from this repository's own staging
-// branch. One from a fork's branch of the same name never counts.
-export const fromStaging = (pulls) => pulls.filter((p) =>
-  p.head?.repo?.full_name === REPO && p.head?.ref === FROM.main);
+  return {
+    title: staging ? "Promote staging to main" : `Promote ${branch} to main`,
+    head: branch,
+    base: "main",
+    body: `${lead} Opened by \`bin/nff promote main\` so release-audit `
+      + "runs on it. Label it LGTM to approve, then run `bin/nff promote "
+      + "main` again. It is never merged here: main moves only by "
+      + "fast-forward.\n\n"
+      + "Release checklist:\n\n"
+      + "- [ ] Dates confirmed on every changed post and policy page",
+  };
+};
 
-// When the latest push that left staging at `sha` happened, from the
+// The open pull requests into main from one of this repository's own
+// branches, staging unless told otherwise. One from a fork's branch of
+// the same name never counts.
+export const fromBranch = (pulls, branch = FROM.main) => pulls.filter((p) =>
+  p.head?.repo?.full_name === REPO && p.head?.ref === branch);
+
+export const fromStaging = (pulls) => fromBranch(pulls, FROM.main);
+
+// When the latest push that left a branch at `sha` happened, from the
 // repository's activity (newest first), or undefined.
-export const pushedAt = (activity, sha) => activity
-  .filter((a) => a.activity_type === "push" && a.after === sha)
+export const pushedAt = (activity, sha, types = PUSH_TYPES) => activity
+  .filter((a) => types.includes(a.activity_type) && a.after === sha)
   .map((a) => a.timestamp).sort().at(-1);
+
+// Whether `sha` is a release merge: two parents, the first exactly main,
+// the second a commit staging holds, and no tree of its own. `facts`
+// come from git: `parents` (the commit's, in order), `main`, `tree`
+// (the commit's), `secondTree` and `onStaging` (the second parent is
+// an ancestor of staging, or staging itself). -> { ok, reason }.
+export const releaseShape = ({
+  parents, main, tree, secondTree, onStaging,
+}) => {
+  if (parents.length !== 2) {
+    return { ok: false, reason: "a release must be a merge commit with "
+      + `two parents, and this one has ${parents.length}` };
+  }
+  if (parents[0] !== main) {
+    return { ok: false, reason: "the first parent of a release must be "
+      + `main (${main}), and it is ${parents[0]}` };
+  }
+  if (!onStaging) {
+    return { ok: false, reason: `the second parent (${parents[1]}) is not `
+      + "on staging" };
+  }
+  if (tree !== secondTree) {
+    return { ok: false, reason: "the merge changes the tree of its "
+      + "second parent, so it holds something staging does not" };
+  }
+
+  return { ok: true, reason: `release merge of ${parents[1]}` };
+};
 
 // The names of the checks that finished green on a commit.
 export const passedChecks = (runs) => new Set(runs
@@ -124,11 +188,19 @@ export const missingChecks = (runs, target) => {
 // its approval stands: open, head exactly `sha`, the label put on after
 // the push that brought `sha` to staging (`pushedAt`). `pulls` are the
 // ones fromStaging() keeps. -> { ok, reason }.
-export const approval = ({ pulls, sha, pushedAt: pushed, timeline }) => {
+export const approval = ({
+  pulls, sha, pushedAt: pushed, timeline, branch = FROM.main,
+}) => {
   const pr = pulls.find((p) => p.head?.sha === sha);
 
-  if (!pr) return { ok: false, reason: "no open staging-to-main pull "
-    + "request has this commit as its head" };
+  if (!pr) {
+    const which = branch === FROM.main
+      ? "staging-to-main pull request"
+      : `pull request from ${branch} into main`;
+
+    return { ok: false, reason: `no open ${which} has this commit as `
+      + "its head" };
+  }
   // The label must still be on: one taken off withdraws the approval.
   if (!pr.labels?.some((l) => l.name === APPROVAL_LABEL)) {
     return { ok: false, reason: `PR #${pr.number} has no `
@@ -143,12 +215,12 @@ export const approval = ({ pulls, sha, pushedAt: pushed, timeline }) => {
     + `${APPROVAL_LABEL} label` };
   if (!pushed) {
     return { ok: false, reason: "no push that brought this commit to "
-      + "staging was found, so the label cannot be dated against it" };
+      + `${branch} was found, so the label cannot be dated against it` };
   }
   if (!(Date.parse(at) > Date.parse(pushed))) {
     return { ok: false, reason: `the ${APPROVAL_LABEL} label on PR `
       + `#${pr.number} is older than the push that brought this commit `
-      + "to staging" };
+      + `to ${branch}` };
   }
 
   return { ok: true, reason: `PR #${pr.number} approved` };
@@ -188,13 +260,49 @@ const defaultShow = async (sha, path, list = false) => (list
   : (await run("git", ["show", `${sha}:${path}`],
     { maxBuffer: 64 * 1024 * 1024 })).stdout);
 
-export const promote = async (target, { dryRun = false, out }, deps = {}) => {
+const isAncestor = async (sh, ancestor, descendant) => {
+  try {
+    await sh(["merge-base", "--is-ancestor", ancestor, descendant]);
+
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+// What git says about a release merge, for releaseShape().
+const releaseFacts = async (sh, sha, main) => {
+  const parents = (await sh(["rev-list", "--parents", "-n", "1", sha]))
+    .split(" ").slice(1);
+  const second = parents[1];
+
+  return {
+    parents, main,
+    tree: await sh(["rev-parse", `${sha}^{tree}`]),
+    secondTree: second ? await sh(["rev-parse", `${second}^{tree}`]) : "",
+    onStaging: second
+      ? await isAncestor(sh, second, `origin/${FROM.main}`) : false,
+  };
+};
+
+export const promote = async (
+  target, { dryRun = false, out, release }, deps = {},
+) => {
   const {
     sh = git, api = ghApi, show = defaultShow, audit = npmAudit,
   } = deps;
-  const from = FROM[target];
 
-  if (!from) throw new Error("Promote staging or main.");
+  if (!FROM[target]) throw new Error("Promote staging or main.");
+  if (release !== undefined) {
+    if (target !== "main") {
+      throw new Error("Refused: only main takes a release branch.");
+    }
+    if (!RELEASE_BRANCH.test(release)) {
+      throw new Error(`Refused: ${release} is not a release/<name> branch.`);
+    }
+  }
+
+  const from = release ?? FROM[target];
 
   await sh(["fetch", "origin"]);
 
@@ -203,12 +311,20 @@ export const promote = async (target, { dryRun = false, out }, deps = {}) => {
 
   if (sha === there) return out(`${target} is already at ${from} (${sha}).`);
 
-  try {
-    await sh(["merge-base", "--is-ancestor", `origin/${target}`,
-      `origin/${from}`]);
-  } catch {
-    throw new Error(`Refused: ${from} is not a fast-forward of ${target}. `
-      + "Nothing is pushed.");
+  if (release) {
+    const shape = releaseShape(await releaseFacts(sh, sha, there));
+
+    if (!shape.ok) throw new Error(`Refused: ${shape.reason}. Nothing is `
+      + "pushed.");
+    out(shape.reason);
+  } else if (!await isAncestor(sh, `origin/${target}`, `origin/${from}`)) {
+    // A release merge puts a commit on main that staging never held, so
+    // from then on staging is no fast-forward of main.
+    const hint = target === "main" ? " If main holds a release merge, "
+      + "release from a branch: `promote main release/<name>`." : "";
+
+    throw new Error(`Refused: ${from} is not a fast-forward of ${target}.`
+      + `${hint} Nothing is pushed.`);
   }
 
   const { check_runs: runs } = await api(
@@ -231,17 +347,20 @@ export const promote = async (target, { dryRun = false, out }, deps = {}) => {
   }
 
   if (target === "main") {
-    const pulls = fromStaging(await api(
-      `repos/${REPO}/pulls?state=open&base=main&per_page=100`));
+    const branch = release ?? FROM.main;
+    const pulls = fromBranch(await api(
+      `repos/${REPO}/pulls?state=open&base=main&per_page=100`), branch);
 
     if (!pulls.length) {
       if (dryRun) {
-        throw new Error("Refused: no staging-to-main pull request is "
-          + "open. Without --dry-run, this opens one and stops.");
+        throw new Error(`Refused: no ${release
+          ? `pull request from ${release} into main`
+          : "staging-to-main pull request"} is open. Without --dry-run, `
+          + "this opens one and stops.");
       }
 
       const opened = await api(`repos/${REPO}/pulls`,
-        { fields: pullRequest() });
+        { fields: pullRequest(branch) });
 
       out(`Opened PR #${opened.number}: ${opened.html_url}`);
       throw new Error(`Refused for now: PR #${opened.number} is new. `
@@ -255,9 +374,11 @@ export const promote = async (target, { dryRun = false, out }, deps = {}) => {
         { all: true })
       : [];
     const activity = await api(`repos/${REPO}/activity?ref=refs/heads/`
-      + `${FROM.main}&activity_type=push&per_page=100`);
+      + `${branch}${release ? "" : "&activity_type=push"}&per_page=100`);
     const verdict = approval({
-      pulls, sha, pushedAt: pushedAt(activity, sha), timeline,
+      pulls, sha, branch, timeline,
+      pushedAt: pushedAt(activity, sha,
+        release ? RELEASE_PUSH_TYPES : PUSH_TYPES),
     });
 
     if (!verdict.ok) throw new Error(`Refused: ${verdict.reason}.`);
@@ -272,5 +393,14 @@ export const promote = async (target, { dryRun = false, out }, deps = {}) => {
   return out(`${target} is now at ${sha}.`);
 };
 
-export const promoteCommand = (action, rest, { flags, out }, deps) =>
-  promote(action, { dryRun: Boolean(flags["dry-run"]), out }, deps);
+// `promote main release/<name>`: the one word after the branch names
+// the release branch. Anything more is refused, not ignored.
+export const promoteCommand = (action, rest, { flags, out }, deps) => {
+  if (rest.length > 1) {
+    throw new Error("Refused: promote takes at most one release branch.");
+  }
+
+  return promote(action, {
+    dryRun: Boolean(flags["dry-run"]), out, release: rest[0],
+  }, deps);
+};
