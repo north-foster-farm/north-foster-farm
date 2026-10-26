@@ -14,7 +14,9 @@ import {
 } from "./admin.mjs";
 import { requestLink } from "./auth.mjs";
 import { MAX_OFFSET } from "./clock.mjs";
-import { getGroupRecord, setGroupCode } from "./groups.mjs";
+import { balanceOf, creditKey, grantCredit } from "./credit.mjs";
+import { getGroupRecord, joinGroup, setGroupCode } from "./groups.mjs";
+import terms from "./terms.mjs";
 import { runJobs } from "./jobs.mjs";
 import { links, readState, setState } from "./maintenance.mjs";
 import { OUTBOX_PREFIX } from "./mail.mjs";
@@ -247,6 +249,38 @@ export const OPS = {
       code: found && found.code ? found.code
         : (await setGroupCode(stores, key)).code,
     };
+  },
+  // A member of a buying group (#471), as `customers set member=`
+  // makes one: the record is made if there is none.
+  customerJoin: async (stores, { email, key }) => {
+    const address = lower(need(email, "email"));
+
+    if (!(await getCustomer(stores, address))) {
+      await saveCustomer(stores, {
+        email: address, name: "QA Member", firstName: "QA",
+        lastName: "Member", phone: "", avatar: null, discountGroup: null,
+        address: null,
+      });
+    }
+
+    return { joined: !!(await joinGroup(stores, address, need(key, "key"))) };
+  },
+  // Credit for the spec to spend, as a settled reward would grant it:
+  // `amount` in cents, keyed on the round given so a run grants once.
+  creditGrant: async (stores, { email, amount, round }) => {
+    const ledger = await grantCredit(stores, need(email, "email"), {
+      amount: Number(amount),
+      from: { group: "vff", round: round || "e2e", kind: "host" },
+      timeZone: terms.timeZone,
+    });
+
+    return { balance: balanceOf(ledger, new Date()) };
+  },
+  // The spec's credit, spent or not, gone when the run is done.
+  creditClear: async (stores, { email }) => {
+    await stores.customers.delete(creditKey(need(email, "email")));
+
+    return { removed: true };
   },
   // Every message in the outbox with its HTML and text, newest first.
   outboxList: async (stores) => {
