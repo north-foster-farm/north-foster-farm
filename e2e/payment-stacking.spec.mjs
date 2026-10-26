@@ -59,6 +59,11 @@ test.describe("payment buttons stay under the page's own layers", () => {
         window.scrollBy(0, 40);
       });
 
+      // The bar is unseen until it sticks (#327); before that its box
+      // lies over the Show row, whose unseen radio is what answers.
+      await expect(page.locator(".order-topbar"))
+        .toHaveAttribute("data-stuck", "true");
+
       const bar = await page.locator(".order-topbar").boundingBox();
       const x = bar.x + bar.width / 2;
       const y = bar.y + bar.height / 2;
