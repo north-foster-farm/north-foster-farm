@@ -405,7 +405,7 @@ div.order-cart-slot[data-cart-slot]             the pane's place in the page
     div.order-cart-body[data-cart-body]         scrolls as a whole when short
       section.order-cart-lines  [data-part=lines]   the "more" pills, the list,
                                                     the two line templates
-      dl.order-cart-sums        [data-part=sums]    subtotal, discount, joke, fee
+      dl.order-cart-sums        [data-part=sums]    subtotal, discount, fee
       div.order-cart-total-row  [data-part=total]   "N items" and "Total $X"
       dl.order-cart-sums.order-cart-edit [data-part=edit]  paid, kept, to pay
       ul.order-cart-badges      [data-part=badges]
