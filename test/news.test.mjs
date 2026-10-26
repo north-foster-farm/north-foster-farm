@@ -6,8 +6,10 @@ import { describe, it } from "node:test";
 import {
   CONFIRM_TTL, REQUESTS_PER_WINDOW, SYNC_KEY, confirmSubscribe,
   forgottenKey, importSubscribers, optIn, optOut, parseCsv,
-  requestSubscribe, sendOwedWelcomes, subscribe, syncAudience, unsubscribe,
+  requestSubscribe, sendOwedWelcomes, sentNothing, subscribe, syncAudience,
+  unsubscribe,
 } from "../netlify/functions/lib/news.mjs";
+import { MailError } from "../netlify/functions/lib/mail.mjs";
 import {
   withholdCustomerEmail,
 } from "../netlify/functions/lib/payments.mjs";
@@ -532,23 +534,100 @@ describe("holding the old list's welcomes (--skip)", () => {
     assert.equal(sent.length, 2, "a rerun sends no one twice");
   });
 
-  it("puts a failed send back to owed, and the next run sends it",
+  it("puts a send Resend rejected (a 422) back to owed, and the next " +
+    "run sends it", async () => {
+    const stores = testStores();
+    const { sent, mail } = mailbox();
+
+    await held(stores, mail);
+
+    const rejected = async () => {
+      throw new MailError("Resend 422", { status: 422 });
+    };
+    const first = await run(stores, rejected);
+
+    assert.deepEqual(first.failed, [A, B, C]);
+    assert.equal(await stateOf(stores, A), "owed");
+
+    const second = await run(stores, mail);
+
+    assert.deepEqual(second.sent, [A, B, C]);
+    assert.equal(sent.length, 3);
+  });
+
+  it("leaves a send whose outcome is unknown sending, and no later run " +
+    "sends it again, a day on or not", async () => {
+    const stores = testStores();
+    const { sent, mail } = mailbox();
+
+    await held(stores, mail);
+
+    // Resend may have taken the request and answered after we stopped
+    // waiting (4 s), so the welcome may be on its way.
+    const timeout = async () => {
+      throw new MailError("Resend did not answer in 4 s",
+        { retryable: true });
+    };
+    const first = await run(stores, timeout);
+
+    assert.deepEqual(first.failed, [A, B, C]);
+    assert.equal(await stateOf(stores, A), "sending");
+
+    const nextDay = new Date(later.getTime() + 2 * 24 * 60 * 60 * 1000);
+
+    for (const at of [later, nextDay]) {
+      const again = await run(stores, mail, { now: at });
+
+      assert.deepEqual(again, { ...empty, unsure: [A, B, C] });
+    }
+    assert.equal(sent.length, 0, "nothing sent twice, nothing sent");
+  });
+
+  it("holds the sends that may have been accepted, and releases the " +
+    "ones known to have sent nothing", () => {
+    const fail = (status, retryable = false) =>
+      new MailError("x", { status, retryable });
+
+    // A 4xx Resend rejected, and a refusal before any request: the
+    // breaker, or Resend's own guard (no status, not retryable).
+    for (const error of [fail(422), fail(400), fail(403), fail(0),
+      new MailError("The breaker", { detail: { breaker: "paused" } })]) {
+      assert.equal(sentNothing(error), true, `${error.status}`);
+    }
+    // The same key in progress, a limit, a 5xx, a timeout or network
+    // error (no status, retryable), and anything of a shape we do not
+    // know.
+    for (const error of [fail(409), fail(429, true), fail(500, true),
+      fail(503, true), fail(0, true),
+      new Error("Resend 500"), new Error("boom"), null, undefined]) {
+      assert.equal(sentNothing(error), false, String(error?.status));
+    }
+  });
+
+  it("never writes over a welcome another run has marked sent",
     async () => {
-      const stores = testStores();
-      const { sent, mail } = mailbox();
+      for (const status of [409, 422]) {
+        const stores = testStores();
+        const { mail } = mailbox();
 
-      await held(stores, mail);
+        await held(stores, mail);
 
-      const broken = async () => { throw new Error("Resend 500"); };
-      const first = await run(stores, broken);
+        // Another run sends and marks it sent while this one's request
+        // is out, and this one's request then fails.
+        const other = async () => {
+          const rec = await getCustomer(stores, A);
 
-      assert.deepEqual(first.failed, [A, B, C]);
-      assert.equal(await stateOf(stores, A), "owed");
+          await saveCustomer(stores, {
+            ...rec, welcome: { ...rec.welcome, state: "sent" },
+          });
+          throw new MailError(`Resend ${status}`, { status });
+        };
+        const report = await run(stores, other, { email: A });
 
-      const second = await run(stores, mail);
-
-      assert.deepEqual(second.sent, [A, B, C]);
-      assert.equal(sent.length, 3);
+        assert.deepEqual(report.failed, [A]);
+        assert.equal(await stateOf(stores, A), "sent", `after a ${status}`);
+        assert.deepEqual((await run(stores, mail, { email: A })).none, [A]);
+      }
     });
 
   it("lists a record left sending as unsure, sends it only when named, " +

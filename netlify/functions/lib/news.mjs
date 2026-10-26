@@ -179,13 +179,42 @@ export const joined = (before, after) => !!after
 // the old list. Never
 // throws; a welcome that fails leaves them on the list.
 // -> true when it went.
-export const welcome = async (stores, customer, {
+export const welcome = async (stores, customer, opts = {}) =>
+  (await attemptWelcome(stores, customer, opts)).ok;
+
+// Whether a failed send is known to have sent nothing: refused before
+// any request (the breaker, Resend's own refusal outside production, a
+// message with no recipient: a MailError with no status that cannot be
+// retried) or rejected by Resend with a 4xx other than 409 (the same
+// key still in progress) and 429 (see the next). Anything else may have
+// been accepted: a timeout or network error (Resend can take the
+// request and answer after we stop waiting), a 5xx, a 409, a 429, or an
+// error we do not know the shape of.
+export const sentNothing = (error) => {
+  if (!error || error.name !== "MailError") return false;
+
+  const { status = 0, retryable } = error;
+
+  if (!status) return retryable === false;
+
+  return status >= 400 && status < 500 && status !== 409 && status !== 429;
+};
+
+// The welcome, and what became of it. Never throws. -> { ok: true }, or
+// { ok: false, nothing } where `nothing` says the failure is known to
+// have sent nothing, so the welcome is still owed and may go again.
+// The key is the same for the same consent (the address and its
+// `marketingAt`), so Resend answers a repeat within a day with the
+// first send's response.
+const attemptWelcome = async (stores, customer, {
   env = process.env, mail = sendMail, now = clock(),
 } = {}) => {
+  let message;
+
   try {
     const links = await unsubscribeLinks(stores, customer.email, { env, now });
 
-    await mail({
+    message = {
       to: customer.email,
       idempotencyKey: `welcome-${
         hash(`${customer.email} ${customer.marketingAt}`).slice(0, 16)}`,
@@ -196,13 +225,22 @@ export const welcome = async (stores, customer, {
         "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
       },
       ...newsWelcome(customer, links.page, { links: mailLinks(env) }),
-    }, { env });
+    };
+  } catch (error) {
+    // Nothing was asked of the mail driver yet.
+    log.error({ event: "news.welcome.failed", error: error.message });
 
-    return true;
+    return { ok: false, nothing: true };
+  }
+
+  try {
+    await mail(message, { env });
+
+    return { ok: true };
   } catch (error) {
     log.error({ event: "news.welcome.failed", error: error.message });
 
-    return false;
+    return { ok: false, nothing: sentNothing(error) };
   }
 };
 
@@ -481,8 +519,14 @@ export const importSubscribers = async (stores, rows, {
 // sends a record twice: a record left `sending` is listed as `unsure`
 // and not sent, unless `email` names it, which sends it again under the
 // same key (Resend answers a repeat of a key within a day with the
-// first send). A send that fails goes back to `owed` and is listed as
-// `failed`. Every step reads the record afresh and changes only its
+// first send). A send that fails is listed as `failed`. It goes back to
+// `owed` only when it is known to have sent nothing (sentNothing: a
+// refusal before any request, or a 4xx that is not a 409 or 429). A
+// timeout, a 5xx, a 409 or a 429 may have been accepted, so the record
+// stays `sending` and the next bulk run lists it `unsure`: a later run
+// could otherwise send it a second time once the key's day is over. A
+// record already `sent`, by this run or another, is never written
+// over. Every step reads the record afresh and changes only its
 // `welcome`, so an unsubscribe made meanwhile stands. `dryRun` lists
 // who is `due` and changes nothing; `--no-email` (customerEmailWithheld)
 // sends nothing and lists them `withheld`.
@@ -548,12 +592,22 @@ export const sendOwedWelcomes = async (stores, {
     }
 
     const claimed = await mark(customer, "sending");
-    const went = await welcome(stores, claimed, { env, mail, now });
+    const result = await attemptWelcome(stores, claimed, { env, mail, now });
+    // Read afresh: the record may have changed, or been forgotten, and
+    // another run may have sent and marked it already.
     const fresh = await getCustomer(stores, customer.email);
+    const state = fresh && fresh.welcome && fresh.welcome.state;
 
-    // A record forgotten meanwhile has nothing left to mark.
-    if (fresh && fresh.welcome) await mark(fresh, went ? "sent" : "owed");
-    (went ? report.sent : report.failed).push(customer.email);
+    if (result.ok) {
+      if (state) await mark(fresh, "sent");
+    } else if (result.nothing && state === "sending") {
+      // Known to have sent nothing, and still ours: owed again. Any
+      // other failure may have been accepted, so the record stays
+      // `sending` (the next bulk run lists it `unsure`), and one
+      // already `sent` is never written over.
+      await mark(fresh, "owed");
+    }
+    (result.ok ? report.sent : report.failed).push(customer.email);
   }
 
   return report;

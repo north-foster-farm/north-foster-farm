@@ -172,14 +172,30 @@ listing who is `due`).
 
 - **Once each.** Each record is claimed (`sending`), sent under the
   welcome's own idempotency key, then marked `sent`, one record at a
-  time, so a rerun sends to no one twice. A send that fails goes back
-  to `owed` and is listed as `failed`; run the command again.
-- **After a crash.** A record left `sending` is one whose send began
-  and whose outcome is not known. A run for everyone lists it as
-  `unsure` and does not send it. To send it, name it with `--email`:
-  Resend answers a repeat of the same key within a day with the first
-  send, so inside that day it cannot double. After a day, look in
-  Resend (or `bin/nff mail list`) before naming it.
+  time, so a rerun sends to no one twice. A record already `sent`,
+  even by another run at the same time, is never written over.
+- **A send that fails** is listed as `failed`, and what happens next
+  depends on whether the email could have gone:
+  - Known to have sent nothing: refused before any request (the send
+    breaker, or Resend's own guard) or rejected by Resend with a 4xx
+    other than 409 and 429. The record goes back to `owed`, and the
+    next run tries it again.
+  - Possibly accepted: a timeout or network error (Resend can take
+    the request and answer after we stop waiting at 4 seconds), a 5xx,
+    a 409 (the same key still in progress), a 429, or anything else.
+    The record stays `sending`, and the next run for everyone lists it
+    as `unsure` and does not send it. Running again is not the fix:
+    after the key's day, a second send would be a second email.
+- **Unsure records, and a crash.** A record left `sending` is one whose
+  send began and whose outcome is not known, whether the run crashed
+  or the send failed as above. Look in Resend (or `bin/nff mail list`)
+  for a welcome to that address. If one went, nothing more is owed;
+  the record stays `unsure` in every bulk run, which is harmless
+  because a run for everyone never sends it. If none went, name the
+  address with `--email` to send it: Resend
+  answers a repeat of the same key within a day with the first send,
+  so inside that day it cannot double. After a day, a missing welcome
+  in Resend is what makes the second send safe.
 - **Opt-outs.** Anyone who has since opted out is skipped (`optedOut`)
   and loses the mark. So does anyone who opted out and joined again by
   another way on (`superseded`): that way welcomed them, so no second
