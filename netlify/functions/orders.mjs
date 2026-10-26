@@ -26,8 +26,9 @@ import discountCodes from "../../data/discount-codes.json" with {
   type: "json",
 };
 import { indexCatalog } from "../../assets/scripts/order/lib/catalog.mjs";
+import { lockOn } from "../../assets/scripts/order/lib/totals.mjs";
 import { validateOrder } from "../../assets/scripts/order/lib/validate.mjs";
-import { parts } from "../../assets/scripts/order/lib/zoned.mjs";
+import { parts, today } from "../../assets/scripts/order/lib/zoned.mjs";
 import { sessionFrom } from "./lib/auth.mjs";
 import {
   METHODS, announceNew, finishVenmo, ownRecord, payWithSquare, startVenmo,
@@ -286,7 +287,11 @@ export const handle = async (req, {
   const result = validateOrder(payload, {
     index, terms: memberTerms(terms, buying), now, group,
     codes: discountCodes.codes,
-    lock: buying ? buying.priceLock || null : null,
+    // The lock holds through its last day, by the order's day in the
+    // farm's zone, as the prices in force are chosen.
+    lock: buying
+      ? lockOn(buying.priceLock || null, today(now, terms.timeZone))
+      : null,
     schedule: pickupSchedule(env),
     waive: {
       minimum: !!passCode && !problem,

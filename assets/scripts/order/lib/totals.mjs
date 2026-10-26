@@ -101,6 +101,13 @@ export const lockDiscountFor = (lines, index, lock) => {
     : null;
 };
 
+// The lock while it holds: through its last day (`through`, an ISO
+// date), by the order's own day in the farm's zone, the day it is
+// placed or, for a change, was. After that a member pays retail
+// (security review, 6425096526). -> the lock, or null.
+export const lockOn = (lock, day) =>
+  (lock && (!lock.through || day <= lock.through) ? lock : null);
+
 // `lines` is [{ sku, qty }]; `index` is indexCatalog(catalog); `group`
 // is the customer's discount group key, if any; `code` is a discount
 // code entry, if a known one was typed; `lock` is a buying group

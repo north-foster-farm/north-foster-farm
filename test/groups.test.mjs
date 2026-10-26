@@ -15,11 +15,11 @@ import {
   checkSchedule, parseSchedule,
 } from "../assets/scripts/order/lib/schedule.mjs";
 import {
-  computeTotals, lockDiscountFor,
+  computeTotals, lockDiscountFor, lockOn,
 } from "../assets/scripts/order/lib/totals.mjs";
 import { validateOrder } from "../assets/scripts/order/lib/validate.mjs";
 import { indexCatalog } from "../assets/scripts/order/lib/catalog.mjs";
-import { instant } from "../assets/scripts/order/lib/zoned.mjs";
+import { instant, today } from "../assets/scripts/order/lib/zoned.mjs";
 import catalog from "../data/catalog.json" with { type: "json" };
 import groupData from "../data/groups.json" with { type: "json" };
 import locationData from "../data/locations.json" with { type: "json" };
@@ -420,5 +420,47 @@ describe("a buying group's price lock", () => {
     assert.equal(plain.discounts.length, 1);
     assert.equal(plain.discounts[0].scope, "ORDER");
     assert.equal(plain.line_items[0].applied_discounts, undefined);
+  });
+});
+
+describe("the price lock's last day", () => {
+  const lock = groupData.groups[0].priceLock;
+  const index = indexCatalog(catalog);
+  const raised = new Map([...index].map(([sku, item]) =>
+    [sku, { ...item, price: item.price + 2 }]));
+  const lines = [{ sku: "NFF-CHK-WHL-35-39", qty: 1 }];
+
+  it("holds through 2027-12-31 and not on 2028-01-01", () => {
+    assert.equal(lock.through, "2027-12-31");
+    assert.equal(lockOn(lock, "2026-10-26"), lock);
+    assert.equal(lockOn(lock, "2027-12-31"), lock);
+    assert.equal(lockOn(lock, "2028-01-01"), null);
+    assert.equal(lockOn(null, "2026-10-26"), null);
+    // A lock with no last day holds.
+    const open = { prices: lock.prices };
+
+    assert.equal(lockOn(open, "2099-01-01"), open);
+  });
+
+  it("prices a member at retail once it has ended", () => {
+    const { money } = terms;
+    const at = (day) => computeTotals({
+      lines, method: "onfarm", index: raised, money,
+      lock: lockOn(lock, day),
+    });
+
+    assert.equal(at("2027-12-31").discountLock, true);
+    assert.equal(at("2027-12-31").total, 3000);
+    assert.equal(at("2028-01-01").discountLock, undefined);
+    assert.equal(at("2028-01-01").total, 3200);
+  });
+
+  it("is judged by the order's day in the farm's zone", () => {
+    // 11 PM on the last day in Rhode Island is already the next day
+    // in UTC; the lock still holds.
+    const late = instant("2027-12-31", 23, 0, "America/New_York");
+
+    assert.equal(lockOn(lock, today(late, terms.timeZone)), lock);
+    assert.equal(today(late, "UTC"), "2028-01-01");
   });
 });

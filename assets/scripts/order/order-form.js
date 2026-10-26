@@ -10,7 +10,7 @@ import { linkedMethod, withoutParam } from "./lib/query.mjs";
 import { sentence } from "./lib/sentence.mjs";
 import { summarize } from "./lib/summary.mjs";
 import {
-  computeTotals, dollars, meetsMinimum, toCents,
+  computeTotals, dollars, lockOn, meetsMinimum, toCents,
 } from "./lib/totals.mjs";
 import {
   disallowedFor, normalizeCode, phoneOk, validateOrder, zipInfo,
@@ -878,7 +878,7 @@ export class OrderForm {
       money: this.money,
       group: this.group,
       code: this.code,
-      lock: this.member ? this.member.lock : null,
+      lock: this.lock(),
       zipStatus: this.zipStatus(),
       waiveFee: !!this.pass && this.passFee,
     });
@@ -1022,6 +1022,21 @@ export class OrderForm {
     }
     this.refresh();
     this.draft.save(this.collect());
+  }
+
+  // The member's price lock while it holds (#471): through its last
+  // day, by the day the order is for, the day it is placed or, for a
+  // change, was, as `money` chooses the prices in force. The server
+  // works it out the same way, so the totals agree.
+  lock() {
+    if (!this.member || !this.member.lock) return null;
+
+    const placed = this.editing && this.editing.placed;
+    const day = today(placed ? new Date(placed) : this.dates.now(),
+      this.terms.timeZone);
+
+    return lockOn({ ...this.member.lock, through: this.member.lockThrough },
+      day);
   }
 
   // A code the server refused at submission (replaced since the page
@@ -1565,7 +1580,7 @@ export class OrderForm {
       index: this.index, terms: this.terms, now: this.dates.now(),
       placed: this.editing && this.editing.placed,
       group: this.group, code: this.code, schedule: this.dates.schedule(),
-      lock: this.member ? this.member.lock : null,
+      lock: this.lock(),
       waive: { minimum: !!this.pass, fee: !!this.pass && this.passFee },
     });
   }
