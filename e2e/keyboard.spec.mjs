@@ -166,6 +166,10 @@ const install = () => {
       invisible,
       offScreen,
       coveredBy: invisible || offScreen ? null : coveredBy(shown),
+      // Where it is, for a report that must say why it is off screen.
+      at: (({ top, bottom }) => `${Math.round(top)}..${Math.round(
+        bottom)} of ${innerHeight} at scrollY ${Math.round(scrollY)}`)(
+        shown.getBoundingClientRect()),
     };
   };
 
@@ -244,7 +248,7 @@ const walk = async (page, key) => {
       s = { ...s, ...await page.evaluate(() => window.kbdLook()) };
     }
     if (s.invisible) problems.push(`focus on something unseen: ${s.name}`);
-    if (s.offScreen) problems.push(`focus off screen: ${s.name}`);
+    if (s.offScreen) problems.push(`focus off screen: ${s.name} (${s.at})`);
     if (s.coveredBy) {
       problems.push(`focus hidden under ${s.coveredBy}: ${s.name}`);
     }

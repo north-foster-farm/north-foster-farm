@@ -87,8 +87,20 @@ test.describe("changing your own email", () => {
       // Following the link only peeks at it: the confirm card shows on
       // the account's Settings tab, still signed in, and nothing has
       // moved yet (#240, #345).
+      // The answers on the way, for a run that lands somewhere else.
+      const hops = [];
+
+      page.on("response", (r) => {
+        if (r.request().isNavigationRequest()) {
+          const next = (r.headers().location || "")
+            .replace(/confirm=[^&]*/, "confirm=_");
+
+          hops.push(`${r.status()} ${r.url().replace(/token=[^&#]*/,
+            "token=_")} -> ${next}`);
+        }
+      });
       await page.goto(linkIn(mail, VERIFY));
-      await expect(page).toHaveURL(/\/account\/#settings$/);
+      await expect(page, hops.join("\n")).toHaveURL(/\/account\/#settings$/);
       await expect(page.locator("#account-confirm")).toBeVisible();
       await expect(page.locator("#account-confirm [data-confirm-email]"))
         .toHaveText(to);
