@@ -426,6 +426,15 @@ export const cancelOrder = async (stores, id, {
     source,
   });
 
+  // Lost to a close (the jobs' or the farm's): the order was handed
+  // over, so nothing of a cancel follows, not Square, stock or email.
+  if (!cancelled || cancelled.status !== "cancelled") {
+    throw new Error(`This order became ${cancelled
+      ? cancelled.status : "unknown"} while it was being cancelled${
+      refundNow ? ", after its refund was made, so check it with " +
+        "bin/nff orders show" : ""}.`);
+  }
+
   if (!order.cancelRequested) await adjust(stores, order.lines, 1);
 
   if (order.square && order.square.squareOrderId) {

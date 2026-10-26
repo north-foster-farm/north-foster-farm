@@ -43,7 +43,9 @@ import { now as clock } from "./clock.mjs";
 import { sendMail } from "./mail.mjs";
 import { customerEmailWithheld, sendForOrder } from "./payments.mjs";
 import { pickupSchedule } from "./pickups.mjs";
-import { getCustomer, getOrder, updateOrder } from "./records.mjs";
+import {
+  amendOrder, getCustomer, getOrder, updateOrder,
+} from "./records.mjs";
 import { mailLinks, orderUrlFor } from "./site.mjs";
 import * as squareApi from "./square.mjs";
 import { methodName, placeOf } from "./describe.mjs";
@@ -440,6 +442,7 @@ export const applyAmend = async (stores, plan, {
     next.fulfilment.occurrence || next.fulfilment.date}-${changes}`;
   const report = { square: plan.effects.square, email: plan.effects.email };
   let squareNow = order.square;
+  let followed = false;
   let kept = null;
 
   if (!noSquare && plan.holder && plan.fulfilmentMoved) {
@@ -447,6 +450,7 @@ export const applyAmend = async (stores, plan, {
       squareNow = (await followInSquare(plan, {
         square, env, fetchImpl, k: squareKey,
       })) || order.square;
+      followed = true;
       report.square = "Square was updated.";
     } catch (error) {
       const why = String(error && error.message);
@@ -510,11 +514,26 @@ export const applyAmend = async (stores, plan, {
   });
   const saved = await updateOrder(stores, id, (fresh) => {
     if (fresh.status !== order.status) {
-      throw new Error(`This order became ${fresh.status} while it was ` +
-        "being changed. Look at it and try again.");
+      throw Object.assign(new Error(`This order became ${fresh.status} ` +
+        "while it was being changed. Look at it and try again."),
+      { refused: true });
     }
 
     return amended(fresh);
+  }).catch(async (error) => {
+    // Square already holds the change, and the record will not: flag the
+    // order and keep what Square now holds, so the farm sees the two
+    // differ.
+    if (error.refused && followed) {
+      await amendOrder(stores, id, (fresh) => ({
+        square: squareNow,
+        flags: { ...(fresh.flags || {}), squareOutOfSync: true },
+      }), "square.out_of_sync", now);
+      error.message += " Square had already been changed, so the order " +
+        "is flagged out of sync with it.";
+    }
+
+    throw error;
   });
 
   const links = mailLinks(env);
