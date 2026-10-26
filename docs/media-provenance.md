@@ -22,7 +22,7 @@ repository.
 | File | Made by | Credit | Source and notes |
 | --- | --- | --- | --- |
 | `assets/images/chicken-suit.jpg` | Jim | | Photo of the farm's table at the Foster Farmers Market, fall 2025, someone in a chicken suit behind it. No person in it can be identified, so no permission is needed. James supplied the file for #224. |
-| `assets/images/cooked.jpg` | Jess Brayton (@fussica) | "Photo: @fussica" wherever it is used (W33a) | One of the farm's broilers, roasted. Square crop of `~/Code/nff/cooked.jpg`, resized to 2400px, EXIF and location stripped. Beside How to buy on the home page (#230). |
+| `assets/images/grill.jpg` | James or Jim | | A whole chicken and its parts cooking on a round charcoal grill, taken 2026-10-26 on the farm's iPhone 14 Pro and exported in Pixelmator Pro. James chose it and supplied the file (#303, comment 6423373984). Resized to 2400px wide, uncropped, EXIF and GPS stripped. Beside How to buy on the home page. It replaced `cooked.jpg`, so the home page carries no photo credit. |
 | `assets/images/chicks.jpg` | James or Jim | | Farm iPhone, exported in Pixelmator Pro. June post. Original has GPS. |
 | `assets/images/ivy-sniffs-chick.jpg` | James or Jim | | Farm iPhone, Pixelmator Pro. June post. Original has GPS. |
 | `assets/images/photogenic-hen.jpg` | James or Jim | | Farm iPhone, Pixelmator Pro. June post. Original has GPS. |
@@ -50,7 +50,7 @@ never committed or uploaded (#230):
 | --- | --- | --- | --- |
 | `broilers.jpg`, `broilers-square.jpg` | James | | Broilers on pasture, from IMG_7035. The square one is Instagram slide 2 (#230). Its resized copy in `assets/images` served the ordering-tour post until #431 replaced it. |
 | `sheep-with-broilers.jpg`, `sheep-with-broilers-square.jpg` | James | | Sheep by a pen of broilers, from IMG_7109. The square one is the Instagram post's cover and its Story. |
-| `cooked.jpg` | Jess Brayton (@fussica) | @fussica, her choice | The original of `assets/images/cooked.jpg`. Instagram slide 3. |
+| `cooked.jpg` | Jess Brayton (@fussica) | @fussica, her choice | Instagram slide 3. Its resized copy, `assets/images/cooked.jpg`, left the site when `grill.jpg` replaced it on the home page. |
 | `tilted-tent.jpg`, `tilted-tent-square.jpg` | James | | The farm's tent at the Tilted Barn; James took it (#233 item 31). No metadata in either. The square one is Instagram slide 4, untagged, and, resized, `assets/images/tilted-tent-square.jpg` (#430). |
 
 ## Video and posters

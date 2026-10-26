@@ -12,10 +12,9 @@
   (dict "icon" "tractor" "title" "Taste the difference"
     "copy" "Our customers tell us <em>they can</em>, time and time again.")
 }}
-{{/* The photo beside the steps (#230, option 1). James approved the
-     alt text and asked for the credit to link to her Instagram. */}}
-{{ $photo := resources.Get "images/cooked.jpg" }}
-{{ $credit := hugo.Data.photoCredits.fussica }}
+{{/* The photo beside the steps: the farm's own, from James (#303,
+     2026-10-26), so it carries no credit. */}}
+{{ $photo := resources.Get "images/grill.jpg" }}
 {{ $fallback := $photo.Resize "900x jpg q82" }}
 {{ $srcset := slice }}
 {{ range slice 500 900 1300 }}
@@ -28,8 +27,7 @@
     <h2 class="home-title">Order our chicken and eggs all year round</h2>
     <div class="how-grid">
       <figure class="how-photo figure">
-        <img src="{{ $fallback.RelPermalink }}" srcset="{{ delimit $srcset ", " }}" sizes="(min-width: 1200px) 488px, (min-width: 992px) 436px, min(520px, calc(100vw - 1.5rem))" width="{{ $fallback.Width }}" height="{{ $fallback.Height }}" alt="One of our chickens, roasted in a pan with red onion and bay leaves" class="figure-img img-fluid d-block rounded-3 shadow-sm mb-0" loading="lazy">
-        <figcaption class="how-photo-credit">Photo: <a href="{{ $credit.url }}" target="_blank" rel="noopener">{{ $credit.handle }}</a></figcaption>
+        <img src="{{ $fallback.RelPermalink }}" srcset="{{ delimit $srcset ", " }}" sizes="(min-width: 1200px) 488px, (min-width: 992px) 436px, min(520px, calc(100vw - 1.5rem))" width="{{ $fallback.Width }}" height="{{ $fallback.Height }}" alt="A whole chicken, breasts, thighs, drumsticks, wings and sausages cooking together on a round charcoal grill, with grass behind." class="figure-img img-fluid d-block rounded-3 shadow-sm mb-0" loading="lazy">
       </figure>
       <ol class="how-steps list-unstyled">
         {{ range $i, $step := $steps }}
