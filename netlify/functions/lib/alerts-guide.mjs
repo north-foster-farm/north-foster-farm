@@ -93,6 +93,18 @@ export const GUIDE = {
       "bin/nff orders show <id> shows whether the edit is still pending. " +
       "If the customer does not retry, finish or undo it with them.",
   },
+  "order.pay_failed": {
+    means: "A customer paying later for an order the farm made (#181) " +
+      "failed for a reason other than a decline: Square would not take " +
+      "the payment on the order's own Square order, or could not be " +
+      "reached. The customer was told to try again in a minute. Nothing " +
+      "was recorded, and a retry carries the same key, so Square never " +
+      "takes it twice.",
+    action: "Check Square status and the log (event order.pay_failed; " +
+      "the detail is Square's answer). bin/nff orders show <id> shows " +
+      "what is still due. If the customer does not retry, take the money " +
+      "another way and record it with bin/nff orders pay.",
+  },
   "client.payment_unavailable": {
     means: "A customer's order page could not offer any way to pay, so " +
       "it told them to email the order instead. The where field says " +

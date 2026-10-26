@@ -880,6 +880,40 @@ describe("the account endpoints", () => {
     body: body === undefined ? undefined : JSON.stringify(body),
   });
 
+  it("routes a pay request to the order the farm made (#181)", async () => {
+    const stores = testStores();
+    const { opts } = harness();
+    const session = await createSession(stores, "pat@example.com", { now });
+
+    await saveOrder(stores, {
+      ...order("U"), status: "unpaid", paidAt: undefined, payment: undefined,
+      payments: [], square: { squareOrderId: "SQO", customerId: "CUST" },
+    }, now);
+
+    const calls = [];
+    const square = {
+      ...opts.square,
+      createPayment: async (args) => {
+        calls.push([args.squareOrderId, args.amount]);
+
+        return { squarePaymentId: "PAY-U", status: "COMPLETED",
+          receiptUrl: null, brand: "VISA", last4: "4242", wallet: null };
+      },
+    };
+    const r = await handle(req("/api/account/orders/U/pay", "POST", {
+      idempotencyKey: "0f7c1e3a-9c9b-4b3a-8e9d-1a2b3c4d5e6f", attempt: 1,
+      payment: { method: "card", sourceId: "cnon:tok" },
+    }, session.id), { stores, ...opts, square });
+
+    assert.equal(r.status, 200);
+
+    const data = await r.json();
+
+    assert.equal(data.order.status, "paid");
+    assert.equal(data.difference, data.order.totals.total);
+    assert.deepEqual(calls, [["SQO", data.order.totals.total]]);
+  });
+
   it("needs a session and routes by path", async () => {
     const stores = testStores();
     const { opts } = harness();
