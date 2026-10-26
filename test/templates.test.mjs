@@ -822,9 +822,10 @@ describe("order changed and canceled", () => {
       return { ...o, fulfilment: { ...o.fulfilment, date },
         attempted: { cause, date: o.fulfilment.date } };
     };
-    const w = movedDelivery(moved("weather"), { links });
-    const f = movedDelivery(moved("farm"), { links });
-    const h = movedDelivery(moved("farm", "2026-10-22"), { links });
+    const w = movedDelivery(moved("weather"), { links, now: missedOn });
+    const f = movedDelivery(moved("farm"), { links, now: missedOn });
+    const h = movedDelivery(moved("farm", "2026-10-22"),
+      { links, now: missedOn });
 
     assert.equal(w.subject, "Your delivery has moved to next Thursday");
     has(w.text, "The weather kept us from delivering your order today, so " +
@@ -837,6 +838,38 @@ describe("order changed and canceled", () => {
     assert.equal(h.subject, "Your delivery has moved to Thursday, October 22");
     has(h.text, "we've moved your delivery to Thursday, October 22.");
     has(h.text, "If that day doesn't suit you");
+  });
+
+  it("names the missed day when the moved email is sent late, as the " +
+    "missed one does", () => {
+    const moved = (cause, extra = {}) => {
+      const o = attempted(0);
+
+      return { ...o, fulfilment: { ...o.fulfilment, date: "2026-10-15" },
+        attempted: { cause, date: o.fulfilment.date, ...extra } };
+    };
+    const later = new Date("2026-10-10T14:00:00Z");
+    const w = movedDelivery(moved("weather"), { links, now: later });
+    const f = movedDelivery(moved("farm"), { links, now: later });
+
+    has(w.text, "The weather kept us from delivering your order on " +
+      "Thursday, October 8, so we've moved your delivery to next " +
+      "Thursday, October 15.");
+    has(f.text, "We weren't able to deliver your order on Thursday, " +
+      "October 8, so we've moved your delivery to next Thursday");
+    assert.doesNotMatch(`${w.text}${f.text}`, /today|Today/);
+
+    // The day itself, even late in the evening, still reads "today".
+    const same = movedDelivery(moved("farm"),
+      { links, now: new Date("2026-10-09T02:00:00Z") });
+
+    has(same.text, "We weren't able to deliver your order today, so");
+
+    // A record from before the miss was dated has no day to name.
+    const undated = movedDelivery(moved("farm", { date: undefined }),
+      { links, now: later });
+
+    has(undated.text, "We weren't able to deliver your order today, so");
   });
 
   it("says why when the hold ran out", () => {

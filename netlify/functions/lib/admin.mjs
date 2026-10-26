@@ -705,7 +705,7 @@ export const moveDelivery = async (stores, id, date, {
   const links = mailLinks(env);
   const orderUrl = orderUrlFor(env, id);
   const message = email === "movedDelivery"
-    ? movedDelivery(saved, { pickUrl: orderUrl, links })
+    ? movedDelivery(saved, { pickUrl: orderUrl, links, now })
     : orderChanged(saved, { orderUrl, links });
 
   return sendForOrder(stores, saved, `${email}-${date}`, message,

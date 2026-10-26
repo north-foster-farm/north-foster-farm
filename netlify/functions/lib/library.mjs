@@ -542,7 +542,7 @@ export const library = [
     when: "The weather stopped a delivery; moved to next Thursday",
     audience: C, tags: ["missed delivery", "delivery", "weather"],
     build: (links) => t.movedDelivery(movedOn("weather"), {
-      pickUrl: signIn(links), links,
+      pickUrl: signIn(links), links, now: missedOn,
     }),
   },
   {
@@ -550,7 +550,7 @@ export const library = [
     when: "The farm missed a delivery itself; moved to next Thursday",
     audience: C, tags: ["missed delivery", "delivery"],
     build: (links) => t.movedDelivery(movedOn("farm"), {
-      pickUrl: signIn(links), links,
+      pickUrl: signIn(links), links, now: missedOn,
     }),
   },
   {

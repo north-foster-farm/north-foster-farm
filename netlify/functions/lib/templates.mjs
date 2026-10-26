@@ -679,15 +679,21 @@ export const missedDelivery = (order, {
 // a holiday a week on puts the new day further out, and the email
 // names it without "next". Policy-pages' draft of 2026-09-28, to
 // approve; `orders attempted` sends it.
-export const movedDelivery = (order, { pickUrl, links } = {}) => {
+export const movedDelivery = (order, {
+  pickUrl, links, now = new Date(),
+} = {}) => {
   const a = order.attempted || {};
   const date = order.fulfilment.date;
   const next = !a.date || addDays(a.date, 7) === date;
   const when = next ? `next ${DELIVERY_DAY}` : DELIVERY_DAY;
   const title = `Your delivery has moved to ${next ? when : label(date)}`;
+  // An email sent after the day of the miss (a resend, a late mark)
+  // names that day instead of "today", as missedDelivery does.
+  const late = !!a.date && today(now, terms.timeZone) > a.date;
+  const day = late ? `on ${label(a.date)}` : "today";
   const why = a.cause === "weather"
-    ? "The weather kept us from delivering your order today"
-    : "We weren't able to deliver your order today";
+    ? `The weather kept us from delivering your order ${day}`
+    : `We weren't able to deliver your order ${day}`;
   const blocks = [
     p(`Hi ${firstName(order.customer)},`),
     p(`${why}, so we've moved your delivery to ${when}, ${
