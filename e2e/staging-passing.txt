@@ -3,6 +3,7 @@ e2e/account.spec.mjs c5b80508ee19 2026-10-26
 e2e/archived-edit.spec.mjs daa775382947 2026-10-26
 e2e/busy-buttons.spec.mjs daa775382947 2026-10-26
 e2e/buttons.spec.mjs daa775382947 2026-10-26
+e2e/cancel-order.spec.mjs 0647d3f96aaa 2026-10-26
 e2e/cart-added.spec.mjs daa775382947 2026-10-26
 e2e/cart-badge.spec.mjs daa775382947 2026-10-26
 e2e/cart-discount-keyboard.spec.mjs daa775382947 2026-10-26
@@ -23,6 +24,7 @@ e2e/delivery-pass.spec.mjs daa775382947 2026-10-26
 e2e/delivery-reminder.spec.mjs c5b80508ee19 2026-10-26
 e2e/edit-order.spec.mjs daa775382947 2026-10-26
 e2e/edit-switch.spec.mjs c5b80508ee19 2026-10-26
+e2e/farm-refund.spec.mjs 0647d3f96aaa 2026-10-26
 e2e/favicon.spec.mjs daa775382947 2026-10-26
 e2e/footer.spec.mjs daa775382947 2026-10-26
 e2e/forms.spec.mjs daa775382947 2026-10-26
