@@ -64,9 +64,13 @@ const plugins = [
         // The header's link to the page you are on.
         "aria-current",
         "page",
-        // The order cart's folds and its shared row (#203).
-        "data-items",
-        "data-money",
+        // The order cart's state (#477): where it is, its fold and
+        // its shared row.
+        "data-placement",
+        "column",
+        "inline",
+        "floating",
+        "data-fold",
         "closed",
         "data-share",
         "way",
