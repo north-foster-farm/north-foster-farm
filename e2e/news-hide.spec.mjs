@@ -21,11 +21,19 @@ const PAGES = [
   },
 ];
 
-const me = (page, marketing) => page.route("**/api/me", (route) =>
-  route.fulfill({ json: {
-    signedIn: true,
-    customer: { email: "qa-e2e-hide@example.com", marketing },
-  } }));
+// A stamped page also asks for the account's cart; unanswered, the
+// local functions say 401 and clear the stamp, which races the page
+// reading it.
+const me = async (page, marketing) => {
+  await page.route("**/api/account/cart", (route) => route.fulfill({
+    json: { ok: true, cart: null },
+  }));
+  await page.route("**/api/me", (route) =>
+    route.fulfill({ json: {
+      signedIn: true,
+      customer: { email: "qa-e2e-hide@example.com", marketing },
+    } }));
+};
 
 const stamp = (context, baseURL) => context.addCookies([
   { name: "nff_signed_in", value: "1", url: baseURL },
