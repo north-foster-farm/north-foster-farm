@@ -382,6 +382,16 @@ order.edit_failed`; the `detail` is the processor's answer). `bin/nff
 orders show <id>` shows whether the edit is still pending. If the
 customer does not retry, finish or undo it with them.
 
+**`order.pay_failed`.** A customer paying later for an order the farm
+made (#181) failed for a reason other than a decline: Square would
+not take the payment on the order's own Square order, or could not be
+reached. The customer was told to try again in a minute. Nothing was
+recorded, and a retry carries the same key, so Square never takes it
+twice. Check Square status and the log (`event: order.pay_failed`;
+the `detail` is Square's answer). `bin/nff orders show <id>` shows
+what is still due. If the customer does not retry, take the money
+another way and record it with `bin/nff orders pay`.
+
 **`mail.failed`.** An email could not be sent: to a customer or the
 farm about an order, or a contact-form message to the farm. Any order
 and its record are fine; the email is not. A contact message is kept
