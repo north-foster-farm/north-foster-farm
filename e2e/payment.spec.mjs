@@ -196,6 +196,10 @@ test.describe("payments", () => {
       await page.context().addCookies([
         { name: "nff_signed_in", value: "1", url: baseURL },
       ]);
+      // Unanswered, the cart request gets a 401 that clears the stamp.
+      await page.route("**/api/account/cart", (route) => route.fulfill({
+        json: { ok: true, cart: null },
+      }));
       await page.route("**/api/me", (route) => route.fulfill({
         json: {
           signedIn: true,

@@ -293,6 +293,11 @@ test.describe("loading skeletons (#271)", () => {
         name: "nff_signed_in", value: "qa", url: baseURL,
       }]);
 
+      // Unanswered, the cart request gets a 401 that clears the stamp.
+      await page.route("**/api/account/cart", (route) => route.fulfill({
+        json: { ok: true, cart: null },
+      }));
+
       const stock = await hold(page, "**/api/stock", STOCK);
       const lists = await hold(page, "**/api/dates", json(dates()));
       const who = await hold(page, "**/api/me", json({
