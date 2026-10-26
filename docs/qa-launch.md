@@ -2146,8 +2146,8 @@ AO-13's.
   1. Read the home section; press Check your ZIP code.
   2. Open the post; open the news list.
 - **Assert:** "News and updates"; "A Tour of Our New Ordering System"
-  linking to `/news/ordering-tour/`; "October 18, 2026" dated
-  `2026-10-18`; a "Check your ZIP code" link in the Delivery list, with
+  linking to `/news/ordering-tour/`; "October 26, 2026" dated
+  `2026-10-26`; a "Check your ZIP code" link in the Delivery list, with
   no "Do we deliver to you?" card and no ZIP check in the card (#211);
   "More news and updates", an outline button to `/news/`, below the
   card; the text no wider than 600px and, from 992 up, 52px of padding

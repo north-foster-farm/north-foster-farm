@@ -1,7 +1,7 @@
 ---
 title: "Three Quarters of the Way"
 slug: "three-quarters-of-the-way"
-date: 2026-10-18
+date: 2026-10-26
 description: >-
   Spring, summer and fall of our first year, and what we learned on the
   way to winter: there is no finish line. The freezer is full, the hens

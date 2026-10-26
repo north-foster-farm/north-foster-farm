@@ -419,9 +419,9 @@ test.describe("home", () => {
       await expect(card.locator(".news-header-link"))
         .toHaveAttribute("href", new RegExp(`${POST}$`));
       await expect(card.locator(".news-header time"))
-        .toHaveAttribute("datetime", "2026-10-18");
+        .toHaveAttribute("datetime", "2026-10-26");
       await expect(card.locator(".news-header time"))
-        .toHaveText("October 18, 2026");
+        .toHaveText("October 26, 2026");
 
       // Since #211 the ZIP check is a plain link: "our map" in Winter.
       await expect(card.getByRole("link", { name: "our map" }))

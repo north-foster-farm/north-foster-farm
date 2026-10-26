@@ -213,6 +213,12 @@ autoLaunch = false
   status = 301
   force = true
 
+[[redirects]]
+  from = "/news/2026-10-26-three-quarters-of-the-way/"
+  to = "/news/three-quarters-of-the-way/"
+  status = 301
+  force = true
+
 # The post's address while it was in review, before James retitled it.
 [[redirects]]
   from = "/news/ordering-tour/"
