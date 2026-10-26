@@ -423,8 +423,8 @@ test.describe("home", () => {
       await expect(card.locator(".news-header time"))
         .toHaveText("October 18, 2026");
 
-      // Since #211 the ZIP check is a plain link under Delivery.
-      await expect(card.getByRole("link", { name: "Check your ZIP code" }))
+      // Since #211 the ZIP check is a plain link: "our map" in Winter.
+      await expect(card.getByRole("link", { name: "our map" }))
         .toHaveAttribute("href", /\/#map$/);
       await expect(card.locator("[data-zip-check]")).toHaveCount(0);
 
@@ -457,7 +457,7 @@ test.describe("home", () => {
         await expect(page.locator("h1"))
           .toHaveText("Three Quarters of the Way");
         await expect(page.locator("main")
-          .getByRole("link", { name: "Check your ZIP code" }))
+          .getByRole("link", { name: "our map" }))
           .toHaveAttribute("href", /\/#map$/);
 
         await page.goto("/");

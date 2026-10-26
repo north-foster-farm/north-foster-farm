@@ -29,3 +29,22 @@
 .sign-off {
   margin-top: $prose-sign-off-gap;
 }
+
+// A section break in a post (shortcodes/dinkus.html): a rule drawn as
+// three italic asterisks, centered on the text column, with the
+// sign-off's gap above and below so it reads as a break, not a line.
+// Outside .prose for the same reason as .sign-off.
+.dinkus {
+  margin: $prose-sign-off-gap 0;
+  overflow: visible;
+  font-style: italic;
+  line-height: 1;
+  color: inherit;
+  text-align: center;
+  border: 0;
+  opacity: 1;
+
+  &::before {
+    content: "*\2002*\2002*";
+  }
+}
