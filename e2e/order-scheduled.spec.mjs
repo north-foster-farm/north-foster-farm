@@ -177,9 +177,12 @@ test.describe("scheduled pickup", () => {
     await order.open({ eggs: 1 });
     await expect(page.locator("[data-scheduled-facts] dd").first())
       .toHaveText("At our markets and pickup days");
-    await expect(page.locator("[data-scheduled-where]")).toHaveText(
-      "Drop site, Summer Concert, and Foster Farmers Market"
-    );
+    // Beyond one place the card counts the locations and links to the
+    // map (#214).
+    await expect(page.locator("[data-scheduled-where]"))
+      .toHaveText("3 locations");
+    await expect(page.locator("[data-scheduled-where] a"))
+      .toHaveAttribute("target", "_blank");
   });
 
   test("choosing an occurrence posts the method and the occurrence",
@@ -355,7 +358,8 @@ test.describe("a lapsed scheduled pickup", () => {
 
       const order = new OrderPage(page);
 
-      await order.open({ eggs: 1 });
+      // Delivery needs its minimum before the dates are looked at.
+      await order.open({ eggs: way === "delivery" ? 6 : 1 });
       if (way === "scheduled") {
         await order.scheduled(DROP.series);
       } else if (way === "delivery") {
