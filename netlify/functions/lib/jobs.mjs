@@ -401,7 +401,9 @@ export const runJobs = async (stores, {
   // host on record) goes on the report as an error and is tried
   // again next run.
   report.rounds = await attempt(null, "rounds", async () => {
-    const r = await workRounds(stores, { now, terms });
+    const r = await workRounds(stores, {
+      now, terms, env, mail, ...(square ? { square } : {}),
+    });
 
     for (const e of r.errors) fail(`${e.group}/${e.round}`, "rounds", e.error);
 

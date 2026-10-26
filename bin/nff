@@ -1715,10 +1715,14 @@ const run = async () => {
     const list = await rounds.listRounds(stores, g.key);
 
     for (const r of list) {
-      const reward = r.reward.earned
-        ? `reward ${dollars(r.reward.amount)}${r.reward.leftover
-          ? ` (+${r.reward.leftover}¢ kept back)` : ""}`
-        : `no reward (under $${r.threshold})`;
+      const reward = r.rolledTo
+        ? `rolled to ${r.rolledTo} (${r.moved.length} order${
+          r.moved.length === 1 ? "" : "s"} moved${r.stuck.length
+          ? `, ${r.stuck.length} stuck` : ""})`
+        : r.reward.earned
+          ? `reward ${dollars(r.reward.amount)}${r.reward.leftover
+            ? ` (+${r.reward.leftover}¢ kept back)` : ""}`
+          : `no reward (under $${r.threshold})`;
       const state = r.settled
         ? `${r.settled.kind === "share" ? "shared among" : "credited to"} ${
           r.settled.shares.length}${r.settled.leftover

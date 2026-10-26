@@ -23,10 +23,14 @@ import {
 import {
   addDays, today,
 } from "../../../assets/scripts/order/lib/zoned.mjs";
+import { applyChange, planChange } from "./account.mjs";
 import { grantCredit } from "./credit.mjs";
 import {
   GROUPS, getGroupRecord, roundOccurrence, roundOrders, roundSummary,
 } from "./groups.mjs";
+import { sendMail } from "./mail.mjs";
+import { OPEN } from "./records.mjs";
+import * as squareApi from "./square.mjs";
 
 export const CHOICES = ["keep", "share"];
 
@@ -70,8 +74,19 @@ export const rewardFor = (real, { percent, threshold }) => {
 // Closes a round once: its orders added up as they stand, the reward
 // worked out. A round already closed is answered as it is.
 // -> { round, closed } with `closed` true when this call did it.
+// A round under the group's minimum, once James sets one (James,
+// 6405681338; none in November, the pilot), rolls over: its open
+// orders move to the next round through the farm's own change, which
+// keeps Square in step and tells each member, and they count there.
+// A member who would rather not wait cancels on the account page for
+// a full refund. The rolled round earns no reward of its own.
+export const belowMinimum = (group, sum) =>
+  Number.isFinite(group.roundMinimum) && group.roundMinimum > 0
+  && sum.net < group.roundMinimum * 100;
+
 export const closeRound = async (stores, group, round, {
-  now = new Date(), terms,
+  now = new Date(), terms, env = process.env, mail = sendMail,
+  square = squareApi,
 }) => {
   const found = await getRound(stores, group.key, round);
 
@@ -79,6 +94,26 @@ export const closeRound = async (stores, group, round, {
 
   const orders = await roundOrders(stores, group.key, round);
   const sum = roundSummary(orders);
+  const open = orders.filter((o) => OPEN.includes(o.status));
+  const s = terms.model.seriesOf(group.series);
+  const rollsTo = belowMinimum(group, sum) && open.length && s
+    ? seriesDates(s, addDays(round, 1), addDays(round, LOOK_BACK))[0] || null
+    : null;
+  const moved = [];
+  const stuck = [];
+
+  for (const o of rollsTo ? open : []) {
+    const plan = planChange(o, {
+      method: "scheduled", occurrence: roundOccurrence(group, rollsTo),
+    }, { now, env, by: "farm", member: group });
+
+    if (plan.errors) {
+      stuck.push({ id: o.id, errors: plan.errors });
+      continue;
+    }
+    await applyChange(stores, o, plan, { now, env, mail, square, by: "farm" });
+    moved.push(o.id);
+  }
   const creditOf = (email) => orders
     .filter((o) => o.customer.email === email)
     .reduce((s, o) => s + creditPaid(o), 0);
@@ -96,7 +131,13 @@ export const closeRound = async (stores, group, round, {
     real,
     percent: group.hostReward.percent,
     threshold: group.hostReward.threshold,
-    reward: rewardFor(real, group.hostReward),
+    minimum: group.roundMinimum || null,
+    // Rolled over: its orders count in the next round, and this one
+    // earns nothing of its own.
+    ...(rollsTo ? { rolledTo: rollsTo, moved, stuck } : {}),
+    reward: rollsTo
+      ? { earned: false, amount: 0, leftover: 0, rolled: true }
+      : rewardFor(real, group.hostReward),
     members: sum.members.map((m) => ({
       email: m.email, name: m.name, orders: m.orders, net: m.net,
       real: m.net - creditOf(m.email), walkIn: m.walkIn,
@@ -216,7 +257,10 @@ export const settleReward = async (stores, group, prior, next, {
 // record yet are closed, and every reward whose next round is closed
 // is settled. Idempotent, so the jobs run it every time.
 // -> { closed: [...], settled: [...], errors: [{ group, round, error }] }
-export const workRounds = async (stores, { now = new Date(), terms }) => {
+export const workRounds = async (stores, {
+  now = new Date(), terms, env = process.env, mail = sendMail,
+  square = squareApi,
+}) => {
   const report = { closed: [], settled: [], errors: [] };
   const day = today(now, terms.timeZone);
 
@@ -230,12 +274,16 @@ export const workRounds = async (stores, { now = new Date(), terms }) => {
 
     for (const round of dates) {
       try {
-        const r = await closeRound(stores, group, round, { now, terms });
+        const r = await closeRound(stores, group, round, {
+          now, terms, env, mail, square,
+        });
 
         if (r.closed) {
           report.closed.push({
             group: group.key, round, net: r.round.net, real: r.round.real,
             reward: r.round.reward.amount, earned: r.round.reward.earned,
+            ...(r.round.rolledTo ? { rolledTo: r.round.rolledTo,
+              moved: r.round.moved.length } : {}),
           });
         }
       } catch (error) {
