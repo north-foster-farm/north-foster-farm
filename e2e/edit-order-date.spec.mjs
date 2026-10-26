@@ -140,10 +140,23 @@ test.describe("changing a paid order's items (#284)", () => {
             "#order-save[aria-busy='true'], #order-save:disabled"),
         }));
 
+        // A dialog the page opened, and whether the farm's list still
+        // has the booked day and time: a refresh that drops them
+        // lapses the order without a word in the form.
+        const dialogs = (await page.locator(
+          "dialog[open], [role='dialog']:visible, .modal.show"
+        ).allInnerTexts()).map((t) => t.trim().replace(/\s+/g, " "));
+        const now = await (await page.request.get("/api/dates")).json();
+        const day = (now.onfarm || []).find((d) => d.date === booked.date);
+
         throw new Error(`${error.message}\nShown: ${
-          said.join(" | ") || "nothing"}\nAfter the press: ${
+          said.join(" | ") || "nothing"}\nDialogs: ${
+          dialogs.join(" | ") || "none"}\nAfter the press: ${
           after.join(", ") || "nothing"}\nPage: ${
-          JSON.stringify(steps)}`, { cause: error });
+          JSON.stringify(steps)}\nBooked ${booked.date} ${booked.window}; `
+          + `the farm lists ${day
+            ? day.windows.map((w) => w.id).join(", ") : "no such day"}`,
+        { cause: error });
       });
       await expect(page).toHaveURL(/\/account\/#orders/);
 
