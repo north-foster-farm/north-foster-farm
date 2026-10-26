@@ -295,10 +295,16 @@ export const settleReward = async (stores, group, prior, next, {
   }
 
   // Grants are keyed on the round and kind, so a retry after a
-  // failure here finds the ones made; the claim stands meanwhile, so
-  // no other settler runs.
-  for (const s of shares) {
-    await grant(s.email, s.amount, settledAs === "share" ? "share" : "host");
+  // failure here finds the ones made and grants the rest; the claim
+  // is let go so the next run is that retry (security re-review,
+  // 6426747224), and the failure goes on the jobs' report.
+  try {
+    for (const s of shares) {
+      await grant(s.email, s.amount, settledAs === "share" ? "share" : "host");
+    }
+  } catch (error) {
+    await letGo();
+    throw error;
   }
 
   return swapRound(stores, group.key, prior.round, (stored) => ({

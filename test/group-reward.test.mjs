@@ -484,3 +484,52 @@ describe("two writers on one round", () => {
         ny("2026-11-24")), 10_000);
     });
 });
+
+// The security re-review (6426747224): a settlement whose grant fails
+// lets its claim go, so the next run settles it; credit a submission
+// spent and never settled goes back after a day.
+describe("a settlement that fails partway", () => {
+  it("lets the claim go, and the next run settles it", async () => {
+    const stores = testStores();
+    const real = stores.customers.create;
+    let failures = 1;
+
+    // The first ledger write fails, as Blobs might.
+    stores.customers.create = async (...args) => {
+      if (failures > 0) {
+        failures -= 1;
+        throw new Error("Blobs down");
+      }
+
+      return real(...args);
+    };
+
+    await seed(stores, [
+      order("NFF-2611-R1AAAA", "a@x.com", 1000, "2026-11-08"),
+      order("NFF-2611-R2AAAA", "b@x.com", 100, "2026-11-22"),
+    ]);
+    await setGroupHost(stores, "vff", "host@x.com");
+
+    const one = (await closeRound(stores, VFF, "2026-11-08",
+      { now: ny("2026-11-09"), terms })).round;
+    const next = (await closeRound(stores, VFF, "2026-11-22",
+      { now: ny("2026-11-23"), terms })).round;
+
+    await assert.rejects(settleReward(stores, VFF, one, next,
+      { now: ny("2026-11-23", 0, 1), terms }), /Blobs down/);
+
+    const after = await getRound(stores, "vff", "2026-11-08");
+
+    assert.equal(after.settled, null);
+    assert.equal(await creditBalance(stores, "host@x.com", ny("2026-11-24")),
+      0);
+
+    const done = await settleReward(stores, VFF, after, next,
+      { now: ny("2026-11-23", 0, 2), terms });
+
+    assert.equal(done.settled.kind, "keep");
+    assert.equal(await creditBalance(stores, "host@x.com", ny("2026-11-24")),
+      10_000);
+  });
+});
+
