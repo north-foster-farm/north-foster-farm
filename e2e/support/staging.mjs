@@ -183,9 +183,11 @@ export const linkIn = (message, pattern) => {
 
 // A few things the specs did through the CLI, answered in its words:
 // `nff(["orders", "list", "--email=a@b.c"])`, `["orders", "show", id]`
-// (JSON), `["login", email]` (the link), `["maintenance", "on"|"off"|
-// "status"|"links"]` and the rest of the forms in `FORMS` below. A form
-// not listed throws, so a spec cannot quietly reach for more.
+// (JSON), `["orders", "refund", id, "--amount-cents=500"]`, `["orders",
+// "cancel", id, "--no-refund"]`, `["login", email]` (the link) and
+// `["maintenance", "on"|"off"|"status"|"links"]`, and the rest of the
+// forms in `FORMS` below. A form not listed throws, so a spec cannot
+// quietly reach for more.
 const flag = (args, name) => (args.find((a) => a.startsWith(`--${name}=`))
   || "").slice(name.length + 3);
 
@@ -200,12 +202,20 @@ const FORMS = {
   "orders show": async ([, , id]) =>
     JSON.stringify((await op("orderShow", { id })).order),
   "orders cancel": async ([, , id, ...rest]) => {
-    await op("orderCancel", { id, reasonText: flag(rest, "reason-text") });
+    await op("orderCancel", {
+      id, reasonText: flag(rest, "reason-text"),
+      refund: !rest.includes("--no-refund"),
+    });
 
     return `Canceled ${id}.`;
   },
   "orders refund": async ([, , id, ...rest]) => {
-    await op("orderRefund", { id, reason: flag(rest, "reason") });
+    const cents = flag(rest, "amount-cents");
+
+    await op("orderRefund", {
+      id, reason: flag(rest, "reason"),
+      ...(cents && { amount: Number(cents) }),
+    });
 
     return `Refunded ${id}.`;
   },

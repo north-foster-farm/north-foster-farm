@@ -13,6 +13,7 @@ import { library } from "../netlify/functions/lib/library.mjs";
 import {
   clear, diffLines, joined, pending, standing, tokenize, versionOf,
 } from "../netlify/functions/lib/review.mjs";
+import { saveOrder } from "../netlify/functions/lib/records.mjs";
 import { mailLinks } from "../netlify/functions/lib/site.mjs";
 import {
   storeName, testStores as plainStores,
@@ -892,6 +893,33 @@ describe("the e2e endpoint (#266)", () => {
     assert.equal((await ask(stores, { op: "maintenanceLinks" })).body.links,
       null, "no MAINTENANCE_SECRET, no links");
   });
+
+  it("cancels without a refund, and refunds by the amount asked",
+    async () => {
+      const stores = testStores();
+      const record = {
+        id: "NFF-2610-QA01", status: "paid",
+        customer: { email: "pat@example.com", name: "Pat Hen" },
+        lines: [], totals: { total: 700 },
+        fulfilment: { method: "onfarm", date: "2026-10-31" },
+        payments: [{ amount: 700, via: "square", squarePaymentId: "SQ-1" }],
+      };
+
+      await saveOrder(stores, record);
+
+      const bad = await ask(stores, { op: "orderRefund", id: record.id,
+        amount: 0 });
+
+      assert.equal(bad.status, 400);
+      assert.match(bad.body.error, /must be between \$0.01 and \$7/);
+
+      const r = await ask(stores, { op: "orderCancel", id: record.id,
+        refund: false });
+
+      assert.equal(r.status, 200);
+      assert.equal(r.body.order.status, "cancelled");
+      assert.deepEqual(r.body.order.refunds || [], []);
+    });
 
   it("answers 404 for a record that is not there", async () => {
     const stores = testStores();

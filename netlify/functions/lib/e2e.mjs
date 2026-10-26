@@ -50,14 +50,17 @@ export const OPS = {
   orderShow: async (stores, { id }) => ({
     order: await showOrder(stores, need(id, "id")),
   }),
-  orderCancel: async (stores, { id, reasonText }, env) => ({
+  // `refund: false` is the CLI's --no-refund (RF-03).
+  orderCancel: async (stores, { id, reasonText, refund = true }, env) => ({
     order: await cancelOrder(stores, need(id, "id"), {
-      env, refund: true, reasonText: reasonText || "QA e2e",
+      env, refund: refund !== false, reasonText: reasonText || "QA e2e",
     }),
   }),
-  orderRefund: async (stores, { id, reason }, env) => ({
+  // `amount` is cents, as the CLI's --amount is dollars (RF-01).
+  orderRefund: async (stores, { id, reason, amount }, env) => ({
     order: await refundOrder(stores, need(id, "id"), {
       env, reason: reason || "QA e2e",
+      ...(amount !== undefined && { amount: Number(amount) }),
     }),
   }),
   // The farm hands the order over, as `bin/nff orders fulfill` does.
