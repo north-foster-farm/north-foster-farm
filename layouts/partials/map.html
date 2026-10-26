@@ -268,7 +268,8 @@
                 <span class="map-num" aria-hidden="true" data-map-num>{{ add $i 1 }}</span>
                 <span class="map-key-text">
                   <strong>{{ $p.key }}</strong>
-                  <small>{{ $p.town }}{{ with $p.names }} · {{ . }}{{ end }}</small>
+                  {{/* A name that says its town says it alone, as on the order page (#439). */}}
+                  <small>{{ with $p.names }}{{ if not (in (printf " %s " (replace . "," " ")) (printf " %s " $p.town)) }}{{ $p.town }} · {{ end }}{{ . }}{{ else }}{{ $p.town }}{{ end }}</small>
                 </span>
               </button>
               {{/* The card: when (a block for each series: its

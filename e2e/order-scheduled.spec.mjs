@@ -60,8 +60,9 @@ test.describe("scheduled pickup", () => {
       await expect(part(page, FOSTER.series, "time"))
         .toHaveText("9:00 AM – 1:00 PM");
       await expect(part(page, FOSTER.series, "name"))
-        .toHaveText("Foster · Foster Farmers Market");
-      // One part to a line on a phone, joined on one line from wider.
+        .toHaveText("Foster Farmers Market");
+      // The parts joined by commas, a line breaking only between two
+      // (#439).
       await expect(part(page, FOSTER.series, "address").locator("span"))
         .toHaveText([
           "Shady Acres Diner", "164 Danielson Pike", "Foster, RI 02825",

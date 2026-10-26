@@ -1826,19 +1826,12 @@
     flex-wrap: wrap;
     color: var(--bs-secondary-color);
 
-    // Written out on one line, the parts joined by commas.
+    // Written out on as few lines as fit, the parts joined by commas.
+    // A part goes to the next line whole, so none breaks mid-phrase
+    // unless it is longer than a line (#439).
     > span:not(:last-child)::after {
       margin-right: 0.3em;
       content: ",";
-    }
-
-    // On a phone, one part to a line.
-    @container (max-width: 30rem) {
-      flex-direction: column;
-
-      > span::after {
-        display: none;
-      }
     }
   }
 
