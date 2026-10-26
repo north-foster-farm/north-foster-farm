@@ -159,6 +159,41 @@ const USAGE = `Usage:
                                       what Square kept. The customer
                                       gets the "order changed" email
                                       unless --no-email.
+  bin/nff orders create --email <email> --first <name> --last <name>
+                        --line <SKU>=<qty> [--line ...]
+                        --method onfarm|scheduled|delivery
+                        [--date YYYY-MM-DD] [--window <id>]
+                        [--occurrence <code-YYMMDD>] [--address1 ...
+                        --town ... --zip ...] [--cooler ...] [--gate ...]
+                        [--delivery-notes ...] [--phone ...]
+                        [--contact text|call] [--notes ...] [--code ...]
+                        [--paid cash|venmo|check [--amount 12.34]
+                        [--ref <id>]] [--waive-minimum] [--key <key>]
+                        [--dry-run]
+                                      an order the farm makes for a
+                                      customer (#181): priced and
+                                      checked as the page prices one,
+                                      with the farm's own overrides,
+                                      and given its Square customer and
+                                      order. Unpaid until they pay on
+                                      the account page or you record
+                                      the money with orders pay; --paid
+                                      records money already in hand and
+                                      the order is paid from the start.
+                                      --dry-run prices and changes
+                                      nothing. The same --key again
+                                      finds the order it made
+  bin/nff orders pay <id> --cash|--venmo|--check [--amount 12.34]
+                          [--ref <id>]
+                                      money the farm took on an unpaid
+                                      order, recorded in Square on the
+                                      order's own Square order and on
+                                      the record: what is due unless
+                                      --amount says less, never more.
+                                      --ref is the Venmo transaction or
+                                      the check number. Paid once
+                                      nothing is due; the customer gets
+                                      the confirmation then
   bin/nff orders fulfill <id>
   bin/nff orders delete <id>
   bin/nff passes issue [--email <email>] [--days 14] [--note "..."]
@@ -364,7 +399,7 @@ const [
   { importSubscribers, parseCsv, syncAudience },
   { dollars, toCents },
   { snapshot },
-  { keptFee, paidTotal, refundedTotal },
+  { dueOn, keptFee, paidTotal, refundedTotal },
   { library },
   review,
   { mailLinks },
@@ -378,6 +413,7 @@ const [
   { checkRefunds },
   { applyAmend, planAmend },
   { withholdCustomerEmail },
+  { TENDERS, createFarmOrder, payFarmOrder },
 ] = await Promise.all([
   import("../netlify/functions/lib/terms.mjs"),
   import("../netlify/functions/lib/admin.mjs"),
@@ -402,6 +438,7 @@ const [
   import("../netlify/functions/lib/settle.mjs"),
   import("../netlify/functions/lib/amend.mjs"),
   import("../netlify/functions/lib/payments.mjs"),
+  import("../netlify/functions/lib/farm-orders.mjs"),
 ]);
 
 // --scratch: development's env, but stores of their own
@@ -431,19 +468,30 @@ const VALUED = ["reason", "amount", "note", "at", "until", "n", "since",
   "out", "count", "hours", "advisory", "file", "email", "days", "method",
   "date", "window", "phone", "contact", "address1", "address2", "town",
   "zip", "cooler", "gate", "delivery-notes", "notes", "key", "site",
-  "market", "captured-by", "evidence"];
+  "market", "captured-by", "evidence", "first", "last", "line", "code",
+  "occurrence", "paid", "ref"];
+// Flags given more than once keep every value, in order: `--line`.
+const REPEATED = ["line"];
 const args = process.argv.slice(2);
+const keep = (name, value) => {
+  if (REPEATED.includes(name)) {
+    flags[name] = [...(flags[name] || []), value];
+  } else {
+    flags[name] = value;
+  }
+};
 
 for (let i = 0; i < args.length; i += 1) {
-  const m = args[i].match(/^--([a-z-]+)(?:=(.*))?$/);
+  // Digits too: --address1 and --address2 (#181 found them unread).
+  const m = args[i].match(/^--([a-z0-9-]+)(?:=(.*))?$/);
 
   if (!m) {
     words.push(args[i]);
   } else if (m[2] !== undefined) {
-    flags[m[1]] = m[2];
+    keep(m[1], m[2]);
   } else if (VALUED.includes(m[1]) && i + 1 < args.length
     && !args[i + 1].startsWith("--")) {
-    flags[m[1]] = args[i + 1];
+    keep(m[1], args[i + 1]);
     i += 1;
   } else {
     flags[m[1]] = true;
@@ -1201,6 +1249,117 @@ const run = async () => {
     out(`  history  farm.changed`);
 
     return out(summaryLine(done.order));
+  }
+  case "orders create": {
+    const given = (k) => (typeof flags[k] === "string" ? flags[k] : undefined);
+    const pick = (obj) => Object.fromEntries(Object.entries(obj)
+      .filter(([, v]) => v !== undefined));
+    const lines = (Array.isArray(flags.line) ? flags.line : [])
+      .map((l) => {
+        const m = String(l).match(/^([A-Za-z0-9-]+)=(\d+)$/);
+
+        if (!m) throw new Error(`--line is <SKU>=<qty>, not "${l}".`);
+
+        return { sku: m[1], qty: Number(m[2]) };
+      });
+    const onfarm = pick({ window: given("window") });
+    const delivery = pick({
+      address1: given("address1"), address2: given("address2"),
+      town: given("town"), zip: given("zip"), cooler: given("cooler"),
+      gate: given("gate"), notes: given("delivery-notes"),
+    });
+    const body = {
+      // The farm is on the phone with them: "call" unless told.
+      customer: pick({
+        firstName: given("first"), lastName: given("last"),
+        email: given("email"), phone: given("phone"),
+        contact: given("contact") || "call",
+      }),
+      lines,
+      fulfilment: pick({
+        method: given("method"), date: given("date"),
+        occurrence: given("occurrence"),
+        onfarm: Object.keys(onfarm).length ? onfarm : undefined,
+        delivery: Object.keys(delivery).length ? delivery : undefined,
+      }),
+      notes: given("notes"),
+      code: given("code"),
+      waiveMinimum: !!flags["waive-minimum"]
+        && flags["waive-minimum"] !== "false",
+    };
+    const paid = given("paid") ? {
+      tender: given("paid"),
+      amount: given("amount") !== undefined ? toCents(given("amount"))
+        : undefined,
+      ref: given("ref") || "",
+    } : null;
+
+    if (!lines.length) throw new Error("Give at least one --line SKU=qty.");
+    if (paid && !TENDERS[paid.tender]) {
+      throw new Error(`--paid is one of: ${Object.keys(TENDERS).join(", ")}.`);
+    }
+
+    const r = await createFarmOrder(stores, body, {
+      paid, dryRun: !!flags["dry-run"],
+      ...given("key") && { key: given("key") },
+    });
+
+    if (!r.ok) {
+      throw new Error(Object.entries(r.errors)
+        .map(([k, v]) => `${k}: ${v}`).join("\n"));
+    }
+
+    const o = r.order;
+
+    // Line prices are in dollars on the record; the totals in cents.
+    for (const l of o.lines) out(`  ${l.qty} × ${l.label}  ${
+      dollars(l.lineTotal * 100)}`);
+    out(`  Total ${dollars(o.totals.total)}${
+      o.totals.discountAmount ? ` (discount ${
+        dollars(o.totals.discountAmount)})` : ""}${
+      o.totals.deliveryFee ? ` (delivery ${dollars(o.totals.deliveryFee)})`
+        : ""}`);
+    if (r.dryRun) {
+      return out(`--dry-run: nothing was made. It would be ${
+        paid ? `paid, ${dollars(paid.amount ?? o.totals.total)} by ${
+          paid.tender}` : "unpaid"}.`);
+    }
+    if (r.found) out(`Already made by this key: ${o.id}.`);
+    out(summaryLine(o));
+
+    return out(o.status === "paid"
+      ? `Paid: ${paymentPhrase(o)}. The customer has the confirmation.`
+      : `Unpaid: ${dollars(o.totals.total)} due. The customer can pay on ` +
+        "the account page, or record the money with orders pay.");
+  }
+  case "orders pay": {
+    const tender = Object.keys(TENDERS).filter((t) => flags[t]
+      && flags[t] !== "false");
+
+    if (!rest[0]) throw new Error("Which order? orders pay <id> ...");
+    if (tender.length !== 1) {
+      throw new Error(`Say how: one of ${Object.keys(TENDERS)
+        .map((t) => `--${t}`).join(", ")}.`);
+    }
+
+    const r = await payFarmOrder(stores, rest[0], {
+      tender: tender[0],
+      amount: typeof flags.amount === "string" ? toCents(flags.amount)
+        : undefined,
+      ref: typeof flags.ref === "string" ? flags.ref : "",
+    });
+
+    if (!r.ok) {
+      throw new Error(Object.entries(r.errors)
+        .map(([k, v]) => `${k}: ${v}`).join("\n"));
+    }
+
+    out(summaryLine(r.order));
+
+    return out(`Recorded ${dollars(r.payment.amount)} by ${tender[0]}. ${
+      dueOn(r.order) > 0
+        ? `${dollars(dueOn(r.order))} still due.`
+        : "Paid in full; the customer has the confirmation."}`);
   }
   case "orders fulfil":
   case "orders fulfill":

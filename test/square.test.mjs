@@ -631,6 +631,41 @@ describe("createPayment", () => {
       assert.equal(out.last4, null);
     });
 
+  it("records cash the farm took as Square's cash payment, the buyer's " +
+    "money being the amount (#181)", async () => {
+    const { impl, calls } = fakeFetch({
+      "/v2/payments": completed({ card_details: undefined }),
+    });
+
+    await createPayment(args({ source: { cash: true }, amount: 2000 }),
+      { env, fetchImpl: impl });
+
+    assert.equal(calls[0].body.source_id, "CASH");
+    assert.deepEqual(calls[0].body.amount_money,
+      { amount: 2000, currency: "USD" });
+    assert.deepEqual(calls[0].body.cash_details, {
+      buyer_supplied_money: { amount: 2000, currency: "USD" },
+    });
+    assert.equal(calls[0].body.external_details, undefined);
+  });
+
+  it("records a check as an external payment of its own type (#181)",
+    async () => {
+      const { impl, calls } = fakeFetch({
+        "/v2/payments": completed({ card_details: undefined }),
+      });
+
+      await createPayment(args({
+        source: { external: { type: "CHECK", source: "Check",
+          sourceId: "1042" } },
+      }), { env, fetchImpl: impl });
+
+      assert.equal(calls[0].body.source_id, "EXTERNAL");
+      assert.deepEqual(calls[0].body.external_details, {
+        type: "CHECK", source: "Check", source_id: "1042",
+      });
+    });
+
   it("keeps the wallet's name when a wallet paid", async () => {
     const { impl } = fakeFetch({
       "/v2/payments": completed({
