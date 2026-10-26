@@ -218,12 +218,14 @@ export const coverage = (now, timeZone) => {
 };
 
 // Every in-season date of every live series from tomorrow through the
-// coverage window needs a line. -> [message]
+// coverage window needs a line. A buying group's series (#471) runs
+// its rounds without one, so a round the farm sits out is a `skip`
+// line, never a line it forgot. -> [message]
 const missingErrors = (lines, model, now, timeZone) => {
   const { first, last } = coverage(now, timeZone);
   const errors = [];
 
-  for (const s of model.series.filter((x) => !x.archived)) {
+  for (const s of model.series.filter((x) => !x.archived && !x.group)) {
     for (const date of seriesDates(s, first, last)) {
       if (!lines.some((l) => l.date === date && l.code === s.code)) {
         errors.push(`${date}: ${s.code} (${s.name}) needs a line: ` +

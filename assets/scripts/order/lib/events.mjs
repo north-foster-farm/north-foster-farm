@@ -10,7 +10,7 @@
 // orders that name it, but is never offered.
 
 import {
-  addDays, dayName, instant, weekday,
+  addDays, dayName, daysBetween, instant, weekday,
 } from "./zoned.mjs";
 
 // The order-id alphabet: no I, L, O, 0 or 1.
@@ -128,9 +128,18 @@ export const buildModel = (locations = [], series = []) => {
   };
 };
 
-// Whether the series has an occurrence on this date.
+// Whether the series has an occurrence on this date: its weekday, in
+// season, and, for a series that runs every `every` weeks (a buying
+// group's every other Sunday, #471), a whole number of those weeks
+// from its start.
 export const hasDate = (s, iso) => iso >= s.start
-  && (!s.end || iso <= s.end) && weekday(iso) === s.weekday;
+  && (!s.end || iso <= s.end) && weekday(iso) === s.weekday
+  && (!(s.every > 1) || daysBetween(s.start, iso) % (7 * s.every) === 0);
+
+// A buying group's series (#471) is never listed: it is offered only
+// to a request that names its group. -> the series a request may see.
+export const offered = (model, groups = []) => model.series.filter((s) =>
+  !s.archived && (!s.group || groups.includes(s.group)));
 
 // The dates a series has from `from` through `to`, inclusive.
 export const seriesDates = (s, from, to) => {

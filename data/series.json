@@ -135,6 +135,17 @@
       "instagram": "thevillagefitnessri",
       "archived": true,
       "legacySite": "village-fitness-2026-10-18"
+    },
+    {
+      "code": "36TS",
+      "kind": "group",
+      "name": "The Village Family Fitness",
+      "location": "NR9D",
+      "start": "2026-11-08",
+      "every": 2,
+      "opens": "08:30",
+      "closes": "09:00",
+      "group": "vff"
     }
   ]
 }

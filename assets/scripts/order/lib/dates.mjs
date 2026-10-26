@@ -7,7 +7,7 @@
 // occurrence lines.
 
 import {
-  cutoffOf as eveningBefore, legacyOccurrence, occurrenceOf,
+  cutoffOf as eveningBefore, legacyOccurrence, occurrenceOf, offered,
   resolveOccurrence, seriesDates,
 } from "./events.mjs";
 import { bookable, horizon, windowLabel } from "./schedule.mjs";
@@ -39,7 +39,10 @@ export const cutoffFor = (iso, terms) => {
 // Every occurrence the schedule has a line for, from today through
 // the horizon, with its line's action: [{ occurrence, action }], by
 // date and then opening time. An occurrence with no line is not
-// offered, and is left out here. An archived series never appears.
+// offered, and is left out here. An archived series never appears,
+// and a buying group's series (#471) only when `terms.groups` names
+// its group; its rounds are open unless the schedule says otherwise,
+// so no line is needed to run one.
 export const scheduledLines = (now, terms, schedule = []) => {
   const { model } = terms;
   const first = today(now, terms.timeZone);
@@ -47,9 +50,10 @@ export const scheduledLines = (now, terms, schedule = []) => {
   const lines = schedule.lines || [];
   const out = [];
 
-  for (const s of model.series.filter((x) => !x.archived)) {
+  for (const s of offered(model, terms.groups || [])) {
     for (const date of seriesDates(s, first, last)) {
-      const line = lines.find((l) => l.date === date && l.code === s.code);
+      const line = lines.find((l) => l.date === date && l.code === s.code)
+        || (s.group ? { action: "pickup" } : null);
 
       if (!line) continue;
 

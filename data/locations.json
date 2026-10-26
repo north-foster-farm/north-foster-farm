@@ -67,7 +67,8 @@
       "town": "Warwick",
       "short": "The Village Family Fitness, Warwick",
       "lat": 41.76519,
-      "lng": -71.39709
+      "lng": -71.39709,
+      "private": true
     }
   ]
 }

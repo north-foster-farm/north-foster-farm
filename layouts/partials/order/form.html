@@ -5,12 +5,15 @@
 {{ range (hugo.Data.discountCodes.codes | default slice) }}
   {{ $codes = $codes | append (dict "hash" (crypto.SHA256 (upper .code)) "label" .label "off" .off) }}
 {{ end }}
+{{/* A buying group's place and series stay out of the page (#471):
+     POST /api/group serves them to a member who holds the code. */}}
+{{ $public := partial "lib/public-places.html" . }}
 {{ $data := dict
   "catalog" hugo.Data.catalog
   "aliases" (hugo.Data.skuAliases | default dict)
   "terms" hugo.Data.delivery
-  "locations" hugo.Data.locations.locations
-  "series" hugo.Data.series.series
+  "locations" $public.locations
+  "series" $public.series
   "codes" $codes
   "contact" (dict "name" hugo.Data.company.name "email" hugo.Data.company.email "phone" hugo.Data.company.phone)
 }}

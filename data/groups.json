@@ -1,0 +1,14 @@
+{
+  "_comment": "Buying groups (#471). A group's members hold a private code (in Blobs, never here) that unlocks its series, a private pickup place, and member pricing. `name` is the one setting for what members see. `lockThrough` is the member price lock James promised. The host reward and the round minimum are the farm's policy, read by the round close.",
+  "groups": [
+    {
+      "key": "vff",
+      "name": "The Village Family Fitness",
+      "location": "NR9D",
+      "series": "36TS",
+      "lockThrough": "2027-12-31",
+      "hostReward": { "percent": 10, "threshold": 300 },
+      "roundMinimum": null
+    }
+  ]
+}

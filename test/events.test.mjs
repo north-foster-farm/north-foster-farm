@@ -83,7 +83,7 @@ describe("codes", () => {
     });
 
     assert.deepEqual(errors, []);
-    assert.equal(registry.codes.length, 17);
+    assert.equal(registry.codes.length, 18);
   });
 });
 

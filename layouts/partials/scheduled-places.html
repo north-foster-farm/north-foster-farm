@@ -19,7 +19,8 @@
 {{- range hugo.Data.series.series -}}
   {{- $s := . -}}
   {{- $loc := index (where $locations "code" $s.location) 0 -}}
-  {{- if not (or $s.archived $loc.archived) -}}
+  {{- /* A buying group's series is never listed (#471). */ -}}
+  {{- if not (or $s.archived $loc.archived $s.group) -}}
     {{- $from := time.AsTime (print "2006-01-02T" $s.opens ":00Z") -}}
     {{- $to := time.AsTime (print "2006-01-02T" $s.closes ":00Z") -}}
     {{- $window := print ($from.Format "3:04") " " ($from.Format "PM") " – " ($to.Format "3:04") " " ($to.Format "PM") -}}

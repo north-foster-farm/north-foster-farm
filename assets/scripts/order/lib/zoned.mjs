@@ -68,6 +68,10 @@ export const addDays = (iso, n) => {
 // 0 = Sunday … 6 = Saturday.
 export const weekday = (iso) => new Date(utcMidnight(iso)).getUTCDay();
 
+// Whole days from `from` to `to`; negative when `to` is earlier.
+export const daysBetween = (from, to) =>
+  Math.round((utcMidnight(to) - utcMidnight(from)) / 86_400_000);
+
 const dayFormatter = new Intl.DateTimeFormat("en-US", {
   timeZone: "UTC",
   weekday: "long",
