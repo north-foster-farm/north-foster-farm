@@ -207,7 +207,8 @@ test.describe("contact and pickup forms", () => {
     await order.contact({ email: uniqueEmail("short"), phone: "4015550100" });
     await order.delivery();
     await attempt(order);
-    await expect(order.short).toContainText("You need $40 or more");
+    await expect(order.short)
+      .toContainText("Delivery requires $40 or more after discounts");
     expect(posted).toBe(0);
   });
 
