@@ -86,9 +86,17 @@ bin/nff env filled --staging  # offline: the file fills every sample key
 
 `filled` needs no Netlify token. It reads the sample and the env file
 (`--development`, `--staging` or `--production`; development when none
-is given) and fails on a key that is missing or empty, naming it and
-never its value. A key whose comment says `Optional:` may stay empty
-or out of the file.
+is given) and fails on a key that is missing or empty. It lists every
+such key, missing ones apart from empty ones, each with the sample's
+own comment on what it is, and never prints a value. A key whose
+comment says `Optional:` may stay empty or out of the file.
+
+With `--append` and the environment named (`bin/nff env filled
+--staging --append`), it first adds each *missing* key to the end of
+that env file as `KEY=`, under its sample comment and a header like
+`# Added by bin/nff env filled --append, 2026-10-26`. It writes no
+value, changes no line already there, and leaves empty keys alone. Fill
+the values in yourself, then run it again.
 
 `push` sets every key the sample lists except those marked
 `# Local only:`, a key left empty in the sample as a secret, and reads

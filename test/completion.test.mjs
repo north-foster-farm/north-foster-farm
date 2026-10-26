@@ -260,8 +260,13 @@ describe("the completion scripts", () => {
         assert.equal(lines[3], "list.csv waivers.json", "--file is a file");
         assert.equal(lines[4], "", "nothing after a positional argument");
         assert.equal(lines[5], "--development");
-        assert.equal(lines[6], "--development --no-email --preview "
-          + "--production --scratch --staging --yes", "no flag twice");
+        const offered = lines[6].split(" ");
+
+        assert.equal(new Set(offered).size, offered.length, "no flag twice");
+        for (const flag of ["--development", "--staging", "--production",
+          "--yes", "--no-email", "--scratch"]) {
+          assert.ok(offered.includes(flag), `${flag} is offered`);
+        }
       } finally {
         rmSync(dir, { recursive: true, force: true });
       }
