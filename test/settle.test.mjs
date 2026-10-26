@@ -263,12 +263,12 @@ describe("the refund check (#215)", () => {
       refund({ squareRefundId: "R2" }),
     ]), made);
 
-    const put = stores.orders.set.bind(stores.orders);
+    const swap = stores.orders.swap.bind(stores.orders);
 
-    stores.orders.set = async (key, value, ...rest) => {
+    stores.orders.swap = async (key, value, ...rest) => {
       if (key === "order/NFF-1") throw new Error("store down");
 
-      return put(key, value, ...rest);
+      return swap(key, value, ...rest);
     };
 
     const r = await checkRefunds(stores, {

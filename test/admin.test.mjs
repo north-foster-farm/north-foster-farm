@@ -54,6 +54,7 @@ const customer = {
 const harness = () => {
   const sent = [];
   const calls = [];
+  const made = { square: 0, paypal: 0 };
 
   return {
     sent,
@@ -77,7 +78,11 @@ const harness = () => {
           assert.match(key, /^refund-/);
           assert.equal(typeof reason, "string");
 
-          return { squareRefundId: "SQR-1", status: "PENDING", amount };
+          made.square += 1;
+
+          return {
+            squareRefundId: `SQR-${made.square}`, status: "PENDING", amount,
+          };
         },
         cancelFulfillment: async (id) => { calls.push(["fulfilment", id]); },
         updateFulfillment: async (id, o) => {
@@ -90,7 +95,11 @@ const harness = () => {
           assert.match(key, /^refund-/);
           assert.ok(note);
 
-          return { paypalRefundId: "PPR-1", status: "COMPLETED", amount };
+          made.paypal += 1;
+
+          return {
+            paypalRefundId: `PPR-${made.paypal}`, status: "COMPLETED", amount,
+          };
         },
       },
     },
@@ -291,7 +300,7 @@ describe("orders from the CLI", () => {
         },
       });
 
-      assert.equal(noted.refunds.at(-1).paypalRefundId, "PPR-1");
+      assert.equal(noted.refunds.at(-1).paypalRefundId, "PPR-2");
       assert.equal(noted.refunds.at(-1).squareRefundId, null);
       assert.equal(noted.refunds.at(-1).total, true);
 
@@ -303,7 +312,7 @@ describe("orders from the CLI", () => {
       await saveOrder(stores, bare, now);
       const c = await refundOrder(stores, "C", opts);
 
-      assert.equal(c.refunds.at(-1).paypalRefundId, "PPR-1");
+      assert.equal(c.refunds.at(-1).paypalRefundId, "PPR-3");
       assert.deepEqual(calls.at(-1), ["paypal.refund", "CAP-C", 1400]);
     });
 

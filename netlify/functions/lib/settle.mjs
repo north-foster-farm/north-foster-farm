@@ -18,7 +18,7 @@
 import { alert } from "./health.mjs";
 import * as paypalApi from "./paypal.mjs";
 import {
-  FAILED_REFUND, allOrders, amendOrder, getOrder, moneyPatch, refundsOf,
+  FAILED_REFUND, allOrders, amendOrder, moneyPatch, refundsOf,
 } from "./records.mjs";
 import * as squareApi from "./square.mjs";
 
@@ -67,13 +67,12 @@ const same = (a, b) => a.at === b.at
 
 // One refund changed on the order as it is now, so a refund recorded
 // meanwhile is kept.
-const note = async (stores, id, refund, patch, event, now) => {
-  const current = await getOrder(stores, id);
-  const refunds = refundsOf(current)
-    .map((r) => (same(r, refund) ? { ...r, ...patch } : r));
-
-  return amendOrder(stores, id, moneyPatch(current, { refunds }), event, now);
-};
+const note = (stores, id, refund, patch, event, now) => amendOrder(
+  stores, id, (current) => moneyPatch(current, {
+    refunds: refundsOf(current)
+      .map((r) => (same(r, refund) ? { ...r, ...patch } : r)),
+  }), event, now,
+);
 
 // -> { checked, completed, failed, stalled, pending, errors }, each
 // list of { id, via, refund, amount, at, status }. `stalled` holds

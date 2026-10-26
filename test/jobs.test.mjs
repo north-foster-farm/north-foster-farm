@@ -183,12 +183,16 @@ describe("runJobs", () => {
       completeOrder: async (id) => { done.push(id); return { id }; },
     };
     const get = stores.orders.get.bind(stores.orders);
+    const tagged = stores.orders.getTagged.bind(stores.orders);
     let reads = 0;
 
     await saveOrder(stores, order("A"), placed);
     // The run lists A, then A is gone before its status is set.
     stores.orders.get = async (key) => (
       key === "order/A" && reads++ ? null : get(key)
+    );
+    stores.orders.getTagged = async (key) => (
+      key === "order/A" ? null : tagged(key)
     );
 
     const r = await runJobs(stores, {

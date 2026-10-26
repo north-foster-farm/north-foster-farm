@@ -193,6 +193,18 @@ export const GUIDE = {
       "bin/nff orders refund <id>, or pay the customer another way and " +
       "tell them.",
   },
+  "refund.unrecorded": {
+    means: "Square or PayPal took a refund and the order's record " +
+      "could not be written to say so (the store failed, or the record " +
+      "was changing too fast to save). The money is back with the " +
+      "customer, but the order still shows it owed. The processor's " +
+      "webhook records it in the end.",
+    action: "Do not refund it again. Look the order up with bin/nff " +
+      "orders show <id> in a few minutes: once the webhook has recorded " +
+      "the refund it shows it. If it never does, look the refund up in " +
+      "Square or PayPal by the id in the alert and note it on the " +
+      "order.",
+  },
   "refund.stalled": {
     means: "A refund made five or more days ago has still not " +
       "settled, or has no Square or PayPal id to check it by. The " +
