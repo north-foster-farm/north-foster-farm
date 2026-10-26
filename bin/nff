@@ -32,7 +32,7 @@ import {
   preflight, previewLeaks, pushEnv, redact, remoteFor, remoteVars,
 } from "./env/netlify.mjs";
 import { SHELLS, completionScript } from "./completion.mjs";
-import { checkFilled } from "./env/filled.mjs";
+import { appendMissing, checkFilled } from "./env/filled.mjs";
 import { keychainToken, tokenInFiles } from "./env/keychain.mjs";
 import {
   ENVIRONMENTS, readSample, readValues, sampleFile,
@@ -321,14 +321,20 @@ const USAGE = `Usage:
                                       any value on deploy-preview or dev
                                       beyond SITE_CONTEXT and the
                                       pickup schedule
-  bin/nff env filled [--development|--staging|--production]
+  bin/nff env filled [--development|--staging|--production] [--append]
                                       offline: does the env file fill in
-                                      every key its sample lists? Fails
-                                      on a key that is missing or empty,
-                                      by name only, unless the sample
-                                      marks it Optional:. Development
-                                      when no flag is given. Needs no
-                                      Netlify token
+                                      every key its sample lists? Lists
+                                      each key that is missing or empty,
+                                      with the sample's comment on it,
+                                      and fails, unless the sample marks
+                                      it Optional:. Development when no
+                                      flag is given. Needs no Netlify
+                                      token. --append, with the
+                                      environment named, adds each
+                                      MISSING key to the file as KEY=
+                                      under its comment and a dated
+                                      header, never a value, never
+                                      changing a line already there
   bin/nff --production export [--label before-release] [--out <file>]
                                       the backup export, now: encrypted
                                       to BACKUP_AGE_RECIPIENT and put in
@@ -825,9 +831,25 @@ const envFilled = () => {
     throw new Error("Say one: --development, --staging or --production.");
   }
 
+  // Writing needs the file named: with none, development is only the
+  // default for reading, and `.env` is a link to its file.
+  if (flagOn(flags.append) && !named.length) {
+    throw new Error("--append needs the environment named: --development, "
+      + "--staging or --production. Nothing was written.");
+  }
+  if (flagOn(flags.append)) {
+    const done = appendMissing(root, named[0]);
+
+    out(done.appended.length
+      ? `Appended ${done.appended.length} key${
+        done.appended.length === 1 ? "" : "s"} to ${done.file}, each with `
+        + `its comment and no value: ${done.appended.join(", ")}.`
+      : `Nothing to append: no key is missing from ${done.file}.`);
+  }
+
   const found = checkFilled(root, named[0] || "development");
 
-  for (const line of found.problems) console.error(`  ${line}`);
+  for (const line of found.report) console.error(line);
   if (found.problems.length) {
     throw new Error(`Env filled: ${found.problems.length} problem${
       found.problems.length === 1 ? "" : "s"} in ${found.file}.`);

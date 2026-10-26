@@ -1,10 +1,16 @@
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import {
+  mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { describe, it } from "node:test";
+import { fileURLToPath } from "node:url";
 
-import { checkFilled, unfilled } from "../bin/env/filled.mjs";
+import {
+  appendMissing, checkFilled, missingBlock, unfilled,
+} from "../bin/env/filled.mjs";
 import { parseSample, readValues } from "../bin/env/sample.mjs";
 
 // A small sample in the layout the real ones use: a secret, a public
@@ -144,6 +150,187 @@ describe("bin/nff env filled", () => {
 
     assert.equal(found.file, ".env.development");
     assert.deepEqual(found.problems, []);
+  });
+});
+
+describe("the report", () => {
+  it("lists every missing key and every empty one, grouped, each with "
+    + "the sample's own comment", () => {
+    const found = run(lines(["SQUARE_ACCESS_TOKEN", ""]));
+
+    assert.deepEqual(found.report, [
+      "Missing from .env.staging (2):",
+      "  SQUARE_LOCATION_ID",
+      "      The location.",
+      "      Public: not a secret.",
+      "  NETLIFY_SITE_ID",
+      "      The project.",
+      "      Local only: bin/nff reads it.",
+      "",
+      "Empty in .env.staging (1):",
+      "  SQUARE_ACCESS_TOKEN",
+      "      The token.",
+      "",
+    ]);
+  });
+
+  it("puts the layout slips first, and carries no value", () => {
+    const found = run(`${lines(["SQUARE_ACCESS_TOKEN", SECRET])}` +
+      `SQUARE_ACCESS_TOKEN=${SECRET}\n`);
+
+    assert.equal(found.report[0],
+      ".env.staging: Line 2: SQUARE_ACCESS_TOKEN again.");
+    assert.ok(!found.report.join("\n").includes(SECRET));
+  });
+
+  it("is empty when the file is filled", () => {
+    const found = run(lines(["SQUARE_ACCESS_TOKEN", SECRET],
+      ["SQUARE_LOCATION_ID", "LOC1"], ["NETLIFY_SITE_ID", SITE]));
+
+    assert.deepEqual(found.report, []);
+  });
+});
+
+describe("env filled --append", () => {
+  const DATE = new Date("2026-10-26T15:00:00");
+  const HEAD = "# Added by bin/nff env filled --append, 2026-10-26";
+  const LOCATION = ["# SQUARE_LOCATION_ID", "# The location.",
+    "# Public: not a secret.", "SQUARE_LOCATION_ID="];
+  const SITE_BLOCK = ["# NETLIFY_SITE_ID", "# The project.",
+    "# Local only: bin/nff reads it.", "NETLIFY_SITE_ID="];
+
+  // A project with the sample and an env file; `body` runs on its root.
+  const within = (envText, body, extra = {}) => {
+    const { root, done } = project(envText, extra.sample, extra.env);
+
+    try {
+      return body(root, join(root, `.env.${extra.env || "staging"}`));
+    } finally {
+      done();
+    }
+  };
+
+  it("adds only the missing keys, each under its comment and a dated "
+    + "header, and never a value", () => {
+    const before = lines(["SQUARE_ACCESS_TOKEN", ""]);
+
+    within(before, (root, path) => {
+      const done = appendMissing(root, "staging", { now: DATE });
+
+      assert.deepEqual(done, { file: ".env.staging",
+        appended: ["SQUARE_LOCATION_ID", "NETLIFY_SITE_ID"] });
+      assert.equal(readFileSync(path, "utf8"), `${before}\n${[
+        HEAD, "", ...LOCATION, "", ...SITE_BLOCK].join("\n")}\n`);
+    });
+  });
+
+  it("leaves every existing byte as it was, however the file ends", () => {
+    for (const before of [
+      `# my note\n${lines(["SQUARE_ACCESS_TOKEN", SECRET])}`,
+      `SQUARE_ACCESS_TOKEN=${SECRET}`,
+      `SQUARE_ACCESS_TOKEN=${SECRET}\n\n\n`,
+      "",
+    ]) {
+      within(before, (root, path) => {
+        appendMissing(root, "staging", { now: DATE });
+
+        const after = readFileSync(path, "utf8");
+
+        assert.ok(after.startsWith(before), "an existing byte changed");
+        assert.ok(after.slice(before.length).includes(HEAD));
+        assert.equal(after.split(SECRET).length - 1,
+          before.split(SECRET).length - 1, "a value was copied");
+      });
+    }
+  });
+
+  it("writes no line that ends in a space, and no value", () => {
+    within(lines(["SQUARE_ACCESS_TOKEN", SECRET]), (root, path) => {
+      appendMissing(root, "staging", { now: DATE });
+
+      const added = readFileSync(path, "utf8").split("\n")
+        .filter((l) => l.startsWith("#") || /^[A-Z_]+=/.test(l)
+          && !l.startsWith("SQUARE_ACCESS_TOKEN"));
+
+      for (const line of added) {
+        assert.ok(!/\s$/.test(line), `trailing space: ${line}`);
+        assert.ok(!/^[A-Z_]+=./.test(line), `a value: ${line}`);
+      }
+    });
+  });
+
+  it("leaves empty and optional keys alone, and a second run adds nothing",
+    () => {
+      within(lines(["SQUARE_ACCESS_TOKEN", ""]), (root, path) => {
+        appendMissing(root, "staging", { now: DATE });
+
+        const once = readFileSync(path, "utf8");
+        const again = appendMissing(root, "staging", { now: DATE });
+
+        assert.deepEqual(again.appended, []);
+        assert.equal(readFileSync(path, "utf8"), once, "nothing changed");
+        assert.ok(!once.includes("VENMO_HIDDEN"), "an optional key");
+        assert.equal(once.split("SQUARE_ACCESS_TOKEN=").length - 1, 1,
+          "an empty key was added again");
+        // What it added is now empty, so the file is not yet filled.
+        assert.deepEqual(checkFilled(root, "staging").empty,
+          ["SQUARE_ACCESS_TOKEN", "SQUARE_LOCATION_ID", "NETLIFY_SITE_ID"]);
+      });
+    });
+
+  it("does nothing when no key is missing", () => {
+    const before = lines(["SQUARE_ACCESS_TOKEN", SECRET],
+      ["SQUARE_LOCATION_ID", "LOC1"], ["NETLIFY_SITE_ID", SITE]);
+
+    within(before, (root, path) => {
+      assert.deepEqual(appendMissing(root, "staging"),
+        { file: ".env.staging", appended: [] });
+      assert.equal(readFileSync(path, "utf8"), before);
+    });
+  });
+
+  it("refuses a file that is a link, and writes nothing", () => {
+    const { root, done } = project(null);
+
+    try {
+      const target = join(root, "elsewhere");
+
+      writeFileSync(target, "SQUARE_ACCESS_TOKEN=\n");
+      symlinkSync(target, join(root, ".env.staging"));
+
+      assert.throws(() => appendMissing(root, "staging", { now: DATE }),
+        /\.env\.staging is a symbolic link: .*nothing was written/);
+      assert.equal(readFileSync(target, "utf8"), "SQUARE_ACCESS_TOKEN=\n");
+    } finally {
+      done();
+    }
+  });
+
+  it("names a missing file and an unknown environment, and writes "
+    + "nothing", () => {
+    assert.throws(() => within(null, (root) => appendMissing(root,
+      "staging")), /^Error: No \.env\.staging in /);
+    assert.throws(() => appendMissing("/nowhere", "qa"),
+      /Say one of: development, staging, production\./);
+  });
+
+  it("builds the text from the sample's comments, a blank line for a "
+    + "blank comment line", () => {
+    const parsed = parseSample(SAMPLE);
+
+    assert.equal(missingBlock(parsed, ["VENMO_HIDDEN"], "2026-10-26"),
+      `${HEAD}\n\n# VENMO_HIDDEN\n# Hides Venmo.\n` +
+      "# Optional: empty shows Venmo.\nVENMO_HIDDEN=\n");
+  });
+
+  it("is refused from bin/nff with no environment named", () => {
+    const run = spawnSync(process.execPath, [join(dirname(fileURLToPath(
+      import.meta.url)), "../bin/nff"), "env", "filled", "--append"],
+    { encoding: "utf8", env: { PATH: process.env.PATH } });
+
+    assert.equal(run.status, 1);
+    assert.match(run.stderr, /--append needs the environment named/);
+    assert.match(run.stderr, /Nothing was written\./);
   });
 });
 

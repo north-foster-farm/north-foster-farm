@@ -329,7 +329,13 @@ the dev server.
   token. It reads the tracked sample and the env file for that
   environment (development when no flag is given) and fails on a key
   the sample lists that the file lacks or leaves empty, `# Local only:`
-  keys included, naming it and never printing a value. A key whose
+  keys included. It lists the missing keys and the empty ones, each
+  with the sample's comment on what it is, and never prints a value.
+  With `--append` and the environment named, it first adds each missing
+  key to the end of the file as `KEY=` under its comment and a dated
+  header (`# Added by bin/nff env filled --append, 2026-10-26`): never
+  a value, never a change to a line already there, and not through a
+  symbolic link such as `.env`. A key whose
   comment says `Optional:` may be empty or absent: `VENMO_HIDDEN`, the
   previous Square signing key, the overrides (`ADMIN_URL`,
   `CONTACT_URL`, `SQUARE_VERSION`, `SQUARE_WEBHOOK_URL`) and the keys
