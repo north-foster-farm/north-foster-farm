@@ -27,6 +27,7 @@ import { now as clock } from "./clock.mjs";
 import { log } from "./log.mjs";
 import { sendMail } from "./mail.mjs";
 import { welcome } from "./news.mjs";
+import { getLedger, heldBy, spendCredit } from "./credit.mjs";
 import { joinGroup } from "./groups.mjs";
 import * as paypalApi from "./paypal.mjs";
 import { usePass } from "./passes.mjs";
@@ -126,7 +127,30 @@ export const completeOrder = async (stores, order, { square, payment }, {
       orderId: order.id,
     });
     // The credit the order spent came off the ledger before any money
-    // moved (orders.mjs); nothing to do here.
+    // moved (orders.mjs). An order finished elsewhere, a Venmo
+    // checkout the jobs rescued or an earlier attempt's payment found
+    // again, has not spent it yet: it is spent here, once (heldBy
+    // says what the order already holds). The money is in, so a
+    // balance that fell short by now is recorded and the farm hears,
+    // and the order stands (security re-review, 6426747224).
+    if (credit > 0 && order.creditFrom) {
+      try {
+        const ledger = await getLedger(stores, order.creditFrom);
+
+        if (heldBy(ledger, order.id) < credit) {
+          await spendCredit(stores, order.creditFrom, {
+            orderId: order.id, amount: credit, now,
+          });
+        }
+      } catch (error) {
+        const detail = {
+          id: order.id, credit, error: String(error && error.message),
+        };
+
+        log.error({ event: "credit.unspent", ...detail });
+        await alert(stores, "credit.unspent", detail, { env, mail, now });
+      }
+    }
     // An order placed with a buying group's code makes its customer a
     // member (#471): the next order needs no code when signed in.
     if (order.group && order.group.key) {

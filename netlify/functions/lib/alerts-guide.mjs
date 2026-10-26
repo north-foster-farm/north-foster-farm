@@ -205,6 +205,16 @@ export const GUIDE = {
       "cancel it by hand if the farm did not mean to allow it, and " +
       "revoke the code.",
   },
+  "credit.unspent": {
+    means: "A buying group member's order (#471) was recorded with a " +
+      "credit tender, but the member's ledger held less than that by " +
+      "the time the money was in (an order the jobs finished, or an " +
+      "earlier attempt found paid): the credit is on the order and not " +
+      "off the ledger. The order is recorded as paid all the same.",
+    action: "bin/nff groups credit <email> and bin/nff orders show <id>; " +
+      "if the member spent that credit on another order too, charge " +
+      "or refund the difference by hand.",
+  },
   "refund.failed": {
     means: "Square reports a refund FAILED or REJECTED, or PayPal a " +
       "Venmo refund FAILED or CANCELLED: the customer did not get that " +

@@ -7,6 +7,9 @@ import {
   syncSquare,
 } from "../netlify/functions/lib/checkout.mjs";
 import { readMark } from "../netlify/functions/lib/health.mjs";
+import {
+  creditBalance, grantCredit,
+} from "../netlify/functions/lib/credit.mjs";
 import { issuePass, usePass } from "../netlify/functions/lib/passes.mjs";
 import { PayPalError } from "../netlify/functions/lib/paypal.mjs";
 import {
@@ -1017,5 +1020,75 @@ describe("GET /api/checkout/config", () => {
       assert.equal(prod.square.sdkUrl, "https://web.squarecdn.com/v1/square.js");
       assert.equal(new URL(prod.paypal.sdkUrl).searchParams
         .get("buyer-country"), null);
+    });
+});
+
+// A buying group member's credit on an order finished outside the
+// order handler's own capture (security re-review, 6426747224): the
+// write spends it, once, and a balance short by then is recorded and
+// reported rather than failing an order whose money is in.
+describe("credit on an order the jobs finish", () => {
+  const EMAIL = "pat@example.com";
+  const tz = "America/New_York";
+  const from = { group: "vff", round: "2026-10-25", kind: "host" };
+  // $60 of items less the $5 tier, the $5 fee, $20 of credit on the
+  // items: $40 of money due.
+  const withCredit = () => order({
+    totals: {
+      ...order().totals, credit: 2000, total: 4000,
+    },
+    creditFrom: EMAIL,
+  });
+
+  it("spends the credit of a rescued Venmo checkout, once", async () => {
+    const stores = testStores();
+    const { mail } = mailbox();
+    const { paypal } = fakePaypal({
+      updatedAt: now.toISOString(), cap: () => capture(4000),
+    });
+
+    await grantCredit(stores, EMAIL, { amount: 2000, from, now,
+      timeZone: tz });
+    await startVenmo(stores, withCredit(), { key: KEY }, { paypal, ...quiet });
+
+    const checkout = await getCheckout(stores, KEY);
+    // The create step spends nothing; the balance stands.
+    assert.equal(await creditBalance(stores, EMAIL, now), 2000);
+
+    const saved = await rescueCheckout(stores, checkout, {
+      paypal, square: fakeSquare().square, mail, sleep: quiet.sleep,
+      env: { ...MAILS }, now: new Date(now.getTime() + PAGE_GRACE),
+    });
+
+    assert.equal(saved.status, "paid");
+    assert.deepEqual(saved.payments.map((p) => [p.via, p.amount]),
+      [["venmo", 4000], ["credit", 2000]]);
+    assert.equal(await creditBalance(stores, EMAIL, now), 0);
+
+    // Written again under the same order, nothing more is spent.
+    await completeOrder(stores, withCredit(), {
+      square: { squareOrderId: "SQO", customerId: "CUST" },
+      payment: { via: "venmo", paypalCaptureId: "CAP", amount: 4000 },
+    }, { mail, env: MAILS, now });
+    assert.equal(await creditBalance(stores, EMAIL, now), 0);
+  });
+
+  it("records the order and tells the farm when the credit fell short",
+    async () => {
+      const stores = testStores();
+      const { mail } = mailbox();
+      // Nothing on the ledger by the time the money is in.
+      const saved = await completeOrder(stores, withCredit(), {
+        square: { squareOrderId: "SQO", customerId: "CUST" },
+        payment: { via: "venmo", paypalCaptureId: "CAP", amount: 4000 },
+      }, { mail, env: MAILS, now });
+
+      assert.equal(saved.status, "paid");
+      assert.deepEqual(saved.payments.map((p) => [p.via, p.amount]),
+        [["venmo", 4000], ["credit", 2000]]);
+      assert.ok(await readMark(stores, "alert/credit.unspent"),
+        "the farm was told");
+      // The rest of the after-paid work still ran.
+      assert.equal((await readMark(stores, "order")).id, "NFF-2610-ABCD");
     });
 });
