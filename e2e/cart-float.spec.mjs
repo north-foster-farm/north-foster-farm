@@ -118,32 +118,42 @@ test.describe("floating, settling and lifting off", () => {
       });
   }
 
-  test("a phone: scrolling up through the seam never flips back", async ({
-    page,
-  }) => {
-    await page.setViewportSize(PHONE);
+  // In small steps, and stopping on the seam itself: the settle and
+  // lift-off thresholds never overlap, so nothing flips back. The
+  // panel's closed and open heights are nearly equal, where an
+  // overlap would show first.
+  for (const [name, size] of [["a phone", PHONE], ["a tablet", TABLET]]) {
+    test(`${name}: scrolling up through the seam never flips back`,
+      async ({ page }) => {
+        await page.setViewportSize(size);
 
-    const order = new OrderPage(page);
+        const order = new OrderPage(page);
 
-    await order.open(FULL_CART);
-    await settle(page, order);
+        await order.open(FULL_CART);
+        await settle(page, order);
 
-    const seen = [];
-    let y = await page.evaluate(() => window.scrollY);
+        const seen = [];
+        let y = await page.evaluate(() => window.scrollY);
 
-    while (y > 0) {
-      y = Math.max(0, y - 40);
-      await page.evaluate((top) => window.scrollTo(0, top), y);
-      await page.waitForTimeout(40);
-      seen.push(await order.cart.getAttribute("data-placement"));
-    }
+        while (y > 0) {
+          y = Math.max(0, y - 8);
+          await page.evaluate((top) => window.scrollTo(0, top), y);
+          await page.waitForTimeout(30);
+          seen.push(await order.cart.getAttribute("data-placement"));
+          // Pause on the seam: a pane that flips does it here.
+          if (seen.length > 1 && seen.at(-1) !== seen.at(-2)) {
+            await page.waitForTimeout(800);
+            seen.push(await order.cart.getAttribute("data-placement"));
+          }
+        }
 
-    const first = seen.indexOf("floating");
+        const first = seen.indexOf("floating");
 
-    expect(first).toBeGreaterThan(-1);
-    expect(seen.slice(0, first).every((p) => p === "inline")).toBe(true);
-    expect(seen.slice(first).every((p) => p === "floating")).toBe(true);
-  });
+        expect(first).toBeGreaterThan(-1);
+        expect(seen.slice(0, first).every((p) => p === "inline")).toBe(true);
+        expect(seen.slice(first).every((p) => p === "floating")).toBe(true);
+      });
+  }
 
   test("a phone on its side never floats", async ({ page }) => {
     await page.setViewportSize(PHONE_SIDE);

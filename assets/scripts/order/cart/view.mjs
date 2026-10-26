@@ -120,11 +120,27 @@ export const watchPlacement = (pane, slot, { bar: given, look }) => {
   let closedH = 0;
   let tick = null;
 
+  // The closed height the lift-off threshold uses must never exceed
+  // the height the pane then has closed: a settle at `room - height`
+  // and a lift-off at `room - closedH` would overlap, and a scroll
+  // that stops in the overlap would flip the pane back and forth. So
+  // it is the pane's own height, cached whenever it is measured
+  // floating and closed, and the stylesheet's constant, a lower
+  // bound, only until then (and again after a width change).
+  let closedSeen = 0;
   const measure = () => {
     height = pane.getBoundingClientRect().height;
-    closedH = toPx(
+    if (pane.dataset.placement === "floating"
+      && pane.dataset.fold === "closed") {
+      closedSeen = height;
+    }
+    closedH = closedSeen || toPx(
       getComputedStyle(pane).getPropertyValue("--cart-closed-h"), rootFont()
     );
+  };
+  const forget = () => {
+    closedSeen = 0;
+    refresh();
   };
 
   const run = () => {
@@ -167,10 +183,10 @@ export const watchPlacement = (pane, slot, { bar: given, look }) => {
   };
 
   window.addEventListener("scroll", schedule, { passive: true });
-  window.addEventListener("resize", refresh);
+  window.addEventListener("resize", forget);
   pane.addEventListener("transitionend", eased);
-  column.addEventListener("change", refresh);
-  short.addEventListener("change", refresh);
+  column.addEventListener("change", forget);
+  short.addEventListener("change", forget);
   refresh();
 
   return {
@@ -178,10 +194,10 @@ export const watchPlacement = (pane, slot, { bar: given, look }) => {
     dispose: () => {
       cancelAnimationFrame(tick);
       window.removeEventListener("scroll", schedule);
-      window.removeEventListener("resize", refresh);
+      window.removeEventListener("resize", forget);
       pane.removeEventListener("transitionend", eased);
-      column.removeEventListener("change", refresh);
-      short.removeEventListener("change", refresh);
+      column.removeEventListener("change", forget);
+      short.removeEventListener("change", forget);
     },
   };
 };

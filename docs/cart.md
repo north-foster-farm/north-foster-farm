@@ -366,8 +366,10 @@ to CSS. Its surface, which the Cart class imports:
   plus `slotBottom`. `height` is the pane's height read in `refresh()`
   only, which the class calls after a render and after `animateFold`
   resolves, and which the view calls itself on resize and when the
-  pane's chrome transition ends; `closedH` is the stylesheet's
-  `--cart-closed-h` for this width, read then too; `room` is the
+  pane's chrome transition ends; `closedH` is the pane's own height
+  as last measured floating and closed, or, until it has been, the
+  stylesheet's `--cart-closed-h` for this width, read then too; a
+  resize or a width change forgets the measurement; `room` is the
   layout viewport's height less the rest margin and the toolbar's gap.
   While `--cart-kb` is above 0 the tick writes the bar and looks at
   nothing else.
@@ -485,9 +487,9 @@ Four raw inputs reach the stylesheet, from one listener and the
 placement tick: `--cart-vis`, `--cart-gap`, `--cart-kb` and
 `--cart-bar`. It derives only the floating pane's `bottom` and
 `max-height` and the lines' cap from them. Three constants come the
-other way, read by the tick with `getComputedStyle`, never measured:
-`--cart-closed-h` (9.25rem on the sheet, 15rem in the panel),
-`--cart-chrome` and `--cart-lines-min`.
+other way, read by the tick with `getComputedStyle`: `--cart-closed-h`
+(11rem on the sheet, 19.5rem in the panel, each a little under the
+closed pane as measured), `--cart-chrome` and `--cart-lines-min`.
 
 **Floating, settling and lifting off (below xl, tall screens).** The
 floating pane is `position: sticky; bottom: calc(rest + gap + kb)`
@@ -498,10 +500,16 @@ slot comes up. The script decides only when the pane's chrome changes
 height`, where `height` is the cached floating height, which is the
 moment the sticky pane is already at the slot's top, so nothing moves;
 lift off when `slotTop > room - closedH`, when the pane becomes sticky
-again, closed, `closedH` tall, where the slot's top just was. The slot
-needs no `min-height`: a sticky pane keeps its place in the flow, and
-at both seams the content below the slot is off screen. Placement is
-frozen while the keyboard is up.
+again, closed, `closedH` tall, where the slot's top just was. The two
+thresholds can never overlap: `closedH` is the pane's own closed
+height, cached whenever it is measured floating and closed, and the
+stylesheet's constant stands in only before that, as a lower bound.
+Were the constant above the real closed height, a scroll stopping in
+the band between the thresholds would settle and lift off in turn,
+and in the panel, whose open and closed heights are nearly equal, it
+did. The slot needs no `min-height`: a sticky pane keeps its place in
+the flow, and at both seams the content below the slot is off screen.
+Placement is frozen while the keyboard is up.
 
 **Phone, under 576px, and any screen 500px tall or less**
 

@@ -39,9 +39,11 @@
   --cart-chrome: 20.5rem;
 
   // The closed sheet: its padding, the total row, the foot and one
-  // nudge line (182px measured at 390px). cart/view.mjs reads it for
-  // the lift-off threshold.
-  --cart-closed-h: 11.5rem;
+  // nudge line (182px measured at 390px), set a little under that.
+  // cart/view.mjs reads it for the lift-off threshold until it has
+  // measured the closed pane itself, and it must never exceed the
+  // real closed height, or the settle and lift-off thresholds overlap.
+  --cart-closed-h: 11rem;
 
   // The share of the visible height the open sheet may take on a
   // phone (James, #267 and #475).
@@ -976,9 +978,9 @@
   // closed height is the right column's.
   @media #{$cart-split} {
     .order-cart {
-      // The closed panel is its right column: measured once at 768px
-      // (330px with a bulk discount and the fee row).
-      --cart-closed-h: 20.5rem;
+      // The closed panel is its right column: 321px measured at 768px
+      // with a bulk discount, set a little under that (see above).
+      --cart-closed-h: 19.5rem;
       --panel-w: min(100cqw, max(50cqw, 22rem));
     }
 
