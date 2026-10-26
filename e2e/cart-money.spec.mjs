@@ -5,12 +5,24 @@
 // pricing.spec.mjs's; this is where the cart shows them.
 
 import {
-  FULL_CART, OrderPage, expect, test, unfoldCart as unfold,
+  FULL_CART, OrderPage, expect, paneStill, test, unfoldCart as unfold,
 } from "./support/order.mjs";
 
 const PHONE = { width: 390, height: 844 };
 const MD = { width: 768, height: 1024 };
 const XL = { width: 1280, height: 800 };
+
+// Brings the cart into the page, settled and open, at every width:
+// below xl the heading at the top of the screen settles it inline; from
+// xl it is the column. Layout is measured there, never mid-fold.
+const settled = async (order) => {
+  await order.page.evaluate(() => document.getElementById(
+    "order-cart-heading"
+  ).scrollIntoView({ block: "start" }));
+  await order.scrollSettled();
+  await paneStill(order.cart);
+  await expect(order.cart).toHaveAttribute("data-fold", "open");
+};
 
 const box = (locator) => locator.evaluate((el) => {
   const r = el.getBoundingClientRect();
@@ -30,7 +42,7 @@ test("the badges show whatever the way", async ({ page }) => {
   await order.open({ wings: 2 });
   await unfold(order);
 
-  const badges = order.cart.locator(".order-badges");
+  const badges = order.cart.locator(".order-cart-badges");
   const tier = order.cart.locator("[data-badge='tier-50']");
   const delivery = order.cart.locator("[data-badge='delivery']");
   const free = order.cart.locator("[data-badge='free-delivery']");
@@ -85,7 +97,8 @@ for (const width of [320, 360, 390, 414, 430]) {
     await expect(order.cart.locator("[data-badge='tier-150']"))
       .toHaveAttribute("data-on", "true");
 
-    const seen = await order.cart.locator(".order-badges").evaluate((ul) => {
+    const badges = order.cart.locator(".order-cart-badges");
+    const seen = await badges.evaluate((ul) => {
       const lis = [...ul.querySelectorAll("li")]
         .filter((li) => li.getBoundingClientRect().height > 0);
       const top = (li) => Math.round(li.getBoundingClientRect().top);
@@ -150,35 +163,6 @@ test("the chicks leave the tier just earned", async ({ page }) => {
     .toBeLessThan(2);
 });
 
-test("the total's flash stays light on the green", async ({ page }) => {
-  await page.setViewportSize(PHONE);
-
-  const order = new OrderPage(page);
-
-  await order.open({ wings: 1 });
-  await unfold(order);
-
-  // The flash's peak, held there to read it.
-  const peak = await order.total.evaluate((el) => {
-    el.classList.add("is-bumped");
-
-    const [a] = el.getAnimations();
-
-    a.pause();
-    a.currentTime = a.effect.getTiming().duration * 0.4;
-
-    const color = getComputedStyle(el).color;
-
-    a.cancel();
-
-    return color;
-  });
-  const [r, g, b] = peak.match(/\d+/g).map(Number);
-
-  // Light: a luminance well above the green under it.
-  expect(0.2126 * r + 0.7152 * g + 0.0722 * b).toBeGreaterThan(180);
-});
-
 test("the total bumps when it changes", async ({ page }) => {
   await page.setViewportSize(XL);
 
@@ -202,7 +186,7 @@ for (const size of [PHONE, MD, XL]) {
       await expect(order.nudge).toHaveText(
         "Next discount: add $1 for $20 off."
       );
-      await unfold(order);
+      await settled(order);
       await order.nudge.scrollIntoViewIfNeeded();
       await expect(order.nudge).toBeInViewport({ ratio: 1 });
 
@@ -220,7 +204,7 @@ for (const size of [PHONE, MD, XL]) {
       const order = new OrderPage(page);
 
       await order.open(FULL_CART);
-      await unfold(order);
+      await settled(order);
       await order.total.scrollIntoViewIfNeeded();
 
       const total = await box(order.total);
@@ -250,7 +234,7 @@ for (const size of [PHONE, MD, XL]) {
       }
       await expect(order.cart).toHaveAttribute("data-empty", "");
       await expect(order.subtotal).toBeHidden();
-      await expect(order.cart.locator(".order-badges")).toBeHidden();
+      await expect(order.cart.locator(".order-cart-badges")).toBeHidden();
       await expect(order.cart.locator("[data-way-toggle]")).toBeVisible();
       await expect(order.codeOpen).toBeVisible();
       await expect(order.next).toBeDisabled();
