@@ -94,7 +94,16 @@ test.describe("changing a paid order's items (#284)", () => {
 
       await page.locator("#order-save").click();
       release();
-      await sent;
+      // Said on the page when nothing went, to tell a refusal from a
+      // Save that never ran.
+      await sent.catch(async (error) => {
+        const said = (await page.locator(
+          "[role='alert'], .invalid-feedback, [data-stock-notice]"
+        ).allInnerTexts()).map((t) => t.trim()).filter(Boolean);
+
+        throw new Error(`${error.message}\nOn the page: ${
+          said.join(" | ") || "nothing"}`, { cause: error });
+      });
       await expect(page).toHaveURL(/\/account\/#orders/);
 
       const record = await orderRecord(orderId);

@@ -86,7 +86,7 @@ export default defineConfig({
   use: {
     baseURL,
     storageState: gate,
-    screenshot: "only-on-failure",
+    screenshot: { mode: "only-on-failure", fullPage: true },
     trace: "retain-on-failure",
     actionTimeout: 20_000,
     navigationTimeout: 45_000,

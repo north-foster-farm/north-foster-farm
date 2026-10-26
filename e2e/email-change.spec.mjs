@@ -100,7 +100,10 @@ test.describe("changing your own email", () => {
         }
       });
       await page.goto(linkIn(mail, VERIFY));
-      await expect(page, hops.join("\n")).toHaveURL(/\/account\/#settings$/);
+      // The redirect arrives with ?token=... on the staging deploy,
+      // which the page leaves in place beside the fragment it swaps.
+      await expect(page, hops.join("\n"))
+        .toHaveURL(/\/account\/(\?[^#]*)?#settings$/);
       await expect(page.locator("#account-confirm")).toBeVisible();
       await expect(page.locator("#account-confirm [data-confirm-email]"))
         .toHaveText(to);
