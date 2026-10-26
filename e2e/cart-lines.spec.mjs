@@ -104,19 +104,13 @@ test.describe("a long list on a phone", () => {
     const list = order.cart.locator("[data-cart-items]");
     const down = order.cart.locator("[data-cart-more]");
     const up = order.cart.locator("[data-cart-more-top]");
-    // The pill covers no line: the strip it sits on is its own.
+    // The pill sits on the strip under the list's box, never on a
+    // line: a row half under the list's edge is clipped there.
     const apart = async (pill) => {
-      const over = await pill.evaluate((el) => {
-        const p = el.getBoundingClientRect();
+      const l = await list.boundingBox();
+      const p = await pill.boundingBox();
 
-        return [...document.querySelectorAll("#order-cart .order-cart-item")]
-          .map((li) => li.getBoundingClientRect())
-          .filter((r) => r.height > 0 && r.top < p.bottom - 1
-            && r.bottom > p.top + 1 && r.left < p.right && r.right > p.left)
-          .length;
-      });
-
-      expect(over).toBe(0);
+      expect(p.y).toBeGreaterThanOrEqual(l.y + l.height - 1);
     };
 
     await expect(down).toBeVisible();
