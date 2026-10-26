@@ -36,7 +36,7 @@ test.describe("history downloads (#165)", () => {
     expect(rows).toHaveLength(2);
     expect(rows[0]).toMatch(/^Order,/);
     expect(rows[1]).toContain(ORDER.id);
-    expect(rows[1]).toContain("2 x Eggs, large, one dozen");
+    expect(rows[1]).toContain("2 x Eggs, Grade A · Large");
     expect(rows[1]).toContain("14.00");
   });
 
