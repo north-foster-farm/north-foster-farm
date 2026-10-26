@@ -54,7 +54,6 @@ e2e/policies.spec.mjs daa775382947 2026-10-26
 e2e/pricing.spec.mjs daa775382947 2026-10-26
 e2e/recovery.spec.mjs daa775382947 2026-10-26
 e2e/report-privacy.spec.mjs daa775382947 2026-10-26
-e2e/restock.spec.mjs daa775382947 2026-10-26
 e2e/search.spec.mjs daa775382947 2026-10-26
 e2e/skeletons.spec.mjs daa775382947 2026-10-26
 e2e/skip-link.spec.mjs daa775382947 2026-10-26
