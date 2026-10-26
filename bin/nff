@@ -1726,25 +1726,9 @@ const run = async () => {
 
     const list = await rounds.listRounds(stores, g.key);
 
-    for (const r of list) {
-      const reward = r.rolledTo
-        ? `rolled to ${r.rolledTo} (${r.moved.length} order${
-          r.moved.length === 1 ? "" : "s"} moved${r.stuck.length
-          ? `, ${r.stuck.length} stuck` : ""})`
-        : r.reward.earned
-          ? `reward ${dollars(r.reward.amount)}${r.reward.leftover
-            ? ` (+${r.reward.leftover}¢ kept back)` : ""}`
-          : `no reward (under $${r.threshold})`;
-      const state = r.settled
-        ? `${r.settled.kind === "share" ? "shared among" : "credited to"} ${
-          r.settled.shares.length}${r.settled.leftover
-          ? `, ${dollars(r.settled.leftover)} kept back` : ""}`
-        : (r.choice ? `${r.choice.kind}, not yet settled`
-          : (r.reward.earned ? "awaiting the host's choice" : ""));
-
-      out(`${r.round}  ${r.count} orders  net ${dollars(r.net)}  real ${
-        dollars(r.real)}  ${reward}${state ? `  ${state}` : ""}`);
-    }
+    // The words are lib/rounds.mjs's (roundLine), so a failed or
+    // pending settlement reads as such and the test holds them.
+    for (const r of list) out(rounds.roundLine(r));
     if (!list.length) out("No rounds closed yet.");
 
     return undefined;

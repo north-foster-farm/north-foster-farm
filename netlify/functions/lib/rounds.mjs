@@ -20,6 +20,7 @@
 import {
   cutoffOf, seriesDates,
 } from "../../../assets/scripts/order/lib/events.mjs";
+import { dollars } from "../../../assets/scripts/order/lib/totals.mjs";
 import {
   addDays, instant, today,
 } from "../../../assets/scripts/order/lib/zoned.mjs";
@@ -409,4 +410,54 @@ export const workRounds = async (stores, {
   }
 
   return report;
+};
+
+// What a round's reward came to, for the farm: rolled, earned (with
+// the cents rounding kept back) or none.
+export const rewardWords = (r) => {
+  if (r.rolledTo) {
+    const moved = (r.moved || []).length;
+    const stuck = (r.stuck || []).length;
+
+    return `rolled to ${r.rolledTo} (${moved} order${moved === 1 ? "" : "s"
+    } moved${stuck ? `, ${stuck} stuck` : ""})`;
+  }
+  if (!r.reward.earned) return `no reward (under $${r.threshold})`;
+
+  return `reward ${dollars(r.reward.amount)}${r.reward.leftover
+    ? ` (+${r.reward.leftover}¢ kept back)` : ""}`;
+};
+
+// Where a round's reward stands: settled (to whom, with what rounding
+// kept back), being settled, failed partway (the next run finishes
+// it), chosen but not yet settled, or awaiting the host's choice. ""
+// for a round with nothing to settle.
+export const settlementWords = (r) => {
+  const s = r.settled;
+  const as = (kind) => (kind === "share" ? "shared out" : "credited");
+
+  if (s && s.failed) {
+    return `${as(s.kind)} partway, failed at ${s.at.slice(0, 16).replace(
+      "T", " ")} UTC; the next jobs run finishes it`;
+  }
+  if (s && s.pending) {
+    return `being ${as(s.kind || (r.choice ? r.choice.kind : "keep"))} now`;
+  }
+  if (s) {
+    const n = (s.shares || []).length;
+
+    return `${s.kind === "share" ? "shared among" : "credited to"} ${n}${
+      s.leftover ? `, ${dollars(s.leftover)} kept back` : ""}`;
+  }
+  if (r.choice) return `${r.choice.kind}, not yet settled`;
+
+  return r.reward.earned ? "awaiting the host's choice" : "";
+};
+
+// One line of `bin/nff groups rounds`.
+export const roundLine = (r) => {
+  const state = settlementWords(r);
+
+  return `${r.round}  ${r.count} orders  net ${dollars(r.net)}  real ${
+    dollars(r.real)}  ${rewardWords(r)}${state ? `  ${state}` : ""}`;
 };

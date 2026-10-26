@@ -16,8 +16,8 @@ import {
 import { runJobs } from "../netlify/functions/lib/jobs.mjs";
 import { saveOrder } from "../netlify/functions/lib/records.mjs";
 import {
-  chooseReward, closeRound, getRound, rewardFor, settleReward,
-  splitReward, workRounds,
+  chooseReward, closeRound, getRound, rewardFor, rewardWords, roundLine,
+  settleReward, settlementWords, splitReward, workRounds,
 } from "../netlify/functions/lib/rounds.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
 import terms from "../netlify/functions/lib/terms.mjs";
@@ -632,5 +632,62 @@ describe("a share that fails partway", () => {
     assert.equal(done.settled.pending, undefined);
     await assert.rejects(chooseReward(stores, VFF, "2026-11-08", "keep"),
       /already shared out/);
+  });
+});
+
+// `bin/nff groups rounds` reads every state a round can be in,
+// including a settlement that failed partway (the coordinator's
+// check after the GO, 6427420145).
+describe("the words of groups rounds", () => {
+  const base = {
+    round: "2026-11-08", count: 3, net: 100_000, real: 100_000,
+    threshold: 300,
+    reward: { earned: true, amount: 10_000, leftover: 5 },
+    choice: null, settled: null,
+  };
+
+  it("say where the reward stands, failed included", () => {
+    assert.equal(roundLine(base),
+      "2026-11-08  3 orders  net $1000  real $1000  reward $100 (+5¢ kept " +
+      "back)  awaiting the host's choice");
+    assert.equal(settlementWords({ ...base,
+      choice: { kind: "share", at: "x", by: "farm" } }),
+    "share, not yet settled");
+    assert.equal(settlementWords({ ...base,
+      settled: { pending: true, at: "2026-11-23T05:01:00.000Z",
+        kind: "share" } }),
+    "being shared out now");
+    assert.equal(settlementWords({ ...base,
+      settled: { failed: true, kind: "share", at: "2026-11-23T05:01:00.000Z" },
+    }), "shared out partway, failed at 2026-11-23 05:01 UTC; the next jobs " +
+      "run finishes it");
+    assert.equal(settlementWords({ ...base,
+      settled: { failed: true, kind: "keep", at: "2026-11-23T05:01:00.000Z" },
+    }), "credited partway, failed at 2026-11-23 05:01 UTC; the next jobs " +
+      "run finishes it");
+    assert.equal(settlementWords({ ...base,
+      settled: { at: "x", kind: "share", by: "2026-11-22", chosen: true,
+        shares: [{ email: "b", amount: 1000 }, { email: "c", amount: 9000 }],
+        leftover: 0 } }),
+    "shared among 2");
+    assert.equal(settlementWords({ ...base,
+      settled: { at: "x", kind: "keep", by: "2026-11-22", chosen: false,
+        shares: [{ email: "host", amount: 9_900 }], leftover: 100 } }),
+    "credited to 1, $1 kept back");
+    assert.equal(settlementWords({ ...base,
+      reward: { earned: false, amount: 0, leftover: 0 } }), "");
+  });
+
+  it("say what the reward came to, rolled or none", () => {
+    assert.equal(rewardWords({ ...base,
+      reward: { earned: false, amount: 0, leftover: 0 } }),
+    "no reward (under $300)");
+    assert.equal(rewardWords({ ...base, rolledTo: "2026-11-22",
+      moved: ["A", "B"], stuck: [], reward: { earned: false, amount: 0,
+        leftover: 0, rolled: true } }),
+    "rolled to 2026-11-22 (2 orders moved)");
+    assert.equal(rewardWords({ ...base, rolledTo: "2026-11-22",
+      moved: ["A"], stuck: [{ id: "B" }] }),
+    "rolled to 2026-11-22 (1 order moved, 1 stuck)");
   });
 });
