@@ -6,6 +6,7 @@ description: >
 slug: "order"
 title: "Place an order"
 heading: "Place an order"
+hideBreadcrumbs: true
 type: "order"
 layout: "order/single.html"
 pageScript: "order"
