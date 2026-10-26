@@ -18,6 +18,7 @@ e2e/cart-touch.spec.mjs daa775382947 2026-10-26
 e2e/cart-way-tap.spec.mjs daa775382947 2026-10-26
 e2e/contact-send.spec.mjs daa775382947 2026-10-26
 e2e/contact.spec.mjs daa775382947 2026-10-26
+e2e/customer-emails.spec.mjs 1c5c8de3cbc2 2026-10-26
 e2e/delivery-pass.spec.mjs daa775382947 2026-10-26
 e2e/delivery-reminder.spec.mjs c5b80508ee19 2026-10-26
 e2e/edit-order.spec.mjs daa775382947 2026-10-26
