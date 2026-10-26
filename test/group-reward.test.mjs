@@ -520,7 +520,9 @@ describe("a settlement that fails partway", () => {
 
     const after = await getRound(stores, "vff", "2026-11-08");
 
-    assert.equal(after.settled, null);
+    // Let go as the kind it failed as, for the next run to finish.
+    assert.deepEqual([after.settled.failed, after.settled.kind],
+      [true, "keep"]);
     assert.equal(await creditBalance(stores, "host@x.com", ny("2026-11-24")),
       0);
 
@@ -564,5 +566,71 @@ describe("credit a lost submission spent", () => {
     assert.equal(await creditBalance(stores, "m@x.com", later), 2_500);
     // Once: the next sweep finds nothing held by the lost one.
     assert.deepEqual(await sweepStrandedCredit(stores, { now: later }), []);
+  });
+});
+
+// The security re-re-review's change 2 (6427102482): a share that
+// failed partway is finished as a share, never granted again under a
+// changed choice.
+describe("a share that fails partway", () => {
+  it("is finished as a share, and the choice can't change", async () => {
+    const stores = testStores();
+    const real = stores.customers.create;
+    let calls = 0;
+
+    // The first grant (the bigger share) lands; the second fails.
+    stores.customers.create = async (...args) => {
+      calls += 1;
+      if (calls === 2) throw new Error("Blobs down");
+
+      return real(...args);
+    };
+
+    await seed(stores, [
+      order("NFF-2611-R1AAAA", "a@x.com", 1000, "2026-11-08"),
+      order("NFF-2611-R2AAAA", "b@x.com", 100, "2026-11-22"),
+      order("NFF-2611-R2BBBB", "c@x.com", 900, "2026-11-22"),
+    ]);
+    await setGroupHost(stores, "vff", "host@x.com");
+
+    await closeRound(stores, VFF, "2026-11-08", { now: ny("2026-11-09"),
+      terms });
+
+    const next = (await closeRound(stores, VFF, "2026-11-22",
+      { now: ny("2026-11-23"), terms })).round;
+    const chosen = await chooseReward(stores, VFF, "2026-11-08", "share",
+      { now: ny("2026-11-10") });
+
+    await assert.rejects(settleReward(stores, VFF, chosen, next,
+      { now: ny("2026-11-23", 0, 1), terms }), /Blobs down/);
+
+    const failed = await getRound(stores, "vff", "2026-11-08");
+    const at = ny("2026-11-24");
+
+    assert.deepEqual([failed.settled.failed, failed.settled.kind],
+      [true, "share"]);
+    assert.equal(await creditBalance(stores, "c@x.com", at), 9_000);
+    assert.equal(await creditBalance(stores, "b@x.com", at), 0);
+
+    // The farm's natural answer to the error: refused.
+    await assert.rejects(chooseReward(stores, VFF, "2026-11-08", "keep"),
+      /after a failure/);
+
+    // The next run finishes the share: only the missing grant.
+    const run = await workRounds(stores, { now: ny("2026-11-23", 1), terms });
+
+    assert.deepEqual(run.settled.map((s) => [s.round, s.kind, s.shares]),
+      [["2026-11-08", "share", 2]]);
+    assert.equal(await creditBalance(stores, "b@x.com", at), 1_000);
+    assert.equal(await creditBalance(stores, "c@x.com", at), 9_000);
+    assert.equal(await creditBalance(stores, "host@x.com", at), 0);
+
+    const done = await getRound(stores, "vff", "2026-11-08");
+
+    assert.equal(done.settled.kind, "share");
+    assert.equal(done.settled.failed, undefined);
+    assert.equal(done.settled.pending, undefined);
+    await assert.rejects(chooseReward(stores, VFF, "2026-11-08", "keep"),
+      /already shared out/);
   });
 });

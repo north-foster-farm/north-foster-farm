@@ -209,6 +209,12 @@ export const chooseReward = async (stores, group, round, kind, {
       throw new Error(`Round ${round} earned no reward (real money ${
         record.real} cents, under $${record.threshold}).`);
     }
+    if (record.settled && record.settled.failed) {
+      throw new Error(`Round ${round}'s reward is being ${
+        record.settled.kind === "share" ? "shared out" : "credited"} after ` +
+        "a failure; the next jobs run finishes it, and the choice can't " +
+        "change now.");
+    }
     if (record.settled) {
       throw new Error(`Round ${round}'s reward is already ${
         record.settled.kind === "share" ? "shared out" : "credited"}.`);
@@ -247,11 +253,20 @@ export const splitReward = (amount, members) => {
 export const settleReward = async (stores, group, prior, next, {
   now = new Date(), terms,
 }) => {
-  if (prior.settled || !prior.reward.earned) return prior;
+  if (!prior.reward.earned) return prior;
+  if (prior.settled && !prior.settled.failed) return prior;
 
+  // A settlement that failed partway is taken up again as the kind
+  // it failed as (security re-re-review, 6427102482): its grants
+  // stand, and only the missing ones are made.
   const claimed = await swapRound(stores, group.key, prior.round,
-    (stored) => (stored.settled ? null : {
-      ...stored, settled: { pending: true, at: now.toISOString() },
+    (stored) => (stored.settled && !stored.settled.failed ? null : {
+      ...stored,
+      settled: {
+        pending: true, at: now.toISOString(),
+        ...(stored.settled && stored.settled.failed
+          ? { kind: stored.settled.kind, retry: true } : {}),
+      },
     }));
 
   // Someone else holds or finished the settlement.
@@ -260,10 +275,22 @@ export const settleReward = async (stores, group, prior, next, {
     return claimed;
   }
 
-  const letGo = () => swapRound(stores, group.key, prior.round,
+  // Lets the claim go: with nothing granted yet (no host on record),
+  // wholly, so the host can still choose; after a grant failed, as a
+  // failed settlement of the kind begun, which the next run finishes
+  // and no new choice can change.
+  const letGo = (failedAs = null) => swapRound(stores, group.key, prior.round,
     (stored) => (stored.settled && stored.settled.pending
-      ? { ...stored, settled: null } : null));
-  const kind = claimed.choice ? claimed.choice.kind : "keep";
+      ? {
+        ...stored,
+        settled: failedAs
+          ? { failed: true, kind: failedAs, at: now.toISOString() }
+          : null,
+      }
+      : null));
+  const kind = claimed.settled.retry
+    ? claimed.settled.kind
+    : (claimed.choice ? claimed.choice.kind : "keep");
   const from = (what) => ({ group: group.key, round: prior.round, kind: what });
   const grant = (email, amount, what) => grantCredit(stores, email, {
     amount, from: from(what), now, timeZone: terms.timeZone,
@@ -303,7 +330,7 @@ export const settleReward = async (stores, group, prior, next, {
       await grant(s.email, s.amount, settledAs === "share" ? "share" : "host");
     }
   } catch (error) {
-    await letGo();
+    await letGo(settledAs);
     throw error;
   }
 
@@ -361,7 +388,9 @@ export const workRounds = async (stores, {
       const prior = rounds[i];
       const next = rounds[i + 1];
 
-      if (!prior.reward.earned || prior.settled) continue;
+      // A settlement that failed partway is taken up again.
+      if (!prior.reward.earned
+        || (prior.settled && !prior.settled.failed)) continue;
 
       try {
         const done = await settleReward(stores, group, prior, next, {
