@@ -22,7 +22,6 @@ e2e/delivery-pass.spec.mjs daa775382947 2026-10-26
 e2e/delivery-reminder.spec.mjs c5b80508ee19 2026-10-26
 e2e/edit-order.spec.mjs daa775382947 2026-10-26
 e2e/edit-switch.spec.mjs c5b80508ee19 2026-10-26
-e2e/farm-refund.spec.mjs c5b80508ee19 2026-10-26
 e2e/favicon.spec.mjs daa775382947 2026-10-26
 e2e/footer.spec.mjs daa775382947 2026-10-26
 e2e/forms.spec.mjs daa775382947 2026-10-26
