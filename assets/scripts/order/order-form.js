@@ -1432,15 +1432,19 @@ export class OrderForm {
 
       button.dataset.on = String(shown[part]);
       if (this.panel() && !narrow) {
-        // Text: no role, no state, no stop in the Tab order.
+        // Text: no role, no state, no stop in the Tab order. Any
+        // global ARIA attribute, aria-controls among them, would void
+        // the presentation role.
         button.setAttribute("role", "presentation");
         button.removeAttribute("aria-selected");
         button.removeAttribute("aria-expanded");
+        button.removeAttribute("aria-controls");
         button.removeAttribute("tabindex");
         panel.removeAttribute("role");
         panel.removeAttribute("aria-labelledby");
       } else if (narrow) {
         button.setAttribute("role", "tab");
+        button.setAttribute("aria-controls", panelId);
         button.setAttribute("aria-selected", String(open));
         button.tabIndex = open ? 0 : -1;
         button.removeAttribute("aria-expanded");
@@ -1450,6 +1454,7 @@ export class OrderForm {
         button.removeAttribute("role");
         button.removeAttribute("aria-selected");
         button.removeAttribute("tabindex");
+        button.setAttribute("aria-controls", panelId);
         button.setAttribute("aria-expanded", String(open));
         panel.removeAttribute("role");
         panel.removeAttribute("aria-labelledby");
