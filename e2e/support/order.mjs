@@ -25,20 +25,19 @@ export const SKU = {
 export const PANEL = "(min-width: 576px) and (max-width: 1199.98px) "
   + "and (min-height: 500.02px)";
 
-// Folds a floating cart as a customer does, with its toggle: a pane
-// folds to its total row (data-open false), a panel to its right
-// column (data-items closed).
-export const foldCart = async (page, cart) => {
-  const panel = await page.evaluate((q) => matchMedia(q).matches, PANEL);
-
-  const [attr, folded] = panel ? ["data-items", "closed"]
-    : ["data-open", "false"];
-
-  if (await cart.getAttribute(attr) !== folded) {
+// Folds or opens a floating cart as a customer does, with its pill
+// (#477): one fold at every width, data-fold open or closed. What
+// closed hides is the stylesheet's: a phone keeps the total row and
+// the foot, a panel its right column.
+const setFold = async (cart, fold) => {
+  if (await cart.getAttribute("data-fold") !== fold) {
     await cart.locator("[data-cart-toggle]").click();
   }
-  await expect(cart).toHaveAttribute(attr, folded);
+  await expect(cart).toHaveAttribute("data-fold", fold);
 };
+
+export const foldCart = (page, cart) => setFold(cart, "closed");
+export const unfoldCart = (order) => setFold(order.cart, "open");
 
 // A cart as ?add= wants it: { eggs: 2 } -> "NFF-CHK-EGG-LG:2".
 export const addQuery = (cart) => Object.entries(cart)

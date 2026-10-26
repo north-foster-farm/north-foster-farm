@@ -22,7 +22,7 @@
 // it isn't reached here.
 
 import {
-  FULL_CART, OrderPage, PANEL, expect, test,
+  FULL_CART, OrderPage, expect, test, unfoldCart,
 } from "./support/order.mjs";
 import {
   ACCOUNT_TABS, cannedDates, keepHome, signedIn, sitemap,
@@ -412,26 +412,17 @@ for (const width of WIDTHS) {
         await page.evaluate(() => scrollTo(0, 0));
 
         const floats = () => order.cart.evaluate((el) => (
-          el.dataset.stuck === "true" && el.dataset.open === "true"
+          el.dataset.placement === "floating"
         ));
 
         test.skip(!await floats(), "the cart doesn't float this wide");
 
-        // A panel folds its lines, which it shows once Expand is
-        // pressed (#274, round 6).
-        const panel = await page.evaluate(
-          (q) => matchMedia(q).matches, PANEL
-        );
-
-        if (panel) {
-          await toggle.click();
-          await expect(order.cart).toHaveAttribute("data-items", "open");
-        }
+        // One fold at every width (#477): open it, then Escape.
+        await unfoldCart(order);
         await order.cart.locator("[data-checkout]").focus();
         await page.keyboard.press("Escape");
         await expect.soft(order.cart, "Escape folds it")
-          .toHaveAttribute(panel ? "data-items" : "data-open",
-            panel ? "closed" : "false");
+          .toHaveAttribute("data-fold", "closed");
         await expect.soft(toggle, "the focus goes to its toggle")
           .toBeFocused();
       });

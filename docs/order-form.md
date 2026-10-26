@@ -1094,33 +1094,31 @@ Flags that take a value accept both `--reason "..."` and
   price and an Add button, rightmost, that morphs into
   a stepper. Buttons take their height from padding, never a fixed
   height.
-- **The cart.** From `xl` it is a column to the right of the catalog,
-  under the page heading, about 60/40, and sticks to the top for the
-  length of the page like the sidebar. Below `xl` it floats above the
-  list while it scrolls and a caret folds it down to the total and
-  the Next button. On a screen 500px tall or less, at any width (a
-  phone on its side, whatever Safari's bars are doing), nothing rides
-  along: the cart sits where it settles and the top bar scrolls away
-  with the page (#274 round 4; `$cart-short`, order-form.js `SHORT`).
-  It itemises every line (name, quantity at the unit
-  price, subtotal, or "0 items"), then subtotal, discount and fee
-  ("Free" when waived), the discount code field, then the total under
-  the line, and Next, which scrolls to Your details. Lines are grouped
-  under their category with the tiers indented beneath, at 0.875rem.
-  The "Next discount" nudge is hidden at the top tier. There is no
-  Empty cart; a saved draft is restored silently. The badges are a
-  dotted line of 0.7rem text on any way: "Delivery" (lit at the
-  minimum) and "Free delivery" (lit at the waiver), two badges since
-  #274 round 4, then the tiers, which take a second line where the
-  list is under 22rem wide. They are muted until earned and then
-  primary green and italic; a handful of chicks hop out of one the
-  moment it lights (`celebrate.js`, on a small canvas around the
-  badge). Below `lg` the page title rides in the
-  sticky Jump to bar beside the button. Everything the panel says
-  comes from `lib/summary.mjs`, whose tests pin every sentence and
-  prove the nudge's promise against the totals at every cent to $250.
-  The design spec behind the page lives in
-  `.ignored/handoffs/online-orders-but-fable/design-critique.md`.
+- **The cart.** One component at every width (#477; the spec, the
+  study behind it and the layout rules are `docs/cart.md`). It is a
+  class of its own, `order/cart/cart.js`, with its view state in
+  `cart/state.mjs` (a column from `xl`, inline in its slot in the
+  page, or floating fixed at the foot of the screen; one fold, open or
+  closed, only while floating) and its layout, keyboard and animations
+  in `cart/view.mjs`. The form calls `render()` with `lib/summary.mjs`'s
+  summary and hears back when a line is removed, a way picked, a code
+  applied or Proceed to checkout pressed; it never reads the form.
+  From `xl` the cart is a sticky column to the right of the catalog.
+  Below `xl` it floats while its slot is below the screen, closed to
+  the total row and the foot on a phone or to its right column on a
+  tablet, and settles into its slot, open, when the slot's top rises
+  to where the pane's top is; it lifts off closed on the way back up.
+  On a screen 500px tall or less nothing floats. It itemises every
+  line under its category (remove ×, the pack label, quantity at the
+  unit price, the line total, or "0 items"), then subtotal, discount
+  and fee ("Free" when waived), the total row (count and total, a
+  readout), the badges, the shared row (the way and Add discount), and
+  the foot: Expand or Hide, Proceed to checkout, the "Next discount"
+  nudge. The badges light at the delivery minimum, the waiver and each
+  tier; a handful of chicks hop out of one the moment it lights
+  (`celebrate.js`). Everything the cart says comes from
+  `lib/summary.mjs`, whose tests pin every sentence and prove the
+  nudge's promise against the totals at every cent to $250.
 - **Forms are horizontal**: a label column and a field column. A
   signed-in customer's name, email and phone arrive as plain text
   under a "Click to edit" hint; a click makes one a field again.
