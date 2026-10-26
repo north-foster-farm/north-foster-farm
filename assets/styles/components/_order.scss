@@ -2728,7 +2728,11 @@
     // When the room is too short even for the floor (a phone on its
     // side, or the keyboard up), the parts under the total row give way
     // and scroll: the sheet still keeps the rows, the total and
-    // Continue.
+    // Continue. The scroller's edge sits a gap under the total row's
+    // toggle, so what has scrolled up never clips flush against it: the
+    // dark rule's own room goes with the scroll, and the badges lay on
+    // the toggle (#448). Only while open: padding would keep a strip
+    // of the fold open when it closes. measureFloor counts the gap.
     .order-cart[data-tight] .order-cart-after {
       flex: 0 1 auto;
       min-height: 0;
@@ -2737,6 +2741,10 @@
         overflow-y: auto;
         overscroll-behavior: contain;
       }
+    }
+
+    .order-cart[data-open="true"][data-tight] .order-cart-after {
+      padding-top: 0.75rem;
     }
 
     // On the Total tab the sums take the lines' fold, and keep their

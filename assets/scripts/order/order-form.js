@@ -1636,7 +1636,10 @@ export class OrderForm {
     // What is under the total row: the badges, the way and the code.
     // The badges once gave way first; they are where a discount's
     // chicks come from, so they stay and the cap gives way (#274).
-    const below = others(after.firstElementChild) + spacer;
+    // The tight pane's scroller starts a gap under the toggle (#448);
+    // counted always, or the gap's own height would flip tight.
+    const gap = 0.75 * rem;
+    const below = others(after.firstElementChild) + spacer + gap;
     const css = getComputedStyle(this.cart);
     const pane = others(this.cart, fold, after)
       + ["paddingTop", "paddingBottom", "borderTopWidth", "borderBottomWidth"]
@@ -1649,7 +1652,7 @@ export class OrderForm {
     // The open code row and the dark rule over the badges keep their
     // room under the sums, so the field and Apply stay in reach (#389).
     const keep = outer(qs(after, "[data-share]"))
-      + outer(qs(after, ".order-cart-rule-dark"));
+      + outer(qs(after, ".order-cart-rule-dark")) + gap;
     const fit = paneFit(
       { pane, fold: foldMin, below, keep }, visible - rem - bar
     );
