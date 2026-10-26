@@ -5,13 +5,18 @@
 
 // Both bands sit right above the footer's sign-up, on the same dark
 // band, which gives the gap below them and clears the silhouette
-// (_footer.scss).
+// (_footer.scss). The gap above matches it, from the buttons to the
+// roofline, so the content sits in the middle of the dark (#435).
 .touch {
   @include dark-band;
 
-  padding-block: $band-gap 0;
+  padding-block: calc(#{$footer-gap} + #{$sil-gap}) 0;
   background-color: $band-dark-bg;
   text-align: center;
+
+  @include media-breakpoint-down(md) {
+    padding-top: calc(#{$footer-gap-phone} + #{$sil-gap});
+  }
 }
 
 .touch-eyebrow {

@@ -35,9 +35,10 @@ $sil-url-sm: url("/images/silhouette-4_2-sm.svg");
 
 // What the band pads its bottom by: the rise, and 32px between its
 // field and the roofline (James's value).
-$sil-clear: calc(var(--sil-h) + 32px);
+$sil-gap: 32px;
+$sil-clear: calc(var(--sil-h) + #{$sil-gap});
 
-// A band's gap above its content (_touch.scss).
+// The footer's gap above its field on a page with no band.
 $band-gap: 3.5rem;
 
 // The dark band above the roofline, which rises into its bottom
