@@ -91,7 +91,7 @@ export const findCode = (value, codes) => {
 // `waive.fee` takes the delivery fee off: the caller has checked the
 // customer's pass (lib/passes.mjs, #182), and the order says it used
 // one in `flags.minimumWaived` and `totals.feeWaived`.
-// `lock` is a buying group member's locked price list (#471), the
+// `lock` is a buying group member's member price list (#471), the
 // group's `priceLock`, which the caller has settled from the group
 // code or the customer's record; `terms.groups` then names the group
 // too, so its pickup is offered. `deliverTo` is the group's place

@@ -1016,7 +1016,7 @@ export class OrderForm {
   }
 
   // The group's place and series join the model and its rounds the
-  // pickup list, its lock prices the totals, and the order carries
+  // pickup list, its member prices set the totals, and the order carries
   // the code (or, for a member signed in, nothing: the server knows).
   unlockGroup(data, code) {
     this.member = data.group;
@@ -1032,7 +1032,7 @@ export class OrderForm {
     this.draft.save(this.collect());
   }
 
-  // The member's price lock while it holds (#471): through its last
+  // The member price while it holds (#471): through its last
   // day, by the day the order is for, the day it is placed or, for a
   // change, was, as `money` chooses the prices in force. The server
   // works it out the same way, so the totals agree.

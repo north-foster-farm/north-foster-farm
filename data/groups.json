@@ -1,5 +1,5 @@
 {
-  "_comment": "Buying groups (#471). A group's members hold a private code (in Blobs, never here) that unlocks its series, a private pickup place, and the group's locked price list: `priceLock.prices` is the retail price of every SKU on the day of the lock, and a member pays the lower of that and today's retail through `priceLock.through`. `name` is the one setting for what members see. The host reward and the round minimum are the farm's policy, read by the round close.",
+  "_comment": "Buying groups (#471). A group's members hold a private code (in Blobs, never here) that unlocks its series, a private pickup place, and the group's member price list: `priceLock.prices` is the retail price of every SKU on the day of the lock, and a member pays the lower of that and today's retail through `priceLock.through`. `name` is the one setting for what members see. The host reward and the round minimum are the farm's policy, read by the round close.",
   "groups": [
     {
       "key": "vff",

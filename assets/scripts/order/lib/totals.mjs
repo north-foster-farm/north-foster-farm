@@ -71,13 +71,13 @@ export const codeDiscountFor = (subtotal, code) => {
   };
 };
 
-// A buying group's locked price list (#471): a member pays the lower
-// of an item's locked price and its retail price, so a rise in retail
+// A buying group's member price list (#471): a member pays the lower
+// of an item's member price and its retail price, so a rise in retail
 // shows as a whole-dollar discount on each item the lock holds down.
 // `lock` is the group's `priceLock` (data/groups.json): { prices:
 // { [sku]: dollars }, label? }. -> { key, label, amount, lines:
 // [{ sku, off, qty, amount }] } in cents, or null while nothing is
-// held down (today the locked prices are retail).
+// held down (today the member prices are retail).
 export const lockDiscountFor = (lines, index, lock) => {
   if (!lock || !lock.prices) return null;
 
@@ -97,7 +97,7 @@ export const lockDiscountFor = (lines, index, lock) => {
   }
 
   return amount > 0
-    ? { key: "lock", label: lock.label || "Price lock", amount, lines: out }
+    ? { key: "lock", label: lock.label || "Member price", amount, lines: out }
     : null;
 };
 
@@ -111,8 +111,8 @@ export const lockOn = (lock, day) =>
 // `lines` is [{ sku, qty }]; `index` is indexCatalog(catalog); `group`
 // is the customer's discount group key, if any; `code` is a discount
 // code entry, if a known one was typed; `lock` is a buying group
-// member's locked price list, if any. The bulk tier, the group
-// discount, the code and the price lock never stack: the customer
+// member's member price list, if any. The bulk tier, the group
+// discount, the code and the member price never stack: the customer
 // gets the largest.
 // `zipStatus` is the delivery ZIP's status from zipInfo, when known.
 // `waiveFee` is a farm-issued pass that waives the delivery fee
@@ -194,7 +194,7 @@ export const computeTotals = ({
     areaFee: feeWaived ? 0 : areaFee,
     // Only on an order that waived one, so no other record changes.
     ...(feeWaived ? { feeWaived: true } : {}),
-    // Only on an order the price lock held down (#471): the per-item
+    // Only on an order the member price held down (#471): the per-item
     // amounts Square shows on the receipt.
     ...(useLock ? { discountLock: true, lockLines: byLock.lines } : {}),
     // Only on an order credit covered some of (#471).

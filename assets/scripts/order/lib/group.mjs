@@ -1,7 +1,7 @@
 // A buying group on the order page (#471). The page embeds nothing of
 // a group: once POST /api/group accepts its code (typed in the code
 // box, or carried by the link /order/?group=<code>), the answer brings
-// the group's place and series, its locked price list and its open
+// the group's place and series, its member price list and its open
 // rounds, and these fold them into what the page already holds.
 
 import { buildModel } from "./events.mjs";
