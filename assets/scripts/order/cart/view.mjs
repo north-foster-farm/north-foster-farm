@@ -368,7 +368,8 @@ export const showAdded = (box, text, { ms = 2600 } = {}) => {
 };
 
 // The first Add's lesson: the pane stays open on the new line for the
-// dwell, then onShut runs and the pill pulses in three pairs. The pane
+// dwell, then onShut runs (the caller closes the pane and pulses the
+// pill in three pairs once it has shut). The pane
 // is the customer's once they tap or click in it (keep); a touch is
 // judged when it ends, since a scroll lands as a touch too (#473): a
 // tap keeps the pane, a scroll (one the browser cancels, or one that
@@ -389,11 +390,11 @@ export const teach = (pane, pill, { dwell, onShut }) => {
     pane.removeEventListener("pointerup", ended);
     pane.removeEventListener("pointercancel", ended);
   };
+  // The caller closes the pane and pulses the pill once it has shut.
   const shut = () => {
     if (!live) return;
     end();
     onShut();
-    pulsePill(pill, "teach");
   };
   const keep = () => {
     if (!live) return;
@@ -446,7 +447,9 @@ export const teach = (pane, pill, { dwell, onShut }) => {
 // own are its own, and a scroller taller than the room is left where
 // it is. The pane may grow once the bar sticks, so it looks again a
 // frame later.
-export const clearFocusUnder = (pane, bar = null) => {
+export const clearFocusUnder = (pane, given) => {
+  const bar = given === undefined
+    ? document.querySelector(".order-topbar") : given;
   const clear = (el) => {
     if (pane.dataset.placement !== "floating" || pane.contains(el)
       || document.activeElement !== el) return;
