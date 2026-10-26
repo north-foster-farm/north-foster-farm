@@ -72,6 +72,15 @@ network and shared staging data, and the runner has none of them. Do
 not start a server. If a change needs a browser to verify, say so in
 your report.
 
+The coordinator or a bullpen lane checks a branch in Actions, not on
+the Mac. To run only the specs a change touches, once and with no
+burn-in, name them: `gh workflow run e2e.yml --ref lane/<you> -f
+specs="e2e/foo.spec.mjs e2e/bar.spec.mjs"`. Only paths under `e2e/`
+are accepted, on lane branches only (not `next`, `staging` or `main`),
+and the run reports as `e2e-named`, never as the required `e2e`.
+Without `specs`, the run is the full suite twice plus the burn-in,
+about 18 jobs.
+
 `/api/orders` and `/api/contact` are rate limited and shared; send no
 test orders or messages.
 
