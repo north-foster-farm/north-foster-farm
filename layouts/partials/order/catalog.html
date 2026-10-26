@@ -43,3 +43,15 @@
     </section>
   {{ end }}
 </div>
+
+{{/* The product photo, large (#486): one dialog for every row's
+     thumbnail, filled by order/photos.js from the button's data. */}}
+<dialog class="order-photo" id="order-photo" aria-labelledby="order-photo-title">
+  <div class="order-photo-panel">
+    <img class="order-photo-img" data-photo-img alt="" width="1200" height="800" sizes="(min-width: 60rem) 56rem, 100vw">
+    <div class="order-photo-foot">
+      <p class="order-photo-title" id="order-photo-title" data-photo-title></p>
+      <button type="button" class="btn btn-outline-primary btn-sm" data-photo-close>Close</button>
+    </div>
+  </div>
+</dialog>

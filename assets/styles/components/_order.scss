@@ -341,6 +341,84 @@
     }
   }
 
+  // The cut's photo (#486): a 3:2 thumbnail at the row's left edge,
+  // outside the grid so every row layout below keeps its areas. The
+  // row makes room with padding and grows to the thumbnail's height.
+  .order-item[data-has-photo] {
+    --order-photo-w: 3.75rem;
+    --order-photo-h: 2.5rem;
+
+    position: relative;
+    min-height: calc(var(--order-photo-h) + 1.25rem);
+    padding-left: calc(1rem + var(--order-photo-w) + 0.75rem);
+  }
+
+  .order-item-photo {
+    position: absolute;
+    top: 50%;
+    left: 1rem;
+    width: var(--order-photo-w);
+    height: var(--order-photo-h);
+    padding: 0;
+    border: 0;
+    border-radius: calc(var(--order-radius) - 2px);
+    overflow: hidden;
+    background: var(--bs-tertiary-bg);
+    transform: translateY(-50%);
+    cursor: zoom-in;
+
+    img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--bs-primary);
+      outline-offset: 2px;
+    }
+
+    // The placeholder opens nothing.
+    &[data-placeholder] {
+      cursor: default;
+    }
+  }
+
+  // The photo, large: the dialog is the image's width up to the
+  // panel's, with the cut's name and Close under it.
+  .order-photo {
+    width: min(56rem, calc(100vw - 2rem));
+    padding: 0;
+    border: 0;
+    border-radius: 0.75rem;
+    box-shadow: 0 1.5rem 3rem rgb(0 0 0 / 30%);
+
+    &::backdrop {
+      background: rgb(10 16 13 / 55%);
+    }
+  }
+
+  .order-photo-img {
+    display: block;
+    width: 100%;
+    height: auto;
+    background: var(--bs-tertiary-bg);
+  }
+
+  .order-photo-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.75rem 1rem;
+  }
+
+  .order-photo-title {
+    margin: 0;
+    font-weight: bold;
+  }
+
   .order-item-name {
     grid-area: name;
 

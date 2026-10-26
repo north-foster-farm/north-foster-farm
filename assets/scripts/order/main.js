@@ -3,5 +3,7 @@
 import "bootstrap/js/dist/offcanvas.js";
 
 import { OrderForm } from "./order-form.js";
+import { initPhotos } from "./photos.js";
 
 OrderForm.init();
+initPhotos();

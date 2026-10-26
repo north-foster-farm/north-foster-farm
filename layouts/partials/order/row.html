@@ -3,7 +3,26 @@
      `data-archived`: it stays hidden unless a paid order being
      changed holds it (order/restock.js). */}}
 {{ $id := printf "qty-%s" (.sku | lower) }}
-<li class="order-item" data-sku="{{ .sku }}" data-restock-label="{{ .restockLabel }}"{{ with .restock }} data-restock="{{ . }}"{{ end }} tabindex="-1"{{ if eq .restock "archived" }} data-archived{{ end }}{{ if .out }} data-out{{ with .restockLabel }} data-stock="out"{{ end }} hidden{{ end }}>
+{{ $photo := partial "order/photo.html" .sku }}
+<li class="order-item" data-sku="{{ .sku }}" data-restock-label="{{ .restockLabel }}"{{ with .restock }} data-restock="{{ . }}"{{ end }} tabindex="-1"{{ if eq .restock "archived" }} data-archived{{ end }}{{ if .out }} data-out{{ with .restockLabel }} data-stock="out"{{ end }} hidden{{ end }}{{ with $photo }} data-has-photo{{ end }}>
+  {{- /* The cut's photo (#486), one per cut and shared by its tiers:
+       a thumbnail that opens the photo large in #order-photo
+       (order/photos.js). The name under the large photo is the cut's,
+       the catalog name before its tier ("Whole Chicken"). A cut with
+       no photo yet shows the placeholder, which opens nothing. The
+       alt and the button's label are drafts (data/productPhotos.yaml). */}}
+  {{- with $photo }}
+    {{- $name := index (split $.name ", ") 0 }}
+    {{- $thumb := .image.Resize "120x" }}
+    {{- $thumb2 := .image.Resize "240x" }}
+    {{- $img := printf `<img src="%s" srcset="%s 120w, %s 240w" sizes="3.75rem" width="%d" height="%d" alt="" loading="lazy" decoding="async">` $thumb.RelPermalink $thumb.RelPermalink $thumb2.RelPermalink $thumb.Width $thumb.Height | safeHTML }}
+    {{- if .placeholder }}
+  <span class="order-item-photo" data-placeholder role="img" aria-label="{{ .alt }}">{{ $img }}</span>
+    {{- else }}
+      {{- $large := .image.Resize "1200x" }}
+  <button type="button" class="order-item-photo" data-photo="{{ .stem }}" data-photo-src="{{ $large.RelPermalink }}" data-photo-srcset="{{ $large.RelPermalink }} 1200w, {{ .image.RelPermalink }} 2400w" data-photo-alt="{{ .alt }}" data-photo-title="{{ $name }}" aria-label="See the photo of {{ $name | lower }}">{{ $img }}</button>
+    {{- end }}
+  {{- end }}
   <span class="order-item-name">
     {{/* Capitalized here, never in the catalog (#278). */}}
     <label for="{{ $id }}">{{ .row | strings.FirstUpper }}</label>

@@ -49,6 +49,8 @@ const plugins = [
         "data-stock",
         "out",
         "low",
+        // A row with a product photo (#486).
+        "data-has-photo",
         // An out-of-stock row's label in the Add button's place (#303).
         "data-restock",
         "data-urgency",
