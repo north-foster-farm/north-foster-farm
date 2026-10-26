@@ -45,6 +45,10 @@
       Payments are switched off in previews, so no order can be placed
       here. The live site takes orders.
     </p>
+    {{/* A buying group member's credit (#471), applied by itself
+         (James, 6405054048): what it covers and what is left to pay.
+         Draft wording; order-form.js fills it. */}}
+    <p class="form-text" data-credit-note aria-live="polite" hidden></p>
     <p class="invalid-feedback order-pay-error" role="alert" data-error-for="payment" hidden></p>
   </div>
 </fieldset>

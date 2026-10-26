@@ -16,6 +16,7 @@ import terms from "./lib/terms.mjs";
 import { scheduledDates } from "../../assets/scripts/order/lib/dates.mjs";
 import { sameSite, sessionFrom } from "./lib/auth.mjs";
 import { now as clock } from "./lib/clock.mjs";
+import { creditBalance } from "./lib/credit.mjs";
 import {
   INVALID_CODE, findGroupByCode, groupOf, memberKeyOf, memberTerms,
   publicGroup,
@@ -85,6 +86,10 @@ export const handle = async (req, {
     ok: true,
     group: publicGroup(group),
     dates: groupDates(group, now, env),
+    // A member signed in learns their credit (#471), in cents, which
+    // the order handler reads again from the ledger. A code alone
+    // earns none: the account is what says the credit is theirs.
+    credit: session ? await creditBalance(stores, session.email, now) : 0,
   });
 };
 

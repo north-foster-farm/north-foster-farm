@@ -205,6 +205,8 @@ export const recordRefund = async (
         ...(refund.edit ? { edit: refund.edit } : {}),
         // Handed back by the farm itself (#181): no processor to ask.
         ...(refund.byHand ? { byHand: true } : {}),
+        // Credit put back on the member's ledger (#471).
+        ...(refund.via === "credit" ? { via: "credit" } : {}),
       }],
     });
   }, "refund.recorded", now).catch(async (error) => {

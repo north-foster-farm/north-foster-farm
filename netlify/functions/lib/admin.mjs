@@ -13,6 +13,7 @@ import { normalizeEmail, validEmail } from "./auth.mjs";
 import { company } from "./company.mjs";
 import { DELIVERING } from "./health.mjs";
 import { completeInSquare } from "./complete.mjs";
+import { restoreCredit } from "./credit.mjs";
 import { GROUPS, groupOf, memberKeyOf } from "./groups.mjs";
 import { devEmails, sendMail } from "./mail.mjs";
 import * as newsApi from "./news.mjs";
@@ -369,7 +370,15 @@ export const refundOrder = async (stores, id, {
     const key = `${base || `refund-${id}-${stamp}`}-${i}`;
     let refund;
 
-    if (paidByHand(p)) {
+    if (p.via === "credit") {
+      // A member's credit (#471) goes back on the ledger it came
+      // from, first (it is the newest payment), and the record says
+      // so. Nothing is asked of Square or PayPal.
+      const { restored } = await restoreCredit(stores, order.customer.email,
+        { orderId: id, amount: take, now });
+
+      refund = { status: "COMPLETED", via: "credit", restored };
+    } else if (paidByHand(p)) {
       // Money the farm took by hand (#181): Square holds a note of it,
       // not the money, so the farm hands it back itself and the record
       // says so. Nothing is asked of Square or PayPal.

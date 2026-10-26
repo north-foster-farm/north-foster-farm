@@ -137,7 +137,26 @@ export class Payment {
 
     this.state.dataset.cardOpen = String(open);
     this.cardButton.setAttribute("aria-pressed", String(open));
-    if (submit) submit.hidden = !open;
+    if (submit) submit.hidden = !open && !this.covered;
+  }
+
+  // A member's credit covers the whole order (#471): nothing to
+  // charge, so the wallets and the card fields step aside and the
+  // form's own button places the order. Off again, the card is back
+  // as it was.
+  setCovered(on) {
+    const submit = document.getElementById("order-submit");
+
+    this.covered = !!on;
+    this.state.dataset.payCovered = String(this.covered);
+    qs(this.root, "[data-wallets]").hidden = this.covered;
+    qs(this.root, "#pay-card-panel").hidden = this.covered;
+    if (this.covered && submit) {
+      submit.hidden = false;
+      submit.disabled = false;
+    } else if (!this.covered) {
+      this.setCardOpen(this.state.dataset.cardOpen === "true");
+    }
   }
 
   // Loads once the section is near the screen, or the first time

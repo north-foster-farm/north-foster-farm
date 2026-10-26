@@ -148,6 +148,10 @@ export class OrderForm {
     // A draft's pickup at a round the lists lack until the group is
     // unlocked, chosen then.
     this.wantedOccurrence = null;
+    // A member's credit, in cents, from /api/group when signed in: it
+    // comes off the total by itself, and the server reads the ledger
+    // again.
+    this.credit = 0;
     this.index = indexCatalog(this.catalog);
     this.errors = new Errors(form);
     // /order/?edit=<id> changes a paid order (startEdit): its own draft,
@@ -882,6 +886,7 @@ export class OrderForm {
       lock: this.lock(),
       zipStatus: this.zipStatus(),
       waiveFee: !!this.pass && this.passFee,
+      credit: this.editing ? 0 : this.credit,
     });
   }
 
@@ -1016,6 +1021,7 @@ export class OrderForm {
   unlockGroup(data, code) {
     this.member = data.group;
     this.groupCode = code;
+    this.credit = Number(data.credit) || 0;
     this.terms = withPlaces(this.terms, this.raw, data.group);
     this.dates.addScheduled(data.dates || []);
     if (this.wantedOccurrence && this.dates.choose(this.wantedOccurrence)) {
@@ -1039,6 +1045,32 @@ export class OrderForm {
 
     return lockOn({ ...this.member.lock, through: this.member.lockThrough },
       day);
+  }
+
+  // A member's credit in the payment section (#471): what it covers
+  // and what is left to pay. Covering the whole order, it is the
+  // payment: the card and the wallets step aside and the button
+  // places the order with nothing to charge. Draft wording.
+  renderCredit(totals) {
+    const note = qs(this.form, "[data-credit-note]");
+
+    if (!note) return;
+
+    const used = (totals && totals.credit) || 0;
+    const covered = used > 0 && totals.total === 0;
+
+    note.hidden = used === 0;
+    if (used > 0) {
+      note.textContent = covered
+        ? `Your credit covers this order: ${dollars(used)}, nothing to pay.`
+        : `${dollars(used)} of your credit comes off; ${
+          dollars(totals.total)} to pay.`;
+    }
+    if (covered !== this.covered) {
+      this.covered = covered;
+      this.payment.setCovered(covered);
+      this.submitLabel();
+    }
   }
 
   // The group's place as the page knows it once unlocked, or null.
@@ -1104,6 +1136,7 @@ export class OrderForm {
   dropGroup(message) {
     this.member = null;
     this.groupCode = null;
+    this.credit = 0;
     this.terms = withPlaces(this.terms, this.raw);
     this.dates.dropExtra();
     this.renderGroupDelivery();
@@ -1144,6 +1177,7 @@ export class OrderForm {
     const totals = this.totals();
 
     this.renderWindows();
+    this.renderCredit(totals);
 
     for (const input of all(this.form, "[data-qty]")) {
       const qty = this.qty(input);
@@ -1646,6 +1680,7 @@ export class OrderForm {
       group: this.group, code: this.code, schedule: this.dates.schedule(),
       lock: this.lock(),
       deliverTo: this.groupPlace(),
+      credit: this.editing ? 0 : this.credit,
       waive: { minimum: !!this.pass, fee: !!this.pass && this.passFee },
     });
   }
@@ -1805,6 +1840,13 @@ export class OrderForm {
     // A change with nothing more to pay: no payment at all.
     if (this.editing && this.amount() <= 0) {
       await this.deliver(payload);
+
+      return;
+    }
+    // A member's credit covers the whole order (#471): nothing to
+    // charge, and the server checks the ledger again.
+    if (this.covered) {
+      await this.deliver({ ...payload, payment: { method: "credit" } });
 
       return;
     }

@@ -98,10 +98,13 @@ export const findCode = (value, codes) => {
 // (data/locations.json): a delivery with `delivery.toGroup` true goes
 // to its address, a Thursday delivery like any other (James,
 // 6406932945), with the usual minimum and fee.
+// `credit` is the member's credit in cents (lib/credit.mjs), which the
+// caller has read for the signed-in customer; the totals take as much
+// of it as the order needs, and `total` is then the money due.
 export const validateOrder = (payload, {
   index, terms, now, group, codes, code, lock = null, deliverTo = null,
-  schedule = [], held = {}, waive = {}, placed = null, farm = false,
-  kept = null,
+  credit = 0, schedule = [], held = {}, waive = {}, placed = null,
+  farm = false, kept = null,
 }) => {
   const errors = {};
   const p = payload && typeof payload === "object" ? payload : {};
@@ -217,7 +220,7 @@ export const validateOrder = (payload, {
     : null;
   const totals = computeTotals({
     lines, method, index, money, group, code: discountCode, lock,
-    zipStatus, waiveFee: !!waive.fee,
+    zipStatus, waiveFee: !!waive.fee, credit,
   });
   const out = {
     customer: {

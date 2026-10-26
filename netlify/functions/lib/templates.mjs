@@ -1302,6 +1302,8 @@ const onePayment = (p) => {
     .replace(/\b\w/g, (c) => c.toUpperCase());
 
   if (p.via === "venmo") return `${total} by Venmo`;
+  // A buying group member's credit (#471). Draft wording.
+  if (p.via === "credit") return `${total} from your credit`;
   if (WALLETS[p.method]) return `${total} by ${WALLETS[p.method]}`;
   if (p.last4) return `${total} by ${brand} ending ${p.last4}`;
   // Money the farm took in person (#181): "$55 by cash", "$55 by check".

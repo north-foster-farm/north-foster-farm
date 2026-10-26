@@ -118,9 +118,14 @@ export const lockOn = (lock, day) =>
 // `waiveFee` is a farm-issued pass that waives the delivery fee
 // (#182): no fee and no outside-area fee, and `feeWaived` set when
 // there was one to waive. Discounts apply as usual.
+// `credit` is a buying group member's credit (#471, lib/credit.mjs),
+// in cents, as much of it as they hold: stored value, not a
+// discount, so it comes off after every discount and fee, and
+// `total` is then the money due. `credit` on the totals is what it
+// covered, only when it covered something.
 export const computeTotals = ({
   lines, method, index, money, group, code, lock, zipStatus,
-  waiveFee = false,
+  waiveFee = false, credit = 0,
 }) => {
   let subtotal = 0;
 
@@ -169,6 +174,10 @@ export const computeTotals = ({
       : (useGroup
         ? `${byGroup.label} (${byGroup.percent}%)`
         : (bulk.tier ? `Bulk discount ($${bulk.tier}+)` : null)));
+  const owedBeforeCredit = subtotal - discountAmount + deliveryFee;
+  const creditUsed = Math.min(
+    Math.max(0, Math.floor(Number(credit) || 0)), owedBeforeCredit
+  );
 
   return {
     subtotal,
@@ -184,7 +193,9 @@ export const computeTotals = ({
     // Only on an order the price lock held down (#471): the per-item
     // amounts Square shows on the receipt.
     ...(useLock ? { discountLock: true, lockLines: byLock.lines } : {}),
-    total: subtotal - discountAmount + deliveryFee,
+    // Only on an order credit covered some of (#471).
+    ...(creditUsed > 0 ? { credit: creditUsed } : {}),
+    total: owedBeforeCredit - creditUsed,
   };
 };
 

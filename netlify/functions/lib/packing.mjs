@@ -435,11 +435,15 @@ const list = (words) => (words.length > 1
 export const PAY_WORDS = {
   card: "card", applepay: "Apple Pay", googlepay: "Google Pay",
   cashapp: "Cash App Pay", venmo: "Venmo",
+  // A buying group member's credit (#471), on the slip as "credit".
+  credit: "credit",
 };
 
 // Every way checkout takes payment now: its methods, less Venmo while
-// PayPal is unset or the button is held back.
+// PayPal is unset or the button is held back, and less a member's
+// credit (#471), which is not a way to pay at the door.
 export const acceptedWays = (env) => Object.keys(METHODS)
+  .filter((m) => m !== "credit")
   .filter((m) => m !== "venmo" || (paypalConfigured(env)
     && !venmoHidden(env)))
   .map((m) => PAY_WORDS[m] || m);

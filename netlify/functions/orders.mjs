@@ -31,9 +31,11 @@ import { validateOrder } from "../../assets/scripts/order/lib/validate.mjs";
 import { parts, today } from "../../assets/scripts/order/lib/zoned.mjs";
 import { sessionFrom } from "./lib/auth.mjs";
 import {
-  METHODS, announceNew, finishVenmo, ownRecord, payWithSquare, startVenmo,
+  METHODS, announceNew, finishVenmo, ownRecord, payWithCredit,
+  payWithSquare, startVenmo,
 } from "./lib/checkout.mjs";
 import { now as clock, real } from "./lib/clock.mjs";
+import { creditBalance } from "./lib/credit.mjs";
 import { json, ORDER_BUDGET_MS, readJson } from "./lib/http.mjs";
 import { alert, count } from "./lib/health.mjs";
 import { log, withLog } from "./lib/log.mjs";
@@ -262,6 +264,12 @@ export const handle = async (req, {
   if (groupCode && !buying) {
     return json(422, { errors: { groupCode: INVALID_CODE } });
   }
+  // A member's credit (#471) spends only when signed in: the account
+  // is what says the credit is theirs. As much as the order needs
+  // comes off, and the rest of the total is paid as usual.
+  const creditAvailable = session && buying
+    ? await creditBalance(stores, session.email, now)
+    : 0;
   // A pass (#182) lifts the delivery minimum for this one order, and
   // the fee if it was issued so. It is checked against the order's
   // email, held for this submission (its key: the id is reserved
@@ -293,6 +301,7 @@ export const handle = async (req, {
       ? lockOn(buying.priceLock || null, today(now, terms.timeZone))
       : null,
     deliverTo: buying ? terms.model.location(buying.location) || null : null,
+    credit: creditAvailable,
     schedule: pickupSchedule(env),
     waive: {
       minimum: !!passCode && !problem,
@@ -406,6 +415,23 @@ export const handle = async (req, {
   };
 
   try {
+    // Credit covered the whole order (#471): nothing to charge, so no
+    // card and no Venmo. The page says so with method `credit`; the
+    // totals, not the page, decide, so a card on a covered order is
+    // never charged and credit alone never pays an order with money
+    // due.
+    const covered = order.totals.total === 0 && order.totals.credit > 0;
+
+    if (covered || method === "credit") {
+      if (!covered) {
+        return json(422, { errors: { payment: "Choose how to pay." } });
+      }
+
+      return own(await announce(await payWithCredit(stores, order, {
+        key, attempt,
+      }, options)));
+    }
+
     if (method === "venmo") {
       const stage = String(payment.stage || "");
 

@@ -445,6 +445,17 @@ export const buildOrder = (order, customerId, cfg) => {
       scope: "ORDER",
     }];
   }
+  // A member's credit (#471) is stored value the farm granted, not
+  // money received, so Square's books carry it as a discount of its
+  // own, named, beside any other: the order's total in Square is then
+  // the money charged. Draft name.
+  if (t.credit > 0) {
+    out.discounts = [...(out.discounts || []), {
+      name: "Group credit",
+      amount_money: money(t.credit),
+      scope: "ORDER",
+    }];
+  }
   // Two lines when the address is outside the published towns, so
   // the receipt explains the extra $3 on its own. A fee a pass waived
   // (#182) still goes as the delivery, at $0, with no discount line.

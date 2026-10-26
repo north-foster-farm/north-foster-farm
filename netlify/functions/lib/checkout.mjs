@@ -27,6 +27,7 @@ import { now as clock } from "./clock.mjs";
 import { log } from "./log.mjs";
 import { sendMail } from "./mail.mjs";
 import { welcome } from "./news.mjs";
+import { spendCredit } from "./credit.mjs";
 import { joinGroup } from "./groups.mjs";
 import * as paypalApi from "./paypal.mjs";
 import { usePass } from "./passes.mjs";
@@ -53,6 +54,9 @@ export const METHODS = {
   googlepay: { via: "square" },
   cashapp: { via: "square" },
   venmo: { via: "venmo" },
+  // A buying group member's credit covering the whole order (#471):
+  // no money moves. The order handler lets it pay nothing else.
+  credit: { via: "credit" },
 };
 
 const SQUARE_KEYS = ["squareOrderId", "customerId"];
@@ -98,12 +102,20 @@ export const completeOrder = async (stores, order, { square, payment }, {
   }
 
   const at = now.toISOString();
+  const credit = (order.totals && order.totals.credit) || 0;
   const saved = await saveOrder(stores, {
     ...order,
     status: "paid",
     paidAt: at,
     square,
-    payments: [{ at, amount: order.totals.total, ...payment }],
+    // The money first, then the credit tender (#471), so a refund
+    // comes out of the credit first (James, 6405215783).
+    payments: [
+      ...(order.totals.total > 0
+        ? [{ at, amount: order.totals.total, ...payment }] : []),
+      ...(credit > 0
+        ? [{ at, amount: credit, via: "credit", method: "credit" }] : []),
+    ],
     refunds: [],
   }, now);
 
@@ -114,6 +126,13 @@ export const completeOrder = async (stores, order, { square, payment }, {
     await touchCustomer(stores, order.customer, now, {
       orderId: order.id,
     });
+    // The credit the order spent comes off the ledger, once; a retry
+    // of the write finds its spend there.
+    if (credit > 0) {
+      await spendCredit(stores, order.customer.email, {
+        orderId: order.id, amount: credit, now,
+      });
+    }
     // An order placed with a buying group's code makes its customer a
     // member (#471): the next order needs no code when signed in.
     if (order.group && order.group.key) {
@@ -556,6 +575,55 @@ export const recordOnSquare = async (stores, order, k, capture, {
 
     return { square: null, squarePaymentId: null };
   }
+};
+
+// An order a member's credit covers whole (#471): the Square order is
+// made as for any other, with the credit as its discount, and paid
+// as a zero order, so it does not sit in the dashboard unpaid; then
+// the record, with the credit as its one tender. No money moves.
+// -> the record.
+export const payWithCredit = async (stores, order, {
+  key, attempt = 1,
+}, {
+  square = squareApi,
+  sleep,
+  ...options
+} = {}) => {
+  const k = attemptKey(key, attempt);
+  const env = options.env || process.env;
+  const fetchImpl = options.fetchImpl;
+  const { deadline } = options;
+  const until = deadline || 0;
+
+  if (!(order.totals.total === 0 && order.totals.credit > 0)) {
+    throw new CheckoutError("This order is not covered by credit.", {
+      code: "credit.short",
+    });
+  }
+
+  const created = await retry(
+    () => square.createOrder(order, k, { env, fetchImpl, deadline }),
+    { sleep, until }
+  );
+
+  try {
+    await retry(() => square.payZeroOrder(created.squareOrderId, k, {
+      env, fetchImpl,
+    }), { sleep, until });
+  } catch (error) {
+    // The order stands in Square either way; the record is what the
+    // farm packs from, and the drift check sees the rest.
+    log.warn({
+      event: "square.zero_pay_failed", id: order.id,
+      squareOrderId: created.squareOrderId,
+      error: String(error && error.message),
+    });
+  }
+
+  return completeOrder(stores, order, {
+    square: squareRecord(created),
+    payment: { via: "credit", method: "credit" },
+  }, options);
 };
 
 // For the jobs: a Venmo checkout the page never finished, because the

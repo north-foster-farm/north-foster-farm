@@ -221,9 +221,11 @@ export const keptFee = (order) =>
   (order && order.attempted && order.attempted.fee) || 0;
 
 // What a payment is known by at its processor: the Square payment, or
-// for Venmo the PayPal capture.
+// for Venmo the PayPal capture; a member's credit (#471) has no
+// processor and is known as itself, so a refund out of it is its own.
 export const paymentRef = (payment) =>
-  (payment && (payment.paypalCaptureId || payment.squarePaymentId)) || null;
+  (payment && (payment.paypalCaptureId || payment.squarePaymentId
+    || (payment.via === "credit" ? "credit" : null))) || null;
 
 // The fields that hold money, in the list shape, for an amendOrder
 // patch: an old record is rewritten the new way the first time its
