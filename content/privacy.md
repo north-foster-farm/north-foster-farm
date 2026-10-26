@@ -131,8 +131,9 @@ Your browser also keeps:
   whether you're signed in and your account
   details, so each page doesn't have to ask the site again. This is gone when
   you close the tab.
-- two random codes that PayPal's script stores when the payment buttons
-  appear on the order page. They hold nothing about you.
+- two random codes that PayPal's script stores, with the time it first
+  stored them, when the payment buttons appear on the order page. They hold
+  nothing about you.
 
 Other companies set a few things of their own. When the payment section of
 the order page appears, Square sets a cookie that identifies your device.
