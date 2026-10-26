@@ -222,7 +222,15 @@ tests both limits without it.
 `e2e/` reaches staging's records, outbox and maintenance switch, a
 pass for a run (#182) and Square's copy of an order (read only) only
 through `POST /api/staging/e2e` (`lib/e2e.mjs`), with
-`E2E_STAGING_TOKEN`. The deploy runs each step against its own
+`E2E_STAGING_TOKEN`. A failed run can leave its orders behind, so
+`e2e-staging.yml` starts with `bin/e2e/sweep.mjs`: through the same
+ops it finds the suite's own orders (its `qa-e2e-…@example.com`
+addresses, never anyone else's, so a tester who types one by hand is
+swept too) still open an hour on, cancels each with its refund, or
+without when the refund is refused and the summary says so, and
+deletes it with its customer record and mail. A leftover it cannot
+remove fails the job, but the specs still run.
+The deploy runs each step against its own
 stores, so the suite holds no Netlify personal access token and no
 Blobs credentials, and a CI run needs none. The token opens that path
 and the order and contact limits' exemption and nothing else;

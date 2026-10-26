@@ -24,6 +24,14 @@ on:
     branches:
       - e2e/staging
       - e2e/staging-full
+  # On demand, once this file is on the default branch: the sweep of
+  # the suite's leftovers alone, or the whole run.
+  workflow_dispatch:
+    inputs:
+      sweep_only:
+        description: Only sweep the suite's stale orders off staging
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -37,6 +45,10 @@ concurrency:
 jobs:
   e2e-staging:
     name: e2e-staging
+    # A dispatch runs only from staging itself: the sweep-only path
+    # skips the deploy wait, which is otherwise the one check that the
+    # code the token reaches is staging's own (security review).
+    if: github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/staging'
     runs-on: ubuntu-latest
     timeout-minutes: 120
     env:
@@ -56,6 +68,7 @@ jobs:
       # and site must be the same commit; a newer staging supersedes
       # this run.
       - name: Wait for the deploy
+        if: ${{ !inputs.sweep_only }}
         run: |
           want=$(git rev-parse HEAD)
           for _ in $(seq 1 40); do
@@ -84,13 +97,25 @@ jobs:
         if: env.SUPERSEDED != '1'
         run: npm ci
 
-      - name: Browsers
+      # A failed run's orders go first, through the back office: the
+      # suite's own stale orders only (bin/e2e/sweep.mjs), cancelled,
+      # refunded where Square allows, and deleted with their mail. The
+      # summary names what it did.
+      - name: Sweep the suite's leftovers
         if: env.SUPERSEDED != '1'
+        env:
+          E2E_STAGING_TOKEN: ${{ secrets.E2E_STAGING_TOKEN }}
+        run: node bin/e2e/sweep.mjs
+
+      # A leftover the sweep could not remove fails the job but never
+      # keeps the specs from running (security review).
+      - name: Browsers
+        if: ${{ !cancelled() && env.SUPERSEDED != '1' && !inputs.sweep_only }}
         run: npx playwright install --with-deps chromium
 
       - name: Run
         id: run
-        if: env.SUPERSEDED != '1'
+        if: ${{ !cancelled() && env.SUPERSEDED != '1' && !inputs.sweep_only }}
         env:
           E2E_STAGING_TOKEN: ${{ secrets.E2E_STAGING_TOKEN }}
           FULL: ${{ github.ref_name == 'e2e/staging-full' && '1' || '' }}
@@ -124,7 +149,7 @@ jobs:
       # of this workflow: with it, the toolbar specs sign in as a
       # person and a screenshot could show the real staging outbox.
       - name: Failure screenshots
-        if: failure() && env.SUPERSEDED != '1'
+        if: failure() && env.SUPERSEDED != '1' && !inputs.sweep_only
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: staging-failure-screenshots
@@ -133,13 +158,13 @@ jobs:
           if-no-files-found: ignore
 
       - name: Summary
-        if: always() && env.SUPERSEDED != '1'
+        if: always() && env.SUPERSEDED != '1' && !inputs.sweep_only
         env:
           RUN_OUTCOME: ${{ steps.run.outcome }}
         run: node bin/e2e-summary.mjs e2e-results.json "$GITHUB_SHA"
 
       - name: Alert
-        if: always() && env.SUPERSEDED != '1'
+        if: always() && env.SUPERSEDED != '1' && !inputs.sweep_only
         env:
           PING: ${{ secrets.E2E_STAGING_PING_URL }}
           OUTCOME: ${{ job.status }}

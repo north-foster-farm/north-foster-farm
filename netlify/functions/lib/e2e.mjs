@@ -44,9 +44,15 @@ const messagesFrom = async (stores, email) => {
 const toList = (to) => (Array.isArray(to) ? to : [to]).map(lower);
 
 export const OPS = {
+  // With the address and the time placed, so the sweep of the suite's
+  // leftovers (bin/e2e/sweep.mjs) can tell its own stale orders apart.
   ordersList: async (stores, { email, status }) => ({
     orders: (await listOrders(stores, { email, status }))
-      .map((o) => ({ id: o.id, status: o.status })),
+      .map((o) => ({
+        id: o.id, status: o.status,
+        email: (o.customer && o.customer.email) || null,
+        submittedAt: o.submittedAt || null,
+      })),
   }),
   orderShow: async (stores, { id }) => ({
     order: await showOrder(stores, need(id, "id")),
