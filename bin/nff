@@ -48,6 +48,7 @@ const USAGE = `Usage:
   bin/nff customers list
   bin/nff customers show <email>
   bin/nff customers set <email> name=.. phone=.. group=friends|none
+                                member=vff|none   (a buying group, #471)
   bin/nff customers delete <email>
   bin/nff customers forget <email> [--apply]
                                       delete a customer's details:
@@ -208,6 +209,19 @@ const USAGE = `Usage:
                                       $0 too (Square gets a $0 charge)
   bin/nff passes list
   bin/nff passes revoke <code>
+  bin/nff groups list                 the buying groups (#471) and
+                                      whether each has a code
+  bin/nff groups show <key>           the group, its code, the link
+                                      form of it and the host's email:
+                                      never paste the output anywhere
+                                      public
+  bin/nff groups code <key> --new     mint the group's code (XXXX-XXXX)
+  bin/nff groups code <key> --set CODE
+                                      set one by hand; either replaces
+                                      the code in force, and members
+                                      on record stay members
+  bin/nff groups set <key> host=<email>|none
+                                      the host, for the reward
   bin/nff refunds check               every refund not yet settled,
                                       asked of Square or PayPal: the
                                       jobs do it daily; alerts as they
@@ -421,6 +435,7 @@ const [
   { applyAmend, planAmend },
   { withholdCustomerEmail },
   { TENDERS, createFarmOrder, payFarmOrder },
+  groups,
 ] = await Promise.all([
   import("../netlify/functions/lib/terms.mjs"),
   import("../netlify/functions/lib/admin.mjs"),
@@ -446,6 +461,7 @@ const [
   import("../netlify/functions/lib/amend.mjs"),
   import("../netlify/functions/lib/payments.mjs"),
   import("../netlify/functions/lib/farm-orders.mjs"),
+  import("../netlify/functions/lib/groups.mjs"),
 ]);
 
 // --scratch: development's env, but stores of their own
@@ -476,7 +492,7 @@ const VALUED = ["reason", "amount", "note", "at", "until", "n", "since",
   "date", "window", "phone", "contact", "address1", "address2", "town",
   "zip", "cooler", "gate", "delivery-notes", "notes", "key", "site",
   "market", "captured-by", "evidence", "first", "last", "line", "code",
-  "occurrence", "paid", "ref", "preview"];
+  "occurrence", "paid", "ref", "preview", "set"];
 // Flags given more than once keep every value, in order: `--line`.
 const REPEATED = ["line"];
 const args = process.argv.slice(2);
@@ -1510,6 +1526,69 @@ const run = async () => {
   }
   case "passes revoke":
     return out(`Revoked ${(await passes.revokePass(stores, rest[0])).code}.`);
+  // Buying groups (#471). The code is the group's only secret: it is
+  // printed here and nowhere public. `show` prints the host's email
+  // too, so keep the output off GitHub.
+  case "groups list": {
+    for (const g of groups.GROUPS) {
+      const record = await groups.getGroupRecord(stores, g.key);
+
+      out(`${g.key}  ${g.name}  ${record && record.code ? "code set"
+        : "no code yet"}${record && record.host ? "  host set" : ""}`);
+    }
+
+    return undefined;
+  }
+  case "groups show": {
+    const g = groups.groupOf(rest[0]);
+
+    if (!g) throw new Error(`Unknown group "${rest[0]}".`);
+
+    const record = await groups.getGroupRecord(stores, g.key);
+    const site = process.env.URL || "";
+
+    out({
+      ...g,
+      priceLock: g.priceLock
+        ? { ...g.priceLock, prices: `${Object.keys(g.priceLock.prices)
+          .length} SKUs` }
+        : null,
+      code: record ? record.code : null,
+      codeSetAt: record ? record.codeSetAt : null,
+      link: record && record.code
+        ? `${site}/order/?group=${encodeURIComponent(record.code)}` : null,
+      previous: record ? record.previous : [],
+      host: record ? record.host : null,
+    });
+
+    return undefined;
+  }
+  case "groups code": {
+    const custom = typeof flags.set === "string" ? flags.set : null;
+
+    if (!flags.new && custom === null) {
+      throw new Error("Say --new to mint a code, or --set CODE.");
+    }
+
+    const record = await groups.setGroupCode(stores, rest[0], {
+      code: custom,
+    });
+
+    return out(`${rest[0]}  ${record.code}  (members on record stay ` +
+      "members; the old code no longer works)");
+  }
+  case "groups set": {
+    const patch = kv(rest.slice(1));
+
+    if (patch.host === undefined) {
+      throw new Error("groups set <key> host=<email>|none");
+    }
+
+    const record = await groups.setGroupHost(stores, rest[0],
+      patch.host === "none" ? null : patch.host);
+
+    return out(`${rest[0]}  host ${record.host ? "set" : "cleared"}.`);
+  }
   case "jobs run":
     return out(await runJobs(stores));
   case "jobs square": {

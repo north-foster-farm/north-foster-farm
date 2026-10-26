@@ -13,6 +13,7 @@ import { normalizeEmail, validEmail } from "./auth.mjs";
 import { company } from "./company.mjs";
 import { DELIVERING } from "./health.mjs";
 import { completeInSquare } from "./complete.mjs";
+import { GROUPS, groupOf, memberKeyOf } from "./groups.mjs";
 import { devEmails, sendMail } from "./mail.mjs";
 import * as newsApi from "./news.mjs";
 import {
@@ -81,6 +82,19 @@ export const setCustomer = async (stores, email, patch, money) => {
         Object.keys(groups).join(", ") || "none"}.`);
     }
     next.discountGroup = key;
+  }
+  // A buying group (#471): `member=vff` joins, `member=none` leaves.
+  if (patch.member !== undefined) {
+    const key = patch.member === "none" || !patch.member ? null : patch.member;
+
+    if (key && !groupOf(key)) {
+      throw new Error(`Unknown group "${key}". Known: ${
+        GROUPS.map((g) => g.key).join(", ")}.`);
+    }
+    next.memberGroup = key
+      ? (memberKeyOf(next) === key ? next.memberGroup
+        : { id: key, joinedAt: new Date().toISOString(), via: "farm" })
+      : null;
   }
 
   return saveCustomer(stores, next);

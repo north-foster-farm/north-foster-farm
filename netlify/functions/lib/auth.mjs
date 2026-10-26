@@ -341,6 +341,11 @@ export const publicCustomer = (customer) => ({
   phone: customer.phone || "",
   avatar: customer.avatar || null,
   discountGroup: customer.discountGroup || null,
+  // A buying group's key (#471), so the order page asks /api/group for
+  // the group's pickup and prices with no code.
+  memberGroup: customer.memberGroup && typeof customer.memberGroup === "object"
+    ? customer.memberGroup.id || null
+    : null,
   address: customer.address || null,
   reminders: reminderPrefs(customer),
   marketing: customer.marketing === true,

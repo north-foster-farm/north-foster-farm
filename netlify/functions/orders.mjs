@@ -40,6 +40,10 @@ import { sendMail } from "./lib/mail.mjs";
 import { gate } from "./lib/maintenance.mjs";
 import { DECLINE_MESSAGES as PAYPAL_DECLINES } from "./lib/paypal.mjs";
 import {
+  INVALID_CODE, findGroupByCode, groupCodeOf, groupOf, memberKeyOf,
+  memberTerms, roundFor,
+} from "./lib/groups.mjs";
+import {
   PASS_MESSAGES, getPass, holdPass, passCodeOf, passProblem, releasePass,
   waivesFee,
 } from "./lib/passes.mjs";
@@ -245,6 +249,18 @@ export const handle = async (req, {
   const group = session && session.customer
     ? session.customer.discountGroup || null
     : null;
+  // A buying group (#471): the code the page applied, checked again
+  // here, or the signed-in customer's own membership. A code that no
+  // longer works is answered first, like a refused pass, so the page
+  // drops it and the order is priced and placed as anyone's.
+  const groupCode = groupCodeOf(payload.groupCode);
+  const buying = groupCode
+    ? await findGroupByCode(stores, groupCode)
+    : (session ? groupOf(memberKeyOf(session.customer)) : null);
+
+  if (groupCode && !buying) {
+    return json(422, { errors: { groupCode: INVALID_CODE } });
+  }
   // A pass (#182) lifts the delivery minimum for this one order, and
   // the fee if it was issued so. It is checked against the order's
   // email, held for this submission (its key: the id is reserved
@@ -268,7 +284,9 @@ export const handle = async (req, {
   }
 
   const result = validateOrder(payload, {
-    index, terms, now, group, codes: discountCodes.codes,
+    index, terms: memberTerms(terms, buying), now, group,
+    codes: discountCodes.codes,
+    lock: buying ? buying.priceLock || null : null,
     schedule: pickupSchedule(env),
     waive: {
       minimum: !!passCode && !problem,
@@ -360,6 +378,16 @@ export const handle = async (req, {
     ...result.order,
     pass: waived ? pass.code : null,
     passWaivesFee: waived && waivesFee(pass),
+    // The group tag (#471): which group, the round the order falls in,
+    // and whether the code or the account brought it. Null for every
+    // other order, so nothing else changes.
+    group: buying
+      ? {
+        key: buying.key,
+        round: roundFor(buying, terms, result.order.fulfilment.date),
+        viaCode: !!groupCode,
+      }
+      : null,
     fulfilment: { ...result.order.fulfilment, state: "agreed" },
     meta: {
       formVersion: catalog.version,

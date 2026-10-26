@@ -27,6 +27,7 @@ import { now as clock } from "./clock.mjs";
 import { log } from "./log.mjs";
 import { sendMail } from "./mail.mjs";
 import { welcome } from "./news.mjs";
+import { joinGroup } from "./groups.mjs";
 import * as paypalApi from "./paypal.mjs";
 import { usePass } from "./passes.mjs";
 import { announcePaid } from "./payments.mjs";
@@ -113,6 +114,13 @@ export const completeOrder = async (stores, order, { square, payment }, {
     await touchCustomer(stores, order.customer, now, {
       orderId: order.id,
     });
+    // An order placed with a buying group's code makes its customer a
+    // member (#471): the next order needs no code when signed in.
+    if (order.group && order.group.key) {
+      await joinGroup(stores, order.customer.email, order.group.key, {
+        now, via: order.group.viaCode ? "code" : "account",
+      });
+    }
 
     await adjust(stores, order.lines, -1);
     if (order.pass) {

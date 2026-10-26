@@ -34,6 +34,9 @@ const DESTRUCTIVE = {
   "address approve": { does: "approve the delivery address of" },
   "address deny": { does: "deny the delivery address of" },
   "passes revoke": { does: "revoke the pass" },
+  // Replacing the code kills the link the host handed out (#471).
+  "groups code": { does: "replace the code of the group" },
+  "groups set": { does: "change the host of the group" },
   "customers rename": { does: "move the account of", apply: true },
   "customers forget": { does: "erase the details of", apply: true },
   "stock set": { does: "set the stock count of" },

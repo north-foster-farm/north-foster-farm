@@ -310,6 +310,12 @@ const staffNote = (order) => {
   }
   if (order.notes) bits.push(`notes: ${order.notes}`);
   if (order.source) bits.push(`heard via ${order.source}`);
+  // A buying group's order (#471) says so first, with its round, so
+  // the farm packs the round as one.
+  if (order.group && order.group.key) {
+    bits.unshift(`group ${order.group.key}${order.group.round
+      ? `, round ${order.group.round}` : ""}`);
+  }
 
   return bits.join(" · ").slice(0, 500);
 };
@@ -380,13 +386,23 @@ const fulfillment = (order) => {
   };
 };
 
+// The release's metadata, and, on a buying group's order (#471), its
+// group and round, so a Square report can add a round up.
+export const orderMetadata = (order) => ({
+  ...ORDER_METADATA,
+  ...(order.group && order.group.key ? {
+    group: order.group.key,
+    ...(order.group.round ? { round: order.group.round } : {}),
+  } : {}),
+});
+
 export const buildOrder = (order, customerId, cfg) => {
   const t = order.totals;
   const out = {
     location_id: cfg.locationId,
     reference_id: order.id,
     source: { name: SOURCE_NAME },
-    metadata: { ...ORDER_METADATA },
+    metadata: orderMetadata(order),
     customer_id: customerId,
     line_items: order.lines.map((line) => (
       cfg.catalog && line.squareVariationId
@@ -541,7 +557,7 @@ export const buildChangeOrder = (order, change, customerId, cfg) => {
     location_id: cfg.locationId,
     reference_id: order.id,
     source: { name: SOURCE_NAME },
-    metadata: { ...ORDER_METADATA },
+    metadata: orderMetadata(order),
     customer_id: customerId,
     line_items: lines,
   };
