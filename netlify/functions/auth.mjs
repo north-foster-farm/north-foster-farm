@@ -15,6 +15,8 @@ import {
   verifyToken,
 } from "./lib/auth.mjs";
 import { finishEmailChange } from "./lib/email-change.mjs";
+import { creditBalance } from "./lib/credit.mjs";
+import { groupOf, memberKeyOf, namedGroup } from "./lib/groups.mjs";
 import { cartOwner } from "./lib/records.mjs";
 import { now as clock, real } from "./lib/clock.mjs";
 import { json, noCopy, readJson } from "./lib/http.mjs";
@@ -215,6 +217,18 @@ export const handle = async (req, {
         hasStamp(req) ? { "Set-Cookie": clearStampHeader() } : {});
     }
 
+    // A buying group's member (#471) sees their group and their
+    // credit on the account page: the name as the farm set it, and
+    // the balance in cents, read from the ledger now.
+    const group = groupOf(memberKeyOf(session.customer));
+    const member = group
+      ? {
+        key: group.key,
+        name: (await namedGroup(stores, group)).name,
+        credit: await creditBalance(stores, session.email, now),
+      }
+      : null;
+
     // `owner`: the tag of this account's cart draft (#149).
     return json(200, {
       ...closed,
@@ -222,6 +236,7 @@ export const handle = async (req, {
       via: session.via,
       customer: publicCustomer(session.customer),
       owner: cartOwner(session.email),
+      ...(member ? { member } : {}),
     });
   }
 

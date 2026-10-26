@@ -24,6 +24,13 @@
               <p class="account-email" id="account-email"></p>
               {{ partial "busy-button.html" (dict "label" "Sign out" "busy" "Signing out" "class" "account-signout" "plain" true "start" true "id" "account-signout" "type" "button" "error" true) }}
             </div>
+            {{/* A buying group's member (#471): the group's name and
+                 the credit balance, on the head's right, members only
+                 (James's v1). Draft wording; main.js fills it. */}}
+            <div class="account-member" id="account-member" hidden>
+              <p class="account-member-group" data-member-group></p>
+              <p class="account-member-credit" data-member-credit></p>
+            </div>
           </header>
 
           <nav class="account-nav" aria-label="Account sections">

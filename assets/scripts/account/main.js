@@ -162,16 +162,22 @@ class Account {
 
     if (!orders.ok) return null;
 
-    return { customer: me.data.customer, orders: orders.data.orders || [] };
+    return {
+      customer: me.data.customer, orders: orders.data.orders || [],
+      // A buying group's member (#471): the group and the credit.
+      member: me.data.member || null,
+    };
   }
 
-  show({ maintenance, customer, orders }) {
+  show({ maintenance, customer, orders, member = null }) {
     if (maintenance) {
       this.loading.textContent = maintenance;
       this.loading.hidden = false;
 
       return;
     }
+
+    this.member = member;
 
     // Signed in as someone the link isn't for: the sign-in page's
     // card takes it, as it does for any browser (#345).
@@ -570,6 +576,21 @@ class Account {
       "href", `#avatar-${c.avatar || "hen-brown"}`
     );
     document.getElementById("account-email").textContent = c.email;
+
+    // A buying group's member (#471): the group's name and the credit
+    // balance, on the head's right; nothing for anyone else. Draft
+    // wording.
+    const box = document.getElementById("account-member");
+    const m = this.member;
+
+    if (box) {
+      box.hidden = !m;
+      if (m) {
+        qs(box, "[data-member-group]").textContent = m.name;
+        qs(box, "[data-member-credit]").textContent =
+          `Credit: ${dollars(m.credit || 0)}`;
+      }
+    }
   }
 
   renderAddress() {

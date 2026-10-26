@@ -6,6 +6,8 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { RATE, handle as lookup } from "../netlify/functions/group.mjs";
+import { handle as meHandle } from "../netlify/functions/auth.mjs";
+import { grantCredit } from "../netlify/functions/lib/credit.mjs";
 import { handle as placeOrder } from "../netlify/functions/orders.mjs";
 import { setCustomer } from "../netlify/functions/lib/admin.mjs";
 import {
@@ -360,4 +362,35 @@ describe("the name the farm sets", () => {
       await assert.rejects(setGroupName(stores, "vff", "  "), /A name/);
       await assert.rejects(setGroupName(stores, "nope", "x"), /Unknown group/);
     });
+});
+
+// The account page's v1 member view (#471): /api/me names the group
+// and the credit, for a member only.
+describe("GET /api/me for a member", () => {
+  const me = (stores, session) => meHandle(new Request("http://x/api/me", {
+    headers: { cookie: `nff_session=${session.id}` },
+  }), { stores, now });
+
+  it("carries the group's name and the credit balance", async () => {
+    const stores = await withCode();
+    const session = await createSession(stores, "pat@example.com", { now });
+
+    assert.equal((await (await me(stores, session)).json()).member,
+      undefined);
+
+    await joinGroup(stores, "pat@example.com", "vff", { now });
+    await grantCredit(stores, "pat@example.com", {
+      amount: 4500, from: { group: "vff", round: "2026-11-08", kind: "host" },
+      now, timeZone: terms.timeZone,
+    });
+
+    const data = await (await me(stores, session)).json();
+
+    assert.deepEqual(data.member,
+      { key: "vff", name: "The Village Family Fitness", credit: 4500 });
+
+    await setGroupName(stores, "vff", "VFF Buying Club", { now });
+    assert.equal((await (await me(stores, session)).json()).member.name,
+      "VFF Buying Club");
+  });
 });

@@ -61,6 +61,29 @@
     min-width: 0;
   }
 
+  // A buying group's member: the group's name and the credit, on the
+  // head's right (#471).
+  .account-member {
+    flex: none;
+    text-align: right;
+  }
+
+  .account-member-group,
+  .account-member-credit {
+    margin: 0;
+    line-height: 1.25;
+  }
+
+  .account-member-group {
+    font-family: $headings-font-family;
+    font-weight: bold;
+  }
+
+  .account-member-credit {
+    font-size: 0.875rem;
+    color: var(--bs-secondary-color);
+  }
+
   .account-email {
     margin: 0;
     font-family: $headings-font-family;
