@@ -1,14 +1,4 @@
-import Tooltip from "bootstrap/js/dist/tooltip.js";
-
-import {
-  floatAgain, floatsAgain, look, segOn, segShown,
-} from "./lib/cart-float.mjs";
-import { current, indexCatalog, packLabel } from "./lib/catalog.mjs";
-import {
-  keyboardInset, moreStop, paneFit, ringsCart, rowsFloor, scrollIntoPane,
-  visibleArea,
-} from "./lib/cart-scroll.mjs";
-import { strayed, touchKind } from "./lib/cart-touch.mjs";
+import { current, indexCatalog } from "./lib/catalog.mjs";
 import { buildModel } from "./lib/events.mjs";
 import { moneyOn } from "./lib/money-on.mjs";
 import {
@@ -17,7 +7,6 @@ import {
 } from "./lib/scheduled.mjs";
 import { linkedMethod, withoutParam } from "./lib/query.mjs";
 import { sentence } from "./lib/sentence.mjs";
-import { awayFrom } from "./lib/share-away.mjs";
 import { summarize } from "./lib/summary.mjs";
 import {
   computeTotals, dollars, meetsMinimum, toCents,
@@ -27,6 +16,7 @@ import {
 } from "./lib/validate.mjs";
 import { pickupTimes, windowLabel } from "./lib/schedule.mjs";
 import { label, today } from "./lib/zoned.mjs";
+import { Cart, JOKE_CODE } from "./cart/cart.js";
 import { celebrate } from "./celebrate.js";
 import { DateLists } from "./date-lists.js";
 import { Draft } from "./draft.js";
@@ -55,12 +45,6 @@ const RETRY_DELAY = 3000;
 // The customer's details and delivery address: what signing out (or a
 // scrub of another account's draft) takes out of the draft (#149).
 const DETAIL_FIELDS = "[data-field^='customer.'], [data-field^='delivery.']";
-
-// The code that is a joke: the cart shows a discount growing by this
-// much a minute for as long as the page is open, and nothing else
-// changes. The server has never heard of it.
-const JOKE_CODE = "EGGBOI";
-const JOKE_PER_MINUTE = 4000;
 
 const sha256 = async (text) => {
   const bytes = new TextEncoder().encode(text);
@@ -104,37 +88,6 @@ const keepInRail = (link) => {
 
   if (by) box.scrollBy({ top: by, behavior: "smooth" });
 };
-
-// Where the cart is a one-column sheet with the total row's two as
-// tabs: a phone, upright or on its side (#278). A phone on its side is
-// tablet-wide but too short for the panel. The stylesheet's
-// $cart-sheet is the same query.
-const SHEET = "(max-width: 575.98px), "
-  + "(max-width: 1199.98px) and (max-height: 500px)";
-
-// Where the floating cart is a panel at the foot of the content
-// column, its Expand and Hide folding the lines alone (#274, round 6).
-// The rest of the range below xl is SHEET. The stylesheet's
-// $cart-split.
-const PANEL = "(min-width: 576px) and (max-width: 1199.98px) "
-  + "and (min-height: 500.02px)";
-
-// Too short for the cart to float or a bar to ride along, at any
-// width: a phone on its side, whatever Safari's bars are doing (#274,
-// round 4). The cart stays settled. The stylesheet's $cart-short.
-const SHORT = "(max-height: 500px)";
-
-// The first Add's lesson (#278): how long the pane stays open on the
-// new line, then the Hide/Show pill's three pairs of pulses (the
-// stylesheet's order-pill-teach), or its still emphasis under reduced
-// motion. 2000 until #274 round 4 added 1.5 s.
-const TEACH_DWELL = 3500;
-const PULSE_MS = { teach: 4400, once: 520, still: 2600 };
-
-// The ring the rail's Cart link puts round the cart (#337): two pulses
-// of the stylesheet's order-cart-ring, or a still ring for as long
-// under reduced motion.
-const RING_MS = 1600;
 
 export class OrderForm {
   static init() {
@@ -182,7 +135,6 @@ export class OrderForm {
     // discount code like any other.
     this.pass = null;
     this.passFee = false;
-    this.joke = null;
     this.index = indexCatalog(this.catalog);
     this.errors = new Errors(form);
     // /order/?edit=<id> changes a paid order (startEdit): its own draft,
@@ -214,19 +166,25 @@ export class OrderForm {
       nameOf: (sku) => this.index.get(sku)?.lineName,
     });
     this.stockNotice = document.getElementById("order-stock");
-    this.cart = document.getElementById("order-cart");
+    // The cart owns its pane; the form tells it what to show and hears
+    // back what the customer did in it (docs/cart.md 4.1).
+    this.cart = new Cart(document.getElementById("order-cart"), {
+      form,
+      bar: document.querySelector(".order-topbar"),
+      onRemove: (sku) => this.remove(sku),
+      onWay: (method) => this.pickWay(method),
+      onCode: () => this.applyCode(),
+      onCheckout: () => this.toPickup(),
+    });
+    // A change to a paid order keeps the prices of its day.
+    if (!this.editId) this.cart.setMoney(this.money);
     this.result = document.getElementById("order-result");
     this.pending = new Pending(document.getElementById("order-pending"));
     this.submitButton = document.getElementById("order-submit");
     this.payment = new Payment(document.getElementById("payment"), this);
-    this.lastTotal = null;
-    this.lastCount = null;
     this.busy = false;
     // The quantity box with focus, which refresh() keeps open.
     this.typing = null;
-    // Which badges were lit at the last render, so a badge that turns
-    // on can celebrate. Null until the first render, which never does.
-    this.lit = null;
     // The signed-in customer's discount group, from /api/me. The server
     // applies it again from the session; this only shows it.
     this.group = null;
@@ -391,33 +349,50 @@ export class OrderForm {
     input.dataset.max = String(qty);
   }
 
-  // Under the total while changing a paid order: what is paid and the
-  // difference. With nothing to pay, Save changes stands in for the
-  // payment section.
+  // Changing a paid order: with nothing to pay, Save changes stands in
+  // for the payment section. The cart shows what is paid and the
+  // difference (cart.js renderEdit).
   renderEdit(total) {
     if (!this.editing) return;
 
-    const box = qs(this.cart, "[data-edit-money]");
-    const { held, kept, keptDate } = this.editing;
+    const { held, kept } = this.editing;
     const diff = total - (held - kept);
 
-    box.hidden = false;
-    qs(box, "[data-total='paid']").textContent = dollars(held);
-    qs(box, "[data-edit-kept]").hidden = !kept;
-    qs(box, "[data-total='kept']").textContent = `−${dollars(kept)}`;
-    qs(box, "[data-total='kept-label']").textContent = keptDate
-      ? `Delivery fee for the trip on ${label(keptDate)}`
-      : "Delivery fee for the trip";
-    // Draft wording.
-    qs(box, "[data-total='due-label']").textContent = diff < 0
-      ? "We refund"
-      : "You pay";
-    qs(box, "[data-total='due']").textContent = dollars(Math.abs(diff));
     this.payment.root.hidden = diff <= 0;
     this.saveButton.hidden = diff > 0;
     // The card's own Pay button shows only with the card chosen.
     this.submitButton.hidden = diff <= 0
       || this.payment.state.dataset.cardOpen !== "true";
+  }
+
+  // The × on a cart line takes every unit of that product out.
+  remove(sku) {
+    const input = qs(this.form, `[data-qty="${CSS.escape(sku)}"]`);
+
+    if (!input) return;
+    this.setQty(input, 0);
+    this.changed();
+  }
+
+  // A pick in the cart's switch sets the page's radio, as a click on
+  // its card would, less the scroll to its fields: the customer is in
+  // the cart, not at the section (#203).
+  pickWay(method) {
+    const radio = qs(this.form, `[name='method'][value='${method}']`);
+
+    if (!radio || radio.checked) return;
+    radio.checked = true;
+    this.quietMethod = true;
+    radio.dispatchEvent(new Event("change", { bubbles: true }));
+    this.quietMethod = false;
+  }
+
+  // Proceed to checkout: to Pickup or delivery, its legend focused.
+  toPickup() {
+    const target = document.getElementById("pickup");
+
+    target.scrollIntoView({ behavior: "smooth", block: "start" });
+    qs(target, "legend").focus({ preventScroll: true });
   }
 
   // Name, email and phone from the customer's record, filled in as
@@ -516,438 +491,19 @@ export class OrderForm {
     this.formatPhone();
     this.showContact();
 
-    // Below xl the cart folds down to the total row and the foot: the
-    // toggle, the way on and the nudge.
-    const cartToggle = qs(this.cart, "[data-cart-toggle]");
-
-    for (const type of ["focusin", "keydown"]) {
-      this.cart.addEventListener(type, () => this.keepOpen(), {
-        passive: true,
-      });
-    }
-    this.watchTouch();
-    cartToggle.addEventListener("click", () => {
-      if (this.panel()) {
-        this.setPart("items", this.cart.dataset.items !== "open");
-
-        return;
-      }
-      this.setOpen(this.cart.dataset.open !== "true");
-    });
-    // Escape folds it while it floats, and leaves the focus on the
-    // toggle that opens it again (#159). A panel folds its lines.
-    this.cart.addEventListener("keydown", (e) => {
-      if (e.key !== "Escape" || this.cart.dataset.stuck !== "true"
-        || this.cart.dataset.open !== "true") return;
-
-      const panel = this.panel();
-
-      if (panel && this.cart.dataset.items !== "open") return;
-      e.preventDefault();
-      if (panel) this.setPart("items", false);
-      else this.setOpen(false);
-      cartToggle.focus();
-    });
-    matchMedia(PANEL).addEventListener("change", () => {
-      this.syncToggle();
-      this.plainTotals();
-    });
-    // A control the Tab key reaches under the floating cart scrolls up
-    // clear of it, never under the top bar (#159, WCAG 2.4.11). The
-    // cart's own are its own, and a scroller taller than the room is
-    // left where it is. The cart may grow once the bar sticks, so it
-    // looks again a frame later.
-    const clear = (el) => {
-      if (this.cart.dataset.stuck !== "true" || this.cart.contains(el)
-        || document.activeElement !== el) return;
-
-      const r = el.getBoundingClientRect();
-      const floor = this.cart.getBoundingClientRect().top;
-      const ceiling = bar ? Math.max(0, bar.getBoundingClientRect().bottom)
-        : 0;
-
-      if (r.height > (floor - ceiling) / 2) return;
-
-      const over = Math.min(r.bottom + 12 - floor, r.top - ceiling - 12);
-
-      if (over > 0) window.scrollBy({ top: over, behavior: "instant" });
-    };
-
-    document.addEventListener("focusin", (e) => {
-      clear(e.target);
-      requestAnimationFrame(() => requestAnimationFrame(
-        () => clear(e.target)
-      ));
-    });
-    qs(this.cart, "[data-checkout]").addEventListener("click", () => {
-      const target = document.getElementById("pickup");
-
-      target.scrollIntoView({ behavior: "smooth", block: "start" });
-      qs(target, "legend").focus({ preventScroll: true });
-    });
-
-    // The total row's two controls (#203, #267): one segmented control.
-    // On a phone it is a pair of tabs that take turns, one always
-    // showing; from md the two fold their own parts. Below xl only; the
-    // column shows both and its count and total are plain text.
-    const itemsToggle = qs(this.cart, "[data-cart-items-toggle]");
-    const moneyToggle = qs(this.cart, "[data-cart-money-toggle]");
-    const seg = qs(this.cart, "[data-cart-seg]");
-    const narrow = matchMedia(SHEET);
-    const other = { items: "money", money: "items" };
-    // A tap on either while the pane is hidden opens it on that part
-    // (#278).
-    const unfold = () => {
-      if (this.cart.dataset.open !== "false") return false;
-      this.setOpen(true);
-
-      return true;
-    };
-    // The other part shuts first, so the picked one opens alone and
-    // measures itself: opened first, the Total tab measured the lines
-    // still showing (#448).
-    const pick = (part) => {
-      unfold();
-      this.setPart(other[part], false);
-      this.setPart(part, true);
-    };
-    const flip = (part) => {
-      if (narrow.matches) return pick(part);
-      this.setPart(part, unfold() || this.cart.dataset[part] !== "open");
-    };
-
-    itemsToggle.addEventListener("click", () => flip("items"));
-    moneyToggle.addEventListener("click", () => flip("money"));
-    // Tabs: the arrows move the pick and the focus with it.
-    seg.addEventListener("keydown", (e) => {
-      if (!narrow.matches || seg.hasAttribute("data-plain")) return;
-
-      const keys = {
-        ArrowLeft: "items", ArrowUp: "items", Home: "items",
-        ArrowRight: "money", ArrowDown: "money", End: "money",
-      };
-      const part = keys[e.key];
-
-      if (!part) return;
-      e.preventDefault();
-      pick(part);
-      (part === "items" ? itemsToggle : moneyToggle).focus();
-    });
-    narrow.addEventListener("change", () => this.syncSeg());
-    // A panel starts shut on its right column; a first Add shows the
-    // line, then shuts it again.
-    if (this.panel()) this.setPart("items", false);
-    this.syncSeg();
-    // Settled, the cart shows everything and the two are plain text
-    // too (#203): stuckWatch below calls this when it settles.
-    const column = matchMedia("(min-width: 1200px)");
-    const folds = all(this.cart, ".order-cart-fold");
-    const plain = () => {
-      // A panel's pill is a readout: Expand and Hide are its one
-      // control (#274, round 6).
-      const still = column.matches || this.panel()
-        || this.cart.dataset.stuck === "false";
-
-      itemsToggle.disabled = still;
-      moneyToggle.disabled = still;
-      seg.toggleAttribute("data-plain", still);
-      this.syncSeg();
-      // Folded, what the fold hides is out of the Tab order too, or the
-      // focus goes under the bar (#159). The column never folds.
-      const folded = !column.matches && this.cart.dataset.open === "false";
-
-      for (const fold of folds) fold.inert = folded;
-    };
-
-    this.plainTotals = plain;
-    column.addEventListener("change", plain);
-    plain();
-
-    this.wireShare();
-    this.watchKeyboard();
-
-    // A smooth scroll measures its destination once, as it starts. The
-    // layout between here and there keeps moving (a cart lifting off or
-    // settling resizes the page, and a flick up from the bottom may
-    // still be gliding when the link is pressed), so the glide ends
-    // short of the target or at the foot of the page. When it ends,
-    // look again and jump the rest, until the target holds still. A
-    // wheel, touch or key press by the customer ends the watch (#337),
-    // the look after a jump included, so the page never fights them.
-    const landOn = (target, block) => {
-      const place = () => target.getBoundingClientRect().top + scrollY;
-      const stop = ["wheel", "touchstart", "keydown", "pointerdown"];
-      let tries = 4;
-      let quiet = null;
-      let cancelled = false;
-      const settle = () => {
-        if (cancelled) return;
-
-        const was = place();
-
-        target.scrollIntoView({ behavior: "instant", block });
-        // The jump may itself shift the layout: look once more after.
-        requestAnimationFrame(() => requestAnimationFrame(() => {
-          if (cancelled) return;
-          tries -= 1;
-          if (tries > 0 && Math.abs(place() - was) > 1) settle();
-          else end();
-        }));
-      };
-      // The glide is over: stop watching it, but keep listening for
-      // the customer until the target holds still.
-      const glided = () => {
-        clearTimeout(quiet);
-        window.removeEventListener("scroll", wait);
-        window.removeEventListener("scrollend", done);
-      };
-      const end = () => {
-        cancelled = true;
-        glided();
-        for (const type of stop) window.removeEventListener(type, end);
-      };
-      const done = () => {
-        glided();
-        settle();
-      };
-      // The scrollend event where the browser has it, a pause in the
-      // scrolling where it does not.
-      const wait = () => {
-        clearTimeout(quiet);
-        quiet = setTimeout(done, 150);
-      };
-
-      window.addEventListener("scroll", wait, { passive: true });
-      window.addEventListener("scrollend", done);
-      for (const type of stop) {
-        window.addEventListener(type, end, { passive: true });
-      }
-      wait();
-    };
-
-    // The header's total, once the cart has scrolled away, goes back
-    // to it (#203). From xl the heading is hidden and the column rides
-    // beside the catalog, so the pane itself is brought into view, only
-    // as far as it takes, and takes focus.
-    const toCart = (smooth) => {
-      const column = matchMedia("(min-width: 1200px)").matches;
-      const target = column
-        ? this.cart : document.getElementById("order-cart-heading");
-
-      const block = column ? "nearest" : "start";
-
-      target.scrollIntoView({ behavior: smooth ? "smooth" : "auto", block });
-      target.focus({ preventScroll: true });
-      if (smooth) landOn(target, block);
-    };
-
-    for (const button of all(this.form, "[data-to-cart]")) {
-      button.addEventListener("click", () => toCart(true));
-    }
-
-    // The rail's Cart link and the mini-cart's Go to cart (#337) name
-    // #order-cart. From xl that is a column stuck beside the catalog,
-    // which the browser's own jump leaves where it is, so both bring
-    // the cart into view and focus it at every width.
+    // The rail's Cart link, the header's cart link and #order-cart in
+    // the URL bring the cart into view and focus it at every width
+    // (#337, #402).
     document.getElementById("order-nav")
       ?.querySelector("a[href='#order-cart']")
       ?.addEventListener("click", (e) => {
         e.preventDefault();
-
-        const column = matchMedia("(min-width: 1200px)").matches;
-        const ring = ringsCart(
-          column, this.cart.getBoundingClientRect(), innerHeight
-        );
-
-        toCart(true);
-        if (ring) this.ringCart();
+        this.cart.show({ smooth: true, ring: true });
       });
     window.addEventListener("hashchange", () => {
-      if (location.hash === "#order-cart") toCart(true);
+      if (location.hash === "#order-cart") this.cart.show({ smooth: true });
     });
-    if (location.hash === "#order-cart") toCart(false);
-
-    // Below xl the pane floats at the foot of the screen while its
-    // place in the page is further down, and settles into the flow
-    // after the last row. Floating it casts a shadow; settled it is
-    // flat and carries its heading. Sticky gives no event for this,
-    // so the rect says which.
-    // On a phone the cart may grow up to the top bar, wherever the bar
-    // is: until the page scrolls it to the top, it sits lower (#180).
-    let stuckTick = null;
-    const bar = document.querySelector(".order-topbar");
-    const cartHeading = document.getElementById("order-cart-heading");
-    // The pane's height while it last floated, under its cap.
-    let floatH = 0;
-    const stuckWatch = () => {
-      stuckTick = null;
-
-      const r = this.cart.getBoundingClientRect();
-      const short = matchMedia(SHORT).matches;
-      const below = matchMedia("(max-width: 1199.98px)").matches;
-      // The pane rests a margin and the toolbar's gap above the foot
-      // of the layout viewport (--cart-gap), the keyboard aside.
-      const rest = (parseFloat(getComputedStyle(this.cart).bottom) || 12)
-        - (this.keyboard || 0);
-      // Its place in the flow, under the heading, and its height as it
-      // last floated decide (lib/cart-float.mjs look); settled it is no
-      // longer sticky (_order.scss). Not while its padding eases back
-      // in: short for that moment, it would settle again for a frame.
-      const place = cartHeading.getBoundingClientRect().bottom
-        + parseFloat(getComputedStyle(cartHeading).marginBottom);
-      const seen = look({ stuck: this.cart.dataset.stuck, floatH }, {
-        place,
-        height: r.height,
-        room: window.innerHeight - rest - 1,
-        easing: this.cart.getAnimations().length > 0,
-        hidden: () => this.hiddenHeight(r.width),
-      });
-
-      floatH = seen.floatH;
-
-      const floating = below && !short && seen.stuck === "true";
-      const barRect = bar ? bar.getBoundingClientRect() : null;
-      const barBottom = barRect ? barRect.bottom : 0;
-
-      // The phone bar casts its shadow only once stuck; at rest it
-      // lies flat under the header (O5).
-      if (bar) bar.dataset.stuck = String(barRect.top <= 0.5);
-      this.cart.style.setProperty(
-        "--cart-bar", `${Math.max(0, Math.round(barBottom))}px`
-      );
-      const was = this.cart.dataset.stuck;
-
-      if (was !== String(floating)) {
-        this.cart.dataset.stuck = String(floating);
-        // On the way back up it lifts off hidden, on its lines,
-        // whatever it was when it settled (#274, round 5).
-        if (below && floatsAgain(was, floating)) {
-          const lift = floatAgain(this.panel());
-
-          this.setOpen(lift.open);
-          this.setPart("items", lift.items === "open");
-          this.setPart("money", lift.money === "open");
-        }
-        // The cap and what gives way to it apply only while it floats.
-        this.syncScroll();
-      }
-      // Settled, the cart is always open and its toggle fades.
-      if (below && !floating && this.cart.dataset.open === "false") {
-        this.setOpen(true);
-      }
-      // A panel with lines is never folded to its total row: it shuts
-      // on its right column, the lines folded (#274, round 6).
-      if (floating && this.panel() && this.cart.dataset.open === "false"
-        && !this.cart.hasAttribute("data-empty")) {
-        this.setOpen(true);
-        this.setPart("items", false);
-      }
-      // So are the lines and the sums, subtotal included (#203).
-      if (below && !floating) {
-        if (this.cart.dataset.items !== "open") this.setPart("items", true);
-        if (this.cart.dataset.money !== "open") this.setPart("money", true);
-      }
-      this.plainTotals();
-      // Scrolled past: the total bar takes over, and its total becomes
-      // a way back.
-      const passed = below && !short && r.bottom < 60;
-
-      if (this.form.dataset.cartPassed !== String(passed)) {
-        this.form.dataset.cartPassed = String(passed);
-        for (const button of all(this.form, "[data-to-cart]")) {
-          button.inert = !passed;
-        }
-      }
-    };
-    const onScroll = () => {
-      if (stuckTick === null) stuckTick = requestAnimationFrame(stuckWatch);
-    };
-
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll);
-    stuckWatch();
-
-    // The list of lines scrolls once the cart would take half the
-    // screen; the fades at its edges say there is more.
-    qs(this.cart, "[data-cart-items]").addEventListener(
-      "scroll", () => this.syncScroll(), { passive: true }
-    );
-    qs(this.cart, ".order-cart-fold").addEventListener(
-      "transitionend", () => this.syncScroll()
-    );
-    qs(this.cart, "[data-cart-more]").addEventListener("click", () => {
-      this.scrollMore(1);
-    });
-    qs(this.cart, "[data-cart-more-top]").addEventListener("click", () => {
-      this.scrollMore(-1);
-    });
-    window.addEventListener("resize", () => this.syncScroll());
-    // The cap follows the top bar on a phone, so the list also grows
-    // and shrinks as the page scrolls; recount what is beyond it.
-    new ResizeObserver(() => this.syncScroll()).observe(
-      qs(this.cart, "[data-cart-items]")
-    );
-
-    // The × on a cart line takes every unit of that product out.
-    this.cart.addEventListener("click", (e) => {
-      const button = e.target.closest("[data-remove]");
-
-      if (!button) return;
-
-      const sku = CSS.escape(button.dataset.remove);
-      const input = qs(this.form, `[data-qty="${sku}"]`);
-
-      if (!input) return;
-      this.setQty(input, 0);
-      this.changed();
-    });
-
-    // A page built before a money change (data/delivery.json,
-    // money.changes) took effect still carries the old badges and
-    // minimum: bring them to today's.
-    const tiers = this.money.bulkTiers.map((t) => `tier-${t.threshold}`);
-
-    for (const badge of this.editId ? [] : all(this.cart,
-      "[data-badge^='tier-']")) {
-      if (!tiers.includes(badge.dataset.badge)) badge.remove();
-    }
-
-    const delivery = qs(this.cart, "[data-badge='delivery']");
-
-    if (delivery && !this.editId) {
-      delivery.dataset.tip = delivery.dataset.tip.replace(
-        /^Orders of \$\d+ or more/,
-        `Orders of $${this.money.deliveryMinimum} or more`
-      );
-    }
-
-    // A tap on a badge explains it; the next tap, or a tap elsewhere,
-    // closes it.
-    const tips = all(this.cart, "[data-tip]").map((badge) => new Tooltip(
-      badge, { title: badge.dataset.tip, trigger: "click", placement: "top" }
-    ));
-
-    this.cart.addEventListener("show.bs.tooltip", (e) => {
-      for (const tip of tips) {
-        if (tip._element !== e.target) tip.hide();
-      }
-    });
-    document.addEventListener("click", (e) => {
-      if (!e.target.closest("[data-tip]")) {
-        for (const tip of tips) tip.hide();
-      }
-    });
-
-    // The discount code: Apply, or Enter in the field.
-    qs(this.cart, "[data-code-apply]").addEventListener("click", () => {
-      this.applyCode();
-    });
-    qs(this.cart, "[data-field='code']").addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        this.applyCode();
-      }
-    });
+    if (location.hash === "#order-cart") this.cart.show();
 
     this.watchSections();
   }
@@ -1003,6 +559,15 @@ export class OrderForm {
       // settled. From xl it is a column stuck beside the others and
       // never counts.
       const column = xl.matches;
+
+      // The phone bar casts its shadow only once stuck; at rest it
+      // lies flat under the header (O5).
+      for (const bar of bars) {
+        if (bar.classList.contains("order-topbar")) {
+          bar.dataset.stuck = String(bar.getBoundingClientRect().top <= 0.5);
+        }
+      }
+
       const edge = bars.reduce((low, bar) => {
         const r = bar.getBoundingClientRect();
 
@@ -1191,9 +756,7 @@ export class OrderForm {
 
     if (added.length) {
       this.draft.save(this.collect());
-      setTimeout(() => this.cart.scrollIntoView({
-        block: "end", behavior: "smooth",
-      }), 300);
+      setTimeout(() => this.cart.show({ smooth: true }), 300);
     }
   }
 
@@ -1207,469 +770,6 @@ export class OrderForm {
     this.changed();
   }
 
-  // The shared row (#203): the way and Add discount side by side; each
-  // opens over the whole row. A pick, Apply that takes, a tap or a
-  // focus outside the row, or Escape folds it back. Blur alone does
-  // not: a tap on Apply blurs the field on iOS before its click lands.
-  wireShare() {
-    const share = qs(this.cart, "[data-share]");
-    const input = qs(share, "[data-field='code']");
-
-    qs(share, "[data-way-toggle]").addEventListener("click", () => {
-      this.setShare("way");
-      (qs(share, "[data-way][aria-pressed='true']")
-        || qs(share, "[data-way]")).focus();
-    });
-    qs(share, "[data-code-toggle]").addEventListener("click", () => {
-      this.setShare("code");
-      input.focus();
-    });
-
-    share.addEventListener("click", (e) => {
-      const pick = e.target.closest("[data-way]");
-
-      if (!pick) return;
-
-      const radio = qs(
-        this.form, `[name='method'][value='${pick.dataset.way}']`
-      );
-
-      this.setShare("");
-      qs(share, "[data-way-toggle]").focus();
-      if (!radio || radio.checked) return;
-      radio.checked = true;
-      // As a click on its card would, less the scroll to its fields:
-      // the customer is in the cart, not at the section.
-      this.quietMethod = true;
-      radio.dispatchEvent(new Event("change", { bubbles: true }));
-      this.quietMethod = false;
-    });
-
-    const away = (e) => {
-      if (awayFrom(share, e.target, e.type === "focusin")) {
-        this.setShare("");
-      }
-    };
-
-    document.addEventListener("pointerdown", away);
-    document.addEventListener("focusin", away);
-    share.addEventListener("keydown", (e) => {
-      if (e.key !== "Escape" || !share.dataset.share) return;
-
-      const was = share.dataset.share;
-
-      this.setShare("");
-      qs(share, was === "way" ? "[data-way-toggle]" : "[data-code-toggle]")
-        .focus();
-    });
-  }
-
-  // The keyboard covers the foot of the layout viewport on iOS, and
-  // the floating cart sits at that foot: while the code field is open
-  // the cart rides up by the keyboard's height (--cart-kb), so the
-  // field stays in sight. The inset is read from the share row's state,
-  // not from focus: a tap on Apply blurs the field before its click.
-  //
-  // A browser toolbar is the same kind of gap, smaller: the layout
-  // viewport reaches under it, so the cart rests --cart-gap above the
-  // foot, just clear of the toolbar, and its cap is a share of the
-  // visible height (--cart-vis), not of the screen's.
-  watchKeyboard() {
-    const visual = window.visualViewport;
-    const share = qs(this.cart, "[data-share]");
-
-    if (!visual) return;
-
-    const sync = () => {
-      const inset = share.dataset.share === "code"
-        ? keyboardInset(window.innerHeight, visual) : 0;
-      const area = visibleArea(window.innerHeight, visual);
-
-      const before = this.keyboard || 0;
-
-      this.keyboard = inset;
-      this.cart.style.setProperty("--cart-kb", `${inset}px`);
-      this.cart.style.setProperty("--cart-gap", `${area.gap}px`);
-      this.cart.style.setProperty("--cart-vis", `${area.height}px`);
-
-      // The keyboard fires no window resize on iOS, so nothing else
-      // re-measures the floor against the smaller room: without this
-      // the parts under the total row never learn to scroll (#389).
-      // Only a changed room needs it; the visual viewport's scroll
-      // events change neither.
-      const moved = area.height !== this.roomHeight || inset !== before;
-
-      this.roomHeight = area.height;
-      if (moved) this.syncScroll();
-
-      // The row opening, or the keyboard first shrinking the view,
-      // brings the open row into the tight pane's view, the field and
-      // Apply with it. Never on a later pass: the customer scrolls the
-      // pane as they like.
-      if (inset > before && this.cart.hasAttribute("data-tight")) {
-        const inner = qs(this.cart, ".order-cart-after > .order-cart-inner");
-        const over = scrollIntoPane(
-          share.getBoundingClientRect(), inner.getBoundingClientRect()
-        );
-
-        if (over) inner.scrollTop += over;
-      }
-
-      // Settled in the page's flow, the cart does not ride: the page
-      // scrolls the field above the keyboard instead.
-      const field = qs(share, "[data-field='code']");
-
-      if (inset && this.cart.dataset.stuck !== "true"
-        && document.activeElement === field) {
-        const over = field.getBoundingClientRect().bottom + 12
-          - (visual.offsetTop + visual.height);
-
-        if (over > 0) window.scrollBy({ top: over, behavior: "instant" });
-      }
-    };
-
-    visual.addEventListener("resize", sync);
-    visual.addEventListener("scroll", sync);
-    window.addEventListener("resize", sync);
-    this.syncKeyboard = sync;
-    sync();
-  }
-
-  // The "N more" buttons: the list glides to the row that was hidden,
-  // landing on it exactly. A drive of our own, not the browser's smooth
-  // scroll, which overshot on iOS and snapped back.
-  scrollMore(dir) {
-    const list = qs(this.cart, "[data-cart-items]");
-    const rows = all(list, ".order-cart-item").map((li) => ({
-      top: li.offsetTop - list.offsetTop,
-      bottom: li.offsetTop - list.offsetTop + li.offsetHeight,
-    }));
-    const to = moreStop(rows, {
-      top: list.scrollTop, height: list.clientHeight,
-      full: list.scrollHeight,
-    }, dir);
-    const from = list.scrollTop;
-
-    cancelAnimationFrame(this.glide);
-    if (to === from) return;
-    if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      list.scrollTop = to;
-
-      return;
-    }
-
-    const began = performance.now();
-    const span = Math.min(420, 160 + Math.abs(to - from) * 0.8);
-    const stop = () => cancelAnimationFrame(this.glide);
-    const step = (now) => {
-      const t = Math.min(1, (now - began) / span);
-
-      list.scrollTop = from + (to - from) * (1 - (1 - t) ** 3);
-      if (t < 1) this.glide = requestAnimationFrame(step);
-    };
-
-    list.addEventListener("touchstart", stop, { once: true, passive: true });
-    list.addEventListener("wheel", stop, { once: true, passive: true });
-    this.glide = requestAnimationFrame(step);
-  }
-
-  // Opens one side of the shared row over the other, or neither ("").
-  setShare(open) {
-    const share = qs(this.cart, "[data-share]");
-
-    share.dataset.share = open;
-    if (this.syncKeyboard) this.syncKeyboard();
-    qs(share, "[data-way-toggle]").setAttribute(
-      "aria-expanded", String(open === "way")
-    );
-    qs(share, "[data-code-toggle]").setAttribute(
-      "aria-expanded", String(open === "code")
-    );
-  }
-
-  // Folds or opens the lines or the sums, from the total row.
-  setPart(part, open) {
-    this.cart.dataset[part] = open ? "open" : "closed";
-    this.syncSeg();
-    if (part === "items") this.syncToggle();
-    // Either side opening re-measures the pane's floor: the sums have
-    // one of their own (#448).
-    if (open) this.syncScroll();
-  }
-
-  // Dresses the total row's two controls for what they are at this
-  // width: on a phone tabs (aria-selected, one tab stop, the panes
-  // above as their panels), from md buttons that fold a part
-  // (aria-expanded), and a fill that slides only for the tabs.
-  syncSeg() {
-    const narrow = matchMedia(SHEET).matches;
-    const seg = qs(this.cart, "[data-cart-seg]");
-    const parts = {
-      items: [qs(this.cart, "[data-cart-items-toggle]"), "order-cart-list"],
-      money: [qs(this.cart, "[data-cart-money-toggle]"), "order-cart-money"],
-    };
-
-    seg.toggleAttribute("data-multi", !narrow);
-    if (narrow) {
-      seg.setAttribute("role", "tablist");
-      seg.setAttribute("aria-label", "Cart view");
-    } else {
-      seg.removeAttribute("role");
-      seg.removeAttribute("aria-label");
-    }
-
-    // Settling opens both parts; the tabs then show the lines, where
-    // the fill is. "Total" lit white beside it was white on the grey
-    // track (#274).
-    const on = segOn(this.cart.dataset, narrow);
-    const shown = segShown(
-      this.cart.dataset, narrow, this.panel() && !narrow
-    );
-
-    for (const [part, [button, panelId]] of Object.entries(parts)) {
-      const open = on[part];
-      const panel = document.getElementById(panelId);
-
-      button.dataset.on = String(shown[part]);
-      if (this.panel() && !narrow) {
-        // Text: no role, no state, no stop in the Tab order. Any
-        // global ARIA attribute, aria-controls among them, would void
-        // the presentation role.
-        button.setAttribute("role", "presentation");
-        button.removeAttribute("aria-selected");
-        button.removeAttribute("aria-expanded");
-        button.removeAttribute("aria-controls");
-        button.removeAttribute("tabindex");
-        panel.removeAttribute("role");
-        panel.removeAttribute("aria-labelledby");
-      } else if (narrow) {
-        button.setAttribute("role", "tab");
-        button.setAttribute("aria-controls", panelId);
-        button.setAttribute("aria-selected", String(open));
-        button.tabIndex = open ? 0 : -1;
-        button.removeAttribute("aria-expanded");
-        panel.setAttribute("role", "tabpanel");
-        panel.setAttribute("aria-labelledby", button.id);
-      } else {
-        button.removeAttribute("role");
-        button.removeAttribute("aria-selected");
-        button.removeAttribute("tabindex");
-        button.setAttribute("aria-controls", panelId);
-        button.setAttribute("aria-expanded", String(open));
-        panel.removeAttribute("role");
-        panel.removeAttribute("aria-labelledby");
-      }
-    }
-  }
-
-  // The pane's height floating hidden at this width, from an unseen
-  // copy: what it lifts off at on the way back up. Its folds can't be
-  // summed: from md they dissolve into the pane's grid and measure 0
-  // (#274, round 5). A copy put in the page has no earlier style, so
-  // it starts in its end state with nothing easing.
-  hiddenHeight(width) {
-    const ghost = this.cart.cloneNode(true);
-
-    ghost.removeAttribute("id");
-    ghost.inert = true;
-    ghost.setAttribute("aria-hidden", "true");
-    const lift = floatAgain(this.panel());
-
-    Object.assign(ghost.dataset, {
-      stuck: "true",
-      open: String(lift.open),
-      items: lift.items,
-      money: lift.money,
-    });
-    Object.assign(ghost.style, {
-      position: "absolute",
-      top: "0",
-      bottom: "auto",
-      left: "0",
-      width: `${width}px`,
-      visibility: "hidden",
-      pointerEvents: "none",
-    });
-    qs(ghost, "[data-cart-word]").textContent = "Expand";
-    this.cart.after(ghost);
-
-    const height = ghost.getBoundingClientRect().height;
-
-    ghost.remove();
-
-    return height;
-  }
-
-  // Folds or opens the cart (below xl; the column ignores it).
-  setOpen(open) {
-    this.cart.dataset.open = String(open);
-    this.syncToggle();
-    if (open) this.syncScroll();
-    if (this.plainTotals) this.plainTotals();
-  }
-
-  // True where the cart is a panel (#274, round 6).
-  panel() {
-    return matchMedia(PANEL).matches;
-  }
-
-  // Hide or Expand, and aria-expanded to match what it folds: the
-  // whole pane, or in a panel the lines beside the right column. The
-  // button keeps the focus through it, being the same element.
-  syncToggle() {
-    const open = this.panel() && this.cart.dataset.open === "true"
-      ? this.cart.dataset.items === "open"
-      : this.cart.dataset.open === "true";
-
-    qs(this.cart, "[data-cart-toggle]").setAttribute(
-      "aria-expanded", String(open)
-    );
-    qs(this.cart, "[data-cart-word]").textContent = open ? "Hide" : "Expand";
-  }
-
-  // Marks the scroller's wrapper with which edges have more beyond
-  // them, so the CSS can fade those edges.
-  syncScroll() {
-    const list = qs(this.cart, "[data-cart-items]");
-    const wrap = list.parentElement;
-
-    if (this.easing) return;
-
-    // The floor under the lines is three rows, or the list's own
-    // height when it is shorter: one item leaves no gap (#203).
-    wrap.style.setProperty("--cart-list-h", `${list.scrollHeight}px`);
-    this.measureFloor(list, wrap);
-    // Room for the "more" pills above and below the rows, only while
-    // the rows overflow: the pills never sit on a heading or a line.
-    // The strip is counted back first: taken from the rows, it kept
-    // them overflowing once a pane in mid-opening had let them, and
-    // the first line stayed scrolled under the top fade (#278).
-    const strip = wrap.hasAttribute("data-scroll")
-      ? parseFloat(getComputedStyle(wrap).paddingBottom) || 0 : 0;
-
-    wrap.toggleAttribute(
-      "data-scroll", list.scrollHeight > list.clientHeight + strip + 1
-    );
-
-    const seen = list.scrollTop + list.clientHeight;
-    const more = seen < list.scrollHeight - 1;
-    const items = all(list, ".order-cart-item");
-    const below = items.filter(
-      (li) => li.offsetTop + li.offsetHeight > seen + 1
-    ).length;
-    const above = items.filter(
-      (li) => li.offsetTop + li.offsetHeight <= list.scrollTop + 1
-    ).length;
-    const button = qs(wrap, "[data-cart-more]");
-    const top = qs(wrap, "[data-cart-more-top]");
-
-    wrap.toggleAttribute("data-top", list.scrollTop > 0);
-    wrap.toggleAttribute("data-more", more);
-    // A hidden pill keeps its last count: it never reads "0 more".
-    button.hidden = !more || below === 0;
-    if (!button.hidden) button.textContent = `${below} more ↓`;
-    top.hidden = list.scrollTop <= 0 || above === 0;
-    if (!top.hidden) top.textContent = `${above} more ↑`;
-  }
-
-  // The floor under the pane (#267): three rows of the lines, the total
-  // row and Continue. The lines' wrapper keeps the rows' room
-  // (--cart-scroll-min), and the pane's cap gives way to the whole
-  // floor (--cart-min-h), up to the visible area. Measured while the
-  // lines or, on a phone, the sums show; otherwise the last figure
-  // stands.
-  //
-  // On a phone's Total tab the sums take the lines' fold (#448). Once
-  // only the lines were measured, so the floor and data-tight there
-  // were the lines' last figures: under the keyboard the pane stayed
-  // untight and the sums' fold, the one part left to give way, was
-  // squeezed to a sliver, its rule gone and its rows clipped. The sums
-  // keep their whole height (--cart-sums-min) and what is under the
-  // total row gives way instead, down to the code row and the dark
-  // rule above it, which the sums never take.
-  measureFloor(list, wrap) {
-    const fold = qs(this.cart, ".order-cart-fold");
-    const after = qs(this.cart, ".order-cart-after");
-    const lines = !!list.offsetParent;
-    const sums = !lines && this.cart.dataset.money === "open"
-      && !this.cart.hasAttribute("data-empty") && matchMedia(SHEET).matches;
-
-    if (!(lines || sums) || this.cart.dataset.open !== "true") return;
-
-    const rem = parseFloat(getComputedStyle(document.documentElement).fontSize);
-    const set = (el, name, px) => {
-      const now = parseFloat(el.style.getPropertyValue(name));
-
-      if (!(Math.abs(now - px) < 1)) el.style.setProperty(name, `${px}px`);
-    };
-    // A fold clips what does not fit and the parts under the total row
-    // give way, so the floor is summed from the parts' own heights: the
-    // lines' floor or the sums', what shares their fold, the pane
-    // around the folds, and what is under the total row at its natural
-    // height.
-    const outer = (el) => {
-      const css = getComputedStyle(el);
-
-      return el.offsetHeight + parseFloat(css.marginTop)
-        + parseFloat(css.marginBottom);
-    };
-    const others = (box, ...but) => Array.from(box.children)
-      .filter((el) => !but.includes(el))
-      .reduce((n, el) => n + outer(el), 0);
-    const spacer = 0.3 * rem;
-    let foldMin;
-
-    if (lines) {
-      const rows = all(list, ".order-cart-item").map((li) => ({
-        top: li.offsetTop - list.offsetTop,
-        bottom: li.offsetTop - list.offsetTop + li.offsetHeight,
-      }));
-      const room = rowsFloor(
-        rows, list.scrollHeight,
-        parseFloat(getComputedStyle(list).paddingBottom) || 0, 1.75 * rem
-      );
-      const listBox = wrap.parentElement;
-
-      set(wrap, "--cart-scroll-min", room);
-      foldMin = room + others(wrap.parentElement, wrap)
-        + others(listBox.parentElement, listBox) + spacer;
-    } else {
-      // The sums and their rule at full height, mid-unfold or not.
-      foldMin = others(qs(this.cart, ".order-cart-money-inner")) + spacer;
-    }
-
-    // What is under the total row: the badges, the way and the code.
-    // The badges once gave way first; they are where a discount's
-    // chicks come from, so they stay and the cap gives way (#274).
-    // The tight pane's scroller starts a gap under the toggle (#448);
-    // counted always, or the gap's own height would flip tight.
-    const gap = 0.75 * rem;
-    const below = others(after.firstElementChild) + spacer + gap;
-    const css = getComputedStyle(this.cart);
-    const pane = others(this.cart, fold, after)
-      + ["paddingTop", "paddingBottom", "borderTopWidth", "borderBottomWidth"]
-        .reduce((n, key) => n + parseFloat(css[key]), 0);
-    const visible = parseFloat(this.cart.style.getPropertyValue("--cart-vis"))
-      || window.innerHeight;
-    // The room ends at the top bar's foot: the bar stays over the pane
-    // (#278).
-    const bar = parseFloat(this.cart.style.getPropertyValue("--cart-bar")) || 0;
-    // The open code row and the dark rule over the badges keep their
-    // room under the sums, so the field and Apply stay in reach (#389).
-    const keep = outer(qs(after, "[data-share]"))
-      + outer(qs(after, ".order-cart-rule-dark")) + gap;
-    const fit = paneFit(
-      { pane, fold: foldMin, below, keep }, visible - rem - bar
-    );
-
-    if (lines) set(this.cart, "--cart-fold-min", Math.ceil(foldMin));
-    else set(this.cart, "--cart-sums-min", fit.fold);
-    set(this.cart, "--cart-min-h", fit.floor);
-
-    // Too short for the floor itself, what is under the total row
-    // scrolls, so the rows, the total and Continue keep their room.
-    this.cart.toggleAttribute("data-tight", fit.tight);
-  }
 
   // Quantity controls.
 
@@ -1711,187 +811,14 @@ export class OrderForm {
     // a restored draft; an Add has its own say (added() below).
     this.adding = next > was;
     this.changed();
-    if (this.adding) this.added(input.dataset.qty);
+    if (this.adding) {
+      const item = this.index.get(input.dataset.qty);
+
+      if (item) this.cart.added(input.dataset.qty, item.lineName);
+    }
     this.adding = false;
   }
 
-  // The feedback for an Add (#267). The first of a browser session
-  // opens the pane on the lines, scrolled to the new line, shuts the
-  // pane after TEACH_DWELL and pulses the Hide/Show pill in three
-  // pairs (#278). Every
-  // later Add leaves the pane shut: the bar says what was added, the
-  // count ticks, the pill pulses once. Whatever the pane is doing,
-  // a screen reader hears it, and the focus stays where it is.
-  added(sku) {
-    const item = this.index.get(sku);
-
-    if (!item) return;
-
-    const name = item.lineName;
-    const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const floating = this.cart.dataset.stuck === "true";
-    const first = this.firstAdd();
-    const pill = qs(this.cart, "[data-cart-toggle]");
-    const live = qs(this.cart, "[data-cart-live]");
-
-    // A repeated name must be heard again: clear, then set.
-    live.textContent = "";
-    setTimeout(() => { live.textContent = `Added ${name} to cart`; }, 60);
-    pulse(qs(this.cart, "[data-cart-count]"), "is-ticked");
-
-    clearTimeout(this.addedTimer);
-    clearTimeout(this.closeTimer);
-    this.shut = null;
-
-    if (first && floating) {
-      const panel = this.panel();
-
-      this.setOpen(true);
-      this.setPart("items", true);
-      this.setPart("money", false);
-      // Once the pane has opened, the line is in reach: bring it into
-      // view inside the list.
-      setTimeout(() => this.reveal(sku), reduced ? 0 : 260);
-      this.shut = () => {
-        this.shut = null;
-        if (panel) this.setPart("items", false);
-        else this.setOpen(false);
-        this.pulsePill(pill, "teach");
-      };
-      // A finger still down on the pane when the time is up has the
-      // last word: watchTouch() shuts it if that touch is a scroll.
-      this.closeTimer = setTimeout(() => {
-        if (this.touch) this.touch.due = true;
-        else this.shut();
-      }, TEACH_DWELL);
-
-      return;
-    }
-
-    this.pulsePill(pill, "once");
-    if (!floating || this.cart.dataset.open === "true") return;
-
-    const box = qs(this.cart, "[data-cart-added-box]");
-
-    qs(box, "[data-cart-added]").textContent = `Added: ${name}`;
-    box.setAttribute("data-show", "");
-    this.addedTimer = setTimeout(() => box.removeAttribute("data-show"), 2600);
-  }
-
-  // True once per browser session; the session's own storage, so a new
-  // page keeps the count and a new visit starts it over.
-  firstAdd() {
-    const key = "nff-cart-first-add";
-
-    try {
-      if (sessionStorage.getItem(key)) return false;
-      sessionStorage.setItem(key, "1");
-
-      return true;
-    } catch {
-      const first = !this.addedBefore;
-
-      this.addedBefore = true;
-
-      return first;
-    }
-  }
-
-  // Scrolls the list, and only the list, to a line. The line itself is
-  // not marked: the open pane and the pill's pulses say enough (#274).
-  reveal(sku) {
-    const button = qs(this.cart, `[data-remove="${CSS.escape(sku)}"]`);
-    const row = button ? button.closest(".order-cart-item") : null;
-
-    if (!row) return;
-
-    const list = qs(this.cart, "[data-cart-items]");
-    const top = row.offsetTop - list.offsetTop;
-
-    if (top < list.scrollTop
-      || top + row.offsetHeight > list.scrollTop + list.clientHeight) {
-      list.scrollTop = Math.max(0, top - 8);
-    }
-  }
-
-  // The Hide/Show pill pulses: "teach" the first time, three pairs
-  // (#278), "once" on a later Add. With reduced motion it holds a still
-  // emphasis for a moment instead. A timer, not animationend, ends it:
-  // the still one has no animation to end.
-  pulsePill(pill, kind) {
-    const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-    clearTimeout(this.pulseTimer);
-    pill.removeAttribute("data-pulse");
-    void pill.offsetWidth;
-    pill.setAttribute("data-pulse", kind);
-    this.pulseTimer = setTimeout(() => {
-      pill.removeAttribute("data-pulse");
-    }, PULSE_MS[still ? "still" : kind]);
-  }
-
-  // Rings the whole cart in the brand green for a moment, so a press
-  // on the rail's Cart link shows where the cart is even when it was on
-  // screen already (#337). A timer, not animationend, ends it: under
-  // reduced motion the ring is still and has no animation to end.
-  ringCart() {
-    clearTimeout(this.ringTimer);
-    pulse(this.cart, "is-ringed");
-    this.ringTimer = setTimeout(() => {
-      this.cart.classList.remove("is-ringed");
-    }, RING_MS);
-  }
-
-  // The pane is the customer's once they tap it, click it or focus in
-  // it: the timer that was to shut it lapses.
-  keepOpen() {
-    clearTimeout(this.closeTimer);
-    this.shut = null;
-  }
-
-  // A mouse or pen press on the pane keeps it at once. A touch is
-  // judged when it ends, since a scroll lands as a touch too (#473): a
-  // tap keeps the pane, a scroll (one the browser cancels, or one that
-  // strays past the slop) leaves the timer to shut it.
-  watchTouch() {
-    const point = (e) => ({ x: e.clientX, y: e.clientY });
-    const mine = (e) => this.touch && e.pointerId === this.touch.id;
-
-    this.cart.addEventListener("pointerdown", (e) => {
-      if (e.pointerType !== "touch") {
-        this.keepOpen();
-
-        return;
-      }
-      this.touch = {
-        id: e.pointerId, start: point(e), far: 0,
-        due: Boolean(this.touch && this.touch.due),
-      };
-    }, { passive: true });
-    this.cart.addEventListener("pointermove", (e) => {
-      if (!mine(e)) return;
-      this.touch.far = strayed(this.touch.start, point(e), this.touch.far);
-    }, { passive: true });
-
-    const ended = (e) => {
-      if (!mine(e)) return;
-
-      const touch = this.touch;
-      const cancelled = e.type === "pointercancel";
-
-      this.touch = null;
-      if (!cancelled) touch.far = strayed(touch.start, point(e), touch.far);
-      if (touchKind({ cancelled, far: touch.far }) === "tap") {
-        this.keepOpen();
-      } else if (touch.due && this.shut) {
-        this.shut();
-      }
-    };
-
-    for (const type of ["pointerup", "pointercancel"]) {
-      this.cart.addEventListener(type, ended, { passive: true });
-    }
-  }
 
   method() {
     const checked = qs(this.form, "[name='method']:checked");
@@ -1927,64 +854,34 @@ export class OrderForm {
 
   // Looks the typed code up by its hash. A known one becomes
   // `this.code` and shows in the totals; the joke starts its clock;
-  // anything else is ignored by the server, and the note says so.
+  // anything else is ignored by the server, and the cart's note says
+  // so (cart.js codeResult).
   async applyCode({ quiet = false } = {}) {
-    const input = qs(this.cart, "[data-field='code']");
-    const note = qs(this.cart, "[data-code-note]");
-    const typed = normalizeCode(input.value);
-    const say = (text, tone) => {
-      note.textContent = text;
-      note.hidden = !text;
-      if (tone) {
-        note.dataset.tone = tone;
-      } else {
-        delete note.dataset.tone;
-      }
-    };
+    const typed = normalizeCode(this.cart.codeValue());
+    const accepted = (text) => this.cart.codeResult({
+      text, tone: "good", accepted: true,
+    });
 
-    input.value = typed;
-    clearTimeout(this.noteTimer);
-    note.classList.remove("is-fading");
+    this.cart.setCodeValue(typed);
 
     // Apply with the field empty takes the code off again, and a pass
     // with it; a change keeps the pass its order was placed with.
     if (!typed) {
-      this.stopJoke();
+      this.cart.stopJoke();
       this.code = null;
       if (!this.editing) {
         this.pass = null;
         this.passFee = false;
       }
-      say("");
+      this.cart.codeResult();
       this.refresh();
 
       return;
     }
-    // An accepted code leaves the field empty for the next one; the
-    // discount line says it is on, and the note says so for a while.
-    const accepted = (text) => {
-      const open = qs(this.cart, "[data-share]").dataset.share === "code";
-
-      input.value = "";
-      say(text, "good");
-      // Done with the field: the row folds back, and focus goes to
-      // the button that opens it.
-      if (open) {
-        this.setShare("");
-        qs(this.cart, "[data-code-toggle]").focus();
-      }
-      this.noteTimer = setTimeout(() => {
-        note.classList.add("is-fading");
-        this.noteTimer = setTimeout(() => {
-          say("");
-          note.classList.remove("is-fading");
-        }, 700);
-      }, 15_000);
-    };
 
     if (typed === JOKE_CODE) {
       this.code = null;
-      this.startJoke();
+      this.cart.startJoke();
       accepted("Code applied.");
       this.refresh();
 
@@ -1995,7 +892,7 @@ export class OrderForm {
     const found = this.codes.find((c) => c.hash === hash);
 
     if (found) {
-      this.stopJoke();
+      this.cart.stopJoke();
       this.code = { code: typed, label: found.label, off: found.off };
       accepted(`Code applied: $${found.off} off.`);
       this.refresh();
@@ -2015,7 +912,7 @@ export class OrderForm {
     } else if (!quiet) {
       // The code that was on stays on. Every code refused says only
       // this (James, on #182).
-      say(pass.message || "That code isn't valid.");
+      this.cart.codeResult({ text: pass.message || "That code isn't valid." });
     }
     this.refresh();
   }
@@ -2047,13 +944,9 @@ export class OrderForm {
   // Takes a pass the server refused off the order and says why by the
   // code box, as a code refused on Apply would.
   dropPass(message) {
-    const note = qs(this.cart, "[data-code-note]");
-
     this.pass = null;
     this.passFee = false;
-    note.textContent = message;
-    note.hidden = false;
-    delete note.dataset.tone;
+    this.cart.codeResult({ text: message });
     this.refresh();
   }
 
@@ -2063,35 +956,6 @@ export class OrderForm {
     return this.pass ? { ...this.money, deliveryMinimum: 0 } : this.money;
   }
 
-  startJoke() {
-    const row = document.createElement("div");
-    const dt = document.createElement("dt");
-    const dd = document.createElement("dd");
-    const since = Date.now();
-
-    row.className = "order-cart-row order-cart-credit order-cart-joke";
-    dt.textContent = `Discount (${JOKE_CODE}, ${
-      dollars(JOKE_PER_MINUTE)}/min)`;
-    row.appendChild(dt);
-    row.appendChild(dd);
-    qs(this.cart, "[data-total-row='fee']").before(row);
-
-    const tick = () => {
-      const minutes = (Date.now() - since) / 60_000;
-
-      dd.textContent = `−${dollars(Math.floor(minutes * JOKE_PER_MINUTE))}`;
-    };
-
-    tick();
-    this.joke = { row, timer: setInterval(tick, 1000) };
-  }
-
-  stopJoke() {
-    if (!this.joke) return;
-    clearInterval(this.joke.timer);
-    this.joke.row.remove();
-    this.joke = null;
-  }
 
   // The delivery ZIP's status, for the outside-area fee. Null unless
   // delivery is chosen, so the fee shows the moment it applies.
@@ -2145,6 +1009,42 @@ export class OrderForm {
 
     this.renderCart(totals, method);
     this.renderZipNote();
+  }
+
+  // What the cart shows, from the totals (lib/summary.mjs), and what
+  // the form keeps for itself: the payment's amount, the submit
+  // button's label, the header's count and the Delivery card's own
+  // warning.
+  renderCart(totals, method) {
+    const lines = this.lines();
+    const count = lines.reduce((n, line) => n + line.qty, 0);
+    const s = summarize({
+      totals, method, money: this.rules(), count, lines, index: this.index,
+    });
+
+    this.cart.render(s, {
+      method,
+      ways: {
+        scheduled: !!this.dates.lists && this.dates.lists.scheduled.length > 0,
+      },
+      edit: this.editing ? { ...this.editing, total: totals.total } : null,
+      locked: !!(this.stock && this.stock.locked),
+      adding: !!this.adding,
+    });
+    this.total = totals.total;
+    this.payment.setAmount(this.amount());
+    this.submitLabel();
+    this.renderEdit(totals.total);
+    // The header's Order link shows the same count; a change to a paid
+    // order is not the cart.
+    if (!this.editing) announceCart(count);
+
+    const short = qs(this.form, "[data-delivery-short]");
+
+    if (short.textContent !== s.deliveryShort) {
+      short.textContent = s.deliveryShort;
+    }
+    short.hidden = !s.deliveryShort;
   }
 
   // The scheduled pickup card from the list: its Where summarizes
@@ -2316,226 +1216,6 @@ export class OrderForm {
     }, 240);
   }
 
-  // Every string in the panel comes from summarize(), which the tests
-  // pin; this only puts them in the DOM.
-  renderCart(totals, method) {
-    const c = this.cart;
-    const lines = this.lines();
-    const count = lines.reduce((n, line) => n + line.qty, 0);
-    const s = summarize({
-      totals, method, money: this.rules(), count, lines, index: this.index,
-    });
-    const from = c.offsetHeight;
-
-    this.renderItems(s);
-
-    qs(c, "[data-total='subtotal']").textContent = s.subtotal;
-
-    qs(c, "[data-total-row='discount']").hidden = !s.discount;
-    qs(c, "[data-total='discount-label']").textContent =
-      s.discount ? s.discount.label : "";
-    qs(c, "[data-total='discount']").textContent =
-      s.discount ? s.discount.text : "";
-
-    const fee = qs(c, "[data-total='fee']");
-
-    qs(c, "[data-total-row='fee']").hidden = !s.fee.show;
-    fee.textContent = s.fee.show ? s.fee.text : "";
-    fee.classList.toggle("order-cart-free", !!s.fee.waived);
-
-    const total = qs(c, "[data-total='total']");
-
-    if (this.lastTotal !== null && this.lastTotal !== s.total) {
-      pulse(total, "is-bumped");
-    }
-    total.textContent = s.total;
-    this.lastTotal = s.total;
-    this.total = totals.total;
-    this.payment.setAmount(this.amount());
-    this.submitLabel();
-    this.renderEdit(totals.total);
-
-    qs(c, "[data-cart-toggle]").setAttribute(
-      "aria-label", `${s.countText}, total ${s.total}. Show or hide the cart.`
-    );
-    qs(c, "[data-cart-count]").textContent = s.countText;
-    for (const el of all(this.form, "[data-total-bar-count]")) {
-      el.textContent = s.countText;
-    }
-    for (const el of all(this.form, "[data-total-bar-total]")) {
-      el.textContent = s.total;
-    }
-    for (const el of all(this.form, "[data-to-cart]")) {
-      el.setAttribute(
-        "aria-label", `${s.countText}, total ${s.total}. Go to the cart.`
-      );
-    }
-
-    // The shared row's button names the way the page holds; the cart
-    // never picks one of its own (#203).
-    let wayName = "";
-
-    for (const way of all(c, "[data-way]")) {
-      const on = way.dataset.way === method;
-
-      way.setAttribute("aria-pressed", String(on));
-      way.classList.toggle("btn-primary", on);
-      way.classList.toggle("btn-outline-primary", !on);
-      if (on) wayName = way.textContent.trim();
-      if (way.dataset.way === "scheduled") {
-        way.disabled = !this.dates.lists
-          || !this.dates.lists.scheduled.length;
-      }
-    }
-
-    // Only the method (#352): the day, time and place stay in the
-    // method's card and the order summary.
-    qs(c, "[data-way-name]").textContent = wayName || "Pickup or delivery";
-    c.toggleAttribute("data-empty", count === 0);
-    this.syncScroll();
-    // The header's Order link shows the same count; a change to a paid
-    // order is not the cart.
-    if (!this.editing) announceCart(count);
-
-    const short = qs(this.form, "[data-delivery-short]");
-
-    if (short.textContent !== s.deliveryShort) {
-      short.textContent = s.deliveryShort;
-    }
-    short.hidden = !s.deliveryShort;
-    qs(c, "[data-checkout]").disabled = count === 0
-      || (this.stock && this.stock.locked)
-      || (method === "delivery" && !s.eligible);
-
-    // Empty, the cart folds away; the first item opens it. A fold the
-    // customer chose stays until the cart empties again.
-    if (count === 0 && this.lastCount !== 0) {
-      this.setOpen(false);
-    } else if (count > 0 && !this.lastCount && !this.adding) {
-      this.setOpen(true);
-    }
-    // A panel with lines is never folded to its total row, whatever
-    // added them: its Expand folds the lines, so the row alone would
-    // leave Expand with nothing to do (#274, round 6).
-    if (count > 0 && this.panel() && c.dataset.open === "false") {
-      this.setOpen(true);
-      this.setPart("items", false);
-    }
-    this.lastCount = count;
-
-    // A badge that just turned on sends its chicks; the first render
-    // (a restored draft) only sets the baseline. They leave the badge
-    // itself; with the pane folded or the badge out of sight, the total.
-    const lit = {};
-    const seen = (el) => {
-      const r = el.getBoundingClientRect();
-      const box = c.getBoundingClientRect();
-
-      return c.dataset.open !== "false" && r.height > 0
-        && r.top >= Math.max(0, box.top) - 1
-        && r.bottom <= Math.min(window.innerHeight, box.bottom) + 1;
-    };
-
-    for (const badge of s.badges) {
-      const el = qs(c, `[data-badge="${badge.key}"]`);
-
-      lit[badge.key] = badge.on;
-      if (!el) continue;
-      el.dataset.on = String(badge.on);
-      if (badge.on && this.lit && !this.lit[badge.key]) {
-        celebrate(seen(el) ? el : qs(c, "[data-total='total']"));
-      }
-    }
-    this.lit = lit;
-
-    const nudge = qs(c, "[data-nudge]");
-
-    if (nudge.textContent !== s.nudge) nudge.textContent = s.nudge;
-    nudge.hidden = !s.nudge;
-    nudge.dataset.tone = s.nudgeTone || "";
-    this.ease(from);
-  }
-
-  // In the column (xl), the pane eases to its new height as lines come
-  // and go, rather than jumping (#278). Its content is laid out at the
-  // new height at once; the pane's own edge follows.
-  ease(from) {
-    const c = this.cart;
-    const to = c.offsetHeight;
-
-    if (!matchMedia("(min-width: 1200px)").matches || !from
-      || Math.abs(to - from) < 1 || typeof c.animate !== "function"
-      || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-
-    if (this.easing) this.easing.cancel();
-    this.easing = c.animate(
-      [{ height: `${from}px` }, { height: `${to}px` }],
-      { duration: 420, easing: "cubic-bezier(0.2, 0.8, 0.25, 1)" }
-    );
-    // The lines give way while it eases, as they do to the cap: the
-    // fades and the "more" pills wait for the end, or they would flash.
-    this.easing.onfinish = () => {
-      this.easing = null;
-      this.syncScroll();
-    };
-  }
-
-  // The cart's lines: each category, with its tiers indented beneath,
-  // or "0 items". The list is small, so it is rebuilt on each render.
-  renderItems(s) {
-    const list = qs(this.cart, "[data-cart-items]");
-    const make = (tag, className, text) => {
-      const el = document.createElement(tag);
-
-      el.className = className;
-      if (text !== undefined) el.textContent = text;
-
-      return el;
-    };
-
-    // Rebuilt only when the lines change: a render that follows a
-    // field's change event would otherwise replace the × under the
-    // pointer between press and release, and the click would be lost.
-    const key = JSON.stringify(s.groups);
-
-    if (key === this.itemsKey) {
-      this.syncScroll();
-
-      return;
-    }
-    this.itemsKey = key;
-
-    for (const row of all(list, ".order-cart-group")) row.remove();
-
-    for (const group of s.groups) {
-      const li = make("li", "order-cart-group");
-      const items = make("ul", "order-cart-group-items list-unstyled");
-
-      li.appendChild(make("span", "order-cart-group-name", group.label));
-      for (const item of group.items) {
-        const row = make("li", "order-cart-item");
-
-        const remove = make("button", "order-cart-remove", "×");
-
-        remove.type = "button";
-        remove.dataset.remove = item.sku;
-        remove.setAttribute(
-          "aria-label", `Remove ${item.lineName} from your cart`
-        );
-        row.appendChild(remove);
-        row.appendChild(
-          make("span", "order-cart-item-name", packLabel(item.row))
-        );
-        row.appendChild(make("span", "order-cart-item-qty", item.qtyText));
-        row.appendChild(make("span", "order-cart-item-sub", item.subtotal));
-        items.appendChild(row);
-      }
-      li.appendChild(items);
-      list.appendChild(li);
-    }
-
-    this.syncScroll();
-  }
 
   renderZipNote() {
     const zip = qs(this.form, "[data-field='delivery.zip']");

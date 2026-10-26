@@ -14,7 +14,9 @@
 // A failure names the element that sticks out: the outermost one
 // whose right edge passes the viewport's.
 
-import { FULL_CART, OrderPage, expect, test } from "./support/order.mjs";
+import {
+  FULL_CART, OrderPage, expect, test, unfoldCart,
+} from "./support/order.mjs";
 import {
   ACCOUNT_TABS, cannedDates, keepHome, signedIn, sitemap,
 } from "./support/canned.mjs";
@@ -117,14 +119,12 @@ for (const width of WIDTHS) {
 
     test("the order page fits with a full cart", async ({ page }) => {
       const order = new OrderPage(page);
-      const money = order.cart.locator("[data-cart-money-toggle]");
 
       await cannedDates(page);
       await order.open(FULL_CART);
-      // Unfold the sums where they fold (below xl).
-      if (await money.isEnabled()
-        && await order.cart.getAttribute("data-money") !== "open") {
-        await money.click();
+      // Open the cart where it floats folded (below xl).
+      if (await order.cart.getAttribute("data-placement") === "floating") {
+        await unfoldCart(order);
       }
       await fits(page, width, "/order/, cart open");
 

@@ -317,7 +317,7 @@ export const wireSearch = () => {
     const pageCart = document.getElementById("order-cart");
 
     if (pageCart) {
-      if (pageCart.dataset.open === "false") {
+      if (pageCart.dataset.fold === "closed") {
         pageCart.querySelector("[data-cart-toggle]")?.click();
       }
       pageCart.scrollIntoView({ block: "nearest" });
