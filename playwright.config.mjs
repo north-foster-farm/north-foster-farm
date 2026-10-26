@@ -56,6 +56,7 @@ const desktopOnly = [
   "**/keyboard.spec.mjs",
   "**/order-layout.spec.mjs",
   "**/cart-lines.spec.mjs",
+  "**/cart-one.spec.mjs",
   "**/cart-money.spec.mjs",
   "**/cart-way.spec.mjs",
   "**/cart-fold.spec.mjs",
