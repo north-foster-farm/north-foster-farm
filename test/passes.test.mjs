@@ -5,14 +5,17 @@ import { handle } from "../netlify/functions/orders.mjs";
 import { handle as lookup } from "../netlify/functions/passes.mjs";
 import { publicOrder } from "../netlify/functions/lib/account.mjs";
 import {
-  buildOrder, settings,
+  SquareError, buildOrder, settings,
 } from "../netlify/functions/lib/square.mjs";
 import { planEdit } from "../netlify/functions/lib/edit.mjs";
 import {
   HOLD_MS, PASS_DAYS, PASS_MESSAGES, getPass, holdPass, issuePass,
-  listPasses, newPassCode, passCodeOf, passProblem, passState, revokePass,
-  usePass, waivesFee,
+  listPasses, newPassCode, passCodeOf, passProblem, passState,
+  releasePass, revokePass, usePass, waivesFee,
 } from "../netlify/functions/lib/passes.mjs";
+import {
+  farmOrderPlaced, orderConfirmed,
+} from "../netlify/functions/lib/templates.mjs";
 import { orderForSubmission } from "../netlify/functions/lib/records.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
 import catalog from "../data/catalog.json" with { type: "json" };
@@ -188,6 +191,59 @@ describe("revokePass and usePass", () => {
     await assert.rejects(revokePass(stores, b.code, now), /used by NFF-1/);
     await assert.rejects(revokePass(stores, "ZZZZ-ZZZZ", now), /No pass/);
   });
+
+  it("refuse a pass while an order holds it, until the hold ends",
+    async () => {
+      const stores = testStores();
+      const pass = await issuePass(stores, { now, pick: picks("ABCD-EFGH") });
+
+      await holdPass(stores, pass, KEY, now);
+      await assert.rejects(revokePass(stores, pass.code, now),
+        /held by an order being paid/);
+
+      // Let go by a failed payment, or run out: revocable again.
+      assert.equal((await releasePass(stores, pass.code, OTHER)).heldBy,
+        KEY, "another submission cannot let it go");
+      assert.equal((await releasePass(stores, pass.code, KEY)).heldBy,
+        null);
+      assert.ok((await revokePass(stores, pass.code, now)).revokedAt);
+
+      const again = await issuePass(stores, {
+        now, pick: picks("JKMN-PQRS"),
+      });
+
+      await holdPass(stores, again, KEY, now);
+      assert.ok((await revokePass(stores, again.code, later(HOLD_MS)))
+        .revokedAt);
+    });
+
+  it("see a hold that lands while they decide, and keep it", async () => {
+    const stores = testStores();
+    const pass = await issuePass(stores, { now, pick: picks("ABCD-EFGH") });
+    const read = stores.orders.getTagged.bind(stores.orders);
+    let raced = false;
+
+    // An order holds the pass between the revoke's read and its write:
+    // the swap sees the newer record, reads again and refuses.
+    stores.orders.getTagged = async (key) => {
+      const found = await read(key);
+
+      if (!raced) {
+        raced = true;
+        await holdPass(stores, pass, KEY, now);
+      }
+
+      return found;
+    };
+
+    await assert.rejects(revokePass(stores, pass.code, now),
+      /held by an order being paid/);
+
+    const stored = await getPass(stores, pass.code);
+
+    assert.equal(stored.heldBy, KEY, "the hold survives");
+    assert.equal(stored.revokedAt, null);
+  });
 });
 
 describe("validateOrder's waiver", () => {
@@ -278,6 +334,91 @@ describe("POST /api/orders with a pass", () => {
       assert.equal((await getPass(stores, pass.code)).usedBy, null);
       assert.equal((await getPass(stores, pass.code)).heldBy, null);
     });
+
+  it("lets the pass go the moment a payment is declined", async () => {
+    const stores = testStores();
+    const pass = await issuePass(stores, { now, pick: picks("ABCD-EFGH") });
+    const declined = {
+      ...square,
+      createPayment: async () => {
+        throw new SquareError("no", { declined: true, code: "CARD_DECLINED" });
+      },
+    };
+    const res = await run(stores, small({ pass: pass.code }), {
+      square: declined,
+    });
+
+    assert.equal(res.status, 402);
+    assert.equal((await getPass(stores, pass.code)).heldBy, null);
+
+    // Another customer, or this one on a fresh try, takes it at once.
+    const next = await run(stores, small({
+      idempotencyKey: OTHER, pass: pass.code,
+    }));
+
+    assert.equal(next.status, 200);
+    assert.equal((await getPass(stores, pass.code)).usedBy,
+      (await orderForSubmission(stores, OTHER)).id);
+  });
+
+  it("keeps the hold through any other failure: money may have moved",
+    async () => {
+      const stores = testStores();
+      const pass = await issuePass(stores, { now, pick: picks("ABCD-EFGH") });
+      const down = {
+        ...square,
+        createPayment: async () => {
+          throw new SquareError("Square 503", { retryable: true });
+        },
+      };
+      const res = await run(stores, small({ pass: pass.code }), {
+        square: down,
+      });
+
+      assert.equal(res.status, 503);
+      assert.equal((await getPass(stores, pass.code)).heldBy, KEY,
+        "a timeout may have charged, so the hold stays with this key");
+
+      // Someone else is refused meanwhile; this submission's retry is
+      // let back in, as its key holds the pass.
+      const other = await run(stores, small({
+        idempotencyKey: OTHER, pass: pass.code,
+      }));
+
+      assert.equal(other.status, 422);
+      assert.equal(passProblem(await getPass(stores, pass.code), {
+        holder: KEY, now,
+      }), null);
+    });
+
+  it("tells the farm, in its notice and Square's note", async () => {
+    const stores = testStores();
+    const pass = await issuePass(stores, { now, pick: picks("ABCD-EFGH") });
+
+    await run(stores, small({ pass: pass.code }));
+
+    const order = await orderForSubmission(stores, KEY);
+    const notice = farmOrderPlaced(order, { links: {} });
+    const note = buildOrder(order, "CUST", settings({
+      SQUARE_ACCESS_TOKEN: "tok", SQUARE_LOCATION_ID: "LOC",
+      SQUARE_ENV: "sandbox",
+    })).fulfillments[0].delivery_details.note;
+
+    assert.match(notice.text,
+      /Code: \*\*ABCD-EFGH\*\*, which let this order under the minimum/);
+    assert.match(note, /code ABCD-EFGH, under the minimum/);
+
+    const waived = { ...order, passWaivesFee: true };
+
+    assert.match(farmOrderPlaced(waived, { links: {} }).text,
+      /which waived the delivery fee/);
+    assert.match(buildOrder(waived, "CUST", settings({
+      SQUARE_ACCESS_TOKEN: "tok", SQUARE_LOCATION_ID: "LOC",
+      SQUARE_ENV: "sandbox",
+    })).fulfillments[0].delivery_details.note, /fee waived/);
+    assert.doesNotMatch(orderConfirmed(order, { links: {} }).text,
+      /ABCD-EFGH/, "the customer's receipt says nothing of it");
+  });
 });
 
 describe("changing an order placed with a pass", () => {

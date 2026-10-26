@@ -7,6 +7,7 @@ import {
   syncSquare,
 } from "../netlify/functions/lib/checkout.mjs";
 import { readMark } from "../netlify/functions/lib/health.mjs";
+import { issuePass, usePass } from "../netlify/functions/lib/passes.mjs";
 import { PayPalError } from "../netlify/functions/lib/paypal.mjs";
 import {
   CHECKOUT_TTL, getCheckout, getOrder, listMadeCustomers, openOrders,
@@ -144,6 +145,31 @@ describe("attemptKey", () => {
 });
 
 describe("completeOrder", () => {
+  it("tells the farm when a pass another order used up comes round again",
+    async () => {
+      const stores = testStores();
+      const { sent, mail } = mailbox();
+      const env = { ...MAILS };
+      const pass = await issuePass(stores, { now });
+
+      await usePass(stores, pass.code, "NFF-2610-ZZZZ", now);
+
+      const saved = await completeOrder(stores, order({ pass: pass.code }), {
+        square: { squareOrderId: "SQO", customerId: "CUST" },
+        payment: { via: "square", method: "card", ...paid() },
+      }, { mail, env, now });
+
+      assert.equal(saved.status, "paid", "the paid order is still recorded");
+      assert.ok(sent.some((m) => m.subject === "Site alert: pass.used_twice"
+        && m.text.includes("NFF-2610-ZZZZ") && m.text.includes(pass.code)));
+
+      // The same order again is idempotent and quiet.
+      const before = sent.length;
+
+      await usePass(stores, pass.code, "NFF-2610-ZZZZ", now);
+      assert.equal(sent.length, before);
+    });
+
   it("writes the paid record once, moves stock, marks and emails",
     async () => {
       const stores = testStores();

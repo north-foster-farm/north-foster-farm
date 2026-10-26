@@ -115,7 +115,21 @@ export const completeOrder = async (stores, order, { square, payment }, {
     });
 
     await adjust(stores, order.lines, -1);
-    if (order.pass) await usePass(stores, order.pass, order.id, now);
+    if (order.pass) {
+      const used = await usePass(stores, order.pass, order.id, now);
+
+      // A single-use pass another order has already used up: the
+      // farm hears of it rather than one code quietly covering two
+      // orders (security review, #182).
+      if (used && used.usedBy && used.usedBy !== order.id) {
+        const detail = {
+          id: order.id, code: used.code, usedBy: used.usedBy,
+        };
+
+        log.error({ event: "pass.used_twice", ...detail });
+        await alert(stores, "pass.used_twice", detail, { env, mail, now });
+      }
+    }
     await mark(stores, "order", { id: order.id }, now);
     await mark(stores, "paid", {
       id: order.id, via: payment && payment.via,

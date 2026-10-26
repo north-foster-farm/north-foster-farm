@@ -1064,7 +1064,13 @@ Flags that take a value accept both `--reason "..."` and
   customer it is a discount code: the code box takes it; `GET
   /api/pass` tells the page, and `POST /api/orders` checks it again,
   holds a single-use one for 30 minutes while the order is paid, and
-  the paid record uses it up (`lib/passes.mjs`). Every code refused,
+  the paid record uses it up (`lib/passes.mjs`). A declined payment
+  lets the hold go at once; any other failure keeps it, since money
+  may have moved and the same key's retry still holds the pass.
+  `passes revoke` refuses a pass while it is held, checked inside the
+  same swap that writes, and a pass used up by another order raises a
+  `pass.used_twice` alert. The farm's "New order" notice and Square's
+  staff note name the code and what it did. Every code refused,
   a discount code or a pass, used, expired or for another email, says
   "That code isn't valid."; `passes list` gives the farm the reason.
   A pass the server refuses at Pay comes off the order, and the words

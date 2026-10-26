@@ -199,15 +199,44 @@ export const endPass = (stores, code, {
     }
   ));
 
+// A payment that failed lets the pass go at once (QA, #182), so the
+// customer's next try, or anyone else's, need not wait out the hold.
+// Only the holder's own hold is cleared; a pass used up meanwhile is
+// left as it is. -> the pass as stored after.
+export const releasePass = async (stores, code, holder) => {
+  const released = await swapPass(stores, passCodeOf(code), (stored) => (
+    stored.usedBy || stored.heldBy !== holder
+      ? null
+      : { ...stored, heldBy: null, heldAt: null }
+  ));
+
+  return released || getPass(stores, code);
+};
+
+const heldNow = (pass, now) => !pass.standing && pass.heldBy
+  && now.getTime() - Date.parse(pass.heldAt) < HOLD_MS;
+
+// A pass held by an order being paid is refused too (QA, #182): the
+// payment may be going through this moment, and the paid record would
+// use the pass up regardless. The farm tries again once the hold ends.
+// The checks run inside the swap, against the pass as stored now, so
+// a hold or a use written in between is seen and refused rather than
+// written over (security review).
 export const revokePass = async (stores, value, now = new Date()) => {
-  const pass = await getPass(stores, value);
+  const code = passCodeOf(value);
+  const revoked = await swapPass(stores, code, (stored) => {
+    if (stored.usedBy) {
+      throw new Error(`${stored.code} was used by ${stored.usedBy}.`);
+    }
+    if (heldNow(stored, now)) {
+      throw new Error(`${stored.code} is held by an order being paid; ` +
+        "try again in half an hour.");
+    }
 
-  if (!pass) throw new Error(`No pass ${value}.`);
-  if (pass.usedBy) throw new Error(`${pass.code} was used by ${pass.usedBy}.`);
+    return { ...stored, revokedAt: now.toISOString() };
+  });
 
-  const revoked = { ...pass, revokedAt: now.toISOString() };
-
-  await stores.orders.set(passKey(pass.code), revoked);
+  if (!revoked) throw new Error(`No pass ${value}.`);
 
   return revoked;
 };

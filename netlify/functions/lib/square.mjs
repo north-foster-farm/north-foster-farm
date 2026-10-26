@@ -284,6 +284,13 @@ const staffNote = (order) => {
   const f = order.fulfilment;
 
   if (order.customer.contact) bits.push(`prefers ${order.customer.contact}`);
+  // The farm sees why an order came in under the minimum or with no
+  // fee (QA, #182); the customer's receipt says nothing of it. Ahead
+  // of the notes, which can run the note past its 500 characters.
+  if (order.pass) {
+    bits.push(`code ${order.pass}${order.passWaivesFee
+      ? ", fee waived" : ", under the minimum"}`);
+  }
   if (f.method === "onfarm") {
     const times = pickupTimes(f.onfarm);
 

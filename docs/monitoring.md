@@ -494,6 +494,13 @@ difference. The order is recorded as paid all the same. `bin/nff
 orders show <id>`, compare with the capture in PayPal, and refund or
 charge the difference by hand.
 
+**`pass.used_twice`.** A paid order came in with a single-use pass
+that another order had already used up, so one code covered two orders
+under the delivery minimum or with no fee. Both are recorded as paid.
+`bin/nff orders show <id>` for both orders, then `bin/nff passes list`
+for the code; charge the second order's fee or cancel it by hand if
+the farm did not mean to allow it, and revoke the code.
+
 **`refund.failed`.** Square reports a refund FAILED or REJECTED, or
 PayPal a Venmo refund FAILED or CANCELLED: the customer did not get
 that money back. A refund from `bin/nff` is marked so on the order

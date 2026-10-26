@@ -1291,6 +1291,11 @@ export const farmOrderPlaced = (order, { squareUrl, links } = {}) => {
     ...farmOrderType(order)
   );
   blocks.push(p(`Paid: **${paymentPhrase(order)}**`));
+  // A pass the farm issued (#182): which one, and what it did.
+  if (order.pass) {
+    blocks.push(p(`Code: **${order.pass}**, which ${order.passWaivesFee
+      ? "waived the delivery fee" : "let this order under the minimum"}`));
+  }
   if (squareUrl) blocks.push(button("View order in Square", squareUrl));
   blocks.push(adminFooter(links));
 

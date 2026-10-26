@@ -40,7 +40,8 @@ import { sendMail } from "./lib/mail.mjs";
 import { gate } from "./lib/maintenance.mjs";
 import { DECLINE_MESSAGES as PAYPAL_DECLINES } from "./lib/paypal.mjs";
 import {
-  PASS_MESSAGES, getPass, holdPass, passCodeOf, passProblem, waivesFee,
+  PASS_MESSAGES, getPass, holdPass, passCodeOf, passProblem, releasePass,
+  waivesFee,
 } from "./lib/passes.mjs";
 import { PAYMENTS_OFF, paymentsOff } from "./lib/payments.mjs";
 import { pickupSchedule } from "./lib/pickups.mjs";
@@ -427,6 +428,18 @@ export const handle = async (req, {
         event: "payment.declined", id: order.id, method, code, attempt,
       });
       await count(stores, "declined", now);
+
+      // A decline is the one failure that certainly took no money, so
+      // the pass goes back on offer now rather than when the hold runs
+      // out (QA, #182). Every other failure keeps the hold: a timeout
+      // may have charged after all, and this submission's retry, with
+      // the same key, holds the pass still (security review).
+      if (order.pass && !pass.standing) {
+        await releasePass(stores, order.pass, key).catch((e) => log.warn({
+          event: "pass.release_failed", id: order.id,
+          error: String(e.message),
+        }));
+      }
 
       return json(402, {
         declined: true,
