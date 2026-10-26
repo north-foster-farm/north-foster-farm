@@ -369,10 +369,10 @@ test.describe("order page", () => {
 
       await page.setViewportSize({ width: 1100, height: 800 });
       await order.open({ eggs: 1 });
-      // Settled at the foot of the page, the cart is in view.
-      await page.evaluate(
-        () => window.scrollTo({ top: document.body.scrollHeight })
-      );
+      // Settled below the catalog, the cart is in view once the page is
+      // scrolled to it. It is no longer the page's last part: the
+      // Place your order section follows it (bc0570ae).
+      await cart.evaluate((el) => el.scrollIntoView({ block: "center" }));
       await order.scrollSettled();
       await expect(cart).toBeInViewport({ ratio: 1 });
       await link.click();
