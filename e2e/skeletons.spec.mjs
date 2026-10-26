@@ -122,8 +122,10 @@ test.describe("loading skeletons (#271)", () => {
       // The bars never come sooner than 150 ms, and an answer within
       // it never shows them.
       if (shown !== undefined) {
+        // `began` is read when the observer's callback runs, which a
+        // busy page delays: 8 ms short was seen on a loaded runner.
         expect(shown - began, region).toBeGreaterThanOrEqual(
-          SHOW_AFTER_MS - 5
+          SHOW_AFTER_MS - 30
         );
       }
       if (done !== undefined && done - began < SHOW_AFTER_MS) {
