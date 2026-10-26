@@ -324,6 +324,19 @@ the dev server.
   `deploy-preview` and `dev` may hold `SITE_CONTEXT` and
   `PICKUP_SCHEDULE` and nothing else. It prints the unset commands
   that clear a leak, by name, never a value.
+- **`bin/nff env filled [--development|--staging|--production]`** is
+  the quick look before `env check`, and runs offline with no Netlify
+  token. It reads the tracked sample and the env file for that
+  environment (development when no flag is given) and fails on a key
+  the sample lists that the file lacks or leaves empty, `# Local only:`
+  keys included, naming it and never printing a value. A key whose
+  comment says `Optional:` may be empty or absent: `VENMO_HIDDEN`, the
+  previous Square signing key, the overrides (`ADMIN_URL`,
+  `CONTACT_URL`, `SQUARE_VERSION`, `SQUARE_WEBHOOK_URL`) and the keys
+  that only some deploys use. `env push` and `env check` treat such a
+  key the same way, so a key added to a sample later does not stop
+  either. `test/env-samples.test.mjs` holds the samples to every key the
+  code reads.
 - **`bin/nff env verify --production|--staging`** is the only proof
   that a value is right. Run it after `env push` and the deploy. It
   makes one harmless, read-only call per service: Square (the
@@ -341,8 +354,8 @@ the dev server.
 
 ### Agents may run the env tools
 
-An agent may run `env push`, `env check` and `env verify`, under two
-guarantees:
+An agent may run `env push`, `env check`, `env filled` and `env
+verify`, under two guarantees:
 
 1. **No value in any output, error paths included.** Values reach
    Netlify in the body of an API request made inside the tool
