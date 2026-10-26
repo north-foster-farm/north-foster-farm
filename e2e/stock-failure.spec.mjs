@@ -36,10 +36,22 @@ test.describe("stock that cannot be checked", () => {
 
       const callout = page.locator("#order-stock-down");
 
-      // Skeleton first; nothing is said during the backoff.
+      // Skeleton first; nothing is said during the backoff. The clock
+      // is the test's but the answers are the network's: each retry is
+      // timed when its failure comes back, so wait for each ask before
+      // running the clock to the next (2, 5 then 15 seconds).
+      const asked = (n) => expect.poll(() => state.asked).toBe(n);
+
+      await asked(1);
       await page.clock.runFor(1_000);
       await expect(callout).toBeHidden();
-      await page.clock.runFor(2_000 + 5_000 + 15_000 + 1_000);
+      await page.clock.runFor(1_000);
+      await asked(2);
+      await page.clock.runFor(5_000);
+      await asked(3);
+      await page.clock.runFor(15_000);
+      await asked(4);
+      await page.clock.runFor(1_000);
       await expect(callout).toBeVisible();
       await expect(callout).toHaveClass(/alert-danger/);
       await expect(callout).toContainText("Ordering isn't available right now");
