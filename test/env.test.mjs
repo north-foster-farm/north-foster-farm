@@ -142,6 +142,17 @@ describe("the env sample parser", () => {
       ["SQUARE_ACCESS_TOKEN has no value; development needs one."]);
   });
 
+  it("lets a development key be empty when the sample marks it optional",
+    () => {
+      const text = FIXTURE.replace("staging.sample", "development.sample")
+        .replace("# 1 holds the Venmo button back.\nVENMO_HIDDEN=1",
+          "# 1 holds the Venmo button back. Optional: empty shows it.\n" +
+          "VENMO_HIDDEN=");
+
+      assert.deepEqual(readSample(text, "development").errors,
+        ["SQUARE_ACCESS_TOKEN has no value; development needs one."]);
+    });
+
   it("names what breaks the layout, never a value", () => {
     const text = [
       "### .env.x.sample", "", "LOOSE=secret-value-1", "", "## Group", "##",
@@ -253,6 +264,14 @@ describe("bin/nff env push", () => {
     assert.ok(!plan.sets.some((s) => s.name === "VENMO_HIDDEN"));
   });
 
+  it("needs an optional key in the file neither set nor empty", () => {
+    const plan = planPush(staging(), filled({ VENMO_HIDDEN: null }), FILE);
+
+    assert.deepEqual(plan.errors, []);
+    assert.ok(plan.skipped.includes("VENMO_HIDDEN"));
+    assert.ok(!plan.sets.some((s) => s.name === "VENMO_HIDDEN"));
+  });
+
   it("blanks values out of the CLI's errors", () => {
     assert.equal(redact("bad KEY=fake-square-token-1234 here",
       ["fake-square-token-1234", "1"]), "bad KEY=[value] here");
@@ -276,6 +295,30 @@ describe("bin/nff env check", () => {
 
   it("passes after env push", async () => {
     assert.deepEqual(await check(await pushed()), { problems: [], unset: [] });
+  });
+
+  it("does not ask for an optional key the file and Netlify both lack",
+    async () => {
+      const cli = netlify();
+      const without = filled({ VENMO_HIDDEN: null });
+
+      await pushEnv(cli.run, planPush(staging(), without, FILE),
+        "branch:staging", "SITE");
+
+      assert.deepEqual(await check(cli, "staging", without),
+        { problems: [], unset: [] });
+    });
+
+  it("still asks for a required key the file lacks, and reports an " +
+    "optional one Netlify holds that the file does not", async () => {
+    const cli = await pushed();
+    const { problems } = await check(cli, "staging",
+      filled({ SITE_URL: null, VENMO_HIDDEN: null }));
+
+    assert.deepEqual(problems, [
+      "SITE_URL: in the sample, not in .env.staging.",
+      "VENMO_HIDDEN: empty in .env.staging, set on Netlify's branch:staging.",
+    ]);
   });
 
   it("fails on a key missing from the file or from Netlify", async () => {

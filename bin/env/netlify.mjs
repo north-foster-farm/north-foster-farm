@@ -95,7 +95,9 @@ export const planPush = (sample, local, file) => {
   for (const name of sample.keys) {
     const value = local.values.get(name);
 
-    if (value === undefined) {
+    // An optional key may be absent from the file as well as empty, so
+    // a key added to a sample later does not stop a push.
+    if (value === undefined && !isOptional(sample, name)) {
       errors.push(`${name} is in the sample but not in ${file}.`);
     } else if (!value && isOptional(sample, name)) {
       skipped.push(name);
@@ -403,7 +405,7 @@ export const checkEnv = ({ env, sample, local, remote, file }) => {
     const value = local.values.get(name);
     const there = remote.get(name);
 
-    if (value === undefined) {
+    if (value === undefined && !isOptional(sample, name)) {
       problems.push(`${name}: in the sample, not in ${file}.`);
     } else if (!value && isOptional(sample, name) && there) {
       problems.push(`${name}: empty in ${file}, set on Netlify's ${

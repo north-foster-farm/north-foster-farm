@@ -160,7 +160,9 @@ export const readSample = (text, env) => {
       if (e.optional) optional.push(e.name);
       if (!e.value) {
         if (env === "development") {
-          errors.push(`${e.name} has no value; development needs one.`);
+          if (!e.optional) {
+            errors.push(`${e.name} has no value; development needs one.`);
+          }
         } else if (!e.public) {
           secrets.push(e.name);
         }
