@@ -142,4 +142,4 @@ commit, so later runs take only what still fails. `e2e/staging-attention.txt`
 names the specs open work may break, and `bin/e2e-summary.mjs` writes the
 summary. It needs the Actions secrets `E2E_STAGING_TOKEN` and
 `E2E_STAGING_PING_URL`, and a failure alerts through the Healthchecks
-`/fail`. `orders-api` leaves a paid sandbox order on staging each run.
+`/fail`. `orders-api` closes the paid sandbox order it places (#463).

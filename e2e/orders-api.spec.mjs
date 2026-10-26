@@ -1,6 +1,8 @@
 // POST /api/orders answers a browser rarely provokes: a decline, a
 // total that moved, a stale date, bad fields, the honeypot. None of
-// these charges anything or records an order.
+// these charges anything or records an order, except the scheduled
+// pickup that is accepted: its sandbox order is refunded, closed and
+// deleted after the run (#463).
 // docs/qa-launch.md, "Payments".
 
 import {
@@ -8,10 +10,27 @@ import {
 } from "./support/api.mjs";
 import { expect, test, uniqueEmail } from "./support/order.mjs";
 import {
-  BACK_OFFICE_MISSING, backOffice, nff,
+  BACK_OFFICE_MISSING, backOffice, clearMail, closeOrder, deleteCustomer,
+  nff, teardown,
 } from "./support/staging.mjs";
 
 test.describe("orders API", () => {
+  const made = [];
+  const emails = [];
+  let since;
+
+  test.beforeAll(() => {
+    since = new Date();
+  });
+
+  test.afterAll(() => teardown([
+    ...made.map((id) => () => closeOrder(id)),
+    ...emails.flatMap((email) => [
+      () => deleteCustomer(email),
+      () => clearMail({ to: email, since }),
+    ]),
+  ]));
+
   test("a declined card answers 402 with the customer's words and " +
     "records nothing", async ({ request }) => {
     test.skip(!backOffice().ready, BACK_OFFICE_MISSING);
@@ -82,18 +101,24 @@ test.describe("orders API", () => {
 
   // A scheduled pickup names one occurrence (data/series.json); the
   // server derives its date and refuses any the schedule doesn't offer.
+  // It pays, so it needs the back office to close the order after.
   test("a scheduled pickup is accepted, with its date derived",
     async ({ request }) => {
+      test.skip(!backOffice().ready, BACK_OFFICE_MISSING);
+
       const open = await firstScheduled(request);
 
       test.skip(!open, "the schedule opens no scheduled pickup");
 
+      const email = uniqueEmail("api-scheduled");
+
+      emails.push(email);
+
       const { status, body } = await postOrder(request, await eggOrder(
-        request, {
-          email: uniqueEmail("api-scheduled"), occurrence: open.occurrence,
-        }
+        request, { email, occurrence: open.occurrence }
       ));
 
+      if (body?.orderId) made.push(body.orderId);
       expect(status, JSON.stringify(body)).toBe(200);
     });
 
