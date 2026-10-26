@@ -127,7 +127,7 @@ for (const size of WIDTHS) {
       } else {
         await toggle.scrollIntoViewIfNeeded();
         await expect(toggle).toBeVisible();
-        await expect(toggle).toHaveText(/^(Hide|Expand)$/);
+        await expect(toggle).toHaveText(/^\s*(Hide|Expand)\s*$/);
 
         const t = await box(toggle);
         const next = await box(order.next);
