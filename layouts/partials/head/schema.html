@@ -221,12 +221,18 @@
       {{ else if eq .restock "discontinued" }}
         {{ $availability = "https://schema.org/Discontinued" }}
       {{ end }}
+      {{/* The cut's photo (#486), the 2400 x 1600 master; the share
+           card where a cut has only the placeholder. */}}
+      {{ $image := $shareCard.Permalink }}
+      {{ with partial "order/photo.html" .sku }}
+        {{ if not .placeholder }}{{ $image = .image.Permalink }}{{ end }}
+      {{ end }}
       {{ $graph = $graph | append (dict
         "@type" "Product"
         "@id" (print $url "#product-" .sku)
         "name" .name
         "sku" .sku
-        "image" $shareCard.Permalink
+        "image" $image
         "brand" (dict "@id" $farmId)
         "offers" (dict
           "@type" "Offer"

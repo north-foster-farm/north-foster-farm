@@ -1,0 +1,21 @@
+{{/* The product photo for a SKU (#486): the master under
+     assets/images/products named by the SKU's stem, its first three
+     parts (NFF-CHK-WHL-20-24 is nff-chk-whl), so every tier of a cut
+     shares one photo. A cut with no photo yet gets the placeholder
+     (James, 2026-10-26), with `placeholder` true: the row shows it,
+     the schema does not. Returns a dict of `stem`, `image` (the
+     resource), `alt` (data/productPhotos.yaml, a draft) and
+     `placeholder`. */}}
+{{ $stem := delimit (first 3 (split . "-")) "-" | lower }}
+{{ $image := resources.Get (printf "images/products/%s.jpg" $stem) }}
+{{ $placeholder := not $image }}
+{{ if $placeholder }}
+  {{ $stem = "placeholder" }}
+  {{ $image = resources.Get "images/products/placeholder.png" }}
+{{ end }}
+{{ $meta := index hugo.Data.productPhotos $stem | default dict }}
+{{ return (dict
+  "stem" $stem
+  "image" $image
+  "alt" ($meta.alt | default "")
+  "placeholder" $placeholder) }}

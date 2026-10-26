@@ -40,7 +40,17 @@
 <meta property="og:title" content="{{ $title }}">
 <meta property="og:description" content="{{ or $description .Site.Params.slogan }}">
 <meta property="og:image" content="{{ $featuredImage }}">
-{{ if not .Params.featuredImage.path }}
+{{ with .Params.featuredImage.path }}
+  {{/* A page's own share image (#486): its size from the file, its
+       alt from the front matter. */}}
+  {{ with resources.Get (printf "images/%s" .) }}
+  <meta property="og:image:width" content="{{ .Width }}">
+  <meta property="og:image:height" content="{{ .Height }}">
+  {{ end }}
+  {{ with $.Params.featuredImage.alt }}
+  <meta property="og:image:alt" content="{{ . }}">
+  {{ end }}
+{{ else }}
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="The {{ hugo.Data.company.name }} logo, a green hen: pasture-raised chicken and eggs, {{ hugo.Data.company.address.city }}, {{ hugo.Data.company.address.state }}">
