@@ -39,8 +39,16 @@ test.describe("busy buttons", () => {
         + parseFloat(style.borderRightWidth);
     });
 
+    // On a phone the button spans the card under its field (#443), so
+    // it keeps that width while it sends rather than fitting the face.
+    const phone = page.viewportSize().width < 576;
+    const fullWidth = (await page.locator("#login-email").boundingBox())
+      .width;
+
     await button.click();
-    await expectBusy(page, button, { busyWord: "Sending", width: busyWidth });
+    await expectBusy(page, button, {
+      busyWord: "Sending", width: phone ? fullWidth : busyWidth,
+    });
     await button.click({ force: true });
     hold.release();
     await expect(page.locator("#login-sent")).toBeVisible();

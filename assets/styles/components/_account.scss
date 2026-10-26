@@ -654,15 +654,70 @@
 
 }
 
-// The sign-in page reads like a policy page: the same 700px column.
+// The sign-in page: the heading over a card that holds the form, the
+// card as wide as the form and centered in the band (#443).
 .login .account-wide {
-  max-width: 700px;
+  max-width: 30rem;
+}
+
+.login .login-card {
+  padding: 1.5rem 1.25rem;
 }
 
 // The sign-in form is the farm news form (.farm-list-form, #303), and the
 // block (line, field with button, message) is centered on the page
 // (#399).
 .login #login-ask,
-.login #login-sent {
+.login #login-sent,
+.login #err-login-email {
   text-align: center;
+}
+
+// On a phone the field stacks over a full-width button, and the text
+// aligns with the form rather than floating centered above it (#443).
+// Bootstrap's input group squares the inner corners and overlaps the
+// borders for a row; stacked, each control keeps its own.
+@media (max-width: 575.98px) {
+  .login #login-ask,
+  .login #login-sent {
+    text-align: left;
+  }
+
+  .login #err-login-email {
+    text-align: left;
+  }
+
+  .login .farm-list-form .input-group {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .login .farm-list-form .input-group > .form-control,
+  .login .farm-list-form .input-group > .btn {
+    width: 100%;
+    margin-left: 0;
+    border-radius: var(--bs-border-radius);
+  }
+
+  // The fitted button eases its width from an inline style while it
+  // sends; the minimum keeps it full width throughout.
+  .login .farm-list-form .input-group > .btn {
+    min-width: 100%;
+  }
+}
+
+// From lg up the band grows so the heading and card sit in its middle,
+// as the sign-in card the design follows does, instead of at the top
+// of a tall white band.
+@media (min-width: 992px) {
+  .login .page {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 60vh;
+  }
+
+  .login .login-card {
+    padding: 2rem;
+  }
 }

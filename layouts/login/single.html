@@ -8,6 +8,10 @@
       <div class="account-wide mb-5">
         {{ partial "page-heading.html" . }}
 
+        {{/* The form sits in a card centered in the band at desktop
+             widths (#443); on a phone the field stacks over a
+             full-width button and the text aligns with the form. */}}
+        <div class="account-card login-card">
         <div id="login-ask">
           <p class="mb-3">Type the email address you order with, and we'll send you a link that signs you in.</p>
           <div class="alert alert-warning" role="alert" data-login-notice data-support="{{ hugo.Data.company.email }}" hidden></div>
@@ -20,7 +24,7 @@
             {{/* Outside the group: the invalid ring (.farm-list-form
                  .input-group:has(> .is-invalid)) wraps the field and
                  button only, never the message (#399). */}}
-            <div class="invalid-feedback d-block text-center" id="err-login-email" data-error-for="email"></div>
+            <div class="invalid-feedback d-block" id="err-login-email" data-error-for="email"></div>
             <div class="order-hp" aria-hidden="true">
               <label for="login-website">Website</label>
               <input type="text" id="login-website" name="website" tabindex="-1" autocomplete="off">
@@ -34,6 +38,7 @@
             Nothing after a few minutes? Check your spam folder or
             <button type="button" class="btn btn-link p-0 align-baseline" id="login-again">try again</button>.
           </p>
+        </div>
         </div>
 
         {{/* An email-change link (#240) lands on the account page; it
