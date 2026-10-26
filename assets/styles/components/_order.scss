@@ -2646,8 +2646,9 @@
       }
 
       // On a phone the whole open pane, every row of it, stays within
-      // 48% of the visible height (James, #267): the page behind it
-      // stays in view. The foot of the pane rests a small margin above
+      // 66% of the visible height (James, #267, #475): the page behind
+      // it stays in view. 48% once, under the floor below on most
+      // phones, so the lines showed three and a half rows. The foot of the pane rests a small margin above
       // the browser's toolbar, and never behind it: --cart-gap is the
       // toolbar's share of the layout viewport and --cart-vis the
       // height left to the page (order-form.js watchKeyboard). The
@@ -2671,7 +2672,7 @@
         bottom: calc(0.5rem + var(--cart-rest) + var(--cart-kb, 0px));
         max-height: min(
           var(--cart-room),
-          max(calc(var(--cart-vis, 100svh) * 0.48), var(--cart-min-h, 0px))
+          max(calc(var(--cart-vis, 100svh) * 0.66), var(--cart-min-h, 0px))
         );
       }
 
