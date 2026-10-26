@@ -26,6 +26,23 @@ const open = async (page, cart) => {
   await page.goto(`/order/${cart ? `?add=${cart}` : ""}`);
 };
 
+// Runs the page clock through the first load's backoff (2, 5 then 15
+// seconds) until the page says ordering is paused. Each retry is timed
+// when its failure comes back over the real network, so wait for each
+// ask before the clock moves on.
+const shut = async (page, state) => {
+  const asked = (n) => expect.poll(() => state.asked).toBe(n);
+
+  await asked(1);
+  await page.clock.runFor(2_000);
+  await asked(2);
+  await page.clock.runFor(5_000);
+  await asked(3);
+  await page.clock.runFor(15_000);
+  await asked(4);
+  await page.clock.runFor(1_000);
+};
+
 test.describe("stock that cannot be checked", () => {
   test("retries, then shuts the page behind a danger alert",
     async ({ page }) => {
@@ -75,7 +92,7 @@ test.describe("stock that cannot be checked", () => {
 
       await flaky(page, state);
       await open(page);
-      await page.clock.runFor(40_000);
+      await shut(page, state);
 
       const callout = page.locator("#order-stock-down");
       const order = new OrderPage(page);
@@ -98,7 +115,7 @@ test.describe("stock that cannot be checked", () => {
 
     await flaky(page, state);
     await open(page);
-    await page.clock.runFor(40_000);
+    await shut(page, state);
 
     const callout = page.locator("#order-stock-down");
 
@@ -140,7 +157,7 @@ test.describe("stock that cannot be checked", () => {
       });
       await flaky(page, state);
       await open(page);
-      await page.clock.runFor(40_000);
+      await shut(page, state);
       await expect.poll(() => reports.some(
         (r) => r && r.where === "stock.unavailable"
       )).toBe(true);
