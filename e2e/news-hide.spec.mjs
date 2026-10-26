@@ -46,7 +46,9 @@ for (const { name, path, block } of PAGES) {
       await expect(page.locator(block)).toBeVisible();
     });
 
-    test("hide once this browser has signed up, and stay hidden",
+    // Only the confirmation link joins the list (#303), so the form
+    // asks for a click and the flag waits for it.
+    test("hide once this browser has confirmed, and stay hidden",
       async ({ page }) => {
         await page.route("**/api/news/subscribe", (route) =>
           route.fulfill({ json: { ok: true } }));
@@ -57,6 +59,13 @@ for (const { name, path, block } of PAGES) {
         await form.locator("input[type='email']").fill("you@example.com");
         await form.getByRole("button").click();
         await expect(form.locator("[data-farm-list-note]"))
+          .toHaveText("Check your email: click the link we sent you to join.");
+        await page.reload();
+        await expect(page.locator(block), "not joined until the click")
+          .toBeVisible();
+
+        await page.goto(`${path}?news=confirmed`);
+        await expect(page.locator("[data-farm-list-note]").first())
           .toHaveText("You're on the list. Thanks!");
 
         const kept = await page.evaluate(() =>
