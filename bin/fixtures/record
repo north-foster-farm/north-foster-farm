@@ -259,6 +259,9 @@ send payment-replay square "$PAID_REQUEST"
 send payment-key-reused square "$(printf '%s' "$PAID_REQUEST" \
   | jq -c '.body.amount_money.amount += 100')" 4
 
+# A second payment on an order already paid in full.
+pay already-paid '{"sourceId": "cnon:card-nonce-ok"}' "$ORDER_TOTAL" 4
+
 send order-get-paid square "$(sq GET "/v2/orders/$PICKUP_ORDER")"
 send payment-get square "$(sq GET "/v2/payments/$PAYMENT_ID")"
 
@@ -301,6 +304,9 @@ pay card-rejected-postalcode \
 pay card-rejected-expiration \
   '{"sourceId": "cnon:card-nonce-rejected-expiration"}' "$DELIVERY_TOTAL" 4
 
+# Nothing to pay is not a payment.
+pay zero-amount '{"sourceId": "cnon:card-nonce-ok"}' 0 4
+
 send order-get-open square "$(sq GET "/v2/orders/$DELIVERY_ORDER")"
 CURRENT="$(jq -c .response.order "$OUT")"
 ARGS="$(margs --arg kind delivery --arg orderId "$DELIVERY_ORDER" \
@@ -312,6 +318,17 @@ ARGS="$(margs --arg orderId "$DELIVERY_ORDER" \
   --argjson current "$(jq -c .response.order "$OUT")")"
 send order-cancel square "$(pick cancel-order "$ARGS" 0)"
 send order-get-canceled square "$(sq GET "/v2/orders/$DELIVERY_ORDER")"
+pay order-canceled '{"sourceId": "cnon:card-nonce-ok"}' "$DELIVERY_TOTAL" 4
+
+# ---- An order paid too much, then part of its total ---------------------
+new_order short pickup
+SHORT_ORDER="$ORDER_ID"
+SHORT_TOTAL="$ORDER_TOTAL"
+pay over-total '{"sourceId": "cnon:card-nonce-ok"}' \
+  "$((SHORT_TOTAL + 100))" 4
+pay under-total '{"sourceId": "cnon:card-nonce-ok"}' \
+  "$((SHORT_TOTAL - 100))"
+send order-get-part-paid square "$(sq GET "/v2/orders/$SHORT_ORDER")"
 
 # ---- A pickup paid as an external (Venmo) tender, fulfillment cancelled -
 new_order external pickup
@@ -338,6 +355,9 @@ ZERO_REQUEST="$(pick create-change-order "$ARGS" 2 \
   | jq -c --arg c "$CUSTOMER_ID" '.body.order.customer_id = $c')"
 send order-create-zero square "$ZERO_REQUEST"
 ZERO_ORDER="$(got .response.order.id)"
+ORDER_ID="$ZERO_ORDER"
+# CreatePayment for $0 is the wrong call; PayOrder is the right one.
+pay zero-order '{"sourceId": "cnon:card-nonce-ok"}' 0 4
 ARGS="$(margs --arg orderId "$ZERO_ORDER" --arg key "$K-zero")"
 send order-pay-zero square "$(pick pay-zero "$ARGS" 0)"
 send order-get-zero-paid square "$(sq GET "/v2/orders/$ZERO_ORDER")"

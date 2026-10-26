@@ -63,6 +63,10 @@ same value has the same placeholder in every file, so the payment in
 | `payment-card-declined`, `-rejected-cvv`, `-rejected-postalcode`, `-rejected-expiration` | the sandbox's decline nonces |
 | `payment-external`, `payment-cash` | a Venmo tender recorded on Square; cash taken by the farm |
 | `payment-replay`, `payment-key-reused` | the same key; the same key with another amount |
+| `payment-already-paid`, `payment-order-canceled` | a payment on an order already paid, and on one cancelled |
+| `payment-zero-amount`, `payment-zero-order` | a $0 card payment, alone and against a $0 order |
+| `payment-over-total`, `payment-under-total`, `order-get-part-paid` | more than the order total (refused), and part of it |
+| `order-create-short` | the order those two pay |
 | `payment-get`, `payment-get-refunded` | `getPayment`, before and after a refund |
 | `refund-create`, `refund-replay`, `refund-get`, `refund-too-large` | `refundPayment`, `getRefund`, and a refund over what is left |
 | `order-get-paid`, `-paid-external`, `-paid-cash` | `getOrder` with its tenders |
