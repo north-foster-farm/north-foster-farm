@@ -259,6 +259,14 @@ export const OPS = {
   },
 };
 
+// A Square error's own words, which its message leaves out: each
+// error's category, code and detail. Square puts no card or token in
+// them, and the suite's token is the only one that sees this.
+const squareWhy = (error) => (Array.isArray(error && error.detail)
+  ? ` (${error.detail.map((e) => [e.category, e.code, e.detail]
+    .filter(Boolean).join(" ")).join("; ")})`
+  : "");
+
 // -> a Response body object and status for one op.
 export const runOp = async (stores, body, env) => {
   const op = OPS[body && body.op];
@@ -270,6 +278,6 @@ export const runOp = async (stores, body, env) => {
   } catch (error) {
     const status = /not found|no such/i.test(error.message) ? 404 : 400;
 
-    return { status, body: { error: error.message } };
+    return { status, body: { error: error.message + squareWhy(error) } };
   }
 };
