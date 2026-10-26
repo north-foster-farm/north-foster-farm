@@ -1,5 +1,6 @@
 {{/*
-  A post's body wherever the post is shown in full (#232).
+  A post's body wherever the post is shown in full (#232), with its
+  footer under it (#483).
 
   Params:
     page   The post
@@ -11,3 +12,4 @@
   {{ $content = $content | replaceRE `<(/?)h2([ >])` `<${1}h3${2}` | safeHTML }}
 {{ end }}
 <div class="prose">{{ $content }}</div>
+{{ partial "news/footer.html" . }}

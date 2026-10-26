@@ -211,3 +211,17 @@
     }
   }
 }
+
+// The close of a full post, on its own page and in the home page's
+// card (#483): the invitation to Farm News over the small way back to
+// the archive. The invitation hides for people already on the list,
+// and the archive button stays alone.
+.news-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 2.5rem;
+  padding-top: 2rem;
+  border-top: 1px solid var(--bs-border-color);
+}

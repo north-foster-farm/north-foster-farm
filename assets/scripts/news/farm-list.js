@@ -90,12 +90,33 @@ export const wire = (form) => {
   });
 };
 
+// A post's "Sign up for news like this." (#483) scrolls to the footer's
+// form and puts the cursor in its field. Without the script the link's
+// own hash still takes the reader there.
+const wireJump = (link) => {
+  link.addEventListener("click", (event) => {
+    const field = document.getElementById(link.hash.slice(1));
+
+    if (!field) return;
+
+    event.preventDefault();
+    field.closest("form").scrollIntoView({
+      block: "center",
+      behavior: matchMedia("(prefers-reduced-motion: reduce)").matches
+        ? "auto"
+        : "smooth",
+    });
+    field.focus({ preventScroll: true });
+  });
+};
+
 export const wireFarmList = () => {
   const forms = [...document.querySelectorAll("[data-farm-list-form]")];
 
   if (!forms.length) return;
 
   for (const form of forms) wire(form);
+  document.querySelectorAll("[data-farm-list-jump]").forEach(wireJump);
 
   const params = new URLSearchParams(location.search);
   const landed = params.get("news");
