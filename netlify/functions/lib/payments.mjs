@@ -74,15 +74,15 @@ export const sendForOrder = async (stores, order, key, message, {
       ...message,
     }, { env });
 
-    // Re-read before merging: two sends about one order in a row
-    // would otherwise write the second note over the first.
-    const current = await getOrder(stores, order.id) || order;
-    const noted = await amendOrder(stores, order.id, {
+    // Merged into the record as it is when the write lands: two sends
+    // about one order in a row would otherwise write the second note
+    // over the first.
+    const noted = await amendOrder(stores, order.id, (current) => ({
       emails: {
         ...(current.emails || {}),
         [key]: { at: now.toISOString(), ...sent },
       },
-    }, `mail.${key}`, now);
+    }), `mail.${key}`, now);
 
     await noteMail(stores, true, now);
 

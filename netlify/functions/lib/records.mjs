@@ -53,12 +53,9 @@ const stamp = (order, event, now, extra = {}) => ({
   ],
 });
 
-// Writes the order and its indexes. Idempotent: writing the same order
-// twice leaves one record.
-export const saveOrder = async (stores, order, now = clock()) => {
-  const record = order.history ? order : stamp(order, order.status, now);
-
-  await stores.orders.set(orderKey(record.id), record);
+// The indexes of a stored order: its customer's list, the payments
+// the webhooks name it by, and whether it is open.
+const indexOrder = async (stores, record) => {
   // An order whose customer's details were deleted (lib/forget.mjs)
   // has no email, and no index.
   if (record.customer.email) {
@@ -76,6 +73,15 @@ export const saveOrder = async (stores, order, now = clock()) => {
   } else {
     await stores.orders.delete(openKey(record.id));
   }
+};
+
+// Writes the order and its indexes. Idempotent: writing the same order
+// twice leaves one record.
+export const saveOrder = async (stores, order, now = clock()) => {
+  const record = order.history ? order : stamp(order, order.status, now);
+
+  await stores.orders.set(orderKey(record.id), record);
+  await indexOrder(stores, record);
 
   return record;
 };
@@ -219,15 +225,45 @@ export const orderByPayment = async (stores, paymentId) => {
   return ref ? getOrder(stores, ref.id) : null;
 };
 
+// Reads the record, lets `change` make the next one from it, and writes
+// that only if nobody wrote the record in between (the store's etag),
+// reading again and trying once more if somebody did. The record is
+// one blob, so a plain read, change and write loses whoever wrote
+// between the read and the write: an email's note could put a cancelled
+// order back to paid. `change` may run more than once and answers its
+// argument itself for no change. -> the record, or null if unknown.
+const WRITE_TRIES = 8;
+
+const updateOrder = async (stores, id, change) => {
+  for (let tries = 0; tries < WRITE_TRIES; tries += 1) {
+    const found = await stores.orders.getTagged(orderKey(id));
+
+    if (!found) return null;
+
+    const next = change(found.value);
+
+    if (next === found.value) return next;
+    if (await stores.orders.swap(orderKey(id), next, found.etag)) {
+      await indexOrder(stores, next);
+
+      return next;
+    }
+  }
+
+  throw new Error(`Order ${id} is being changed too fast to save.`);
+};
+
 // Moves an order to a new status with a history line, keeping the
 // open index in step. Returns the updated record, or null if unknown.
 export const setStatus = async (
   stores, id, status, now = clock(), extra
-) => {
-  const order = await getOrder(stores, id);
-
-  if (!order) return null;
+) => updateOrder(stores, id, (order) => {
   if (order.status === status) return order;
+  // A cancel or a handover is never undone by a late write that still
+  // thinks the order is paid.
+  if (status === "paid" && ["cancelled", "fulfilled"].includes(order.status)) {
+    return order;
+  }
 
   const at = now.toISOString();
   const patch = { status };
@@ -237,21 +273,17 @@ export const setStatus = async (
   if (status === "abandoned") patch.abandonedAt = at;
   if (status === "fulfilled") patch.fulfilledAt = at;
 
-  return saveOrder(
-    stores, stamp({ ...order, ...patch }, status, now, extra), now
-  );
-};
+  return stamp({ ...order, ...patch }, status, now, extra);
+});
 
-// Any patch that is not a status change, with a history line.
+// Any patch that is not a status change, with a history line. `patch`
+// may be a function of the record as it is when the write lands, for a
+// change to something another writer may also change (the emails sent).
 export const amendOrder = async (
   stores, id, patch, event, now = clock()
-) => {
-  const order = await getOrder(stores, id);
-
-  if (!order) return null;
-
-  return saveOrder(stores, stamp({ ...order, ...patch }, event, now), now);
-};
+) => updateOrder(stores, id, (order) => stamp({
+  ...order, ...(typeof patch === "function" ? patch(order) : patch),
+}, event, now));
 
 // A customer's orders, newest first.
 export const ordersFor = async (stores, email) => {
