@@ -262,36 +262,43 @@ for (const width of [375, 390, 576, 768]) {
   });
 }
 
-// Checkout's alignment (#274, round 5).
-test("Pay and its agreement sit right on a phone, left from md", async ({
-  page,
-}) => {
-  const order = new OrderPage(page);
+// Checkout's alignment: Pay, its agreement and the news opt-in stand
+// centered in the pane at every width (James's cart pass, 2026-10-27;
+// #274 round 5 had them right on a phone and left from md).
+test("Pay, its agreement and the opt-in sit centered at every width",
+  async ({ page }) => {
+    const order = new OrderPage(page);
 
-  for (const [size, side] of [[PHONE, "right"], [MD, "left"]]) {
-    await page.setViewportSize(size);
-    await order.open({ eggs: 1 });
+    for (const size of [PHONE, MD]) {
+      await page.setViewportSize(size);
+      await order.open({ eggs: 1 });
 
-    const seen = await page.locator(".order-submit").evaluate((el) => {
-      const pay = el.querySelector("#order-submit");
+      const seen = await page.locator("#confirm").evaluate((el) => {
+        const pay = el.querySelector("#order-submit");
 
-      pay.hidden = false;
+        pay.hidden = false;
 
-      const box = el.getBoundingClientRect();
-      const r = pay.getBoundingClientRect();
+        const mid = (r) => (r.left + r.right) / 2;
+        const box = el.querySelector(".order-submit").getBoundingClientRect();
+        const centered = (node) => Math.abs(
+          mid(node.getBoundingClientRect()) - mid(box)
+        ) < 2;
 
-      return {
-        right: Math.abs(box.right - r.right) < 2,
-        left: Math.abs(r.left - box.left) < 2,
-        align: getComputedStyle(el.querySelector(".order-agree")).textAlign,
-      };
-    });
+        return {
+          pay: centered(pay),
+          optin: centered(el.querySelector(".order-optin")),
+          agree: getComputedStyle(el.querySelector(".order-agree")).textAlign,
+          title: getComputedStyle(el.querySelector(".order-optin-title"))
+            .textAlign,
+        };
+      });
 
-    expect(seen[side], `${size.width}px`).toBe(true);
-    expect(seen.align, `${size.width}px`)
-      .toMatch(side === "right" ? /right|end/ : /left|start/);
-  }
-});
+      expect(seen.pay, `${size.width}px`).toBe(true);
+      expect(seen.optin, `${size.width}px`).toBe(true);
+      expect(seen.agree, `${size.width}px`).toBe("center");
+      expect(seen.title, `${size.width}px`).toBe("center");
+    }
+  });
 
 test("every date dropdown is as wide as the fields", async ({ page }) => {
   const order = new OrderPage(page);

@@ -572,12 +572,7 @@
   // agreement (#352; #228 had it under the email).
   .order-optin-title {
     margin: 1.5rem 0 0.5rem;
-
-    // On a phone the subheading aligns right with the box under it,
-    // as one column with the button above.
-    @media (max-width: 767.98px) {
-      text-align: right;
-    }
+    text-align: center;
   }
 
   .order-optin {
@@ -738,23 +733,19 @@
   }
 
   // The news opt-in closes the Place your order pane, under the agreement
-  // (#352). On a phone it aligns right with the button and the line
-  // above it, as one column; from md it stands at the left.
+  // (#352), centered under its subheading like the button above: the
+  // box and its words as one line, wrapped to the words' width.
   .order-confirm .order-optin {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
     margin-top: 0;
+    padding-left: 0;
 
-    @media (max-width: 767.98px) {
-      display: flex;
-      flex-direction: row-reverse;
-      justify-content: flex-start;
-      gap: 0.5rem;
-      padding-left: 0;
-      text-align: right;
-
-      .form-check-input {
-        float: none;
-        margin-left: 0;
-      }
+    > input {
+      flex: none;
+      float: none;
+      margin-left: 0;
     }
   }
 
@@ -1127,27 +1118,24 @@
   .order-agree {
     margin: 0.75rem 0 2rem;
     font-size: 0.875rem;
+    text-align: center;
 
     a {
       text-decoration: underline;
     }
   }
 
-  // Pay and the agreement sit at the right on a phone, at the left
-  // from md (#274, round 5).
-  @media (max-width: 767.98px) {
-    .order-submit {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-end;
+  // Pay and the agreement stand centered in the pane at every width,
+  // as a card's button does (James's cart pass, 2026-10-27; #274
+  // round 5 had them right on a phone and left from md). The notices
+  // around them keep the pane's full width.
+  .order-submit {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 
-      > :not(.btn) {
-        align-self: stretch;
-      }
-    }
-
-    .order-agree {
-      text-align: right;
+    > :not(.btn) {
+      align-self: stretch;
     }
   }
 
