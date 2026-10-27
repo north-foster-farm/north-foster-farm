@@ -428,12 +428,14 @@ export const runJobs = async (stores, {
   report.creditSwept = (await attempt(null, "creditSweep",
     () => sweepStrandedCredit(stores, { now }))) || [];
 
+  const hidden = (await attempt(null, "stockHidden", () =>
+    stockHiddenDaily(stores, { env, now, catalogIndex, inventory })))
+    || NONE_HIDDEN;
+
   report.invariants = [
     ...(await attempt(null, "invariants", async () =>
       checkInvariants(await openOrders(stores), now))) || [],
-    ...(await attempt(null, "stockHidden", () => stockHiddenDaily(stores, {
-      env, now, catalogIndex, inventory,
-    }))) || [],
+    ...hidden.violations,
   ];
 
   await recordRun(stores, report, now);
@@ -443,15 +445,23 @@ export const runJobs = async (stores, {
       count: report.errors.length, errors: report.errors.slice(0, 10),
     }, { env, mail, now, fetchImpl });
   }
+
+  let told = null;
+
   if (report.invariants.length) {
     // A hidden SKU is told once (stockHiddenDaily), so the hourly mute
     // must not swallow the run that tells it.
-    const once = report.invariants.some((v) => v.rule === "stock.hidden");
+    const once = hidden.violations.length > 0;
 
-    await alert(stores, "jobs.invariants", {
+    told = await alert(stores, "jobs.invariants", {
       count: report.invariants.length,
       violations: report.invariants.slice(0, 20),
     }, { env, mail, now, fetchImpl, ...(once ? { dedupe: false } : {}) });
+  }
+  // Hidden stock is marked told once its alert is sent, as
+  // archivedInStock does, so a failed send tells it on the next run.
+  if (!hidden.violations.length || told === "sent") {
+    await attempt(null, "stockHidden", hidden.settle);
   }
 
   const healthy = !report.errors.length && !report.invariants.length;
@@ -810,42 +820,52 @@ const driftDaily = async (stores, {
 // not one. A SKU at a count already told is not told again; one whose
 // count changes, or that goes to 0 and comes back, is. The told counts
 // are kept under `stock/hidden`, the day's mark under
-// `stock/hidden/<day>`. A Square that doesn't answer leaves no mark,
-// so the next run asks again.
-// -> [{ rule, id, why, count }] newly found.
+// `stock/hidden/<day>`, and both are written by `settle`, which the run
+// calls once the alert is sent, or at once when there is nothing new
+// to tell. A Square that doesn't answer, or an alert that isn't sent,
+// leaves no mark, so the next run asks again.
+// -> { violations: [{ rule, id, why, count }] newly found, settle }.
 export const STOCK_HIDDEN_HOUR = 7;
 export const HIDDEN_TOLD = "stock/hidden";
+
+const NONE_HIDDEN = { violations: [], settle: async () => {} };
 
 const stockHiddenDaily = async (stores, {
   env, now, catalogIndex, inventory,
 }) => {
-  if (parts(now, tz).hour < STOCK_HIDDEN_HOUR) return [];
+  if (parts(now, tz).hour < STOCK_HIDDEN_HOUR) return NONE_HIDDEN;
 
   const key = `${HIDDEN_TOLD}/${today(now, tz)}`;
 
-  if (await stores.jobs.get(key)) return [];
+  if (await stores.jobs.get(key)) return NONE_HIDDEN;
 
   const list = await hiddenCounts({ catalogIndex, env, inventory });
 
-  if (!list) return [];
+  if (!list) return NONE_HIDDEN;
 
   const found = hiddenInStock(list);
   const told = ((await stores.jobs.get(HIDDEN_TOLD)) || {}).counts || {};
   const fresh = found.filter((i) => told[i.sku] !== i.count);
 
-  await stores.jobs.set(HIDDEN_TOLD, {
-    at: now.toISOString(),
-    counts: Object.fromEntries(found.map((i) => [i.sku, i.count])),
-  });
-  await stores.jobs.set(key, { at: now.toISOString(), count: found.length });
   if (fresh.length) {
     log.warn({ event: "stock.hidden_in_stock",
       skus: fresh.map((i) => i.sku) });
   }
 
-  return fresh.map((i) => ({
-    rule: "stock.hidden", id: i.sku, why: i.why, count: i.count,
-  }));
+  return {
+    violations: fresh.map((i) => ({
+      rule: "stock.hidden", id: i.sku, why: i.why, count: i.count,
+    })),
+    settle: async () => {
+      await stores.jobs.set(HIDDEN_TOLD, {
+        at: now.toISOString(),
+        counts: Object.fromEntries(found.map((i) => [i.sku, i.count])),
+      });
+      await stores.jobs.set(key, {
+        at: now.toISOString(), count: found.length,
+      });
+    },
+  };
 };
 
 // A money change that takes effect on a date (data/delivery.json,

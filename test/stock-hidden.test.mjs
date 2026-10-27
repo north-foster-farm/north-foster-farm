@@ -256,6 +256,27 @@ describe("the stock.hidden invariant (#499)", () => {
       { "OUT-SOME": 4, "ARCH-SOME": 2 });
   });
 
+  it("tells again next run when the alert isn't sent", async () => {
+    const stores = testStores();
+    const down = await runJobs(stores, {
+      now: at("2026-10-27", 7), env: ENV, catalogIndex: FIXTURE,
+      inventory: replay().inventory,
+      mail: async () => { throw new Error("Resend 500"); },
+    });
+
+    assert.equal(hidden(down).length, 2);
+    assert.equal(await stores.jobs.get(HIDDEN_TOLD), null, "not told");
+
+    const again = await run(stores, at("2026-10-27", 7, 15));
+
+    assert.equal(hidden(again.report).length, 2);
+    assert.equal(alerts(again.sent).length, 1);
+    assert.deepEqual((await stores.jobs.get(HIDDEN_TOLD)).counts,
+      { "OUT-SOME": 3, "ARCH-SOME": 2 });
+    assert.deepEqual(hidden((await run(stores, at("2026-10-27", 7, 30)))
+      .report), [], "told, and done for the day");
+  });
+
   it("is not muted by an invariants alert in the last hour", async () => {
     const stores = testStores();
 
