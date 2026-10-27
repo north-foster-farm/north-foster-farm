@@ -174,7 +174,9 @@ describe("bin/nff ships its log lines", () => {
       assert.equal(deleted.record, "*@****");
       assert.ok(!bodies[0].includes(email));
       assert.ok(!bodies[0].includes("abcdefgh"));
-      assert.ok(!bodies[0].includes("example.com"));
+      // The domain in clear, anywhere in the body (a leak check, not a
+      // URL check, so a pattern rather than a substring test).
+      assert.doesNotMatch(bodies[0], /example\.com/);
       assert.ok(!bodies[0].includes("a@b.co"));
       assert.equal(pending(), 0);
     });
