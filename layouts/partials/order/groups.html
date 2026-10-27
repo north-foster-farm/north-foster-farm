@@ -1,17 +1,45 @@
-{{/* The in-stock catalog groups, for the sidebar and the product list.
-     A group with nothing to sell is left out, and so is its link. A
-     group's `unit` ("per pack") sits by its heading; an item's own
-     `unit` sits in its row, for the groups that mix them. */}}
+{{/* The catalog groups, for the sidebar, the product list and search.
+     Every item but an archived one is here (#267), each with `out`,
+     true when the catalog's flag says it is out of stock, and
+     `restockLabel`, what an out-of-stock item says in place of its
+     quantity: "" for an item with no restock type, which stays hidden
+     while it is out. A group with nothing in stock is `out` too, and
+     hidden along with its link unless Show is on "Full catalog"
+     (order/restock.js). No price carries a unit word (#267,
+     6305365293). `row` is what an item's row says: its
+     label, or, in a group whose `lines` is "name", its own name
+     ("Livers, 1.0 – 1.4 lbs") where a cut says its tier
+     (order/lib/catalog.mjs). */}}
 {{ $groups := slice }}
 {{ range hugo.Data.catalog.groups }}
-  {{ $items := where .items "inStock" true }}
+  {{ $items := slice }}
+  {{ $inStock := false }}
+  {{ $byName := eq .lines "name" }}
+  {{ range .items }}
+    {{ if ne .restock "archived" }}
+      {{ $out := not .inStock }}
+      {{ if not $out }}{{ $inStock = true }}{{ end }}
+      {{/* A graded item (eggs, #300) shows its grade where a note
+           goes, by its name, "Grade A · Large" (#437); `graded` is the
+           label with it, as
+           order/lib/catalog.mjs names a line. */}}
+      {{ $graded := cond (isset . "grade") (printf "%s · %s" .grade .label) .label }}
+      {{ $items = $items | append (merge . (dict
+        "out" $out
+        "note" (or .note .grade "")
+        "graded" $graded
+        "row" (cond $byName .name .label)
+        "restockLabel" (partial "order/restock-label.html" .))) }}
+    {{ end }}
+  {{ end }}
   {{ if $items }}
     {{ $short := replaceRE ` \(.*\)$` "" .label }}
     {{ $groups = $groups | append (dict
       "key" .key
       "label" .label
       "short" $short
-      "unit" (.unit | default "")
+      "lines" (.lines | default "")
+      "out" (not $inStock)
       "items" $items)
     }}
   {{ end }}

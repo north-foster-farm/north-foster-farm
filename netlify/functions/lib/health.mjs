@@ -13,7 +13,8 @@
 // Alerts: a farm email, one per kind per hour, for a failure on the
 // critical path (an order that could not be created, mail that will
 // not send, a job that threw), and the same to the alert check's
-// /fail URL so it reaches a phone even when Resend is the problem.
+// /fail URL so it reaches a phone even when Resend is the problem,
+// then a success ping so the check is ready to push the next one.
 //
 //   HEALTHCHECKS_JOBS_URL    the jobs run's heartbeat check
 //   HEALTHCHECKS_ALERT_URL   the alert channel check (period: a day;
@@ -21,16 +22,26 @@
 
 import terms from "../../../data/delivery.json" with { type: "json" };
 import { today } from "../../../assets/scripts/order/lib/zoned.mjs";
-import { adminEmails, sendMail } from "./mail.mjs";
-import { log } from "./log.mjs";
+import { devEmails, escalatedEmails, sendMail } from "./mail.mjs";
+import { links as maintenanceLinks, readState } from "./maintenance.mjs";
+import { log, scrub } from "./log.mjs";
 import { mailLinks } from "./site.mjs";
-import { farmAlert } from "./templates.mjs";
+import { escalation, farmAlert } from "./templates.mjs";
 
 const HOUR = 60 * 60_000;
 
 export const ALERT_EVERY = HOUR;
 export const PING_TIMEOUT = 3000;
 export const MAIL_FAILURES_FOR_ALARM = 3;
+
+// Every alert goes to DEV_NOTIFICATIONS_EMAIL, and to nobody else:
+// there is no fallback when it is unset. The one escalation, below,
+// is the only mail that reaches ESCALATED_NOTIFICATIONS_EMAIL.
+export const alertRecipients = (kind, env = process.env) => devEmails(env);
+
+// The alerts that escalate. "Orders not recorded" is a payment taken
+// with no order; the detector for it raises this kind.
+export const ESCALATING = ["orders.not_recorded"];
 
 const key = (name) => `health/${name}`;
 
@@ -52,6 +63,33 @@ export const readMark = async (stores, name) => {
     return await stores.jobs.get(key(name));
   } catch {
     return null;
+  }
+};
+
+// A tally per day (`health/<name>/<day>`), for things worth counting
+// but not keeping: declined payments, say. Never throws.
+export const count = async (stores, name, now = new Date()) => {
+  const day = today(now, terms.timeZone);
+  const k = key(`${name}/${day}`);
+
+  try {
+    const current = (await stores.jobs.get(k)) || { n: 0 };
+
+    await stores.jobs.set(k, {
+      n: (current.n || 0) + 1, at: now.toISOString(),
+    });
+  } catch (error) {
+    log.warn({ event: "health.count_failed", name, error: String(error) });
+  }
+};
+
+export const readCount = async (stores, name, day) => {
+  try {
+    const record = await stores.jobs.get(key(`${name}/${day}`));
+
+    return record ? record.n || 0 : 0;
+  } catch {
+    return 0;
   }
 };
 
@@ -84,9 +122,6 @@ export const ping = async (url, {
   ok = true, body = null, fetchImpl = globalThis.fetch,
 } = {}) => {
   if (!url) return false;
-  if (process.env.NODE_TEST_CONTEXT && fetchImpl === globalThis.fetch) {
-    return false;
-  }
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), PING_TIMEOUT);
@@ -109,47 +144,173 @@ export const ping = async (url, {
   }
 };
 
-// A failure on the critical path. `kind` is dotted and stable
-// (order.create_failed, mail.failed, jobs.errors, ...); `detail` is
-// what a person needs to act. Deduplicated per kind for an hour, so a
-// storm is one email. -> "sent" | "muted" | "skipped".
-export const alert = async (stores, kind, detail = {}, {
+// A failure on the critical path, with what it reached. `kind` is
+// dotted and stable (order.create_failed, mail.failed, jobs.errors,
+// ...); `detail` is what a person needs to act. Deduplicated per kind
+// for an hour, so a storm is one email, unless `dedupe` is false.
+// `mute` narrows that clock: function.crashed keeps one per function.
+//
+// The alert check pushes to a phone only when it changes state, so
+// each /fail is followed by a success ping: every alert is a "down"
+// push and then an "up", and the next alert pushes again (#248).
+//
+// -> { status: "sent" | "muted" | "skipped", to, mailError, failed,
+//      rearmed }
+export const raise = async (stores, kind, detail = {}, {
   env = process.env,
   mail = sendMail,
   now = new Date(),
   fetchImpl = globalThis.fetch,
+  dedupe = true,
+  mute = kind,
 } = {}) => {
   log.error({ event: "alert", kind, ...detail });
 
-  const last = await readMark(stores, `alert/${kind}`);
+  const last = dedupe ? await readMark(stores, `alert/${mute}`) : null;
+  const to = alertRecipients(kind, env);
 
   if (last && now.getTime() - Date.parse(last.at) < ALERT_EVERY) {
-    await mark(stores, `alert/${kind}`, {
+    await mark(stores, `alert/${mute}`, {
       at: last.at, muted: (last.muted || 0) + 1, lastAt: now.toISOString(),
     }, now);
 
-    return "muted";
+    return {
+      status: "muted", to, mailError: null, failed: false, rearmed: false,
+    };
   }
-  await mark(stores, `alert/${kind}`, { muted: 0 }, now);
+  if (dedupe) await mark(stores, `alert/${mute}`, { muted: 0 }, now);
+  if (ESCALATING.includes(kind)) await open(stores, kind, now);
 
-  const to = adminEmails(env);
   let sent = false;
+  let mailError = null;
 
   if (to.length) {
     try {
       await mail({
         to,
         idempotencyKey: `alert-${kind}-${now.getTime()}`,
-        ...farmAlert(kind, detail, { at: now, links: mailLinks(env) }),
+        ...farmAlert(kind, detail, {
+          at: now, links: mailLinks(env), held: dedupe,
+        }),
       }, { env });
       sent = true;
     } catch (error) {
-      log.error({ event: "alert.mail_failed", kind, error: String(error) });
+      mailError = String(error);
+      log.error({ event: "alert.mail_failed", kind, error: mailError });
     }
   }
-  await ping(env.HEALTHCHECKS_ALERT_URL, {
-    ok: false, body: { kind, ...detail, at: now.toISOString() }, fetchImpl,
-  });
 
-  return sent ? "sent" : "skipped";
+  const url = env.HEALTHCHECKS_ALERT_URL;
+  const failed = await ping(url, {
+    ok: false, body: scrub({ kind, ...detail, at: now.toISOString() }),
+    fetchImpl,
+  });
+  const rearmed = url ? await ping(url, { fetchImpl }) : false;
+
+  return {
+    status: sent ? "sent" : "skipped", to, mailError, failed, rearmed,
+  };
+};
+
+// An escalating alert stays open from its first raise until someone
+// acknowledges it; the next raise after that opens a new one.
+const open = async (stores, kind, now) => {
+  const current = await readMark(stores, `open/${kind}`);
+
+  if (current && !current.ackedAt) return;
+
+  await mark(stores, `open/${kind}`, { since: now.toISOString() }, now);
+};
+
+// Stops the escalation of `kind`. -> true when one was open.
+export const acknowledge = async (stores, kind, now = new Date()) => {
+  const current = await readMark(stores, `open/${kind}`);
+
+  if (!current || current.ackedAt) return false;
+
+  await mark(stores, `open/${kind}`, {
+    ...current, ackedAt: now.toISOString(),
+  }, now);
+
+  return true;
+};
+
+// The one mail to ESCALATED_NOTIFICATIONS_EMAIL: an escalating alert
+// still unacknowledged an hour after it was raised. It repeats every
+// hour while that holds. Run from the scheduled jobs. -> the kinds
+// escalated this run. Never throws.
+export const escalate = async (stores, {
+  env = process.env, mail = sendMail, now = new Date(),
+} = {}) => {
+  const to = escalatedEmails(env);
+  const sent = [];
+
+  if (!to.length) return sent;
+
+  for (const kind of ESCALATING) {
+    const record = await readMark(stores, `open/${kind}`);
+    const last = record && (record.escalatedAt || record.since);
+
+    if (!record || record.ackedAt) continue;
+    if (now.getTime() - Date.parse(last) < HOUR) continue;
+
+    try {
+      const state = await readState(stores);
+
+      await mail({
+        to,
+        idempotencyKey: `escalation-${kind}-${now.getTime()}`,
+        ...escalation({
+          at: now, links: mailLinks(env),
+          maintenanceOn: maintenanceLinks(env, state.epoch)?.on || null,
+        }),
+      }, { env });
+      await mark(stores, `open/${kind}`, {
+        ...record, escalatedAt: now.toISOString(),
+      }, now);
+      sent.push(kind);
+    } catch (error) {
+      log.error({ event: "escalation.failed", kind, error: String(error) });
+    }
+  }
+
+  return sent;
+};
+
+// -> "sent" | "muted" | "skipped".
+export const alert = async (stores, kind, detail = {}, options = {}) =>
+  (await raise(stores, kind, detail, options)).status;
+
+// The mail drivers that put an email where a person reads it: Resend,
+// or the staging outbox.
+export const DELIVERING = ["resend", "outbox"];
+
+// The CLI's `alert test`: one alert through the real path, past the
+// hourly mute, to prove it reaches the farm's inbox and the phone.
+// Refuses unless both channels are configured (#164: a test that
+// cannot fail proves nothing).
+export const alertTest = async (stores, {
+  env = process.env, now = new Date(), ...options
+} = {}) => {
+  const missing = [
+    !env.HEALTHCHECKS_ALERT_URL && "HEALTHCHECKS_ALERT_URL",
+    !devEmails(env).length && "DEV_NOTIFICATIONS_EMAIL",
+  ].filter(Boolean);
+
+  if (missing.length) {
+    throw new Error(`Not set: ${missing.join(", ")}. An alert here would ` +
+      "reach nobody.");
+  }
+
+  const r = await raise(stores, "alert.test", {
+    message: "A test from bin/nff alert test. Nothing is wrong.",
+    context: env.SITE_CONTEXT || env.CONTEXT || null,
+  }, { env, now, ...options, dedupe: false });
+  const driver = env.MAIL_DRIVER || "log";
+
+  // The log and file drivers write the email where nobody reads it.
+  return {
+    ...r, driver,
+    delivered: r.status === "sent" && DELIVERING.includes(driver),
+  };
 };

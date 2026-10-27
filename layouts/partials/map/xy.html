@@ -1,0 +1,6 @@
+{{/* A latitude and longitude as a point on the map, by the projection
+     bin/map/build recorded in data/map.json. */}}
+{{ $f := hugo.Data.map.frame }}
+{{ $x := mul (mul (sub .lng $f.west) $f.cos) $f.scale }}
+{{ $y := mul (sub $f.north .lat) $f.scale }}
+{{ return dict "x" (printf "%.1f" $x) "y" (printf "%.1f" $y) }}

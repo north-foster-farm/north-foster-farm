@@ -1,0 +1,26 @@
+{{/*
+  The Square sandbox card's details (#294), one row per field the
+  order page's card form asks for, each with a copy button. Used by
+  the toolbar and by the order page's first-visit overlay, both staging
+  only (staging-toolbar.html). The values are data/sandboxCard.json's.
+  The context is a prefix for the ids, so both copies can share a page.
+  Both look alike too: staging.css styles the component, never one of
+  its places (#303; bin/check-staging.mjs holds the two to it).
+*/}}
+{{ $prefix := . }}
+<div class="staging-card-box">
+<dl class="staging-card">
+  {{ range hugo.Data.sandboxCard.rows }}
+    {{ $id := printf "%s-card-%s" $prefix .id }}
+    <div class="staging-card-row">
+      <dt id="{{ $id }}-label">{{ .label }}:</dt>
+      <dd>
+        <code class="staging-card-value" id="{{ $id }}">{{ .value }}</code>
+        {{ $name := printf "Copy %s" .name }}
+        <button type="button" class="staging-copy" data-staging-copy="{{ .copy | default .value }}" aria-label="{{ $name }}" title="{{ $name }}"><span aria-hidden="true">{{ partial "svg.html" "icons/copy" }}</span></button>
+        <span class="staging-copied" role="status" aria-live="polite"></span>
+      </dd>
+    </div>
+  {{ end }}
+</dl>
+</div>

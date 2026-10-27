@@ -1,0 +1,46 @@
+name: E2E burn-in
+
+# Every spec added or changed since staging, ten times over with
+# retries off, on the pull request into staging (James, #283,
+# 6302479835). Any failure fails the check, e2e-burn-in, which staging
+# requires. Playwright's --only-changed also runs the specs whose
+# imports changed. The same run on a push to next is advisory, under
+# another name (e2e.yml).
+#
+# Its own workflow on purpose: a job skipped by an `if` counts as a
+# success for a required check, so this check must never exist on an
+# event where it did not run.
+
+on:
+  pull_request:
+    branches: [staging]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-burn-in-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  burn-in:
+    uses: ./.github/workflows/e2e-run.yml
+    with:
+      passes: 1
+      args: >-
+        --only-changed=origin/staging --repeat-each=10
+        --pass-with-no-tests
+      shards: "[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]"
+      total: 12
+      timeout: 240
+
+  e2e-burn-in:
+    name: e2e-burn-in
+    needs: burn-in
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Every changed spec passed ten times
+        env:
+          RESULT: ${{ needs.burn-in.result }}
+        run: test "$RESULT" = success

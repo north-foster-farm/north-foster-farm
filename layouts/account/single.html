@@ -1,27 +1,41 @@
 {{ define "main" }}
-  {{ $data := dict "avatars" hugo.Data.avatars "terms" hugo.Data.delivery "venmo" (hugo.Data.company.venmo | default "") }}
-  {{ partial "avatars.html" . }}
+  {{ $data := dict "avatars" hugo.Data.avatars "terms" hugo.Data.delivery "series" (partial "lib/public-places.html" .).series }}
+  {{/* The chickens' sprite comes with the header on every page. */}}
   <section class="{{ .Type }}">
     <script type="application/json" id="account-data">{{ $data | jsonify | safeJS }}</script>
     <div class="page container py-5">
-      <div class="account-wide">
+      <div class="account-wide mb-5">
         {{ partial "page-heading.html" . }}
 
-        <p class="account-loading" id="account-loading" role="status">Loading your account…</p>
+        {{/* Loading from the first paint (#271): the bars hold the
+             page's place until main.js has the account. */}}
+        <div id="account-region" data-load="wait" aria-busy="true">
+        {{ partial "skeleton.html" (dict "shape" "account") }}
+        {{ partial "skeleton/status.html" (dict "failed" "We couldn't load your account.") }}
+        <p class="account-loading" id="account-loading" role="status" hidden></p>
 
         <div id="account-app" hidden>
           <header class="account-head">
-            <svg class="account-avatar" id="account-avatar" aria-hidden="true"><use href="#avatar-hen-brown"/></svg>
+            {{ partial "svg.html" (dict "use" "avatar-hen-brown" "class" "account-avatar" "id" "account-avatar" "aria-hidden" "true") }}
+            {{/* The address in the headings' type, bold, and Sign out
+                 under it as a quiet link, so the address has the width
+                 (#303). */}}
             <div class="account-who">
-              <p class="account-name" id="account-name"></p>
               <p class="account-email" id="account-email"></p>
+              {{ partial "busy-button.html" (dict "label" "Sign out" "busy" "Signing out" "class" "account-signout" "plain" true "start" true "id" "account-signout" "type" "button" "error" true) }}
             </div>
-            <button type="button" class="btn btn-outline-secondary btn-sm" id="account-signout">Sign out</button>
+            {{/* A buying group's member (#471): the group's name and
+                 the credit balance, on the head's right, members only
+                 (James's v1). Draft wording; main.js fills it. */}}
+            <div class="account-member" id="account-member" hidden>
+              <p class="account-member-group" data-member-group></p>
+              <p class="account-member-credit" data-member-credit></p>
+            </div>
           </header>
 
           <nav class="account-nav" aria-label="Account sections">
             <a class="account-tab" href="#orders" data-tab="orders">Orders</a>
-            <a class="account-tab" href="#invoices" data-tab="invoices">Invoices</a>
+            <a class="account-tab" href="#receipts" data-tab="receipts">Receipts</a>
             <a class="account-tab" href="#address" data-tab="address">Address</a>
             <a class="account-tab" href="#settings" data-tab="settings">Settings</a>
             <a class="account-tab" href="#help" data-tab="help">Help</a>
@@ -29,135 +43,266 @@
 
           <div class="alert alert-success" id="account-flash" role="status" aria-live="polite" hidden></div>
 
-          <section class="account-section" id="acct-orders" data-section="orders" aria-labelledby="acct-orders-h">
-            <h2 class="h4" id="acct-orders-h">Your orders</h2>
-            <p class="account-empty" id="orders-empty" hidden>
-              No orders yet. <a href="{{ relURL "order/" }}">Browse what's in stock</a>.
-            </p>
+          {{/* The tabs name the panes (#344): no heading repeats them. */}}
+          <section class="account-section" id="acct-orders" data-section="orders" aria-label="Orders">
+            {{/* #165: the whole history as a CSV; the wording is a draft.
+                 At the list's top right (#442). */}}
+            <p class="account-download" data-download-row hidden><button type="button" class="btn btn-sm btn-outline-primary" data-download="orders">Download all orders (CSV)</button></p>
+            <p class="account-empty" id="orders-empty" hidden>No orders yet.</p>
             <div id="orders-list"></div>
           </section>
 
-          <section class="account-section" id="acct-invoices" data-section="invoices" aria-labelledby="acct-invoices-h" hidden>
-            <h2 class="h4" id="acct-invoices-h">Invoices</h2>
-            <p class="text-body-secondary">Each order has one Square invoice. Open ones can be paid here; paid ones link to the receipt.</p>
-            <table class="table account-table" id="invoices-table">
-              <thead>
-                <tr><th scope="col">Order</th><th scope="col">Invoice</th><th scope="col">Total</th><th scope="col">Status</th><th scope="col"><span class="visually-hidden">Link</span></th></tr>
-              </thead>
-              <tbody id="invoices-body"></tbody>
-            </table>
-            <p class="account-empty" id="invoices-empty" hidden>No invoices yet.</p>
+          <section class="account-section" id="acct-receipts" data-section="receipts" aria-label="Receipts" hidden>
+            <p class="account-download" data-download-row hidden><button type="button" class="btn btn-sm btn-outline-primary" data-download="receipts">Download all receipts (CSV)</button></p>
+            <ul class="account-receipts" id="receipts-list" hidden></ul>
+            <p class="account-empty" id="receipts-empty" hidden>No payments yet.</p>
+            {{/* Our own receipt for a Venmo payment, which PayPal gives
+                 no receipt link (#238); main.js fills it from the
+                 payment when its Receipt is pressed. */}}
+            <div class="account-receipt" id="receipt-card" tabindex="-1" aria-labelledby="receipt-card-h" hidden>
+              <p class="account-receipt-title" id="receipt-card-h"></p>
+              <dl class="account-receipt-lines">
+                <dt>Paid</dt><dd data-receipt="paid"></dd>
+                <dt>Amount</dt><dd data-receipt="amount"></dd>
+                <dt>Paid with</dt><dd>Venmo</dd>
+                <dt data-receipt-row="payer">From</dt><dd data-receipt="payer"></dd>
+                <dt data-receipt-row="capture">Transaction</dt><dd data-receipt="capture"></dd>
+              </dl>
+              <p class="form-text mb-0">{{ hugo.Data.company.name }}, {{ with hugo.Data.company.address }}{{ .street }}, {{ .city }}, {{ .state }} {{ .zip }}{{ end }}</p>
+            </div>
           </section>
 
-          <section class="account-section" id="acct-address" data-section="address" aria-labelledby="acct-address-h" hidden>
-            <h2 class="h4" id="acct-address-h">Delivery address</h2>
-            <p class="text-body-secondary">Kept on file so delivery orders fill themselves in. An address outside our usual area is checked by us first.</p>
-            <p class="account-address-status" id="address-status" hidden></p>
-            <form class="account-card" id="address-form" novalidate>
-              <div class="row g-3">
-                <div class="col-12">
-                  <label class="form-label" for="addr-address1">Street address</label>
-                  <input class="form-control" type="text" id="addr-address1" name="address1" autocomplete="shipping address-line1" data-field="address1" aria-describedby="err-addr-address1">
-                  <div class="invalid-feedback" id="err-addr-address1" data-error-for="address1"></div>
+          {{/* Forms here are Bootstrap grid forms (Forms, Layout,
+               Gutters): labels above the fields, no placeholders, one
+               gap everywhere (--account-gap, _account.scss). */}}
+          <section class="account-section" id="acct-address" data-section="address" aria-label="Address" hidden>
+            <form class="account-form" id="address-form" novalidate>
+              <section class="account-group" aria-labelledby="acct-address-h">
+                <div class="account-group-head">
+                  <h2 class="h4 account-group-title" id="acct-address-h">Delivery address</h2>
+                  {{ partial "account/save.html" . }}
                 </div>
-                <div class="col-12">
-                  <label class="form-label" for="addr-address2">Apartment, unit, or floor <span class="text-body-secondary">(optional)</span></label>
-                  <input class="form-control" type="text" id="addr-address2" name="address2" autocomplete="shipping address-line2" data-field="address2">
+                <p>We fill in this address for you on the order page.</p>
+                <p class="account-address-status" id="address-status" hidden></p>
+                <div class="row g-3">
+                  <div class="col-12">
+                    <label class="form-label" for="addr-address1">Street address</label>
+                    <input class="form-control" type="text" id="addr-address1" name="address1" autocomplete="shipping address-line1" data-field="address1" aria-describedby="err-addr-address1">
+                    <div class="invalid-feedback" id="err-addr-address1" data-error-for="address1"></div>
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label" for="addr-address2">Apartment, unit, or floor <span class="text-body-secondary">(optional)</span></label>
+                    <input class="form-control" type="text" id="addr-address2" name="address2" autocomplete="shipping address-line2" data-field="address2">
+                  </div>
+                  <div class="col-md-8">
+                    <label class="form-label" for="addr-town">City or town</label>
+                    <input class="form-control" type="text" id="addr-town" name="town" autocomplete="shipping address-level2" data-field="town" aria-describedby="err-addr-town">
+                    <div class="invalid-feedback" id="err-addr-town" data-error-for="town"></div>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label" for="addr-zip">ZIP code</label>
+                    <input class="form-control" type="text" id="addr-zip" name="zip" autocomplete="shipping postal-code" inputmode="numeric" maxlength="10" data-field="zip" aria-describedby="err-addr-zip">
+                    <div class="invalid-feedback" id="err-addr-zip" data-error-for="zip"></div>
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label" for="addr-cooler">Where will we find your cooler?</label>
+                    <input class="form-control" type="text" id="addr-cooler" name="cooler" data-field="cooler">
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label" for="addr-gate">Gate or keypad code <span class="text-body-secondary">(optional)</span></label>
+                    <input class="form-control" type="text" id="addr-gate" name="gate" autocomplete="off" data-field="gate">
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label" for="addr-notes">Anything we should know about the drop-off? <span class="text-body-secondary">(optional)</span></label>
+                    <textarea class="form-control" id="addr-notes" name="notes" rows="2" data-field="notes"></textarea>
+                  </div>
                 </div>
-                <div class="col-md-8">
-                  <label class="form-label" for="addr-town">Town</label>
-                  <input class="form-control" type="text" id="addr-town" name="town" autocomplete="shipping address-level2" data-field="town" aria-describedby="err-addr-town">
-                  <div class="invalid-feedback" id="err-addr-town" data-error-for="town"></div>
-                </div>
-                <div class="col-md-4">
-                  <label class="form-label" for="addr-zip">ZIP</label>
-                  <input class="form-control" type="text" id="addr-zip" name="zip" autocomplete="shipping postal-code" inputmode="numeric" maxlength="10" data-field="zip" aria-describedby="err-addr-zip">
-                  <div class="invalid-feedback" id="err-addr-zip" data-error-for="zip"></div>
-                </div>
-                <div class="col-md-7">
-                  <label class="form-label" for="addr-cooler">Where will we find your cooler?</label>
-                  <input class="form-control" type="text" id="addr-cooler" name="cooler" data-field="cooler">
-                </div>
-                <div class="col-md-5">
-                  <label class="form-label" for="addr-gate">Gate or keypad code <span class="text-body-secondary">(optional)</span></label>
-                  <input class="form-control" type="text" id="addr-gate" name="gate" autocomplete="off" data-field="gate">
-                </div>
-                <div class="col-12">
-                  <label class="form-label" for="addr-notes">Anything we should know about the drop-off? <span class="text-body-secondary">(optional)</span></label>
-                  <textarea class="form-control" id="addr-notes" name="notes" rows="2" data-field="notes"></textarea>
-                </div>
-              </div>
-              <button type="submit" class="btn btn-primary mt-3">Save address</button>
+              </section>
             </form>
           </section>
 
-          <section class="account-section" id="acct-settings" data-section="settings" aria-labelledby="acct-settings-h" hidden>
-            <h2 class="h4" id="acct-settings-h">Settings</h2>
-            <form class="account-card" id="profile-form" novalidate>
-              <div class="row g-3">
-                <div class="col-md-7">
-                  <label class="form-label" for="prof-name">Name</label>
-                  <input class="form-control" type="text" id="prof-name" name="name" autocomplete="name" data-field="name" aria-describedby="err-prof-name">
-                  <div class="invalid-feedback" id="err-prof-name" data-error-for="name"></div>
+          <section class="account-section" id="acct-settings" data-section="settings" aria-label="Settings" hidden>
+            {{/* The link in the email that changes the address lands
+                 here (#345); main.js shows the card above the form. */}}
+            {{ partial "email-confirm.html" (dict "prefix" "account") }}
+            {{/* Groups under headings (#238, #344): the first is the
+                 pane's own heading, so every group carries the same
+                 one. */}}
+            <form class="account-form" id="profile-form" novalidate>
+              <section class="account-group" aria-labelledby="prof-details-h">
+                <div class="account-group-head">
+                  <h2 class="h4 account-group-title" id="prof-details-h">Your details</h2>
+                  {{ partial "account/save.html" . }}
                 </div>
-                <div class="col-md-5">
-                  <label class="form-label" for="prof-phone">Phone <span class="text-body-secondary">(optional)</span></label>
-                  <input class="form-control" type="tel" id="prof-phone" name="phone" autocomplete="tel" inputmode="tel" data-field="phone" aria-describedby="err-prof-phone">
-                  <div class="invalid-feedback" id="err-prof-phone" data-error-for="phone"></div>
-                </div>
-                <div class="col-12">
-                  <label class="form-label" for="prof-email">Email</label>
-                  <input class="form-control-plaintext" type="email" id="prof-email" readonly>
-                  <div class="form-text">Your email is how you sign in. Write us to change it.</div>
-                </div>
-                <div class="col-12" id="prof-group-row" hidden>
-                  <span class="form-label d-block">Your pricing</span>
-                  <p class="mb-0" id="prof-group"></p>
-                </div>
-                <fieldset class="col-12">
-                  <legend class="form-label">Your chicken</legend>
-                  <div class="account-avatars" id="avatar-picker">
-                    {{ range hugo.Data.avatars }}
-                      <label class="account-avatar-choice">
-                        <input type="radio" name="avatar" value="{{ .key }}" data-field="avatar">
-                        <svg class="account-avatar" aria-hidden="true"><use href="#avatar-{{ .key }}"/></svg>
-                        <span>{{ .label }}</span>
-                      </label>
-                    {{ end }}
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    <label class="form-label" for="prof-first">First name</label>
+                    <input class="form-control" type="text" id="prof-first" name="firstName" autocomplete="given-name" data-field="firstName" aria-describedby="err-prof-first">
+                    <div class="invalid-feedback" id="err-prof-first" data-error-for="firstName"></div>
                   </div>
-                  <div class="invalid-feedback d-block" data-error-for="avatar"></div>
-                </fieldset>
-                <fieldset class="col-12">
-                  <legend class="form-label">Email reminders</legend>
-                  <div class="form-check">
-                    <input class="form-check-input" type="checkbox" id="prof-remind-payment" name="remind-payment" data-reminder="payment">
-                    <label class="form-check-label" for="prof-remind-payment">Remind me to pay an unpaid order</label>
+                  <div class="col-md-6">
+                    <label class="form-label" for="prof-last">Last name</label>
+                    <input class="form-control" type="text" id="prof-last" name="lastName" autocomplete="family-name" data-field="lastName" aria-describedby="err-prof-last">
+                    <div class="invalid-feedback" id="err-prof-last" data-error-for="lastName"></div>
                   </div>
-                  <div class="form-check">
-                    <input class="form-check-input" type="checkbox" id="prof-remind-delivery" name="remind-delivery" data-reminder="delivery">
-                    <label class="form-check-label" for="prof-remind-delivery">Remind me the evening before a delivery</label>
+                  <div class="col-md-6">
+                    <label class="form-label" for="prof-phone">Phone <span class="text-body-secondary">(optional)</span></label>
+                    <input class="form-control" type="tel" id="prof-phone" name="phone" autocomplete="tel" inputmode="tel" data-field="phone" aria-describedby="err-prof-phone">
+                    <div class="invalid-feedback" id="err-prof-phone" data-error-for="phone"></div>
                   </div>
-                  <div class="form-text">Your invoice, confirmations and changes to an order are always sent.</div>
-                </fieldset>
-              </div>
-              <button type="submit" class="btn btn-primary mt-3">Save settings</button>
+                  {{/* The sign-in address. The email changes by a link to
+                       the new email address (#240), never by the
+                       autosave: data-own-save keeps it out. Keep the
+                       row's id. */}}
+                  <div class="col-12" id="prof-email-row" data-own-save>
+                    <label class="form-label" for="prof-email">Email address</label>
+                    <div class="account-email-row">
+                      <input class="form-control-plaintext account-email-value" type="email" id="prof-email" readonly tabindex="-1">
+                      <button class="btn btn-outline-primary btn-sm" type="button" id="email-change-open" aria-expanded="false" aria-controls="email-change">Change</button>
+                    </div>
+                    <div class="account-email-change" id="email-change" data-support="{{ hugo.Data.company.email }}" hidden>
+                      <label class="form-label" for="email-new">New email address</label>
+                      <div class="input-group">
+                        <input class="form-control" type="email" id="email-new" autocomplete="email" inputmode="email" enterkeyhint="send" aria-describedby="err-email-new email-change-note">
+                        {{ partial "busy-button.html" (dict "label" "Send link" "busy" "Sending" "class" "btn-primary" "id" "email-change-send" "type" "button" "fit" true) }}
+                      </div>
+                      <div class="invalid-feedback d-block" id="err-email-new"></div>
+                      <div class="form-text" id="email-change-note">We'll email a link to the new address. Open it to complete the change. <button class="btn btn-link btn-sm p-0 align-baseline" type="button" id="email-change-cancel">Cancel</button></div>
+                    </div>
+                    <p class="form-text mb-0" id="email-change-sent" role="status"></p>
+                  </div>
+                  <div class="col-12" id="prof-group-row" hidden>
+                    <span class="form-label d-block">Your pricing</span>
+                    <p class="mb-0" id="prof-group"></p>
+                  </div>
+                </div>
+              </section>
+              <section class="account-group" aria-labelledby="prof-chicken-h">
+                <div class="account-group-head">
+                  <h2 class="h4 account-group-title" id="prof-chicken-h">Your chicken</h2>
+                  {{ partial "account/save.html" . }}
+                </div>
+                <div class="account-avatars" id="avatar-picker" role="radiogroup" aria-labelledby="prof-chicken-h">
+                  {{ range hugo.Data.avatars }}
+                    <label class="account-avatar-choice">
+                      <input type="radio" name="avatar" value="{{ .key }}" data-field="avatar">
+                      {{ partial "svg.html" (dict "use" (printf "avatar-%s" .key) "class" "account-avatar" "aria-hidden" "true") }}
+                      <span>{{ .label }}</span>
+                    </label>
+                  {{ end }}
+                </div>
+                <div class="invalid-feedback d-block" data-error-for="avatar"></div>
+              </section>
+              <section class="account-group" aria-labelledby="prof-email-h">
+                <div class="account-group-head">
+                  <h2 class="h4 account-group-title" id="prof-email-h">Email preferences</h2>
+                  {{ partial "account/save.html" . }}
+                </div>
+                <div class="row g-3">
+                  {{/* A fieldset cannot be a flex item (grid check G13),
+                       so it sits inside the column and the label names
+                       it. */}}
+                  <div class="col-12">
+                    <fieldset aria-labelledby="prof-remind-l">
+                      <span class="form-label d-block" id="prof-remind-l">Reminders</span>
+                      <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="prof-remind-delivery" name="remind-delivery" data-reminder="delivery">
+                        <label class="form-check-label" for="prof-remind-delivery">Remind me the evening before delivery.</label>
+                      </div>
+                    </fieldset>
+                  </div>
+                  <div class="col-12">
+                    <fieldset aria-labelledby="prof-news-l">
+                      <span class="form-label d-block" id="prof-news-l">Farm News</span>
+                      <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="prof-marketing" name="marketing" data-field="marketing">
+                        <label class="form-check-label" for="prof-marketing">Receive an occasional newsletter from {{ hugo.Data.company.name }}.</label>
+                      </div>
+                    </fieldset>
+                  </div>
+                </div>
+              </section>
+              {{/* Saved on its own, like the chicken (#161). Until the
+                   customer chooses, main.js ticks it by what this browser
+                   does. Wording approved by James, 2026-10-22. */}}
+              <section class="account-group" aria-labelledby="prof-videos-h">
+                <div class="account-group-head">
+                  <h2 class="h4 account-group-title" id="prof-videos-h">Accessibility</h2>
+                  {{ partial "account/save.html" . }}
+                </div>
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" role="switch" id="prof-autoplay" name="autoplay" data-field="autoplay">
+                  <label class="form-check-label" for="prof-autoplay">Autoplay videos</label>
+                </div>
+                <div class="invalid-feedback d-block" data-error-for="autoplay"></div>
+              </section>
             </form>
+            {{/* Deleting your details (#189, #303): the button opens the
+                 dialog below, where the address typed must be this
+                 account's before Confirm sends. What the list names is
+                 what lib/forget.mjs deletes. */}}
+            {{/* Leave us a review (#303): main.js shows it until the
+                 customer dismisses it, which the customer record keeps
+                 (reviewDismissedAt), so it stays gone on every device. */}}
+            <section class="account-review" id="account-review" aria-labelledby="prof-review-h" hidden>
+              <h2 class="h4 account-group-title" id="prof-review-h">Leave us a review</h2>
+              <p>If you enjoy {{ hugo.Data.company.name }} products, we'd appreciate a review.</p>
+              <div class="account-review-actions">
+                <a class="btn btn-primary" href="{{ hugo.Data.company.reviews.google }}" target="_blank" rel="noopener">Review us on Google<span class="visually-hidden"> (opens in a new tab)</span></a>
+                <button class="btn btn-link" type="button" id="account-review-dismiss">Dismiss permanently</button>
+              </div>
+            </section>
+            <section class="account-delete" aria-labelledby="prof-delete-h">
+              <h2 class="h4 account-group-title" id="prof-delete-h" tabindex="-1">Delete your details</h2>
+              <p class="mb-2">This deletes your account:</p>
+              <ul class="account-delete-list">
+                <li>Your name</li>
+                <li>Your email address</li>
+                <li>Your phone number</li>
+                <li>Your delivery address</li>
+                <li>Your customer profile in Square</li>
+                <li>Your access to your order history and receipts</li>
+              </ul>
+              <p>We keep records of past orders, but we permanently remove your details from them.</p>
+              <p class="account-delete-warning"><strong>Deleting your account cannot be undone.</strong></p>
+              <button class="btn btn-outline-danger" type="button" id="account-delete" aria-haspopup="dialog" aria-controls="delete-dialog">Delete my account</button>
+            </section>
+
+            {{/* The full-screen takeover (#303). A modal <dialog>: the
+                 page behind is inert, so focus stays inside, and Escape
+                 or the close button shuts it while nothing is sending. */}}
+            <dialog class="account-delete-dialog" id="delete-dialog" aria-labelledby="delete-dialog-h" aria-describedby="delete-dialog-text">
+              <div class="account-delete-dialog-inner">
+                <button class="btn-close account-delete-close" type="button" aria-label="Close" data-delete-close></button>
+                <h2 class="h3" id="delete-dialog-h">Confirm account deletion</h2>
+                <p id="delete-dialog-text">Deleting your account is permanent. Enter your email address to confirm.</p>
+                {{/* The address to copy and paste into the field (#346). */}}
+                <div class="account-delete-copy">
+                  <span class="account-delete-address" id="delete-address"></span>
+                  <button class="btn btn-outline-secondary btn-sm" type="button" id="delete-copy">Copy</button>
+                  <span class="visually-hidden" id="delete-copied" role="status"></span>
+                </div>
+                <form class="farm-list-form account-delete-form" id="delete-confirm-form" novalidate>
+                  <label class="visually-hidden" for="delete-confirm-email">Your email address</label>
+                  <div class="input-group">
+                    <input class="form-control" type="email" id="delete-confirm-email" name="email" placeholder="Email address" autocomplete="off" inputmode="email" enterkeyhint="done" required autofocus aria-describedby="delete-confirm-note">
+                    {{ partial "busy-button.html" (dict "label" "Confirm" "busy" "Deleting" "class" "btn-danger" "fit" true) }}
+                  </div>
+                  <p class="farm-list-note account-delete-note" id="delete-confirm-note" role="status" aria-live="polite"></p>
+                </form>
+              </div>
+            </dialog>
           </section>
 
-          <section class="account-section" id="acct-help" data-section="help" aria-labelledby="acct-help-h" hidden>
-            <h2 class="h4" id="acct-help-h">Help</h2>
-            <p class="text-body-secondary">
-              Something wrong with an order? Open it under Orders and use
-              "Report a problem". For anything else, write to us here and
-              we'll answer by email.
-            </p>
-            <form class="account-card" id="support-form" novalidate>
+          <section class="account-section" id="acct-help" data-section="help" aria-label="Help" hidden>
+            <p class="account-lede">If you're having a problem, please get in touch with us right away so that we can make it right.</p>
+            <form class="account-form" id="support-form" novalidate>
               <div class="row g-3">
-                <div class="col-md-7">
+                <div class="col-12">
                   <label class="form-label" for="sup-subject">Subject <span class="text-body-secondary">(optional)</span></label>
                   <input class="form-control" type="text" id="sup-subject" name="subject" data-field="subject">
                 </div>
-                <div class="col-md-5">
+                <div class="col-12">
                   <label class="form-label" for="sup-order">About an order <span class="text-body-secondary">(optional)</span></label>
                   <select class="form-select" id="sup-order" name="orderId" data-field="orderId">
                     <option value="">No particular order</option>
@@ -168,24 +313,31 @@
                   <textarea class="form-control" id="sup-message" name="message" rows="4" data-field="message" aria-describedby="err-sup-message"></textarea>
                   <div class="invalid-feedback" id="err-sup-message" data-error-for="message"></div>
                 </div>
+                <div class="col-12">
+                  {{ partial "busy-button.html" (dict "label" "Send" "busy" "Sending" "class" "btn-primary") }}
+                </div>
               </div>
-              <button type="submit" class="btn btn-primary mt-3">Send</button>
             </form>
           </section>
+        </div>
         </div>
       </div>
     </div>
   </section>
 
+  {{/* An order over several rows (#303): number, date and status, then
+       when and where, its lines, its totals and what can be done. */}}
   <template id="tpl-order">
-    <article class="account-order account-card" data-order>
+    <article class="account-order" data-order>
+      {{/* The status sits by the number, not across the card (#442). */}}
       <header class="account-order-head">
-        <div>
-          <h3 class="account-order-title"><span data-out="when"></span></h3>
-          <p class="account-order-meta"><span data-out="id"></span> · placed <span data-out="placed"></span></p>
+        <div class="account-order-titles">
+          <h3 class="account-order-title" data-out="id"></h3>
+          <span class="account-status" data-out="status"></span>
         </div>
-        <span class="account-status" data-out="status"></span>
+        <p class="account-order-meta">Placed <span data-out="placed"></span></p>
       </header>
+      <p class="account-order-when" data-out="when"></p>
       <p class="account-order-note" data-out="pickup" hidden></p>
       <p class="account-order-note" data-out="note" hidden></p>
       <ul class="account-lines" data-out="lines"></ul>
@@ -204,12 +356,31 @@
     </li>
   </template>
 
+  {{/* One payment (#303): its order and status, when and how much, then
+       how it was paid and the receipt. */}}
+  <template id="tpl-receipt">
+    <li class="account-receipt-item" data-receipt-item>
+      <div class="account-receipt-row account-receipt-titles">
+        <span class="account-receipt-id" data-out="id"></span>
+        <span class="account-status" data-out="status"></span>
+      </div>
+      <div class="account-receipt-row">
+        <span data-out="paid"></span>
+        <span class="account-receipt-amount" data-out="amount"></span>
+      </div>
+      <div class="account-receipt-row account-receipt-sub">
+        <span data-out="method"></span>
+        <span data-out="link"></span>
+      </div>
+    </li>
+  </template>
+
   <template id="tpl-change-delivery">
     <form class="account-panel-form" novalidate>
       <p class="account-panel-title">Change this delivery</p>
       <div class="row g-3">
         <div class="col-md-6">
-          <label class="form-label">Delivery date
+          <label class="form-label">Delivery day
             <select class="form-select" name="date" data-dates></select>
           </label>
           <div class="invalid-feedback" data-error-for="date"></div>
@@ -236,9 +407,9 @@
           </label>
         </div>
       </div>
-      <p class="form-text">To change what's in the order, cancel it and place a new one.</p>
+      <p class="form-text">To change what's in the order, use Change items.</p>
       <div class="account-panel-actions">
-        <button type="submit" class="btn btn-primary btn-sm">Save changes</button>
+        {{ partial "busy-button.html" (dict "label" "Save changes" "busy" "Saving" "class" "btn-primary btn-sm") }}
         <button type="button" class="btn btn-outline-secondary btn-sm" data-close>Never mind</button>
       </div>
     </form>
@@ -249,22 +420,21 @@
       <p class="account-panel-title">Change this pickup</p>
       <div class="row g-3">
         <div class="col-md-6">
-          <label class="form-label">Day
+          <label class="form-label"><span data-dates-label>Pickup day</span>
             <select class="form-select" name="date" data-dates></select>
           </label>
           <div class="invalid-feedback" data-error-for="date"></div>
+          <div class="invalid-feedback" data-error-for="occurrence"></div>
         </div>
         <div class="col-md-6" data-onfarm>
-          <span class="form-label d-block">Roughly when?</span>
-          <label class="form-check-inline"><input class="form-check-input" type="radio" name="window" value="morning"> Morning</label>
-          <label class="form-check-inline"><input class="form-check-input" type="radio" name="window" value="afternoon"> Afternoon</label>
+          {{/* The chosen day's times from the farm's schedule (W11d),
+               drawn by main.js from the template below. */}}
+          <span class="form-label d-block">Pickup time</span>
+          <div data-windows></div>
+          <template id="tpl-change-window">
+            <label class="form-check-inline"><input class="form-check-input" type="radio" name="window"> <span></span></label>
+          </template>
           <div class="invalid-feedback" data-error-for="onfarm.window"></div>
-        </div>
-        <div class="col-md-6" data-onfarm>
-          <label class="form-label">Phone for the day
-            <input class="form-control" type="tel" name="phone" inputmode="tel">
-          </label>
-          <div class="invalid-feedback" data-error-for="onfarm.phone"></div>
         </div>
         <div class="col-12">
           <label class="form-label">Order notes
@@ -272,9 +442,9 @@
           </label>
         </div>
       </div>
-      <p class="form-text">To change what's in the order, cancel it and place a new one.</p>
+      <p class="form-text">To change what's in the order, use Change items.</p>
       <div class="account-panel-actions">
-        <button type="submit" class="btn btn-primary btn-sm">Save changes</button>
+        {{ partial "busy-button.html" (dict "label" "Save changes" "busy" "Saving" "class" "btn-primary btn-sm") }}
         <button type="button" class="btn btn-outline-secondary btn-sm" data-close>Never mind</button>
       </div>
     </form>
@@ -290,7 +460,7 @@
       </label>
       <div class="invalid-feedback" data-error-for="reason"></div>
       <div class="account-panel-actions">
-        <button type="submit" class="btn btn-primary btn-sm">Send</button>
+        {{ partial "busy-button.html" (dict "label" "Send" "busy" "Sending" "class" "btn-primary btn-sm") }}
         <button type="button" class="btn btn-outline-secondary btn-sm" data-close>Never mind</button>
       </div>
     </form>
@@ -301,7 +471,7 @@
       <p class="account-panel-title">Cancel this order?</p>
       <p class="form-text" data-out="explain"></p>
       <div class="account-panel-actions">
-        <button type="submit" class="btn btn-danger btn-sm">Yes, cancel it</button>
+        {{ partial "busy-button.html" (dict "label" "Yes, cancel it" "busy" "Canceling" "class" "btn-danger btn-sm") }}
         <button type="button" class="btn btn-outline-secondary btn-sm" data-close>Keep it</button>
       </div>
     </form>

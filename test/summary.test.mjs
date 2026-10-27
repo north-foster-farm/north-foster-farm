@@ -2,8 +2,9 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import terms from "../data/delivery.json" with { type: "json" };
+import { indexCatalog } from "../assets/scripts/order/lib/catalog.mjs";
 import {
-  badges, feeCell, itemGroups, nudge, summarize,
+  badges, deliveryShort, feeCell, itemGroups, nudge, summarize,
 } from "../assets/scripts/order/lib/summary.mjs";
 import { computeTotals } from "../assets/scripts/order/lib/totals.mjs";
 
@@ -65,10 +66,41 @@ describe("badges", () => {
   });
 });
 
+describe("the Delivery card's warning", () => {
+  const need = "Delivery requires $40 or more after discounts.";
+
+  it("names the minimum on an empty cart", () => {
+    assert.equal(deliveryShort(at(0, "delivery"), money), need);
+  });
+
+  it("adds the gap once something is in the cart", () => {
+    assert.equal(deliveryShort(at(28, "delivery"), money),
+      `${need} Add $12 more.`);
+    assert.equal(deliveryShort(at(39.5, "delivery"), money),
+      `${need} Add $0.50 more.`);
+  });
+
+  it("says nothing from the minimum up", () => {
+    assert.equal(deliveryShort(at(40, "delivery"), money), "");
+    assert.equal(deliveryShort(at(120, "delivery"), money), "");
+  });
+
+  it("is only there while delivery is chosen", () => {
+    const summary = (method) => summarize({
+      totals: at(10, method), method, money, count: 1,
+    }).deliveryShort;
+
+    assert.equal(summary("delivery"), `${need} Add $30 more.`);
+    assert.equal(summary("onfarm"), "");
+    assert.equal(summary("scituate"), "");
+  });
+});
+
 describe("the nudge", () => {
   it("says nothing on an empty cart", () => {
     assert.equal(nudge(at(0), "", money), "");
-    assert.equal(nudge(at(0, "delivery"), "delivery", money), "");
+    assert.equal(nudge(at(0, "delivery"), "delivery", money),
+      "Delivery requires $40 or more.");
   });
 
   it("names the next discount and the exact gap", () => {
@@ -151,6 +183,11 @@ describe("the fee cell", () => {
     assert.deepEqual(feeCell(at(60), "onfarm", money), { show: false });
   });
 
+  it("is absent on an empty cart", () => {
+    assert.deepEqual(feeCell(at(0, "delivery"), "delivery", money),
+      { show: false });
+  });
+
   it("charges under $150 and says Free at $150 or more", () => {
     assert.deepEqual(feeCell(at(149.99, "delivery"), "delivery", money), {
       show: true, waived: false, text: "+$5",
@@ -165,20 +202,21 @@ describe("the fee cell", () => {
 });
 
 describe("the cart's lines", () => {
-  const index = new Map([
-    ["EGG", {
-      groupKey: "eggs", groupLabel: "Eggs (per dozen)", label: "Large",
-      price: 7,
-    }],
-    ["WHL35", {
-      groupKey: "whole", groupLabel: "Whole Chicken", label: "3.5 – 3.9 lbs",
-      price: 30,
-    }],
-    ["WHL40", {
-      groupKey: "whole", groupLabel: "Whole Chicken", label: "4.0 – 4.4 lbs",
-      price: 34,
-    }],
-  ]);
+  const index = indexCatalog({
+    groups: [
+      {
+        key: "eggs", label: "Eggs (per dozen)",
+        items: [{ sku: "EGG", label: "Large", price: 7 }],
+      },
+      {
+        key: "whole", label: "Whole Chicken",
+        items: [
+          { sku: "WHL35", label: "3.5 – 3.9 lbs", price: 30 },
+          { sku: "WHL40", label: "4.0 – 4.4 lbs", price: 34 },
+        ],
+      },
+    ],
+  });
 
   it("group the tiers under their category, in catalog order", () => {
     assert.deepEqual(itemGroups([
@@ -190,7 +228,12 @@ describe("the cart's lines", () => {
         key: "eggs",
         label: "Eggs",
         items: [
-          { sku: "EGG", label: "Large", qtyText: "6 × $7", subtotal: "$42" },
+          {
+            sku: "EGG", label: "Large",
+            lineName: "Eggs, Large", row: "Large",
+            qtyText: "6 × $7",
+            subtotal: "$42",
+          },
         ],
       },
       {
@@ -198,11 +241,15 @@ describe("the cart's lines", () => {
         label: "Whole Chicken",
         items: [
           {
-            sku: "WHL35", label: "3.5 – 3.9 lbs", qtyText: "1 × $30",
+            sku: "WHL35", label: "3.5 – 3.9 lbs",
+            lineName: "Whole Chicken, 3.5 – 3.9 lbs", row: "3.5 – 3.9 lbs",
+            qtyText: "1 × $30",
             subtotal: "$30",
           },
           {
-            sku: "WHL40", label: "4.0 – 4.4 lbs", qtyText: "2 × $34",
+            sku: "WHL40", label: "4.0 – 4.4 lbs",
+            lineName: "Whole Chicken, 4.0 – 4.4 lbs", row: "4.0 – 4.4 lbs",
+            qtyText: "2 × $34",
             subtotal: "$68",
           },
         ],

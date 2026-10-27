@@ -1,0 +1,17 @@
+{{- /*
+  The locations and series a page may embed or list: everything in
+  data/locations.json and data/series.json except a buying group's
+  (#471). A group's series carries `group`, and a location only its
+  members pick up at is `private`; both are served by POST /api/group
+  to a request that holds the group's code, and appear nowhere else.
+  Returns a dict: `locations` and `series`, each in the file's order.
+*/ -}}
+{{- $locations := slice -}}
+{{- range hugo.Data.locations.locations -}}
+  {{- if not .private }}{{ $locations = $locations | append . }}{{ end -}}
+{{- end -}}
+{{- $series := slice -}}
+{{- range hugo.Data.series.series -}}
+  {{- if not .group }}{{ $series = $series | append . }}{{ end -}}
+{{- end -}}
+{{- return (dict "locations" $locations "series" $series) -}}

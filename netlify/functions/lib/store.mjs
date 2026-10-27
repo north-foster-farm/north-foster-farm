@@ -7,14 +7,58 @@
 // A store holds JSON documents by key and can list keys by prefix.
 // Keys use "/" to build small indexes: `order/<id>`, `open/<id>`,
 // `by-email/<email>/<id>`.
+//
+// `create(key, value)` writes only if the key is new and says whether
+// it did: Blobs' `onlyIfNew`, a conditional write the server decides,
+// so of two racing creates exactly one wins (#253).
+//
+// `getTagged(key)` reads a document with its etag, -> { value, etag }
+// or null, and `swap(key, value, etag)` writes it only if the etag
+// still matches and says whether it did: Blobs' `onlyIfMatch`, so of
+// two racing changes to one document exactly one wins (#301).
 
 import { getStore } from "@netlify/blobs";
 
-export const STORES = ["orders", "customers", "auth", "stock", "jobs"];
+export const STORES = ["orders", "customers", "auth", "stock", "jobs", "gate"];
 
-const wrap = (blobs) => ({
+// Netlify sets CONTEXT at build time only; a function sees nothing of
+// it (checked 2026-09-23). SITE_CONTEXT is a variable with a value
+// per context on Netlify (production, deploy-preview, branch-deploy,
+// dev) and is what the functions read. Only production uses the bare
+// store names. Every other context keeps its own data under a
+// prefixed name, so a preview's test order never lands beside a real
+// one, and the staging branch's data survives its deploys. The CLI
+// reaches a context's stores with --staging or --preview.
+// -> "production", "deploy-preview", "branch-deploy", "dev" or "".
+export const deployContext = (env = process.env) =>
+  env.SITE_CONTEXT || env.CONTEXT || "";
+
+export const storeName = (name, env = process.env) => {
+  const context = deployContext(env);
+
+  return context && context !== "production" ? `${context}-${name}` : name;
+};
+
+export const wrap = (blobs) => ({
   get: (key) => blobs.get(key, { type: "json" }),
   set: (key, value) => blobs.setJSON(key, value),
+  create: async (key, value) => {
+    const { modified } = await blobs.setJSON(key, value, { onlyIfNew: true });
+
+    return modified;
+  },
+  getTagged: async (key) => {
+    const found = await blobs.getWithMetadata(key, { type: "json" });
+
+    return found ? { value: found.data, etag: found.etag } : null;
+  },
+  swap: async (key, value, etag) => {
+    const { modified } = await blobs.setJSON(key, value, {
+      onlyIfMatch: etag,
+    });
+
+    return modified;
+  },
   delete: (key) => blobs.delete(key),
   // -> [{ key }] with the prefix kept, sorted by key.
   list: async (prefix) => {
@@ -26,22 +70,59 @@ const wrap = (blobs) => ({
   },
 });
 
-export const memoryStore = (seed = new Map()) => ({
-  data: seed,
-  get: async (key) => (seed.has(key)
-    ? JSON.parse(JSON.stringify(seed.get(key)))
-    : null),
-  set: async (key, value) => {
+// Every write gives the key a new etag, as Blobs does.
+export const memoryStore = (seed = new Map()) => {
+  const tags = new Map();
+  let next = 0;
+  const put = (key, value) => {
     seed.set(key, JSON.parse(JSON.stringify(value)));
-  },
-  delete: async (key) => {
-    seed.delete(key);
-  },
-  list: async (prefix) => [...seed.keys()]
-    .filter((k) => k.startsWith(prefix))
-    .sort()
-    .map((key) => ({ key })),
-});
+    next += 1;
+    tags.set(key, `m${next}`);
+  };
+  const tagOf = (key) => {
+    if (!tags.has(key)) {
+      next += 1;
+      tags.set(key, `m${next}`);
+    }
+
+    return tags.get(key);
+  };
+
+  return {
+    data: seed,
+    get: async (key) => (seed.has(key)
+      ? JSON.parse(JSON.stringify(seed.get(key)))
+      : null),
+    set: async (key, value) => {
+      put(key, value);
+    },
+    // Check and write with no await between them: atomic in one
+    // process.
+    create: async (key, value) => {
+      if (seed.has(key)) return false;
+      put(key, value);
+
+      return true;
+    },
+    getTagged: async (key) => (seed.has(key)
+      ? { value: JSON.parse(JSON.stringify(seed.get(key))), etag: tagOf(key) }
+      : null),
+    swap: async (key, value, etag) => {
+      if (!seed.has(key) || tagOf(key) !== etag) return false;
+      put(key, value);
+
+      return true;
+    },
+    delete: async (key) => {
+      seed.delete(key);
+      tags.delete(key);
+    },
+    list: async (prefix) => [...seed.keys()]
+      .filter((k) => k.startsWith(prefix))
+      .sort()
+      .map((key) => ({ key })),
+  };
+};
 
 // Blobs is configured when Netlify runs the function, or when a site
 // id and token are given (the CLI does this).
@@ -59,9 +140,9 @@ export const stores = (env = process.env) => {
       const onNetlify = !!(env.NETLIFY_BLOBS_CONTEXT
         || globalThis.netlifyBlobsContext);
       const options = onNetlify
-        ? { name, consistency: "strong" }
+        ? { name: storeName(name, env), consistency: "strong" }
         : {
-          name,
+          name: storeName(name, env),
           consistency: "strong",
           siteID: env.NETLIFY_SITE_ID,
           token: env.NETLIFY_AUTH_TOKEN,

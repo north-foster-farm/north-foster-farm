@@ -1,0 +1,58 @@
+{{- /*
+  The farm's markets and pop-ups as the pages have always read them,
+  rebuilt from data/series.json and data/locations.json (the one
+  source). Returns a dict: `markets` (series of kind "market") and
+  `events` (series of kind "pop-up", every date), each in the list
+  shape the templates read. Only the read changed; a page prints what
+  it printed before.
+*/ -}}
+{{- $locations := hugo.Data.locations.locations -}}
+{{- $markets := slice -}}
+{{- $events := slice -}}
+{{- range hugo.Data.series.series -}}
+  {{- $s := . -}}
+  {{- $loc := index (where $locations "code" $s.location) 0 -}}
+  {{- $from := time.AsTime (print "2006-01-02T" $s.opens ":00Z") -}}
+  {{- $to := time.AsTime (print "2006-01-02T" $s.closes ":00Z") -}}
+  {{- $window := print ($from.Format "3:04") " " ($from.Format "PM") " – " ($to.Format "3:04") " " ($to.Format "PM") -}}
+  {{- if eq ($from.Format "PM") ($to.Format "PM") -}}
+    {{- $window = print ($from.Format "3:04") " – " ($to.Format "3:04") " " ($to.Format "PM") -}}
+  {{- end -}}
+  {{- if eq $s.kind "market" -}}
+    {{- $m := dict
+      "code" $s.code
+      "name" $s.name
+      "href" $s.href
+      "instagram" $s.instagram
+      "when" (print (printf "%ss" (time.AsTime $s.start).Weekday) ", " $window)
+      "where" (print $loc.name ", " $loc.street ", " $loc.city)
+      "venue" $loc.name
+      "street" $loc.street
+      "city" $loc.city
+      "state" $loc.state
+      "zip" $loc.zip
+      "opens" $s.start
+      "closes" $s.end
+      "lat" $loc.lat
+      "lng" $loc.lng
+    -}}
+    {{- with $s.nudge }}{{ $m = merge $m (dict "nudge" .) }}{{ end -}}
+    {{- $markets = $markets | append $m -}}
+  {{- else if eq $s.kind "pop-up" -}}
+    {{- $e := dict
+      "id" $s.code
+      "kind" "pop-up"
+      "name" $s.name
+      "place" $loc.name
+      "date" $s.start
+      "start" $s.opens
+      "end" $s.closes
+      "address" (dict "street" $loc.street "city" $loc.city "state" $loc.state "zip" $loc.zip)
+      "lat" $loc.lat
+      "lng" $loc.lng
+    -}}
+    {{- with $s.instagram }}{{ $e = merge $e (dict "instagram" .) }}{{ end -}}
+    {{- $events = $events | append $e -}}
+  {{- end -}}
+{{- end -}}
+{{- return (dict "markets" $markets "events" $events) -}}

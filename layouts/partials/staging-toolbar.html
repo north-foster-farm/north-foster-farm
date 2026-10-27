@@ -1,0 +1,311 @@
+{{/*
+  The staging toolbar: this session's emails, the clock, the jobs, the
+  email library and the Square sandbox card, with the order page's
+  first-visit card overlay. Rendered only when Netlify's build-time
+  CONTEXT is "branch-deploy" (staging), never on a deploy preview, a
+  local build or production, so their HTML, CSS and JS carry no trace
+  of it: the stylesheet and the script below are built by Hugo only
+  when this partial renders. (hugo.Environment cannot decide this;
+  previews build with the production environment too;
+  test/staging-build.test.mjs proves it.) The page is past the gate,
+  and the endpoints answer to any gate session, James's opening more
+  (#294). See docs/staging.md.
+*/}}
+{{ $context := getenv "CONTEXT" }}
+{{ if eq $context "branch-deploy" }}
+  {{ $style := resources.Get "styles/staging.css" | fingerprint "sha512" }}
+  {{ $script := resources.Get "scripts/staging/main.js" | js.Build (dict "minify" true) | fingerprint "sha512" }}
+  <link rel="stylesheet" href="{{ $style.RelPermalink }}" integrity="{{ $style.Data.Integrity }}">
+  <div class="staging" id="staging" data-context="{{ $context }}" data-time-zone="{{ hugo.Data.delivery.timeZone }}" hidden>
+    <button class="staging-tab" type="button" data-staging-open aria-expanded="false">Staging<span class="staging-tab-clock" data-staging-tab-clock hidden></span></button>
+    {{/* #303: the sections listed A to Z on the left, with scrollspy
+      marking the one in view, and all of them in one scrolling pane on
+      the right. Where the list would wrap, it becomes a flyout behind
+      the header's menu button (staging.css, the container query). */}}
+    <section class="staging-panel" data-staging-panel aria-label="Staging tools" hidden>
+      <header class="staging-head">
+        <button type="button" class="staging-nav-toggle" data-staging-nav-toggle aria-controls="staging-nav" aria-expanded="false" title="Sections" aria-label="Sections">☰</button>
+        <strong>Staging</strong>
+        {{ with getenv "HUGO_BUILD_SHA" }}
+          <a class="staging-sha" href="https://github.com/north-foster-farm/north-foster-farm/commit/{{ . }}" target="_blank" rel="noopener" title="The deployed commit">{{ substr . 0 7 }}</a>
+        {{ else }}
+          <span class="staging-sha">local</span>
+        {{ end }}
+        <button type="button" data-staging-collapse title="Collapse to a tab" aria-label="Collapse">–</button>
+        <button type="button" data-staging-hide title="Hide until the next page load" aria-label="Hide">×</button>
+      </header>
+      <div class="staging-body">
+        <nav class="staging-nav" id="staging-nav" data-staging-nav aria-label="Staging sections">
+          <div class="list-group list-group-flush">
+            <a class="list-group-item list-group-item-action" href="#staging-time" data-staging-section="clock">Current time <span class="badge staging-dot" data-staging-badge-time hidden>Set</span></a>
+            <a class="list-group-item list-group-item-action" href="#staging-email" data-staging-section="emails signatures inbox">Email <span class="badge staging-dot" data-staging-badge-email hidden></span></a>
+            <a class="list-group-item list-group-item-action" href="#staging-slips" data-staging-section="slips">Packing slips</a>
+            <a class="list-group-item list-group-item-action" href="#staging-jobs" data-staging-section="jobs">Jobs</a>
+            <a class="list-group-item list-group-item-action" href="#staging-orders">Orders</a>
+            <a class="list-group-item list-group-item-action" href="#staging-reset">Reset</a>
+          </div>
+        </nav>
+        <div class="staging-main">
+          <div class="staging-pane" data-staging-pane tabindex="0">
+            {{/* Each group names the area the session must open (see
+              staging.mjs KEYS); a section with none open is hidden. */}}
+            <section id="staging-time" tabindex="-1" aria-labelledby="staging-time-h" data-staging-section="clock">
+              <h2 id="staging-time-h">Current time</h2>
+              <div data-staging-scope="clock">
+                <h3>Change time</h3>
+                <p>Browse the website on a specific day and time.</p>
+                <p class="staging-muted" data-staging-clock-now></p>
+                <form class="staging-clock" data-staging-clock>
+                  <input type="datetime-local" id="staging-clock-at" data-staging-clock-at aria-label="Date and time, farm time" required>
+                  <span>
+                    {{ partial "busy-button.html" (dict "label" "Set" "busy" "Setting" "class" "staging-action" "plain" true) }}
+                    {{ partial "busy-button.html" (dict "label" "Reset" "busy" "Resetting" "class" "staging-action" "type" "button" "plain" true "attrs" (dict "data-staging-clock-reset" "")) }}
+                  </span>
+                </form>
+              </div>
+            </section>
+            <section id="staging-email" tabindex="-1" aria-labelledby="staging-email-h" data-staging-section="emails signatures inbox">
+              <h2 id="staging-email-h">Email</h2>
+              <div data-staging-scope="inbox">
+                <h3>This session's emails</h3>
+                <p class="staging-muted" data-staging-empty>None yet. Emails the site sends from this session land here instead; the rest are in the email library.</p>
+                <ol class="staging-list" data-staging-list></ol>
+                <p>
+                  {{ partial "busy-button.html" (dict "label" "Refresh" "busy" "Refreshing" "class" "staging-action" "type" "button" "plain" true "attrs" (dict "data-staging-refresh" "")) }}
+                  {{ partial "busy-button.html" (dict "label" "Clear" "busy" "Clearing" "class" "staging-action" "type" "button" "plain" true "attrs" (dict "data-staging-clear" "")) }}
+                </p>
+              </div>
+              <div data-staging-scope="emails">
+                <h3>Email library</h3>
+                <p class="staging-muted" data-staging-library-count></p>
+                <p><a class="staging-action staging-link" href="/#emails" target="_blank" rel="noopener" data-staging-library-open>Email library</a></p>
+              </div>
+              <div data-staging-scope="signatures">
+                <h3>Signatures</h3>
+                <p class="staging-muted" data-staging-sigs-count></p>
+                <p><a class="staging-action staging-link" href="/#signatures" target="_blank" rel="noopener" data-staging-sigs-open>Signature library</a></p>
+              </div>
+            </section>
+            <section id="staging-slips" tabindex="-1" aria-labelledby="staging-slips-h" data-staging-section="slips">
+              <h2 id="staging-slips-h">Packing slips</h2>
+              <div data-staging-scope="slips">
+                <h3>Packing slips</h3>
+                <p class="staging-muted" data-staging-slips-count></p>
+                <p><a class="staging-action staging-link" href="/#slips" target="_blank" rel="noopener" data-staging-slips-open>Packing slips</a></p>
+              </div>
+            </section>
+            <section id="staging-jobs" tabindex="-1" aria-labelledby="staging-jobs-h" data-staging-section="jobs">
+              <h2 id="staging-jobs-h">Jobs</h2>
+              <div data-staging-scope="jobs">
+                <h3>Trigger jobs</h3>
+                <p>
+                  {{ partial "busy-button.html" (dict "label" "Run now" "busy" "Running" "class" "staging-action" "type" "button" "plain" true "attrs" (dict "data-staging-run" "")) }}
+                  {{ partial "busy-button.html" (dict "label" "6 AM" "busy" "Running" "class" "staging-action" "type" "button" "plain" true "attrs" (dict "data-staging-run" "06:00")) }}
+                  {{ partial "busy-button.html" (dict "label" "8 AM" "busy" "Running" "class" "staging-action" "type" "button" "plain" true "attrs" (dict "data-staging-run" "08:00")) }}
+                  {{ partial "busy-button.html" (dict "label" "6 PM" "busy" "Running" "class" "staging-action" "type" "button" "plain" true "attrs" (dict "data-staging-run" "18:00")) }}
+                </p>
+                <label class="staging-check"><input type="checkbox" data-staging-reset> Always send today's reports</label>
+              </div>
+            </section>
+            <section id="staging-orders" tabindex="-1" aria-labelledby="staging-orders-h">
+              <h2 id="staging-orders-h">Orders</h2>
+              <h3>Test card</h3>
+              <p>Square's sandbox credit card. Use this to pay for an order in staging.</p>
+              {{ partial "staging/sandbox-card.html" "toolbar" }}
+            </section>
+            <section id="staging-reset" tabindex="-1" aria-labelledby="staging-reset-h">
+              <h2 id="staging-reset-h">Reset</h2>
+              <p>
+                {{ partial "busy-button.html" (dict "label" "Reset to defaults" "busy" "Resetting" "class" "staging-action" "type" "button" "plain" true "attrs" (dict "data-staging-defaults" "")) }}
+              </p>
+              <p class="staging-muted">Undoes any changes made in the staging toolbar.</p>
+              <p>
+                {{ partial "busy-button.html" (dict "label" "Reset to first visit" "busy" "Resetting" "class" "staging-action" "type" "button" "plain" true "attrs" (dict "data-staging-forget" "")) }}
+              </p>
+              <p class="staging-muted">Clears all state. Provides the experience a first-time visitor would have.</p>
+            </section>
+          </div>
+          <pre class="staging-out" data-staging-out hidden></pre>
+        </div>
+      </div>
+    </section>
+    {{/* The email library: every email the site sends, built from sample
+      data by /api/staging/emails, in a sidebar with the open one beside
+      it. #email=<id> on any page opens it there. */}}
+    <div class="staging-library" data-staging-library tabindex="-1" hidden>
+      <aside class="staging-shelf" aria-label="Email library">
+        <header class="staging-shelf-head">
+          <strong>Emails</strong>
+          <span class="staging-muted" data-staging-library-summary></span>
+          <button type="button" class="staging-icon" data-staging-library-close title="Close the library" aria-label="Close">×</button>
+        </header>
+        <div class="staging-shelf-tools">
+          <input type="search" class="staging-search" data-staging-search placeholder="Search names, tags, subjects, text" aria-label="Search emails" autocomplete="off">
+          <div class="staging-filters" role="group" aria-label="Show">
+            <button type="button" class="staging-filter" data-staging-filter="" aria-pressed="true">All</button>
+            <button type="button" class="staging-filter" data-staging-filter="to approve" aria-pressed="false">To approve</button>
+            <button type="button" class="staging-filter" data-staging-filter="approved" aria-pressed="false">Approved</button>
+            <button type="button" class="staging-filter" data-staging-filter="rewritten" aria-pressed="false">Rewritten</button>
+          </div>
+        </div>
+        <div class="staging-shelf-list" data-staging-shelf>
+          <p class="staging-muted staging-pad" data-staging-shelf-empty hidden>No email matches.</p>
+        </div>
+      </aside>
+      <section class="staging-reader" data-staging-reader aria-label="Email" tabindex="-1" hidden>
+        <header class="staging-reader-head">
+          <button type="button" class="staging-icon staging-back" data-staging-reader-back title="Back to the library" aria-label="Back to the library">‹</button>
+          <div class="staging-reader-title">
+            <strong data-staging-reader-name></strong>
+            <span class="staging-muted" data-staging-reader-when></span>
+          </div>
+          <div class="staging-views" role="group" aria-label="View">
+            <button type="button" class="staging-filter" data-staging-view="html" aria-pressed="true">HTML</button>
+            <button type="button" class="staging-filter" data-staging-view="text" aria-pressed="false">Text</button>
+            <button type="button" class="staging-filter" data-staging-view="rewrite" aria-pressed="false" hidden>Rewritten</button>
+          </div>
+          <button type="button" class="staging-action" data-staging-copy-link>Copy link</button>
+          <button type="button" class="staging-icon" data-staging-library-close title="Close the library" aria-label="Close">×</button>
+        </header>
+        <p class="staging-reader-meta">
+          <span class="staging-badge" data-staging-reader-approval></span>
+          <span data-staging-reader-subject></span>
+        </p>
+        <p class="staging-reader-note staging-muted" data-staging-reader-note hidden></p>
+        <p class="staging-reader-note" data-staging-reader-attachments hidden>Attached: <span data-staging-reader-files></span></p>
+        {{/* James's review: approve it, or rewrite it until he would.
+          Saved on this deploy only; an agent ports it into the code.
+          See lib/review.mjs. */}}
+        <div class="staging-review" data-staging-review hidden>
+          <span class="staging-review-status" data-staging-review-status></span>
+          {{ partial "busy-button.html" (dict "label" "Approve" "busy" "Approving" "class" "staging-action staging-primary" "type" "button" "plain" true "attrs" (dict "data-staging-approve" "")) }}
+          <button type="button" class="staging-action" data-staging-rewrite>Rewrite</button>
+          {{ partial "busy-button.html" (dict "label" "Withdraw approval" "busy" "Withdrawing" "class" "staging-action" "type" "button" "plain" true "attrs" (dict "data-staging-withdraw" "")) }}
+          {{ partial "busy-button.html" (dict "label" "Revert to the current wording" "busy" "Reverting" "class" "staging-action" "type" "button" "plain" true "attrs" (dict "data-staging-revert" "")) }}
+          <span class="staging-error" data-staging-review-error hidden></span>
+        </div>
+        <iframe class="staging-frame" data-staging-frame title="The email as it renders" sandbox="allow-popups allow-popups-to-escape-sandbox"></iframe>
+        <pre class="staging-text" data-staging-text hidden></pre>
+        <pre class="staging-text" data-staging-rewritten hidden></pre>
+        <form class="staging-editor" data-staging-editor hidden>
+          <p class="staging-muted">Shaded words are sample values: the name, order, dates, amounts and links that change with each email. They can't be edited, only moved or deleted.</p>
+          <span class="staging-edit-label" id="staging-edit-subject">Subject</span>
+          <div class="staging-edit staging-edit-subject" data-staging-edit-subject role="textbox" aria-labelledby="staging-edit-subject"></div>
+          <span class="staging-edit-label" id="staging-edit-text">Body</span>
+          <div class="staging-edit" data-staging-edit-text role="textbox" aria-multiline="true" aria-labelledby="staging-edit-text"></div>
+          <p class="staging-muted" data-staging-edit-dropped hidden></p>
+          <p class="staging-error" data-staging-edit-error hidden></p>
+          <p class="staging-edit-actions">
+            {{ partial "busy-button.html" (dict "label" "Save rewrite" "busy" "Saving" "class" "staging-action staging-primary" "plain" true) }}
+            <button type="button" class="staging-action" data-staging-edit-cancel>Cancel</button>
+          </p>
+        </form>
+      </section>
+    </div>
+    <template data-staging-item>
+      <li>
+        <a class="staging-item" href="#">
+          <span class="staging-item-name"></span>
+          <span class="staging-item-subject"></span>
+          <span class="staging-item-tags"><span class="staging-badge"></span></span>
+        </a>
+      </li>
+    </template>
+    {{/* The signature library: its own view beside the email library,
+      with the variants listed and the open one previewed exactly as
+      Copy puts it on the clipboard, and the Open alone page that holds
+      nothing else (#267). #signatures or #signature=<id> opens it. */}}
+    <div class="staging-library" data-staging-sigs tabindex="-1" hidden>
+      <aside class="staging-shelf" aria-label="Signature library">
+        <header class="staging-shelf-head">
+          <strong>Signatures</strong>
+          <span class="staging-muted" data-staging-sigs-summary></span>
+          <button type="button" class="staging-icon" data-staging-sigs-close title="Close the signatures" aria-label="Close">×</button>
+        </header>
+        <div class="staging-shelf-list" data-staging-sigs-shelf>
+          <p class="staging-muted staging-pad" data-staging-sigs-empty hidden>The signatures could not be loaded.</p>
+          <ol class="staging-sigs-list" data-staging-sigs-list></ol>
+        </div>
+      </aside>
+      <section class="staging-reader" data-staging-sigs-reader aria-label="Signature" tabindex="-1" hidden>
+        <header class="staging-reader-head">
+          <button type="button" class="staging-icon staging-back" data-staging-sigs-back title="Back to the signatures" aria-label="Back to the signatures">‹</button>
+          <div class="staging-reader-title">
+            <strong data-staging-sigs-name></strong>
+          </div>
+          <button type="button" class="staging-action staging-primary" data-signature-copy>Copy</button>
+          <a class="staging-action staging-link" data-signature-alone target="_blank" rel="noopener">Open alone</a>
+          <button type="button" class="staging-icon" data-staging-sigs-close title="Close the signatures" aria-label="Close">×</button>
+        </header>
+        <p class="staging-reader-meta">
+          <span class="staging-badge" data-approval="to approve" data-staging-sigs-gap hidden></span>
+          <span class="staging-muted" data-signature-said role="status">Copy puts this signature on the clipboard as rich text, with plain text beside it.</span>
+        </p>
+        <iframe class="staging-frame" data-staging-sigs-frame title="The signature as mail shows it" sandbox="allow-popups allow-popups-to-escape-sandbox"></iframe>
+      </section>
+    </div>
+    <template data-staging-sigs-item>
+      <li>
+        <a class="staging-item" href="#">
+          <span class="staging-item-name"></span>
+          <span class="staging-item-subject"></span>
+          <span class="staging-item-tags"><span class="staging-badge" data-approval="to approve" hidden></span></span>
+        </a>
+      </li>
+    </template>
+    {{/* The packing slips: every kind of page the morning packet can
+      hold, from fixed fake orders, and today's packet from staging's
+      own orders. The open one shows as the PDF itself (#334).
+      #slips or #slip=<id> opens it. */}}
+    <div class="staging-library" data-staging-slips tabindex="-1" hidden>
+      <aside class="staging-shelf" aria-label="Packing slips">
+        <header class="staging-shelf-head">
+          <strong>Packing slips</strong>
+          <span class="staging-muted" data-staging-slips-summary></span>
+          <button type="button" class="staging-icon" data-staging-slips-close title="Close the packing slips" aria-label="Close">×</button>
+        </header>
+        <div class="staging-shelf-list">
+          <p class="staging-muted staging-pad" data-staging-slips-empty hidden>The packing slips could not be loaded.</p>
+          <ol class="staging-sigs-list" data-staging-slips-list></ol>
+        </div>
+      </aside>
+      <section class="staging-reader" data-staging-slips-reader aria-label="Packing slip" tabindex="-1" hidden>
+        <header class="staging-reader-head">
+          <button type="button" class="staging-icon staging-back" data-staging-slips-back title="Back to the packing slips" aria-label="Back to the packing slips">‹</button>
+          <div class="staging-reader-title">
+            <strong data-staging-slips-name></strong>
+          </div>
+          <a class="staging-action staging-link" data-staging-slips-alone target="_blank" rel="noopener">Open alone</a>
+          <a class="staging-action staging-link" data-staging-slips-download>Download</a>
+          <button type="button" class="staging-icon" data-staging-slips-close title="Close the packing slips" aria-label="Close">×</button>
+        </header>
+        <p class="staging-reader-meta">
+          <label data-staging-slips-day hidden>Packet for <input type="date" class="staging-date" data-staging-slips-date></label>
+          <span class="staging-muted" data-staging-slips-note role="status"></span>
+        </p>
+        <iframe class="staging-frame" data-staging-slips-frame title="The packing slip as a PDF"></iframe>
+      </section>
+    </div>
+    <template data-staging-slips-item>
+      <li>
+        <a class="staging-item" href="#">
+          <span class="staging-item-name"></span>
+          <span class="staging-item-subject"></span>
+        </a>
+      </li>
+    </template>
+    <template data-staging-token><span class="staging-token" contenteditable="false"></span></template>
+  </div>
+  {{/* The order page's first-visit overlay (#294 §4): once per gate
+    session (main.js says where the flag lives), a modal that takes the
+    page until it is closed. The words are James's. */}}
+  <dialog class="staging-card-dialog" data-staging-card-dialog aria-labelledby="staging-card-intro">
+    <div class="staging-card-sheet">
+      <p id="staging-card-intro">Simulate an order in staging: pay by <strong>card</strong> and use the Square sandbox card details:</p>
+      {{ partial "staging/sandbox-card.html" "overlay" }}
+      <p>Open the staging toolbar (bottom right) if you want to see these card details again.</p>
+      <button type="button" class="btn btn-primary" data-staging-card-close>Close</button>
+    </div>
+  </dialog>
+  <script src="{{ $script.RelPermalink }}" type="module" integrity="{{ $script.Data.Integrity }}" defer></script>
+{{ end }}

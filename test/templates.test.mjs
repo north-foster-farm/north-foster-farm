@@ -2,17 +2,20 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
-  addressDecision, addressReview, completeYourOrder, deliveryReminder,
-  farmAlert, farmMorningReport, farmOrderPaid, farmOrderPlaced,
-  farmPickupChanged, farmTomorrow, farmVenmoClaimed, farmVenmoUnmatched,
-  magicLink, orderCancelled, orderChanged, orderConfirmed, paymentReceived,
-  paymentReminder, pickNewTime, summaryLine,
+  CANCEL_REASONS, addressDecision, addressReview, deliveryReminder, farmAlert,
+  farmMorningReport, farmOrderChanged, farmOrderPlaced, farmPackingSlips,
+  farmPickupChanged,
+  farmRefundNeeded, farmReturnRequest, farmSquareOutOfSync, farmSupport,
+  emailChanged, emailChangeLink, farmTomorrow, magicLink, missedDelivery,
+  movedDelivery, orderCancelled, orderChanged, orderConfirmed, paymentPhrase,
+  summaryLine,
 } from "../netlify/functions/lib/templates.mjs";
 
 const order = (method = "delivery") => ({
   id: "NFF-2610-ABCD",
-  status: "submitted",
+  status: "paid",
   submittedAt: "2026-10-06T13:00:00Z",
+  paidAt: "2026-10-06T13:00:00Z",
   customer: { name: "Pat Example", email: "pat@example.com", phone: "" },
   lines: [
     { sku: "A", label: "Whole Chicken, 3.5 – 3.9 lbs", qty: 2, lineTotal: 60 },
@@ -27,13 +30,19 @@ const order = (method = "delivery") => ({
   fulfilment: {
     method,
     date: "2026-10-08",
-    onfarm: method === "onfarm" ? { window: "morning" } : null,
+    onfarm: method === "onfarm"
+      ? { window: "09:00-12:00", from: "09:00", to: "12:00" } : null,
     delivery: method === "delivery" ? {
       address1: "1 Main St", address2: "", town: "Foster", state: "RI",
       zip: "02825", cooler: "Side porch", gate: "1234",
     } : null,
   },
-  square: { invoiceUrl: "https://squareup.com/pay/xyz", invoiceNumber: "7" },
+  square: { squareOrderId: "SQO", customerId: "CUST" },
+  payment: {
+    via: "square", method: "card", at: "2026-10-06T13:00:00Z",
+    squarePaymentId: "PAY-1", receiptUrl: "https://sq/receipt",
+    brand: "VISA", last4: "4242",
+  },
 });
 
 const links = {
@@ -51,7 +60,7 @@ const has = (haystack, needle, msg) =>
 
 describe("the order details block", () => {
   it("names the order, the lines without prices, and where and when", () => {
-    const m = completeYourOrder(order(), { links });
+    const m = orderConfirmed(order(), { links });
 
     assert.match(m.text, /\nOrder details\n/);
     assert.match(m.text, /Order number: \*\*NFF-2610-ABCD\*\*/);
@@ -66,22 +75,42 @@ describe("the order details block", () => {
   });
 
   it("gives a pickup its when and where instead", () => {
-    const farm = completeYourOrder(order("onfarm"), { links });
+    const farm = orderConfirmed(order("onfarm"), { links });
 
     assert.match(farm.text, /Order type: \*\*On-farm pickup\*\*/);
-    assert.match(farm.text, /- When: Thursday, October 8, morning/);
+    assert.match(farm.text, /- When: Thursday, October 8, 9 AM – noon/);
     assert.match(farm.text, /- Where: 99 East Killingly Road, Foster, RI/);
     assert.doesNotMatch(farm.text, /Arrives:|Address:/);
 
     const o = order("scituate");
 
     o.fulfilment.date = "2026-10-17";
-    const drop = completeYourOrder(o, { links });
+    const drop = orderConfirmed(o, { links });
 
-    assert.match(drop.text, /Order type: \*\*Scituate drop site\*\*/);
+    assert.match(drop.text, /Order type: \*\*Pickup days\*\*/);
     assert.match(drop.text,
       /- When: Saturday, October 17, between 10 and 11 AM/);
     assert.match(drop.text, /- Where: Village Green/);
+  });
+});
+
+describe("the account the first order makes (#114)", () => {
+  const url = "https://x/account/orders/NFF-2610-ABCD";
+  const said = /Your email address is your account with us\./;
+
+  it("says so once, above the sign-in button", () => {
+    const m = orderConfirmed(order(), { orderUrl: url, links,
+      firstOrder: true });
+
+    assert.match(m.text, said);
+    assert.ok(m.text.search(said) < m.text.indexOf("View or edit"));
+    assert.doesNotMatch(orderConfirmed(order(), { orderUrl: url, links })
+      .text, said);
+  });
+
+  it("says nothing while the account pages are off", () => {
+    assert.doesNotMatch(orderConfirmed(order(), { links, firstOrder: true })
+      .text, said);
   });
 });
 
@@ -94,7 +123,8 @@ describe("the site's look", () => {
     has(m.html, '<p style="margin:0 0 20px;text-align:center"><img ' +
       'src="https://x/images/email/logo.png"');
     assert.doesNotMatch(m.html, /<h1/);
-    assert.match(m.html, /aller-regular\.woff2/);
+    assert.doesNotMatch(m.html, /Aller|font-face|\.woff/i,
+      "no font file is loaded from the site");
     assert.match(m.html, /a\[x-apple-data-detectors\]/);
     // Green buttons, the site's radius; the order link is a button.
     has(m.html, '<a href="https://x/account/orders/NFF-2610-ABCD/" ' +
@@ -122,20 +152,20 @@ describe("the site's look", () => {
       "<br>(401) 578-3713</p>");
   });
 
-  it("makes the Square link a button on the paid notice", () => {
-    const m = farmOrderPaid(order(), {
+  it("makes the Square link a button on the farm's notice", () => {
+    const m = farmOrderPlaced(order(), {
       squareUrl: "https://sq/1", links,
     });
 
     assert.match(m.html,
       /<a href="https:\/\/sq\/1" style="[^"]*background:#186243">/);
-    has(m.html, ">View invoice in Square</a>");
+    has(m.html, ">View order in Square</a>");
   });
 });
 
 describe("the footer row", () => {
   it("links the orders page and a way to write, on every customer mail", () => {
-    for (const m of [completeYourOrder(order(), { links }),
+    for (const m of [orderConfirmed(order("onfarm"), { links }),
       orderConfirmed(order(), { links }),
       orderCancelled(order(), { links })]) {
       has(m.html, '<a href="https://x/account/" style="color:#186243">' +
@@ -147,14 +177,14 @@ describe("the footer row", () => {
   });
 
   it("drops the orders link while accounts are off, keeps contact", () => {
-    const m = completeYourOrder(order());
+    const m = orderConfirmed(order());
 
     assert.doesNotMatch(m.text, /Your orders/);
     assert.match(m.text, /Contact us: mailto:sales@northfosterfarm.com/);
   });
 
   it("uses CONTACT_URL when the site has a contact page", () => {
-    const m = completeYourOrder(order(), {
+    const m = orderConfirmed(order(), {
       links: { ...links, contact: "https://x/#contact" },
     });
 
@@ -162,38 +192,25 @@ describe("the footer row", () => {
   });
 });
 
-describe("complete your order", () => {
-  it("leads with the not-final warning and the pay button", () => {
-    const m = completeYourOrder(order(), { links });
-
-    assert.equal(m.subject, "One more step: pay for your order");
-    assert.match(m.text, /Hi Pat,/);
-    assert.match(m.text, /\*\*Your order isn't final until it's paid\.\*\*/);
-    assert.match(m.text, /Here's your invoice for \$67\. Pay it to complete/);
-    assert.match(m.text,
-      /Pay and confirm your order: https:\/\/squareup.com\/pay\/xyz/);
-    assert.match(m.html, /href="https:\/\/squareup.com\/pay\/xyz"/);
-  });
-
-  it("greets by the first name on the record when there is one", () => {
+describe("the greeting", () => {
+  it("is the first name on the record when there is one", () => {
     const o = order();
 
     o.customer.firstName = "Mary Ann";
     o.customer.name = "Mary Ann Smith";
-    assert.match(completeYourOrder(o).html, /Hi Mary Ann,/);
-    assert.match(completeYourOrder(order()).html, /Hi Pat,/,
+    assert.match(orderConfirmed(o).html, /Thanks, Mary Ann\./);
+    assert.match(orderConfirmed(order()).html, /Thanks, Pat\./,
       "an order from before the split still greets by the first word");
   });
 
-  it("escapes what the customer typed, and still marks up the bold", () => {
-    const o = order();
+  it("escapes what the customer typed", () => {
+    const o = order("onfarm");
 
     o.customer.name = "<b>Pat</b>";
-    const m = completeYourOrder(o);
+    const m = orderConfirmed(o);
 
-    assert.match(m.html, /Hi &lt;b&gt;Pat&lt;\/b&gt;,/);
+    assert.match(m.html, /Thanks, &lt;b&gt;Pat&lt;\/b&gt;\./);
     assert.doesNotMatch(m.html, /<b>Pat<\/b>/);
-    has(m.html, "<strong>Your order isn't final until it's paid.</strong>");
   });
 });
 
@@ -207,301 +224,268 @@ describe("order confirmed", () => {
     assert.match(m.text, new RegExp(`View or edit this order: ${url}`));
   });
 
-  it("tells a pickup its time is set, with the hours the farm confirmed",
-    () => {
-      const m = orderConfirmed(order("onfarm"), { links });
+  it("tells a pickup its time is set, with its window's times", () => {
+    const m = orderConfirmed(order("onfarm"), { orderUrl: url, links });
 
-      has(m.text, "Thanks, Pat. Your payment of $62 came through and your " +
-        "pickup time is set, so your order is confirmed.");
-      assert.match(m.text, /- When: Thursday, October 8, morning/,
-        "a legacy order without confirmed hours keeps the window word");
-      assert.doesNotMatch(m.text, /not a booking|Requested:/);
+    has(m.text, "Thanks, Pat. We received your payment of $62, and your " +
+      "pickup time is set. Your order is confirmed.");
+    assert.match(m.text, /- When: Thursday, October 8, 9 AM – noon\n/);
+    assert.doesNotMatch(m.text, /not a booking|Requested:/);
+    has(m.text, `View or edit this order: ${url}`);
+    has(m.text, `Reschedule pickup: ${url}`);
+    assert.doesNotMatch(orderConfirmed(order(), { orderUrl: url, links })
+      .text, /Reschedule pickup/, "a delivery has no pickup to move");
 
-      const o = order("onfarm");
+    // A record from before W11d: a fixed window's word, or the hours the
+    // farm confirmed inside it.
+    const legacy = order("onfarm");
 
-      o.fulfilment.state = "agreed";
-      o.fulfilment.onfarm.confirmed = { from: 9, to: 11 };
-      const set = orderConfirmed(o, { orderUrl: url, links });
-
-      assert.match(set.text,
-        /- When: Thursday, October 8, 9 – 11 AM \(morning\)/);
-      has(set.text, `View or edit this order: ${url}`);
-      has(set.text, `Reschedule pickup: ${url}`);
-      assert.doesNotMatch(orderConfirmed(order(), { orderUrl: url, links })
-        .text, /Reschedule pickup/, "a delivery has no pickup to move");
-
-      const late = order("onfarm");
-
-      late.fulfilment.state = "agreed";
-      late.fulfilment.onfarm = { window: "afternoon",
-        confirmed: { from: 11, to: 13 } };
-      assert.match(orderConfirmed(late, { links }).text,
-        /11 AM – 1 PM \(afternoon\)/);
-    });
-});
-
-describe("paying by Venmo", () => {
-  it("is offered under the Square button, pointing at the order page",
-    () => {
-      const m = completeYourOrder(order(), { orderUrl: url, links });
-
-      has(m.text, "To pay by Venmo instead, send $67 to @northfosterfarm " +
-        "with NFF-2610-ABCD in the note. Then click \"I paid by Venmo\" on " +
-        "your order page so we know to look for it.");
-      assert.ok(m.text.indexOf("Pay and confirm your order:")
-        < m.text.indexOf("To pay by Venmo"), "after the button");
-      has(m.text, `View or edit this order: ${url}`);
-      assert.match(m.html, /border:1px solid #186243;color:#186243/,
-        "the order button is the outline one");
-
-      // No account pages: reply instead, and no order button.
-      const plain = completeYourOrder(order(), { links });
-
-      has(plain.text, "Then reply to this email so we know to look for it.");
-      assert.doesNotMatch(plain.text, /View or edit this order/);
-    });
-
-  it("tells the farm what to look for when a customer says they paid",
-    () => {
-      const m = farmVenmoClaimed(order(), { links });
-
-      assert.equal(m.subject, "Venmo to check: order NFF-2610-ABCD — $67");
-      has(m.text, "Pat Example clicked \"I paid by Venmo\" on order " +
-        "NFF-2610-ABCD.");
-      has(m.text, "Open the Venmo app and look in the farm's transactions " +
-        "for **$67 from Pat Example with NFF-2610-ABCD in the note**.");
-      has(m.text, "closes the Square invoice so it can't be paid twice:\n\n" +
-        "    bin/nff orders paid NFF-2610-ABCD --via venmo\n");
-      has(m.text, "lift the hold so the payment reminders and the cutoff " +
-        "run again:\n\n    bin/nff orders unpaid NFF-2610-ABCD\n");
-      has(m.text, "Until one of those runs, the order waits");
-      assert.match(m.html, /<pre [^>]*user-select:all">bin\/nff orders paid/);
-      has(m.text, "View order: https://admin.example.com/orders/NFF-2610-ABCD");
-      has(m.text, "Admin: https://admin.example.com");
-    });
-
-  it("lists the payments the site could not apply", () => {
-    const m = farmVenmoUnmatched([
-      { cents: 4500, payer: "James Boynton", note: "Test7",
-        transactionId: "4691637974882101462", orderId: null, orderTotal: null },
-      { cents: 2050, payer: "Pat Example", note: "eggs nff2610abcd",
-        transactionId: "4691637974882101999", orderId: "NFF-2610-ABCD",
-        orderTotal: 6200 },
-      { cents: 700, payer: "Sam", note: "NFF-2610-ZZZZ",
-        transactionId: "7", orderId: "NFF-2610-ZZZZ", orderTotal: null },
-    ], { date: "2026-09-22", links });
-
-    assert.equal(m.subject,
-      "Venmo payments with no order: Tuesday, September 22");
-    has(m.text, "Market sales will show here.");
-    assert.match(m.text, /Amount\s+Due\s+From\s+Note\s+Order\n/);
-    assert.match(m.text, /\$45\s+James Boynton\s+Test7\n/);
-    assert.match(m.text, new RegExp("\\*\\*\\$20\\.50\\*\\*\\s+\\*\\*\\$62" +
-      "\\*\\*\\s+Pat Example\\s+eggs nff2610abcd\\s+NFF-2610-ABCD\\n"),
-    "short payments and what they owe are marked");
-    assert.match(m.text,
-      /\$7\s+Sam\s+NFF-2610-ZZZZ\s+NFF-2610-ZZZZ \(no such order\)/);
-    assert.doesNotMatch(m.text, /4691637974882101462/,
-      "the transaction id stays in the record, not the email");
-    assert.match(m.html, /<th [^>]*text-align:right[^>]*>Amount<\/th>/);
-    assert.match(m.html, new RegExp("<td [^>]*text-align:right[^>]*>" +
-      "<strong style=\"color:#b02a37\">\\$62</strong></td>"));
-    assert.match(m.html, /user-select:all">NFF-2610-ABCD<\/span>/);
-    has(m.text, "bin/nff venmo list");
-    has(m.text, "Admin: https://admin.example.com");
+    legacy.fulfilment.onfarm = { window: "afternoon" };
+    assert.match(orderConfirmed(legacy, { links }).text,
+      /- When: Thursday, October 8, 1 – 5 PM\n/);
+    legacy.fulfilment.onfarm.confirmed = { from: 11, to: 13 };
+    assert.match(orderConfirmed(legacy, { links }).text,
+      /- When: Thursday, October 8, 11 AM – 1 PM\n/);
   });
 });
 
-// An on-farm window the farm has not agreed to yet.
-const requested = () => {
-  const o = order("onfarm");
+describe("a booked pickup time (W11d)", () => {
+  it("gives the farm nothing to confirm on the new order", () => {
+    const m = farmOrderPlaced(order("onfarm"), { links });
 
-  o.fulfilment.state = "requested";
-
-  return o;
-};
-
-describe("an on-farm pickup awaiting the farm", () => {
-  it("is asked to pay without being told the order is confirmed", () => {
-    const m = completeYourOrder(requested(), { links });
-
-    has(m.text, "**Your order isn't final until it's paid.**");
-    has(m.text, "Here's your invoice for $62. Pay it to complete your " +
-      "checkout.");
-    has(m.text, "Pay and complete your checkout: https://squareup.com/pay/xyz");
-    has(m.text, "We'll check to make sure we can accommodate your " +
-      "requested pick-up time, and confirm it in a separate email. " +
-      "Nothing else needed from you until then.");
-    assert.ok(m.text.indexOf("Pay and complete")
-      < m.text.indexOf("We'll check"), "the request follows the button");
-    assert.doesNotMatch(m.text, /confirm your order/);
-    assert.match(m.text, /- Requested: Thursday, October 8, morning/);
-    assert.doesNotMatch(m.text, /- When:/);
-
-    // A delivery, and an agreed pickup, keep the confirming button.
-    for (const o of [order(), order("onfarm")]) {
-      has(completeYourOrder(o, { links }).text,
-        "Pay and confirm your order: https://squareup.com/pay/xyz");
-    }
-  });
-
-  it("hears that the payment arrived and the window is being checked",
-    () => {
-      const m = paymentReceived(requested(), { orderUrl: url, links });
-
-      assert.equal(m.subject, "Payment received");
-      has(m.text, "Thanks, Pat. Your payment of $62 came through.\n" +
-        "We're checking the schedule to make sure we can accommodate your " +
-        "requested pick-up time, and will confirm it by Wednesday, " +
-        "October 7.");
-      assert.match(m.html, /came through\.<\/p><p>We're checking/,
-        "two paragraphs");
-      assert.match(m.text, /- Requested: Thursday, October 8, morning/);
-      has(m.text, `View or edit this order: ${url}`);
-    });
-
-  it("is sent back to pick again when the farm says no", () => {
-    const o = requested();
-    const pick = "https://x/api/auth/verify?token=abc";
-    const m = pickNewTime(o, {
-      reason: "We're at the Scituate market that morning.", pickUrl: pick,
-      links,
-    });
-
-    assert.equal(m.subject, "One more step: pick a new pickup time");
-    has(m.text, "Hi Pat,");
-    has(m.text, "**The morning of Thursday, October 8 doesn't work for " +
-      "us.**");
-    has(m.text, "Here's why: _**We're at the Scituate market that " +
-      "morning.**_");
-    assert.match(m.html,
-      /<em><strong>We're at the Scituate market that morning.<\/strong><\/em>/);
-    has(m.text, "Please pick another day or window, and we'll be in touch " +
-      "to confirm. If rescheduling isn't an option, you can cancel your " +
-      "order from the same page for a full refund.");
-    has(m.text, `Pick a new time: ${pick}`);
-    assert.doesNotMatch(m.text, /reminders are paused/,
-      "the pause is not disclosed");
-    assert.match(m.text, /- Requested: Thursday, October 8, morning/);
-
-    // No reason typed: no italic line; paid reads the same.
-    const paid = { ...o, status: "paid" };
-    const bare = pickNewTime(paid, { pickUrl: pick, links });
-
-    assert.doesNotMatch(bare.text, /_\*\*|Here's why/);
-    has(bare.text, "from the same page for a full refund.");
-
-    // Accounts off: no button, a reply instead.
-    const reply = pickNewTime(o, { links });
-
-    assert.doesNotMatch(reply.text, /Pick a new time:/);
-    has(reply.text, "Please reply with another day or window, and we'll " +
-      "be in touch to confirm. If rescheduling isn't an option, reply and " +
-      "we'll cancel your order for a full refund.");
-  });
-
-  it("gives the farm the confirm and deny commands on the new order", () => {
-    const m = farmOrderPlaced(requested(), { links });
-
-    has(m.text, "Pickup time: **Requested, not yet confirmed**");
-    has(m.text, "They asked for the morning, which runs 8:00 to 12:00. " +
-      "Confirming with no hours tells them you'll be there for the first " +
-      "two hours of it, 8:00 to 10:00:\n\n    bin/nff orders confirm " +
-      "NFF-2610-ABCD\n");
-    has(m.text, "9:00 to 11:00, then 9:00 to 12:00:\n\n    bin/nff orders " +
-      "confirm NFF-2610-ABCD --at 9\n\n\n    bin/nff orders confirm " +
-      "NFF-2610-ABCD --at 9 --until 12\n");
-    has(m.text, "in your words:\n\n    bin/nff orders deny NFF-2610-ABCD " +
-      "--reason \"...\"\n");
-    assert.ok(m.text.indexOf("Requested: Thursday")
-      < m.text.indexOf("Pickup time:"), "after the order details");
-    assert.ok(m.text.indexOf("Pickup time:")
-      < m.text.indexOf("Invoice status:"), "before the invoice line");
-    assert.doesNotMatch(farmOrderPlaced(order(), { links }).text,
-      /Pickup time:|orders confirm/);
+    has(m.text, "- When: Thursday, October 8, 9 AM – noon");
+    assert.doesNotMatch(m.text, /Pickup time:|Requested|orders confirm|deny/);
   });
 
   it("tells the farm when the customer moves the time", () => {
-    const m = farmPickupChanged(requested(), { links });
+    const m = farmPickupChanged(order("onfarm"), { links });
 
-    assert.equal(m.subject, "Pickup time to confirm: NFF-2610-ABCD");
+    assert.equal(m.subject, "Pickup moved: NFF-2610-ABCD");
     has(m.text, "Pat Example moved order NFF-2610-ABCD to a new pickup " +
-      "time. It needs confirming again.");
-    has(m.text, "Requested: **Thursday, October 8, morning**");
-    has(m.text, "\n    bin/nff orders confirm NFF-2610-ABCD\n");
-    has(m.text, "View order: https://admin.example.com/orders/NFF-2610-ABCD");
+      "time.");
+    has(m.text, "Now: **Thursday, October 8, 9 AM – noon**");
+    assert.doesNotMatch(m.text, /orders confirm|confirming/);
+    assert.doesNotMatch(m.text, /View order:|View customer/);
     has(m.text, "Admin: https://admin.example.com");
   });
+});
 
+describe("scheduled pickup emails", () => {
+  const library = import("../netlify/functions/lib/library.mjs");
+
+  it("tells a customer the one name and the market's place and hour",
+    async () => {
+      const { market } = await library;
+      const m = orderConfirmed(market(), { links });
+
+      has(m.text, "Order type: **Pickup days**");
+      has(m.text, "- When: Sunday, October 25, between 9 AM and 1 PM");
+      has(m.text, "- Where: Foster Farmers Market, Shady Acres Diner, " +
+        "164 Danielson Pike, Foster");
+    });
+
+  it("tells the farm which pickup, in the subject and the body",
+    async () => {
+      const { popUp } = await library;
+      const m = farmOrderPlaced(popUp(), { links });
+
+      assert.match(m.subject, /, pickup at Pop-up at The Village Family/);
+      has(m.text, "- Pickup: Pop-up at The Village Family Fitness");
+      has(m.text, "- When: Sunday, October 18, between 10 AM and 2 PM");
+    });
+
+  it("names the old and new place when an order moves", async () => {
+    const { dropSite, market } = await library;
+    const m = orderChanged(market(), {
+      before: { lines: market().lines, totals: market().totals,
+        ...dropSite().fulfilment },
+      links,
+    });
+
+    has(m.text, "Before: Village Green, 46 Institute Lane");
+    has(m.text, "Saturday, October 17, between 10 and 11 AM");
+    has(m.text, "- Where: Foster Farmers Market, Shady Acres Diner");
+  });
+
+  it("names both places in the farm's notice of a move", async () => {
+    const { dropSite, market } = await library;
+    const m = farmPickupChanged(market(), {
+      before: dropSite().fulfilment, links,
+    });
+
+    has(m.text, "Was: **Drop site, Village Green, 46 Institute Lane");
+    has(m.text, "Now: **Foster Farmers Market, Shady Acres Diner");
+  });
+
+  it("groups a packet by occurrence, not by a fixed heading", async () => {
+    const { market, dropSite } = await library;
+    const m = farmPackingSlips([
+      { order: dropSite(), kind: "new", changes: [] },
+      { order: market(), kind: "new", changes: [] },
+    ], { day: "2026-10-06", slips: 2, links });
+
+    has(m.text, "**Drop site, Saturday, October 17, Village Green");
+    has(m.text, "**Foster Farmers Market, Sunday, October 25, Shady Acres");
+    assert.doesNotMatch(m.text, /Market pickup/);
+  });
 });
 
 describe("the monitoring emails", () => {
   const stats = {
-    placed: 4, paid: 3, paidByWebhook: 2, paidByPoll: 1, paidByHand: 0,
-    abandoned: 1, cancelled: 0, openUnpaid: 2, mailFailures: 0, runs: 96,
-    jobErrors: 0, invariants: 0,
+    placed: 4, paidByCard: 3, paidByVenmo: 1, declined: 1, cancelled: 0,
+    refunded: 0, open: 2, mailFailures: 0, runs: 96, jobErrors: 0,
+    invariants: 0,
   };
 
-  it("morning report: the day in numbers, then the pickups to decide",
-    () => {
-      const waiting = requested();
-      const denied = { ...requested(), id: "NFF-2610-EFGH", status: "paid" };
+  it("tomorrow's manifest: an order the farm made reads UNPAID with " +
+    "what is due (#181)", () => {
+    const owed = { ...order("delivery"), id: "NFF-2610-OWED",
+      status: "unpaid", payment: undefined, payments: [] };
+    const m = farmTomorrow([owed], { date: "2026-10-08", links });
 
-      denied.question = { kind: "window", openedAt: "x", answeredAt: null };
-      const m = farmMorningReport(stats, [waiting, denied], {
-        date: "2026-10-06", links,
-      });
+    assert.match(m.text, /NFF-2610-OWED[\s\S]*UNPAID, \$\d+ due/);
+    assert.doesNotMatch(m.text, /should have been canceled/);
+  });
 
-      assert.equal(m.subject, "Morning report: Tuesday, October 6");
-      has(m.text, "Vital signs: the last 24 hours");
-      assert.match(m.text, /Orders placed\s+4\s+🫥\n/, "a plain number");
-      assert.match(m.text,
-        /Paid by the 15-minute poll \(webhook missed\)\s+1\s+🫥\n/,
-        "some by poll, most by webhook: nothing to judge");
-      assert.match(m.text,
-        /Unpaid orders cancelled at the cutoff\s+1\s+🐣\n/);
-      assert.match(m.text,
-        /Jobs runs \(one every 15 minutes is 96\)\s+96\s+🐣\n/);
-      assert.match(m.html, new RegExp("text-align:right[^>]*>4</td><td " +
-        "[^>]*text-align:center[^>]*>🫥"), "figures right, marks centred");
-      assert.doesNotMatch(m.text, /Every payment came in by the poll/);
-      assert.doesNotMatch(m.text, /Waiting on a Venmo check/);
-      has(m.text, "These on-farm pickups are within two days and not " +
-        "confirmed, oldest order first.");
-      assert.match(m.text,
-        /Order\s+Customer\s+Requested\s+Paid\s+Waiting\s+Status\n/);
-      assert.match(m.text, new RegExp("NFF-2610-ABCD\\s+Pat Example\\s+" +
-        "Thursday, October 8, morning\\s+unpaid\\s+.*\\s+to confirm\\n"));
-      assert.match(m.text, new RegExp("NFF-2610-EFGH\\s+Pat Example\\s+" +
-        "Thursday, October 8, morning\\s+paid\\s+.*\\*\\*denied, not " +
-        "re-picked\\*\\*"));
-      has(m.text, "\n    bin/nff orders confirm <id>\n");
-      has(m.text, "\n    bin/nff orders confirm\n");
-      has(m.text, "Admin: https://admin.example.com");
+  it("morning report: the day in numbers, the pickups waiting on the " +
+    "customer, and a schedule running short", () => {
+    const denied = { ...order("onfarm"), id: "NFF-2610-EFGH",
+      status: "paid" };
 
-      const held = { ...order(), id: "NFF-2610-VNMO",
-        paymentPending: { at: "2026-10-05T20:00:00Z", source: "venmo" } };
-      const quiet = farmMorningReport({
-        ...stats, paidByWebhook: 0, paidByPoll: 3,
-      }, [], {
-        date: "2026-10-06", links, holds: [held],
-        now: new Date("2026-10-06T12:00:00Z"),
-      });
-
-      has(quiet.text, "No pickups waiting on a decision.");
-      has(quiet.text, "**Every payment came in by the poll.**");
-      assert.match(quiet.text,
-        /Paid by the 15-minute poll \(webhook missed\)\s+3\s+🤮\n/);
-      has(quiet.text, "Waiting on a Venmo check");
-      has(quiet.text, "- NFF-2610-VNMO, Pat Example, $67, Delivery " +
-        "Thursday, October 8, waiting 16 h");
-      has(quiet.text, "\n    bin/nff orders paid <id> --via venmo\n");
+    denied.question = { kind: "window", openedAt: "2026-10-05T12:00:00Z",
+      answeredAt: null };
+    const m = farmMorningReport(stats, [denied], {
+      date: "2026-10-06", links, now: new Date("2026-10-06T12:00:00Z"),
+      schedule: { last: "2026-10-16", until: "2026-10-19" },
+      square: { open: 1, cancelled: 1, profiles: 2, deleted: 0 },
     });
+
+    assert.equal(m.subject, "Morning report: Tuesday, October 6");
+    has(m.text, "Vital signs: the last 24 hours");
+    assert.match(m.text, /Orders placed\s+4\s+🫥\n/, "a plain number");
+    assert.match(m.text, /Paid by card or a wallet\s+3\s+🫥\n/);
+    assert.match(m.text, /Paid by Venmo\s+1\s+🫥\n/);
+    assert.match(m.text, /Payments declined\s+1\s+🐣\n/,
+      "a few declines are a healthy day");
+    assert.match(m.text, /Refunded\s+0\s+🫥\n/);
+    assert.match(m.text,
+      /Open orders, paid and not yet fulfilled\s+2\s+🫥\n/);
+    assert.match(m.text,
+      /Jobs runs \(one every 15 minutes is 96\)\s+96\s+🐣\n/);
+    assert.match(m.html, new RegExp("text-align:right[^>]*>4</td><td " +
+        "[^>]*text-align:center[^>]*>🫥"), "figures right, marks centred");
+    assert.doesNotMatch(m.text, /poll|Venmo check|invoice/i);
+    has(m.text, "The pickup schedule's last window is on Friday, " +
+        "October 16. It must reach the week of Monday, October 19.");
+    has(m.text, "\n    bin/nff schedule set <file>\n");
+    has(m.text, "A failed payment left 1 order open in Square, and the " +
+        "sweep canceled it. To see it:");
+    has(m.text, "\n    bin/nff jobs square\n");
+    has(m.text, "Square sweep: customer profiles from failed payments");
+    has(m.text, "Checkouts whose payment never went through made 2 " +
+        "customer profiles in Square. To see them:");
+    has(m.text, "\n    bin/nff jobs customers\n");
+    has(m.text, "We couldn't keep these pickup times and the customer " +
+        "hasn't chosen another yet, oldest order first.");
+    assert.match(m.text, /Order\s+Customer\s+Was\s+Waiting\n/);
+    assert.match(m.text, new RegExp("NFF-2610-EFGH\\s+Pat Example\\s+" +
+        "Thursday, October 8, 9 AM – noon\\s+24 h"));
+    assert.doesNotMatch(m.text, /\bunpaid\b|orders confirm/);
+    has(m.text, "Admin: https://admin.example.com");
+
+    const quiet = farmMorningReport({ ...stats, declined: 4 }, [], {
+      date: "2026-10-06", links, now: new Date("2026-10-06T12:00:00Z"),
+      schedule: { last: "2026-10-23", until: "2026-10-19" },
+    });
+
+    has(quiet.text, "No pickups waiting on the customer.");
+    has(quiet.text, "No messages waiting on an answer.");
+    assert.doesNotMatch(quiet.text, /Pickup schedule|Square sweep/);
+    assert.match(quiet.text, /Payments declined\s+4\s+🙈\n/,
+      "many declines are worth a look");
+
+    const left = (square) => farmMorningReport(stats, [], {
+      date: "2026-10-06", links, now: new Date("2026-10-06T12:00:00Z"),
+      schedule: { last: "2026-10-23", until: "2026-10-19" }, square,
+    }).text;
+
+    has(left({ open: 1, cancelled: 0 }),
+      "A failed payment left 1 order open in Square. To see it:");
+    has(left({ open: 2, cancelled: 0 }),
+      "Failed payments left 2 orders open in Square. To see them:");
+    has(left({ open: 3, cancelled: 1 }), "Failed payments left 3 orders " +
+      "open in Square. The sweep canceled 1, and 2 are still open. To see " +
+      "them:");
+    has(left({ open: 2, cancelled: 2 }), "Failed payments left 2 orders " +
+      "open in Square, and the sweep canceled them. To see them:");
+    has(left({ open: 1, cancelled: 0 }),
+      "Square sweep: open orders from failed payments");
+    // The kill switch set (#241): reported, never canceled.
+    has(left({ open: 2, cancelled: 0, paused: true }), "Failed payments " +
+      "left 2 orders open in Square. The Square deletion kill switch is " +
+      "set, so the sweep cancels nothing. To see them:");
+    // And for the profiles (#236): reported, never deleted.
+    has(left({ profiles: 1, deleted: 0, paused: true }), "Checkouts whose " +
+      "payment never went through made 1 customer profile in Square. The " +
+      "Square deletion kill switch is set, so the sweep deletes nothing. " +
+      "To see it:");
+    has(left({ profiles: 2, deleted: 2 }), "Checkouts whose payment never " +
+      "went through made 2 customer profiles in Square, and 2 were " +
+      "deleted. To see them:");
+  });
+
+  it("morning report: the messages not yet answered (#167)", () => {
+    const m = farmMorningReport(stats, [], {
+      date: "2026-10-06", links, now: new Date("2026-10-06T12:00:00Z"),
+      messages: [
+        { id: "aB3-x_9Q", name: "Sam Okafor", email: "sam@example.com",
+          orderId: "NFF-2610-ABCD", order: false,
+          at: "2026-10-03T12:00:00Z" },
+        { id: "Zz9yY8xX", name: "", email: "lee@example.com", orderId: "",
+          order: null, at: "2026-10-06T07:00:00Z" },
+      ],
+    });
+
+    has(m.text, "Messages waiting on an answer");
+    has(m.text, "\n    bin/nff messages done <id>\n");
+    assert.match(m.text, /Message\s+From\s+Order\s+Waiting\n/);
+    assert.match(m.text, new RegExp("aB3-x_9Q\\s+Sam Okafor\\s+" +
+      "NFF-2610-ABCD \\(not their order\\)\\s+3 days"));
+    assert.match(m.text, /Zz9yY8xX\s+lee@example\.com\s+5 h/,
+      "no name: the email; no order: nothing");
+    assert.doesNotMatch(m.text, /No messages waiting/);
+  });
+
+  it("morning report: lists 30 messages and counts the rest", () => {
+    const many = Array.from({ length: 33 }, (_, i) => ({
+      id: `m${String(i).padStart(2, "0")}`, name: "", email: "a@x.com",
+      orderId: "", order: null, at: "2026-10-03T12:00:00Z",
+    }));
+    const m = farmMorningReport(stats, [], {
+      date: "2026-10-06", links, now: new Date("2026-10-06T12:00:00Z"),
+      messages: many,
+    });
+
+    has(m.text, "m29");
+    assert.doesNotMatch(m.text, /m30|m32/);
+    has(m.text, "And 3 more. To see every one:");
+    has(m.text, "\n    bin/nff messages\n");
+
+    const exact = farmMorningReport(stats, [], {
+      date: "2026-10-06", links, now: new Date("2026-10-06T12:00:00Z"),
+      messages: many.slice(0, 30),
+    });
+
+    assert.doesNotMatch(exact.text, /more\. To see every one/);
+  });
 
   it("tomorrow: every order due, by method, with what to pack", () => {
     const delivery = { ...order(), status: "paid" };
-    const drop = { ...order("scituate"), id: "NFF-2610-DROP" };
-    const farm = { ...requested(), id: "NFF-2610-FARM", status: "paid" };
+    const drop = { ...order("scheduled"), id: "NFF-2610-DROP" };
+
+    drop.fulfilment.occurrence = "VFVQ-261017";
+    drop.fulfilment.date = "2026-10-17";
+    const farm = { ...order("onfarm"), id: "NFF-2610-FARM", status: "paid" };
 
     delivery.fulfilment.delivery.notes = "Dog in the yard";
     delivery.customer.phone = "401-555-0100";
@@ -520,27 +504,29 @@ describe("the monitoring emails", () => {
       "(per dozen), Large", "the pack list is nested");
     assert.match(m.html,
       /<li>Pack:<ul style="[^"]*padding-left:1.25em"><li>2 × Whole Chicken/);
-    has(m.text, "\nScituate drop, 10:00 – 11:00 AM (1)\n");
-    has(m.text, "**NFF-2610-DROP**, Pat Example, UNPAID");
+    has(m.text, "\nDrop site, Saturday, October 17, Village Green, 46 " +
+      "Institute Lane, North Scituate, RI 02857, 10 – 11 AM (1)\n");
+    has(m.text, "**NFF-2610-DROP**, Pat Example, paid");
     has(m.text, "\nOn-farm pickups (1)\n");
-    has(m.text, "**NFF-2610-FARM**, Pat Example, morning, NOT CONFIRMED, paid");
+    has(m.text, "**NFF-2610-FARM**, Pat Example, 9 AM – noon, paid");
 
-    // A confirmed pickup shows the hours; an unpaid delivery is flagged,
-    // since the cutoff should have cancelled it.
+    // A pickup confirmed before W11d shows its hours; a delivery unpaid
+    // from
+    // the invoice era is flagged, since nothing will pay it now.
+    const legacy = { ...order(), status: "submitted", payment: undefined };
     const confirmedFarm = { ...order("onfarm"), id: "NFF-2610-CONF",
       status: "paid" };
 
     confirmedFarm.fulfilment.state = "agreed";
     confirmedFarm.fulfilment.onfarm = { window: "morning",
       confirmed: { from: 9, to: 11 } };
-    const odd = farmTomorrow([order(), confirmedFarm], {
+    const odd = farmTomorrow([legacy, confirmedFarm], {
       date: "2026-10-08", links,
     });
 
     has(odd.text, "**NFF-2610-ABCD**, Pat Example, **UNPAID, past the " +
-      "cutoff: it should have been cancelled; check it before loading**");
-    has(odd.text, "**NFF-2610-CONF**, Pat Example, 9 – 11 AM (morning), " +
-      "confirmed, paid");
+      "cutoff: it should have been canceled. Check it before loading**");
+    has(odd.text, "**NFF-2610-CONF**, Pat Example, 9 – 11 AM, paid");
 
     const none = farmTomorrow([], { date: "2026-10-09", links });
 
@@ -556,9 +542,7 @@ describe("the monitoring emails", () => {
       [farmTomorrow([], { date: "2026-10-08", links }), "TOMORROW"],
       [farmAlert("mail.failed", {}, { links }), "SITE ALERT"],
       [farmOrderPlaced(order(), { links }), "NEW ORDER"],
-      [farmOrderPaid(order(), { links }), "PAYMENT RECEIVED"],
-      [farmVenmoClaimed(order(), { links }), "VENMO TO CHECK"],
-      [farmVenmoUnmatched([], { date: "2026-09-22", links }), "VENMO REPORT"],
+      [farmPickupChanged(order("onfarm"), { links }), "PICKUP MOVED"],
     ];
 
     for (const [m, tag] of tagged) {
@@ -567,7 +551,7 @@ describe("the monitoring emails", () => {
         `color:#5e5e5f">${tag.charAt(0)}${tag.slice(1).toLowerCase()}</p>`),
       m.subject);
     }
-    for (const m of [completeYourOrder(order(), { links }),
+    for (const m of [orderConfirmed(order("onfarm"), { links }),
       orderConfirmed(order(), { links })]) {
       assert.doesNotMatch(m.html,
         /letter-spacing:\.12em;text-transform:uppercase;color:#5e5e5f/,
@@ -594,72 +578,6 @@ describe("the monitoring emails", () => {
       has(m.text, "docs/monitoring.md");
       has(m.text, "Admin: https://admin.example.com");
     });
-});
-
-describe("payment reminders", () => {
-  it("say the amount, show the button, and link the order", () => {
-    for (const stage of ["soon", "nextDay", "final"]) {
-      const m = paymentReminder(order(), stage, {
-        orderUrl: url, settingsUrl: settings, links,
-      });
-
-      assert.match(m.text, /\$67/, stage);
-      assert.match(m.text, /Pay and confirm your order: https:\/\/squareup/,
-        stage);
-      assert.match(m.text, /Order number: \*\*NFF-2610-ABCD\*\*/, stage);
-      assert.doesNotMatch(m.text, /\(\$60\)|Subtotal/, stage);
-      assert.match(m.text, new RegExp(`View or cancel this order: ${url}`),
-        stage);
-      has(m.text, `Turn off payment reminders: ${settings}`, stage);
-      assert.doesNotMatch(m.subject, /NFF-2610-ABCD/, "not in the subject");
-    }
-  });
-
-  it("read as James wrote them, stage by stage", () => {
-    const at = (iso) => new Date(`${iso}T12:00:00Z`);
-    const soon = paymentReminder(order(), "soon");
-    const next = paymentReminder(order(), "nextDay", { now: at("2026-10-05") });
-    const last = paymentReminder(order(), "final", { now: at("2026-10-07") });
-
-    assert.equal(soon.subject, "Still waiting for payment");
-    has(soon.text, "You placed an order about an hour ago, and the " +
-      "invoice for $67 is still open. **Your order isn't final until " +
-      "it's paid.**");
-
-    assert.equal(next.subject, "Your order is waiting for payment");
-    has(next.text, "Your invoice for $67 from yesterday hasn't been paid " +
-      "yet. **Your order isn't final until we receive your payment.**");
-    has(next.text, "Confirm your order by 12 PM on Wednesday to keep your " +
-      "delivery appointment.");
-
-    assert.equal(last.subject,
-      "Last call: your unpaid order will be cancelled");
-    has(last.text, "**Your order will be cancelled and marked abandoned " +
-      "in your order history, unless you submit your payment today.**");
-    has(last.text, "Your invoice for $67 is still unpaid. Pay before 12 PM " +
-      "today to receive your delivery tomorrow.");
-    assert.doesNotMatch(soon.text, /abandoned/);
-  });
-
-  it("names the cutoff day in full when it is a week or more off", () => {
-    const m = paymentReminder(order(), "nextDay", {
-      now: new Date("2026-09-29T12:00:00Z"),
-    });
-
-    assert.match(m.text, /by 12 PM on Wednesday, October 7 to keep/);
-  });
-
-  it("gives a pickup, which has no cutoff, the plain last call", () => {
-    const m = paymentReminder(order("onfarm"), "final", {
-      now: new Date("2026-10-07T12:00:00Z"),
-    });
-
-    assert.doesNotMatch(m.text, /Pay before/);
-    has(m.text, "and on-farm pickup on Thursday, October 8, morning is " +
-      "coming up. Pay now to keep your spot.");
-    assert.doesNotMatch(paymentReminder(order("onfarm"), "nextDay").text,
-      /Confirm your order by/);
-  });
 });
 
 describe("delivery reminder", () => {
@@ -697,7 +615,7 @@ describe("delivery reminder", () => {
   });
 });
 
-describe("order changed and cancelled", () => {
+describe("order changed and canceled", () => {
   it("shows the current order with the cooler and notes", () => {
     const o = order();
 
@@ -705,7 +623,7 @@ describe("order changed and cancelled", () => {
     const m = orderChanged(o, { orderUrl: url, links });
 
     assert.equal(m.subject, "Your order is updated");
-    assert.match(m.text, /Pat, here's your current order\./);
+    assert.match(m.text, /Pat, your order has been updated\./);
     assert.match(m.text, /Order number: \*\*NFF-2610-ABCD\*\*/);
     assert.doesNotMatch(m.text, /\nOrder details\n/, "no heading here");
     has(m.text, "Where will we find your cooler? _**Side porch**_");
@@ -714,23 +632,263 @@ describe("order changed and cancelled", () => {
     assert.match(m.text, new RegExp(`View or edit this order: ${url}`));
   });
 
-  it("tells an unpaid cancellation nothing was charged", () => {
-    const m = orderCancelled(order(), { links });
+  it("marks each changed line and says what the change cost", () => {
+    const was = order();
+    const o = order();
 
-    assert.equal(m.subject, "Your order is cancelled");
-    has(m.text, "We cancelled your order. Your invoice is closed and you " +
-      "were not charged.");
-    assert.match(m.text, /Order number: \*\*NFF-2610-ABCD\*\*/);
-    assert.doesNotMatch(m.text, /refund/i);
+    was.lines = [
+      { sku: "A", label: "Whole Chicken", qty: 2 },
+      { sku: "B", label: "Eggs (per dozen)", qty: 1 },
+      { sku: "C", label: "Sausage", qty: 1 },
+    ];
+    was.totals = { ...was.totals, total: 9400 };
+    o.lines = [
+      { sku: "A", label: "Whole Chicken", qty: 2 },
+      { sku: "B", label: "Eggs (per dozen)", qty: 3 },
+    ];
+    o.totals = { ...o.totals, total: 10100 };
+
+    const before = { lines: was.lines, totals: was.totals };
+    const more = orderChanged(o, { links, difference: 700, before });
+
+    // Removals head the list, as plain lines (James, T4).
+    has(more.text, "\nRemoved\n- 1 × Sausage\n\nYour order now\n" +
+      "- 2 × Whole Chicken\n- 3 × Eggs (per dozen) (2 added)\n");
+    assert.doesNotMatch(more.text, /0 ×|removed\)/);
+    has(more.text, "- Total $101 (was $94, you paid $7 more)\n");
+    assert.doesNotMatch(more.text, /You paid|few days/);
+
+    const back = orderChanged(o, { links, difference: -2500, before });
+
+    has(back.text, "- Total $101 (was $94, you were refunded $25)\n");
+    has(back.text, "Most refunds arrive within a few business days.");
   });
 
-  it("tells a paid cancellation the refund is coming", () => {
-    const m = orderCancelled(order(), { refund: true, links });
+  it("groups part of a line taken out, and nothing when none was", () => {
+    const was = order();
+    const o = order();
 
-    has(m.text, "We cancelled your order for delivery on Thursday, " +
-      "October 8.");
-    has(m.text, "**Your refund is on its way.** Most refunds arrive within " +
-      "a few business days.");
+    o.lines = [{ ...was.lines[0], qty: 1 }, was.lines[1]];
+
+    const before = { lines: was.lines, totals: was.totals,
+      method: "delivery" };
+
+    has(orderChanged(o, { links, before }).text,
+      "\nRemoved\n- 1 × Whole Chicken, 3.5 – 3.9 lbs\n");
+    has(farmOrderChanged(o, { links, before }).text,
+      "\nRemoved\n- 1 × Whole Chicken, 3.5 – 3.9 lbs\n");
+    assert.doesNotMatch(
+      orderChanged(was, { links, before }).text, /Removed|order now/);
+  });
+
+  it("states the refund a cancellation sends back (T1a)", () => {
+    const m = orderCancelled(order(), { refunded: 6700, links });
+
+    assert.equal(m.subject, "Your order is canceled");
+    has(m.text, "We canceled your order for delivery on Thursday, " +
+      "October 8.\n**A refund of $67 is on its way.**\nMost refunds " +
+      "arrive within a few business days.");
+    assert.match(m.text, /Order number: \*\*NFF-2610-ABCD\*\*/);
+    assert.doesNotMatch(m.text, /charged/);
+  });
+
+  it("says a customer's own cancel was as they asked", () => {
+    const m = orderCancelled(order(), {
+      by: "customer", refunded: 6700, reason: "delay", links,
+    });
+
+    has(m.text, "October 8, as requested.");
+    assert.doesNotMatch(m.text, /ready in time/);
+  });
+
+  it("leaves out \"as requested\" after a missed delivery (C4)", () => {
+    const o = { ...order(), attempted: { cause: "customer", fee: 500 } };
+    const m = orderCancelled(o, { by: "customer", refunded: 6200, links });
+
+    has(m.text, "on Thursday, October 8.\n");
+    assert.doesNotMatch(m.text, /as requested/);
+  });
+
+  it("gives the farm's reason from the list, or its own words (T2a)", () => {
+    const pickup = {
+      ...order(), fulfilment: { ...order().fulfilment, method: "onfarm" },
+    };
+    const says = (o, options) =>
+      orderCancelled(o, { refunded: 6700, links, ...options }).text;
+
+    has(says(order(), { reason: "sold-out" }), "Something in your order " +
+      "sold out before our stock count caught up. We're sorry we didn't " +
+      "catch it before you placed your order.");
+    has(says(order(), { reason: "delay" }), "We couldn't get your order " +
+      "ready in time for Thursday, October 8.");
+    has(says(order(), { reason: "weather" }), "For everyone's safety, we " +
+      "won't deliver on Thursday, October 8 due to severe weather.");
+    has(says(pickup, { reason: "weather" }), "won't open for pickup on");
+    has(says(order(), { reason: "emergency" }), "Something urgent came up " +
+      "on the farm that needs us that day.");
+    has(says(order(), { reason: "mistake" }), "We made a mistake with " +
+      "your order, so we had to cancel it. We're sorry we didn't catch it " +
+      "before you placed your order.");
+    has(says(order(), { reasonText: "The truck broke down." }),
+      "October 8.\nThe truck broke down.\n**A refund");
+    assert.equal(Object.keys(CANCEL_REASONS).length, 5);
+  });
+
+  it("dates a refund made before the cancel", () => {
+    const m = orderCancelled(order(), {
+      refunded: 6700, refundedOn: "2026-10-07T02:00:00.000Z", links,
+    });
+
+    has(m.text, "**We refunded $67 on Tuesday, October 6.**");
+    assert.doesNotMatch(m.text, /on its way/);
+  });
+
+  const attempted = (fee) => ({
+    ...order(), attempted: { cause: "customer", fee, waived: !fee },
+  });
+  // The evening of the missed delivery.
+  const missedOn = new Date("2026-10-08T20:00:00Z");
+
+  it("warns a missed delivery that keeps its fee before they choose", () => {
+    const pick = "https://example.test/pick";
+    const m = missedDelivery(attempted(500),
+      { pickUrl: pick, links, now: missedOn });
+
+    assert.equal(m.subject, "We couldn't deliver your order");
+    has(m.text, "- Deliver it next Thursday, October 15, for " +
+      "another delivery fee of $5");
+    has(m.text, "- Have it ready for on-farm pickup or one of our pickup " +
+      "days, at no charge");
+    has(m.text, "- Cancel it, and we'll refund $62 for your items");
+    has(m.text, "Today's delivery fee of $5 isn't refunded, whichever " +
+      "you choose.");
+    has(m.text, `Reschedule or cancel: ${pick}`);
+    has(m.text, "We'll hold your order until Thursday, October 15. If " +
+      "you haven't chosen by then, we'll cancel it and refund $62 for " +
+      "your items.");
+  });
+
+  it("promises everything back when the missed fee is waived", () => {
+    const m = missedDelivery(attempted(0), { links, now: missedOn });
+
+    has(m.text, "- Deliver it next Thursday, October 15, at no " +
+      "extra charge");
+    has(m.text, "- Cancel it for a full refund of $67");
+    has(m.text, "we'll cancel it and refund it in full.");
+    assert.doesNotMatch(m.text, /isn't refunded|fee/);
+  });
+
+  it("names the missed day, and holds to the order's own date, when " +
+    "sent late (#193)", () => {
+    const m = missedDelivery({
+      ...attempted(500),
+      question: { kind: "missed", until: "2026-10-17" },
+    }, { links, now: new Date("2026-10-10T14:00:00Z") });
+
+    has(m.text, "We came by on Thursday, October 8 with your order but " +
+      "couldn't leave it: ");
+    has(m.text, "That day's delivery fee of $5 isn't refunded");
+    has(m.text, "We'll hold your order until Saturday, October 17.");
+    assert.doesNotMatch(m.text, /today|Today/);
+  });
+
+  it("says what we saw for each of the customer's causes (C6a)", () => {
+    const missed = (cause, extra = {}) => missedDelivery({
+      ...attempted(500), attempted: { cause, fee: 500, ...extra },
+    }, { links, now: missedOn }).text;
+    const d = order().fulfilment.delivery;
+    const lead = "We came by today with your order but couldn't leave it: ";
+    const tail = ". Your order is back at the farm.";
+
+    has(missed("no-cooler"), `${lead}we didn't find a cooler where you ` +
+      `told us (${d.cooler}), and we couldn't reach you by phone, text, ` +
+      `or the doorbell${tail}`);
+    has(missed("no-access", { detail: "the gate was locked" }), `${lead}we ` +
+      "couldn't get to where you asked us to leave it (the gate was " +
+      "locked), and we couldn't reach you by phone, text, or the doorbell");
+    has(missed("no-access"), "leave it, and we couldn't reach you");
+    has(missed("no-address"), `${lead}we couldn't find your address as ` +
+      `you gave it (${d.address1}, ${d.town}), and we couldn't reach ` +
+      `you${tail}`);
+    has(missed("customer"), `${lead}there was no cooler out, and we ` +
+      `couldn't reach you${tail}`);
+  });
+
+  it("moves a farm or weather miss to next Thursday, fee and all", () => {
+    // The record as moved: the new day, and the day we missed.
+    const moved = (cause, date = "2026-10-15") => {
+      const o = attempted(0);
+
+      return { ...o, fulfilment: { ...o.fulfilment, date },
+        attempted: { cause, date: o.fulfilment.date } };
+    };
+    const w = movedDelivery(moved("weather"), { links, now: missedOn });
+    const f = movedDelivery(moved("farm"), { links, now: missedOn });
+    const h = movedDelivery(moved("farm", "2026-10-22"),
+      { links, now: missedOn });
+
+    assert.equal(w.subject, "Your delivery has moved to next Thursday");
+    has(w.text, "The weather kept us from delivering your order today, so " +
+      "we've moved your delivery to next Thursday, October 15.");
+    has(f.text, "We weren't able to deliver your order today, so");
+    has(f.text, "you can choose another day, switch to on-farm pickup or " +
+      "one of our pickup days, or cancel for a full refund of $67");
+    has(f.text, "cancel for a full refund of $67, delivery fee included.");
+    // A holiday a week on: the day is named, not "next".
+    assert.equal(h.subject, "Your delivery has moved to Thursday, October 22");
+    has(h.text, "we've moved your delivery to Thursday, October 22.");
+    has(h.text, "If that day doesn't suit you");
+  });
+
+  it("names the missed day when the moved email is sent late, as the " +
+    "missed one does", () => {
+    const moved = (cause, extra = {}) => {
+      const o = attempted(0);
+
+      return { ...o, fulfilment: { ...o.fulfilment, date: "2026-10-15" },
+        attempted: { cause, date: o.fulfilment.date, ...extra } };
+    };
+    const later = new Date("2026-10-10T14:00:00Z");
+    const w = movedDelivery(moved("weather"), { links, now: later });
+    const f = movedDelivery(moved("farm"), { links, now: later });
+
+    has(w.text, "The weather kept us from delivering your order on " +
+      "Thursday, October 8, so we've moved your delivery to next " +
+      "Thursday, October 15.");
+    has(f.text, "We weren't able to deliver your order on Thursday, " +
+      "October 8, so we've moved your delivery to next Thursday");
+    assert.doesNotMatch(`${w.text}${f.text}`, /today|Today/);
+
+    // The day itself, even late in the evening, still reads "today".
+    const same = movedDelivery(moved("farm"),
+      { links, now: new Date("2026-10-09T02:00:00Z") });
+
+    has(same.text, "We weren't able to deliver your order today, so");
+
+    // A record from before the miss was dated has no day to name.
+    const undated = movedDelivery(moved("farm", { date: undefined }),
+      { links, now: later });
+
+    has(undated.text, "We weren't able to deliver your order today, so");
+  });
+
+  it("says why when the hold ran out", () => {
+    const m = orderCancelled(attempted(500),
+      { by: "hold", refunded: 6200, links });
+
+    has(m.text, "We held your order for seven days and didn't hear from " +
+      "you, so we've canceled it.");
+    has(m.text, "**A refund of $62 is on its way.**");
+  });
+
+  it("states the refund that went out after a missed delivery", () => {
+    const kept = orderCancelled(attempted(500), { refunded: 6200, links });
+    const full = orderCancelled(attempted(0), { refunded: 6700, links });
+
+    has(kept.text, "**A refund of $62 is on its way.**\nThe delivery " +
+      "fee of $5 isn't refunded because we made the trip.");
+    has(full.text, "**A refund of $67 is on its way.**");
+    assert.doesNotMatch(full.text, /delivery fee/);
   });
 });
 
@@ -758,9 +916,10 @@ describe("addresses and sign-in", () => {
       const m = addressReview(customer, { links });
 
       assert.match(m.subject, /Address to review: Pat Example/);
-      has(m.html, '<a href="https://admin.example.com/customers/' +
-        'pat%40example.com" style="color:#186243">Pat Example</a> saved an ' +
-        "address outside of the published delivery area.");
+      has(m.text, "Pat Example (pat@example.com) saved an address " +
+        "outside the published delivery area.");
+      assert.doesNotMatch(m.html, /admin\.example\.com\/customers/,
+        "no link to a dashboard page without the customer (T5b)");
       assert.match(m.text, /Location: \*\*5 Far Rd, Nowhere, MA 01234\*\*/);
       has(m.text, "View location in Maps: https://maps.apple.com/?address=" +
         "5%20Far%20Rd%2C%20Nowhere%2C%20MA%2001234");
@@ -777,23 +936,36 @@ describe("addresses and sign-in", () => {
       { links });
 
     assert.equal(m.subject, "Your secure sign-in link to North Foster Farm");
-    assert.match(m.text,
-      /Click the button below to sign in\. This link expires in 15 minutes\./);
+    has(m.text, "Sign in to North Foster Farm. This link works once, " +
+      "for the next 15 minutes.");
     assert.match(m.html, /href="https:\/\/x\/api\/auth\/verify\?t=1"/);
-    has(m.text, "If you didn't request this email, you can safely ignore " +
-      "it.");
+    has(m.text, "If you didn't ask for this, you can ignore it.");
     has(m.text, "Need help? Contact us: mailto:sales@northfosterfarm.com");
+  });
+
+  it("centers the account emails and no other", () => {
+    const centered = /border-radius:5px;padding:20px 24px;text-align:center/;
+
+    for (const m of [
+      magicLink("pat@example.com", "https://x/t", { links }),
+      emailChangeLink("pat@example.com", "https://x/t", { links }),
+      emailChanged("a@example.com", "b@example.com", { links }),
+    ]) {
+      assert.match(m.html, centered);
+    }
+    assert.doesNotMatch(orderConfirmed(order()).html, centered);
   });
 
   it("summarises an order in one line", () => {
     assert.equal(
       summaryLine(order()),
-      "NFF-2610-ABCD submitted $67 Delivery 2026-10-08 pat@example.com"
+      "NFF-2610-ABCD paid $67 Delivery 2026-10-08 pat@example.com"
     );
   });
 
   it("carries the farm's contact details in every message", () => {
-    for (const m of [completeYourOrder(order()), orderConfirmed(order())]) {
+    for (const m of [orderConfirmed(order("onfarm")),
+      orderConfirmed(order())]) {
       assert.match(both(m), /sales@northfosterfarm.com/);
       assert.match(both(m), /\(401\) 578-3713/);
     }
@@ -805,11 +977,7 @@ describe("where the order id belongs", () => {
 
   it("is out of every subject the customer reads, and in the body", () => {
     const customerMail = [
-      completeYourOrder(o),
       orderConfirmed(o),
-      paymentReminder(o, "soon"),
-      paymentReminder(o, "nextDay"),
-      paymentReminder(o, "final"),
       deliveryReminder(o),
       orderCancelled(o),
       orderChanged(o),
@@ -818,13 +986,13 @@ describe("where the order id belongs", () => {
     for (const m of customerMail) {
       assert.doesNotMatch(m.subject, /NFF-/, m.subject);
       assert.match(m.text, /Order number: \*\*NFF-2610-ABCD\*\*/, m.subject);
-      // The invoice prices the lines; no customer email repeats it.
+      // The receipt prices the lines; no customer email repeats it.
       assert.doesNotMatch(m.text, /\(\$/, m.subject);
     }
   });
 
   it("stays in the farm's subjects, which list many orders", () => {
-    for (const m of [farmOrderPlaced(o), farmOrderPaid(o)]) {
+    for (const m of [farmOrderPlaced(o), farmPickupChanged(order("onfarm"))]) {
       assert.match(m.subject, /NFF-2610-ABCD/);
     }
   });
@@ -843,14 +1011,45 @@ describe("the farm's own notices", () => {
   };
   const square = "https://app.squareup.com/dashboard/orders/overview/SO-1";
 
+  it("sends the account page's notices on the farm card", () => {
+    const o = reachable("delivery");
+    const c = o.customer;
+    const refund = farmRefundNeeded(o, c, { links });
+    const sync = farmSquareOutOfSync(o, c, { links });
+    const back = farmReturnRequest(o, c, {
+      id: "r1", reason: "Cracked <eggs>", skus: ["B"],
+    }, { links });
+    const help = farmSupport(c, {
+      subject: "Eggs", message: "Hi", orderId: o.id,
+    }, { links });
+
+    for (const [m, tag] of [[refund, "REFUND NEEDED"],
+      [sync, "SQUARE OUT OF SYNC"], [back, "RETURN REQUEST"],
+      [help, "SUPPORT"]]) {
+      has(m.text, `\n${tag}\n`);
+      assert.doesNotMatch(m.text, /View order:|View customer/, "T5b");
+      has(m.text, "Admin: https://admin.example.com");
+    }
+    has(refund.text, "Pat Example canceled paid order NFF-2610-ABCD, " +
+      "delivery on Thursday, October 8. Refund it and close it:\n\n" +
+      "    bin/nff orders cancel NFF-2610-ABCD\n");
+    has(sync.text, "Check the fulfillment in Square: delivery on " +
+      "Thursday, October 8.");
+    has(back.text, "Items: Eggs (per dozen), Large");
+    has(back.html, "Cracked &lt;eggs&gt;");
+    has(back.text, "    bin/nff returns resolve NFF-2610-ABCD r1\n");
+    has(help.text, "Pat Example wrote from their account page. Reply to " +
+      "this email to answer them.");
+  });
+
   it("says in the subject what it is, which order and how much", () => {
     assert.equal(
       farmOrderPlaced(reachable("delivery")).subject,
-      "New order NFF-2610-ABCD — $67, delivery"
+      "New order NFF-2610-ABCD: $67, delivery"
     );
     assert.equal(
-      farmOrderPaid(reachable("onfarm")).subject,
-      "Paid: order NFF-2610-ABCD — $62"
+      farmOrderPlaced(reachable("onfarm")).subject,
+      "New order NFF-2610-ABCD: $62, on-farm pickup"
     );
   });
 
@@ -865,11 +1064,9 @@ describe("the farm's own notices", () => {
       "prefers a text");
     assert.match(m.html, new RegExp("<li><span [^>]*user-select:all\">" +
       "pat@example.com</span></li>"), "the address is set for copying");
-    has(m.text, "View customer: https://admin.example.com/customers/" +
-      "pat%40example.com");
     assert.match(m.text, /\nOrder details\n/);
-    assert.match(m.text,
-      /View order: https:\/\/admin.example.com\/orders\/NFF-2610-ABCD/);
+    assert.doesNotMatch(m.text, /View order:|View customer/,
+      "the dashboard doesn't show the site's orders yet (T5b)");
     assert.match(m.text, /Order number: \*\*NFF-2610-ABCD\*\*/);
     assert.match(m.text, /- 2 × Whole Chicken, 3.5 – 3.9 lbs \(\$60\)/);
     has(m.text, "- Subtotal $67\n- Bulk discount ($50+) −$5\n" +
@@ -879,8 +1076,9 @@ describe("the farm's own notices", () => {
     assert.match(m.text, /- Cooler: Side porch/);
     assert.match(m.text, /- Gate or door code: 1234/);
     assert.match(m.text, /- Notes: Dog in the yard\./);
-    assert.match(m.text, /Invoice status: \*\*Sent, unpaid\*\*/);
-    assert.ok(m.text.includes(`View invoice in Square: ${square}`));
+    has(m.text, "Paid: **$67 by Visa ending 4242**");
+    assert.ok(m.text.includes(`View order in Square: ${square}`));
+    assert.doesNotMatch(m.text, /invoice/i);
     has(m.html, '<a href="https://admin.example.com" ' +
       'style="color:#186243">Admin</a>');
   });
@@ -891,6 +1089,16 @@ describe("the farm's own notices", () => {
     o.totals.deliveryFee = 0;
     assert.match(farmOrderPlaced(o).text, /Delivery fee waived/);
     assert.doesNotMatch(farmOrderPlaced(order("onfarm")).text, /Delivery fee/);
+  });
+
+  it("names the outside-area fee on its own line", () => {
+    const o = order("delivery");
+
+    o.totals = {
+      ...o.totals, deliveryFee: 800, areaFee: 300, total: o.totals.total + 300,
+    };
+    has(farmOrderPlaced(o).text,
+      "- Delivery fee +$5\n- Outside-area fee +$3\n- Total $70");
   });
 
   it("sets the order number for copying, farm side only", () => {
@@ -905,25 +1113,78 @@ describe("the farm's own notices", () => {
     const m = farmOrderPlaced(reachable("onfarm"), { links });
 
     assert.match(m.text, /Order type: \*\*On-farm pickup\*\*/);
-    assert.match(m.text, /- When: Thursday, October 8, morning/);
+    assert.match(m.text, /- When: Thursday, October 8, 9 AM – noon/);
     assert.doesNotMatch(m.text, /prefers a call|Cooler/);
   });
 
-  it("reports a payment in three lines", () => {
-    const m = farmOrderPaid(reachable("delivery"), {
-      squareUrl: square, links,
-    });
+  it("says how the money came, in the farm's words", () => {
+    const paidBy = (payment) => paymentPhrase({ ...order(), payment });
 
-    assert.match(m.text, /Payment received\./);
-    assert.match(m.text,
-      /View order: https:\/\/admin.example.com\/orders\/NFF-2610-ABCD/);
-    assert.ok(m.text.includes(`View invoice in Square: ${square}`));
-    assert.doesNotMatch(m.text, /Whole Chicken/);
+    assert.equal(paymentPhrase(order()), "$67 by Visa ending 4242");
+    assert.equal(paidBy({ via: "square", method: "card", brand: "MASTERCARD",
+      last4: "0005" }), "$67 by Mastercard ending 0005");
+    assert.equal(paidBy({ via: "square", method: "card", brand:
+      "AMERICAN_EXPRESS", last4: "1001" }),
+    "$67 by American Express ending 1001");
+    assert.equal(paidBy({ via: "square", method: "applepay", brand: "VISA",
+      last4: "4242" }), "$67 by Apple Pay");
+    assert.equal(paidBy({ via: "square", method: "googlepay" }),
+      "$67 by Google Pay");
+    assert.equal(paidBy({ via: "square", method: "cashapp" }),
+      "$67 by Cash App Pay");
+    assert.equal(paidBy({ via: "venmo", method: "venmo" }), "$67 by Venmo");
+    assert.equal(paidBy({ via: "cash" }), "$67 by cash");
+    assert.equal(paidBy({ via: "square", method: "card" }), "$67 by card",
+      "no last four known");
+    assert.equal(paymentPhrase({ ...order(), payment: undefined }),
+      "$67 by card", "a record from before payments were kept");
+    has(farmOrderPlaced({ ...order(), payment: { via: "venmo",
+      method: "venmo" } }).text, "Paid: **$67 by Venmo**");
+    // Changed after paying: each payment, in order.
+    assert.equal(paymentPhrase({ ...order(), payments: [
+      { amount: 6200, via: "square", method: "card", brand: "VISA",
+        last4: "4242" },
+      { amount: 500, via: "venmo", method: "venmo" },
+    ] }), "$62 by Visa ending 4242, then $5 by Venmo");
   });
 
   it("leaves out the links it has no address for", () => {
     const m = farmOrderPlaced(order("onfarm"));
 
     assert.doesNotMatch(m.text, /View customer|View order|Square|Admin:/);
+  });
+});
+
+describe("item labels (#321)", () => {
+  const old = {
+    ...order("onfarm"),
+    lines: [
+      { sku: "NFF-CHK-WNG-0000-0200", label: "Wings, under 2.0 lbs",
+        qty: 2, lineTotal: 20 },
+      { sku: "NFF-CHK-LVR-10-14", label: "Other Items, Livers", qty: 1,
+        lineTotal: 7 },
+      { sku: "GONE", label: "Retired Thing", qty: 1, lineTotal: 5 },
+    ],
+  };
+
+  it("name a stored line as the catalog does now", () => {
+    const m = orderConfirmed(old, { links: {} });
+
+    assert.match(m.text, /2 × Wings, 1\.0 – 1\.9 lbs/);
+    assert.match(m.text, /1 × Livers, 1\.0 – 1\.4 lbs/);
+    assert.doesNotMatch(m.text, /under 2\.0|Other Items, Livers/);
+  });
+
+  it("keep the stored label for a SKU the catalog lacks", () => {
+    assert.match(orderConfirmed(old, { links: {} }).text,
+      /1 × Retired Thing/);
+  });
+
+  it("name the pack list and a return request the same way", () => {
+    assert.match(farmTomorrow([old], { date: "2026-10-08", links: {} }).text,
+      /2 × Wings, 1\.0 – 1\.9 lbs/);
+    assert.match(farmReturnRequest(old, old.customer,
+      { skus: ["NFF-CHK-WNG-0000-0200"] }, { links: {} }).text,
+    /Wings, 1\.0 – 1\.9 lbs/);
   });
 });

@@ -1,0 +1,60 @@
+{
+  "_comment": "Buying groups (#471). A group's members hold a private code (in Blobs, never here) that unlocks its series, a private pickup place, and the group's member price list: `priceLock.prices` is the retail price of every SKU on the day of the lock, and a member pays the lower of that and today's retail through `priceLock.through`. `name` is the one setting for what members see. The host reward and the round minimum are the farm's policy, read by the round close.",
+  "groups": [
+    {
+      "key": "vff",
+      "name": "The Village Family Fitness",
+      "location": "NR9D",
+      "series": "36TS",
+      "hostReward": {
+        "percent": 10,
+        "threshold": 300
+      },
+      "roundMinimum": null,
+      "priceLock": {
+        "from": "2026-10-26",
+        "through": "2027-12-31",
+        "catalog": "2026-v9",
+        "prices": {
+          "NFF-CHK-EGG-LG": 7,
+          "NFF-CHK-EGG-MD": 5,
+          "NFF-CHK-EGG-SM": 2,
+          "NFF-CHK-WHL-20-24": 20,
+          "NFF-CHK-WHL-25-29": 24,
+          "NFF-CHK-WHL-30-34": 26,
+          "NFF-CHK-WHL-35-39": 30,
+          "NFF-CHK-WHL-40-44": 34,
+          "NFF-CHK-WHL-45-49": 40,
+          "NFF-CHK-WHL-50-59": 46,
+          "NFF-CHK-WHL-60-69": 52,
+          "NFF-CHK-WHL-70-79": 60,
+          "NFF-CHK-CRN-0000-0300": 20,
+          "NFF-CHK-CRN-0300-0400": 24,
+          "NFF-CHK-BRSBL-10-12": 15,
+          "NFF-CHK-BRSBL-13-14": 20,
+          "NFF-CHK-BRSBL-15-16": 24,
+          "NFF-CHK-BRSBL-17-99": 28,
+          "NFF-CHK-THGBN-10-14": 12,
+          "NFF-CHK-THGBN-15-19": 17,
+          "NFF-CHK-THGBN-20-99": 20,
+          "NFF-CHK-TND-10-12": 15,
+          "NFF-CHK-TND-13-14": 20,
+          "NFF-CHK-TND-15-99": 24,
+          "NFF-CHK-DRM-10-14": 8,
+          "NFF-CHK-DRM-15-99": 10,
+          "NFF-CHK-WNG-10-19": 10,
+          "NFF-CHK-WNG-20-29": 16,
+          "NFF-CHK-WNG-30-99": 20,
+          "NFF-CHK-GRD-0000-0125": 12,
+          "NFF-CHK-GRD-0125-0175": 15,
+          "NFF-CHK-SAUMPL": 18,
+          "NFF-CHK-SAUSWT": 18,
+          "NFF-CHK-LVR-10-14": 7,
+          "NFF-CHK-NCK-10-19": 5,
+          "NFF-CHK-FET-0075-0125": 5,
+          "NFF-CHK-BCK-10-19": 5
+        }
+      }
+    }
+  ]
+}

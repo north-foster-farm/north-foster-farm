@@ -1,0 +1,75 @@
+name: CodeQL
+
+# Static analysis of the JavaScript, only for changes headed to next,
+# staging or main: a pull request into one of them, or a push to one.
+# The check is named codeql. It is required on staging and main, and
+# runs as a signal on next, which requires no check. It fails on an
+# open high or critical alert (bin/codeql/gate.mjs). Dismissing an
+# alert in GitHub, with a reason, is the recorded exception and is
+# James's call.
+#
+# A commit is scanned once. Staging and main move only by fast-forward,
+# so the commit on them already has an analysis from the push to next,
+# and the run finds it by SHA, skips the scan and checks the alerts on
+# the branch it was made for. A pull request whose base is behind its
+# head merges to exactly its head, so it reuses the head's analysis the
+# same way.
+#
+# The log holds counts only; the alerts themselves are in GitHub's code
+# scanning, not here.
+
+on:
+  pull_request:
+    branches: [next, staging, main]
+  push:
+    branches: [next, staging, main]
+
+permissions: {}
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  codeql:
+    name: codeql
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Look for an analysis of this commit
+        id: seen
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: node bin/codeql/gate.mjs seen
+
+      - uses: github/codeql-action/init@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
+        if: steps.seen.outputs.seen != 'true'
+        with:
+          languages: javascript-typescript
+          build-mode: none
+
+      - uses: github/codeql-action/analyze@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
+        if: steps.seen.outputs.seen != 'true'
+        with:
+          category: /language:javascript-typescript
+
+      - name: Fail on a high or critical alert
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REF: ${{ steps.seen.outputs.ref || github.ref }}
+        run: node bin/codeql/gate.mjs check

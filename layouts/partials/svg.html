@@ -1,6 +1,60 @@
-{{ $svg := . }}
-{{ $class := print $svg }}
-{{ $match := "<svg (.*)?>(.*)</svg>" }}
+{{/*
+  An SVG from a file under assets/images, inline. Every SVG in markup
+  comes through here: no template writes an <svg> of its own (#295,
+  docs/svg.md), and test/svg.test.mjs fails on one that does.
 
-{{ $replaceWith := printf `<svg class="%s" ${1}>${2}</svg>` $class }}
-{{ return (replaceRE $match $replaceWith (printf "/assets/images/%s.svg" $svg | readFile) | safeHTML) }}
+  The file's path under assets/images, without ".svg", as is:
+    partial "svg.html" "icons/search"
+
+  A dict adds attributes to the file's root <svg>. An empty value
+  writes the attribute bare (hidden, a data- hook):
+    partial "svg.html" (dict "src" "icons/play"
+      "class" "video-toggle-play" "aria-hidden" "true")
+
+  "use" in place of "src" draws a symbol from a sprite already on the
+  page (partials/avatars.html), in an <svg> with the attributes given:
+    partial "svg.html" (dict "use" "avatar-hen-brown"
+      "class" "account-avatar" "aria-hidden" "true")
+
+  A file with ids is refused unless the dict sets "sprite" to true. An
+  SVG inlined twice on a page repeats its ids, which is invalid HTML
+  and points every url(#id) at the first copy, so only a sprite,
+  included once a page, may keep them.
+*/}}
+{{ $args := . }}
+{{ if not (reflect.IsMap $args) }}
+  {{ $args = dict "src" $args }}
+{{ end }}
+
+{{ $attrs := "" }}
+{{ range $name, $value := $args }}
+  {{ if not (in (slice "src" "use" "sprite") $name) }}
+    {{ if eq (print $value) "" }}
+      {{ $attrs = printf "%s %s" $attrs $name }}
+    {{ else }}
+      {{ $attrs = printf `%s %s="%s"` $attrs $name (print $value | htmlEscape) }}
+    {{ end }}
+  {{ end }}
+{{ end }}
+
+{{ $svg := "" }}
+{{ with $args.use }}
+  {{ $svg = printf `<svg%s><use href="#%s"/></svg>` $attrs . }}
+{{ else }}
+  {{ $file := printf "/assets/images/%s.svg" $args.src }}
+  {{ $svg = readFile $file }}
+  {{ if and (findRE `\sid="` $svg 1) (not $args.sprite) }}
+    {{ errorf "svg.html: %s has ids; only a sprite may (docs/svg.md)" $file }}
+  {{ end }}
+  {{ if $attrs }}
+    {{ $root := index (findRE `^<svg[^>]*>` $svg 1) 0 }}
+    {{ range $name, $value := $args }}
+      {{ if in $root (printf " %s=" $name) }}
+        {{ errorf "svg.html: %s already sets %s" $file $name }}
+      {{ end }}
+    {{ end }}
+    {{ $svg = replace $svg "<svg" (printf "<svg%s" $attrs) 1 }}
+  {{ end }}
+{{ end }}
+
+{{ return ($svg | safeHTML) }}

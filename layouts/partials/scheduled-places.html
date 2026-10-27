@@ -1,0 +1,52 @@
+{{- /*
+  The farm's scheduled pickup places as the build knows them: the
+  series of data/series.json that are not archived, each with its
+  location's facts from data/locations.json. Returns a dict: `series`
+  (the list, in the file's order) and `drop` (the drop site's series,
+  or nil). Never which dates are open, attended or skipped: the
+  schedule changes without a rebuild, so a page fills that from
+  /api/dates and /api/events at view time.
+
+  A series has `code`, `kind`, `name`, `location` (the location's
+  name), `locationCode`, `town`, `place` (the full line), `short`,
+  `weekday` (0 is Sunday), `day`, `window` ("10:00 – 11:00 AM"), `start`, `end` (empty
+  when open-ended), `href` and `order` (the order page's link for it).
+*/ -}}
+{{- $locations := hugo.Data.locations.locations -}}
+{{- $zone := hugo.Data.delivery.timeZone -}}
+{{- $out := slice -}}
+{{- $drop := false -}}
+{{- range hugo.Data.series.series -}}
+  {{- $s := . -}}
+  {{- $loc := index (where $locations "code" $s.location) 0 -}}
+  {{- /* A buying group's series is never listed (#471). */ -}}
+  {{- if not (or $s.archived $loc.archived $s.group) -}}
+    {{- $from := time.AsTime (print "2006-01-02T" $s.opens ":00Z") -}}
+    {{- $to := time.AsTime (print "2006-01-02T" $s.closes ":00Z") -}}
+    {{- $window := print ($from.Format "3:04") " " ($from.Format "PM") " – " ($to.Format "3:04") " " ($to.Format "PM") -}}
+    {{- if eq ($from.Format "PM") ($to.Format "PM") -}}
+      {{- $window = print ($from.Format "3:04") " – " ($to.Format "3:04") " " ($to.Format "PM") -}}
+    {{- end -}}
+    {{- $weekday := int (time.AsTime $s.start $zone).Weekday -}}
+    {{- $item := dict
+      "code" $s.code
+      "kind" $s.kind
+      "name" $s.name
+      "location" $loc.name
+      "locationCode" $s.location
+      "town" ($s.town | default $loc.town)
+      "place" ($s.place | default (printf "%s, %s, %s" $loc.name $loc.street $loc.city))
+      "short" ($s.short | default $loc.short | default (printf "%s, %s, %s" $loc.name $loc.street $loc.city))
+      "weekday" $weekday
+      "day" (partial "weekday.html" $weekday)
+      "window" $window
+      "start" $s.start
+      "end" ($s.end | default "")
+      "href" ($s.href | default "")
+      "order" (printf "%s?method=scheduled&series=%s" (relURL "order/") $s.code)
+    -}}
+    {{- if and (eq $s.kind "drop-site") (not $drop) }}{{ $drop = $item }}{{ end -}}
+    {{- $out = $out | append $item -}}
+  {{- end -}}
+{{- end -}}
+{{- return (dict "series" $out "drop" $drop) -}}

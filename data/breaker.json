@@ -1,0 +1,12 @@
+{
+  "perHour": 25,
+  "perDay": 100,
+  "windowHours": 2,
+  "bounce": { "rate": 0.1, "minSends": 10, "minBounces": 3 },
+  "complaint": { "count": 2 },
+  "ledgerWaitMs": 1500,
+  "ledgerTries": 3,
+  "unsentKeep": 500,
+  "unsentMaxAgeHours": 72,
+  "keepHours": 72
+}

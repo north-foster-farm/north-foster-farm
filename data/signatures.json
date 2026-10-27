@@ -1,0 +1,21 @@
+{
+  "shared": {
+    "site": "https://www.northfosterfarm.com",
+    "images": "https://www.northfosterfarm.com/email-signature",
+    "logo": "logo-horizontal.png",
+    "globe": "globe.png",
+    "instagram": {
+      "image": "instagram.png",
+      "url": "https://instagram.com/northfosterfarm",
+      "handle": "northfosterfarm"
+    },
+    "color": "#297D5B",
+    "thanks": "Thank you for supporting local farms."
+  },
+  "closings": ["Thanks,", "Thank you,", "Best,", "Talk soon!"],
+  "variants": [
+    { "id": "james", "label": "James", "name": "James Boynton" },
+    { "id": "jim", "label": "Jim", "name": "Jim Boynton" },
+    { "id": "team", "label": "The NFF Team", "name": "The NFF Team" }
+  ]
+}

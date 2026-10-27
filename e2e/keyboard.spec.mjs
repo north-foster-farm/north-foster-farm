@@ -1,0 +1,455 @@
+// The keyboard half of the deferred manual pass (#197, #157): Tab
+// through every page as a keyboard user would, wide and narrow, and
+// check what a person tabbing would see.
+//
+// - Each stop is visible, on screen, and not hidden under something
+//   else (a sticky header, a floating cart).
+// - Each stop shows a focus ring: its outline or box-shadow, or a
+//   near parent's, changes when it takes the focus. A radio or
+//   checkbox drawn by its label shows the ring on the label.
+// - Every visible control is reached (one radio per group is enough).
+// - Tab reaches the end of the page and doesn't loop inside it.
+// - Escape closes the site menu, the header's cart and account menus,
+//   the order page's floating cart and product search, and gives the
+//   focus back to what opened it; search and the site menu keep the
+//   focus inside while open.
+//
+// WebKit tabs to form fields only unless Safari's "Press Tab to
+// highlight each item" is on; Option-Tab is the same with it on, so
+// WebKit presses Alt+Tab. Answers from the functions are canned, so
+// this runs on a local build as well as staging and creates nothing.
+// The order page's lapsed dialog opens only after a card is taken, so
+// it isn't reached here.
+
+import {
+  FULL_CART, OrderPage, expect, test, unfoldCart,
+} from "./support/order.mjs";
+import {
+  ACCOUNT_TABS, cannedDates, keepHome, signedIn, sitemap,
+} from "./support/canned.mjs";
+
+const WIDTHS = [1280, 390];
+
+// Not in the sitemap. /account/ is walked signed in, below.
+const UNLISTED = ["/login/", "/404.html"];
+
+// Helpers the walk calls in the page, installed on every load.
+const install = () => {
+  const name = (el) => {
+    const id = el.id ? `#${el.id}` : "";
+    const classes = [...el.classList].slice(0, 2).map((c) => `.${c}`);
+    const label = (el.getAttribute("aria-label")
+      || el.textContent || el.value || "").trim().replace(/\s+/g, " ");
+
+    return `${el.tagName.toLowerCase()}${id}${classes.join("")}${
+      label ? ` "${label.slice(0, 40)}"` : ""}`;
+  };
+
+  // A control hidden behind its label (shrunk to nothing, or clear
+  // over it) shows focus on the label.
+  const shownFor = (el) => {
+    const r = el.getBoundingClientRect();
+    const hidden = r.width <= 1 || r.height <= 1
+      || getComputedStyle(el).opacity === "0";
+
+    return hidden && el.labels?.length ? el.labels[0] : el;
+  };
+
+  const visible = (el) => {
+    const r = el.getBoundingClientRect();
+
+    if (r.width <= 1 || r.height <= 1) return false;
+    // WebKit gives an SVG shape under display: none a box of its own.
+    if (el.checkVisibility && !el.checkVisibility()) return false;
+    if (getComputedStyle(el).visibility === "hidden") return false;
+    for (let a = el; a; a = a.parentElement) {
+      if (getComputedStyle(a).opacity === "0") return false;
+    }
+
+    return true;
+  };
+
+  const onScreen = (el) => {
+    const r = el.getBoundingClientRect();
+
+    return r.bottom > 0 && r.right > 0
+      && r.top < innerHeight && r.left < innerWidth;
+  };
+
+  // What sits over the middle of the element, if anything.
+  const coveredBy = (el) => {
+    const r = el.getBoundingClientRect();
+    const x = Math.min(Math.max(r.left + r.width / 2, 0), innerWidth - 1);
+    const y = Math.min(Math.max(r.top + r.height / 2, 0), innerHeight - 1);
+    const top = document.elementFromPoint(x, y);
+
+    if (!top || el.contains(top) || top.contains(el)) return null;
+
+    return name(top);
+  };
+
+  // An SVG control (a map pin) has no box to ring; its shape's
+  // stroke, which the site restyles on focus, stands in for one.
+  const ring = (el) => {
+    const s = getComputedStyle(el);
+    const outline = s.outlineStyle !== "none"
+      && parseFloat(s.outlineWidth) > 0
+      && s.outlineColor !== "rgba(0, 0, 0, 0)";
+    const shape = el instanceof SVGElement && el.querySelector("path");
+    const stroke = shape ? getComputedStyle(shape) : null;
+
+    return {
+      outline: outline ? `${s.outlineStyle} ${s.outlineWidth} ${
+        s.outlineColor}` : "",
+      shadow: s.boxShadow === "none" ? "" : s.boxShadow,
+      stroke: stroke ? `${stroke.stroke} ${stroke.strokeWidth}` : "",
+    };
+  };
+
+  // The ring may be drawn by the control or a near parent: an input
+  // group rings its field and button as one, an order row its
+  // stepper.
+  const rings = (el) => {
+    const chain = [];
+
+    for (let a = el; a && chain.length < 4; a = a.parentElement) {
+      chain.push(ring(a));
+    }
+
+    return chain;
+  };
+
+  const changed = (was, now) => (was.outline && was.outline !== now.outline)
+    || (was.shadow && was.shadow !== now.shadow)
+    || (was.stroke && was.stroke !== now.stroke);
+
+  const kbd = { seen: new WeakSet(), stops: [], candidates: [] };
+
+  // After each Tab: judge the stop now focused, and keep how it looks
+  // for kbdNoRing.
+  window.kbdStep = () => {
+    const out = {};
+    const el = document.activeElement;
+
+    if (!el || el === document.body || el === document.documentElement) {
+      return { end: true };
+    }
+
+    const shown = shownFor(el);
+
+    out.name = name(el);
+    // Square's card fields are its own iframe, passed over. The stub
+    // SDK's plain fields (fake payments, a local run) stand in for it
+    // and ship nowhere, so they are passed over the same way.
+    out.iframe = el.tagName === "IFRAME" || !!el.closest("[data-fake-card]");
+    out.repeat = kbd.seen.has(el);
+    kbd.seen.add(el);
+    out.invisible = !visible(shown);
+    out.offScreen = !out.invisible && !onScreen(shown);
+    out.coveredBy = out.invisible || out.offScreen ? null : coveredBy(shown);
+    if (!out.iframe && !out.repeat) {
+      kbd.stops.push({ shown, name: out.name, rings: rings(shown) });
+    }
+
+    return out;
+  };
+
+  // The same judgement of the stop still focused, a moment later, and
+  // nothing recorded: a page still settling (the order page's late
+  // stock and dates) can move a stop after the browser scrolled to it.
+  window.kbdLook = () => {
+    const shown = shownFor(document.activeElement);
+    const invisible = !visible(shown);
+    const offScreen = !invisible && !onScreen(shown);
+
+    return {
+      invisible,
+      offScreen,
+      coveredBy: invisible || offScreen ? null : coveredBy(shown),
+      // Where it is, for a report that must say why it is off screen.
+      at: (({ top, bottom }) => `${Math.round(top)}..${Math.round(
+        bottom)} of ${innerHeight} at scrollY ${Math.round(scrollY)}`)(
+        shown.getBoundingClientRect()),
+    };
+  };
+
+  // Once nothing has the focus: the stops that looked no different
+  // with it. Judged here rather than as the focus moves on, since a
+  // parent's ring stays while the focus moves within it.
+  window.kbdNoRing = () => {
+    document.activeElement?.blur();
+
+    return kbd.stops.filter(({ shown, rings: was }) => {
+      const now = rings(shown);
+
+      return !was.some((ring0, i) => now[i] && changed(ring0, now[i]));
+    }).map((stop) => stop.name);
+  };
+
+  const TABBABLE = "a[href], button, input:not([type='hidden']), select, " +
+    "textarea, summary, iframe, [tabindex], [contenteditable='true']";
+
+  window.kbdStart = () => {
+    kbd.candidates = [...document.querySelectorAll(TABBABLE)]
+      .filter((el) => el.tabIndex >= 0 && !el.disabled
+        && !el.closest("[inert]") && visible(shownFor(el)));
+
+    // Blur alone leaves Tab going on from where the focus was, so
+    // start from a mark at the very top, outside the Tab order.
+    const start = document.createElement("span");
+
+    start.tabIndex = -1;
+    document.body.prepend(start);
+    start.focus({ preventScroll: true });
+
+    return kbd.candidates.length;
+  };
+
+  // Controls Tab never reached; a radio group counts once reached.
+  window.kbdMissed = () => kbd.candidates
+    .filter((el) => !kbd.seen.has(el))
+    .filter((el) => !(el.type === "radio" && el.name
+      && [...document.getElementsByName(el.name)]
+        .some((r) => kbd.seen.has(r))))
+    .map(name);
+};
+
+const tabKey = (browserName) => (browserName === "webkit" ? "Alt+Tab"
+  : "Tab");
+
+// Tabs from the top of the page to its end and returns what went
+// wrong, each once.
+const walk = async (page, key) => {
+  const problems = [];
+  const count = await page.evaluate(() => window.kbdStart());
+  const limit = count + 40;
+  let steps = 0;
+
+  for (; steps < limit; steps += 1) {
+    await page.keyboard.press(key);
+
+    // WebKit scrolls to the focus a frame or two after it moves, and a
+    // page with smooth scrolling glides for longer: read the stop once
+    // scrollY has held for three frames (at most 60 frames, about a
+    // second).
+    let s = await page.evaluate(() => new Promise((done) => {
+      let last = -1;
+      let steady = 0;
+      let frames = 0;
+      const look = () => {
+        frames += 1;
+        steady = scrollY === last ? steady + 1 : 0;
+        last = scrollY;
+        if (steady >= 3 || frames >= 60) done(window.kbdStep());
+        else requestAnimationFrame(look);
+      };
+
+      requestAnimationFrame(look);
+    }));
+
+    if (s.end) break;
+    if (s.iframe) continue;
+    if (s.repeat) {
+      problems.push(`Tab loops without reaching the end, back at ${s.name}`);
+      break;
+    }
+    // A stop that looks hidden is looked at again once the page has
+    // had a moment: only one still hidden then is a fault.
+    if (s.invisible || s.offScreen || s.coveredBy) {
+      await page.waitForTimeout(300);
+      s = { ...s, ...await page.evaluate(() => window.kbdLook()) };
+    }
+    if (s.invisible) problems.push(`focus on something unseen: ${s.name}`);
+    if (s.offScreen) problems.push(`focus off screen: ${s.name} (${s.at})`);
+    if (s.coveredBy) {
+      problems.push(`focus hidden under ${s.coveredBy}: ${s.name}`);
+    }
+  }
+  if (steps >= limit) problems.push(`no end after ${limit} presses of Tab`);
+  for (const name of await page.evaluate(() => window.kbdNoRing())) {
+    problems.push(`no focus ring: ${name}`);
+  }
+  for (const missed of await page.evaluate(() => window.kbdMissed())) {
+    problems.push(`not reached by Tab: ${missed}`);
+  }
+
+  return [...new Set(problems)];
+};
+
+// Loaded, fonts in, and no region still loading: a region that waits
+// on a request (the header's Sign in waits on /api/me) is aria-busy
+// under its skeleton until it answers (utils/skeleton.js). A walk
+// begun sooner found Sign in under its skeleton on a slow run.
+const settle = async (page) => {
+  await page.waitForLoadState("load");
+  await page.evaluate(() => document.fonts.ready);
+  await page.waitForFunction(
+    () => !document.querySelector("[aria-busy='true']"),
+  );
+  // The order page's card panel mounts Square's fields under a
+  // skeleton of its own, and the page below it moves when they land.
+  if (await page.locator("#pay-card-panel").count()) {
+    await page.waitForFunction(() => {
+      const panel = document.querySelector("#pay-card-panel");
+
+      return !panel || !panel.hasAttribute("data-load");
+    }, null, { timeout: 30_000 });
+    // And the page's height holds still: the wallets, stock and dates
+    // land at their own pace, and a stop the browser scrolled to can
+    // end up below the fold when the page grows after it.
+    let last = -1;
+
+    for (let steady = 0; steady < 3;) {
+      await page.waitForTimeout(300);
+
+      const height = await page.evaluate(() => document.body.scrollHeight);
+
+      steady = height === last ? steady + 1 : 0;
+      last = height;
+    }
+  }
+};
+
+// Escape closes what `open` opened and gives the focus back to
+// `opener`; for a modal, Tab stays inside `inside` while it is open.
+const escapes = async (page, key, { opener, isOpen, inside, modal }) => {
+  await opener.focus();
+  await page.keyboard.press("Enter");
+  await expect.poll(isOpen, "it opens from the keyboard").toBe(true);
+  if (modal) {
+    for (let i = 0; i < 12; i += 1) {
+      await page.keyboard.press(key);
+      expect.soft(await inside.evaluate((box) => {
+        const el = document.activeElement;
+
+        return box.contains(el) || el === document.body;
+      }), "Tab stays inside while it is open").toBe(true);
+    }
+  }
+  await page.keyboard.press("Escape");
+  await expect.poll(isOpen, "Escape closes it").toBe(false);
+  await expect.soft(opener, "the focus goes back to its opener")
+    .toBeFocused();
+};
+
+for (const width of WIDTHS) {
+  test.describe(`keyboard at ${width}px (#197)`, () => {
+    test.use({
+      viewport: { width, height: 900 }, isMobile: false, hasTouch: false,
+    });
+
+    test.beforeEach(async ({ page, baseURL }) => {
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      await page.addInitScript(install);
+      await keepHome(page, baseURL);
+    });
+
+    test("every page tabs cleanly", async ({ page, request, browserName }) => {
+      const paths = [...await sitemap(request), ...UNLISTED];
+
+      // A Tab walk of some 30 pages takes WebKit over two minutes.
+      test.setTimeout(10 * 60_000);
+
+      for (const path of paths) {
+        await page.goto(path);
+        await settle(page);
+        expect.soft(await walk(page, tabKey(browserName)), path).toEqual([]);
+      }
+    });
+
+    test("the order page with a cart tabs cleanly",
+      async ({ page, browserName }) => {
+        // WebKit's walk of the full order page ran past the default
+        // two minutes on 2 of 10 busy runs.
+        test.setTimeout(5 * 60_000);
+        await cannedDates(page);
+        await new OrderPage(page).open(FULL_CART);
+        await page.evaluate(() => scrollTo(0, 0));
+        expect.soft(await walk(page, tabKey(browserName)), "/order/")
+          .toEqual([]);
+      });
+
+    test("the account tabs cleanly, signed in",
+      async ({ page, browserName }) => {
+        await signedIn(page);
+        for (const tab of ACCOUNT_TABS) {
+          // A new hash alone wouldn't load the page again.
+          await page.goto("about:blank");
+          await page.goto(`/account/#${tab}`);
+          await expect(page.locator("#account-app")).toBeVisible();
+          await settle(page);
+          expect.soft(await walk(page, tabKey(browserName)),
+            `/account/#${tab}`).toEqual([]);
+        }
+      });
+
+    test("Escape closes search", async ({ page, browserName }) => {
+      const dialog = page.locator("#search-palette");
+
+      await page.goto("/about/");
+      await escapes(page, tabKey(browserName), {
+        opener: page.locator("[data-search-open]:visible").first(),
+        isOpen: () => dialog.evaluate((d) => d.classList.contains("is-open")),
+        inside: dialog,
+        modal: true,
+      });
+    });
+
+    test("Escape closes the site menu", async ({ page, browserName }) => {
+      const toggle = page.locator(".site-toggle");
+      const menu = page.locator("#site-menu");
+
+      await page.goto("/about/");
+      test.skip(!await toggle.isVisible(), "the menu is inline this wide");
+      await escapes(page, tabKey(browserName), {
+        opener: toggle,
+        isOpen: () => menu.evaluate((m) => m.classList.contains("show")),
+        inside: menu,
+        modal: true,
+      });
+    });
+
+    test("Escape closes the account menu", async ({ page, browserName }) => {
+      // Two in the header, one shown at a time: with the links
+      // from md up, with the actions below md (#303).
+      const button = page.locator("[data-account-menu]:visible").first();
+      const menu = button.locator("xpath=following-sibling::ul");
+
+      await signedIn(page);
+      await page.goto("/about/");
+      await settle(page);
+      await expect(button).toBeVisible();
+      await escapes(page, tabKey(browserName), {
+        opener: button,
+        isOpen: () => menu.evaluate((m) => m.classList.contains("show")),
+      });
+    });
+
+    // Below xl the cart floats over the catalog, open, until the
+    // customer folds it.
+    test("Escape folds the order page's floating cart",
+      async ({ page }) => {
+        const order = new OrderPage(page);
+        const toggle = order.cart.locator("[data-cart-toggle]");
+
+        await cannedDates(page);
+        await order.open(FULL_CART);
+        await page.evaluate(() => scrollTo(0, 0));
+
+        const floats = () => order.cart.evaluate((el) => (
+          el.dataset.placement === "floating"
+        ));
+
+        test.skip(!await floats(), "the cart doesn't float this wide");
+
+        // One fold at every width (#477): open it, then Escape.
+        await unfoldCart(order);
+        await order.cart.locator("[data-checkout]").focus();
+        await page.keyboard.press("Escape");
+        await expect.soft(order.cart, "Escape folds it")
+          .toHaveAttribute("data-fold", "closed");
+        await expect.soft(toggle, "the focus goes to its toggle")
+          .toBeFocused();
+      });
+  });
+}

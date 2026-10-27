@@ -1,31 +1,49 @@
+{{/* Step 1 is James's words of 2026-10-24 (#338), step 2 his of
+     2026-10-25 (#406); step 3 is
+     his of 2026-09-24 (#150). DRAFT: step 4's text is mine, not his;
+     he has not settled it and will send the line. */}}
 {{ $steps := slice
-  (dict "icon" "cart" "title" "Start your order"
-    "copy" "Add what you'd like to your cart and choose when and how to get it.")
-  (dict "icon" "emails" "title" "Get a payment link"
-    "copy" "We'll email you a link where you'll pay for your order.")
-  (dict "icon" "payment" "title" "Pay to confirm"
-    "copy" "Your order is final when we receive your payment.")
-  (dict "icon" "tractor" "title" "Pick up or delivery"
-    "copy" "Pick up on our farm or get it hand-delivered to your door.")
+  (dict "icon" "cart" "title" "Build your cart"
+    "copy" "Browse what’s in stock, or check out the whole catalog.")
+  (dict "icon" "sign" "title" "Pickup or delivery"
+    "copy" "Pick up at our farm, at one of our pickup days, or get it delivered to your door.")
+  (dict "icon" "changes" "title" "Change of plans?"
+    "copy" "Sign in with just your email, no password, and update your order.")
+  (dict "icon" "tractor" "title" "Taste the difference"
+    "copy" "Our customers tell us <em>they can</em>, time and time again.")
 }}
+{{/* The photo beside the steps: the farm's own, from James (#303,
+     2026-10-26), so it carries no credit. */}}
+{{ $photo := resources.Get "images/grill.jpg" }}
+{{ $fallback := $photo.Resize "900x jpg q82" }}
+{{ $srcset := slice }}
+{{ range slice 500 900 1300 }}
+  {{ $img := $photo.Resize (printf "%dx webp q82" .) }}
+  {{ $srcset = $srcset | append (printf "%s %dw" $img.RelPermalink .) }}
+{{ end }}
 <div class="how border-bottom border-light" id="how-to-buy">
   <div class="container">
-    <p class="how-eyebrow">How to buy</p>
-    <h2 class="how-title">From our pasture to your table</h2>
-    <ol class="how-steps list-unstyled">
-      {{ range $i, $step := $steps }}
-        <li class="how-step">
-          <span class="how-icon" aria-hidden="true">
-            {{ partial "svg.html" (printf "icons/%s" $step.icon) }}
-            <span class="how-num">{{ add $i 1 }}</span>
-          </span>
-          <h3 class="how-step-title"><span class="visually-hidden">Step {{ add $i 1 }}: </span>{{ $step.title }}</h3>
-          <p class="how-step-copy">{{ $step.copy }}</p>
-        </li>
-      {{ end }}
-    </ol>
-    <p class="how-cta mb-0">
-      <a class="btn btn-primary btn-lg" href="{{ relURL "order/" }}">Shop all products</a>
-    </p>
+    <p class="home-eyebrow">How to buy</p>
+    <h2 class="home-title">Order our chicken and eggs all year round</h2>
+    <div class="how-grid">
+      <figure class="how-photo figure">
+        <img src="{{ $fallback.RelPermalink }}" srcset="{{ delimit $srcset ", " }}" sizes="(min-width: 1200px) 488px, (min-width: 992px) 436px, min(520px, calc(100vw - 1.5rem))" width="{{ $fallback.Width }}" height="{{ $fallback.Height }}" alt="A whole chicken, breasts, thighs, drumsticks, wings and sausages cooking together on a round charcoal grill." class="figure-img img-fluid d-block rounded-3 shadow-sm mb-0" loading="lazy">
+      </figure>
+      <ol class="how-steps list-unstyled">
+        {{ range $i, $step := $steps }}
+          <li class="how-step">
+            <span class="home-icon" aria-hidden="true">
+              {{ partial "svg.html" (printf "icons/%s" $step.icon) }}
+              <span class="how-num">{{ add $i 1 }}</span>
+            </span>
+            <h3 class="how-step-title"><span class="visually-hidden">Step {{ add $i 1 }}: </span>{{ $step.title }}</h3>
+            <p class="how-step-copy">{{ $step.copy | safeHTML }}</p>
+          </li>
+        {{ end }}
+      </ol>
+      <p class="how-cta mb-0">
+        <a class="btn btn-primary btn-lg" href="{{ relURL "order/" }}">Shop all products</a>
+      </p>
+    </div>
   </div>
 </div>

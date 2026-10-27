@@ -1,0 +1,227 @@
+// A featured image that links to its post, in the lead and the list.
+// On hover the frame lifts as a button does, on the buttons' own
+// transition, and the picture zooms a little inside it from its top
+// edge. The frame clips the zoom, so its box never changes. Focus on
+// the post's title link does the same, since the image link is
+// skipped by keyboards (tabindex -1). Reduced motion drops the
+// movement and keeps the shadow.
+@mixin news-image-lifted {
+  transform: translateY(-2px);
+  box-shadow: $btn-lift-shadow;
+
+  img,
+  .news-mark {
+    transform: scale(1.04);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transform: none;
+
+    img,
+    .news-mark {
+      transform: none;
+    }
+  }
+}
+
+@mixin news-image-link {
+  transition: $btn-transition;
+
+  img,
+  .news-mark {
+    transition: transform 0.16s ease-out;
+    transform-origin: 50% 0;
+  }
+
+  &:hover {
+    @include news-image-lifted;
+  }
+}
+
+// A post's date, in lists and under its title.
+.news-date {
+  font-size: $font-size-sm;
+  color: var(--bs-secondary-color);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+// A post's header wherever it is shown in full, on its own page and on
+// home (#232): the title centered over the dateline, set like a display
+// heading in light italic, scaling down from 2.125rem at xl.
+.news-header {
+  margin-bottom: 2rem;
+}
+
+.news-header-title {
+  --news-title-tracking: -0.02em;
+
+  margin-bottom: 0.5rem;
+  letter-spacing: var(--news-title-tracking);
+
+  @include font-size(2.125rem);
+}
+
+.news-header-link {
+  color: inherit;
+  text-decoration: none;
+
+  &:hover,
+  &:focus-visible {
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.18em;
+  }
+}
+
+.news {
+  .text-column {
+    max-width: 700px;
+  }
+
+  h2 {
+    margin-top: 2.25rem;
+  }
+
+  // The newest post, large above the list: its picture across the
+  // column, or a wide card in the pale green with the farm's mark.
+  .news-lead {
+    margin-bottom: 1rem;
+  }
+
+  .news-lead-image {
+    display: grid;
+    aspect-ratio: 4 / 3;
+    place-items: center;
+    overflow: hidden;
+    border-radius: var(--bs-border-radius-lg);
+    background-color: var(--bs-success-bg-subtle);
+
+    @include news-image-link;
+
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+  }
+
+  .news-lead:has(a:focus-visible) .news-lead-image {
+    @include news-image-lifted;
+  }
+
+  .news-lead-title {
+    margin: 0.25rem 0 0.5rem;
+    font-size: $h2-font-size;
+  }
+
+  // The list: a year heading wherever the year changes, then its posts,
+  // each a row with its picture on the left.
+  .news-year-title {
+    padding-bottom: 0.25rem;
+    border-bottom: 1px solid var(--bs-border-color);
+    font-size: $h3-font-size;
+  }
+
+  .news-item {
+    display: grid;
+    grid-template-columns: 6.5rem minmax(0, 1fr);
+    gap: 1rem;
+    align-items: start;
+    padding: 1.25rem 0;
+
+    // One rule between neighbours, drawn by the later of the two, so a
+    // list that is built or joined in pieces cannot lose one.
+    + .news-item {
+      border-top: 1px solid var(--bs-border-color-translucent);
+    }
+
+    @include media-breakpoint-up(sm) {
+      grid-template-columns: 12rem minmax(0, 1fr);
+      gap: 1.5rem;
+    }
+  }
+
+  // The picture, or a card of the same shape in the pale green with
+  // the farm's mark (#222).
+  .news-thumb {
+    display: grid;
+    aspect-ratio: 4 / 3;
+    place-items: center;
+    overflow: hidden;
+    border-radius: var(--bs-border-radius-lg);
+    background-color: var(--bs-success-bg-subtle);
+
+    @include news-image-link;
+
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+  }
+
+  .news-item:has(a:focus-visible) .news-thumb {
+    @include news-image-lifted;
+  }
+
+  // The farm's mark in the dark green, the same on every card, about
+  // a third of it: it marks a post without a picture and recedes.
+  .news-mark {
+    width: 28%;
+
+    svg {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+
+    .black {
+      fill: var(--bs-primary);
+    }
+  }
+
+  .news-lead-image .news-mark {
+    width: 15%;
+  }
+
+  .news-item-title {
+    margin: 0.25rem 0 0.5rem;
+    font-size: $h4-font-size;
+  }
+
+  .news-item-title a,
+  .news-lead-title a,
+  .news-nav a,
+  .news-pager a {
+    text-decoration: none;
+
+    &:hover,
+    &:focus-visible {
+      text-decoration: underline;
+    }
+  }
+
+  .news-pager {
+    padding-top: 1rem;
+    border-top: 1px solid var(--bs-border-color);
+
+    &[hidden] {
+      display: none !important;
+    }
+  }
+}
+
+// The close of a full post, on its own page and in the home page's
+// card (#483): the invitation to Farm News over the small way back to
+// the archive. The invitation hides for people already on the list,
+// and the archive button stays alone.
+.news-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 2.5rem;
+  padding-top: 2rem;
+  border-top: 1px solid var(--bs-border-color);
+}

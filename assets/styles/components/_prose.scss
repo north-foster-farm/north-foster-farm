@@ -1,0 +1,50 @@
+// Copy written in Markdown: news posts, the policy pages, About. Each
+// layout wraps its .Content in .prose, and this is the only place
+// that spaces the headings, lists and paragraphs inside it (#210).
+// The four levels are tokens in _variables.scss.
+
+.prose {
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    margin-bottom: $prose-lead-gap;
+  }
+
+  li {
+    line-height: $prose-item-line-height;
+  }
+
+  li + li,
+  li > ul,
+  li > ol {
+    margin-top: $prose-item-gap;
+  }
+}
+
+// A post's sign-off (shortcodes/sign-off.html) stands apart from the
+// body, so it reads as a signature. Outside .prose too: the home
+// page's news card shows it.
+.sign-off {
+  margin-top: $prose-sign-off-gap;
+}
+
+// A section break in a post (shortcodes/dinkus.html): a rule drawn as
+// three italic asterisks, centered on the text column, with the
+// sign-off's gap above and below so it reads as a break, not a line.
+// Outside .prose for the same reason as .sign-off.
+.dinkus {
+  margin: $prose-sign-off-gap 0;
+  overflow: visible;
+  font-style: italic;
+  line-height: 1;
+  color: inherit;
+  text-align: center;
+  border: 0;
+  opacity: 1;
+
+  &::before {
+    content: "*\2002*\2002*";
+  }
+}

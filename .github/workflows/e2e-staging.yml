@@ -1,0 +1,180 @@
+name: E2E staging
+
+# The whole e2e suite against the staging deploy itself, with Square's
+# and PayPal's sandboxes, the outbox and Blobs (#449). It runs on
+# demand, never on a push to staging and never on a schedule: the
+# coordinator pushes staging's sha to one of two branches.
+#
+#   e2e/staging       every spec not on e2e/staging-passing.txt
+#   e2e/staging-full  every spec (the final run on the frozen commit)
+#
+# workflow_dispatch works only once a workflow is on the default
+# branch, which is not ours to push, so a branch push is the trigger.
+# Specs that opt in through an env var (maintenance, rate-limit,
+# staging-toolbar) or skip on Netlify (fake-payments) skip themselves.
+#
+# The log is public. It prints test titles and errors, which hold only
+# made-up qa-e2e addresses and sandbox order ids. Nothing is uploaded:
+# a trace carries the gate cookie, and E2E_STAGING_TOKEN outlives the
+# run. The summary lists the passed and failed specs; the passing list
+# is updated from it by hand (docs/cloud-lanes.md).
+
+on:
+  push:
+    branches:
+      - e2e/staging
+      - e2e/staging-full
+  # On demand, once this file is on the default branch: the sweep of
+  # the suite's leftovers alone, or the whole run.
+  workflow_dispatch:
+    inputs:
+      sweep_only:
+        description: Only sweep the suite's stale orders off staging
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+# One run at a time on the shared staging data, never cancelled
+# midway, so every teardown runs.
+concurrency:
+  group: e2e-staging
+  cancel-in-progress: false
+
+jobs:
+  e2e-staging:
+    name: e2e-staging
+    # A dispatch runs only from staging itself: the sweep-only path
+    # skips the deploy wait, which is otherwise the one check that the
+    # code the token reaches is staging's own (security review).
+    if: github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/staging'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      E2E_BASE_URL: https://staging--north-foster-farm.netlify.app
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      # /version.json is the one path the gate opens to anyone. Specs
+      # and site must be the same commit; a newer staging supersedes
+      # this run.
+      - name: Wait for the deploy
+        if: ${{ !inputs.sweep_only }}
+        run: |
+          want=$(git rev-parse HEAD)
+          for _ in $(seq 1 40); do
+            got=
+            if curl -fsS --max-time 20 -o "$RUNNER_TEMP/version.json" \
+              "$E2E_BASE_URL/version.json"; then
+              got=$(node -p \
+                'JSON.parse(require("fs").readFileSync(process.argv[1])).commit' \
+                "$RUNNER_TEMP/version.json" || true)
+            fi
+            if [ "$got" = "$want" ]; then exit 0; fi
+            sleep 30
+          done
+          tip=$(git ls-remote https://github.com/"$GITHUB_REPOSITORY" \
+            refs/heads/staging | cut -f1)
+          if [ "$tip" != "$want" ]; then
+            echo "::warning::$want is not staging's current commit" \
+              "($tip); this run stands down and ran no specs."
+            echo "SUPERSEDED=1" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          echo "::error::staging never served $want (it serves $got)."
+          exit 1
+
+      - name: Install
+        if: env.SUPERSEDED != '1'
+        run: npm ci
+
+      # A failed run's orders go first, through the back office: the
+      # suite's own stale orders only (bin/e2e/sweep.mjs), cancelled,
+      # refunded where Square allows, and deleted with their mail. The
+      # summary names what it did.
+      - name: Sweep the suite's leftovers
+        if: env.SUPERSEDED != '1'
+        env:
+          E2E_STAGING_TOKEN: ${{ secrets.E2E_STAGING_TOKEN }}
+        run: node bin/e2e/sweep.mjs
+
+      # A leftover the sweep could not remove fails the job but never
+      # keeps the specs from running (security review).
+      - name: Browsers
+        if: ${{ !cancelled() && env.SUPERSEDED != '1' && !inputs.sweep_only }}
+        run: npx playwright install --with-deps chromium
+
+      - name: Run
+        id: run
+        if: ${{ !cancelled() && env.SUPERSEDED != '1' && !inputs.sweep_only }}
+        env:
+          E2E_STAGING_TOKEN: ${{ secrets.E2E_STAGING_TOKEN }}
+          FULL: ${{ github.ref_name == 'e2e/staging-full' && '1' || '' }}
+          PLAYWRIGHT_JSON_OUTPUT_NAME: e2e-results.json
+        run: |
+          mapfile -t all < <(ls e2e/*.spec.mjs)
+          specs=()
+          for spec in "${all[@]}"; do
+            if [ -z "$FULL" ] && [ -f e2e/staging-passing.txt ] \
+              && grep -Eq "^${spec//./\\.}([[:space:]]|$)" \
+                e2e/staging-passing.txt; then
+              continue
+            fi
+            specs+=("$spec")
+          done
+          if [ "${#specs[@]}" -eq 0 ]; then
+            echo "Every spec is on the passing list."
+            exit 0
+          fi
+          printf 'Running %s specs\n' "${#specs[@]}"
+          npx playwright test --project=desktop --project=phone \
+            --retries=0 --workers=2 --trace=off \
+            --reporter=list,json "${specs[@]}"
+
+      # Each failure's screenshot, to see what the deploy served when a
+      # spec could not tell (#449). Screenshots only: the page
+      # snapshots (error-context.md) and traces can carry sign-in
+      # links, tokens and the gate cookie, and this repository is
+      # public. Playwright writes nothing else to test-results/e2e/
+      # with --trace=off. Safe only while E2E_GATE_SESSION stays out
+      # of this workflow: with it, the toolbar specs sign in as a
+      # person and a screenshot could show the real staging outbox.
+      - name: Failure screenshots
+        if: failure() && env.SUPERSEDED != '1' && !inputs.sweep_only
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: staging-failure-screenshots
+          path: test-results/e2e/**/test-failed-*.png
+          retention-days: 2
+          if-no-files-found: ignore
+
+      - name: Summary
+        if: always() && env.SUPERSEDED != '1' && !inputs.sweep_only
+        env:
+          RUN_OUTCOME: ${{ steps.run.outcome }}
+        run: node bin/e2e-summary.mjs e2e-results.json "$GITHUB_SHA"
+
+      - name: Alert
+        if: always() && env.SUPERSEDED != '1' && !inputs.sweep_only
+        env:
+          PING: ${{ secrets.E2E_STAGING_PING_URL }}
+          OUTCOME: ${{ job.status }}
+        run: |
+          if [ -z "$PING" ]; then
+            echo "E2E_STAGING_PING_URL is not set; nothing could be alerted."
+            exit 1
+          fi
+          url=$PING
+          if [ "$OUTCOME" != success ]; then url="$PING/fail"; fi
+          curl -fsS --max-time 20 --retry 3 -o /dev/null --data-raw \
+            "e2e-staging $OUTCOME at ${GITHUB_SHA::12}: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+            "$url"

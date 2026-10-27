@@ -1,26 +1,101 @@
+{{/* Discount codes go to the page hashed: it can tell a known code
+     from an unknown one and show the discount, without listing the
+     codes in the source. The server checks the real thing. */}}
+{{ $codes := slice }}
+{{ range (hugo.Data.discountCodes.codes | default slice) }}
+  {{ $codes = $codes | append (dict "hash" (crypto.SHA256 (upper .code)) "label" .label "off" .off) }}
+{{ end }}
+{{/* A buying group's place and series stay out of the page (#471):
+     POST /api/group serves them to a member who holds the code. */}}
+{{ $public := partial "lib/public-places.html" . }}
 {{ $data := dict
   "catalog" hugo.Data.catalog
+  "aliases" (hugo.Data.skuAliases | default dict)
   "terms" hugo.Data.delivery
-  "contact" (dict "email" hugo.Data.company.email "phone" hugo.Data.company.phone)
+  "locations" $public.locations
+  "series" $public.series
+  "codes" $codes
+  "contact" (dict "name" hugo.Data.company.name "email" hugo.Data.company.email "phone" hugo.Data.company.phone)
 }}
 <script type="application/json" id="order-data">{{ $data | jsonify | safeJS }}</script>
 
 {{/* From xl up the form is `display: contents`, so its three parts
      are grid columns of .order-main: the catalog, the cart beside it,
-     and the sections that follow under the catalog. */}}
+     and the sections that follow under the catalog. An UptimeRobot
+     monitor keys on id="order-form" in the served page
+     (docs/monitoring.md): renaming it pages the farm. */}}
 <form id="order-form" class="order-form" novalidate data-version="{{ hugo.Data.catalog.version }}">
+  {{/* Below lg the heading lives in this sticky bar and follows the
+       scroll: the current section or category (order-form.js). It
+       spans the whole form, so it stays to the end; once the cart has
+       scrolled away the total joins it on the right, and a tap on it
+       goes back to the cart (#203). */}}
+  <div class="order-topbar d-lg-none">
+    <span class="order-topbar-title order-bar-title" aria-hidden="true">
+      <span class="order-bar-chev">{{ partial "svg.html" "icons/chevrons-right" }}</span>
+      <span class="order-bar-name" data-topbar-title></span>
+    </span>
+    <button type="button" class="order-topbar-total" data-to-cart inert>
+      <span data-total-bar-count>0 items</span>
+      <span class="order-cart-sum-label">Total</span>
+      <span class="order-total-bar-total" data-total-bar-total>$0</span>
+    </button>
+  </div>
   <div class="order-catalog-col">
+    {{/* The page's intro, under the title wherever the title is: below
+         lg that is the top bar, so it cannot sit with the heading. The
+         Show control alone, at the right over the catalog: no lead line
+         and no visible "Show" label (#274, round 4 part 2; the group
+         keeps "Show" as its name for a screen reader). */}}
+    <div class="order-intro mb-4">
+      <div class="order-intro-row">
+        {{/* Show "In stock" or "Full catalog" (#267, 6303649455): a
+             radio group drawn as the cart's segmented control, the
+             chosen side lighter. In stock, the default, is what can
+             be bought now; Full catalog also shows what is out,
+             greyed, with its restock label and no way to add it.
+             order/restock.js remembers the choice. */}}
+        <div class="order-filter" role="radiogroup" aria-label="Show">
+          <div class="order-filter-seg">
+            <span class="order-filter-fill" aria-hidden="true"></span>
+            <label class="order-filter-option"><input class="order-filter-input" type="radio" name="order-show" id="order-show-stock" value="stock" checked data-show><span>In stock</span></label>
+            <label class="order-filter-option"><input class="order-filter-input" type="radio" name="order-show" id="order-show-all" value="all" data-show><span>Full catalog</span></label>
+          </div>
+        </div>
+      </div>
+    </div>
+    {{/* Changing a paid order (/order/?edit=<id>, order-form.js): which
+         order, filled in by the script. */}}
+    <div id="order-editing" class="alert alert-info" role="status" hidden></div>
     <div id="order-stock" class="alert alert-warning" role="status" aria-live="polite" hidden></div>
     <div id="order-added" class="alert alert-success" role="status" aria-live="polite" hidden></div>
     {{ partial "order/catalog.html" . }}
   </div>
   {{ partial "order/cart.html" . }}
   <div class="order-rest">
-    {{ partial "order/customer.html" . }}
+    {{/* From lg to xl the pane scrolls away; this bar keeps the
+         section's name and the total in view from then on
+         (order-form.js marks the form once the pane is passed), and a
+         tap on the total goes back to the pane. Below lg the topbar
+         carries both. */}}
+    <div class="order-total-bar d-none d-lg-flex d-xl-none">
+      <span class="order-total-bar-title order-bar-title" aria-hidden="true">
+        <span class="order-bar-chev">{{ partial "svg.html" "icons/chevrons-right" }}</span>
+        <span class="order-bar-name" data-topbar-title>{{ .Params.heading | default .Title }}</span>
+      </span>
+      <button type="button" class="order-total-bar-sum" data-to-cart inert>
+        <span data-total-bar-count>0 items</span>
+        <span class="order-cart-sum-label">Total</span>
+        <span class="order-total-bar-total" data-total-bar-total>$0</span>
+      </button>
+    </div>
     {{ partial "order/fulfilment.html" . }}
+    {{ partial "order/customer.html" . }}
+    {{ partial "order/payment.html" . }}
     {{ partial "order/wrap.html" . }}
   </div>
 </form>
+{{ partial "order/lapsed.html" . }}
 
 <div id="order-result" class="order-result" aria-live="polite" hidden></div>
 
@@ -28,29 +103,37 @@
   <div class="order-result-card">
     <div class="order-result-head">
       <div class="order-result-mark" aria-hidden="true">
-        <svg width="28" height="28" viewBox="0 0 28 28">
-          <path d="M6 14.5 11.5 20 22 8.5" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
+        {{ partial "svg.html" (dict "src" "icons/check" "width" "28" "height" "28") }}
       </div>
-      <h2 class="h3 mb-0">One more step, <span data-out="name"></span>.</h2>
+      <h2 class="h3 mb-0">Thank you, <span data-out="name"></span>. Your order is placed.</h2>
     </div>
     <div data-out="details">
-      <p><strong>Your order isn't final until it's paid.</strong></p>
       <p>
-        We emailed a payment link for <strong data-out="total"></strong> to
-        <strong data-out="email"></strong>. Pay with the link in your inbox
-        or with the button below.
-        <span data-out="confirms">Once we receive your payment, your order
-        is confirmed.</span>
+        <strong data-out="total"></strong> paid with
+        <strong data-out="how"></strong>.
+        A confirmation is on its way to <strong data-out="email"></strong>.
       </p>
-      <p>
-        <a class="btn btn-primary btn-lg" data-out="invoiceUrl" href="#" target="_blank" rel="noopener">Pay now</a>
+      {{- if site.Params.features.accounts }}
+      {{- /* Wording approved (#114). Hidden for a customer signed in. */}}
+      <p data-out="account">
+        Your email address is your account with us.
+        <a href="{{ relURL "login/" }}">Sign in</a> any time with a link we
+        email you. There's no password.
       </p>
+      {{- end }}
+      <p data-out="when"></p>
       <p>
-        Your invoice number is <strong data-out="invoiceNumber"></strong>.
+        Your order number is <strong data-out="orderId"></strong>.
         Have it handy if you need to ask us about this order.
       </p>
+      <p>
+        <a data-out="receiptUrl" href="#" target="_blank" rel="noopener">View your receipt</a>
+      </p>
     </div>
+    <p>
+      Follow us on <a href="{{ hugo.Data.socialMedia.instagram.url }}" target="_blank" rel="noopener">Instagram</a>
+      for news from the farm between orders.
+    </p>
     <p class="mb-0 text-body-secondary">
       Questions? Email us at <a href="mailto:{{ hugo.Data.company.email }}">{{ hugo.Data.company.email }}</a>
     </p>

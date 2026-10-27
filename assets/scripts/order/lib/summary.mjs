@@ -50,10 +50,14 @@ const nextTierAbove = (subtotal, money) => {
 // row that will appear, not an increment. Nothing at the top tier.
 export const nudge = (totals, method, money) => {
   const s = totals.subtotal;
-
-  if (s === 0) return "";
-
   const isDelivery = method === "delivery";
+
+  if (s === 0) {
+    return isDelivery
+      ? `Delivery requires ${
+        dollars(toCents(money.deliveryMinimum))} or more.`
+      : "";
+  }
 
   if (isDelivery && !meetsMinimum(totals, money)) {
     const gap = toCents(money.deliveryMinimum) - (s - totals.discountAmount);
@@ -78,9 +82,25 @@ export const nudge = (totals, method, money) => {
   return `Next discount: add ${gap} for ${off} off.`;
 };
 
-// The fee cell: nothing outside delivery, the fee, or "Free".
+// The Delivery card's own warning, in red while delivery is chosen
+// and the cart is short of the minimum after discounts, so the
+// customer learns it at the choice and not at the last step.
+export const deliveryShort = (totals, money) => {
+  if (meetsMinimum(totals, money)) return "";
+
+  const minimum = toCents(money.deliveryMinimum);
+  const need = `Delivery requires ${dollars(minimum)} or more after ` +
+    "discounts.";
+  const gap = minimum - (totals.subtotal - totals.discountAmount);
+
+  return totals.subtotal === 0 ? need : `${need} Add ${dollars(gap)} more.`;
+};
+
+// The fee cell: nothing outside delivery or on an empty cart, the
+// fee, "$0" when a farm-issued code waived it (#182), or "Free".
 export const feeCell = (totals, method) => {
-  if (method !== "delivery") return { show: false };
+  if (method !== "delivery" || totals.subtotal === 0) return { show: false };
+  if (totals.feeWaived) return { show: true, waived: true, text: "$0" };
   if (totals.deliveryFee === 0) {
     return { show: true, waived: true, text: "Free" };
   }
@@ -114,6 +134,8 @@ export const itemGroups = (lines, index) => {
     group.items.push({
       sku,
       label: item.label,
+      lineName: item.lineName,
+      row: item.row,
       qtyText: `${qty} × ${dollars(unit)}`,
       subtotal: dollars(qty * unit),
     });
@@ -138,4 +160,8 @@ export const summarize = ({ totals, method, money, count, lines, index }) => ({
   eligible: meetsMinimum(totals, money),
   badges: badges(totals, money),
   nudge: nudge(totals, method, money),
+  // A delivery short of the minimum is a warning, not a nudge.
+  nudgeTone: method === "delivery" && !meetsMinimum(totals, money)
+    ? "warn" : "",
+  deliveryShort: method === "delivery" ? deliveryShort(totals, money) : "",
 });

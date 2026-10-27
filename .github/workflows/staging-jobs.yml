@@ -1,17 +1,22 @@
 name: Staging jobs
 
 # Netlify runs scheduled functions only on the production deploy, so
-# staging's jobs would never run on their own. This runs them on the
-# same fifteen-minute clock through /api/staging/jobs/run, which is
+# staging's jobs would never run on their own. This asks GitHub to run
+# them every fifteen minutes through /api/staging/jobs/run, which is
 # runJobs on Netlify with the staging deploy's own environment (404 in
 # production). GitHub starts scheduled runs only from the default
-# branch and may start one a few minutes late; the jobs decide from
-# the records and the clock, so a late or doubled run sends nothing
-# twice. STAGING_TOKEN is the same token Netlify holds for staging.
+# branch and throttles them under load, worst on the quarter hour, so
+# the cron sits off it. Even so, runs have come two to six hours
+# apart (#164): a job whose window closes at midnight (the delivery
+# reminder, tomorrow's manifest) is skipped on a day with no evening
+# run, and Run workflow starts one by hand. The jobs decide from the
+# records and the clock, so a late or doubled run sends nothing twice.
+# STAGING_TOKEN is the same token Netlify holds for staging. The log
+# is public, so the step prints counts only.
 
 on:
   schedule:
-    - cron: "*/15 * * * *"
+    - cron: "7,22,37,52 * * * *"
   workflow_dispatch:
 
 permissions: {}
@@ -21,11 +26,20 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+
       - name: Run staging's jobs
         env:
           STAGING_TOKEN: ${{ secrets.STAGING_TOKEN }}
+          HOST: https://staging--north-foster-farm.netlify.app
         run: |
-          curl --silent --show-error --fail-with-body --max-time 120 \
+          # The log is public: the response goes to a file and only
+          # its counts are printed (bin/staging-jobs-summary.mjs).
+          status=$(curl --silent --output "$RUNNER_TEMP/jobs.json" \
+            --write-out '%{http_code}' --max-time 120 \
             -X POST -H "Authorization: Bearer $STAGING_TOKEN" \
             -H "Content-Type: application/json" -d '{}' \
-            https://staging--north-foster-farm.netlify.app/api/staging/jobs/run
+            "$HOST/api/staging/jobs/run") || status=000
+          node bin/staging-jobs-summary.mjs "$status" "$RUNNER_TEMP/jobs.json"

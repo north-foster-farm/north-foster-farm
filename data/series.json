@@ -1,0 +1,150 @@
+{
+  "series": [
+    {
+      "code": "VFVQ",
+      "kind": "drop-site",
+      "name": "Drop site",
+      "location": "G4C6",
+      "start": "2026-10-17",
+      "opens": "10:00",
+      "closes": "11:00",
+      "place": "Village Green, 46 Institute Lane, North Scituate, RI 02857",
+      "town": "Scituate",
+      "legacySite": "scituate"
+    },
+    {
+      "code": "2MPW",
+      "kind": "market",
+      "name": "Scituate Rotary Farmers Market",
+      "location": "G4C6",
+      "start": "2026-06-06",
+      "end": "2026-09-26",
+      "opens": "09:00",
+      "closes": "12:00",
+      "href": "https://www.scituaterotaryfarmersmarket.com",
+      "instagram": "northscituatefarmersmarket"
+    },
+    {
+      "code": "WAC5",
+      "kind": "market",
+      "name": "Foster Farmers Market",
+      "location": "D8RW",
+      "start": "2026-06-07",
+      "end": "2026-10-25",
+      "opens": "09:00",
+      "closes": "13:00",
+      "href": "https://www.fosterfarmersmarketri.com",
+      "instagram": "fosterfarmersmarketri",
+      "nudge": -1,
+      "legacySite": "foster"
+    },
+    {
+      "code": "NB5P",
+      "kind": "market",
+      "name": "Summer Market at Tilted Barn",
+      "location": "UTHW",
+      "start": "2026-06-03",
+      "end": "2026-08-26",
+      "opens": "16:00",
+      "closes": "19:00",
+      "href": "https://www.tiltedbarnbrewery.com/summer-market",
+      "instagram": "tiltedbarnbrewery"
+    },
+    {
+      "code": "GR6C",
+      "kind": "pop-up",
+      "name": "Summer Celebration",
+      "location": "QPJP",
+      "start": "2026-07-10",
+      "end": "2026-07-10",
+      "opens": "18:00",
+      "closes": "20:00",
+      "archived": true,
+      "legacySite": "city-hall-2026-07-10"
+    },
+    {
+      "code": "R6N4",
+      "kind": "pop-up",
+      "name": "Summer Concert",
+      "location": "VTGM",
+      "start": "2026-07-18",
+      "end": "2026-07-18",
+      "opens": "11:00",
+      "closes": "15:00",
+      "archived": true,
+      "legacySite": "rocky-point-2026-07-18"
+    },
+    {
+      "code": "ARBC",
+      "kind": "pop-up",
+      "name": "Summer Concert",
+      "location": "QPJP",
+      "start": "2026-07-22",
+      "end": "2026-07-22",
+      "opens": "18:00",
+      "closes": "20:30",
+      "archived": true,
+      "legacySite": "city-hall-2026-07-22"
+    },
+    {
+      "code": "25XV",
+      "kind": "pop-up",
+      "name": "Summer Concert",
+      "location": "VTGM",
+      "start": "2026-08-08",
+      "end": "2026-08-08",
+      "opens": "11:00",
+      "closes": "15:00",
+      "archived": true,
+      "legacySite": "rocky-point-2026-08-08"
+    },
+    {
+      "code": "YJGT",
+      "kind": "pop-up",
+      "name": "Summer Concert",
+      "location": "QPJP",
+      "start": "2026-08-26",
+      "end": "2026-08-26",
+      "opens": "17:00",
+      "closes": "20:00",
+      "archived": true,
+      "legacySite": "city-hall-2026-08-26"
+    },
+    {
+      "code": "Y2UC",
+      "kind": "pop-up",
+      "name": "Apple Fest",
+      "location": "QPJP",
+      "start": "2026-09-19",
+      "end": "2026-09-19",
+      "opens": "12:00",
+      "closes": "15:00",
+      "archived": true,
+      "legacySite": "city-hall-2026-09-19"
+    },
+    {
+      "code": "VZF5",
+      "kind": "pop-up",
+      "name": "Pop-up at The Village Family Fitness",
+      "location": "NR9D",
+      "start": "2026-10-18",
+      "end": "2026-10-18",
+      "opens": "10:00",
+      "closes": "14:00",
+      "instagram": "thevillagefitnessri",
+      "archived": true,
+      "legacySite": "village-fitness-2026-10-18"
+    },
+    {
+      "code": "36TS",
+      "kind": "group",
+      "name": "The Village Family Fitness",
+      "location": "NR9D",
+      "start": "2026-11-08",
+      "every": 2,
+      "opens": "08:30",
+      "closes": "09:00",
+      "group": "vff"
+    }
+  ]
+}

@@ -1,0 +1,75 @@
+{
+  "locations": [
+    {
+      "code": "G4C6",
+      "name": "The Village Green",
+      "street": "46 Institute Lane",
+      "city": "North Scituate",
+      "state": "RI",
+      "zip": "02857",
+      "town": "Scituate",
+      "short": "46 Institute Ln, N Scituate, RI",
+      "lat": 41.8339,
+      "lng": -71.58346
+    },
+    {
+      "code": "D8RW",
+      "name": "Shady Acres Diner",
+      "street": "164 Danielson Pike",
+      "city": "Foster",
+      "state": "RI",
+      "zip": "02825",
+      "town": "Foster",
+      "lat": 41.80426,
+      "lng": -71.77252
+    },
+    {
+      "code": "UTHW",
+      "name": "Tilted Barn Brewery",
+      "street": "One Hemsley Place",
+      "city": "Exeter",
+      "state": "RI",
+      "zip": "02822",
+      "town": "Exeter",
+      "lat": 41.56961,
+      "lng": -71.52379
+    },
+    {
+      "code": "QPJP",
+      "name": "Warwick City Hall Plaza",
+      "street": "3275 Post Road",
+      "city": "Warwick",
+      "state": "RI",
+      "zip": "02886",
+      "town": "Warwick",
+      "short": "Warwick City Hall Plaza, Warwick",
+      "lat": 41.69891,
+      "lng": -71.45881
+    },
+    {
+      "code": "VTGM",
+      "name": "Rocky Point Park",
+      "street": "1 Rocky Point Avenue",
+      "city": "Warwick",
+      "state": "RI",
+      "zip": "02889",
+      "town": "Warwick",
+      "short": "Rocky Point Park, Warwick",
+      "lat": 41.68946,
+      "lng": -71.37131
+    },
+    {
+      "code": "NR9D",
+      "name": "The Village Family Fitness",
+      "street": "53 Venturi Ave",
+      "city": "Warwick",
+      "state": "RI",
+      "zip": "02888",
+      "town": "Warwick",
+      "short": "The Village Family Fitness, Warwick",
+      "lat": 41.76519,
+      "lng": -71.39709,
+      "private": true
+    }
+  ]
+}

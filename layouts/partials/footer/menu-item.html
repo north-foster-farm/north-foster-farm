@@ -1,6 +1,6 @@
 {{ $currentPageIsActive := (.page.IsMenuCurrent .menu .menuItem) }}
 
-  <li class="breadcrumb-item">
+  <li>
     {{ if $currentPageIsActive }}
       <a href="{{ .menuItem.URL }}" aria-current="page">{{ .menuItem.Name }}</a>
     {{ else }}

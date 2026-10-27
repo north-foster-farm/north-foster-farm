@@ -1,0 +1,44 @@
+name: Release audit
+
+# The dependency audit as main's gate (James, #283, 6302479835). The
+# same command as ci.yml's audit job, which runs on every push and
+# blocks nothing. This one runs only on a pull request into main, and
+# lives in its own workflow on purpose: a job skipped by an `if` counts
+# as a success for a required check, so a skipped release-audit on a
+# push to staging would satisfy main's rule for the same SHA. Here no
+# other event creates the check at all.
+#
+# An advisory published after the run is not seen by it. Re-run the
+# job before promoting a pull request that has waited.
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-audit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  release-audit:
+    name: release-audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version-file: .nvmrc
+
+      # The log is public: counts only. The token is the run's own, to
+      # lift the advisory API's rate limit.
+      - name: Audit
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: npm run check:audit

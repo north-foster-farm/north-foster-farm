@@ -1,45 +1,54 @@
 {{/* Horizontal layout: label column, field column. A signed-in
-     customer's name, email and phone arrive as plain text; a click
-     turns one into a field, and leaving it turns it back. */}}
-<fieldset class="order-section mb-5" id="details">
-  <legend class="h2" tabindex="-1">Your details</legend>
-  <p class="order-section-hint">Click to edit</p>
+     customer's name, email and phone arrive filled in, as ordinary
+     fields, under skeletons while /api/me answers (#271). */}}
+<fieldset class="order-section order-details mb-5" id="details">
+  <legend class="h2" tabindex="-1">Contact information</legend>
   <div class="order-hform">
     <div class="row">
       <label class="col-sm-3 col-form-label" for="customer-first-name">First name</label>
-      <div class="col-sm-9">
+      <div class="col-sm-9 skeleton-slot" data-prefill-region>
+        {{ partial "skeleton.html" (dict "over" true "fit" "field") }}
+        {{ partial "skeleton/status.html" (dict "quiet" true) }}
         <input class="form-control" type="text" id="customer-first-name" name="customer.firstName" autocomplete="given-name" required data-field="customer.firstName" data-prefill="firstName" aria-describedby="err-customer-first-name">
         <div class="invalid-feedback" id="err-customer-first-name" data-error-for="customer.firstName"></div>
       </div>
     </div>
     <div class="row">
       <label class="col-sm-3 col-form-label" for="customer-last-name">Last name</label>
-      <div class="col-sm-9">
+      <div class="col-sm-9 skeleton-slot" data-prefill-region>
+        {{ partial "skeleton.html" (dict "over" true "fit" "field") }}
+        {{ partial "skeleton/status.html" (dict "quiet" true) }}
         <input class="form-control" type="text" id="customer-last-name" name="customer.lastName" autocomplete="family-name" required data-field="customer.lastName" data-prefill="lastName" aria-describedby="err-customer-last-name">
         <div class="invalid-feedback" id="err-customer-last-name" data-error-for="customer.lastName"></div>
       </div>
     </div>
     <div class="row">
-      <label class="col-sm-3 col-form-label" for="customer-email">Email</label>
-      <div class="col-sm-9">
-        <input class="form-control" type="email" id="customer-email" name="customer.email" autocomplete="email" inputmode="email" required data-field="customer.email" data-prefill="email" aria-describedby="help-customer-email err-customer-email">
-        <div class="form-text" id="help-customer-email">Your payment link will be sent to this address.</div>
+      <label class="col-sm-3 col-form-label" for="customer-email">Email address</label>
+      <div class="col-sm-9 skeleton-slot" data-prefill-region>
+        {{ partial "skeleton.html" (dict "over" true "fit" "field") }}
+        {{ partial "skeleton/status.html" (dict "quiet" true) }}
+        <input class="form-control" type="email" id="customer-email" name="customer.email" autocomplete="email" inputmode="email" required data-field="customer.email" data-prefill="email" aria-describedby="err-customer-email">
         <div class="invalid-feedback" id="err-customer-email" data-error-for="customer.email"></div>
       </div>
     </div>
     <div class="row">
-      <label class="col-sm-3 col-form-label" for="customer-phone">Phone</label>
-      <div class="col-sm-9">
-        <input class="form-control" type="tel" id="customer-phone" name="customer.phone" autocomplete="tel" inputmode="tel" required data-field="customer.phone" data-prefill="phone" aria-describedby="err-customer-phone">
+      {{/* Required for delivery only (order-form.js toggles it). */}}
+      <label class="col-sm-3 col-form-label" for="customer-phone">Phone <span class="text-body-secondary" data-phone-optional hidden>(optional)</span></label>
+      <div class="col-sm-9 skeleton-slot" data-prefill-region>
+        {{ partial "skeleton.html" (dict "over" true "fit" "field") }}
+        {{ partial "skeleton/status.html" (dict "quiet" true) }}
+        <input class="form-control" type="tel" id="customer-phone" name="customer.phone" autocomplete="tel" inputmode="tel" data-field="customer.phone" data-prefill="phone" aria-describedby="err-customer-phone">
         <div class="invalid-feedback" id="err-customer-phone" data-error-for="customer.phone"></div>
       </div>
     </div>
-    <div class="row">
+    {{/* Shown once the phone number is one we could use
+         (order-form.js showContact), fading in when it appears. */}}
+    <div class="row order-contact-row" data-contact-row data-shown="false">
       <span class="col-sm-3 col-form-label" id="customer-contact-label">Prefer text or call?</span>
       <div class="col-sm-9">
         <div class="order-radios" role="radiogroup" aria-labelledby="customer-contact-label" data-field="customer.contact">
           <div class="form-check form-check-inline">
-            <input class="form-check-input" type="radio" name="customer.contact" id="contact-text" value="text">
+            <input class="form-check-input" type="radio" name="customer.contact" id="contact-text" value="text" checked>
             <label class="form-check-label" for="contact-text">Text</label>
           </div>
           <div class="form-check form-check-inline">
