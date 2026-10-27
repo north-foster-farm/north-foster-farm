@@ -29,6 +29,7 @@
 
 import { normalizeEmail } from "./auth.mjs";
 import { log } from "./log.mjs";
+import { maskEmail, maskIn } from "./mask.mjs";
 import * as newsApi from "./news.mjs";
 import { endPass, passEnded } from "./passes.mjs";
 import {
@@ -222,10 +223,12 @@ const squareProfiles = (orders) => [...new Set(orders
 
 // Everything under the site's stores that names the address, and the
 // Resend contact. With `apply` false nothing is written and the report
-// says what would go. -> { ok, ... } or { ok: false, wait }.
+// says what would go. The log line names the address masked
+// (mask.mjs, #496) and who acted: `by`, the CLI's user, or the
+// customer. -> { ok, ... } or { ok: false, wait }.
 export const forgetCustomer = async (stores, rawEmail, {
   apply = false, env = process.env, fetchImpl = globalThis.fetch,
-  news = newsApi, now = new Date(), square = squareApi,
+  news = newsApi, now = new Date(), square = squareApi, by = "customer",
 } = {}) => {
   const email = normalizeEmail(rawEmail);
   const customer = await getCustomer(stores, email);
@@ -326,8 +329,9 @@ export const forgetCustomer = async (stores, rawEmail, {
   if (customer) await deleteCustomer(stores, email);
 
   log.info({
-    event: "customer.forgotten", orders: report.orders.length,
-    resend: report.resend,
+    event: "customer.forgotten", outcome: "forgotten", by,
+    record: maskEmail(email), orders: report.orders.length,
+    resend: maskIn(report.resend, email),
   });
 
   return report;

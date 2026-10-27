@@ -56,6 +56,11 @@ const USAGE = `Usage:
   bin/nff customers show <email>
   bin/nff customers set <email> name=.. phone=.. group=friends|none
                                 member=vff|none   (a buying group, #471)
+  bin/nff customers set <email> first=.. last=.. [--dry-run]
+                                      the first and last name, and name
+                                      from them, on the record and the
+                                      Resend contact (a sync never
+                                      changes a contact's name)
   bin/nff customers delete <email>
   bin/nff customers forget <email> [--apply]
                                       delete a customer's details:
@@ -301,6 +306,13 @@ const USAGE = `Usage:
                                       but the import's consent and held
                                       welcome. Not an unsubscribe, and
                                       Resend is not called
+  bin/nff audience apply <csv> [--dry-run]
+                                      a cleanup, one row each with the
+                                      header action,email,first,last:
+                                      keep sets the names as customers
+                                      set does; remove is customers
+                                      forget --apply. Prints each row
+                                      with the address masked
   bin/nff audience sync [--dry-run]   the Resend audience and the
                                       records, made to agree
   bin/nff schedule check <file>       the pickup schedule, checked as a
@@ -1150,9 +1162,32 @@ const run = async () => {
   }
   case "customers show":
     return out(await admin.showCustomer(stores, rest[0]));
-  case "customers set":
-    return out(await admin.setCustomer(stores, rest[0], kv(rest.slice(1)),
-      terms.money));
+  case "customers set": {
+    const { first, last, ...patch } = kv(rest.slice(1));
+
+    if (first === undefined && last === undefined) {
+      // Production's confirmation skips a dry run, so this form,
+      // which has none, refuses the flag rather than writing.
+      if (flags["dry-run"]) {
+        throw new Error("--dry-run is for first= and last= only. "
+          + "Nothing changed.");
+      }
+
+      return out(await admin.setCustomer(stores, rest[0], patch,
+        terms.money));
+    }
+    if (Object.keys(patch).length) {
+      throw new Error("Set first= and last= on their own: they also "
+        + "change name= and the Resend contact.");
+    }
+    if (first === true || last === true) {
+      throw new Error("Give each name a value: first=Pat last=Example");
+    }
+
+    return out(await admin.setNames(stores, rest[0], { first, last }, {
+      by: userInfo().username, dryRun: !!flags["dry-run"],
+    }));
+  }
   case "customers quiet": {
     const list = await admin.quietCustomers(stores);
 
@@ -1170,7 +1205,7 @@ const run = async () => {
     }));
   case "customers forget":
     return out(await admin.forgetCustomer(stores, rest[0], {
-      apply: !!flags.apply,
+      apply: !!flags.apply, by: userInfo().username,
     }));
   case "customers delete":
     await admin.removeCustomer(stores, rest[0], { by: userInfo().username });
@@ -1631,6 +1666,30 @@ const run = async () => {
     return out(await removeImported(stores, rest[0], {
       by: userInfo().username, dryRun: !!flags["dry-run"],
     }));
+  case "audience apply": {
+    if (!rest[0]) {
+      throw new Error("Which CSV? bin/nff audience apply <csv>");
+    }
+
+    const rows = parseCsv(readFileSync(rest[0], "utf8"));
+
+    if (rows.some((r) => r.action === undefined)) {
+      throw new Error("The CSV needs a header row: action,email,first,last");
+    }
+
+    const r = await admin.applyAudience(stores, rows, {
+      by: userInfo().username, dryRun: !!flags["dry-run"],
+    });
+
+    for (const row of r.rows) {
+      out(`${row.action.padEnd(7)}${row.record.padEnd(34)}${row.outcome}${
+        row.resend ? `, Resend: ${row.resend}` : ""}`);
+    }
+
+    return out(`${r.dryRun ? "Dry run, nothing written. " : ""}${
+      Object.entries(r.counts).map(([k, n]) => `${n} ${k}`).join(", ")
+      || "No rows."}`);
+  }
   case "audience sync":
     return out(await syncAudience(stores, { dryRun: !!flags["dry-run"] }));
   case "schedule check": {

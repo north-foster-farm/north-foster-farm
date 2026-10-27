@@ -240,7 +240,52 @@ ran it (the Mac's user name), which outcome and the address masked
 never in full. `customers delete` logs `customer.deleted` the same way
 (2026-10-27, James on #496; these lines hashed the address before). On
 production it asks for the address typed out; `--dry-run` asks nothing
-and writes nothing.
+and writes nothing. `bin/nff` ships these lines to Axiom at the end of
+the run (`docs/monitoring.md`); a dry run ships none.
+
+### Names, and a batch cleanup: `customers set` and `audience apply`
+
+```
+bin/nff --production customers set <email> first=.. last=.. [--dry-run]
+bin/nff --production audience apply <csv> [--dry-run]
+```
+
+The welcome and Resend use `firstName` and `lastName`, and the sync
+never changes the name on a contact that exists, so `customers set`
+with `first=` or `last=` (`setNames`, #496, 2026-10-27) sets both on
+the record, with `name` made from them, and the Resend contact's
+`first_name` and `last_name`. A name left out stays as it was. If
+Resend can't be reached, the record keeps its change and the report
+says `not reached`: run it again. It logs `customer.renamed` with who
+ran it, which fields changed and the address masked, never the names.
+`name=`, `phone=` and the rest are set without the two, as before.
+
+`audience apply` (`applyAudience`) takes a CSV whose header names
+`action,email,first,last`, one row per address:
+
+- `keep` sets the names in the row as `customers set` does. An empty
+  cell leaves that name as it is.
+- `remove` goes the way of `customers forget --apply`: the record and
+  everything else that names the address go, its orders stay but are
+  re-pointed to the deleted household, and the Resend contact is
+  deleted. A remove waits, and says why, while an order, a return or a
+  Venmo payment is open.
+
+It prints one line per row with the address masked, then the counts,
+and goes on past a row that fails. Keep the CSV off the repository. On
+production it asks for `audience apply` typed out; `--dry-run` asks
+nothing, writes nothing and only reads Resend.
+
+Which removal to use, against Resend: `audience remove` and
+`customers delete` never call Resend. Before the first sync that is
+enough, since the import makes no contacts, unless the address was
+already a contact in Resend (`audience sync --dry-run` lists any it
+would take in under `imported`). Once a sync has made the
+contact, `customers delete` leaves it there, and the next sync takes it
+back in as consent given in Resend, with a new record. `customers
+forget --apply` (and a `remove` row) deletes the contact too, or, if
+Resend can't be reached, leaves a `forgotten/` marker so the next sync
+deletes it.
 
 ## The list template
 

@@ -8,7 +8,7 @@ import { describe, it } from "node:test";
 import { shipLog } from "../bin/ship-log.mjs";
 import { removeCustomer } from "../netlify/functions/lib/admin.mjs";
 import { flush, log, pending } from "../netlify/functions/lib/log.mjs";
-import { maskEmail } from "../netlify/functions/lib/mask.mjs";
+import { maskEmail, maskIn } from "../netlify/functions/lib/mask.mjs";
 import {
   importSubscribers, removeImported,
 } from "../netlify/functions/lib/news.mjs";
@@ -43,6 +43,14 @@ describe("maskEmail", () => {
     assert.equal(maskEmail("pat@farm.co"), "***@far*.co");
     assert.equal(maskEmail("abcdef@abc.de"), "******@******");
     assert.equal(maskEmail("a@b.co"), "*@****");
+  });
+
+  it("masks an address inside a message, as typed or in a URL", () => {
+    assert.equal(maskIn("Resend 500 on PATCH /contacts/abcdefgh%40example.com"
+      + " for ABCDEFGH@Example.com", "abcdefgh@example.com"),
+    "Resend 500 on PATCH /contacts/abc**fgh@exa*****com"
+      + " for abc**fgh@exa*****com");
+    assert.equal(maskIn("removed", "abcdefgh@example.com"), "removed");
   });
 
   it("masks something that is not an address", () => {

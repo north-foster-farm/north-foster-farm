@@ -61,6 +61,12 @@ describe("bin/nff's production confirmation (#268)", () => {
       "a@example.com");
     assert.equal(phrase("audience", "remove", ["a@example.com"],
       { "dry-run": true }), undefined);
+    assert.equal(phrase("audience", "apply", ["names.csv"]),
+      "audience apply");
+    assert.equal(phrase("audience", "apply", ["names.csv"],
+      { "dry-run": true }), undefined);
+    assert.equal(phrase("customers", "set", ["a@example.com", "first=Pat"],
+      { "dry-run": true }), undefined);
   });
 
   it("guards square deletions pause and resume, not status", () => {

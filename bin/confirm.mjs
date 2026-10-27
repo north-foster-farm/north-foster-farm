@@ -30,7 +30,7 @@ const DESTRUCTIVE = {
   "orders attempted": { does: "mark order attempted" },
   "returns resolve": { does: "resolve the return on order" },
   "customers delete": { does: "delete customer" },
-  "customers set": { does: "change the details of" },
+  "customers set": { does: "change the details of", unless: "dry-run" },
   "address approve": { does: "approve the delivery address of" },
   "address deny": { does: "deny the delivery address of" },
   "passes revoke": { does: "revoke the pass" },
@@ -68,6 +68,10 @@ const DESTRUCTIVE = {
   },
   "audience remove": {
     does: "take out of our records the imported address", unless: "dry-run",
+  },
+  "audience apply": {
+    does: "set names and erase the details of the addresses in the CSV, "
+      + "running", unless: "dry-run", whole: true,
   },
   "audience sync": { does: "sync the audience, running",
     unless: "dry-run", whole: true },

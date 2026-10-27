@@ -24,3 +24,20 @@ export const maskEmail = (email) => {
   return `${maskPart(address.slice(0, at))}@${
     maskPart(address.slice(at + 1))}`;
 };
+
+// `text` with `email` masked wherever it appears, as typed or as a URL
+// carries it (abc%40example.com, which the scrubber's pattern misses):
+// for a service's error message, which names the address it was
+// asked about.
+const literal = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+export const maskIn = (text, email) => {
+  const address = String(email || "").trim().toLowerCase();
+
+  if (!address) return String(text);
+
+  const forms = [address, encodeURIComponent(address)].map(literal);
+
+  return String(text).replace(new RegExp(forms.join("|"), "gi"),
+    maskEmail(address));
+};

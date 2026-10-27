@@ -716,8 +716,9 @@ export const removeImported = async (stores, email, {
 };
 
 // A CSV of addresses: a header row naming email, first and last, and
-// for the old list's sheets date and market (any order, any case) or,
-// without one, email first then the names.
+// for the old list's sheets date and market, or for `audience apply`
+// action (any order, any case) or, without one, email first then the
+// names.
 export const parseCsv = (content) => {
   const lines = String(content).split(/\r?\n/).map((l) => l.trim())
     .filter(Boolean);
@@ -738,8 +739,10 @@ export const parseCsv = (content) => {
   const l = col("last", 2);
   const d = col("date", -1);
   const m = col("market", -1);
+  const a = col("action", -1);
 
   return rows.map((r) => ({
+    ...(a >= 0 ? { action: (r[a] || "").toLowerCase() } : {}),
     email: e >= 0 ? r[e] || "" : "",
     firstName: f >= 0 ? r[f] || "" : "",
     lastName: l >= 0 ? r[l] || "" : "",
@@ -956,6 +959,34 @@ export const removeContact = async (email, {
   }
 
   return "removed";
+};
+
+// One contact's first and last name set (#496). `audience sync` makes
+// contacts and changes their choice, never their names, so a corrected
+// name reaches Resend only this way. `contacts` is the audience, when
+// the caller has listed it already. -> "renamed", "none" or
+// "unconfigured"; with `apply` false nothing is written.
+export const renameContact = async (email, { firstName, lastName }, {
+  env = process.env,
+  fetchImpl = globalThis.fetch,
+  apply = false,
+  contacts = null,
+} = {}) => {
+  if (!audienceConfigured(env)) return "unconfigured";
+
+  const address = normalizeEmail(email);
+  const found = (contacts || await listContacts(env, fetchImpl))
+    .find((c) => normalizeEmail(c.email) === address);
+
+  if (!found) return "none";
+  if (apply) {
+    await resend(env, fetchImpl, "PATCH", `/audiences/${
+      env.RESEND_AUDIENCE_ID}/contacts/${encodeURIComponent(address)}`, {
+      first_name: firstName || "", last_name: lastName || "",
+    });
+  }
+
+  return "renamed";
 };
 
 // A deletion that could not reach Resend leaves this marker, the
