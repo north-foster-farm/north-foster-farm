@@ -129,6 +129,22 @@ describe("availability by restock type", () => {
     assert.equal(items.ARCHIVED.inStock, false);
   });
 
+  // Every type but archived describes only the sold-out state, so no
+  // flag hides stock (#499, James, #303 6454589969).
+  it("sells every type but archived when its count is above 0",
+    async () => {
+      const stores = testStores();
+
+      for (const type of TYPES) await setCount(stores, type.toUpperCase(), 3);
+      const items = await availability(stores, { catalogIndex: FIXTURE });
+
+      for (const type of TYPES.filter((t) => t !== "archived")) {
+        assert.deepEqual(items[type.toUpperCase()],
+          { inStock: true, available: 3 }, type);
+      }
+      assert.equal(items.ARCHIVED.inStock, false);
+    });
+
   it("is out at a count of 0, whatever the type", async () => {
     const stores = testStores();
 
