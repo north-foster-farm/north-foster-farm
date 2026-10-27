@@ -4,7 +4,7 @@
      changed holds it (order/restock.js). */}}
 {{ $id := printf "qty-%s" (.sku | lower) }}
 <li class="order-item" data-sku="{{ .sku }}" data-restock-label="{{ .restockLabel }}"{{ with .restock }} data-restock="{{ . }}"{{ end }} tabindex="-1"{{ if eq .restock "archived" }} data-archived{{ end }}{{ if .out }} data-out{{ with .restockLabel }} data-stock="out"{{ end }} hidden{{ end }}>
-  <span class="order-item-name">
+  <span class="order-item-name{{ if .grade }} order-item-graded{{ end }}">
     {{- /* A grade goes before the name, "Grade A · Large", as the
          cart's grouped row and Square's name read it (James,
          2026-10-26); a note after it, "8 per pack". Either goes by
