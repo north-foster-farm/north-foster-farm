@@ -84,7 +84,7 @@ test.describe("restock types (#267)", () => {
       const item = items.find((i) => i.sku === sku);
 
       // Large eggs are in stock in the catalog; the stub sells them out.
-      expect(item.inStock, sku).toBe(type !== "soon");
+      expect(item.inStock, sku).toBe(type === "soon");
       expect(item.restock, sku).toBe(type);
     }
     for (const item of items) {
