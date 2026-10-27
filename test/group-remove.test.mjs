@@ -90,7 +90,11 @@ const setup = async () => {
 const post = (stores, path, body, headers = {}) => handle(
   new Request(`http://x${path}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", ...headers },
+    // As the account page's own fetch sends it.
+    headers: {
+      "Content-Type": "application/json", "sec-fetch-site": "same-origin",
+      ...headers,
+    },
     body: JSON.stringify(body),
   }), { stores, env, now });
 
@@ -158,6 +162,24 @@ describe("the host's Remove", () => {
 
     assert.equal(res.status, 403);
     assert.equal(memberKeyOf(await getCustomer(stores, PAT)), "vff");
+  });
+
+  // The coordinator's security review: same-site is not enough.
+  it("is refused when same-site but not same-origin", async () => {
+    const { stores, host } = await setup();
+
+    for (const headers of [
+      { "sec-fetch-site": "same-site" },
+      { "sec-fetch-site": "", origin: "http://preview.x" },
+      { "sec-fetch-site": "" },
+    ]) {
+      const res = await post(stores, "/api/membership/remove", { email: PAT },
+        { ...host, ...headers });
+
+      assert.equal(res.status, 403, JSON.stringify(headers));
+    }
+    assert.equal(memberKeyOf(await getCustomer(stores, PAT)), "vff");
+    assert.deepEqual(await auditLog(stores, "vff"), []);
   });
 });
 

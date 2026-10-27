@@ -11,10 +11,14 @@
 //
 // 401 with no session. Anyone who is neither the group's member nor
 // its host gets 404, and a member asking for a host's part gets 404
-// too: nothing says whether there is anything there.
+// too: nothing says whether there is anything there. The host's POSTs
+// get 403 unless they come from this origin (Sec-Fetch-Site
+// same-origin, or an Origin naming this host); same-site is not enough.
 
 import terms from "./lib/terms.mjs";
-import { normalizeEmail, sameSite, sessionFrom } from "./lib/auth.mjs";
+import {
+  normalizeEmail, sameOrigin, sameSite, sessionFrom,
+} from "./lib/auth.mjs";
 import { now as clock } from "./lib/clock.mjs";
 import { audit } from "./lib/group-log.mjs";
 import {
@@ -97,8 +101,12 @@ export const handle = async (req, {
     return json(200, { ok: true });
   }
 
-  // Everything past here is the host's alone.
+  // Everything past here is the host's alone, and the host's changes
+  // come from this origin only, not merely this site.
   if (!role.host) return NOTHING();
+  if (req.method === "POST" && !sameOrigin(req)) {
+    return json(403, { error: "Cross-origin request." });
+  }
 
   const by = { role: "host", email: session.email };
 

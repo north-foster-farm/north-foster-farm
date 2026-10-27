@@ -336,6 +336,26 @@ export const sameSite = (req) => {
   }
 };
 
+// Stricter, for a group host's actions (#495): this origin only, never
+// a sibling on the same site (a deploy preview, a branch subdomain).
+// Sec-Fetch-Site must say same-origin; a browser without it must send
+// an Origin naming this host. A request with neither is refused.
+export const sameOrigin = (req) => {
+  const fetchSite = req.headers.get("sec-fetch-site");
+
+  if (fetchSite) return fetchSite === "same-origin";
+
+  const origin = req.headers.get("origin");
+
+  if (!origin) return false;
+
+  try {
+    return new URL(origin).host === new URL(req.url).host;
+  } catch {
+    return false;
+  }
+};
+
 // The public shape of a customer, for /api/me and the account pages.
 // Records from before the name split carry only `name`; derive the
 // parts so the order form can prefill both fields.

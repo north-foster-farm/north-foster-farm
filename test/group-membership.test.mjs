@@ -57,7 +57,11 @@ const setup = async () => {
 const call = (stores, path, { method = "GET", headers = {}, body } = {}) =>
   handle(new Request(`http://x${path}`, {
     method,
-    headers: { "Content-Type": "application/json", ...headers },
+    // As the account page's own fetch sends it.
+    headers: {
+      "Content-Type": "application/json", "sec-fetch-site": "same-origin",
+      ...headers,
+    },
     body: body ? JSON.stringify(body) : undefined,
   }), { stores, env, now });
 
@@ -160,6 +164,34 @@ describe("who gets what", () => {
 
     assert.equal(res.status, 403);
   });
+
+  // The coordinator's security review: same-site lets a sibling
+  // (a deploy preview, a branch subdomain) act as the host.
+  it("refuses a rotation that is same-site but not same-origin",
+    async () => {
+      const { stores, host } = await setup();
+      const old = await joinTokenOf(stores, "vff", { now });
+      const rotate = (headers) => call(stores, "/api/membership/qr", {
+        method: "POST", body: { rotate: true },
+        headers: { ...host, ...headers },
+      });
+
+      for (const headers of [
+        { "sec-fetch-site": "same-site" },
+        { "sec-fetch-site": "none" },
+        { "sec-fetch-site": "", origin: "http://preview.x" },
+        { "sec-fetch-site": "" },
+      ]) {
+        assert.equal((await rotate(headers)).status, 403,
+          JSON.stringify(headers));
+      }
+      assert.equal((await findGroupByToken(stores, old)).key, "vff");
+      assert.deepEqual(await auditLog(stores, "vff"), []);
+
+      // A browser with no Sec-Fetch-Site but this Origin is let in.
+      assert.equal((await rotate({ "sec-fetch-site": "", origin: "http://x" }))
+        .status, 200);
+    });
 
   it("flags the tab in /api/me for a member and the host only",
     async () => {
