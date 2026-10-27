@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { beforeEach, describe, it } from "node:test";
 
 import {
   DECLINE_MESSAGES, PayPalError, captureOrder, clientConfig, configured,
-  createOrder, forgetTokens, getOrder, refundCapture, settings,
+  createOrder, describeError, forgetTokens, getOrder, refundCapture, settings,
   verifyWebhook,
 } from "../netlify/functions/lib/paypal.mjs";
 
@@ -323,6 +324,45 @@ describe("refundCapture", () => {
         note_to_payer: "Sorry",
       });
     });
+
+  // PayPal's answer to a refused live refund, recorded 2026-10-27
+  // (test/fixtures/paypal/, with its source).
+  it("says why PayPal refused, and what to do (#490)", async () => {
+    const recorded = JSON.parse(readFileSync(new URL(
+      "./fixtures/paypal/refund-422-insufficient-funds.json", import.meta.url,
+    ), "utf8"));
+    const { impl } = fakeFetch({
+      "/v1/oauth2/token": token,
+      "/v2/payments/captures/CAP/refund": () => new Response(
+        JSON.stringify(recorded.response), { status: recorded.status },
+      ),
+    });
+    const error = await refundCapture({
+      paypalCaptureId: "CAP", amount: 500, key: KEY, note: "Sorry",
+    }, opts(impl)).catch((e) => e);
+
+    assert.ok(error instanceof PayPalError);
+    assert.equal(error.status, 422);
+    assert.equal(describeError(error), [
+      "PayPal 422 on /v2/payments/captures/CAP/refund: " +
+        "REFUND_FAILED_INSUFFICIENT_FUNDS",
+      recorded.response.details[0].description,
+      "Add funds to the PayPal balance, or link and verify a bank " +
+        "account, then run the refund again.",
+    ].join("\n"));
+  });
+
+  it("describes any other error by its message alone", () => {
+    assert.equal(describeError(new Error("This order is fulfilled.")),
+      "This order is fulfilled.");
+    assert.equal(describeError(new PayPalError("PayPal 500 on /x", {
+      status: 500, detail: { name: "INTERNAL_SERVER_ERROR" },
+      code: "INTERNAL_SERVER_ERROR",
+    })), "PayPal 500 on /x: INTERNAL_SERVER_ERROR");
+    assert.equal(describeError(new PayPalError("/x did not finish answering",
+      { code: "timeout", detail: "AbortError" })),
+    "/x did not finish answering: timeout");
+  });
 });
 
 describe("verifyWebhook", () => {

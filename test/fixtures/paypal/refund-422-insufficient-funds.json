@@ -1,0 +1,23 @@
+{
+  "_source": "PayPal live, POST /v2/payments/captures/<CAPTURE_ID>/refund, a refused Venmo refund from bin/nff orders refund, posted by James on 2026-10-27 for #490 (issue comment). The capture id was replaced; the body is as PayPal answered.",
+  "_shows": "A refund PayPal refuses answers 422 with the reason in details[0].issue and details[0].description, which the CLI prints (lib/paypal.mjs, describeError).",
+  "status": 422,
+  "path": "/v2/payments/captures/<CAPTURE_ID>/refund",
+  "response": {
+    "name": "UNPROCESSABLE_ENTITY",
+    "message": "The requested action could not be performed, semantically incorrect, or failed business validation.",
+    "debug_id": "7ebd863a40351",
+    "details": [
+      {
+        "issue": "REFUND_FAILED_INSUFFICIENT_FUNDS",
+        "description": "Capture could not be refunded due to insufficient funds. Please check to see if you have sufficient funds in your PayPal account or if the bank account linked to your PayPal account is verified and has sufficient funds."
+      }
+    ],
+    "links": [
+      {
+        "href": "https://developer.paypal.com/docs/api/payments/v2/#error-REFUND_FAILED_INSUFFICIENT_FUNDS",
+        "rel": "information_link"
+      }
+    ]
+  }
+}

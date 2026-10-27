@@ -45,6 +45,33 @@ export class PayPalError extends Error {
   }
 }
 
+// What the farm can do about a refusal PayPal names, by its issue.
+export const ISSUE_ADVICE = {
+  REFUND_FAILED_INSUFFICIENT_FUNDS: "Add funds to the PayPal balance, or " +
+    "link and verify a bank account, then run the refund again.",
+};
+
+// An error as the CLI prints it (#490). A PayPalError adds PayPal's
+// code, its first issue and description, and what to do where we know:
+// "PayPal 422 on /v2/...: REFUND_FAILED_INSUFFICIENT_FUNDS", then the
+// description, then the advice. Anything else is its message.
+export const describeError = (error) => {
+  const message = String((error && error.message) || error);
+
+  if (!error || error.name !== "PayPalError") return message;
+
+  const data = error.detail && typeof error.detail === "object"
+    ? error.detail : {};
+  const first = (Array.isArray(data.details) && data.details[0]) || {};
+  const codes = [...new Set([error.code, first.issue].filter(Boolean))];
+  const advice = ISSUE_ADVICE[first.issue] || ISSUE_ADVICE[error.code];
+
+  return [
+    codes.length ? `${message}: ${codes.join(", ")}` : message,
+    first.description, advice,
+  ].filter(Boolean).join("\n");
+};
+
 // PAYPAL_ENV=fake: fake-paypal.mjs answers instead of PayPal, in local
 // development only (lib/fake.mjs). Anywhere else it throws, so no
 // order is taken without money.

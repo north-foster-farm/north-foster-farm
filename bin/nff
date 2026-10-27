@@ -520,6 +520,7 @@ const [
   groups,
   rounds,
   credit,
+  { describeError },
 ] = await Promise.all([
   import("../netlify/functions/lib/terms.mjs"),
   import("../netlify/functions/lib/admin.mjs"),
@@ -548,6 +549,7 @@ const [
   import("../netlify/functions/lib/groups.mjs"),
   import("../netlify/functions/lib/rounds.mjs"),
   import("../netlify/functions/lib/credit.mjs"),
+  import("../netlify/functions/lib/paypal.mjs"),
 ]);
 
 // --scratch: development's env, but stores of their own
@@ -2136,6 +2138,6 @@ const run = async () => {
 try {
   await run();
 } catch (error) {
-  console.error(redact(error.message, held));
+  console.error(redact(describeError(error), held));
   process.exit(1);
 }
