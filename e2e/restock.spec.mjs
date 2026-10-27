@@ -64,6 +64,13 @@ const open = async (page, cart) => {
 };
 
 test.describe("restock types (#267)", () => {
+  // A stock check still in flight at the end (the page asks again
+  // on its own) must not fail the test, nor the next one, by hitting
+  // a stub the test is taking down.
+  test.afterEach(({ page }) => page.unrouteAll({
+    behavior: "ignoreErrors",
+  }));
+
   test("the catalog's assignments hold", () => {
     for (const [type, sku] of Object.entries(OUT)) {
       const item = items.find((i) => i.sku === sku);
@@ -487,12 +494,6 @@ test.describe("restock types (#267)", () => {
   test.describe("a stubbed archived product", () => {
     const sku = "NFF-CHK-WNG-20-29"; // Wings, 2.0 - 2.9 lbs
 
-    // A stock check still in flight at the end must not fail the next
-    // test.
-    test.afterEach(({ page }) => page.unrouteAll({
-      behavior: "ignoreErrors",
-    }));
-
     const archive = async (page) => {
       await stubStock(page, { [sku]: { inStock: true, available: 5 } });
       await page.route(/\/order\/(\?.*)?$/, async (route) => {
@@ -581,6 +582,11 @@ test.describe("restock types (#267)", () => {
 });
 
 test.describe("search and restock types (#267)", () => {
+  // As above: a stub never outlives its test.
+  test.afterEach(({ page }) => page.unrouteAll({
+    behavior: "ignoreErrors",
+  }));
+
   const palette = (page) => {
     const dialog = page.locator("#search-palette");
 
