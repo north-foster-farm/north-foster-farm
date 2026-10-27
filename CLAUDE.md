@@ -52,7 +52,22 @@ decisions James made on GitHub. The issue numbers point to the source.
   service returns a fixture recorded from a real request (the sandbox
   will do), with secrets scrubbed but the real shape kept. Never a
   hand-written response object. Note the source and date with it
-  (James, 2026-10-26).
+  (James, 2026-10-26). Cloud runs can't reach Square, PayPal or
+  Resend, so when a cloud lane adds or changes a fake, the coordinator
+  records its requests with `bin/fixtures/record`, swaps them in and
+  reruns the tests before landing, without being asked (#496,
+  2026-10-27).
+- **New dependencies need James's approval** (#303, 2026-10-27):
+  - They are allowed when they provide clear value, especially where a
+    well-tested package replaces code that could break in subtle ways
+    (encoders, parsers, crypto, date handling and similar).
+  - Lean toward fewer dependencies. If a small amount of simple code
+    does the job, write it.
+  - James has the final say on every new package. Before adding one,
+    post a short proposal: the package, its version and license, how
+    well it's maintained, what it replaces, and why it beats
+    hand-rolling. Don't add it until James approves.
+  - Approved packages are pinned.
 - **Confirm dates before production.** Any change to a news post, or to
   a page with a "Last updated" line, has its date confirmed before it
   ships. The right date is often not the commit date.

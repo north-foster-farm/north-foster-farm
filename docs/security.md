@@ -117,9 +117,18 @@ part updates faster than another.
    and patch in one group each Monday 08:00 Eastern, a major version
    in its own. They pass the full suite like any change. A major bump
    waits for James.
-5. **A new dependency needs a reason.** The pull request that adds a
-   package says why and how big its own dependency tree is. No
-   automation checks this.
+5. **A new dependency needs James's approval** (#303, 2026-10-27).
+   New dependencies are allowed when they provide clear value,
+   especially where a well-tested package replaces code that could
+   break in subtle ways (encoders, parsers, crypto, date handling and
+   similar). Lean toward fewer dependencies: if a small amount of
+   simple code does the job, write it. James has the final say on
+   every new package. Before adding one, post a short proposal: the
+   package, its version and license, how well it's maintained, what it
+   replaces, and why it beats hand-rolling. Don't add it until James
+   approves. Approved packages are pinned. The proposal and the pull
+   request that adds the package also state how big its own
+   dependency tree is. No automation checks this.
 
 Where installing a patched version would pull in young transitive
 packages, adopt an older patched version, or hold the transitive one
