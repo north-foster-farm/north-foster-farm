@@ -8,6 +8,8 @@
 //                           one use, 15 min
 //   session/<sha256(id)>    { email, createdAt, expires, via }
 //   rate/<email>            { times: [...] }             link requests
+//   rate/join/<email>       { times: [...] }    join-link requests, kept
+//                           apart so they never stop a sign-in (#495)
 
 import { createHash, randomBytes } from "node:crypto";
 
@@ -122,9 +124,13 @@ export const requestLink = async (stores, { email, next }, {
   if (!validEmail(address)) return { ok: false, reason: "invalid" };
 
   if (limit) {
-    // Real time: a tester's clock must not reopen the limit.
+    // Real time: a tester's clock must not reopen the limit. A group's
+    // sign-up page counts in its own bucket: anyone with the QR code
+    // can ask for links to an address, and that must never use up the
+    // owner's sign-in links (#495).
     const at = real(now).getTime();
-    const limited = await hit(stores, `rate/${address}`, at, {
+    const bucket = join ? `rate/join/${address}` : `rate/${address}`;
+    const limited = await hit(stores, bucket, at, {
       windowMs: LINK_WINDOW, max: LINKS_PER_WINDOW,
     });
 

@@ -117,6 +117,7 @@ describe("forgetCustomer", () => {
     await stores.customers.set("messages/m2", { email: "sam@example.com" });
     await stores.auth.set("unsub/t1", { email: PAT });
     await stores.auth.set(`rate/${PAT}`, { times: [1] });
+    await stores.auth.set(`rate/join/${PAT}`, { times: [1] });
     await stores.auth.set(`change-rate/${PAT}`, { times: [1] });
     await createSession(stores, PAT, { now });
 
@@ -171,6 +172,7 @@ describe("forgetCustomer", () => {
     assert.equal((await stores.auth.list("session/")).length, 0);
     assert.equal(await stores.auth.get("unsub/t1"), null);
     assert.equal(await stores.auth.get(`rate/${PAT}`), null);
+    assert.equal(await stores.auth.get(`rate/join/${PAT}`), null);
     assert.equal(await stores.auth.get(`change-rate/${PAT}`), null);
     assert.ok(await getCustomer(stores, "sam@example.com"));
     assert.equal((await getOrder(stores, "B")).customer.email,

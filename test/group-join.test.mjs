@@ -12,7 +12,9 @@ import { handle as authHandle } from "../netlify/functions/auth.mjs";
 import {
   RATE, SEND_RATE, TOO_MANY, handle as joinHandle,
 } from "../netlify/functions/join.mjs";
-import { createSession } from "../netlify/functions/lib/auth.mjs";
+import {
+  LINKS_PER_WINDOW, createSession, requestLink,
+} from "../netlify/functions/lib/auth.mjs";
 import { joinLog } from "../netlify/functions/lib/group-log.mjs";
 import {
   codeUrl, findGroupByCode, findGroupByToken, getGroupRecord, joinGroup,
@@ -237,6 +239,38 @@ describe("the sign-up form and its link", () => {
       assert.deepEqual((await joinLog(stores, "vff")).map((j) => j.via),
         ["qr"]);
     });
+
+  // The coordinator's security review: anyone with the QR code can ask
+  // for join links to an address, so they count in their own bucket
+  // and never use up its owner's sign-in links.
+  it("limits join links apart from sign-in links", async () => {
+    const { stores, token } = await setup();
+    const { sent, mail } = outbox();
+
+    for (let i = 0; i < LINKS_PER_WINDOW + 2; i++) {
+      const res = await post("/api/join/request", { token, ...signUp() },
+        { stores, mail });
+
+      assert.equal(res.status, 200, "the page says the same either way");
+    }
+    assert.equal(sent.length, LINKS_PER_WINDOW, "join links are limited");
+    assert.ok(await stores.auth.get(`rate/join/${PAT}`));
+    assert.equal(await stores.auth.get(`rate/${PAT}`), null);
+
+    for (let i = 0; i < LINKS_PER_WINDOW; i++) {
+      const signIn = await requestLink(stores,
+        { email: PAT, next: "/account/" }, { now, env, mail });
+
+      assert.equal(signIn.ok, true, "sign-in links still go");
+    }
+    assert.equal((await requestLink(stores,
+      { email: PAT, next: "/account/" }, { now, env, mail })).reason, "rate");
+
+    // And a spent sign-in bucket doesn't stop a join link either.
+    await stores.auth.delete(`rate/join/${PAT}`);
+    await post("/api/join/request", { token, ...signUp() }, { stores, mail });
+    assert.equal(sent.length, 2 * LINKS_PER_WINDOW + 1);
+  });
 
   // The qa on #495 (6455105350, item 5): anyone can type an address
   // and tick the box, so the email tells its owner, and the owner's
