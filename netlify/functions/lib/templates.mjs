@@ -1005,7 +1005,7 @@ export const listMail = (subject, {
   const address = `${company.address.street}, ${company.address.city}, ` +
     `${company.address.state} ${company.address.zip}`;
   const why = reason ? `You're getting this because ${reason}.` : "";
-  const text = [
+  const text = plain([
     ...(hero ? [`[Photo: ${hero.alt}]`, ""] : []),
     ...blocks.flatMap((b) => [b.text, ""]),
     "--",
@@ -1014,7 +1014,7 @@ export const listMail = (subject, {
     "",
     company.name,
     address,
-  ].filter((line, i, all) => line !== "" || all[i - 1] !== "").join("\n");
+  ].filter((line, i, all) => line !== "" || all[i - 1] !== "").join("\n"));
   const logo = site
     ? `<p style="margin:0 0 20px;text-align:center"><img class="nff-logo" ` +
       `src="${site}/images/email/logo.png" width="280" ` +

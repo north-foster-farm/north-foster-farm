@@ -298,6 +298,15 @@ describe("the list template", () => {
     assert.match(m.text, /Order: https:\/\/x\/order\//);
   });
 
+  it("drops the bold marks from the plain text (#490)", () => {
+    const bold = listMail("Sample", {
+      blocks: [listBlocks.p("**Bold lead.** Then the rest.")], links,
+    });
+
+    assert.match(bold.text, /^Bold lead\. Then the rest\./);
+    assert.doesNotMatch(bold.text, /\*\*/);
+  });
+
   it("gives the confirmation no unsubscribe and no reason line", () => {
     const invite = newsConfirm("a@b.co", "https://x/c", { links });
 

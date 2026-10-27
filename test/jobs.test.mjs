@@ -427,6 +427,7 @@ describe("runJobs", () => {
     assert.deepEqual(after.announced, []);
     assert.deepEqual(after.closed.sort(), ["A", "B"]);
     assert.deepEqual(after.errors, []);
+    assert.deepEqual(after.invariants, []);
     assert.deepEqual(calls, []);
     assert.equal(toCustomer().length, 1);
     assert.equal((await getOrder(stores, "A")).status, "fulfilled");
