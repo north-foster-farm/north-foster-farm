@@ -189,21 +189,43 @@ describe("POST /api/join/check", () => {
       assert.equal((await ask()).elsewhere, true);
     });
 
-  it("holds back an address after too many dead tokens, saying what",
+  // The coordinator's security review: a gym's members share its wifi,
+  // so the hold is short and holds back dead tokens only.
+  it("holds back dead tokens, briefly, and never a token in force",
     async () => {
       const { stores, token } = await setup();
-      const ip = "9.9.9.9";
+      const ip = "9.9.9.8";
+      const dead = { token: "z".repeat(43) };
+      const at = (path, body, when) => joinHandle(
+        new Request(`http://x${path}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        }), { stores, env, now: when, ip });
 
+      assert.ok(RATE.windowMs <= 5 * 60_000, "short");
       for (let i = 0; i < RATE.max; i++) {
-        await post("/api/join/check", { token: "z".repeat(43) },
-          { stores, ip });
+        assert.equal((await post("/api/join/check", dead, { stores, ip }))
+          .status, 404);
       }
 
-      const held = await post("/api/join/check", { token }, { stores, ip });
+      const held = await post("/api/join/check", dead, { stores, ip });
 
       assert.equal(held.status, 429);
       assert.equal((await held.json()).message, TOO_MANY);
       assert.match(TOO_MANY, /link to join a group/);
+
+      // The rest of the network still joins with the good one.
+      assert.equal((await post("/api/join/check", { token },
+        { stores, ip })).status, 200);
+      assert.equal((await post("/api/join/request",
+        { token, ...signUp({ email: "sam@example.com" }) },
+        { stores, ip, mail: async () => {} })).status, 200);
+
+      // And the hold ends a window after the last miss.
+      const later = new Date(now.getTime() + RATE.windowMs + 1000);
+
+      assert.equal((await at("/api/join/check", dead, later)).status, 404);
     });
 });
 

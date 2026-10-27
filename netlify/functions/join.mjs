@@ -10,7 +10,8 @@
 //     200 { ok: true, next }        409 { ok: false, message }
 //     401 not signed in             404 a dead token
 //
-// 429 for too many dead tokens from one address. The group's place and
+// 429 for a dead token from an address that sent too many of them;
+// a token in force still works from there. The group's place and
 // prices are not told here: the order page asks /api/group as before.
 
 import { sameSite, sessionFrom } from "./lib/auth.mjs";
@@ -26,7 +27,12 @@ import { stores as defaultStores } from "./lib/store.mjs";
 
 // Per instance, best effort, on dead tokens only, like the group
 // code's: a token is 43 characters from 64, so a script gains nothing.
-export const RATE = { windowMs: 10 * 60_000, max: 10 };
+// The hold is short and holds back dead tokens only: a gym's members
+// share its wifi, and an old poster scanned after the host replaced
+// the QR code must not stop the rest joining with the new one. It ends
+// once the misses in the window drop below `max`, at most `windowMs`
+// after the last one.
+export const RATE = { windowMs: 5 * 60_000, max: 20 };
 const misses = new Map();
 
 const recent = (ip, at) =>
@@ -78,13 +84,16 @@ export const handle = async (req, {
   }
 
   const at = real(now).getTime();
-
-  if (limited(ip, at)) return json(429, { ok: false, message: TOO_MANY });
+  // A held address is told so only for another dead token; a token in
+  // force goes through.
+  const held = limited(ip, at);
 
   const dead = () => {
     missed(ip, at);
 
-    return json(404, { ok: false, message: INVALID_LINK });
+    return held
+      ? json(429, { ok: false, message: TOO_MANY })
+      : json(404, { ok: false, message: INVALID_LINK });
   };
 
   if (path === "/api/join/check") {
