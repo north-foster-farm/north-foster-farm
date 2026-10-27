@@ -4,7 +4,7 @@ import { describe, it } from "node:test";
 import {
   addressLines, draftOccurrence, dropOnly, dropSeriesCode, fallbackChoice,
   fulfilmentDate, locationCount, locationsLabel, occurrenceId, pickupName,
-  pickupParts, placeNames, placesFact, scheduledChoice,
+  pickupParts, placeNames, placesFact, scheduledChoice, whereLine,
 } from "../assets/scripts/order/lib/scheduled.mjs";
 
 const drop = {
@@ -148,6 +148,44 @@ describe("the locations a list reaches", () => {
 
   it("falls back to the series where an entry has no location", () => {
     assert.equal(locationCount([drop, foster]), 2);
+  });
+});
+
+describe("the Where line of the Pickup days card", () => {
+  const ADDRESS = "46 Institute Ln, North Scituate, RI";
+  const here = { ...drop, location: "G4C6", short: ADDRESS };
+  const there = { ...foster, location: "D8RW",
+    short: "Shady Acres Diner, 164 Danielson Pike, Foster" };
+  const BUILT = "the drop site as built";
+
+  it("gives the address when one location is open", () => {
+    assert.deepEqual(whereLine([here], BUILT),
+      { text: ADDRESS, link: false });
+    assert.deepEqual(whereLine([here, { ...here, occurrence: "x" }], BUILT),
+      { text: ADDRESS, link: false }, "two days at one place");
+  });
+
+  it("counts the locations, as the map link, when several are open", () => {
+    assert.deepEqual(whereLine([here, there], BUILT),
+      { text: "2 locations", link: true });
+    assert.deepEqual(whereLine([here, there, { ...there, location: "ZZ" }]),
+      { text: "3 locations", link: true });
+  });
+
+  it("counts locations, not series: a market and the drop site at one "
+    + "place are one", () => {
+    const market = { ...here, series: "2MPW", name: "A market" };
+
+    assert.deepEqual(whereLine([here, market], BUILT),
+      { text: ADDRESS, link: false });
+  });
+
+  it("falls back to what the page was built with", () => {
+    assert.deepEqual(whereLine([], BUILT), { text: BUILT, link: false },
+      "nothing open");
+    assert.deepEqual(whereLine([{ ...here, short: "" }], BUILT),
+      { text: BUILT, link: false }, "an entry with no address");
+    assert.deepEqual(whereLine([]), { text: "", link: false });
   });
 });
 

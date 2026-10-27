@@ -120,13 +120,15 @@ export const knownFacts = () => {
   add("hold", d, `${hold}-day`);
   add("on-farm pickup", d, terms.onfarm.when);
   const drop = series.find((s) => s.kind === "drop-site");
-  const dropWindow = buildModel(locations, series).series
-    .find((s) => s.kind === "drop-site").window;
+  const dropModel = buildModel(locations, series).series
+    .find((s) => s.kind === "drop-site");
+  const dropWindow = dropModel.window;
   const sd = "data/series.json";
   const [site, street] = drop.place.split(", ");
   add("drop site", sd, site);
   add("drop site", sd, street);
-  add("drop site", sd, drop.short);
+  // The short address is the location's (a series may override it).
+  add("drop site", drop.short ? sd : "data/locations.json", dropModel.short);
   add("drop site window", sd, dropWindow);
   add("drop site window", sd, dropWindow.replace(" – ", " to "));
   const start = new Date(`${drop.start}T12:00:00Z`);

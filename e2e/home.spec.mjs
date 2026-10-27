@@ -3,6 +3,9 @@
 
 import terms from "../data/delivery.json" with { type: "json" };
 import { moneyOn } from "../assets/scripts/order/lib/money-on.mjs";
+import {
+  locationCount, locationsLabel,
+} from "../assets/scripts/order/lib/scheduled.mjs";
 import { today } from "../assets/scripts/order/lib/zoned.mjs";
 import { expect, test } from "./support/order.mjs";
 
@@ -620,42 +623,66 @@ test.describe("home", () => {
         await expect(band.locator(".places-note")).toHaveCount(0);
       });
 
-    // #313: scheduled pickup shows the places open now, read from
-    // /api/dates at view time, over the drop site the build prints.
-    test("scheduled pickup lists the places open, each with its day",
+    // #313: scheduled pickup reads the places open now from /api/dates
+    // at view time, over the drop site the build prints. One location,
+    // the card gives its day and address; several, the Where line is
+    // how many, as a link to the map (James, 2026-10-26).
+    const DROP_ADDRESS = "46 Institute Ln, North Scituate, RI";
+    const DROP_OPEN = [
+      { date: "2026-10-24", label: "Saturday, October 24",
+        series: "VFVQ", name: "Drop site", window: "10:00 – 11:00 AM",
+        short: DROP_ADDRESS },
+      { date: "2026-10-31", label: "Saturday, October 31",
+        series: "VFVQ", name: "Drop site", window: "10:00 – 11:00 AM",
+        short: DROP_ADDRESS },
+    ];
+    const FOSTER_OPEN = { date: "2026-10-25", label: "Sunday, October 25",
+      series: "WAC5", name: "Foster Farmers Market",
+      window: "9:00 AM – 1:00 PM",
+      short: "Shady Acres Diner, 164 Danielson Pike, Foster" };
+    const opened = (page, scheduled) => page.route("**/api/dates",
+      (route) => route.fulfill({
+        json: { now: "2026-10-22T12:00:00Z", scheduled },
+      }));
+
+    test("scheduled pickup with one location gives its address",
       async ({ page }) => {
-        await page.route("**/api/dates", (route) => route.fulfill({
-          json: { now: "2026-10-22T12:00:00Z", scheduled: [
-            { date: "2026-10-24", label: "Saturday, October 24",
-              series: "VFVQ", name: "Drop site", window: "10:00 – 11:00 AM",
-              short: "46 Institute Ln, North Scituate, RI" },
-            { date: "2026-10-25", label: "Sunday, October 25",
-              series: "WAC5", name: "Foster Farmers Market",
-              window: "9:00 AM – 1:00 PM",
-              short: "Shady Acres Diner, 164 Danielson Pike, Foster" },
-            { date: "2026-10-31", label: "Saturday, October 31",
-              series: "VFVQ", name: "Drop site", window: "10:00 – 11:00 AM",
-              short: "46 Institute Ln, North Scituate, RI" },
-          ] },
-        }));
+        await opened(page, DROP_OPEN);
         await page.goto("/");
 
         const card = page.locator(".ways .place-way[data-scheduled-ways]");
         const opens = card.locator(".place-open");
 
         test.skip(!(await card.isVisible()), "built while a market runs");
-        await expect(opens).toHaveCount(2);
-        await expect(opens.nth(0).locator(".place-open-name"))
+        await expect(opens).toHaveCount(1);
+        await expect(opens.first().locator(".place-open-name"))
           .toHaveText("Drop site");
-        await expect(opens.nth(1).locator(".place-open-name"))
-          .toHaveText("Foster Farmers Market");
-        await expect(opens.nth(1).locator(".place-open-when"))
-          .toHaveText("Sunday, October 25, 9:00 AM – 1:00 PM");
-        await expect(card.locator("[data-scheduled-static]"))
-          .toHaveCount(2);
+        await expect(opens.first().locator(".place-open-where"))
+          .toHaveText(DROP_ADDRESS);
+        await expect(card.getByRole("link", { name: /location/ }))
+          .toHaveCount(0);
         await expect(card.locator("[data-scheduled-static]").first())
           .toBeHidden();
       });
+
+    test("scheduled pickup with several locations says how many, as a "
+      + "link to the map", async ({ page }) => {
+      const scheduled = [DROP_OPEN[0], FOSTER_OPEN, DROP_OPEN[1]];
+
+      await opened(page, scheduled);
+      await page.goto("/");
+
+      const card = page.locator(".ways .place-way[data-scheduled-ways]");
+      const link = card.locator(".place-where a");
+
+      test.skip(!(await card.isVisible()), "built while a market runs");
+      // The count is the list's own, never a number typed here.
+      await expect(link)
+        .toHaveText(locationsLabel(locationCount(scheduled)));
+      await expect(link).toHaveAttribute("href", "#places");
+      await expect(card.locator(".place-when")).toBeHidden();
+      await expect(card.locator(".place-open")).toHaveCount(0);
+    });
 
     test("scheduled pickup falls back to the drop site",
       async ({ page }) => {

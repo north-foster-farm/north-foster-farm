@@ -2,8 +2,7 @@ import { current, indexCatalog } from "./lib/catalog.mjs";
 import { buildModel } from "./lib/events.mjs";
 import { moneyOn } from "./lib/money-on.mjs";
 import {
-  draftOccurrence, dropOnly, dropSeriesCode, fulfilmentDate, locationCount,
-  locationsLabel, placesFact,
+  draftOccurrence, dropSeriesCode, fulfilmentDate, whereLine,
 } from "./lib/scheduled.mjs";
 import { groupFromQuery, withPlaces } from "./lib/group.mjs";
 import { linkedMethod, withoutParam } from "./lib/query.mjs";
@@ -1272,15 +1271,15 @@ export class OrderForm {
     if (where.dataset.built === undefined) {
       where.dataset.built = where.textContent;
     }
-    // Beyond one place, Where counts the locations and links to the
-    // map in a new tab, so the order stays as it is (#places-scheduled
-    // opens the plain Places list: the filter it once set is gone,
-    // #214). The link is kept while its text and href hold, so a
-    // focused one stays focused.
-    const places = locationCount(choices);
+    // One location, Where gives its address. Beyond one, it counts the
+    // locations and links to the map in a new tab, so the order stays
+    // as it is (#places-scheduled opens the plain Places list: the
+    // filter it once set is gone, #214). The link is kept while its
+    // text and href hold, so a focused one stays focused.
+    const line = whereLine(choices, where.dataset.built);
 
-    if (!none && places > 1) {
-      const text = locationsLabel(places);
+    if (line.link) {
+      const text = line.text;
       const href = facts.dataset.placesHref;
       const kept = where.firstElementChild;
 
@@ -1296,8 +1295,7 @@ export class OrderForm {
         where.appendChild(link);
       }
     } else {
-      where.textContent = none || dropOnly(choices, this.dropSeries)
-        ? where.dataset.built : placesFact(choices);
+      where.textContent = line.text;
     }
     facts.hidden = none;
     qs(this.form, "[data-scheduled-none]").hidden = !none;

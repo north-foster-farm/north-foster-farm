@@ -88,6 +88,21 @@ export const locationCount = (choices) => new Set(
 export const locationsLabel = (count) => `${count} location${
   count === 1 ? "" : "s"}`;
 
+// The Where line of the Pickup days card, on the home page and the order
+// page (James, 2026-10-26): with one location, its short address, which
+// data/locations.json holds; with several, how many, as a link to the
+// map; with none open, `built`, the drop site the page was built with.
+// -> { text, link }, where `link` says the text is the map link.
+export const whereLine = (choices, built = "") => {
+  if (!choices.length) return { text: built, link: false };
+
+  const count = locationCount(choices);
+
+  if (count > 1) return { text: locationsLabel(count), link: true };
+
+  return { text: choices[0].short || built, link: false };
+};
+
 // A location's address as lines: the venue's name, street line 1 and
 // line 2 where it has them, then "City, ST 02857" (#323). Each line
 // is a part; a phone shows one per row, a wide card joins them.

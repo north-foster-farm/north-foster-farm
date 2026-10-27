@@ -158,7 +158,7 @@ test.describe("scheduled pickup", () => {
       expect((await series(page))[0]).toBe(DROP.series);
     });
 
-  test("only the drop site open: the card reads as the drop site does",
+  test("one location open: the card gives its address",
     async ({ page }) => {
       await cannedScheduled(page, datesWith([
         { place: DROP, days: [3, 10] },
@@ -171,7 +171,8 @@ test.describe("scheduled pickup", () => {
       await expect(page.locator("[data-scheduled-facts] dd").first())
         .toHaveText("At our markets and pickup days");
       await expect(page.locator("[data-scheduled-where]"))
-        .toContainText("Village Green");
+        .toHaveText(DROP.short);
+      await expect(page.locator("[data-scheduled-where] a")).toHaveCount(0);
     });
 
   test("several places: the card names them", async ({ page }) => {

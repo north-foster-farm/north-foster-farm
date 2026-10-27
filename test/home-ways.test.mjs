@@ -73,6 +73,9 @@ describe("home page ways band", { skip: !hasHugo }, () => {
     const company = data("company").address;
     const terms = data("delivery");
     const drop = data("series").series.find((s) => s.kind === "drop-site");
+    // The location's short address, which a series may override.
+    const dropShort = drop.short || data("locations").locations
+      .find((l) => l.code === drop.location).short;
     const [onfarm, scheduled, delivery] = cards.map((c) =>
       Object.fromEntries(c.facts));
 
@@ -80,7 +83,7 @@ describe("home page ways band", { skip: !hasHugo }, () => {
       `${company.short}, ${company.city}, ${company.state}`);
     assert.equal(onfarm.when, undefined);
     assert.equal(onfarm.note, "No minimum, no fee");
-    assert.equal(scheduled.where, drop.short);
+    assert.equal(scheduled.where, dropShort);
     assert.match(scheduled.when, /^Saturdays, 10:00 – 11:00 AM$/);
     assert.equal(scheduled.note, "No minimum, no fee");
     assert.match(delivery.when,

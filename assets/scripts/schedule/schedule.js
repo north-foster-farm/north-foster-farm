@@ -5,6 +5,7 @@
 // load, the page stays as built: the drop site and the seasons.
 
 import { seriesDates } from "../order/lib/events.mjs";
+import { whereLine } from "../order/lib/scheduled.mjs";
 import { horizon } from "../order/lib/schedule.mjs";
 import { today, weekday } from "../order/lib/zoned.mjs";
 
@@ -66,6 +67,29 @@ export const startingBadge = (start) => `Starting ${
   new Date(`${start}T12:00:00Z`).toLocaleDateString("en-US",
     { month: "short", day: "numeric", timeZone: "UTC" })}`;
 
+// Several locations open: the card's Where says how many, as a link to
+// the Places map on this page, in place of the drop site's address. The
+// drop site's weekly day no longer says when, so it goes with it.
+const wireSeveral = (card, text) => {
+  const where = card.querySelector(".place-where[data-scheduled-static]");
+  const when = card.querySelector(".place-when[data-scheduled-static]");
+  const words = where && [...where.children]
+    .find((el) => !el.classList.contains("place-fact-icon"));
+
+  if (!words) return;
+
+  const link = document.createElement("a");
+
+  link.href = "#places";
+  link.textContent = text;
+  words.textContent = "";
+  words.appendChild(link);
+  if (when) {
+    delete when.dataset.expiry;
+    when.hidden = true;
+  }
+};
+
 const wireWays = async (card) => {
   const list = card.querySelector("[data-scheduled-facts]");
   const template = document.querySelector("template[data-scheduled-open]");
@@ -73,9 +97,20 @@ const wireWays = async (card) => {
   if (!list || !template) return;
 
   const data = await load("/api/dates");
-  const places = nextPlaces((data && data.scheduled) || []);
+  const scheduled = (data && data.scheduled) || [];
+  const places = nextPlaces(scheduled);
 
   if (!places.length) return;
+
+  // One location keeps the card as it reads, its place and address;
+  // several are one link (whereLine, the order page's rule).
+  const line = whereLine(scheduled);
+
+  if (line.link) {
+    wireSeveral(card, line.text);
+
+    return;
+  }
 
   let starts = {};
 

@@ -281,6 +281,12 @@ skipped rather than shifted:
   under `overrides`. `bin/nff events` lists every series with its
   occurrences in the coverage window and their schedule line;
   `bin/nff events new` makes an unused code.
+  The Pickup days card's Where line, on the home page and the order
+  page, follows one rule (`whereLine` in `order/lib/scheduled.mjs`):
+  one location open, its `short` address from `data/locations.json`
+  (a series may override it with its own `short`); several, "N
+  locations" ("1 location" in the singular) linking to the map, with N
+  counted from the live list; none open, the drop site as built.
   The same `PICKUP_SCHEDULE` decides each occurrence, with a line
   `<date> <code> pickup|attend|skip [HH:MM-HH:MM]`: `pickup` opens it
   for orders (optionally in a narrower window), `attend` means the
