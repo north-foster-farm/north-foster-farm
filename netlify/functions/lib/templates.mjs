@@ -832,6 +832,23 @@ export const magicLink = (email, url, {
   return { subject: title, ...render(title, blocks, links, { center: true }) };
 };
 
+// The link from a buying group's sign-up page (#495): it signs in
+// and joins the group in one step. Draft wording for James.
+export const groupJoinLink = (email, url, {
+  minutes = accounts.signInLinkMinutes, links, group = "the group",
+} = {}) => {
+  const title = `Join ${group} at ${company.name}`;
+  const blocks = [
+    p(`This link signs you in to ${company.name} and adds you to ` +
+      `${group}. It works once, for the next ${minutes} minutes.`),
+    button("Join the group", url),
+    p("If you didn't ask for this, you can ignore it."),
+    row([["Need help? Contact us", contactUrl(links)]]),
+  ];
+
+  return { subject: title, ...render(title, blocks, links, { center: true }) };
+};
+
 // A customer's own email change (#240), in two parts: the link to the
 // new email address, which alone moves the account, and the word to the
 // old one once it has moved. James's approved wording (#303,

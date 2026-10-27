@@ -105,6 +105,8 @@ const CASES = {
     { links }), false],
   emailChangeLink: [() => templates.emailChangeLink(
     `${HOSTILE}@example.com`, url, { links }), false],
+  groupJoinLink: [() => templates.groupJoinLink(
+    `${HOSTILE}@example.com`, url, { links, group: HOSTILE }), true],
   emailChanged: [() => templates.emailChanged(`${HOSTILE}@example.com`,
     `${HOSTILE}2@example.com`, { links }), true],
   newsConfirm: [() => templates.newsConfirm(`${HOSTILE}@example.com`, url,

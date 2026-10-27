@@ -236,6 +236,13 @@ const USAGE = `Usage:
                                       the host, for the reward, and
                                       the name members see (the data
                                       file's name until one is set)
+  bin/nff groups qr <key> [--rotate] [--out <file>]
+                                      the sign-up link the group's QR
+                                      code carries, and with --out the
+                                      code as an SVG. --rotate replaces
+                                      it: the old QR code stops working
+                                      at once, the typed code and the
+                                      members stay
   bin/nff groups members <key> [--backfill]
                                       the members: name, email address,
                                       date joined and how (code, link,
@@ -562,6 +569,7 @@ const [
   credit,
   { describeError },
   groupLog,
+  qr,
 ] = await Promise.all([
   import("../netlify/functions/lib/terms.mjs"),
   import("../netlify/functions/lib/admin.mjs"),
@@ -592,6 +600,7 @@ const [
   import("../netlify/functions/lib/credit.mjs"),
   import("../netlify/functions/lib/paypal.mjs"),
   import("../netlify/functions/lib/group-log.mjs"),
+  import("../netlify/functions/lib/qr.mjs"),
 ]);
 
 // Who acts in a group's audit log when it is this CLI (#495).
@@ -1859,6 +1868,34 @@ const run = async () => {
     }
 
     return out(`${rest[0]}  ${said.join(", ")}.`);
+  }
+  // The join token's link and QR code (#495). The link is the group's
+  // second secret, beside the code: keep it off GitHub.
+  case "groups qr": {
+    const g = groups.groupOf(rest[0]);
+
+    if (!g) throw new Error(`Unknown group "${rest[0]}".`);
+
+    const token = flags.rotate
+      ? (await groups.rotateJoinToken(stores, g.key)).joinToken
+      : await groups.joinTokenOf(stores, g.key);
+
+    if (flags.rotate) {
+      await groupLog.audit(stores, { group: g.key, by: FARM,
+        action: "qr.rotate" });
+    }
+
+    const link = `${process.env.URL || ""}${groups.joinPath(token)}`;
+
+    if (typeof flags.out === "string") {
+      const { writeFileSync } = await import("node:fs");
+
+      writeFileSync(flags.out, qr.qrSvg(link, { title: `Join ${g.name}` }));
+      out(`Wrote ${flags.out}.`);
+    }
+
+    return out(`${g.key}  ${link}${flags.rotate
+      ? "  (new: the old QR code no longer works)" : ""}`);
   }
   // Who is in the group and how they came (#495). The output names
   // members: keep it off GitHub.

@@ -14,7 +14,7 @@
 // `/order/?group=<code>`, which the page reads and takes off the
 // address.
 
-import { randomInt } from "node:crypto";
+import { randomBytes, randomInt, timingSafeEqual } from "node:crypto";
 
 import groupData from "../../../data/groups.json" with { type: "json" };
 import locationData from "../../../data/locations.json" with {
@@ -134,6 +134,71 @@ export const setGroupName = async (stores, key, name, {
 
   return record;
 };
+
+// The join token (#495, James 6452457293): a long random value on the
+// group's record, apart from the typed code, that the group's QR code
+// carries to the sign-up page. Unguessable, so it needs no limit of
+// its own past the misses. Replacing it retires the old QR code at
+// once and leaves the code and the members as they are; the record
+// keeps when, never the old tokens. The record's shape for a later
+// membership ID is the customer's memberGroup, which can gain one
+// beside `id` (the group's key) without a rework.
+export const newJoinToken = () => randomBytes(32).toString("base64url");
+
+const TOKEN = /^[A-Za-z0-9_-]{40,64}$/;
+
+export const rotateJoinToken = async (stores, key, {
+  now = new Date(), token = newJoinToken(),
+} = {}) => {
+  if (!groupOf(key)) throw new Error(`Unknown group "${key}".`);
+
+  const stored = (await getGroupRecord(stores, key)) || {
+    key, code: null, codeSetAt: null, previous: [], host: null,
+  };
+  const record = {
+    ...stored,
+    joinToken: token,
+    joinTokenSetAt: now.toISOString(),
+    joinTokensRetired: (stored.joinTokensRetired || 0)
+      + (stored.joinToken ? 1 : 0),
+  };
+
+  await stores.orders.set(groupKey(key), record);
+
+  return record;
+};
+
+// The token in force, minted the first time it is asked for.
+export const joinTokenOf = async (stores, key, { now = new Date() } = {}) => {
+  const record = await getGroupRecord(stores, key);
+
+  if (record && record.joinToken) return record.joinToken;
+
+  return (await rotateJoinToken(stores, key, { now })).joinToken;
+};
+
+const same = (a, b) => {
+  const x = Buffer.from(String(a));
+  const y = Buffer.from(String(b));
+
+  return x.length === y.length && timingSafeEqual(x, y);
+};
+
+// The group a join token opens, or null. Only the token in force.
+export const findGroupByToken = async (stores, token) => {
+  if (!TOKEN.test(String(token || ""))) return null;
+
+  for (const g of GROUPS) {
+    const record = await getGroupRecord(stores, g.key);
+
+    if (record && record.joinToken && same(record.joinToken, token)) return g;
+  }
+
+  return null;
+};
+
+// The sign-up page's link, which the QR code encodes.
+export const joinPath = (token) => `/join/?t=${encodeURIComponent(token)}`;
 
 // The group with the name the farm set on its record, if any.
 export const namedGroup = async (stores, group) => {

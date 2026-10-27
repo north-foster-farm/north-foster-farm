@@ -17,7 +17,9 @@ import {
   getCustomer, reminderPrefs, saveCustomer,
 } from "./records.mjs";
 import { mailLinks, siteUrl } from "./site.mjs";
-import { emailChangeLink, magicLink } from "./templates.mjs";
+import {
+  emailChangeLink, groupJoinLink, magicLink,
+} from "./templates.mjs";
 import accounts from "../../../data/accounts.json" with { type: "json" };
 
 const MINUTE = 60_000;
@@ -113,6 +115,7 @@ export const requestLink = async (stores, { email, next }, {
   limit = true,
   ttl = LINK_TTL,
   changeFrom = null,
+  join = null,
 } = {}) => {
   const address = normalizeEmail(email);
 
@@ -136,10 +139,14 @@ export const requestLink = async (stores, { email, next }, {
     expires: now.getTime() + ttl,
     createdAt: now.toISOString(),
     ...(changeFrom ? { changeFrom: normalizeEmail(changeFrom) } : {}),
+    // A group's sign-up page (#495): following the link joins the
+    // group, by lib/join.mjs. Its `group` is the key, never the token.
+    ...(join ? { join: join.record } : {}),
   });
 
   const url = `${siteUrl(env)}/api/auth/verify?token=${token}`;
-  const letter = changeFrom ? emailChangeLink : magicLink;
+  const letter = changeFrom ? emailChangeLink
+    : (join ? groupJoinLink : magicLink);
 
   if (send) {
     await mail({
@@ -150,6 +157,7 @@ export const requestLink = async (stores, { email, next }, {
       credential: true,
       ...letter(address, url, {
         minutes: ttl / MINUTE, links: mailLinks(env),
+        ...(join ? { group: join.name } : {}),
       }),
     }, { env });
   }
@@ -180,6 +188,7 @@ const tokenResult = (found) => ({
   email: found.email,
   next: found.next || "/account/",
   changeFrom: found.changeFrom || null,
+  ...(found.join ? { join: found.join } : {}),
 });
 
 // Reads a token without spending it, so a prefetch or a scanner

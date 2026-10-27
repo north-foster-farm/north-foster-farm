@@ -38,6 +38,8 @@ const DESTRUCTIVE = {
   // Replacing the code kills the link the host handed out (#471).
   "groups code": { does: "replace the code of the group" },
   "groups set": { does: "change the host of the group" },
+  // Prints the QR link, and with --rotate kills the printed one (#495).
+  "groups qr": { does: "replace the QR code of the group", only: "rotate" },
   // Reads the members, and with --backfill logs those from before the
   // join log (#495).
   "groups members": { does: "backfill the join log of the group",

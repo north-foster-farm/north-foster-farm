@@ -17,6 +17,7 @@ import {
 import { finishEmailChange } from "./lib/email-change.mjs";
 import { creditBalance } from "./lib/credit.mjs";
 import { groupOf, memberKeyOf, namedGroup } from "./lib/groups.mjs";
+import { finishJoin } from "./lib/join.mjs";
 import { cartOwner } from "./lib/records.mjs";
 import { now as clock, real } from "./lib/clock.mjs";
 import { json, noCopy, readJson } from "./lib/http.mjs";
@@ -129,7 +130,15 @@ export const handle = async (req, {
       now, session: session.id,
     });
 
-    return redirect(safeNext(result.next), [
+    // A link from a group's sign-up page (#495) joins the group too,
+    // and lands on Membership, or on the account when it joined none.
+    const landing = result.join
+      ? (await finishJoin(stores, session.email, result.join, {
+        now, env, mail,
+      })).path
+      : result.next;
+
+    return redirect(safeNext(landing), [
       ["Set-Cookie", cookieHeader(session.id)],
       ["Set-Cookie", stampHeader(now)],
       ["Cache-Control", "no-store"],
