@@ -5,7 +5,9 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
+import { shipLog } from "../bin/ship-log.mjs";
 import { removeCustomer } from "../netlify/functions/lib/admin.mjs";
+import { flush, log, pending } from "../netlify/functions/lib/log.mjs";
 import { maskEmail } from "../netlify/functions/lib/mask.mjs";
 import {
   importSubscribers, removeImported,
@@ -113,5 +115,86 @@ describe("log lines that name a customer", () => {
     assert.equal(record.by, "james");
     assert.ok(record._time);
     assert.deepEqual(leaks(lines, email), []);
+  });
+});
+
+// The end of a bin/nff run ships its lines to Axiom (bin/ship-log.mjs).
+// flush reads only `ok` from the ingest answer, as test/health.test.mjs
+// fakes it.
+describe("bin/nff ships its log lines", () => {
+  const AXIOM = { AXIOM_TOKEN: "t", AXIOM_DATASET: "nff-site" };
+  const axiom = () => {
+    const bodies = [];
+
+    return {
+      bodies,
+      fetchImpl: async (url, init) => {
+        bodies.push(init.body);
+
+        return { ok: true, status: 200 };
+      },
+    };
+  };
+  const email = "abcdefgh@example.com";
+
+  it("a production run ships the removal and deletion, masked",
+    async (t) => {
+      const stores = testStores();
+
+      capture(t);
+      await flush({ env: {} });
+      await importSubscribers(stores, [{ email }, { email: "a@b.co" }],
+        { date: "2024-07-12", now, env, skip: true });
+      await removeImported(stores, email, { by: "james", now });
+      await saveCustomer(stores, {
+        email: "a@b.co", name: "Pat Example", phone: "", avatar: null,
+        discountGroup: null, address: null,
+      });
+      await removeCustomer(stores, "a@b.co", { by: "james" });
+
+      const { bodies, fetchImpl } = axiom();
+
+      assert.ok(await shipLog({ env: AXIOM, fetchImpl }) >= 2);
+      assert.equal(bodies.length, 1);
+
+      const shipped = JSON.parse(bodies[0]);
+      const removed = shipped.find((l) => l.event === "news.removed");
+      const deleted = shipped.find((l) => l.event === "customer.deleted");
+
+      assert.equal(removed.record, "abc**fgh@exa*****com");
+      assert.equal(removed.source, "cli");
+      assert.equal(deleted.record, "*@****");
+      assert.ok(!bodies[0].includes(email));
+      assert.ok(!bodies[0].includes("abcdefgh"));
+      assert.ok(!bodies[0].includes("example.com"));
+      assert.ok(!bodies[0].includes("a@b.co"));
+      assert.equal(pending(), 0);
+    });
+
+  it("a dry run ships nothing", async (t) => {
+    const stores = testStores();
+
+    capture(t);
+    await flush({ env: {} });
+    await importSubscribers(stores, [{ email }],
+      { date: "2024-07-12", now, env, skip: true });
+    await removeImported(stores, email, { by: "james", now, dryRun: true });
+
+    const { bodies, fetchImpl } = axiom();
+
+    assert.equal(await shipLog({ dryRun: true, env: AXIOM, fetchImpl }), 0);
+    assert.deepEqual(bodies, []);
+    assert.equal(pending(), 0, "and its lines are dropped");
+  });
+
+  it("development, with no Axiom keys, ships nothing", async (t) => {
+    capture(t);
+    await flush({ env: {} });
+    log.info({ event: "test.event" });
+
+    const { bodies, fetchImpl } = axiom();
+
+    assert.equal(await shipLog({ env: {}, fetchImpl }), 0);
+    assert.deepEqual(bodies, []);
   });
 });

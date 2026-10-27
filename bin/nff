@@ -40,6 +40,7 @@ import {
 } from "./env/sample.mjs";
 import { verifyEnv } from "./env/verify.mjs";
 import { setSchedule } from "./schedule-env.mjs";
+import { shipLog } from "./ship-log.mjs";
 import { USAGE as PROMOTE_USAGE, promoteCommand } from "./promote.mjs";
 import { USAGE as SUPPLY_USAGE, supplyCommand } from "./supply/waive.mjs";
 
@@ -2175,9 +2176,15 @@ const run = async () => {
   return undefined;
 };
 
+// The run's log lines go to the log store, failed or not, so a
+// production write is on record (bin/ship-log.mjs); a dry run's don't.
+const ship = () => shipLog({ dryRun: flagOn(flags["dry-run"]) });
+
 try {
   await run();
+  await ship();
 } catch (error) {
   console.error(redact(describeError(error), held));
+  await ship();
   process.exit(1);
 }

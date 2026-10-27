@@ -55,7 +55,9 @@ sees, so a dead page and a silent failure both reach the phone.
   hash), and a phone number becomes `[phone]`. Lines name an order by
   id. A line that has to name a customer (a removal or deletion from
   `bin/nff`) carries the address masked by `lib/mask.mjs`, never in
-  full (#496). The alert pings to Healthchecks are scrubbed the same way.
+  full (#496). `bin/nff` ships its lines too, at the end of each run
+  on staging or production, marked `source: cli`; a `--dry-run` ships
+  none (`bin/ship-log.mjs`, 2026-10-27). The alert pings to Healthchecks are scrubbed the same way.
   `test/log-privacy.test.mjs` fails when a failed order logs any of
   it. A name typed into free text cannot be found by pattern.
 - **Run ledger.** Each jobs run's report in the jobs store, two days
