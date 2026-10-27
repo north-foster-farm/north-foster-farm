@@ -265,12 +265,12 @@ describe("lines", () => {
 
   it("rejects a sold-out SKU by name", () => {
     const r = validateOrder(
-      { ...base(), lines: [{ sku: "NFF-CHK-WHL-70-79", qty: 1 }] }, ctx
+      { ...base(), lines: [{ sku: "NFF-CHK-SAUSWT", qty: 1 }] }, ctx
     );
 
     assert.equal(r.status, 422);
     assert.match(
-      r.errors["lines.NFF-CHK-WHL-70-79"], /Whole Chicken, 7.0 – 7.9 lbs/
+      r.errors["lines.NFF-CHK-SAUSWT"], /Chicken Sausage, Sweet Italian links/
     );
   });
 

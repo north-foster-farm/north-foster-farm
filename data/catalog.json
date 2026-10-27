@@ -99,35 +99,34 @@
           "price": 40,
           "inStock": true,
           "squareVariationId": "MGIFOOYMBU6DTOMLBPKFTF7F",
-          "restock": "seasonal",
-          "restockSeason": "spring"
+          "restock": "hidden"
         },
         {
           "sku": "NFF-CHK-WHL-50-59",
           "label": "5.0 – 5.9 lbs",
           "name": "Whole Chicken, 5.0 – 5.9 lbs",
           "price": 46,
-          "inStock": false,
+          "inStock": true,
           "squareVariationId": "NP6L4UNZVNYJNYQVIZIIX3MF",
-          "restock": "discontinued"
+          "restock": "hidden"
         },
         {
           "sku": "NFF-CHK-WHL-60-69",
           "label": "6.0 – 6.9 lbs",
           "name": "Whole Chicken, 6.0 – 6.9 lbs",
           "price": 52,
-          "inStock": false,
+          "inStock": true,
           "squareVariationId": "DMIQBYH3PX32VUIGUMICRTJ4",
-          "restock": "discontinued"
+          "restock": "hidden"
         },
         {
           "sku": "NFF-CHK-WHL-70-79",
           "label": "7.0 – 7.9 lbs",
           "name": "Whole Chicken, 7.0 – 7.9 lbs",
           "price": 60,
-          "inStock": false,
+          "inStock": true,
           "squareVariationId": "NFLPHGC55MFMDUBMUL7AHHE4",
-          "restock": "discontinued"
+          "restock": "hidden"
         }
       ]
     },
@@ -184,18 +183,19 @@
           "label": "1.5 – 1.6 lbs",
           "name": "Boneless Breasts, 1.5 – 1.6 lbs",
           "price": 24,
-          "inStock": false,
+          "inStock": true,
           "squareVariationId": "MXKHL3EEHSJEWJDFDERYEXCX",
-          "restock": "discontinued"
+          "restock": "seasonal",
+          "restockSeason": "spring"
         },
         {
           "sku": "NFF-CHK-BRSBL-17-99",
           "label": "1.7 lbs and up",
           "name": "Boneless Breasts, 1.7 lbs and up",
           "price": 28,
-          "inStock": false,
+          "inStock": true,
           "squareVariationId": "JJUT44GZXC4LQR7C2OUDYONB",
-          "restock": "discontinued"
+          "restock": "hidden"
         }
       ]
     },
@@ -228,9 +228,9 @@
           "label": "2.0 lbs and up",
           "name": "Bone-In Thighs, 2.0 lbs and up",
           "price": 20,
-          "inStock": false,
+          "inStock": true,
           "squareVariationId": "JNDKYBNUERQBIQCMXTXS2YKH",
-          "restock": "discontinued"
+          "restock": "hidden"
         }
       ]
     },
@@ -263,9 +263,10 @@
           "label": "1.5 lbs and up",
           "name": "Tenders, 1.5 lbs and up",
           "price": 24,
-          "inStock": false,
+          "inStock": true,
           "squareVariationId": "RKEZBHHIVR4A6ZTBDKZTUFYZ",
-          "restock": "discontinued"
+          "restock": "seasonal",
+          "restockSeason": "spring"
         }
       ]
     },
@@ -314,18 +315,19 @@
           "label": "2.0 – 2.9 lbs",
           "name": "Wings, 2.0 – 2.9 lbs",
           "price": 16,
-          "inStock": false,
+          "inStock": true,
           "squareVariationId": "4VIAOWSPJUE7QKNS2JCK35HX",
-          "restock": "discontinued"
+          "restock": "seasonal",
+          "restockSeason": "spring"
         },
         {
           "sku": "NFF-CHK-WNG-30-99",
           "label": "3.0 lbs and up",
           "name": "Wings, 3.0 lbs and up",
           "price": 20,
-          "inStock": false,
+          "inStock": true,
           "squareVariationId": "SYY7VR5UTU4D6R6BA5JBM5NL",
-          "restock": "discontinued"
+          "restock": "hidden"
         }
       ]
     },

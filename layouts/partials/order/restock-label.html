@@ -1,8 +1,8 @@
 {{/* What a catalog item out of stock says in place of its quantity,
      from its `restock` type (#267). The copy is James's, exactly. The
      season is its own field, so "Back in summer" is a catalog edit.
-     No type, or `archived`, says nothing: such an item is not shown
-     out of stock at all. */}}
+     No type, `hidden` or `archived` says nothing: such an item is not
+     shown out of stock at all (#492). */}}
 {{ $label := "" }}
 {{ with .restock }}
   {{ if eq . "seasonal" }}

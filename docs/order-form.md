@@ -148,16 +148,28 @@ It says what an item out of stock shows in place of its quantity:
 | `soon` | "Returning soon" |
 | `hiatus` | "On hiatus" |
 | `discontinued` | "Not available" |
+| `hidden` | Nothing: hidden while out, under either Show choice |
 | `archived` | Nothing: hidden everywhere, whatever the stock |
 
 Stock wins over every type but `archived`: an item in stock sells
-normally. An item with no type is hidden while it is out. Today
-(James, #274, 6330468558): large eggs and feet `soon`; medium and
-small eggs and both sausages `hiatus`; whole chickens from 5.0 lbs,
-boneless breasts from 1.5 lbs, bone-in thighs from 2.0 lbs, wings
-from 2.0 lbs and tenders from 1.5 lbs (#303) `discontinued`; Cornish hens and ground chicken
-`archived` (2026-v9); every other item `seasonal` with
-`restockSeason: "spring"`.
+normally. An item with no type is hidden while it is out, as is a
+`hidden` one (#492), which is for the boundary tiers that only sell
+the processor's oversized packs. While out it is not on the order
+page, under Full catalog, in search or in the page's Product markup;
+when Square counts some, it shows and sells. Its SKU and Square item
+stay, so the POS, processing-day counts and member pricing still
+cover it, and a past order or receipt holding it names it as any
+other line. Such an item keeps `inStock: true`, so that Square's
+count decides.
+
+Today (James, #274, 6330468558, and #492): large eggs and feet
+`soon`; medium and small eggs and both sausages `hiatus`; whole
+chickens from 4.5 lbs, boneless breasts of 1.7 lbs and up, bone-in
+thighs of 2.0 lbs and up and wings of 3.0 lbs and up `hidden`;
+Cornish hens and ground chicken `archived` (2026-v9); every other
+item `seasonal` with `restockSeason: "spring"`, since until spring
+nothing but eggs is restocked. Outside the off-season a sold-out
+whole-bird tier goes back to `soon`, not `discontinued`.
 Switching one is a catalog edit and a deploy. The labels live in
 `layouts/partials/order/restock-label.html`.
 

@@ -8,9 +8,12 @@ import { describe, it } from "node:test";
 
 import catalog from "../data/catalog.json" with { type: "json" };
 import terms from "../netlify/functions/lib/terms.mjs";
+import { checkOrder } from "../bin/schema/check.mjs";
 import {
   archived, indexCatalog,
 } from "../assets/scripts/order/lib/catalog.mjs";
+import { showRows } from "../assets/scripts/order/restock.js";
+import { withStock } from "../assets/scripts/order/schema.js";
 import { parseSchedule } from "../assets/scripts/order/lib/schedule.mjs";
 import { validateOrder } from "../assets/scripts/order/lib/validate.mjs";
 import { instant } from "../assets/scripts/order/lib/zoned.mjs";
@@ -20,6 +23,7 @@ import {
 } from "../netlify/functions/lib/stock.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
 import { handle } from "../netlify/functions/stock.mjs";
+import { orderConfirmed } from "../netlify/functions/lib/templates.mjs";
 import { MORNING, SCHEDULE } from "./schedule-fixture.mjs";
 
 const TZ = "America/New_York";
@@ -31,7 +35,9 @@ const ENV = {
 };
 
 // One product of each type, all flagged in stock in the catalog.
-const TYPES = ["seasonal", "soon", "hiatus", "discontinued", "archived"];
+const TYPES = [
+  "seasonal", "soon", "hiatus", "discontinued", "hidden", "archived",
+];
 const FIXTURE = indexCatalog({
   groups: [{
     key: "cuts", label: "Cuts",
@@ -63,27 +69,27 @@ describe("the catalog's restock types", () => {
   const items = [...indexCatalog(catalog).values()];
   const of = (key) => items.filter((i) => i.groupKey === key);
 
-  it("are one of the five on every product", () => {
+  it("are one of the six on every product", () => {
     for (const item of items) {
       assert.ok(TYPES.includes(item.restock), item.sku);
     }
   });
 
-  // #267's assignments with James's corrections (#274, 6330468558).
+  // #267's assignments with James's corrections (#274, 6330468558),
+  // and the tiers #492 hides while empty, every other tier back next
+  // season.
   it("follow the spec's assignments", () => {
     const SPEC = {
       "NFF-CHK-EGG-LG": "soon",
       "NFF-CHK-EGG-MD": "hiatus",
       "NFF-CHK-EGG-SM": "hiatus",
-      "NFF-CHK-WHL-50-59": "discontinued",
-      "NFF-CHK-WHL-60-69": "discontinued",
-      "NFF-CHK-WHL-70-79": "discontinued",
-      "NFF-CHK-BRSBL-15-16": "discontinued",
-      "NFF-CHK-BRSBL-17-99": "discontinued",
-      "NFF-CHK-THGBN-20-99": "discontinued",
-      "NFF-CHK-TND-15-99": "discontinued", // #303
-      "NFF-CHK-WNG-20-29": "discontinued",
-      "NFF-CHK-WNG-30-99": "discontinued",
+      "NFF-CHK-WHL-45-49": "hidden",
+      "NFF-CHK-WHL-50-59": "hidden",
+      "NFF-CHK-WHL-60-69": "hidden",
+      "NFF-CHK-WHL-70-79": "hidden",
+      "NFF-CHK-BRSBL-17-99": "hidden",
+      "NFF-CHK-THGBN-20-99": "hidden",
+      "NFF-CHK-WNG-30-99": "hidden",
       "NFF-CHK-FET-0075-0125": "soon",
     };
 
@@ -101,6 +107,14 @@ describe("the catalog's restock types", () => {
         : undefined, i.sku);
     }
   });
+
+  // A hidden tier is flagged in stock, so Square's count decides: the
+  // whole birds from 5.0 lbs sat out while Square held them (#492).
+  it("flag every hidden tier in stock", () => {
+    for (const i of items.filter((x) => x.restock === "hidden")) {
+      assert.equal(i.inStock, true, i.sku);
+    }
+  });
 });
 
 describe("availability by restock type", () => {
@@ -109,7 +123,7 @@ describe("availability by restock type", () => {
     const items = await availability(stores, { catalogIndex: FIXTURE });
 
     for (const type of ["SEASONAL", "SOON", "HIATUS", "DISCONTINUED",
-      "PLAIN"]) {
+      "HIDDEN", "PLAIN"]) {
       assert.equal(items[type].inStock, true, type);
     }
     assert.equal(items.ARCHIVED.inStock, false);
@@ -157,6 +171,120 @@ describe("availability by restock type", () => {
     // A paid order being changed keeps what it holds, never more.
     assert.ok(validateOrder(payload, { ...ctx, held: { [sku]: 2 } }).ok);
     assert.ok(!validateOrder(payload, { ...ctx, held: { [sku]: 1 } }).ok);
+  });
+});
+
+// A tier hidden when empty (#492): off the order page, Full catalog
+// and the Product markup while Square shows none, selling normally
+// once it does, and named as any line on a past order.
+describe("a hidden product", () => {
+  const SKU = "NFF-CHK-WHL-50-59";
+  const NAME = "Whole Chicken, 5.0 – 5.9 lbs";
+
+  // A row as order/row.html writes it and order/stock.js marks it.
+  const row = (out) => ({
+    dataset: { restockLabel: "" },
+    hidden: false,
+    hasAttribute: (name) => name === "data-out" && out,
+  });
+  const shown = (r, only) => {
+    showRows({ querySelectorAll: (s) => (s === ".order-item" ? [r] : []) },
+      only);
+
+    return !r.hidden;
+  };
+
+  it("is out at a count of 0 and in above it", async () => {
+    const stores = testStores();
+
+    await setCount(stores, "HIDDEN", 0);
+    assert.equal((await availability(stores, { catalogIndex: FIXTURE }))
+      .HIDDEN.inStock, false);
+    await setCount(stores, "HIDDEN", 3);
+    assert.deepEqual((await availability(stores, { catalogIndex: FIXTURE }))
+      .HIDDEN, { inStock: true, available: 3 });
+  });
+
+  it("has no row while out, under either Show choice", () => {
+    assert.equal(shown(row(true), true), false, "In stock");
+    assert.equal(shown(row(true), false), false, "Full catalog");
+    assert.equal(shown(row(false), true), true, "in stock, In stock");
+    assert.equal(shown(row(false), false), true, "in stock, Full catalog");
+  });
+
+  it("leaves the Product markup while out and comes back", () => {
+    const product = (sku) => ({
+      "@type": "Product", sku,
+      offers: { availability: "https://schema.org/InStock" },
+    });
+    const built = () => ({
+      "@graph": [product(SKU), product("NFF-CHK-WHL-40-44")],
+    });
+    const hidden = new Set([SKU]);
+    const skus = (data) => data["@graph"].map((n) => n.sku);
+    const out = withStock(built(), {
+      [SKU]: { inStock: false }, "NFF-CHK-WHL-40-44": { inStock: false },
+    }, hidden);
+
+    assert.deepEqual(skus(out), ["NFF-CHK-WHL-40-44"]);
+    assert.equal(withStock(built(), { [SKU]: { inStock: true } }, hidden),
+      null, "in stock, it stays as built");
+    // A type that only labels stays in the markup, out of stock.
+    assert.deepEqual(skus(withStock(built(), { [SKU]: { inStock: false } })),
+      [SKU, "NFF-CHK-WHL-40-44"]);
+  });
+
+  it("is not wanted in the built markup while flagged out", () => {
+    const item = { ...indexCatalog(catalog).get(SKU) };
+    const graph = (...skus) => ({
+      "@graph": skus.map((sku) => ({
+        "@type": "Product", sku, offers: { price: String(item.price) },
+      })),
+    });
+
+    assert.deepEqual(checkOrder(graph(SKU), [item]), []);
+    item.inStock = false;
+    assert.deepEqual(checkOrder(graph(), [item]), []);
+  });
+
+  it("is named on a past order's receipt", () => {
+    const m = orderConfirmed({
+      id: "NFF-2610-ABCD", status: "paid",
+      customer: { name: "Pat Example", email: "pat@example.com" },
+      lines: [{ sku: SKU, label: NAME, qty: 1, lineTotal: 46 }],
+      totals: { subtotal: 4600, total: 4600 },
+      fulfilment: {
+        method: "onfarm", date: "2026-10-08",
+        onfarm: { window: MORNING, from: "09:00", to: "12:00" },
+      },
+      payment: { via: "square", method: "card" },
+    }, { links: {} });
+
+    assert.match(m.text, new RegExp(`^- 1 × ${NAME}$`, "m"));
+  });
+
+  it("stays on a paid order being changed while out", () => {
+    const index = indexCatalog(catalog);
+
+    index.set(SKU, { ...index.get(SKU), inStock: false });
+    const ctx = {
+      index, terms, now: at("2026-10-06", 9),
+      schedule: parseSchedule(SCHEDULE).windows,
+    };
+    const payload = {
+      customer: {
+        firstName: "Pat", lastName: "Example", email: "pat@example.com",
+        phone: "401-555-0100", contact: "text",
+      },
+      lines: [{ sku: SKU, qty: 1 }],
+      fulfilment: {
+        method: "onfarm", date: "2026-10-07", onfarm: { window: MORNING },
+      },
+      claimedTotal: 4600,
+    };
+
+    assert.ok(!validateOrder(payload, ctx).ok, "not sold while out");
+    assert.ok(validateOrder(payload, { ...ctx, held: { [SKU]: 1 } }).ok);
   });
 });
 

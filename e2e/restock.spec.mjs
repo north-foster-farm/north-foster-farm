@@ -16,13 +16,16 @@ const catalog = JSON.parse(readFileSync(
 const items = catalog.groups.flatMap((g) => g.items);
 
 // One product out of stock in the catalog for each restock type but
-// archived and seasonal (James's corrections, #274 6330468558, and
-// #303 for Tenders).
+// archived, seasonal and hidden (James's corrections, #274
+// 6330468558). No product is discontinued since #492, which hid the
+// oversized tiers while empty and put the rest back in spring.
 const OUT = {
   soon: "NFF-CHK-FET-0075-0125", // Feet: "Returning soon"
   hiatus: "NFF-CHK-SAUSWT", // Sweet Italian Sausage
-  discontinued: "NFF-CHK-TND-15-99", // Tenders, 1.5 lbs and up
 };
+// A tier hidden while empty (#492), flagged in stock so that the
+// count decides.
+const HIDDEN = "NFF-CHK-WHL-50-59";
 // No seasonal product is out in the catalog since #303; a stub sells
 // out Drumsticks, 1.5 lbs and up, for "Back in spring".
 const SEASONAL = "NFF-CHK-DRM-15-99";
@@ -30,7 +33,6 @@ const LABEL = {
   soon: "Returning soon",
   seasonal: "Back in spring",
   hiatus: "On hiatus",
-  discontinued: "Not available",
 };
 // No category is wholly out in the catalog since 2026-v9; selling
 // out the maple links empties Sausage.
@@ -79,9 +81,14 @@ test.describe("restock types (#267)", () => {
       expect(item.restock, sku).toBe(type);
     }
     for (const item of items) {
-      expect(["seasonal", "soon", "hiatus", "discontinued", "archived"])
-        .toContain(item.restock);
+      expect([
+        "seasonal", "soon", "hiatus", "discontinued", "hidden", "archived",
+      ]).toContain(item.restock);
     }
+    const hidden = items.find((i) => i.sku === HIDDEN);
+
+    expect(hidden.restock).toBe("hidden");
+    expect(hidden.inStock).toBe(true);
   });
 
   test("Show is a radio group, In stock by default, showing today's " +
@@ -379,25 +386,25 @@ test.describe("restock types (#267)", () => {
 
   test("an out-of-stock product can't be put in the cart by link",
     async ({ page }) => {
-      await page.goto(`/order/?add=${OUT.discontinued}:2`);
+      await page.goto(`/order/?add=${OUT.hiatus}:2`);
       await expect(page.locator("#order-added"))
-        .toContainText("Not available: Tenders, 1.5 lbs and up.");
+        .toContainText("Not available: Chicken Sausage, Sweet Italian links.");
       await expect(new OrderPage(page).count).toHaveText("0 items");
     });
 
   test("the choice is remembered across reloads", async ({ page }) => {
     await open(page);
     await show(page, "Full catalog");
-    await expect(row(page, OUT.discontinued)).toBeVisible();
+    await expect(row(page, OUT.hiatus)).toBeVisible();
 
     await page.reload();
     await expect(choice(page, "Full catalog")).toBeChecked();
-    await expect(row(page, OUT.discontinued)).toBeVisible();
+    await expect(row(page, OUT.hiatus)).toBeVisible();
 
     await show(page, "In stock");
     await page.reload();
     await expect(choice(page, "In stock")).toBeChecked();
-    await expect(row(page, OUT.discontinued)).toBeHidden();
+    await expect(row(page, OUT.hiatus)).toBeHidden();
   });
 
   test("with storage blocked the choice still works, In stock first",
@@ -420,7 +427,7 @@ test.describe("restock types (#267)", () => {
       expect(errors.filter((m) => /Blocked/.test(m))).toEqual([]);
     });
 
-  test("stock wins over soon, hiatus and discontinued",
+  test("stock wins over soon and hiatus",
     async ({ page }) => {
       await stubStock(page, Object.fromEntries(Object.values(OUT)
         .map((sku) => [sku, { inStock: true, available: 3 }])));
@@ -435,7 +442,7 @@ test.describe("restock types (#267)", () => {
         await expect(r.locator(".order-item-stock")).toHaveText("3 left");
         await expect(r.locator(".order-qty-add")).toBeEnabled();
       }
-      await row(page, OUT.discontinued).locator(".order-qty-add").click();
+      await row(page, OUT.hiatus).locator(".order-qty-add").click();
       await expect(new OrderPage(page).count).toHaveText("1 item");
     });
 
@@ -454,13 +461,53 @@ test.describe("restock types (#267)", () => {
     async ({ page }) => {
       await open(page);
       // No product lacks a type today; take one away in the page.
-      await row(page, OUT.discontinued).evaluate((li) => {
+      await row(page, OUT.soon).evaluate((li) => {
         li.dataset.restockLabel = "";
       });
       await show(page, "Full catalog");
-      await expect(row(page, OUT.discontinued)).toBeHidden();
+      await expect(row(page, OUT.soon)).toBeHidden();
       await expect(row(page, OUT.hiatus)).toBeVisible();
     });
+
+  // #492: a boundary tier only shows while Square counts some, under
+  // either choice, in search and in the Product markup alike.
+  test("a hidden product shows only while in stock", async ({ page }) => {
+    const ld = async () => JSON.parse(await page.locator("#ld-json")
+      .textContent())["@graph"].map((n) => n.sku);
+    const found = async () => {
+      const stock = page.waitForResponse("**/api/stock");
+
+      await page.locator("[data-search-open]").click();
+      await page.locator("#search-palette-input").fill("whole");
+      await stock.catch(() => null);
+
+      const n = await page.locator(
+        `#search-palette-list [role='option'][data-sku="${HIDDEN}"]`
+      ).count();
+
+      await page.keyboard.press("Escape");
+
+      return n;
+    };
+
+    await stubStock(page, { [HIDDEN]: { inStock: false, available: 0 } });
+    await open(page);
+    for (const name of ["In stock", "Full catalog"]) {
+      await show(page, name);
+      await expect(row(page, HIDDEN), name).toBeHidden();
+    }
+    await expect.poll(ld).not.toContain(HIDDEN);
+    expect(await found()).toBe(0);
+
+    await page.unrouteAll({ behavior: "ignoreErrors" });
+    await stubStock(page, { [HIDDEN]: { inStock: true, available: 4 } });
+    await open(page);
+    await show(page, "In stock");
+    await expect(row(page, HIDDEN)).toBeVisible();
+    await expect(row(page, HIDDEN).locator(".order-qty-add")).toBeEnabled();
+    await expect.poll(ld).toContain(HIDDEN);
+    expect(await found()).toBe(1);
+  });
 
   test("an archived product is hidden under either choice and in search",
     async ({ page }) => {
@@ -547,8 +594,10 @@ test.describe("restock types (#267)", () => {
         for (const name of ["In stock", "Full catalog"]) {
           await show(page, name);
           await expect(row(page, sku)).toHaveCount(0);
+          // 1.0 - 1.9 lbs, and 3.0 lbs and up, hidden while empty
+          // (#492) but uncounted here, so in stock by its flag.
           await expect(page.locator("#cat-wings .order-item:visible"))
-            .toHaveCount(name === "In stock" ? 1 : 2);
+            .toHaveCount(2);
         }
       });
 

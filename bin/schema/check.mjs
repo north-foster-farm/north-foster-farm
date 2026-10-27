@@ -258,9 +258,13 @@ export function checkTitle(html, path = "") {
 }
 
 // S9: a Product for every catalog item the order page shows, at the
-// catalog's price. Archived items are not on the page.
+// catalog's price. Archived items are not on the page, nor a hidden
+// one the catalog flags out of stock (#492).
 const catalog = () => JSON.parse(readFileSync(
   new URL("../../data/catalog.json", import.meta.url), "utf8"));
+
+const onPage = (i) => i.restock !== "archived"
+  && !(i.restock === "hidden" && !i.inStock);
 
 export function checkOrder(data, items = catalog().groups.flatMap(
   (g) => g.items)) {
@@ -269,7 +273,7 @@ export function checkOrder(data, items = catalog().groups.flatMap(
     .map((n) => [n.sku, n]));
   const findings = [];
 
-  for (const item of items.filter((i) => i.restock !== "archived")) {
+  for (const item of items.filter(onPage)) {
     const product = found.get(item.sku);
 
     if (!product) {

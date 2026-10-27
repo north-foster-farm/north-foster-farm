@@ -211,10 +211,12 @@
      and order/stock.js brings it in step with /api/stock once the page
      is open (the script's id is what it looks for), so the markup
      lags only for a reader that does not run scripts. An archived item
-     is not on the page and not here. */}}
+     is not on the page and not here, nor a `hidden` one while it is
+     out (#492). */}}
 {{ if eq .Type "order" }}
   {{ range partial "order/groups.html" . }}
     {{ range .items }}
+      {{ if and .out (eq .restock "hidden") }}{{ continue }}{{ end }}
       {{ $availability := "https://schema.org/OutOfStock" }}
       {{ if .inStock }}
         {{ $availability = "https://schema.org/InStock" }}

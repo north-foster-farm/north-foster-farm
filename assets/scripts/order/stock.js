@@ -182,7 +182,9 @@ export class Stock {
       this.show();
     }
     this.items = items;
-    syncSchema(items);
+    syncSchema(items, new Set([...this.form.querySelectorAll(
+      ".order-item[data-restock='hidden']"
+    )].map((row) => row.dataset.sku)));
     this.apply();
   }
 
