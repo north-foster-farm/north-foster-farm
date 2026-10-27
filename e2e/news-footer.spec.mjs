@@ -11,8 +11,23 @@ const MORE = "More from the farm";
 const openLatest = async (page) => {
   await page.goto("/news/");
   await page.locator(".news-lead-title a").click();
+  // Visible is a box, not a styled box: the stylesheet can still be on
+  // its way after the click, and a measure then sees plain text (both
+  // buttons 17 px on a cold desktop run). Load waits for it.
+  await page.waitForLoadState("load");
   await expect(page.locator(".news-footer")).toBeVisible();
 };
+
+// How a button looks to a reader: its height, its type and its fill.
+const look = (link) => link.evaluate((el) => {
+  const css = getComputedStyle(el);
+
+  return {
+    height: el.getBoundingClientRect().height,
+    type: parseFloat(css.fontSize),
+    fill: css.backgroundColor,
+  };
+});
 
 test.describe("a post's footer (#483)", () => {
   test("offers the sign-up, then the archive, in a small button",
@@ -25,9 +40,18 @@ test.describe("a post's footer (#483)", () => {
 
       await expect(signUp).toBeVisible();
       await expect(more).toHaveJSProperty("pathname", "/news/");
-      expect((await more.boundingBox()).height,
-        "quieter than the sign-up")
-        .toBeLessThan((await signUp.boundingBox()).height);
+
+      // James's rule (#483): the small button is clearly quieter than
+      // the sign-up. Smaller, in smaller type, and not filled like it.
+      const loud = await look(signUp);
+      const quiet = await look(more);
+
+      expect(quiet.height, "shorter than the sign-up")
+        .toBeLessThan(loud.height);
+      expect(quiet.type, "smaller type than the sign-up")
+        .toBeLessThan(loud.type);
+      expect(quiet.fill, "not filled like the sign-up")
+        .not.toBe(loud.fill);
       await expect(page.getByText("All news", { exact: true }))
         .toHaveCount(0);
     });
