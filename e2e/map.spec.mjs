@@ -870,7 +870,16 @@ test.describe("map (#138, #214)", () => {
       await expect(input).toHaveValue("02825");
 
       const filled = await input.boundingBox();
-      const floatedLabel = await label.boundingBox();
+
+      // The label eases up over 0.1 s, so measure it where it rests.
+      let floatedLabel = await label.boundingBox();
+
+      await expect.poll(async () => {
+        const last = floatedLabel;
+
+        floatedLabel = await label.boundingBox();
+        return floatedLabel.y === last.y && floatedLabel.height === last.height;
+      }, { intervals: [50] }).toBe(true);
 
       expect(filled.width).toBe(field.width);
       expect(filled.height).toBe(field.height);
@@ -1227,12 +1236,12 @@ test.describe("map (#138, #214)", () => {
     });
 
   // Since #136 the home page's only ZIP check is the map's; the news
-  // post's "Check your ZIP code" link leads to it.
+  // post's "our map" link leads to it.
   test("the news post's ZIP link leads to the map's check",
     async ({ page }) => {
       await page.goto(HOME.path);
       await page.locator(".home-update-card")
-        .getByRole("link", { name: "Check your ZIP code" }).click();
+        .getByRole("link", { name: "our map" }).click();
       await expect(page).toHaveURL(/#map$/);
       await expect(page.locator(HOME.input)).toBeInViewport();
     });
