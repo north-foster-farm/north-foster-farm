@@ -166,7 +166,9 @@ const pause = (ms) => new Promise((r) => { setTimeout(r, ms); });
 
 // `bin/nff audience apply <csv>` (#496): a cleanup of the imported
 // list, one row each of action,email,first,last. A `keep` row sets the
-// names it gives (setNames; an empty cell leaves that name as it is).
+// names as given (setNames): an empty cell sets that name blank, as a
+// blank or initial last name and an empty first name are all valid on
+// the list (James, comment 6453653919).
 // A `remove` row goes the way of `customers forget --apply`: the record
 // and everything else that names the address, its orders kept but
 // re-pointed to the deleted household, and the Resend contact. A row
@@ -197,7 +199,7 @@ export const applyAudience = async (stores, rows, {
           entry.outcome = "no record";
         } else {
           const r = await setNames(stores, email, {
-            first: row.firstName || undefined, last: row.lastName || undefined,
+            first: row.firstName, last: row.lastName,
           }, { by, dryRun, env, fetchImpl, news, contacts });
 
           entry.outcome = r.changed.length ? "names set" : "names as given";

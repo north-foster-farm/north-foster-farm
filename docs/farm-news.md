@@ -261,10 +261,15 @@ ran it, which fields changed and the address masked, never the names.
 `name=`, `phone=` and the rest are set without the two, as before.
 
 `audience apply` (`applyAudience`) takes a CSV whose header names
-`action,email,first,last`, one row per address:
+`action,email,first,last`, one row per address. The header must have
+all four, in any order; other columns, such as James's `note`, are
+ignored, and a quoted cell may hold a comma.
 
-- `keep` sets the names in the row as `customers set` does. An empty
-  cell leaves that name as it is.
+- `keep` sets both names in the row as given (2026-10-27: an empty
+  cell sets that name blank, no longer leaves it as it was). A blank
+  last name or an initial is valid on the list, and so is an empty
+  first name, with no warning: the welcome then says "Hi," and never
+  uses the last name.
 - `remove` goes the way of `customers forget --apply`: the record and
   everything else that names the address go, its orders stay but are
   re-pointed to the deleted household, and the Resend contact is

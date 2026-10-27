@@ -10,12 +10,13 @@ import {
 } from "../netlify/functions/lib/admin.mjs";
 import { maskEmail } from "../netlify/functions/lib/mask.mjs";
 import {
-  parseCsv, syncAudience,
+  parseApplyCsv, syncAudience,
 } from "../netlify/functions/lib/news.mjs";
 import {
   getCustomer, getOrder, saveCustomer, saveOrder,
 } from "../netlify/functions/lib/records.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
+import { newsWelcome } from "../netlify/functions/lib/templates.mjs";
 
 const now = new Date("2026-10-27T12:00:00Z");
 const env = {
@@ -226,7 +227,7 @@ describe("audience apply <csv>", () => {
       const stores = await seed();
       const resend = resendFake([PAT, SAM, LEE]);
       const lines = capture(t);
-      const report = await applyAudience(stores, parseCsv(CSV), {
+      const report = await applyAudience(stores, parseApplyCsv(CSV), {
         by: "james", env, fetchImpl: resend.fetchImpl, now, pace: 0,
       });
 
@@ -247,12 +248,13 @@ describe("audience apply <csv>", () => {
       const sam = await getCustomer(stores, SAM);
 
       assert.equal(pat.name, "Pat Example");
-      assert.equal(sam.name, "Sam Sample", "an empty cell keeps the name");
+      assert.deepEqual([sam.firstName, sam.lastName, sam.name],
+        ["", "Sample", "Sample"], "an empty cell sets that name blank");
       assert.equal(await getCustomer(stores, LEE), null);
       assert.equal((await getOrder(stores, "NFF-1")).customer.deleted, true,
         "the order stays, re-pointed to the deleted household");
       assert.deepEqual(resend.contacts.map((c) => [c.email, c.first_name,
-        c.last_name]), [[PAT, "Pat", "Example"], [SAM, "Sam", "Sample"]]);
+        c.last_name]), [[PAT, "Pat", "Example"], [SAM, "", "Sample"]]);
       assert.equal(resend.calls.filter((c) => c.method === "DELETE").length,
         1);
 
@@ -275,7 +277,7 @@ describe("audience apply <csv>", () => {
     const stores = await seed();
     const resend = resendFake([PAT, SAM, LEE]);
     const lines = capture(t);
-    const report = await applyAudience(stores, parseCsv(CSV), {
+    const report = await applyAudience(stores, parseApplyCsv(CSV), {
       dryRun: true, env, fetchImpl: resend.fetchImpl, now, pace: 0,
     });
 
@@ -299,7 +301,7 @@ describe("audience apply <csv>", () => {
         totals: { total: 0 }, history: [],
       });
 
-      const report = await applyAudience(stores, parseCsv(
+      const report = await applyAudience(stores, parseApplyCsv(
         `action,email,first,last\nremove,${LEE},,\nkeep,${PAT},Pat,\n`), {
         env, fetchImpl: resend.fetchImpl, now, pace: 0,
       });
@@ -308,6 +310,82 @@ describe("audience apply <csv>", () => {
         ["not removed: an order is in progress", "names set"]);
       assert.ok(await getCustomer(stores, LEE));
     });
+
+  // James, comment 6453653919: a blank or initial last name and an
+  // empty first name are valid, with no warning, and the note column
+  // is his alone.
+  it("sets each name as given, ignores the note, and warns of nothing",
+    async (t) => {
+      const stores = testStores();
+      const resend = resendFake([PAT, SAM, LEE]);
+
+      await saveCustomer(stores, customer(PAT, "Pat", "Example"));
+      await saveCustomer(stores, customer(SAM, "Sam", "Sample"));
+      await saveCustomer(stores, customer(LEE, "Lee", "Duplicate"));
+
+      const warn = t.mock.method(console, "warn", () => {});
+
+      t.mock.method(console, "log", () => {});
+      t.mock.method(console, "info", () => {});
+
+      const rows = parseApplyCsv("Action,Email,First,Last,Note\n"
+        + `keep,${PAT},Pat,E,"met at the market, July"\n`
+        + `keep,${SAM},,Sample,no first name on the sheet\n`
+        + `keep,${LEE},Lee,,\n`);
+
+      assert.deepEqual(rows.map((r) => [r.firstName, r.lastName]),
+        [["Pat", "E"], ["", "Sample"], ["Lee", ""]]);
+      assert.ok(rows.every((r) => !("note" in r)));
+
+      const report = await applyAudience(stores, rows, {
+        by: "james", env, fetchImpl: resend.fetchImpl, now, pace: 0,
+      });
+
+      assert.deepEqual(report.rows.map((r) => r.outcome),
+        ["names set", "names set", "names set"]);
+
+      const names = async (email) => {
+        const c = await getCustomer(stores, email);
+
+        return [c.firstName, c.lastName, c.name];
+      };
+
+      assert.deepEqual(await names(PAT), ["Pat", "E", "Pat E"]);
+      assert.deepEqual(await names(SAM), ["", "Sample", "Sample"]);
+      assert.deepEqual(await names(LEE), ["Lee", "", "Lee"]);
+      assert.deepEqual(resend.contacts.map((c) => [c.first_name,
+        c.last_name]), [["Pat", "E"], ["", "Sample"], ["Lee", ""]]);
+      assert.equal(warn.mock.callCount(), 0);
+    });
+
+  it("needs action, email, first and last in the header", () => {
+    assert.throws(() => parseApplyCsv(`action,email,first\nkeep,${PAT},Pat\n`),
+      /no last column/);
+    assert.throws(() => parseApplyCsv(`action,email\nremove,${LEE}\n`),
+      /no first or last column/);
+    assert.throws(() => parseApplyCsv(`keep,${PAT},Pat,Example\n`),
+      /header needs action,email,first,last/);
+    assert.deepEqual(parseApplyCsv(
+      `last,first,email,action\nE,Pat,${PAT},keep\n`,
+    ), [{ action: "keep", email: PAT, firstName: "Pat", lastName: "E" }]);
+  });
+});
+
+describe("the welcome's greeting", () => {
+  const hi = (who) => newsWelcome(who, "u", {}).text.trim().split("\n")[0];
+
+  it("greets by the first name alone, never the last", () => {
+    assert.equal(hi({ firstName: "Pat", lastName: "Example",
+      name: "Pat Example" }), "Hi Pat,");
+    assert.equal(hi({ firstName: "", lastName: "Sample", name: "Sample" }),
+      "Hi,");
+    assert.equal(hi({ lastName: "Sample", name: "Sample" }), "Hi,");
+  });
+
+  it("takes the first word of name only when there is neither", () => {
+    assert.equal(hi({ name: "Pat Example" }), "Hi Pat,");
+    assert.equal(hi({ firstName: "", lastName: "", name: "" }), "Hi,");
+  });
 });
 
 // James's reading on #496: after a sync, `customers delete` leaves the
@@ -337,7 +415,7 @@ describe("a removal and the next sync", () => {
       const resend = resendFake([LEE]);
 
       await saveCustomer(stores, customer(LEE));
-      await applyAudience(stores, parseCsv(
+      await applyAudience(stores, parseApplyCsv(
         `action,email,first,last\nremove,${LEE},,\n`), {
         env, fetchImpl: resend.fetchImpl, now, pace: 0,
       });

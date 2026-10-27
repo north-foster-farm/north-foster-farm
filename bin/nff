@@ -308,9 +308,10 @@ const USAGE = `Usage:
                                       Resend is not called
   bin/nff audience apply <csv> [--dry-run]
                                       a cleanup, one row each with the
-                                      header action,email,first,last:
-                                      keep sets the names as customers
-                                      set does; remove is customers
+                                      header action,email,first,last
+                                      (other columns ignored): keep
+                                      sets the names as given, an empty
+                                      cell blank; remove is customers
                                       forget --apply. Prints each row
                                       with the address masked
   bin/nff audience sync [--dry-run]   the Resend audience and the
@@ -527,8 +528,8 @@ const [
   { stores: makeStores },
   { CANCEL_REASONS, paymentPhrase, summaryLine },
   {
-    importSubscribers, parseCsv, removeImported, sendOwedWelcomes,
-    syncAudience,
+    importSubscribers, parseApplyCsv, parseCsv, removeImported,
+    sendOwedWelcomes, syncAudience,
   },
   { dollars, toCents },
   { snapshot },
@@ -1671,12 +1672,7 @@ const run = async () => {
       throw new Error("Which CSV? bin/nff audience apply <csv>");
     }
 
-    const rows = parseCsv(readFileSync(rest[0], "utf8"));
-
-    if (rows.some((r) => r.action === undefined)) {
-      throw new Error("The CSV needs a header row: action,email,first,last");
-    }
-
+    const rows = parseApplyCsv(readFileSync(rest[0], "utf8"));
     const r = await admin.applyAudience(stores, rows, {
       by: userInfo().username, dryRun: !!flags["dry-run"],
     });

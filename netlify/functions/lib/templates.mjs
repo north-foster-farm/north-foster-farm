@@ -64,10 +64,14 @@ const plain = (s) => s
   .replace(/_\*\*(.+?)\*\*_/g, "$1")
   .replace(/\*\*(.+?)\*\*/g, "$1");
 
-// Accepts a customer record (firstName preferred) or a bare name.
+// Accepts a customer record or a bare name. A record with firstName or
+// lastName greets by firstName alone, so an empty first name gives
+// "Hi," and never the last name (#496); only a record with neither
+// falls back to the first word of name.
 const firstName = (who) => {
   if (who && typeof who === "object") {
-    return who.firstName || firstName(who.name);
+    return who.firstName || who.lastName ? who.firstName || ""
+      : firstName(who.name);
   }
 
   return String(who || "").trim().split(/\s+/)[0] || "";

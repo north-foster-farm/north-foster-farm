@@ -715,16 +715,41 @@ export const removeImported = async (stores, email, {
   return report;
 };
 
+// One CSV line's cells. A quoted cell may hold commas, and "" in one
+// is a quote.
+const csvCells = (line) => {
+  const out = [];
+  let cell = "";
+  let quoted = false;
+
+  for (let i = 0; i < line.length; i += 1) {
+    const c = line[i];
+
+    if (quoted && c === "\"" && line[i + 1] === "\"") {
+      cell += "\"";
+      i += 1;
+    } else if (c === "\"") {
+      quoted = !quoted;
+    } else if (c === "," && !quoted) {
+      out.push(cell.trim());
+      cell = "";
+    } else {
+      cell += c;
+    }
+  }
+  out.push(cell.trim());
+
+  return out;
+};
+
 // A CSV of addresses: a header row naming email, first and last, and
 // for the old list's sheets date and market, or for `audience apply`
 // action (any order, any case) or, without one, email first then the
-// names.
+// names. Other columns, such as a note, are ignored.
 export const parseCsv = (content) => {
   const lines = String(content).split(/\r?\n/).map((l) => l.trim())
     .filter(Boolean);
-  const cells = (line) => line.split(",").map((c) => c.trim()
-    .replace(/^"(.*)"$/, "$1"));
-  const rows = lines.map(cells);
+  const rows = lines.map(csvCells);
   const header = rows[0] && rows[0].some((c) => /email/i.test(c))
     ? rows.shift().map((c) => c.toLowerCase())
     : null;
@@ -749,6 +774,28 @@ export const parseCsv = (content) => {
     date: d >= 0 ? r[d] || "" : "",
     market: m >= 0 ? r[m] || "" : "",
   }));
+};
+
+const APPLY_COLUMNS = ["action", "email", "first", "last"];
+
+// `audience apply`'s CSV (#496): a header naming action, email, first
+// and last, any order and any case, with other columns (James's note)
+// ignored. Every cell is taken as given: an empty first or last name
+// sets that name blank. -> rows of { action, email, firstName, lastName }.
+export const parseApplyCsv = (content) => {
+  const first = String(content).split(/\r?\n/).find((l) => l.trim());
+  const header = first ? csvCells(first.trim()).map((c) => c.toLowerCase())
+    : [];
+  const missing = APPLY_COLUMNS
+    .filter((name) => !header.some((h) => h.includes(name)));
+
+  if (missing.length) {
+    throw new Error(`The CSV's header needs ${APPLY_COLUMNS.join(",")}; ` +
+      `it has no ${missing.join(" or ")} column.`);
+  }
+
+  return parseCsv(content).map(({ action, email, firstName, lastName }) =>
+    ({ action, email, firstName, lastName }));
 };
 
 // --- The audience in Resend ----------------------------------------
