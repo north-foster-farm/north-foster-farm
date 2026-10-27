@@ -131,6 +131,10 @@
         </div>
       </div>
       <p class="order-cart-code-note" id="order-code-note" data-code-note aria-live="polite" hidden></p>
+      {{/* While a buying group is on the order (#471), what its host
+           sees of the member. It stays, unlike the note above, which
+           fades. Draft wording. */}}
+      <p class="order-cart-code-note" data-group-note hidden>The group's host can see your name and email address.</p>
     </div>
 
     {{/* The foot never gives way: Expand or Hide on the left (below

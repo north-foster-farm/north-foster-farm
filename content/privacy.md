@@ -175,6 +175,11 @@ you, and to send Farm News if you asked for it. We do not share personal
 information with outside parties except to the extent necessary to provide our
 services.
 
+If you use a group's code, you join that group, and its host can see your
+name, your email address and when you joined. The host never sees your
+orders, your phone number, your address or how you paid. You can leave a
+group at any time from your account page.
+
 We may disclose your information:
 
 - in response to subpoenas, court orders, or other legal requirements

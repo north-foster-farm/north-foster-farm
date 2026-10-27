@@ -49,6 +49,8 @@ test.describe("a buying group's code (#471)", () => {
       await order.codeApply.click();
       await expect(order.codeNote)
         .toHaveText("Code applied. Welcome to the group!");
+      // What the host sees of a member, while the group is on (#495).
+      await expect(page.locator("[data-group-note]")).toBeVisible();
 
       const round = await order.scheduled(SERIES);
 

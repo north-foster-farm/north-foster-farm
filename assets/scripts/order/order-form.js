@@ -1093,7 +1093,11 @@ export class OrderForm {
   // it, and goes with the group.
   renderGroupDelivery() {
     const row = qs(this.form, "[data-deliver-to-group]");
+    // What the group's host sees of a member, under the code box for
+    // as long as the group is on the order (#471).
+    const note = this.cart.root && qs(this.cart.root, "[data-group-note]");
 
+    if (note) note.hidden = !this.member;
     if (!row) return;
 
     row.hidden = !this.member;
