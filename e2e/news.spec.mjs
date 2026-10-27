@@ -1,7 +1,7 @@
-// Farm news: the footer sign-up joins at once (W1, 2026-09-26) and
-// sends one welcome with a one-click unsubscribe (T6, 6166efa). Only the
-// old list is asked to confirm, by bin/nff audience invite.
-// docs/qa-launch.md, "Farm news".
+// Farm news: the public sign-up asks to confirm by email, and the link
+// joins the list and sends one welcome with a one-click unsubscribe
+// (#303, 63e09442; T6, 6166efa). The checkout and settings boxes and the
+// old list's import join at once. docs/qa-launch.md, "Farm news".
 
 import { expect, test, uniqueEmail } from "./support/order.mjs";
 import {
@@ -12,7 +12,7 @@ import {
 test.describe("farm news", () => {
   test.skip(!backOffice().ready, BACK_OFFICE_MISSING);
 
-  test("the footer sign-up joins at once and sends a welcome",
+  test("the footer sign-up asks to confirm, then joins and sends a welcome",
     { tag: "@regression" }, async ({ page }) => {
       const email = uniqueEmail("news");
       const since = new Date();
@@ -23,8 +23,25 @@ test.describe("farm news", () => {
         await form.locator("input[type='email']").fill(email);
         await form.getByRole("button").click();
         await expect(form.locator("[data-farm-list-note]"))
-          .toHaveText("You're on the list. Thanks!");
+          .toHaveText("Check your email: click the link we sent you to join.");
         await expect(form.locator("input[type='email']")).toHaveValue("");
+
+        // Not on the list, and no welcome, until the link is followed.
+        expect(await customerRecord(email), "no record yet").toBeNull();
+
+        const asked = await mailTo(email, since);
+
+        expect(asked.map((m) => m.subject), "only the confirmation")
+          .toEqual(["Confirm your email address for Farm News"]);
+
+        const link = linkIn(asked[0], /\/api\/news\/confirm\?token=/);
+
+        expect(link, "the confirmation's link").toBeTruthy();
+        // The link lands on /news/, which says so and drops the query.
+        await page.goto(link);
+        await expect(page).toHaveURL(/\/news\/$/);
+        await expect(page.locator("[data-farm-list-note]").first())
+          .toHaveText("You're on the list. Thanks!");
 
         const record = await customerRecord(email);
 
@@ -34,9 +51,11 @@ test.describe("farm news", () => {
 
         const mail = await mailTo(email, since);
 
-        expect(mail.map((m) => m.subject), "only the welcome")
-          .toEqual(["Welcome to Farm News"]);
-        expect(linkIn(mail[0], /unsubscribe=/)).toBeTruthy();
+        expect(mail.map((m) => m.subject).sort(), "one welcome after it")
+          .toEqual(["Confirm your email address for Farm News",
+            "Welcome to Farm News"]);
+        expect(linkIn(mail.find((m) => m.subject === "Welcome to Farm News"),
+          /unsubscribe=/)).toBeTruthy();
       } finally {
         await deleteCustomer(email);
         await clearMail({ to: email, since });

@@ -25,10 +25,13 @@ test.describe("policies", () => {
 
     const text = await main.innerText();
 
-    // Farm news: Resend, single opt-in, one-click unsubscribe.
+    // Farm news: Resend, a link to confirm a public sign-up (#303),
+    // one-click unsubscribe.
     expect(text).toMatch(/Resend keeps the list/);
-    expect(text).toMatch(/Signing up adds\s+you to the list at once/);
-    expect(text).toMatch(/not one asking you to\s+confirm/);
+    expect(text).toMatch(/adds\s+you to the list at once/);
+    expect(text)
+      .toMatch(/Signing up on the site sends\s+you an email with a link/);
+    expect(text).toMatch(/you join only if you follow\s+it/);
     expect(text).toMatch(/unsubscribe link that takes you off the list in one/);
     // Payments: Square and PayPal, and no card details on the site.
     expect(text).toMatch(/Square/);
