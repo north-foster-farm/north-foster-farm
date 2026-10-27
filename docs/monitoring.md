@@ -634,12 +634,14 @@ the job is not doing its job even though it ran.
   Square copy (`square: null`). The jobs retry it every run; this
   fires when the retries keep failing.
 - `order.unreadable`: the rules could not even read the record.
-- `stock.flagged` (#499): no variation `data/catalog.json` marks
-  `hiatus` or `discontinued` has stock above 0 in Square at the farm's
-  location. Checked once a day from 07:00, not against the orders; it
-  names the SKU, its flag and the count, once per SKU and count, and
-  its alert is never held by the hourly mute. Fix the count in Square
-  or the flag in the catalog; `bin/nff stock flags` lists them all.
+- `stock.hidden` (#499): no tier the order page won't sell, archived
+  or `inStock: false` in `data/catalog.json`, has stock above 0 in
+  Square at the farm's location. A hiatus or discontinued tier with
+  stock sells, and is not one. Checked once a day from 07:00, not
+  against the orders; it names the SKU, why the page hides it and the
+  count, once per SKU and count, and its alert is never held by the
+  hourly mute. Fix the count in Square or the entry in the catalog;
+  `bin/nff stock hidden` lists them all.
 
 ## The jobs heartbeat and partial failures
 

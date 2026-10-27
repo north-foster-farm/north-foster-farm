@@ -264,41 +264,49 @@ export const archivedInStock = async (stores, {
   }
 };
 
-// A variation the catalog says is not coming back for now, `hiatus`
-// or `discontinued`, with stock in Square anyway (#499): the flag is
-// stale or the count is wrong, and the page sells it either way, since
-// stock wins over both. The jobs tell the farm once a day (lib/jobs.mjs,
-// the `stock.flagged` invariant); `bin/nff stock flags` prints them on
+// A tier with stock in Square that the order page won't sell (#499,
+// James, #303 6454589969). Every restock type but `archived` describes
+// only the sold-out state, so a count above 0 sells it (availability,
+// above), and no type may hide stock. What still does is a catalog
+// entry with `inStock: false`, or an archived one: the farm has packs
+// nobody can order. The jobs tell the farm once a day (lib/jobs.mjs,
+// the `stock.hidden` invariant); `bin/nff stock hidden` prints them on
 // demand.
-export const FLAGGED = ["discontinued", "hiatus"];
+//
+// Whether the page keeps a tier off whatever Square counts, and why.
+// -> "archived" | "inStock false" | null when a count sells it.
+export const hiddenBy = (item) => {
+  if (archived(item)) return "archived";
 
-// Every flagged variation with Square's count at the farm's location.
-// -> [{ sku, name, restock, count }], count null where Square doesn't
-// count it, or null when Square can't be asked or doesn't answer.
-// `inventory` is for tests.
-export const flaggedCounts = async ({
+  return item.inStock ? null : "inStock false";
+};
+
+// Every tier the page keeps off whatever its count, with Square's
+// count at the farm's location. -> [{ sku, name, why, count }], count
+// null where Square doesn't count it, or null when Square can't be
+// asked or doesn't answer. `inventory` is for tests.
+export const hiddenCounts = async ({
   catalogIndex = index, env = process.env, deadline,
   inventory = inventoryCounts,
 } = {}) => {
-  const flagged = [...catalogIndex.values()]
-    .filter((item) => FLAGGED.includes(item.restock));
-  const ids = flagged.map((i) => i.squareVariationId).filter(Boolean);
+  const hidden = [...catalogIndex.values()].filter(hiddenBy);
+  const ids = hidden.map((i) => i.squareVariationId).filter(Boolean);
   const square = ids.length
     ? await readSquare(ids, { env, deadline, inventory })
     : {};
 
   if (!square) return null;
 
-  return flagged.map((item) => ({
+  return hidden.map((item) => ({
     sku: item.sku,
     name: item.lineName,
-    restock: item.restock,
+    why: hiddenBy(item),
     count: Object.hasOwn(square, item.squareVariationId || "")
       ? square[item.squareVariationId] : null,
   }));
 };
 
-export const flaggedInStock = (list) => list.filter((i) => i.count > 0);
+export const hiddenInStock = (list) => list.filter((i) => i.count > 0);
 
 // Errors keyed like the validator's, for lines that cannot be filled.
 // Always a fresh read of Square; `check` names the check in the log.
