@@ -208,8 +208,8 @@ describe("a customer's move within scheduled pickup", () => {
 
     const toFarm = sent.find((m) => m.subject.startsWith("Pickup moved"));
 
-    assert.match(toFarm.text, /Was: \*\*Drop site, Village Green/);
-    assert.match(toFarm.text, /Now: \*\*Foster Farmers Market/);
+    assert.match(toFarm.text, /Was: Drop site, Village Green/);
+    assert.match(toFarm.text, /Now: Foster Farmers Market/);
   });
 
   it("moves to another date of the same series on a date alone",

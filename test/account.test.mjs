@@ -274,7 +274,7 @@ describe("cancelOrder", () => {
     assert.equal(sent.length, 2);
     assert.match(sent[0].subject, /canceled/);
     assert.match(sent[0].text,
-      /as requested\.\n\*\*A refund of \$\d+ is on its way/);
+      /as requested\.\nA refund of \$\d+ is on its way/);
     assert.deepEqual(sent[1].to, ["farm@example.com"]);
     assert.equal(sent[1].subject, "Canceled: A by pat@example.com");
     assert.match(sent[1].text, /refunded \$12 automatically/);
@@ -424,7 +424,7 @@ describe("changeOrder", () => {
     assert.equal(r.order.notes, "Thanks!");
     assert.deepEqual(calls, [["updateFulfillment", "SQO", "2026-10-15"]]);
     assert.match(sent[0].subject, /updated/);
-    assert.match(sent[0].text, /find your cooler\? _\*\*Back steps\*\*_/);
+    assert.match(sent[0].text, /find your cooler\? Back steps\n/);
   });
 
   it("rejects a date that is not offered and an empty cooler", async () => {

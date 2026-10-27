@@ -56,10 +56,13 @@ const escape = (s) => String(s)
   .replace(/"/g, "&quot;");
 
 // The two marks James writes with: **bold** and _**bold italic**_.
-// The text keeps them; the HTML turns them into tags.
+// The HTML turns them into tags; the plain text drops them (#490).
 const inline = (s) => escape(s)
   .replace(/_\*\*(.+?)\*\*_/g, "<em><strong>$1</strong></em>")
   .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+const plain = (s) => s
+  .replace(/_\*\*(.+?)\*\*_/g, "$1")
+  .replace(/\*\*(.+?)\*\*/g, "$1");
 
 // Accepts a customer record (firstName preferred) or a bare name.
 const firstName = (who) => {
@@ -242,8 +245,8 @@ const render = (title, blocks, links = {}, {
           escape(tag)}</p>`,
     }, ...blocks]
     : blocks;
-  const text = [title, "", ...tagged.map((b) => b.text), "", footer.text]
-    .join("\n");
+  const text = plain([title, "", ...tagged.map((b) => b.text), "",
+    footer.text].join("\n"));
   const html = `<!doctype html><html><head><meta charset="utf-8">` +
     `<meta name="viewport" content="width=device-width">` +
     // Safari, and the staging outbox in it, would link the footer's
@@ -1331,11 +1334,24 @@ export const paymentPhrase = (order) => {
     : onePayment({ amount: order.totals.total });
 };
 
+// The pickup by the farm's own name for its place. A drop site's
+// series is named "Drop site", which reads as a placeholder in a
+// sentence, so it goes by its location's name, or "a drop site" (#490).
+const pickupSite = (order) => {
+  const o = orderOccurrence(terms, order.fulfilment);
+
+  if (!o || o.kind !== "drop-site") return placeOf(order).name;
+
+  const loc = terms.model.location(o.location);
+
+  return (loc && loc.name) || "a drop site";
+};
+
 // The moment an order is placed, which is the moment it is paid.
 export const farmOrderPlaced = (order, { squareUrl, links } = {}) => {
   const title = `New order ${order.id}: ${dollars(order.totals.total)}, ` +
     `${isScheduled(order.fulfilment)
-      ? `pickup at ${placeOf(order).name}`
+      ? `pickup at ${pickupSite(order)}`
       : methodName(order.fulfilment.method).toLowerCase()}`;
   const url = orderAdminUrl(links, order.id);
   const blocks = [

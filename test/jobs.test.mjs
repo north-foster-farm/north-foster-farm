@@ -1021,8 +1021,8 @@ describe("runJobs", () => {
     assert.equal(manifest.length, 1);
     assert.equal(manifest[0].subject,
       "Tomorrow, Wednesday, October 7: 1 order");
-    assert.match(manifest[0].text, /\*\*B\*\*, Pat Example, 9 AM – noon/);
-    assert.doesNotMatch(manifest[0].text, /\*\*A\*\*/, "A is Thursday");
+    assert.match(manifest[0].text, /^B, Pat Example, 9 AM – noon/m);
+    assert.doesNotMatch(manifest[0].text, /^A,/m, "A is Thursday");
 
     const thursdayEve = await runJobs(stores, {
       ...opts, env, now: at("2026-10-07", 18),
