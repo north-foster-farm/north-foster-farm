@@ -40,10 +40,10 @@ Every customer write fills these, and nothing reads them yet (#267):
   issued. Both null until the membership program exists.
 - `memberSince`: when they joined, or null. Joining is also a
   `membership` event in the consent log.
-- `memberGroup`: `{ id, joinedAt }`, or null. It links to a group
-  record (id, name, founder contact, created) that has no store yet;
-  the program's own issue makes one. `discountGroup` is a different
-  thing, the price group.
+- `memberGroup`: `{ id, joinedAt, via }`, or null. `id` is a buying
+  group's key in `data/groups.json`, whose code and join token are
+  the `group/<key>` record in the orders store (`lib/groups.mjs`,
+  #471, #495). `discountGroup` is a different thing, the price group.
 
 James's spec puts these, and the log, on the household record in
 Supabase. Customers live in Blobs until households move there (see
