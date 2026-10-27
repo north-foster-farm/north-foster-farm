@@ -431,9 +431,11 @@ test.describe("home", () => {
         .toHaveAttribute("href", /\/#map$/);
       await expect(card.locator("[data-zip-check]")).toHaveCount(0);
 
-      // The news button sits below the card, in the section.
+      // The archive button closes the post, below the card in the
+      // section (#483): the small outline one, found by its name, since
+      // the sign-up above it has "news" in its own.
       const news = page.locator(".home-update")
-        .getByRole("link", { name: /news/i }).last();
+        .getByRole("link", { name: "More from the farm" });
 
       await expect(news).toHaveClass(/btn-outline/);
       await expect(news).toHaveAttribute("href", /\/news\/$/);
