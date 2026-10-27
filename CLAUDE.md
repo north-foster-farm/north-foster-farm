@@ -56,6 +56,23 @@ decisions James made on GitHub. The issue numbers point to the source.
 - **Confirm dates before production.** Any change to a news post, or to
   a page with a "Last updated" line, has its date confirmed before it
   ships. The right date is often not the commit date.
+- **Log every production change** (#497, 2026-10-27; the full rule is
+  in `docs/security.md`):
+  - **Log:** every change to a production record made by a person or
+    the CLI. Each line records the time, who acted (CLI, farm, host or
+    customer), the action, the target, and the values before and
+    after. Money and membership changes are always logged.
+  - **Don't log:** reads, `--dry-run` and previews, scheduled jobs that
+    changed nothing, and anything on staging or development unless
+    it's needed for debugging.
+  - **Never in a log:** secrets or tokens, payment details, or a full
+    email address, phone number or street address. Mask addresses as
+    in #496, keeping the first three and last three characters of
+    each part.
+  - **Log records are append-only** and follow the retention rules for
+    customer data.
+  - Any new command or action that changes production records ships
+    with its log line and a test, as part of the definition of done.
 - **This repo and its branches are public.** No customer data, no
   credentials, and no full names of James's family members in code,
   issues, comments or screenshots.

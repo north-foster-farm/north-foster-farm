@@ -41,6 +41,35 @@ when site revenue covers the extra cost. Doing so means re-linking
 Netlify, apps and webhooks, and fixing every anonymous read
 (`raw.githubusercontent.com`, image links) first.
 
+## Logging changes to production records
+
+James approved this rule on #303 on 2026-10-27 (#497). It covers
+the `bin/nff` commands and every server action: Netlify functions,
+scheduled jobs and webhooks.
+
+- **Log:** every change to a production record made by a person or
+  the CLI. Each line records the time, who acted (CLI, farm, host or
+  customer), the action, the target, and the values before and after.
+  Money and membership changes are always logged.
+- **Don't log:** reads, `--dry-run` and previews, scheduled jobs that
+  changed nothing, and anything on staging or development unless it's
+  needed for debugging.
+- **Never in a log:** secrets or tokens, payment details, or a full
+  email address, phone number or street address. Mask addresses as in
+  #496, keeping the first three and last three characters of each
+  part.
+- **Log records are append-only** and follow the retention rules for
+  customer data.
+- Any new command or action that changes production records ships
+  with its log line and a test, as part of the definition of done.
+
+`netlify/functions/lib/log.mjs` already scrubs every line on its way
+in: named personal fields are removed and an email address in any
+string becomes a short hash. The rule asks more of the line than the
+scrubber can supply (who acted, before and after), so each write path
+writes those fields itself. The audit of today's write paths against
+this rule is on #497.
+
 ## GitHub's free security features
 
 The first three are on in both repositories, the site and the
