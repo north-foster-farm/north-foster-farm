@@ -294,9 +294,18 @@ const settle = async (page) => {
 
       return !panel || !panel.hasAttribute("data-load");
     }, null, { timeout: 30_000 });
-    // And the page's height holds still: the wallets, stock and dates
-    // land at their own pace, and a stop the browser scrolled to can
-    // end up below the fold when the page grows after it.
+    // The wallets land after the card, and Venmo on its own, each
+    // growing the section: the payment state leaves "loading" only
+    // once every SDK has settled or failed (pay.js init), which on
+    // staging's real sandbox can be seconds after the card panel.
+    await page.waitForFunction(() => {
+      const pay = document.querySelector("[data-pay]");
+
+      return !pay || pay.dataset.payState !== "loading";
+    }, null, { timeout: 60_000 });
+    // And the page's height holds still: stock and dates land at
+    // their own pace, and a stop the browser scrolled to can end up
+    // below the fold when the page grows after it.
     let last = -1;
 
     for (let steady = 0; steady < 3;) {
