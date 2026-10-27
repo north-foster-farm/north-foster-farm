@@ -9,6 +9,12 @@ description: >-
 home: true
 ---
 
+Our first year raising chickens has passed a milestone: we aren't
+anticipating more chickens on the farm until next year. It's time for a
+transition at North Foster Farm. We're getting ready for winter, but
+we're also reflecting on the year we've had. Here's how each season
+felt, and where it left us.
+
 ## Spring
 
 {{< figure src="images/brooder.jpg"
