@@ -953,8 +953,10 @@ export class OrderForm {
       : await this.applyGroup(typed);
 
     if (member.ok) {
-      // James's wording (2026-10-26, through the coordinator).
-      accepted("Code applied. Welcome to the group!");
+      // James's wording (2026-10-26, through the coordinator); a
+      // member typing the code again is told so (#495, draft).
+      accepted(member.already ? "Code applied. You're already in the group."
+        : "Code applied. Welcome to the group!");
       this.refresh();
 
       return;
@@ -1020,7 +1022,11 @@ export class OrderForm {
 
     if (ok && data && data.group) this.unlockGroup(data, code || null);
 
-    return { ok: !!(ok && data && data.group), message: data && data.message };
+    return {
+      ok: !!(ok && data && data.group),
+      already: !!(data && data.already),
+      message: data && data.message,
+    };
   }
 
   // The group's place and series join the model and its rounds the

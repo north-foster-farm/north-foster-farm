@@ -27,6 +27,7 @@ import {
 import {
   addDays, today,
 } from "../../../assets/scripts/order/lib/zoned.mjs";
+import { log } from "./log.mjs";
 import { newPassCode } from "./passes.mjs";
 import {
   allOrders, getCustomer, paidTotal, refundedTotal, saveCustomer,
@@ -315,13 +316,27 @@ export const memberKeyOf = (customer) => (customer && customer.memberGroup
 // Marks the customer a member of the group, once: a paid order with
 // the code, or the CLI. -> the record, or null when there is none to
 // mark (the order's touch comes first, so there always is).
+//
+// A customer is in one group at a time (#495, edge 2). Another
+// group's code prices and places that one order, and never moves the
+// membership: the refusal is logged, and the farm moves someone with
+// `customers set member=`.
 export const joinGroup = async (stores, email, key, {
   now = new Date(), via = "order",
 } = {}) => {
   const customer = await getCustomer(stores, email);
 
   if (!customer) return null;
-  if (memberKeyOf(customer) === key) return customer;
+
+  const current = memberKeyOf(customer);
+
+  if (current === key) return customer;
+  if (current) {
+    log.warn({ event: "group.switch_refused", group: key, member: current,
+      via });
+
+    return customer;
+  }
 
   return saveCustomer(stores, {
     ...customer,
