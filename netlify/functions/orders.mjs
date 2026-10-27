@@ -36,8 +36,7 @@ import {
 } from "./lib/checkout.mjs";
 import { now as clock, real } from "./lib/clock.mjs";
 import {
-  balanceOf, creditBalance, creditWithoutGroup, getLedger, heldBy,
-  restoreCredit, spendCredit,
+  balanceOf, creditBalance, getLedger, heldBy, restoreCredit, spendCredit,
 } from "./lib/credit.mjs";
 import { json, ORDER_BUDGET_MS, readJson } from "./lib/http.mjs";
 import { alert, count } from "./lib/health.mjs";
@@ -267,19 +266,19 @@ export const handle = async (req, {
   if (groupCode && !buying) {
     return json(422, { errors: { groupCode: INVALID_CODE } });
   }
-  // A member's credit (#471) spends only when signed in: the account
+  // Credit (#471) spends only when signed in: the account
   // is what says the credit is theirs. As much as the order needs
   // comes off, and the rest of the total is paid as usual.
   // A retry of this submission (a timeout kept the spend for it)
   // already holds credit against the id it reserved; that hold counts
   // as available, or the retry would price the order without it and
   // the hold would be lost (security re-re-review, 6427102482).
-  // A member who left or was removed (#495) keeps spending it on any
-  // signed-in order while lib/credit.mjs's switch says so.
-  const spends = !!session && (!!buying || creditWithoutGroup());
-  const reserved = spends
+  // Credit is the account's (James, #495 decision 6): a member who
+  // left or was removed spends it on any signed-in order, with or
+  // without a group, until it expires.
+  const reserved = session
     ? await stores.orders.get(submissionKey(key)) : null;
-  const ledger = spends
+  const ledger = session
     ? await getLedger(stores, session.email) : null;
   const creditAvailable = ledger
     ? balanceOf(ledger, now)

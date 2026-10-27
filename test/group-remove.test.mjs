@@ -2,7 +2,8 @@
 // Remove, a member's Leave group and the CLI's `groups remove` are one
 // logged act. Open orders stand as placed and count toward the round;
 // a change can't move one into a round; member prices never change;
-// credit stays spendable by the switch's default, or is voided.
+// credit is the account's and stays spendable (James, decision 6),
+// voided only by the farm for abuse.
 
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -15,8 +16,7 @@ import {
 import { planChange } from "../netlify/functions/lib/account.mjs";
 import { createSession } from "../netlify/functions/lib/auth.mjs";
 import {
-  REMOVED_MEMBER_CREDIT, creditBalance, creditWithoutGroup, getLedger,
-  grantCredit, voidCredit,
+  creditBalance, getLedger, grantCredit, voidCredit,
 } from "../netlify/functions/lib/credit.mjs";
 import { auditLog } from "../netlify/functions/lib/group-log.mjs";
 import {
@@ -243,11 +243,8 @@ describe("what a removal leaves as it was", () => {
 describe("credit after leaving", () => {
   const from = { group: "vff", round: "2026-11-08", kind: "share" };
 
-  it("stays theirs by default, the one switch", async () => {
+  it("stays theirs, the account's", async () => {
     const { stores, member } = await setup();
-
-    assert.equal(REMOVED_MEMBER_CREDIT, "keep");
-    assert.equal(creditWithoutGroup(), true);
 
     await grantCredit(stores, PAT, { amount: 2000, from, now,
       timeZone: "America/New_York" });

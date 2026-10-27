@@ -171,11 +171,16 @@ class Account {
       customer: me.data.customer, orders: orders.data.orders || [],
       // A buying group's member (#471): the group and the credit.
       member: me.data.member || null,
+      // Credit kept with no group (#495, decision 6).
+      credit: Number(me.data.credit) || 0,
       membership: membership && membership.ok ? membership.data : null,
     };
   }
 
-  show({ maintenance, customer, orders, member = null, membership = null }) {
+  show({
+    maintenance, customer, orders, member = null, credit = 0,
+    membership = null,
+  }) {
     if (maintenance) {
       this.loading.textContent = maintenance;
       this.loading.hidden = false;
@@ -184,6 +189,7 @@ class Account {
     }
 
     this.member = member;
+    this.credit = credit;
 
     // Signed in as someone the link isn't for: the sign-in page's
     // card takes it, as it does for any browser (#345).
@@ -792,18 +798,21 @@ class Account {
     document.getElementById("account-email").textContent = c.email;
 
     // A buying group's member (#471): the group's name and the credit
-    // balance, on the head's right; nothing for anyone else. Draft
-    // wording.
+    // balance, on the head's right. Credit is the account's (#495,
+    // decision 6), so someone who left a group with some still sees
+    // it; with neither, nothing. Draft wording.
     const box = document.getElementById("account-member");
     const m = this.member;
+    const credit = m ? m.credit || 0 : this.credit || 0;
 
     if (box) {
-      box.hidden = !m;
-      if (m) {
-        qs(box, "[data-member-group]").textContent = m.name;
-        qs(box, "[data-member-credit]").textContent =
-          `Credit: ${dollars(m.credit || 0)}`;
-      }
+      const name = qs(box, "[data-member-group]");
+
+      box.hidden = !m && !credit;
+      name.hidden = !m;
+      name.textContent = m ? m.name : "";
+      qs(box, "[data-member-credit]").textContent =
+        `Credit: ${dollars(credit)}`;
     }
   }
 

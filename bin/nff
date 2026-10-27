@@ -251,8 +251,8 @@ const USAGE = `Usage:
                                       before the join log, once
   bin/nff groups remove <key> <email> take a member out of the group,
                                       logged: open orders stand as
-                                      placed, credit stays theirs
-                                      (lib/credit.mjs's switch)
+                                      placed, credit stays theirs,
+                                      spendable on any signed-in order
   bin/nff groups log <key>            every act on the group by its
                                       host, a member or the farm, and
                                       the join log, oldest first
@@ -277,7 +277,7 @@ const USAGE = `Usage:
                                       round's reward, by the close of
                                       the next round (kept otherwise)
   bin/nff groups credit <email> [--void]
-                                      a member's credit: balance,
+                                      an account's credit: balance,
                                       grants, spends, expiry. --void
                                       voids what is left, for abuse,
                                       logged in each group it came from

@@ -35,17 +35,6 @@ export const getLedger = async (stores, email) =>
   (await stores.customers.get(creditKey(email)))
   || { email: emailOf(email), entries: [] };
 
-// What a member removed from a group, or who leaves it, keeps of their
-// credit (#495). James has not ruled; this is the one switch:
-//   "keep"  it stays theirs, spendable on any signed-in order until it
-//           expires (the recommended default), and the farm voids it
-//           for abuse with `bin/nff groups credit <email> --void`;
-//   "void"  what is left is voided when they leave.
-export const REMOVED_MEMBER_CREDIT = "keep";
-
-// Whether credit spends on a signed-in order with no group.
-export const creditWithoutGroup = () => REMOVED_MEMBER_CREDIT === "keep";
-
 export const spentOf = (entry) =>
   (entry.spent || []).reduce((s, x) => s + x.amount, 0);
 
@@ -215,8 +204,8 @@ export const restoreCredit = async (stores, email, {
   return { ledger, restored };
 };
 
-// Voids what is left of every live grant (#495): for abuse, or on
-// leaving a group when REMOVED_MEMBER_CREDIT says so. Each grant keeps
+// Voids what is left of every live grant (#495), for abuse: `bin/nff
+// groups credit <email> --void`, logged. Each grant keeps
 // what was voided, when and why, so the books still show every dollar.
 // -> { ledger, voided } with `voided` in cents.
 export const voidCredit = async (stores, email, {

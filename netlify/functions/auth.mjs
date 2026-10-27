@@ -15,7 +15,7 @@ import {
   verifyToken,
 } from "./lib/auth.mjs";
 import { finishEmailChange } from "./lib/email-change.mjs";
-import { creditBalance, creditWithoutGroup } from "./lib/credit.mjs";
+import { creditBalance } from "./lib/credit.mjs";
 import { groupOf, memberKeyOf, namedGroup } from "./lib/groups.mjs";
 import { finishJoin } from "./lib/join.mjs";
 import { roleOf } from "./lib/membership.mjs";
@@ -242,10 +242,10 @@ export const handle = async (req, {
     // A group's member or host (#495) has the Membership tab and its
     // entry in the header's menu; no one else sees either.
     const role = await roleOf(stores, session);
-    // Credit kept after leaving a group (#495), which the order page
-    // takes off as the order handler does, while the switch says so.
-    const kept = !member && creditWithoutGroup()
-      ? await creditBalance(stores, session.email, now) : 0;
+    // Credit is the account's (#495, decision 6): kept after leaving a
+    // group, shown in the account's head and taken off any signed-in
+    // order, as the order handler does.
+    const kept = member ? 0 : await creditBalance(stores, session.email, now);
 
     // `owner`: the tag of this account's cart draft (#149).
     return json(200, {

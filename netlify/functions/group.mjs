@@ -98,8 +98,8 @@ export const handle = async (req, {
     // A member signed in learns their credit (#471), in cents, which
     // the order handler reads again from the ledger. A code alone
     // earns none: the account is what says the credit is theirs. The
-    // order handler spends it for any signed-in order with a group,
-    // typed or not, so the page is told the same.
+    // order handler spends it for any signed-in order (#495, decision
+    // 6), so the page is told the same.
     credit: session ? await creditBalance(stores, session.email, now) : 0,
     // A member signed in who types their own group's code again
     // (#495, edge 1): the page says they are in already.
