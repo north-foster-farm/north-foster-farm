@@ -3,8 +3,8 @@ import { describe, it } from "node:test";
 
 import {
   addressLines, draftOccurrence, dropOnly, dropSeriesCode, fallbackChoice,
-  fulfilmentDate, locationCount, occurrenceId, pickupName, pickupParts,
-  placeNames, placesFact, scheduledChoice,
+  fulfilmentDate, locationCount, locationsLabel, occurrenceId, pickupName,
+  pickupParts, placeNames, placesFact, scheduledChoice,
 } from "../assets/scripts/order/lib/scheduled.mjs";
 
 const drop = {
@@ -149,6 +149,29 @@ describe("the locations a list reaches", () => {
   it("falls back to the series where an entry has no location", () => {
     assert.equal(locationCount([drop, foster]), 2);
   });
+});
+
+describe("the link's words for a count", () => {
+  it("is singular for one, plural for any other number", () => {
+    assert.equal(locationsLabel(1), "1 location");
+    assert.equal(locationsLabel(2), "2 locations");
+    assert.equal(locationsLabel(3), "3 locations");
+    assert.equal(locationsLabel(0), "0 locations");
+    assert.equal(locationsLabel(12), "12 locations");
+  });
+
+  it("reads the live count of a list, so no number is typed anywhere",
+    () => {
+      const a = { ...drop, location: "G4C6" };
+      const b = { ...foster, location: "H2P8" };
+      const label = (choices) => locationsLabel(locationCount(choices));
+
+      assert.equal(label([a]), "1 location");
+      assert.equal(label([a, { ...a, occurrence: "x" }]), "1 location",
+        "two days at one place are one location");
+      assert.equal(label([a, b]), "2 locations");
+      assert.equal(label([a, b, drop]), "3 locations");
+    });
 });
 
 describe("a pickup as its card's parts", () => {

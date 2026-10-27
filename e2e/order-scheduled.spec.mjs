@@ -5,6 +5,9 @@
 // paused.
 
 import {
+  locationCount, locationsLabel,
+} from "../assets/scripts/order/lib/scheduled.mjs";
+import {
   OrderPage, expect, pickupChosen, pickupRadios, pickupValues, test,
 } from "./support/order.mjs";
 import {
@@ -172,7 +175,9 @@ test.describe("scheduled pickup", () => {
     });
 
   test("several places: the card names them", async ({ page }) => {
-    await cannedScheduled(page);
+    const lists = datesWith();
+
+    await cannedScheduled(page, lists);
 
     const order = new OrderPage(page);
 
@@ -180,9 +185,9 @@ test.describe("scheduled pickup", () => {
     await expect(page.locator("[data-scheduled-facts] dd").first())
       .toHaveText("At our markets and pickup days");
     // Beyond one place the card counts the locations and links to the
-    // map (#214).
+    // map (#214). The count is the lists' own, never a number typed here.
     await expect(page.locator("[data-scheduled-where]"))
-      .toHaveText("3 locations");
+      .toHaveText(locationsLabel(locationCount(lists.scheduled)));
     await expect(page.locator("[data-scheduled-where] a"))
       .toHaveAttribute("target", "_blank");
   });

@@ -82,6 +82,12 @@ export const locationCount = (choices) => new Set(
   choices.map((c) => c.location || c.series)
 ).size;
 
+// The link's words for a count: "1 location", "3 locations". The one
+// place to write them, so the number is always the live count and
+// never one typed into a page or a test.
+export const locationsLabel = (count) => `${count} location${
+  count === 1 ? "" : "s"}`;
+
 // A location's address as lines: the venue's name, street line 1 and
 // line 2 where it has them, then "City, ST 02857" (#323). Each line
 // is a part; a phone shows one per row, a wide card joins them.

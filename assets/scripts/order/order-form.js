@@ -3,7 +3,7 @@ import { buildModel } from "./lib/events.mjs";
 import { moneyOn } from "./lib/money-on.mjs";
 import {
   draftOccurrence, dropOnly, dropSeriesCode, fulfilmentDate, locationCount,
-  placesFact,
+  locationsLabel, placesFact,
 } from "./lib/scheduled.mjs";
 import { groupFromQuery, withPlaces } from "./lib/group.mjs";
 import { linkedMethod, withoutParam } from "./lib/query.mjs";
@@ -1280,7 +1280,7 @@ export class OrderForm {
     const places = locationCount(choices);
 
     if (!none && places > 1) {
-      const text = `${places} locations`;
+      const text = locationsLabel(places);
       const href = facts.dataset.placesHref;
       const kept = where.firstElementChild;
 
