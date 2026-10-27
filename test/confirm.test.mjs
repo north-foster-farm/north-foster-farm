@@ -57,6 +57,10 @@ describe("bin/nff's production confirmation (#268)", () => {
       undefined, "a dry run sends nothing, so it asks nothing");
     assert.equal(phrase("audience", "welcome", [], { email: "a@b.co" }),
       "audience welcome", "naming one address still sends");
+    assert.equal(phrase("audience", "remove", ["a@example.com"]),
+      "a@example.com");
+    assert.equal(phrase("audience", "remove", ["a@example.com"],
+      { "dry-run": true }), undefined);
   });
 
   it("guards square deletions pause and resume, not status", () => {

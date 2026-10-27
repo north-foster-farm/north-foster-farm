@@ -18,7 +18,11 @@ import { now as clock, real } from "./clock.mjs";
 import { log } from "./log.mjs";
 import { sendMail } from "./mail.mjs";
 import { resendAllowed, resendRefusal } from "./resend-guard.mjs";
-import { allCustomers, getCustomer, saveCustomer } from "./records.mjs";
+import { creditKey } from "./credit.mjs";
+import {
+  SCHEMA_DEFAULTS, allCustomers, cartKey, consentLog, deleteCustomer,
+  getCustomer, ordersFor, saveCustomer,
+} from "./records.mjs";
 import { customerEmailWithheld } from "./payments.mjs";
 import { mailLinks, siteUrl } from "./site.mjs";
 import { newsConfirm, newsWelcome } from "./templates.mjs";
@@ -609,6 +613,99 @@ export const sendOwedWelcomes = async (stores, {
     }
     (result.ok ? report.sent : report.failed).push(customer.email);
   }
+
+  return report;
+};
+
+// What an import writes on a record it makes (optIn, then the held
+// welcome). Any other field set, beyond the schema's defaults, is the
+// person's own history: a sign-in, a group, details, an order.
+const IMPORT_FIELDS = [
+  "email", "name", "firstName", "lastName", "marketing", "marketingAt",
+  "marketingSource", "createdAt", "consent", "welcome",
+];
+const blank = (value) => value === null || value === undefined
+  || value === "" || (Array.isArray(value) && !value.length);
+const importMade = (c) => c.createdAt === c.marketingAt
+  && consentLog(c).length === 1
+  && Object.entries(c).every(([key, value]) => IMPORT_FIELDS.includes(key)
+    || (key in SCHEMA_DEFAULTS
+      ? value === SCHEMA_DEFAULTS[key] : blank(value)));
+
+// A stale or duplicate address the import brought in, taken out of our
+// records before a sync adds it to Resend (#496). Not an unsubscribe:
+// nothing is recorded as a decline (no forgottenKey), so a real person
+// can still sign up later, and Resend is never called.
+//
+//   deleted   the record is the import's alone, with no orders, credit
+//             or cart: it goes, held welcome and all, with any
+//             unsubscribe link a welcome left
+//   cleared   the record has more on it: it stays, and only what the
+//             import wrote goes (`cleared` names it): its consent
+//             (`marketing`, `marketingAt`, `marketingSource` and its
+//             event in the log), while it is still the consent in force,
+//             and a held `welcome`
+//   none      no record, or nothing on it from the import
+//
+// `dryRun` reports and writes nothing. Each removal logs one line, with
+// `by`, who ran it; the log hashes the address, as it does every one.
+// -> { email, outcome, cleared, dryRun }.
+export const removeImported = async (stores, email, {
+  by = null, dryRun = false,
+} = {}) => {
+  const address = normalizeEmail(email);
+  const customer = await getCustomer(stores, address);
+  const report = { email: address, outcome: "none", cleared: [], dryRun };
+
+  if (!customer) return report;
+
+  const imported = customer.marketing === true
+    && customer.marketingSource === "import";
+
+  if (imported && importMade(customer)
+    && !(await ordersFor(stores, address)).length
+    && !await stores.customers.get(creditKey(address))
+    && !await stores.customers.get(cartKey(address))) {
+    report.outcome = "deleted";
+  } else {
+    if (imported) report.cleared.push("marketing");
+    if (customer.welcome) report.cleared.push("welcome");
+    if (report.cleared.length) report.outcome = "cleared";
+  }
+  if (dryRun || report.outcome === "none") return report;
+
+  if (report.outcome === "deleted") {
+    for (const { key } of await stores.auth.list("unsub/")) {
+      const link = await stores.auth.get(key);
+
+      if (link && normalizeEmail(link.email) === address) {
+        await stores.auth.delete(key);
+      }
+    }
+    await deleteCustomer(stores, address);
+  } else {
+    const rest = { ...customer };
+
+    delete rest.welcome;
+    if (imported) {
+      // Back as it was before the import, which joins only a record
+      // that never said yes or no: no consent, and no event for it.
+      const events = consentLog(customer);
+      const last = events[events.length - 1];
+
+      rest.marketing = false;
+      rest.marketingAt = null;
+      delete rest.marketingSource;
+      rest.consent = last && last.type === "market-sheet"
+        && last.recordedAt === customer.marketingAt
+        ? events.slice(0, -1) : events;
+    }
+    await saveCustomer(stores, rest);
+  }
+  log.info({
+    event: "news.removed", outcome: report.outcome, by,
+    record: address, cleared: report.cleared,
+  });
 
   return report;
 };

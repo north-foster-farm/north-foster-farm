@@ -12,6 +12,7 @@
 import { spawn } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { randomInt } from "node:crypto";
+import { userInfo } from "node:os";
 import { dirname, join } from "node:path";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
@@ -291,6 +292,14 @@ const USAGE = `Usage:
                                       sends nothing twice. On
                                       production it asks for the typed
                                       confirmation, like any send
+  bin/nff audience remove <email> [--dry-run]
+                                      a stale or duplicate address the
+                                      import brought in, taken out: an
+                                      import-only record is deleted;
+                                      one with more on it keeps all
+                                      but the import's consent and held
+                                      welcome. Not an unsubscribe, and
+                                      Resend is not called
   bin/nff audience sync [--dry-run]   the Resend audience and the
                                       records, made to agree
   bin/nff schedule check <file>       the pickup schedule, checked as a
@@ -504,7 +513,10 @@ const [
   { runJobs, runsSince, sweepMadeCustomers, sweepSquareOrders },
   { stores: makeStores },
   { CANCEL_REASONS, paymentPhrase, summaryLine },
-  { importSubscribers, parseCsv, sendOwedWelcomes, syncAudience },
+  {
+    importSubscribers, parseCsv, removeImported, sendOwedWelcomes,
+    syncAudience,
+  },
   { dollars, toCents },
   { snapshot },
   { dueOn, keptFee, paidTotal, refundedTotal, refundsOf },
@@ -1610,6 +1622,14 @@ const run = async () => {
       dryRun: !!flags["dry-run"],
     }));
   }
+  case "audience remove":
+    if (!rest[0]) {
+      throw new Error("Which address? bin/nff audience remove <email>");
+    }
+
+    return out(await removeImported(stores, rest[0], {
+      by: userInfo().username, dryRun: !!flags["dry-run"],
+    }));
   case "audience sync":
     return out(await syncAudience(stores, { dryRun: !!flags["dry-run"] }));
   case "schedule check": {

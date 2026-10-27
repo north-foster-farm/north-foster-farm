@@ -207,6 +207,35 @@ listing who is `due`).
 The record gains the `welcome` field only when imported with `--skip`;
 a record imported without it, or joined any other way, never has it.
 
+### Taking out a stale address: `audience remove`
+
+```
+bin/nff --production audience remove <email> [--dry-run]
+```
+
+takes a dead or duplicate address the import brought in out of our
+records, before a sync adds it to Resend (#496). It is a removal, not
+an unsubscribe: nothing is recorded as a decline (no `forgotten/`
+marker), so a real person can still sign up later, and Resend is never
+called. `removeImported` reports one of:
+
+- `deleted`: the record is the import's alone, with nothing on it but
+  what the import wrote, and no orders, credit or cart. It goes, held
+  welcome and all, with any unsubscribe link a sent welcome left.
+- `cleared`: the record has anything else on it (orders, a sign-in, a
+  group, credit, details). It stays, and only what the import added
+  goes, listed in `cleared`: `marketing` (with `marketingAt`,
+  `marketingSource` and the import's consent event, while the import's
+  consent is still the one in force) and a held `welcome`. The record
+  is back as it was before the import.
+- `none`: no record, or nothing on it from the import.
+
+Afterward the sync has nothing to add and `audience welcome` nothing to
+send. Each removal logs one line, `news.removed`, with who ran it (the
+Mac's user name), which outcome and the address hashed, as every log
+line hashes addresses. On production it asks for the address typed out;
+`--dry-run` asks nothing and writes nothing.
+
 ## The list template
 
 `listMail` in `templates.mjs` is the layout for mail to the list:

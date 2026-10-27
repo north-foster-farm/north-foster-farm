@@ -66,6 +66,9 @@ const DESTRUCTIVE = {
     does: "email the farm-news welcomes the old list is owed, running",
     unless: "dry-run", whole: true,
   },
+  "audience remove": {
+    does: "take out of our records the imported address", unless: "dry-run",
+  },
   "audience sync": { does: "sync the audience, running",
     unless: "dry-run", whole: true },
   "migrate scheduled-pickup": {
