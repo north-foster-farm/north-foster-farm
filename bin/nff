@@ -255,7 +255,8 @@ const USAGE = `Usage:
                                       spendable on any signed-in order
   bin/nff groups log <key>            every act on the group by its
                                       host, a member or the farm, and
-                                      the join log, oldest first
+                                      the join log, oldest first, every
+                                      address masked
   bin/nff groups round <key> [YYYY-MM-DD]
                                       a round's orders by member, the
                                       pick list and the net total;

@@ -18,7 +18,8 @@ import { createSession } from "../netlify/functions/lib/auth.mjs";
 import {
   creditBalance, getLedger, grantCredit, voidCredit,
 } from "../netlify/functions/lib/credit.mjs";
-import { auditLog } from "../netlify/functions/lib/group-log.mjs";
+import { auditLog, refOf } from "../netlify/functions/lib/group-log.mjs";
+import { maskEmail } from "../netlify/functions/lib/mask.mjs";
 import {
   buyingFor, groupOf, joinGroup, lockGroupOf, memberKeyOf, offeredGroup,
   roundOrders, setGroupCode, setGroupHost,
@@ -104,9 +105,12 @@ describe("the host's Remove", () => {
 
     const [act] = await auditLog(stores, "vff");
 
-    assert.deepEqual(act.by, { role: "host", email: HOST });
+    // Addresses masked in the log (#496's rule), hashed to match.
+    assert.deepEqual(act.by, { role: "host", email: maskEmail(HOST) });
     assert.equal(act.action, "member.remove");
-    assert.equal(act.target, PAT);
+    assert.equal(act.target, maskEmail(PAT));
+    assert.equal(act.refs.target, refOf(PAT));
+    assert.ok(!JSON.stringify(act).includes(PAT));
     assert.equal(act.before.group, "vff");
     assert.equal(act.before.via, "code");
     assert.deepEqual(act.after, { group: null });
@@ -166,7 +170,8 @@ describe("Leave group", () => {
     const [act] = await auditLog(stores, "vff");
 
     assert.deepEqual([act.by, act.action, act.target],
-      [{ role: "member", email: PAT }, "member.leave", PAT]);
+      [{ role: "member", email: maskEmail(PAT) }, "member.leave",
+        maskEmail(PAT)]);
 
     // Gone, the tab is gone too.
     const me = await (await authHandle(new Request("http://x/api/me",

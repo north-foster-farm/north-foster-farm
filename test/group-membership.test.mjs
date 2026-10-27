@@ -14,6 +14,7 @@ import { auditLog } from "../netlify/functions/lib/group-log.mjs";
 import {
   findGroupByToken, joinGroup, joinTokenOf, setGroupCode, setGroupHost,
 } from "../netlify/functions/lib/groups.mjs";
+import { maskEmail } from "../netlify/functions/lib/mask.mjs";
 import { roundsNow } from "../netlify/functions/lib/membership.mjs";
 import { saveCustomer } from "../netlify/functions/lib/records.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
@@ -146,7 +147,7 @@ describe("who gets what", () => {
       const [act] = await auditLog(stores, "vff");
 
       assert.deepEqual([act.by, act.action], [
-        { role: "host", email: HOST }, "qr.rotate",
+        { role: "host", email: maskEmail(HOST) }, "qr.rotate",
       ]);
     });
 

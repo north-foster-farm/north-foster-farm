@@ -4,9 +4,17 @@
 // (lib/forget.mjs) takes their address off every record that names it.
 //
 //   group-join/<key>/<time>-<random>   a first join, or a refused one
-//     { group, email, at, via, event, backfilled? }
+//     { group, email, at, via, event, backfilled?, refs }
 //   group-log/<key>/<time>-<random>    a host's, member's or farm's act
-//     { group, at, by: { role, email? }, action, target, before, after }
+//     { group, at, by: { role, email? }, action, target, before, after,
+//       refs }
+//
+// No record holds a full email address (James, #496 comment
+// 6453010087): every one is masked by lib/mask.mjs as it is written,
+// and `refs` maps the place each sat ("email", "by.email", "target",
+// "after.host") to a hash of it. The hash is how the member list
+// matches a join to a customer and how deleting a customer finds
+// their records, since two masked addresses can look the same.
 //
 // The join log is written by joinGroup (lib/groups.mjs) on the first
 // join only, so typing the code again adds nothing, with the path the
@@ -19,9 +27,51 @@
 // values before and after. The farm reads both logs with `bin/nff
 // groups members` and `groups log`. Neither is shown to anyone else.
 
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 
+import { maskEmail } from "./mask.mjs";
 import { allCustomers } from "./records.mjs";
+
+const ADDRESS = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const ANY_ADDRESS = /[A-Za-z0-9._%+'-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+/g;
+
+// The hash a record keeps of an address it masked.
+export const refOf = (email) => createHash("sha256")
+  .update(String(email || "").trim().toLowerCase()).digest("hex");
+
+// A value with every address in it masked, and the hash of each that
+// was a whole string, by its path: { value, refs }.
+const masking = (value, path = "", refs = {}) => {
+  if (typeof value === "string") {
+    if (ADDRESS.test(value.trim())) {
+      refs[path] = refOf(value);
+
+      return { value: maskEmail(value), refs };
+    }
+
+    return { value: value.replace(ANY_ADDRESS, maskEmail), refs };
+  }
+  if (Array.isArray(value)) {
+    return {
+      value: value.map((v, i) => masking(v, `${path}.${i}`, refs).value),
+      refs,
+    };
+  }
+  if (!value || typeof value !== "object") return { value, refs };
+
+  return {
+    value: Object.fromEntries(Object.entries(value).map(([k, v]) =>
+      [k, masking(v, path ? `${path}.${k}` : k, refs).value])),
+    refs,
+  };
+};
+
+// The record as it is stored: masked, with its refs.
+const masked = (record) => {
+  const { value, refs } = masking(record);
+
+  return { ...value, refs };
+};
 
 // How a member came to the group. `order` and `account` are older
 // records' paths, kept as they were written.
@@ -63,11 +113,11 @@ export const noteJoin = async (stores, {
   member = null,
 }) => {
   const at = now.toISOString();
-  const record = {
+  const record = masked({
     group, email, at, via, event,
     ...(member ? { member } : {}),
     ...(backfilled ? { backfilled: true } : {}),
-  };
+  });
 
   await stores.orders.set(joinKey(group, at), record);
 
@@ -87,11 +137,11 @@ export const audit = async (stores, {
   }
 
   const at = now.toISOString();
-  const record = {
+  const record = masked({
     group, at,
     by: by.email ? { role: by.role, email: by.email } : { role: by.role },
     action, target, before, after,
-  };
+  });
 
   await stores.orders.set(logKey(group, at), record);
 
@@ -110,12 +160,15 @@ export const groupMembers = async (stores, key) => {
     && c.memberGroup.id === key);
   const joins = new Map();
 
+  // Matched by the address's hash: the log holds it only masked.
   for (const j of await joinLog(stores, key)) {
-    if (j.event === "join" && !joins.has(j.email)) joins.set(j.email, j);
+    const ref = j.refs && j.refs.email;
+
+    if (j.event === "join" && ref && !joins.has(ref)) joins.set(ref, j);
   }
 
   return customers.map((c) => {
-    const join = joins.get(c.email);
+    const join = joins.get(refOf(c.email));
 
     return {
       email: c.email,
@@ -148,20 +201,12 @@ export const backfillJoins = async (stores, key, { apply = false } = {}) => {
   return missing;
 };
 
-// Whether a value holds the address anywhere in it.
-const names = (value, email) => (typeof value === "string"
-  ? value === email
-  : !!value && typeof value === "object"
-    && Object.values(value).some((v) => names(v, email)));
+// The places in a record that held the address, by its hash.
+const placesOf = (record, email) => {
+  const ref = refOf(email);
 
-// The value with the address blanked wherever it is.
-const without = (value, email) => {
-  if (typeof value === "string") return value === email ? "" : value;
-  if (Array.isArray(value)) return value.map((v) => without(v, email));
-  if (!value || typeof value !== "object") return value;
-
-  return Object.fromEntries(Object.entries(value)
-    .map(([k, v]) => [k, without(v, email)]));
+  return Object.entries((record && record.refs) || {})
+    .filter(([, r]) => r === ref).map(([path]) => path);
 };
 
 // The keys of the log records that name an address, for
@@ -172,15 +217,33 @@ export const namingKeys = async (stores, email) => {
 
   for (const prefix of ["group-join/", "group-log/"]) {
     for (const { key } of await stores.orders.list(prefix)) {
-      if (names(await stores.orders.get(key), email)) named.push(key);
+      if (placesOf(await stores.orders.get(key), email).length) {
+        named.push(key);
+      }
     }
   }
 
   return named;
 };
 
-// The same record with the address gone: the act and its date stay
-// for the farm's audit, the person does not.
-export const scrubbed = (record, email) => ({
-  ...without(record, email), forgotten: true,
-});
+// `value` with the string at `path` blanked.
+const blank = (value, [head, ...rest]) => {
+  if (!value || typeof value !== "object" || !(head in value)) return value;
+
+  const copy = Array.isArray(value) ? [...value] : { ...value };
+
+  copy[head] = rest.length ? blank(value[head], rest) : "";
+
+  return copy;
+};
+
+// The same record with the address gone, masked and hashed alike: the
+// act and its date stay for the farm's audit, the person does not.
+export const scrubbed = (record, email) => {
+  const places = placesOf(record, email);
+  const refs = Object.fromEntries(Object.entries(record.refs || {})
+    .filter(([path]) => !places.includes(path)));
+  const out = places.reduce((r, path) => blank(r, path.split(".")), record);
+
+  return { ...out, refs, forgotten: true };
+};
