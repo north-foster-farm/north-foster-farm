@@ -97,7 +97,10 @@ export const requestJoin = async (stores, body, {
   return { ok: sent.ok || sent.reason === "rate" };
 };
 
-// The names on a record that has none, and Farm News if ticked.
+// The names on a record that has none, and Farm News if ticked. The
+// join email said so (templates.mjs JOIN_NEWS), so following it is the
+// address owner's own consent, logged as source join-link. Unticked,
+// nothing is said and nothing subscribes.
 const fillIn = async (stores, email, join, { now, env, mail }) => {
   const customer = await getCustomer(stores, email);
 
@@ -110,11 +113,12 @@ const fillIn = async (stores, email, join, { now, env, mail }) => {
       name: [join.firstName, join.lastName].filter(Boolean).join(" "),
     });
   }
-  if (join.news) {
+  if (join.news === true) {
     const before = await getCustomer(stores, email);
     const after = await optIn(stores, email, {
-      firstName: join.firstName, lastName: join.lastName, source: "signup",
-      detail: "The group sign-up page",
+      firstName: join.firstName, lastName: join.lastName,
+      source: "join-link",
+      detail: "the group sign-up page, confirmed by the join link",
     }, now);
 
     if (joined(before, after)) await welcome(stores, after, { env, mail, now });

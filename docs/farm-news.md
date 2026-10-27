@@ -2,10 +2,11 @@
 
 Opt-in only, ever. Consent is `marketing` and `marketingAt` on the
 customer record (`marketingSource` says how it came: `signup`,
-`order`, `account`, `import`, `resend`, `unsubscribe`, and `confirm`
-for a re-invite link mailed before #303), set by the sign-up field's
-confirmation link, the checkout box, the settings box, or the import
-of the old list's paper sheets below. Anyone with an email address
+`order`, `account`, `import`, `resend`, `unsubscribe`, `join-link`,
+and `confirm` for a re-invite link mailed before #303), set by the
+sign-up field's confirmation link, the checkout box, the settings
+box, a group's join link, or the import of the old list's paper
+sheets below. Anyone with an email address
 may opt in; a record is made for an address that has never ordered.
 
 ## The consent log
@@ -18,7 +19,7 @@ rewritten. A second opt-in keeps the first.
 | Field | Holds |
 | --- | --- |
 | `action` | `in` or `out` |
-| `type` | `website-form`, `checkout`, `account-settings`, `reinvite-confirmation`, `market-sheet`, `in-person`, `resend`, `unsubscribe-link`, or `membership` (reserved) |
+| `type` | `website-form`, `checkout`, `account-settings`, `reinvite-confirmation`, `market-sheet`, `in-person`, `resend`, `unsubscribe-link`, `join-link`, or `membership` (reserved) |
 | `detail` | the page, the order, the market: `the sign-up form on /news/`, `order NFF-2610-K3WM` |
 | `at` | when consent was given; for a market sheet, the sheet's date |
 | `recordedAt` | when it was written here, equal to `marketingAt` |
@@ -91,9 +92,15 @@ source `order`). The account page's box writes the same consent,
 source `account`. Neither sends a confirmation. Everything else is in
 `lib/news.mjs`.
 
+A group's sign-up page (`/join/`, #495) has a Farm News box too. Ticked,
+the join email says so in one sentence (`JOIN_NEWS` in `templates.mjs`),
+and following the link is the owner's consent, source `join-link`
+(`lib/join.mjs`). Unticked, the email says nothing of it and nothing
+subscribes.
+
 ## The welcome
 
-A real join from any of the four sends the welcome (`newsWelcome` in
+A real join from any of these sends the welcome (`newsWelcome` in
 `templates.mjs`, T6), the whole welcome sequence (#267); a repeat
 sends nothing. From the order box it goes once the order is paid,
 after the order's own emails. A failed send is logged as

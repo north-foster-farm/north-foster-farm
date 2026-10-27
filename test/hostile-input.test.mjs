@@ -199,8 +199,8 @@ const CASES = {
 
 // Helpers that return a phrase or a table, not a message.
 const NOT_MESSAGES = [
-  "CANCEL_REASONS", "age", "listBlocks", "optInPhrase", "paymentPhrase",
-  "summaryLine",
+  "CANCEL_REASONS", "JOIN_NEWS", "age", "listBlocks", "optInPhrase",
+  "paymentPhrase", "summaryLine",
 ];
 
 const messagesOf = (result) => (Array.isArray(result) ? result : [result]);

@@ -23,9 +23,10 @@ import {
   ELSEWHERE, INVALID_LINK, JOINED_PATH,
 } from "../netlify/functions/lib/join.mjs";
 import {
-  getCustomer, saveCustomer,
+  CONSENT_TYPES, consentLog, getCustomer, saveCustomer,
 } from "../netlify/functions/lib/records.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
+import { JOIN_NEWS } from "../netlify/functions/lib/templates.mjs";
 
 const now = new Date("2026-11-02T14:00:00Z");
 const env = { URL: "https://x" };
@@ -237,19 +238,57 @@ describe("the sign-up form and its link", () => {
         ["qr"]);
     });
 
-  it("subscribes to Farm News directly when ticked", async () => {
-    const { stores, token } = await setup();
-    const { sent, mail } = outbox();
+  // The qa on #495 (6455105350, item 5): anyone can type an address
+  // and tick the box, so the email tells its owner, and the owner's
+  // click is the consent.
+  it("says Farm News in the email when ticked, and the click subscribes",
+    async () => {
+      const { stores, token } = await setup();
+      const { sent, mail } = outbox();
 
-    await post("/api/join/request", { token, ...signUp({ news: true }) },
-      { stores, mail });
-    await follow(stores, sent[0]);
+      await post("/api/join/request", { token, ...signUp({ news: true }) },
+        { stores, mail });
 
-    const pat = await getCustomer(stores, PAT);
+      assert.equal(sent.length, 1);
+      assert.ok(sent[0].text.includes(JOIN_NEWS));
+      assert.ok(sent[0].html.includes(JOIN_NEWS));
+      assert.equal(await getCustomer(stores, PAT), null,
+        "nothing subscribes before the owner follows the link");
 
-    assert.equal(pat.marketing, true);
-    assert.equal(pat.marketingSource, "signup");
-  });
+      await follow(stores, sent[0]);
+
+      const pat = await getCustomer(stores, PAT);
+      const [event] = consentLog(pat);
+
+      assert.equal(pat.marketing, true);
+      assert.equal(pat.marketingSource, "join-link");
+      assert.equal(consentLog(pat).length, 1);
+      assert.equal(event.action, "in");
+      assert.equal(event.type, "join-link");
+      assert.match(event.detail, /group sign-up page/);
+      assert.equal(event.at, now.toISOString());
+      assert.ok(CONSENT_TYPES.includes("join-link"));
+    });
+
+  it("says nothing of Farm News when unticked, and nothing subscribes",
+    async () => {
+      const { stores, token } = await setup();
+      const { sent, mail } = outbox();
+
+      await post("/api/join/request", { token, ...signUp({ news: false }) },
+        { stores, mail });
+
+      assert.ok(!/Farm News/.test(sent[0].text));
+      assert.ok(!/Farm News/.test(sent[0].html));
+
+      await follow(stores, sent[0]);
+
+      const pat = await getCustomer(stores, PAT);
+
+      assert.equal(memberKeyOf(pat), "vff");
+      assert.notEqual(pat.marketing, true);
+      assert.deepEqual(consentLog(pat), []);
+    });
 
   it("keeps the names an account already has", async () => {
     const { stores, token } = await setup();

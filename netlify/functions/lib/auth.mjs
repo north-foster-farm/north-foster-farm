@@ -157,7 +157,8 @@ export const requestLink = async (stores, { email, next }, {
       credential: true,
       ...letter(address, url, {
         minutes: ttl / MINUTE, links: mailLinks(env),
-        ...(join ? { group: join.name } : {}),
+        ...(join
+          ? { group: join.name, news: join.record.news === true } : {}),
       }),
     }, { env });
   }

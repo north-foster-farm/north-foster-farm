@@ -127,7 +127,7 @@ describe("the consent log", () => {
   it("names a type for every source the code writes", () => {
     for (const type of ["website-form", "checkout", "account-settings",
       "reinvite-confirmation", "market-sheet", "in-person", "resend",
-      "unsubscribe-link", "membership"]) {
+      "unsubscribe-link", "membership", "join-link"]) {
       assert.ok(CONSENT_TYPES.includes(type), type);
     }
   });

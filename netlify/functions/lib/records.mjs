@@ -639,6 +639,7 @@ export const CONSENT_TYPES = [
   "inactivity", // Taken off after a year without interaction (#189)
   "removed", // A stale or duplicate import taken out (#496)
   "membership", // Reserved: joining the membership program
+  "join-link", // A group's sign-up page, confirmed by its emailed link
 ];
 
 // How `marketingSource` names the same things.

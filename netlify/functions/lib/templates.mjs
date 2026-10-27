@@ -834,13 +834,21 @@ export const magicLink = (email, url, {
 
 // The link from a buying group's sign-up page (#495): it signs in
 // and joins the group in one step. Draft wording for James.
+// `news` when the sign-up form's Farm News box was ticked: the address's
+// owner reads that here, and following the link is their consent
+// (#495, qa 6455105350). The sentence is a draft for James.
+export const JOIN_NEWS = "The Farm News box was ticked, so this link " +
+  "also signs you up for Farm News.";
+
 export const groupJoinLink = (email, url, {
   minutes = accounts.signInLinkMinutes, links, group = "the group",
+  news = false,
 } = {}) => {
   const title = `Join ${group} at ${company.name}`;
   const blocks = [
     p(`This link signs you in to ${company.name} and adds you to ` +
       `${group}. It works once, for the next ${minutes} minutes.`),
+    ...(news ? [p(JOIN_NEWS)] : []),
     button("Join the group", url),
     p("If you didn't ask for this, you can ignore it."),
     row([["Need help? Contact us", contactUrl(links)]]),
@@ -1116,6 +1124,8 @@ export const optInPhrase = (event) => {
       detail ? ` at ${detail}` : ""}`;
   case "resend":
     return "you asked us to add you to our list";
+  case "join-link":
+    return "you signed up when you joined your buying group";
   default:
     return "you joined our Farm News list";
   }
