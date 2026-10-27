@@ -15,14 +15,20 @@ const catalog = JSON.parse(readFileSync(
 ));
 const items = catalog.groups.flatMap((g) => g.items);
 
-// One product out of stock in the catalog for each restock type but
-// archived, seasonal and hidden (James's corrections, #274
-// 6330468558). No product is discontinued since #492, which hid the
-// oversized tiers while empty and put the rest back in spring.
+// One product for each restock type but archived, seasonal and hidden
+// (James's corrections, #274 6330468558). No product is discontinued
+// since #492, which hid the oversized tiers while empty and put the
+// rest back in spring. Since feet went back in stock (9c870287) no
+// "soon" product is out in the catalog; a stub sells out Large eggs.
 const OUT = {
-  soon: "NFF-CHK-FET-0075-0125", // Feet: "Returning soon"
-  hiatus: "NFF-CHK-SAUSWT", // Sweet Italian Sausage
+  soon: "NFF-CHK-EGG-LG", // Large eggs: "Returning soon"
+  hiatus: "NFF-CHK-SAUSWT", // Sweet Italian Sausage, out in the catalog
 };
+const SOON_OUT = { [OUT.soon]: { inStock: false, available: 0 } };
+// With Large eggs sold out, a row the stub keeps in stock stands in
+// for "in stock" beside the labeled ones.
+const IN = SKU.wings;
+const IN_STOCK = { [IN]: { inStock: true, available: 5 } };
 // A tier hidden while empty (#492), flagged in stock so that the
 // count decides.
 const HIDDEN = "NFF-CHK-WHL-50-59";
@@ -77,7 +83,8 @@ test.describe("restock types (#267)", () => {
     for (const [type, sku] of Object.entries(OUT)) {
       const item = items.find((i) => i.sku === sku);
 
-      expect(item.inStock, sku).toBe(false);
+      // Large eggs are in stock in the catalog; the stub sells them out.
+      expect(item.inStock, sku).toBe(type !== "soon");
       expect(item.restock, sku).toBe(type);
     }
     for (const item of items) {
@@ -93,7 +100,7 @@ test.describe("restock types (#267)", () => {
 
   test("Show is a radio group, In stock by default, showing today's " +
     "list", async ({ page }) => {
-    await stubStock(page, SAUSAGE_OUT);
+    await stubStock(page, { ...SAUSAGE_OUT, ...SOON_OUT, ...IN_STOCK });
     await open(page);
 
     const group = page.getByRole("radiogroup", { name: "Show" });
@@ -108,7 +115,7 @@ test.describe("restock types (#267)", () => {
     await expect(page.locator("#cat-sausage")).toBeHidden();
     await expect(page.locator("#order-nav a[href='#cat-sausage']"))
       .toBeHidden();
-    await expect(row(page, SKU.eggs)).toBeVisible();
+    await expect(row(page, IN)).toBeVisible();
 
     // It takes the keyboard, with a visible focus ring on the label.
     await page.keyboard.press("Shift");
@@ -223,7 +230,9 @@ test.describe("restock types (#267)", () => {
 
   test("Full catalog: out-of-stock rows show their label, with no " +
     "tint on the name, and can't be added", async ({ page }) => {
-    await stubStock(page, { ...SAUSAGE_OUT, ...SEASONAL_OUT });
+    await stubStock(page, {
+      ...SAUSAGE_OUT, ...SEASONAL_OUT, ...SOON_OUT, ...IN_STOCK,
+    });
     await open(page);
     await show(page, "Full catalog");
 
@@ -244,7 +253,7 @@ test.describe("restock types (#267)", () => {
       await expect(out).toHaveCSS("border-top-width", "0px");
       await expect(r.locator(".order-qty-add")).toBeHidden();
       expect(await r.evaluate((el) => getComputedStyle(el)
-        .backgroundColor), type).toBe(await row(page, SKU.eggs)
+        .backgroundColor), type).toBe(await row(page, IN)
         .evaluate((el) => getComputedStyle(el).backgroundColor));
       // No price but on "Returning soon"; on every row the label stands
       // where Add goes, at the row's right (#274 round 5, #303), and
@@ -275,7 +284,7 @@ test.describe("restock types (#267)", () => {
     const color = (sku) => row(page, sku).locator("label")
       .evaluate((el) => getComputedStyle(el).color);
 
-    expect(await color(OUT.soon)).toBe(await color(SKU.eggs));
+    expect(await color(OUT.soon)).toBe(await color(IN));
 
     // Every egg says its grade (#303, James, final), by its name and
     // out of the price column (#437): Large with its price, Medium and
@@ -341,7 +350,9 @@ test.describe("restock types (#267)", () => {
   test("every restock label stays on one line at 320 (#324)",
     async ({ page }) => {
       await page.setViewportSize({ width: 320, height: 800 });
-      await stubStock(page, { ...SAUSAGE_OUT, ...SEASONAL_OUT });
+      await stubStock(page, {
+        ...SAUSAGE_OUT, ...SEASONAL_OUT, ...SOON_OUT,
+      });
       await open(page);
       await show(page, "Full catalog");
 
@@ -369,6 +380,7 @@ test.describe("restock types (#267)", () => {
   test("Add and a restock label share one width at 390 (#325)",
     async ({ page }) => {
       await page.setViewportSize({ width: 390, height: 800 });
+      await stubStock(page, SOON_OUT);
       await open(page);
       await show(page, "Full catalog");
 
@@ -459,6 +471,7 @@ test.describe("restock types (#267)", () => {
 
   test("a product with no restock type stays hidden while out",
     async ({ page }) => {
+      await stubStock(page, SOON_OUT);
       await open(page);
       // No product lacks a type today; take one away in the page.
       await row(page, OUT.soon).evaluate((li) => {
@@ -677,14 +690,19 @@ test.describe("search and restock types (#267)", () => {
     await p.input.fill("cornish");
     await expect(p.rows).toHaveCount(0);
 
-    await p.input.fill("feet");
-    await expect(p.rows.and(page.locator(`[data-sku="${OUT.soon}"]`)))
-      .toContainText("Returning soon");
-
     await p.input.fill("eggs");
     await expect(p.rows).toHaveCount(3);
     await expect(p.rows.and(page.locator(`[data-sku="${SKU.eggs}"]`)))
       .toContainText("$7");
+
+    // Sold out, Large eggs say they are returning soon.
+    await stubStock(page, SOON_OUT);
+    await page.reload();
+
+    const q = await find(page, "eggs");
+
+    await expect(q.rows.and(page.locator(`[data-sku="${OUT.soon}"]`)))
+      .toContainText("Returning soon");
   });
 
   test("ignores what the order page shows", async ({ page }) => {
