@@ -8,15 +8,17 @@ import { describe, it } from "node:test";
 import {
   applyAudience, removeCustomer, setNames,
 } from "../netlify/functions/lib/admin.mjs";
+import { forgetCustomer } from "../netlify/functions/lib/forget.mjs";
 import { maskEmail } from "../netlify/functions/lib/mask.mjs";
 import {
-  parseApplyCsv, syncAudience,
+  forgottenKey, parseApplyCsv, syncAudience,
 } from "../netlify/functions/lib/news.mjs";
 import {
   getCustomer, getOrder, saveCustomer, saveOrder,
 } from "../netlify/functions/lib/records.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
 import { newsWelcome } from "../netlify/functions/lib/templates.mjs";
+import { resendFake } from "./resend-fixture.mjs";
 
 const now = new Date("2026-10-27T12:00:00Z");
 const env = {
@@ -27,62 +29,10 @@ const PAT = "pat.example@gmail.test";
 const SAM = "sam.sample@example.org";
 const LEE = "lee.duplicate@example.net";
 
-// Resend's audience, kept in memory. The answers have the shape of
-// Resend's contacts API as its reference documents it (list, update,
-// remove); no recorded sandbox response was at hand on the cloud
-// runner (2026-10-27). Its fields are snake case.
-/* eslint-disable camelcase */
-const resendFake = (emails, { fail = null } = {}) => {
-  const contacts = emails.map((email, i) => ({
-    id: `c${i}`, email, first_name: "", last_name: "",
-    created_at: "2026-10-20 12:00:00.000000+00", unsubscribed: false,
-  }));
-  const calls = [];
-  const answer = (status, body) => ({
-    ok: status < 400, status, json: async () => body,
-  });
-  const fetchImpl = async (url, init = {}) => {
-    const method = init.method || "GET";
-    const { pathname } = new URL(url);
-    const body = init.body ? JSON.parse(init.body) : null;
-    const email = decodeURIComponent(pathname.split("/contacts/")[1] || "");
-    const i = contacts.findIndex((c) => c.email === email);
+/* eslint-disable camelcase -- Resend names contact fields its way */
 
-    calls.push({ method, pathname, body });
-    if (fail && method === fail) {
-      return answer(500, {
-        statusCode: 500, name: "internal_server_error",
-        message: `Could not reach ${pathname}`,
-      });
-    }
-    if (method === "GET") {
-      return answer(200, { object: "list", data: contacts });
-    }
-    if (method === "POST") {
-      contacts.push({ id: `c${contacts.length}`, ...body });
-
-      return answer(200, { object: "contact", id: `c${contacts.length}` });
-    }
-    if (i < 0) {
-      return answer(404, {
-        statusCode: 404, name: "not_found", message: "Contact not found",
-      });
-    }
-    if (method === "PATCH") {
-      Object.assign(contacts[i], body);
-
-      return answer(200, { object: "contact", id: contacts[i].id });
-    }
-
-    const [gone] = contacts.splice(i, 1);
-
-    return answer(200, { object: "contact", contact: gone.id, deleted: true });
-  };
-
-  return { contacts, calls, fetchImpl };
-};
-
-const writes = (calls) => calls.filter((c) => c.method !== "GET");
+const writes = (calls) => calls.filter((c) => c.method !== "GET")
+  .map(({ method, pathname, body }) => ({ method, pathname, body }));
 
 const capture = (t) => {
   const lines = [];
@@ -180,6 +130,25 @@ describe("customers set <email> first=.. last=..", () => {
     assert.deepEqual(lines, []);
   });
 
+  it("keeps the record's change for a contact gone from Resend since " +
+    "the listing", async () => {
+    const stores = testStores();
+    const resend = resendFake([]);
+
+    await saveCustomer(stores, customer(PAT));
+
+    // Listed by the caller, then deleted in Resend: the rename is a 404.
+    const report = await setNames(stores, PAT, { first: "Pat" }, {
+      env, fetchImpl: resend.fetchImpl, contacts: [{ email: PAT }],
+    });
+
+    assert.equal((await getCustomer(stores, PAT)).firstName, "Pat");
+    assert.match(report.resend,
+      /^not reached: Resend 404 on PATCH .*: Contact not found$/);
+    assert.ok(!leaks(report.resend, PAT));
+  });
+
+  // Resend's 500 can't be recorded on demand: this one is injected.
   it("keeps the record's change when Resend fails, the address masked",
     async (t) => {
       const stores = testStores();
@@ -427,5 +396,148 @@ describe("a removal and the next sync", () => {
       assert.deepEqual(synced.imported, []);
       assert.deepEqual(synced.created, []);
       assert.equal(await getCustomer(stores, LEE), null);
+    });
+});
+
+// Resend answers a delete of a contact that isn't there with 200 and
+// deleted true, as for one that is (test/fixtures/resend/
+// contacts-delete-missing.json). A contact deleted in Resend between
+// the listing and the delete is then removed all the same, with no
+// marker left for the sync.
+describe("a contact already gone from Resend", () => {
+  // The audience lists `email`, which is deleted there right after.
+  const vanishing = (resend, email) => async (url, init = {}) => {
+    const res = await resend.fetchImpl(url, init);
+
+    if ((init.method || "GET") === "GET") {
+      resend.contacts.splice(
+        resend.contacts.findIndex((c) => c.email === email), 1);
+    }
+
+    return res;
+  };
+  // Each DELETE's status and answer.
+  const watched = (resend) => {
+    const answers = [];
+
+    return {
+      answers,
+      fetchImpl: async (url, init = {}) => {
+        const res = await resend.fetchImpl(url, init);
+
+        if (init.method === "DELETE") {
+          answers.push([res.status, await res.clone().json()]);
+        }
+
+        return res;
+      },
+    };
+  };
+
+  it("forget --apply counts it removed, and leaves no marker", async () => {
+    const stores = testStores();
+    const resend = resendFake([LEE]);
+    const seen = watched({ fetchImpl: vanishing(resend, LEE) });
+
+    await saveCustomer(stores, customer(LEE));
+
+    const r = await forgetCustomer(stores, LEE, {
+      apply: true, env, fetchImpl: seen.fetchImpl, now, by: "james",
+    });
+
+    assert.equal(r.ok, true);
+    assert.equal(r.resend, "removed");
+    assert.deepEqual(seen.answers, [[200, {
+      object: "contact", contact: LEE, deleted: true,
+    }]]);
+    assert.equal(await getCustomer(stores, LEE), null);
+    assert.equal(await stores.customers.get(forgottenKey(LEE)), null);
+  });
+
+  it("an audience apply remove row is removed, and the sync adds nothing",
+    async () => {
+      const stores = testStores();
+      const resend = resendFake([LEE, PAT]);
+      const seen = watched({ fetchImpl: vanishing(resend, LEE) });
+
+      await saveCustomer(stores, customer(LEE));
+
+      const report = await applyAudience(stores, parseApplyCsv(
+        `action,email,first,last\nremove,${LEE},,\n`), {
+        env, fetchImpl: seen.fetchImpl, now, pace: 0,
+      });
+
+      assert.deepEqual(report.rows.map((r) => [r.outcome, r.resend]),
+        [["removed", "removed"]]);
+      assert.deepEqual(seen.answers.map(([status, body]) =>
+        [status, body.deleted]), [[200, true]]);
+      assert.equal(await stores.customers.get(forgottenKey(LEE)), null);
+
+      const synced = await syncAudience(stores, {
+        env, fetchImpl: resend.fetchImpl, now, pace: 0,
+      });
+
+      assert.deepEqual([synced.created, synced.forgotten], [[], []]);
+      assert.equal(await getCustomer(stores, LEE), null);
+    });
+
+  it("the sync clears a marker whose contact is already gone", async () => {
+    const stores = testStores();
+    const resend = resendFake([LEE]);
+
+    await stores.customers.set(forgottenKey(LEE), { at: now.toISOString() });
+
+    const synced = await syncAudience(stores, {
+      env, fetchImpl: vanishing(resend, LEE), now, pace: 0,
+    });
+
+    assert.deepEqual(synced.forgotten, [LEE]);
+    assert.equal(await stores.customers.get(forgottenKey(LEE)), null);
+    assert.equal(await getCustomer(stores, LEE), null);
+  });
+
+  it("forget finds no contact to delete when none is listed", async () => {
+    const stores = testStores();
+    const resend = resendFake([PAT]);
+
+    await saveCustomer(stores, customer(LEE));
+
+    const r = await forgetCustomer(stores, LEE, {
+      apply: true, env, fetchImpl: resend.fetchImpl, now,
+    });
+
+    assert.equal(r.resend, "none");
+    assert.deepEqual(writes(resend.calls), []);
+  });
+});
+
+// The recorded list answers the whole audience with has_more false. One
+// with has_more is part of it, and nothing acts on part.
+describe("a list answer with has_more", () => {
+  it("stops the sync before it writes", async () => {
+    const stores = testStores();
+    const resend = resendFake([PAT], { more: true });
+
+    await saveCustomer(stores, customer(SAM));
+    await assert.rejects(syncAudience(stores, {
+      env, fetchImpl: resend.fetchImpl, now, pace: 0,
+    }), /listed only part of the audience/);
+    assert.deepEqual(writes(resend.calls), []);
+  });
+
+  it("leaves forget's marker for the sync, as when Resend is down",
+    async () => {
+      const stores = testStores();
+      const resend = resendFake([LEE], { more: true });
+
+      await saveCustomer(stores, customer(LEE));
+
+      const r = await forgetCustomer(stores, LEE, {
+        apply: true, env, fetchImpl: resend.fetchImpl, now,
+      });
+
+      assert.match(r.resend, /^not reached: .*part of the audience/);
+      assert.ok(await stores.customers.get(forgottenKey(LEE)));
+      assert.deepEqual(writes(resend.calls), []);
     });
 });

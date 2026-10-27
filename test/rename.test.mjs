@@ -8,6 +8,7 @@ import {
   getCustomer, getOrder, ordersFor, saveCheckout, saveCustomer, saveOrder,
 } from "../netlify/functions/lib/records.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
+import { resendFake } from "./resend-fixture.mjs";
 
 const now = new Date("2026-10-05T13:00:00Z");
 const OLD = "pat@example.com";
@@ -188,7 +189,8 @@ describe("customers rename (#238)", () => {
 // Resend and Square name their fields in snake case.
 /* eslint-disable camelcase */
 
-// A fetch that answers from a table and remembers what it was asked.
+// A fetch that answers from a table and remembers what it was asked,
+// for Square. Resend's contacts come from test/resend-fixture.mjs.
 const fakeFetch = (answer) => {
   const asked = [];
   const fetchImpl = async (url, { method, body } = {}) => {
@@ -204,31 +206,32 @@ describe("the rename's outside moves", () => {
   const resendEnv = { RESEND_AUDIENCE_ID: "aud", RESEND_API_KEY: "k" };
 
   it("Resend: the new contact keeps the old one's choice", async () => {
-    const { asked, fetchImpl } = fakeFetch((method) => (method === "GET"
-      ? { data: [{ email: OLD, first_name: "Pat", unsubscribed: true }] }
-      : {}));
+    const { calls, contacts, fetchImpl } = resendFake([
+      { email: OLD, first_name: "Pat", unsubscribed: true },
+    ]);
 
     assert.equal(await moveContact(OLD, NEW, {
       env: resendEnv, fetchImpl,
     }), "moved");
-    assert.equal(asked.length, 1);
+    assert.equal(calls.length, 1);
     await moveContact(OLD, NEW, { env: resendEnv, fetchImpl, apply: true });
-    assert.deepEqual(asked.slice(2).map(([m]) => m), ["POST", "DELETE"]);
-    assert.equal(asked[2][2].email, NEW);
-    assert.equal(asked[2][2].unsubscribed, true);
+    assert.deepEqual(calls.slice(2).map((c) => c.method), ["POST", "DELETE"]);
+    assert.equal(calls[2].body.email, NEW);
+    assert.equal(calls[2].body.unsubscribed, true);
+    assert.deepEqual(contacts.map((c) => [c.email, c.first_name,
+      c.unsubscribed]), [[NEW, "Pat", true]]);
   });
 
   it("Resend: an existing new contact stays; none, or no audience",
     async () => {
-      const both = fakeFetch((method) => (method === "GET"
-        ? { data: [{ email: OLD }, { email: NEW }] } : {}));
+      const both = resendFake([OLD, NEW]);
 
       await moveContact(OLD, NEW, {
         env: resendEnv, fetchImpl: both.fetchImpl, apply: true,
       });
-      assert.deepEqual(both.asked.map(([m]) => m), ["GET", "DELETE"]);
+      assert.deepEqual(both.calls.map((c) => c.method), ["GET", "DELETE"]);
 
-      const none = fakeFetch(() => ({ data: [] }));
+      const none = resendFake();
 
       assert.equal(await moveContact(OLD, NEW, {
         env: resendEnv, fetchImpl: none.fetchImpl, apply: true,

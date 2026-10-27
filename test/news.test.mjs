@@ -21,6 +21,7 @@ import {
   newsConfirm,
 } from "../netlify/functions/lib/templates.mjs";
 import { handle } from "../netlify/functions/news.mjs";
+import { resendFake } from "./resend-fixture.mjs";
 
 const now = new Date("2026-10-01T12:00:00Z");
 const later = new Date("2026-10-02T12:00:00Z");
@@ -401,13 +402,7 @@ describe("the import of the old list (#303)", () => {
 
   it("reaches Resend at the next sync as a new contact", async () => {
     const stores = testStores();
-    const calls = [];
-    const fetchImpl = async (url, init) => {
-      calls.push({ method: init.method, body: init.body
-        ? JSON.parse(init.body) : null });
-
-      return { ok: true, json: async () => ({ data: [] }) };
-    };
+    const { calls, fetchImpl } = resendFake();
 
     await importSubscribers(stores, [{ email: "new@example.com" }],
       { date: "2024-07-12", now, env, mail: mailbox().mail });
@@ -754,12 +749,7 @@ describe("a stale imported address taken out (#496)", () => {
     { date: "2024-07-12", now, env, skip: true });
   // After a removal neither the sync nor the welcomes reach the address.
   const leftOut = async (stores, email) => {
-    const bodies = [];
-    const fetchImpl = async (url, init) => {
-      if (init.body) bodies.push(JSON.parse(init.body));
-
-      return { ok: true, json: async () => ({ data: [] }) };
-    };
+    const { calls, fetchImpl } = resendFake();
     const synced = await syncAudience(stores, {
       env: audience, fetchImpl, now: later, pace: 0,
     });
@@ -768,7 +758,7 @@ describe("a stale imported address taken out (#496)", () => {
       { now: later, env, mail });
 
     assert.ok(!synced.created.includes(email), "the sync adds no contact");
-    assert.ok(!bodies.some((b) => b.email === email),
+    assert.ok(!calls.some((c) => c.body?.email === email),
       "nothing about it reaches Resend");
     assert.ok(!welcomed.sent.includes(email));
     assert.ok(!sent.some((m) => m.to === email), "no welcome goes");
@@ -903,20 +893,6 @@ describe("a stale imported address taken out (#496)", () => {
 
 describe("the audience sync", () => {
   const audience = { ...env, RESEND_AUDIENCE_ID: "aud", RESEND_API_KEY: "k" };
-  const fake = (contacts) => {
-    const calls = [];
-    const fetchImpl = async (url, init) => {
-      calls.push({ method: init.method, url, body: init.body
-        ? JSON.parse(init.body) : null });
-
-      return {
-        ok: true,
-        json: async () => (init.method === "GET" ? { data: contacts } : {}),
-      };
-    };
-
-    return { calls, fetchImpl };
-  };
 
   it("does nothing without an audience", async () => {
     const r = await syncAudience(testStores(), { env });
@@ -927,7 +903,7 @@ describe("the audience sync", () => {
   it("adds consenting records, removes withdrawn ones, and takes an " +
     "unsubscribe in Resend as the customer's word", async () => {
     const stores = testStores();
-    const { calls, fetchImpl } = fake([
+    const { calls, fetchImpl } = resendFake([
       { email: "gone@example.com", unsubscribed: true },
       { email: "left@example.com", unsubscribed: false },
       { email: "hand@example.com", first_name: "By", last_name: "Hand",
@@ -987,7 +963,7 @@ describe("the audience sync", () => {
   it("lets a consent here after leaving through Resend resubscribe there",
     async () => {
       const stores = testStores();
-      const { calls, fetchImpl } = fake([
+      const { calls, fetchImpl } = resendFake([
         { email: "back@example.com", unsubscribed: true },
       ]);
 
@@ -1008,7 +984,7 @@ describe("the audience sync", () => {
   it("never undoes an unsubscribe in Resend that came after the consent " +
     "(#234)", async () => {
     const stores = testStores();
-    const { calls, fetchImpl } = fake([
+    const { calls, fetchImpl } = resendFake([
       { email: "left@example.com", unsubscribed: true },
       { email: "late@example.com", unsubscribed: true },
     ]);
@@ -1042,7 +1018,9 @@ describe("the audience sync", () => {
     // A sign-up here after that does resubscribe at the next sync.
     await optIn(stores, "left@example.com", { source: "signup" }, later);
 
-    const next = fake([{ email: "left@example.com", unsubscribed: true }]);
+    const next = resendFake([
+      { email: "left@example.com", unsubscribed: true },
+    ]);
     const again = await syncAudience(stores, {
       env: audience, fetchImpl: next.fetchImpl, now: later, pace: 0,
     });
@@ -1052,7 +1030,7 @@ describe("the audience sync", () => {
 
   it("touches nothing on a dry run", async () => {
     const stores = testStores();
-    const { calls, fetchImpl } = fake([]);
+    const { calls, fetchImpl } = resendFake([]);
 
     await saveCustomer(stores, customer("new@example.com", {
       marketing: true, marketingAt: now.toISOString(),

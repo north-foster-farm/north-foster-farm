@@ -830,11 +830,22 @@ const resend = async (env, fetchImpl, method, path, body) => {
   return data;
 };
 
-// Every contact in the audience. -> [{ id, email, first_name,
-// last_name, unsubscribed }]
-export const listContacts = async (env, fetchImpl = globalThis.fetch) =>
-  (await resend(env, fetchImpl, "GET",
-    `/audiences/${env.RESEND_AUDIENCE_ID}/contacts`)).data || [];
+// Every contact in the audience. Asked with no limit, Resend answers
+// the whole audience at once (143 contacts in the #496 recording, with
+// has_more false). An answer with has_more is only part of it, and a
+// sync or removal working from part would take the rest for missing,
+// so it stops here. -> [{ id, email, first_name, last_name,
+// unsubscribed }]
+export const listContacts = async (env, fetchImpl = globalThis.fetch) => {
+  const list = await resend(env, fetchImpl, "GET",
+    `/audiences/${env.RESEND_AUDIENCE_ID}/contacts`);
+
+  if (list.has_more) {
+    throw new Error("Resend listed only part of the audience (has_more)");
+  }
+
+  return list.data || [];
+};
 
 // Our records decide who is in; Resend decides who has left. A record
 // consenting since it last left through Resend (resendLeftAt) overrides

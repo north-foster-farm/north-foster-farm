@@ -16,6 +16,7 @@ import {
   getCustomer, getOrder, ordersFor, saveCustomer, saveOrder,
 } from "../netlify/functions/lib/records.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
+import { resendFake } from "./resend-fixture.mjs";
 
 const now = new Date("2026-10-16T13:00:00Z");
 const PAT = "pat@example.com";
@@ -260,16 +261,7 @@ describe("forgetCustomer", () => {
     assert.match(r.resend, /not reached/);
     assert.ok(await stores.customers.get(forgottenKey(PAT)));
 
-    const calls = [];
-    const fetchImpl = async (url, init) => {
-      calls.push(`${init.method} ${url}`);
-
-      return {
-        ok: true,
-        json: async () => (init.method === "GET"
-          ? { data: [{ email: PAT, unsubscribed: false }] } : {}),
-      };
-    };
+    const { calls, contacts, fetchImpl } = resendFake([PAT]);
     const report = await syncAudience(stores, {
       env: { RESEND_AUDIENCE_ID: "aud", RESEND_API_KEY: "k" },
       fetchImpl, now, pace: 0,
@@ -277,7 +269,8 @@ describe("forgetCustomer", () => {
 
     assert.deepEqual(report.forgotten, [PAT]);
     assert.deepEqual(report.imported, []);
-    assert.ok(calls.some((c) => c.startsWith("DELETE")));
+    assert.ok(calls.some((c) => c.method === "DELETE"));
+    assert.deepEqual(contacts, []);
     assert.equal(await getCustomer(stores, PAT), null);
     assert.equal(await stores.customers.get(forgottenKey(PAT)), null);
   });
