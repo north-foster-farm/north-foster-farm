@@ -16,6 +16,7 @@ import { company } from "./company.mjs";
 import { DELIVERING } from "./health.mjs";
 import { completeInSquare } from "./complete.mjs";
 import { restoreCredit } from "./credit.mjs";
+import { audit, noteJoin } from "./group-log.mjs";
 import { GROUPS, groupOf, memberKeyOf } from "./groups.mjs";
 import { log } from "./log.mjs";
 import { devEmails, sendMail } from "./mail.mjs";
@@ -104,7 +105,32 @@ export const setCustomer = async (stores, email, patch, money) => {
       : null;
   }
 
-  return saveCustomer(stores, next);
+  const saved = await saveCustomer(stores, next);
+
+  // A membership the farm moved is in each group's audit log, and a
+  // join in the new group's join log (#495).
+  const was = memberKeyOf(customer);
+  const is = memberKeyOf(next);
+
+  if (was !== is) {
+    const at = new Date();
+    const by = { role: "farm" };
+
+    if (was) {
+      await audit(stores, { group: was, by, action: "member.remove",
+        target: customer.email, before: { group: was },
+        after: { group: is }, now: at });
+    }
+    if (is) {
+      await audit(stores, { group: is, by, action: "member.add",
+        target: customer.email, before: { group: was },
+        after: { group: is }, now: at });
+      await noteJoin(stores, { group: is, email: customer.email,
+        via: "farm", now: new Date(next.memberGroup.joinedAt) });
+    }
+  }
+
+  return saved;
 };
 
 const NAME_MAX = 60;

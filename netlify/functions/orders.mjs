@@ -412,6 +412,9 @@ export const handle = async (req, {
         key: buying.key,
         round: roundFor(buying, terms, result.order.fulfilment.date),
         viaCode: !!groupCode,
+        // The code came by the group's link, not typed: the join log's
+        // path (#495). Only ever true, so other tags are as they were.
+        ...(groupCode && payload.groupLink === true ? { viaLink: true } : {}),
       }
       : null,
     // Whose credit the order spends (security review, 6425904452):

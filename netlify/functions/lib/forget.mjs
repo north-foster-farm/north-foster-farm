@@ -28,6 +28,7 @@
 // notes and anything else the customer wrote.
 
 import { normalizeEmail } from "./auth.mjs";
+import { namingKeys, scrubbed } from "./group-log.mjs";
 import { log } from "./log.mjs";
 import { maskEmail, maskIn } from "./mask.mjs";
 import * as newsApi from "./news.mjs";
@@ -267,6 +268,9 @@ export const forgetCustomer = async (stores, rawEmail, {
   // one still open is revoked, since no one is left to use it.
   const passes = (await emailedPasses(stores))
     .filter((p) => normalizeEmail(p.email) === email);
+  // A buying group's join and audit logs (#495) keep each act and its
+  // date, and lose the address.
+  const groupLogs = await namingKeys(stores, email);
 
   const report = {
     ok: true, apply,
@@ -276,6 +280,7 @@ export const forgetCustomer = async (stores, rawEmail, {
     contactMessages: messages.length,
     authRecords: auth.length,
     passes: passes.length,
+    groupLogs: groupLogs.length,
     squareProfiles: profiles.length,
   };
   const resend = async () => {
@@ -324,6 +329,11 @@ export const forgetCustomer = async (stores, rawEmail, {
   for (const key of auth) await stores.auth.delete(key);
   for (const pass of passes) {
     await endPass(stores, pass.code, { revoke: true, now });
+  }
+  for (const key of groupLogs) {
+    const record = await stores.orders.get(key);
+
+    if (record) await stores.orders.set(key, scrubbed(record, email));
   }
   await resend();
   if (customer) await deleteCustomer(stores, email);

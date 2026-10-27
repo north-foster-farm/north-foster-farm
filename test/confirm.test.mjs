@@ -164,7 +164,7 @@ describe("bin/nff's production confirmation (#268)", () => {
         "events undefined", "events new", "refunds check", "stock list",
         "stock hidden", "schedule check", "passes issue", "passes list",
         "groups list", "groups show", "groups round", "groups rounds",
-        "groups credit",
+        "groups credit", "groups log",
         "jobs history", "health", "alert test", "mail test-dev",
         "news mail",
         "maintenance status", "maintenance links",

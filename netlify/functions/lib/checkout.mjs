@@ -155,7 +155,10 @@ export const completeOrder = async (stores, order, { square, payment }, {
     // member (#471): the next order needs no code when signed in.
     if (order.group && order.group.key) {
       await joinGroup(stores, order.customer.email, order.group.key, {
-        now, via: order.group.viaCode ? "code" : "account",
+        now,
+        via: order.group.viaCode
+          ? (order.group.viaLink ? "link" : "code")
+          : "account",
       });
     }
 

@@ -27,6 +27,7 @@ import {
 import {
   addDays, today,
 } from "../../../assets/scripts/order/lib/zoned.mjs";
+import { noteJoin } from "./group-log.mjs";
 import { log } from "./log.mjs";
 import { newPassCode } from "./passes.mjs";
 import {
@@ -334,15 +335,24 @@ export const joinGroup = async (stores, email, key, {
   if (current) {
     log.warn({ event: "group.switch_refused", group: key, member: current,
       via });
+    await noteJoin(stores, {
+      group: key, email: customer.email, via, now, event: "switch-refused",
+      member: current,
+    });
 
     return customer;
   }
 
-  return saveCustomer(stores, {
+  const saved = await saveCustomer(stores, {
     ...customer,
     memberGroup: { id: key, joinedAt: now.toISOString(), via },
     memberSince: customer.memberSince || now.toISOString(),
   });
+
+  // The first join only (#495): every later call returned above.
+  await noteJoin(stores, { group: key, email: customer.email, via, now });
+
+  return saved;
 };
 
 export const leaveGroup = async (stores, email) => {

@@ -43,6 +43,7 @@ export const SHAPE_PATHS = [
   "netlify/functions/lib/backup.mjs",
   "netlify/functions/lib/stock.mjs",
   "netlify/functions/lib/packing.mjs",
+  "netlify/functions/lib/group-log.mjs",
   "netlify/migrations/",
   "bin/migrations/",
 ];

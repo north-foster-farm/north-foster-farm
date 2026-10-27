@@ -236,6 +236,15 @@ const USAGE = `Usage:
                                       the host, for the reward, and
                                       the name members see (the data
                                       file's name until one is set)
+  bin/nff groups members <key> [--backfill]
+                                      the members: name, email address,
+                                      date joined and how (code, link,
+                                      qr, walk-in, farm, host, invite).
+                                      --backfill logs the members from
+                                      before the join log, once
+  bin/nff groups log <key>            every act on the group by its
+                                      host, a member or the farm, and
+                                      the join log, oldest first
   bin/nff groups round <key> [YYYY-MM-DD]
                                       a round's orders by member, the
                                       pick list and the net total;
@@ -552,6 +561,7 @@ const [
   rounds,
   credit,
   { describeError },
+  groupLog,
 ] = await Promise.all([
   import("../netlify/functions/lib/terms.mjs"),
   import("../netlify/functions/lib/admin.mjs"),
@@ -581,7 +591,11 @@ const [
   import("../netlify/functions/lib/rounds.mjs"),
   import("../netlify/functions/lib/credit.mjs"),
   import("../netlify/functions/lib/paypal.mjs"),
+  import("../netlify/functions/lib/group-log.mjs"),
 ]);
+
+// Who acts in a group's audit log when it is this CLI (#495).
+const FARM = { role: "farm" };
 
 // --scratch: development's env, but stores of their own
 // (scratch-orders, ...), for the restore rehearsal (docs/backup.md).
@@ -1810,6 +1824,10 @@ const run = async () => {
       code: custom,
     });
 
+    // The code is a secret: the log says it changed, not what to.
+    await groupLog.audit(stores, { group: rest[0], by: FARM,
+      action: "code.replace" });
+
     return out(`${rest[0]}  ${record.code}  (members on record stay ` +
       "members; the old code no longer works)");
   }
@@ -1820,19 +1838,76 @@ const run = async () => {
     if (patch.host === undefined && patch.name === undefined) {
       throw new Error("groups set <key> host=<email>|none name=\"...\"");
     }
+    const stored = (await groups.getGroupRecord(stores, rest[0])) || {};
+
     if (patch.host !== undefined) {
       const record = await groups.setGroupHost(stores, rest[0],
         patch.host === "none" ? null : patch.host);
 
+      await groupLog.audit(stores, { group: rest[0], by: FARM,
+        action: "host.set", target: record.host,
+        before: { host: stored.host || null }, after: { host: record.host } });
       said.push(`host ${record.host ? "set" : "cleared"}`);
     }
     if (patch.name !== undefined) {
       const record = await groups.setGroupName(stores, rest[0], patch.name);
 
+      await groupLog.audit(stores, { group: rest[0], by: FARM,
+        action: "name.set", before: { name: stored.name || null },
+        after: { name: record.name } });
       said.push(`name "${record.name}"`);
     }
 
     return out(`${rest[0]}  ${said.join(", ")}.`);
+  }
+  // Who is in the group and how they came (#495). The output names
+  // members: keep it off GitHub.
+  case "groups members": {
+    const g = groups.groupOf(rest[0]);
+
+    if (!g) throw new Error(`Unknown group "${rest[0]}".`);
+    if (flags.backfill) {
+      const added = await groupLog.backfillJoins(stores, g.key, {
+        apply: true,
+      });
+
+      out(`Backfilled ${added.length} join${added.length === 1 ? "" : "s"}.`);
+    }
+
+    const list = await groupLog.groupMembers(stores, g.key);
+
+    for (const m of list) {
+      out(`${m.email}  ${m.name || "-"}  ${(m.joinedAt || "-").slice(0, 10)}  ${
+        m.via || "-"}${m.logged ? "" : "  (not in the join log)"}`);
+    }
+    out(list.length ? `${list.length} member${list.length === 1 ? "" : "s"}.`
+      : "No members yet.");
+
+    return undefined;
+  }
+  // The group's audit log and join log, oldest first (#495).
+  case "groups log": {
+    const g = groups.groupOf(rest[0]);
+
+    if (!g) throw new Error(`Unknown group "${rest[0]}".`);
+
+    const acts = await groupLog.auditLog(stores, g.key);
+    const joins = await groupLog.joinLog(stores, g.key);
+    const lines = [
+      ...acts.map((a) => ({ at: a.at, text: `${a.by.role}${
+        a.by.email ? ` ${a.by.email}` : ""}  ${a.action}${
+        a.target ? ` ${a.target}` : ""}${a.before || a.after
+        ? `  ${JSON.stringify(a.before)} -> ${JSON.stringify(a.after)}`
+        : ""}` })),
+      ...joins.map((j) => ({ at: j.at, text: `${j.event}  ${j.email || "-"}  ${
+        j.via}${j.member ? `  (in ${j.member})` : ""}${
+        j.backfilled ? "  backfilled" : ""}` })),
+    ].sort((a, b) => a.at.localeCompare(b.at));
+
+    for (const l of lines) out(`${l.at}  ${l.text}`);
+    if (!lines.length) out("Nothing logged yet.");
+
+    return undefined;
   }
   // A round's orders by member, the pick list across them, and the
   // net total: what the farm packs and what the host reward reads.

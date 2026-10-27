@@ -256,6 +256,8 @@ export class OrderForm {
 
     this.clearQuery("group");
     if (linked) this.cart.setCodeValue(linked);
+    // A code that came by the link, not typed, for the join log (#495).
+    this.groupLinked = !!linked;
     this.applyCode({ quiet: true });
     this.refresh();
     this.stock.start();
@@ -909,6 +911,8 @@ export class OrderForm {
     });
 
     this.cart.setCodeValue(typed);
+    // Apply pressed: whatever is on now was typed.
+    if (!quiet) this.groupLinked = false;
 
     // Apply with the field empty takes the code off again, and a pass
     // with it; a change keeps the pass its order was placed with.
@@ -1523,6 +1527,8 @@ export class OrderForm {
       pass: this.pass,
       // A buying group's code (#471), when one was typed or linked.
       groupCode: this.groupCode,
+      // Whether that code came by the group's link (#495).
+      ...(this.groupCode && this.groupLinked ? { groupLink: true } : {}),
       claimedTotal: this.totals().total,
       website: qs(this.form, "[name='website']").value,
     };

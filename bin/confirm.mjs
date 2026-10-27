@@ -7,7 +7,8 @@
 
 // What each command acts on, by "group action". `target` names the
 // word to type; `apply` is true for a command that only reports until
-// --apply (then it asks only with the flag); `when` is a test of the
+// --apply (then it asks only with the flag); `only` names a flag
+// without which the command only reads; `when` is a test of the
 // words after the action, for a command only some of whose forms act.
 //
 // Left unguarded on purpose: `passes issue`, which only adds a pass
@@ -37,6 +38,10 @@ const DESTRUCTIVE = {
   // Replacing the code kills the link the host handed out (#471).
   "groups code": { does: "replace the code of the group" },
   "groups set": { does: "change the host of the group" },
+  // Reads the members, and with --backfill logs those from before the
+  // join log (#495).
+  "groups members": { does: "backfill the join log of the group",
+    only: "backfill" },
   // Makes a paid order in Square and the stores (#471).
   "groups walkin": { does: "record a walk-in sale, running",
     unless: "dry-run", whole: true },
@@ -103,6 +108,7 @@ export const confirmation = ({ group, action, rest = [], flags = {} }) => {
   const rule = DESTRUCTIVE[`${group} ${action}`];
 
   if (!rule || (rule.apply && !flags.apply)
+    || (rule.only && !flags[rule.only])
     || (rule.when && !rule.when(rest))
     || (rule.unless && flags[rule.unless])) return null;
 
