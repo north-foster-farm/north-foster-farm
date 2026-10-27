@@ -18,6 +18,7 @@ import { finishEmailChange } from "./lib/email-change.mjs";
 import { creditBalance } from "./lib/credit.mjs";
 import { groupOf, memberKeyOf, namedGroup } from "./lib/groups.mjs";
 import { finishJoin } from "./lib/join.mjs";
+import { roleOf } from "./lib/membership.mjs";
 import { cartOwner } from "./lib/records.mjs";
 import { now as clock, real } from "./lib/clock.mjs";
 import { json, noCopy, readJson } from "./lib/http.mjs";
@@ -238,6 +239,10 @@ export const handle = async (req, {
       }
       : null;
 
+    // A group's member or host (#495) has the Membership tab and its
+    // entry in the header's menu; no one else sees either.
+    const role = await roleOf(stores, session);
+
     // `owner`: the tag of this account's cart draft (#149).
     return json(200, {
       ...closed,
@@ -246,6 +251,7 @@ export const handle = async (req, {
       customer: publicCustomer(session.customer),
       owner: cartOwner(session.email),
       ...(member ? { member } : {}),
+      ...(role ? { membership: true } : {}),
     });
   }
 

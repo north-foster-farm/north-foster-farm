@@ -43,6 +43,14 @@
         Receipts
       </a>
     </li>
+    {{/* A buying group's member or host only (#495); session.js
+         shows it from /api/me. */}}
+    <li data-account-membership hidden>
+      <a class="dropdown-item" href="{{ relURL "account/" }}#membership">
+        <span class="site-menu-icon" aria-hidden="true">{{ partial "svg.html" "icons/barn" }}</span>
+        Membership
+      </a>
+    </li>
     <li>
       <a class="dropdown-item" href="{{ relURL "account/" }}#settings">
         <span class="site-menu-icon" aria-hidden="true">{{ partial "svg.html" "icons/account" }}</span>

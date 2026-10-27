@@ -12,7 +12,7 @@ import { forgetJoined, remember } from "../news/hide.js";
 import { forget, showChick, signOut } from "../session/session.js";
 import { api } from "../utils/api.js";
 import {
-  FAILED, isBusy, setBusy, whileBusy,
+  FAILED, failBusy, isBusy, setBusy, whileBusy,
 } from "../utils/busy-button.js";
 import { say } from "../utils/contact-link.js";
 import { fieldError } from "../utils/field-errors.mjs";
@@ -24,6 +24,7 @@ import { Autoplay } from "../video/video.js";
 import {
   METHOD, fileName, ordersCsv, paidWith, receiptsCsv, statusOf,
 } from "./lib/history.mjs";
+import { joinedLine, moment, roundsLine } from "./lib/membership.mjs";
 
 const qs = (root, selector) => root.querySelector(selector);
 const all = (root, selector) => Array.from(root.querySelectorAll(selector));
@@ -158,7 +159,11 @@ class Account {
     }
     if (!me.ok) return null;
 
-    const orders = await api("/api/account/orders");
+    const [orders, membership] = await Promise.all([
+      api("/api/account/orders"),
+      // A buying group's member or host (#495): the Membership tab.
+      me.data.membership ? api("/api/membership") : null,
+    ]);
 
     if (!orders.ok) return null;
 
@@ -166,10 +171,11 @@ class Account {
       customer: me.data.customer, orders: orders.data.orders || [],
       // A buying group's member (#471): the group and the credit.
       member: me.data.member || null,
+      membership: membership && membership.ok ? membership.data : null,
     };
   }
 
-  show({ maintenance, customer, orders, member = null }) {
+  show({ maintenance, customer, orders, member = null, membership = null }) {
     if (maintenance) {
       this.loading.textContent = maintenance;
       this.loading.hidden = false;
@@ -201,8 +207,10 @@ class Account {
     this.renderOrders();
     this.renderReceipts();
     this.renderSupportOrders();
+    this.renderMembership(membership);
     this.app.hidden = false;
     this.showTab(location.hash.replace("#", "") || "orders");
+    this.joined();
     this.openOrder(orderFromPath());
     this.emailChanged();
     this.confirmChange();
@@ -235,6 +243,129 @@ class Account {
       + (params.toString() ? `?${params}` : "") + location.hash);
     document.getElementById("email-change-sent").textContent =
       `Your email address has been changed to ${this.customer.email}.`;
+  }
+
+  // Arrived from a group's sign-up link (#495): say so once, then drop
+  // the flag so a reload doesn't repeat it. Draft wording.
+  joined() {
+    const params = new URLSearchParams(location.search);
+
+    if (params.get("joined") !== "1") return;
+
+    params.delete("joined");
+    params.delete("via");
+    history.replaceState(null, "", location.pathname
+      + (params.toString() ? `?${params}` : "") + location.hash);
+
+    const banner = document.getElementById("membership-joined");
+
+    if (!banner || !this.membership) return;
+
+    banner.textContent = `You've joined ${this.membership.group.name}.`;
+    banner.hidden = false;
+    this.showTab("membership");
+  }
+
+  // The Membership tab (#495): the group's facts for a member, and the
+  // QR code and member list for its host. For anyone else, the tab and
+  // its pane leave the page, so no hash can open them. Draft wording.
+  renderMembership(view) {
+    this.membership = view;
+    if (!view) {
+      for (const node of all(document, "[data-membership-only]")) {
+        node.remove();
+      }
+
+      return;
+    }
+
+    const pane = document.getElementById("acct-membership");
+    const out = (name, text) => {
+      qs(pane, `[data-mem='${name}']`).textContent = text;
+    };
+    const p = view.group.place;
+    const r = view.rounds;
+
+    qs(document, "[data-tab='membership']").hidden = false;
+    out("name", view.group.name);
+    out("place", p
+      ? `${p.name}, ${p.street}, ${p.city}, ${p.state} ${p.zip}` : "");
+    out("every", r ? roundsLine(r) : "");
+    const zone = this.terms.timeZone;
+
+    out("closes", r ? `${moment(r.current.closesAt, zone)}, for pickup ${
+      label(r.current.date)}` : "");
+    out("opens", r && r.next ? `${moment(r.next.opensAt, zone)}, for pickup ${
+      label(r.next.date)}` : "");
+
+    const host = qs(pane, "[data-mem-host]");
+
+    host.hidden = !view.host;
+    if (view.host) this.renderHost(view);
+  }
+
+  // The host's part: the QR code, its download and replacement, and
+  // the members.
+  renderHost(view) {
+    const img = document.getElementById("mem-qr");
+    const status = document.getElementById("mem-qr-status");
+    const open = document.getElementById("mem-qr-new");
+    const confirm = document.getElementById("mem-qr-confirm");
+    const rotate = document.getElementById("mem-qr-rotate");
+    const show = (setAt) => {
+      img.src = `/api/membership/qr?v=${encodeURIComponent(setAt || "")}`;
+      img.hidden = false;
+    };
+    const ask = (on) => {
+      confirm.hidden = !on;
+      open.setAttribute("aria-expanded", String(on));
+      (on ? rotate : open).focus();
+    };
+
+    show(view.qr && view.qr.setAt);
+    if (!this.hostWired) {
+      this.hostWired = true;
+      open.addEventListener("click", () => ask(true));
+      document.getElementById("mem-qr-keep").addEventListener("click",
+        () => ask(false));
+      rotate.addEventListener("click", async () => {
+        if (isBusy(rotate)) return;
+
+        const { ok, data } = await whileBusy(rotate, api("/api/membership/qr", {
+          method: "POST", body: { rotate: true },
+        }).catch(() => ({ ok: false, data: null })));
+
+        if (!ok) {
+          failBusy(rotate, data && data.message);
+
+          return;
+        }
+        show(data.qr.setAt);
+        ask(false);
+        status.textContent = "Here's your new QR code. The old one no " +
+          "longer works. Download this one to print.";
+      });
+    }
+    this.renderMembers(view.members || []);
+  }
+
+  renderMembers(members) {
+    const list = document.getElementById("mem-list");
+
+    list.replaceChildren();
+    document.getElementById("mem-list-empty").hidden = members.length > 0;
+    qs(document, "#mem-list-h").textContent = members.length
+      ? `Members (${members.length})` : "Members";
+
+    for (const m of members) {
+      const item = clone("tpl-member");
+      const row = qs(item, "[data-member]");
+
+      qs(row, "[data-out='name']").textContent = m.name || "No name yet";
+      qs(row, "[data-out='email']").textContent = m.email;
+      qs(row, "[data-out='joined']").textContent = joinedLine(m, placed);
+      list.append(item);
+    }
   }
 
   // Arrived from an email about one order: show that order rather

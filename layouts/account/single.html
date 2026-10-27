@@ -36,6 +36,9 @@
           <nav class="account-nav" aria-label="Account sections">
             <a class="account-tab" href="#orders" data-tab="orders">Orders</a>
             <a class="account-tab" href="#receipts" data-tab="receipts">Receipts</a>
+            {{/* A buying group's member or host only (#495): main.js
+                 takes the tab and its pane out for anyone else. */}}
+            <a class="account-tab" href="#membership" data-tab="membership" data-membership-only hidden>Membership</a>
             <a class="account-tab" href="#address" data-tab="address">Address</a>
             <a class="account-tab" href="#settings" data-tab="settings">Settings</a>
             <a class="account-tab" href="#help" data-tab="help">Help</a>
@@ -69,6 +72,59 @@
                 <dt data-receipt-row="capture">Transaction</dt><dd data-receipt="capture"></dd>
               </dl>
               <p class="form-text mb-0">{{ hugo.Data.company.name }}, {{ with hugo.Data.company.address }}{{ .street }}, {{ .city }}, {{ .state }} {{ .zip }}{{ end }}</p>
+            </div>
+          </section>
+
+          {{/* A buying group (#495): what a member sees of it, and the
+               host's QR code and member list. main.js fills it from
+               /api/membership; every line is a draft for James. */}}
+          <section class="account-section account-membership" id="acct-membership" data-section="membership" data-membership-only aria-label="Membership" hidden>
+            <div class="alert alert-success" id="membership-joined" role="status" hidden></div>
+            <section class="account-group" aria-labelledby="mem-group-h">
+              <div class="account-group-head">
+                <h2 class="h4 account-group-title" id="mem-group-h" data-mem="name"></h2>
+              </div>
+              <dl class="account-membership-facts">
+                <dt class="account-membership-term">Pickup</dt>
+                <dd class="account-membership-value" data-mem="place"></dd>
+                <dt class="account-membership-term">Rounds</dt>
+                <dd class="account-membership-value" data-mem="every"></dd>
+                <dt class="account-membership-term">This round closes</dt>
+                <dd class="account-membership-value" data-mem="closes"></dd>
+                <dt class="account-membership-term">Next round opens</dt>
+                <dd class="account-membership-value" data-mem="opens"></dd>
+              </dl>
+            </section>
+
+            <div data-mem-host hidden>
+              <section class="account-group" aria-labelledby="mem-qr-h">
+                <div class="account-group-head">
+                  <h2 class="h4 account-group-title" id="mem-qr-h">Your group's QR code</h2>
+                </div>
+                <p>People who scan this code can join the group. It opens a page where they sign up with their name and email address.</p>
+                <img class="account-membership-qr" id="mem-qr" alt="QR code to join the group" width="296" height="296" hidden>
+                <p class="form-text" id="mem-qr-status" role="status" aria-live="polite"></p>
+                <div class="account-membership-actions">
+                  <a class="btn btn-primary" id="mem-qr-download" href="/api/membership/qr?download=1" download>Download QR code</a>
+                  <button class="btn btn-outline-primary" type="button" id="mem-qr-new" aria-expanded="false" aria-controls="mem-qr-confirm">Generate new QR code</button>
+                </div>
+                <div class="account-order-panel" id="mem-qr-confirm" hidden>
+                  <p class="account-panel-title">Generate a new QR code?</p>
+                  <p class="form-text">The current code stops working right away, so anything already printed with it must be replaced. Members stay in the group, and the typed code doesn't change.</p>
+                  <div class="account-panel-actions">
+                    {{ partial "busy-button.html" (dict "label" "Generate new QR code" "busy" "Generating" "class" "btn-danger btn-sm" "id" "mem-qr-rotate" "type" "button" "error" true) }}
+                    <button type="button" class="btn btn-outline-secondary btn-sm" id="mem-qr-keep">Never mind</button>
+                  </div>
+                </div>
+              </section>
+
+              <section class="account-group" aria-labelledby="mem-list-h">
+                <div class="account-group-head">
+                  <h2 class="h4 account-group-title" id="mem-list-h">Members</h2>
+                </div>
+                <p class="account-empty" id="mem-list-empty" hidden>No members yet.</p>
+                <ul class="account-membership-list" id="mem-list"></ul>
+              </section>
             </div>
           </section>
 
@@ -345,6 +401,17 @@
       <div class="account-order-actions" data-out="actions"></div>
       <div class="account-order-panel" data-out="panel" hidden></div>
     </article>
+  </template>
+
+  {{/* One member on the host's list (#495). */}}
+  <template id="tpl-member">
+    <li class="account-membership-member" data-member>
+      <div class="account-membership-who">
+        <span class="account-membership-name" data-out="name"></span>
+        <span class="account-membership-email" data-out="email"></span>
+      </div>
+      <span class="account-membership-joined" data-out="joined"></span>
+    </li>
   </template>
 
   <template id="tpl-line">

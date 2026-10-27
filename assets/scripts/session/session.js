@@ -121,6 +121,10 @@ const fill = (slot, who) => {
   signin.hidden = true;
   menu.hidden = false;
   showChick(slot, who.customer && who.customer.avatar);
+  // A buying group's member or host (#495): Membership in the menu.
+  for (const item of slot.querySelectorAll("[data-account-membership]")) {
+    item.hidden = !who.membership;
+  }
   slot.classList.add("is-ready");
 
   // Bound once per button, and kept: a sign-out that fails can be
