@@ -9,7 +9,7 @@ import { describe, it } from "node:test";
 
 import { handle as authHandle } from "../netlify/functions/auth.mjs";
 import {
-  RATE, TOO_MANY, handle as joinHandle,
+  RATE, SEND_RATE, TOO_MANY, handle as joinHandle,
 } from "../netlify/functions/join.mjs";
 import { createSession } from "../netlify/functions/lib/auth.mjs";
 import { joinLog } from "../netlify/functions/lib/group-log.mjs";
@@ -257,6 +257,21 @@ describe("the sign-up form and its link", () => {
       lastName: "Please enter your last name.",
     });
     assert.equal(sent.length, 0);
+  });
+
+  it("sends no more than the limit from one address", async () => {
+    const { stores, token } = await setup();
+    const { sent, mail } = outbox();
+    const ip = "8.8.8.8";
+
+    for (let i = 0; i <= SEND_RATE.max; i++) {
+      const res = await post("/api/join/request", {
+        token, ...signUp({ email: `p${i}@example.com` }),
+      }, { stores, mail, ip });
+
+      assert.equal(res.status, 200);
+    }
+    assert.equal(sent.length, SEND_RATE.max);
   });
 
   it("refuses a dead token and sends nothing", async () => {

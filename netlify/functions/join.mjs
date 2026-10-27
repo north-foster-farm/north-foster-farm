@@ -38,6 +38,23 @@ const missed = (ip, at) => {
   if (ip) misses.set(ip, [...recent(ip, at), at]);
 };
 
+// Links asked for from one address, as the sign-in form limits them
+// (auth.mjs): past it, the answer is the same and nothing is sent.
+export const SEND_RATE = { windowMs: 10 * 60_000, max: 20 };
+const sends = new Map();
+
+const tooManySends = (ip, at) => {
+  if (!ip) return false;
+
+  const kept = (sends.get(ip) || [])
+    .filter((t) => at - t < SEND_RATE.windowMs);
+
+  kept.push(at);
+  sends.set(ip, kept);
+
+  return kept.length > SEND_RATE.max;
+};
+
 // Draft wording: names what was tried (#400).
 export const TOO_MANY = "There have been too many tries to open a link " +
   "to join a group. Wait a few minutes and try again.";
@@ -93,8 +110,9 @@ export const handle = async (req, {
   if (closed) return closed;
 
   if (path === "/api/join/request") {
-    // A bot filling the hidden field is told it worked.
-    if (body.website) return json(200, { ok: true });
+    // A bot filling the hidden field, or too many links from one
+    // address, is told it worked.
+    if (body.website || tooManySends(ip, at)) return json(200, { ok: true });
 
     const r = await requestJoin(stores, body, { now, env, mail });
 
