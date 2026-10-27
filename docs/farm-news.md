@@ -224,17 +224,23 @@ called. `removeImported` reports one of:
   welcome and all, with any unsubscribe link a sent welcome left.
 - `cleared`: the record has anything else on it (orders, a sign-in, a
   group, credit, details). It stays, and only what the import added
-  goes, listed in `cleared`: `marketing` (with `marketingAt`,
-  `marketingSource` and the import's consent event, while the import's
-  consent is still the one in force) and a held `welcome`. The record
-  is back as it was before the import.
+  goes, listed in `cleared`: `marketing` (with `marketingAt` and
+  `marketingSource`, while the import's consent is still the one in
+  force) and a held `welcome`. The record's state is back as it was
+  before the import. The consent log is append-only: the import's
+  `market-sheet` event stays, and a `removed` event follows it. The
+  record keeps no `marketingAt`, so a later import or sign-up is not
+  taken for a decline.
 - `none`: no record, or nothing on it from the import.
 
 Afterward the sync has nothing to add and `audience welcome` nothing to
-send. Each removal logs one line, `news.removed`, with who ran it (the
-Mac's user name), which outcome and the address hashed, as every log
-line hashes addresses. On production it asks for the address typed out;
-`--dry-run` asks nothing and writes nothing.
+send. Each removal logs one line, `news.removed`, with the time, who
+ran it (the Mac's user name), which outcome and the address masked
+(`lib/mask.mjs`: `abcdefgh@example.com` is `abc**fgh@exa*****com`),
+never in full. `customers delete` logs `customer.deleted` the same way
+(2026-10-27, James on #496; these lines hashed the address before). On
+production it asks for the address typed out; `--dry-run` asks nothing
+and writes nothing.
 
 ## The list template
 

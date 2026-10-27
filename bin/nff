@@ -1172,7 +1172,7 @@ const run = async () => {
       apply: !!flags.apply,
     }));
   case "customers delete":
-    await admin.removeCustomer(stores, rest[0]);
+    await admin.removeCustomer(stores, rest[0], { by: userInfo().username });
 
     return out(`Deleted ${rest[0]}.`);
   case "address approve":

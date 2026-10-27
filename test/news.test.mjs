@@ -822,7 +822,8 @@ describe("a stale imported address taken out (#496)", () => {
     await held(stores);
     assert.equal((await getCustomer(stores, A)).marketing, true);
 
-    const report = await removeImported(stores, A);
+    const imported = (await getCustomer(stores, A)).consent;
+    const report = await removeImported(stores, A, { now: later });
     const saved = await getCustomer(stores, A);
 
     assert.deepEqual(report, {
@@ -833,7 +834,15 @@ describe("a stale imported address taken out (#496)", () => {
     assert.equal(saved.marketingAt, null);
     assert.equal(saved.marketingSource, undefined);
     assert.equal(saved.welcome, undefined);
-    assert.deepEqual(saved.consent, [], "the import's event is gone");
+    assert.deepEqual(saved.consent.slice(0, -1), imported,
+      "the import's event stays");
+    assert.equal(imported.at(-1).type, "market-sheet");
+    assert.deepEqual(saved.consent.at(-1), {
+      action: "out", type: "removed",
+      detail: "a stale or duplicate import, taken out",
+      at: later.toISOString(), recordedAt: later.toISOString(),
+      capturedBy: null, evidence: null,
+    }, "and the removal is appended");
     assert.equal(saved.lastOrderAt, before.lastOrderAt);
     assert.equal(saved.name, before.name);
     await leftOut(stores, A);

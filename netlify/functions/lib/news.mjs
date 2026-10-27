@@ -17,6 +17,7 @@ import { normalizeEmail, validEmail } from "./auth.mjs";
 import { now as clock, real } from "./clock.mjs";
 import { log } from "./log.mjs";
 import { sendMail } from "./mail.mjs";
+import { maskEmail } from "./mask.mjs";
 import { resendAllowed, resendRefusal } from "./resend-guard.mjs";
 import { creditKey } from "./credit.mjs";
 import {
@@ -642,16 +643,17 @@ const importMade = (c) => c.createdAt === c.marketingAt
 //             unsubscribe link a welcome left
 //   cleared   the record has more on it: it stays, and only what the
 //             import wrote goes (`cleared` names it): its consent
-//             (`marketing`, `marketingAt`, `marketingSource` and its
-//             event in the log), while it is still the consent in force,
-//             and a held `welcome`
+//             (`marketing`, `marketingAt`, `marketingSource`), while it
+//             is still the consent in force, and a held `welcome`. The
+//             consent log is append-only: the import's event stays and
+//             a `removed` event follows it
 //   none      no record, or nothing on it from the import
 //
 // `dryRun` reports and writes nothing. Each removal logs one line, with
-// `by`, who ran it; the log hashes the address, as it does every one.
+// `by`, who ran it, and the address masked (mask.mjs).
 // -> { email, outcome, cleared, dryRun }.
 export const removeImported = async (stores, email, {
-  by = null, dryRun = false,
+  by = null, dryRun = false, now = clock(),
 } = {}) => {
   const address = normalizeEmail(email);
   const customer = await getCustomer(stores, address);
@@ -689,22 +691,25 @@ export const removeImported = async (stores, email, {
     delete rest.welcome;
     if (imported) {
       // Back as it was before the import, which joins only a record
-      // that never said yes or no: no consent, and no event for it.
-      const events = consentLog(customer);
-      const last = events[events.length - 1];
+      // that never said yes or no, so no `marketingAt`: a later import
+      // or sign-up is not taken for a decline. The log keeps the
+      // import's event and says it was taken out.
+      const at = now.toISOString();
 
       rest.marketing = false;
       rest.marketingAt = null;
       delete rest.marketingSource;
-      rest.consent = last && last.type === "market-sheet"
-        && last.recordedAt === customer.marketingAt
-        ? events.slice(0, -1) : events;
+      rest.consent = [...consentLog(customer), {
+        action: "out", type: "removed",
+        detail: "a stale or duplicate import, taken out", at,
+        recordedAt: at, capturedBy: null, evidence: null,
+      }];
     }
     await saveCustomer(stores, rest);
   }
   log.info({
     event: "news.removed", outcome: report.outcome, by,
-    record: address, cleared: report.cleared,
+    record: maskEmail(address), cleared: report.cleared,
   });
 
   return report;

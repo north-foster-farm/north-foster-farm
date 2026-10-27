@@ -17,7 +17,9 @@ import { DELIVERING } from "./health.mjs";
 import { completeInSquare } from "./complete.mjs";
 import { restoreCredit } from "./credit.mjs";
 import { GROUPS, groupOf, memberKeyOf } from "./groups.mjs";
+import { log } from "./log.mjs";
 import { devEmails, sendMail } from "./mail.mjs";
+import { maskEmail } from "./mask.mjs";
 import * as newsApi from "./news.mjs";
 import {
   customerEmailWithheld, recordRefund, sendForOrder,
@@ -217,9 +219,15 @@ export const renameCustomer = async (stores, from, to, {
   return report;
 };
 
-export const removeCustomer = async (stores, email) => {
+// One log line per deletion, with `by`, who ran it, and the address
+// masked (mask.mjs, #496).
+export const removeCustomer = async (stores, email, { by = null } = {}) => {
   need(await getCustomer(stores, email), "customer");
   await deleteCustomer(stores, email);
+  log.info({
+    event: "customer.deleted", outcome: "deleted", by,
+    record: maskEmail(normalizeEmail(email)),
+  });
 
   return true;
 };

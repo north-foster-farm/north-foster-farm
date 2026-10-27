@@ -53,7 +53,9 @@ sees, so a dead page and a silent failure both reach the phone.
   customer, addresses, phone, notes, mail text) are removed, an email
   address in any string becomes `[email:<hash>]` (one address, one
   hash), and a phone number becomes `[phone]`. Lines name an order by
-  id. The alert pings to Healthchecks are scrubbed the same way.
+  id. A line that has to name a customer (a removal or deletion from
+  `bin/nff`) carries the address masked by `lib/mask.mjs`, never in
+  full (#496). The alert pings to Healthchecks are scrubbed the same way.
   `test/log-privacy.test.mjs` fails when a failed order logs any of
   it. A name typed into free text cannot be found by pattern.
 - **Run ledger.** Each jobs run's report in the jobs store, two days
