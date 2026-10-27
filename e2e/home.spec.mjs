@@ -570,7 +570,7 @@ test.describe("home", () => {
         when: /Saturdays, 10:00\s–\u2060\s11:00\sAM/,
         line: "Order in advance and get your order at any upcoming " +
           "market, pop-up, or drop site",
-        where: "46 Institute Ln, North Scituate, RI",
+        where: "46 Institute Ln, N Scituate, RI",
         cost: "No minimum, no fee", cta: "Shop for pickup days",
       },
       {
@@ -627,7 +627,7 @@ test.describe("home", () => {
     // at view time, over the drop site the build prints. One location,
     // the card gives its day and address; several, the Where line is
     // how many, as a link to the map (James, 2026-10-26).
-    const DROP_ADDRESS = "46 Institute Ln, North Scituate, RI";
+    const DROP_ADDRESS = "46 Institute Ln, N Scituate, RI";
     const DROP_OPEN = [
       { date: "2026-10-24", label: "Saturday, October 24",
         series: "VFVQ", name: "Drop site", window: "10:00 – 11:00 AM",

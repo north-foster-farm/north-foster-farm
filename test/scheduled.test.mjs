@@ -152,7 +152,7 @@ describe("the locations a list reaches", () => {
 });
 
 describe("the Where line of the Pickup days card", () => {
-  const ADDRESS = "46 Institute Ln, North Scituate, RI";
+  const ADDRESS = "46 Institute Ln, N Scituate, RI";
   const here = { ...drop, location: "G4C6", short: ADDRESS };
   const there = { ...foster, location: "D8RW",
     short: "Shady Acres Diner, 164 Danielson Pike, Foster" };
