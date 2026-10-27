@@ -74,7 +74,7 @@ describe("line names", () => {
       .map((i) => index.get(i.sku).lineName);
 
     assert.deepEqual(names, ["Livers, 1.0 – 1.4 lbs", "Necks, 1.0 – 1.9 lbs",
-      "Feet, about 1.2 – 1.5 lbs", "Backs, 1.0 – 1.9 lbs"]);
+      "Feet, 1.0 – 1.4 lbs", "Backs, 1.0 – 1.9 lbs"]);
     assert.equal(index.get(LIVERS).row, "Livers, 1.0 – 1.4 lbs");
   });
 
@@ -132,7 +132,7 @@ describe("line names", () => {
       const r = order([{ sku: FEET, qty: 1 }]);
 
       assert.equal(r.errors[`lines.${FEET}`],
-        "Feet, about 1.2 – 1.5 lbs: out of stock.");
+        "Feet, 1.0 – 1.4 lbs: out of stock.");
     });
 
     it("name a line stock can't fill", async () => {
