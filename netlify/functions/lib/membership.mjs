@@ -17,6 +17,7 @@ import {
   addDays, today,
 } from "../../../assets/scripts/order/lib/zoned.mjs";
 import { normalizeEmail } from "./auth.mjs";
+import { creditBalance, voidCredit } from "./credit.mjs";
 import { audit, groupMembers } from "./group-log.mjs";
 import {
   GROUPS, getGroupRecord, groupOf, leaveGroup, memberKeyOf, namedGroup,
@@ -122,6 +123,31 @@ export const removeMember = async (stores, key, email, {
   });
 
   return { ok: true };
+};
+
+// The farm voids someone's credit for abuse (#495): `bin/nff groups
+// credit <email> --void`. Logged in each group whose grants it voided,
+// with that group's part, and nowhere when nothing was left: a change
+// that didn't happen is not logged (#497). -> { voided, byGroup }
+export const voidMemberCredit = async (stores, email, {
+  by, now = new Date(),
+}) => {
+  const address = normalizeEmail(email);
+  const before = await creditBalance(stores, address, now);
+  const { voided, byGroup } = await voidCredit(stores, address, {
+    now, reason: by.role,
+  });
+
+  for (const [key, amount] of Object.entries(byGroup)) {
+    await audit(stores, {
+      group: key, by, action: "credit.void", target: address,
+      before: { balance: before },
+      after: { balance: before - voided, voided: amount },
+      now,
+    });
+  }
+
+  return { voided, byGroup };
 };
 
 // What the tab shows. -> { group, rounds, host, members? , qr? }

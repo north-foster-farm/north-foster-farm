@@ -207,21 +207,25 @@ export const restoreCredit = async (stores, email, {
 // Voids what is left of every live grant (#495), for abuse: `bin/nff
 // groups credit <email> --void`, logged. Each grant keeps
 // what was voided, when and why, so the books still show every dollar.
-// -> { ledger, voided } with `voided` in cents.
+// -> { ledger, voided, byGroup } in cents, `byGroup` holding only the
+// groups whose grants were voided.
 export const voidCredit = async (stores, email, {
   now = new Date(), reason = "",
 } = {}) => {
   let voided = 0;
+  let byGroup = {};
   const ledger = await swapLedger(stores, email, (stored) => {
     const at = now.toISOString();
 
     voided = 0;
+    byGroup = {};
 
     const entries = stored.entries.map((e) => {
       const left = live(e, now) ? leftOf(e) : 0;
 
       if (left <= 0) return e;
       voided += left;
+      byGroup[e.from.group] = (byGroup[e.from.group] || 0) + left;
 
       return {
         ...e, voided: [...(e.voided || []), { amount: left, at, reason }],
@@ -231,7 +235,7 @@ export const voidCredit = async (stores, email, {
     return voided > 0 ? { ...stored, entries } : null;
   });
 
-  return { ledger, voided };
+  return { ledger, voided, byGroup };
 };
 
 // How long a spend may stand with no order to show for it: a

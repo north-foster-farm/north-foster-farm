@@ -24,7 +24,9 @@ import {
   buyingFor, groupOf, joinGroup, lockGroupOf, memberKeyOf, offeredGroup,
   roundOrders, setGroupCode, setGroupHost,
 } from "../netlify/functions/lib/groups.mjs";
-import { removeMember } from "../netlify/functions/lib/membership.mjs";
+import {
+  removeMember, voidMemberCredit,
+} from "../netlify/functions/lib/membership.mjs";
 import {
   getCustomer, getOrder, saveCustomer, saveOrder,
 } from "../netlify/functions/lib/records.mjs";
@@ -285,4 +287,42 @@ describe("credit after leaving", () => {
     assert.equal((await voidCredit(stores, PAT, { now })).voided, 0,
       "nothing left to void");
   });
+
+  // The qa on #495 (6455105350, item 3): `groups credit --void` logged
+  // in every group on the ledger, even when it voided nothing.
+  it("is logged only where grants were voided, and not when none were",
+    async () => {
+      const { stores } = await setup();
+      const old = { group: "oldgym", round: "2026-10-04", kind: "host" };
+      const tz = "America/New_York";
+
+      await grantCredit(stores, PAT, { amount: 2000, from, now, timeZone: tz });
+      // The old group's grant expired with 2025, so none of it is voided.
+      await grantCredit(stores, PAT, { amount: 500, from: old,
+        now: new Date("2025-06-01T12:00:00Z"), timeZone: tz });
+
+      const by = { role: "farm" };
+      const first = await voidMemberCredit(stores, PAT, { by, now });
+
+      assert.equal(first.voided, 2000);
+      assert.deepEqual(first.byGroup, { vff: 2000 });
+
+      const logged = (await auditLog(stores, "vff"))
+        .filter((r) => r.action === "credit.void");
+
+      assert.equal(logged.length, 1);
+      assert.deepEqual(logged[0].before, { balance: 2000 });
+      assert.deepEqual(logged[0].after, { balance: 0, voided: 2000 });
+      assert.equal(logged[0].target, maskEmail(PAT));
+      assert.deepEqual(await auditLog(stores, "oldgym"), []);
+
+      // Again, with nothing left: no record anywhere.
+      const again = await voidMemberCredit(stores, PAT, { by, now });
+
+      assert.equal(again.voided, 0);
+      assert.deepEqual(again.byGroup, {});
+      assert.equal((await auditLog(stores, "vff"))
+        .filter((r) => r.action === "credit.void").length, 1);
+      assert.deepEqual(await auditLog(stores, "oldgym"), []);
+    });
 });

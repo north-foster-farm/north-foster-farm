@@ -2092,20 +2092,13 @@ const run = async () => {
 
     const now = new Date();
 
-    // For abuse (#495): what is left goes, and each group the credit
-    // came from logs it.
+    // For abuse (#495): what is left goes, logged in each group whose
+    // grants it voided, and nowhere when nothing was left.
     if (flags.void) {
-      const before = await credit.creditBalance(stores, rest[0], now);
-      const { ledger: after, voided } = await credit.voidCredit(stores,
-        rest[0], { now, reason: "farm" });
+      const { voided } = await membership.voidMemberCredit(stores, rest[0],
+        { by: FARM, now });
 
-      for (const key of new Set(after.entries.map((e) => e.from.group))) {
-        await groupLog.audit(stores, { group: key, by: FARM,
-          action: "credit.void", target: after.email,
-          before: { balance: before }, after: { balance: before - voided },
-          now });
-      }
-      out(`Voided ${dollars(voided)}.`);
+      out(voided ? `Voided ${dollars(voided)}.` : "Nothing left to void.");
     }
 
     const ledger = await credit.getLedger(stores, rest[0]);
