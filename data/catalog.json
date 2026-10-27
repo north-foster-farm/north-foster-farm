@@ -411,9 +411,10 @@
           "label": "Feet",
           "name": "Feet, 1.0 – 1.4 lbs",
           "price": 5,
-          "inStock": false,
+          "inStock": true,
           "squareVariationId": "ZIM45BGVEPPSC2NYNRH5ROF3",
-          "restock": "soon"
+          "restock": "seasonal",
+          "restockSeason": "spring"
         },
         {
           "sku": "NFF-CHK-BCK-10-19",

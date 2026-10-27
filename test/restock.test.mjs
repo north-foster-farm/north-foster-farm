@@ -90,7 +90,7 @@ describe("the catalog's restock types", () => {
       "NFF-CHK-BRSBL-17-99": "hidden",
       "NFF-CHK-THGBN-20-99": "hidden",
       "NFF-CHK-WNG-30-99": "hidden",
-      "NFF-CHK-FET-0075-0125": "soon",
+      "NFF-CHK-FET-0075-0125": "seasonal",
     };
 
     for (const i of of("sausage")) SPEC[i.sku] = "hiatus";
