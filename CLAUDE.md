@@ -11,6 +11,13 @@ North Foster Farm website - a static site built with Hugo (v0.164.0) and hosted 
 These apply to every lane, cloud run and the coordinator. They come from
 decisions James made on GitHub. The issue numbers point to the source.
 
+- **Fix stale notes on sight.** When James corrects something, or the
+  code, a tool or production contradicts a note (a CLAUDE.md, a doc,
+  an issue body, a handoff, a rotation log), fix the note then and
+  there: rewrite or delete the stale line, date the change, and say in
+  one sentence what changed. Never work around stale information.
+  Older notes still called the release a draft after it shipped on
+  2026-10-26 (#494).
 - **Do small work, don't file it.** If a fix can be done, checked and
   landed in about 15 minutes, do it in the change you're making, or
   batch it with others in the same area. Don't open an issue for a
