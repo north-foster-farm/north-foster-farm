@@ -100,5 +100,18 @@ describe("another group's code (edge 2)", () => {
 
     assert.equal(data.group.key, "vff");
     assert.equal(data.already, false);
+    // So the page asks them nothing: they won't join (decision 5).
+    assert.equal(data.elsewhere, true);
   });
+
+  it("is not elsewhere for someone in no group, or in this one",
+    async () => {
+      const { stores, cookie } = await setup();
+
+      assert.equal((await (await ask({ code: CODE }, stores, cookie))
+        .json()).elsewhere, false);
+      await joinGroup(stores, EMAIL, "vff", { now, via: "code" });
+      assert.equal((await (await ask({ code: CODE }, stores, cookie))
+        .json()).elsewhere, false);
+    });
 });

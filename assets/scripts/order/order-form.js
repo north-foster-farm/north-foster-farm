@@ -29,6 +29,7 @@ import { wireSwitch } from "./restock.js";
 import { Stock } from "./stock.js";
 import { Submitter } from "./submit.js";
 import { announceCart } from "../cart-badge/announce.js";
+import { confirmJoin } from "../group/join-dialog.js";
 import { stampFrom } from "../session/cache.js";
 import {
   SCRUBBED, pullCart, scrubStray,
@@ -144,6 +145,9 @@ export class OrderForm {
     this.raw = { locations: data.locations, series: data.series };
     this.member = null;
     this.groupCode = null;
+    // Group codes the customer has said Join to (#495, decision 5): a
+    // draft's, and any confirmed here. Applied again, they don't ask.
+    this.joinConfirmed = new Set();
     // A draft's pickup at a round the lists lack until the group is
     // unlocked, chosen then.
     this.wantedOccurrence = null;
@@ -963,11 +967,23 @@ export class OrderForm {
       ? { ok: false }
       : await this.applyGroup(typed);
 
+    // Cancel in the join dialog (#495, decision 5): the code stays in
+    // the box, unapplied, and nothing is said.
+    if (member.declined) {
+      this.cart.codeResult();
+      this.refresh();
+
+      return;
+    }
     if (member.ok) {
       // James's wording (2026-10-26, through the coordinator); a
-      // member typing the code again is told so (#495, draft).
-      accepted(member.already ? "Code applied. You're already in the group."
-        : "Code applied. Welcome to the group!");
+      // member typing the code again is told so (#495, approved). A
+      // member of another group gets its prices for this order only
+      // (draft).
+      accepted(member.already ? "You're already in the group."
+        : member.elsewhere ? "Code applied to this order. You stay in your " +
+          "own group."
+          : "Code applied. Welcome to the group!");
       this.refresh();
 
       return;
@@ -1025,18 +1041,30 @@ export class OrderForm {
 
   // Asks the server what a buying group's code unlocks (#471), or,
   // with no code, what the signed-in account's group is. An accepted
-  // answer unlocks the group. -> { ok, message? }.
+  // answer unlocks the group. A code, typed or linked, for a group the
+  // customer isn't in asks first in the join dialog (#495, decision
+  // 5); Cancel unlocks nothing.
+  // -> { ok, already?, elsewhere?, declined?, message? }.
   async applyGroup(code) {
     const { ok, data } = await api("/api/group", {
       method: "POST", body: code ? { code } : {},
     }).catch(() => ({ ok: false, data: null }));
+    const found = !!(ok && data && data.group);
+    const already = !!(data && data.already);
+    const elsewhere = !!(data && data.elsewhere);
+    const asks = found && !!code && !already && !elsewhere
+      && !this.joinConfirmed.has(normalizeCode(code));
 
-    if (ok && data && data.group) this.unlockGroup(data, code || null);
+    if (asks) {
+      if (!(await confirmJoin(data.group.name))) {
+        return { ok: false, declined: true };
+      }
+      this.joinConfirmed.add(normalizeCode(code));
+    }
+    if (found) this.unlockGroup(data, code || null);
 
     return {
-      ok: !!(ok && data && data.group),
-      already: !!(data && data.already),
-      message: data && data.message,
+      ok: found, already, elsewhere, message: data && data.message,
     };
   }
 
@@ -1110,11 +1138,7 @@ export class OrderForm {
   // it, and goes with the group.
   renderGroupDelivery() {
     const row = qs(this.form, "[data-deliver-to-group]");
-    // What the group's host sees of a member, under the code box for
-    // as long as the group is on the order (#471).
-    const note = this.cart.root && qs(this.cart.root, "[data-group-note]");
 
-    if (note) note.hidden = !this.member;
     if (!row) return;
 
     row.hidden = !this.member;
@@ -1623,7 +1647,9 @@ export class OrderForm {
     }
     // So is a buying group's code (#471): replaced since, it is gone,
     // and the pickup it unlocked with it.
+    // Said Join to when it went on the draft: not asked again.
     if (payload.groupCode && !this.editing) {
+      this.joinConfirmed.add(normalizeCode(payload.groupCode));
       this.applyGroup(payload.groupCode).catch(() => {});
     }
 

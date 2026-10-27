@@ -44,13 +44,24 @@ test.describe("a buying group's code (#471)", () => {
       expect(await pickupValues(page))
         .not.toContainEqual(expect.stringMatching(`^${SERIES}-`));
 
-      // The group's code unlocks its pickup.
+      // The group's code asks first (#495, decision 5): Cancel leaves
+      // it unapplied, Join group unlocks its pickup.
+      const dialog = page.locator("#group-join");
+
       await order.codeInput.fill(code);
       await order.codeApply.click();
+      await expect(dialog).toBeVisible();
+      await expect(dialog).toContainText("The group's host can see your " +
+        "name and email address.");
+      await dialog.getByRole("button", { name: "Cancel" }).click();
+      await expect(dialog).toBeHidden();
+      expect(await pickupValues(page))
+        .not.toContainEqual(expect.stringMatching(`^${SERIES}-`));
+
+      await order.codeApply.click();
+      await dialog.getByRole("button", { name: "Join group" }).click();
       await expect(order.codeNote)
         .toHaveText("Code applied. Welcome to the group!");
-      // What the host sees of a member, while the group is on (#495).
-      await expect(page.locator("[data-group-note]")).toBeVisible();
 
       const round = await order.scheduled(SERIES);
 

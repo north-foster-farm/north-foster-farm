@@ -7,15 +7,18 @@ settings; the rules are the farm's policy as of 2026-10-26.
 ## How members order
 
 1. Open the farm's order page and add what you want.
-2. Open **Add discount** in the cart and enter the group's code. The
-   note says "Code applied. Welcome to the group!" (or, for someone
-   already in it, "Code applied. You're already in the group.") and
-   the pickup days now include the gym.
+2. Open **Add discount** in the cart and enter the group's code. Someone
+   not yet in the group is asked "Join {group name}?" first, and told
+   the host can see their name and email address. After **Join
+   group**, the note says "Code applied. Welcome to the group!" (for
+   someone already in it, "You're already in the group.") and the
+   pickup days now include the gym. **Cancel** leaves the code off.
 3. Choose the gym under **Pickup days**, enter your details, and pay.
    Cards, Apple Pay, Google Pay, Cash App Pay and Venmo all work.
 
 The link the host hands out does the same as the code: it opens the
-order page with the code already applied. The group's QR code joins
+order page with the code in the box, and asks the same question. The
+group's QR code joins
 the group without an order (see the Membership tab, below).
 
 Once you have ordered with the code, your email address is on the

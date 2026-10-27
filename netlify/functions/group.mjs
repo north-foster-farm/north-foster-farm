@@ -5,7 +5,8 @@
 // never embeds), the member price list and its open rounds. The order
 // handler checks the code again when the order is placed.
 //
-//   200 { ok: true, group, dates }     404 { ok: false, message }
+//   200 { ok: true, group, dates, credit, already, elsewhere }
+//   404 { ok: false, message }
 //   429 too many tries from one address
 //
 // Every miss says the same thing, and the page source carries no
@@ -104,6 +105,9 @@ export const handle = async (req, {
     // A member signed in who types their own group's code again
     // (#495, edge 1): the page says they are in already.
     already: !!typed && own === group.key,
+    // One in another group (edge 2): the code prices this order only
+    // and never moves them, so the page doesn't ask them to join.
+    elsewhere: !!typed && !!own && own !== group.key,
   });
 };
 

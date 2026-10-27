@@ -1,0 +1,24 @@
+// Joining a buying group (#495): the dialog before a group's code
+// applies, on the order page and the sign-up page alike. Blocking,
+// one column, as the order page's lapsed-time dialog.
+.group-join {
+  width: min(32rem, calc(100vw - 2rem));
+  padding: 0;
+  border: 0;
+  border-radius: 0.75rem;
+  box-shadow: 0 1.5rem 3rem rgb(0 0 0 / 30%);
+
+  &::backdrop {
+    background: rgb(10 16 13 / 55%);
+  }
+}
+
+.group-join-panel {
+  padding: 1.5rem;
+}
+
+.group-join-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}

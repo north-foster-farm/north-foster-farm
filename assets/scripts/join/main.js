@@ -2,8 +2,11 @@
 // link a group's QR code carries. The page asks the server whether the
 // token is in force and what the group is called, then either asks for
 // the name, email address and Farm News, and sends the link, or, for
-// someone signed in, joins with one button. Draft wording throughout.
+// someone signed in, joins with one button. Either way the join dialog
+// (group/join-dialog.js) asks first. Draft wording, but for the
+// dialog's and ALREADY, which James approved.
 
+import { confirmJoin } from "../group/join-dialog.js";
 import { api } from "../utils/api.js";
 import { failBusy, isBusy, whileBusy } from "../utils/busy-button.js";
 import { say } from "../utils/contact-link.js";
@@ -13,7 +16,8 @@ import { forget } from "../session/session.js";
 
 const INVALID = "That link to join a group isn't valid. Ask the group's " +
   "host for a new one.";
-const ALREADY = "You're already in this group.";
+// James's approved wording (#495, decision 5).
+const ALREADY = "You're already in the group.";
 const ELSEWHERE = "Your account is already in another group, so this one " +
   "can't be added.";
 
@@ -69,6 +73,7 @@ const start = async () => {
     signedIn.hidden = false;
     now.addEventListener("click", async () => {
       if (isBusy(now)) return;
+      if (!(await confirmJoin(data.group.name))) return;
 
       const r = await whileBusy(now, api("/api/join", {
         method: "POST", body: { token },
@@ -122,6 +127,9 @@ const start = async () => {
     }
     showErrors(errors);
     if (Object.keys(errors).length) return;
+    // The link joins them when they open it, so they say Join first,
+    // as everywhere a group's code is used (#495, decision 5).
+    if (!(await confirmJoin(data.group.name))) return;
 
     const r = await whileBusy(submit, api("/api/join/request", {
       method: "POST",
