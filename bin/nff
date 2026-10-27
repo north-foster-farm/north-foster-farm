@@ -577,7 +577,6 @@ const [
   credit,
   { describeError },
   groupLog,
-  qr,
   membership,
 ] = await Promise.all([
   import("../netlify/functions/lib/terms.mjs"),
@@ -609,7 +608,6 @@ const [
   import("../netlify/functions/lib/credit.mjs"),
   import("../netlify/functions/lib/paypal.mjs"),
   import("../netlify/functions/lib/group-log.mjs"),
-  import("../netlify/functions/lib/qr.mjs"),
   import("../netlify/functions/lib/membership.mjs"),
 ]);
 
@@ -1813,8 +1811,6 @@ const run = async () => {
     if (!g) throw new Error(`Unknown group "${rest[0]}".`);
 
     const record = await groups.getGroupRecord(stores, g.key);
-    const site = process.env.URL || "";
-
     out({
       ...g,
       name: (record && record.name) || g.name,
@@ -1824,8 +1820,7 @@ const run = async () => {
         : null,
       code: record ? record.code : null,
       codeSetAt: record ? record.codeSetAt : null,
-      link: record && record.code
-        ? `${site}/order/?group=${encodeURIComponent(record.code)}` : null,
+      link: record && record.code ? groups.codeUrl(record.code) : null,
       previous: record ? record.previous : [],
       host: record ? record.host : null,
     });
@@ -1895,12 +1890,12 @@ const run = async () => {
         action: "qr.rotate" });
     }
 
-    const link = `${process.env.URL || ""}${groups.joinPath(token)}`;
+    const { link, svg } = groups.joinQr(token, g.name);
 
     if (typeof flags.out === "string") {
       const { writeFileSync } = await import("node:fs");
 
-      writeFileSync(flags.out, qr.qrSvg(link, { title: `Join ${g.name}` }));
+      writeFileSync(flags.out, svg);
       out(`Wrote ${flags.out}.`);
     }
 

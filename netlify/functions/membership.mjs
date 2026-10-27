@@ -18,7 +18,7 @@ import { normalizeEmail, sameSite, sessionFrom } from "./lib/auth.mjs";
 import { now as clock } from "./lib/clock.mjs";
 import { audit } from "./lib/group-log.mjs";
 import {
-  joinPath, joinTokenOf, rotateJoinToken,
+  joinQr, joinTokenOf, rotateJoinToken,
 } from "./lib/groups.mjs";
 import { json, readJson } from "./lib/http.mjs";
 import { withLog } from "./lib/log.mjs";
@@ -26,8 +26,6 @@ import { gate } from "./lib/maintenance.mjs";
 import {
   membershipView, removeMember, roleOf,
 } from "./lib/membership.mjs";
-import { qrSvg } from "./lib/qr.mjs";
-import { siteUrl } from "./lib/site.mjs";
 import { stores as defaultStores } from "./lib/store.mjs";
 
 const NOTHING = () => json(404, { error: "Not found." });
@@ -131,9 +129,9 @@ export const handle = async (req, {
   if (path === "/api/membership/qr" && req.method === "GET") {
     const token = await joinTokenOf(stores, key, { now });
 
-    return svg(qrSvg(`${siteUrl(env)}${joinPath(token)}`, {
-      title: `Join ${name}`,
-    }), { download: url.searchParams.get("download") === "1", key });
+    return svg(joinQr(token, name, { env }).svg, {
+      download: url.searchParams.get("download") === "1", key,
+    });
   }
 
   if (path === "/api/membership/qr" && req.method === "POST") {

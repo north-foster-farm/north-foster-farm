@@ -30,9 +30,11 @@ import {
 import { noteJoin } from "./group-log.mjs";
 import { log } from "./log.mjs";
 import { newPassCode } from "./passes.mjs";
+import { qrSvg } from "./qr.mjs";
 import {
   allOrders, getCustomer, paidTotal, refundedTotal, saveCustomer,
 } from "./records.mjs";
+import { siteUrl } from "./site.mjs";
 
 export const GROUPS = groupData.groups;
 
@@ -197,6 +199,25 @@ export const findGroupByToken = async (stores, token) => {
 
 // The sign-up page's link, which the QR code encodes.
 export const joinPath = (token) => `/join/?t=${encodeURIComponent(token)}`;
+
+// The links whole, from SITE_URL as the emails build theirs: a phone
+// opens only an absolute address, so a QR code or a link sent to the
+// host never holds a bare path.
+export const joinUrl = (token, env = process.env) =>
+  `${siteUrl(env)}${joinPath(token)}`;
+
+export const codeUrl = (code, env = process.env) =>
+  `${siteUrl(env)}/order/?group=${encodeURIComponent(code)}`;
+
+// The join QR code and the link it holds, for the Membership tab and
+// `bin/nff groups qr`. `draw` is the encoder, swapped in tests.
+export const joinQr = (token, name, {
+  env = process.env, draw = qrSvg,
+} = {}) => {
+  const link = joinUrl(token, env);
+
+  return { link, svg: draw(link, { title: `Join ${name}` }) };
+};
 
 // The group with the name the farm set on its record, if any.
 export const namedGroup = async (stores, group) => {

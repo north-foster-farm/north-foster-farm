@@ -5,6 +5,7 @@
 // lands on Membership.
 
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
 import { handle as authHandle } from "../netlify/functions/auth.mjs";
@@ -14,8 +15,9 @@ import {
 import { createSession } from "../netlify/functions/lib/auth.mjs";
 import { joinLog } from "../netlify/functions/lib/group-log.mjs";
 import {
-  findGroupByCode, findGroupByToken, getGroupRecord, joinGroup,
-  joinPath, joinTokenOf, memberKeyOf, rotateJoinToken, setGroupCode,
+  codeUrl, findGroupByCode, findGroupByToken, getGroupRecord, joinGroup,
+  joinPath, joinQr, joinTokenOf, joinUrl, memberKeyOf, rotateJoinToken,
+  setGroupCode,
 } from "../netlify/functions/lib/groups.mjs";
 import {
   ELSEWHERE, INVALID_LINK, JOINED_PATH,
@@ -75,6 +77,45 @@ describe("the join token", () => {
       assert.equal(await findGroupByCode(stores, token), null);
       assert.equal(await joinTokenOf(stores, "vff"), token, "kept");
       assert.equal(joinPath(token), `/join/?t=${token}`);
+    });
+
+  // The qa on #495 (6455105350, item 2): the CLI read URL, which the
+  // .env files don't set, and printed a bare path a phone won't open.
+  it("builds the printed link and the QR payload whole, from SITE_URL",
+    async () => {
+      const { token } = await setup();
+      const drawn = [];
+      const draw = (text, { title }) => {
+        drawn.push({ text, title });
+
+        return "<svg/>";
+      };
+      const site = { SITE_URL: "https://www.northfosterfarm.com/" };
+      const { link, svg } = joinQr(token, "Valley Fitness", {
+        env: site, draw,
+      });
+
+      assert.equal(link,
+        `https://www.northfosterfarm.com/join/?t=${token}`);
+      assert.equal(svg, "<svg/>");
+      assert.deepEqual(drawn, [{ text: link, title: "Join Valley Fitness" }]);
+      assert.equal(codeUrl("GYM-2026", site),
+        "https://www.northfosterfarm.com/order/?group=GYM-2026");
+
+      // With nothing set, still a whole address, never a bare path.
+      for (const url of [joinQr(token, "G", { env: {}, draw }).link,
+        joinUrl(token, {}), codeUrl("GYM-2026", {})]) {
+        assert.match(url, /^https?:\/\/[^/]/);
+      }
+      assert.match(drawn.at(-1).text, /^https?:\/\/[^/]/);
+
+      // `groups qr` and `groups show` print through these, not URL.
+      const cli = readFileSync(new URL("../bin/nff", import.meta.url),
+        "utf8");
+
+      assert.ok(!cli.includes("process.env.URL"));
+      assert.match(cli, /groups\.joinQr\(token, g\.name\)/);
+      assert.match(cli, /groups\.codeUrl\(record\.code\)/);
     });
 
   it("retires the old QR code at once and keeps the code and members",
