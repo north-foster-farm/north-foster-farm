@@ -49,6 +49,9 @@
 //   drift       once a day from 07:00: every paid order from today on
 //               compared with its Square copy, and the farm told of a
 //               change made in Square (lib/drift.mjs, #293)
+//   flags       once a day from 07:00: a `hiatus` or `discontinued`
+//               variation Square counts above 0 is an invariant, told
+//               once per SKU and count (#499)
 //   health      each run ends with invariant checks, a ledger line,
 //               alerts for what went wrong, and a heartbeat ping
 
@@ -96,7 +99,9 @@ import {
 } from "./records.mjs";
 import { remindersOn } from "./reminders.mjs";
 import { rotationDaily } from "./rotation.mjs";
-import { archivedOnHand } from "./stock.mjs";
+import {
+  archivedOnHand, flaggedCounts, flaggedInStock,
+} from "./stock.mjs";
 import { mailLinks, orderUrlFor, settingsUrlFor } from "./site.mjs";
 import * as squareApi from "./square.mjs";
 import { deletionsPaused } from "./square-pause.mjs";
@@ -171,8 +176,11 @@ export const runJobs = async (stores, {
   paypal = paypalApi.configured(env) ? paypalApi : null,
   fetchImpl = globalThis.fetch,
   // The catalog as indexCatalog makes it, for tests of the archived
-  // check; the real one by default.
+  // and flagged checks; the real one by default.
   catalogIndex,
+  // Square's stock read (lib/square.mjs inventoryCounts), for tests of
+  // the flagged check.
+  inventory,
   // The end-to-end suite's run as of another day (lib/e2e.mjs) works
   // only the orders it names, so shared staging orders keep their state.
   orderIds = null,
@@ -419,8 +427,13 @@ export const runJobs = async (stores, {
   report.creditSwept = (await attempt(null, "creditSweep",
     () => sweepStrandedCredit(stores, { now }))) || [];
 
-  report.invariants = (await attempt(null, "invariants", async () =>
-    checkInvariants(await openOrders(stores), now))) || [];
+  report.invariants = [
+    ...(await attempt(null, "invariants", async () =>
+      checkInvariants(await openOrders(stores), now))) || [],
+    ...(await attempt(null, "stockFlags", () => stockFlagsDaily(stores, {
+      env, now, catalogIndex, inventory,
+    }))) || [],
+  ];
 
   await recordRun(stores, report, now);
 
@@ -430,10 +443,14 @@ export const runJobs = async (stores, {
     }, { env, mail, now, fetchImpl });
   }
   if (report.invariants.length) {
+    // A flagged SKU is told once (stockFlagsDaily), so the hourly mute
+    // must not swallow the run that tells it.
+    const once = report.invariants.some((v) => v.rule === "stock.flagged");
+
     await alert(stores, "jobs.invariants", {
       count: report.invariants.length,
       violations: report.invariants.slice(0, 20),
-    }, { env, mail, now, fetchImpl });
+    }, { env, mail, now, fetchImpl, ...(once ? { dedupe: false } : {}) });
   }
 
   const healthy = !report.errors.length && !report.invariants.length;
@@ -782,6 +799,50 @@ const driftDaily = async (stores, {
     flagged: r.found.filter((f) => f.status === "flagged").length,
     errors: r.errors.length,
   };
+};
+
+// Flagged variations with stock (#499), once a day from
+// STOCK_FLAGS_HOUR: each `hiatus` or `discontinued` one Square counts
+// above 0 goes on the run's invariants as `stock.flagged`, so the
+// jobs.invariants alert tells the farm. A SKU at a count already told
+// is not told again; one whose count changes, or that goes to 0 and
+// comes back, is. The told counts are kept under `stock/flagged`, the
+// day's mark under `stock/flagged/<day>`. A Square that doesn't answer
+// leaves no mark, so the next run asks again.
+// -> [{ rule, id, restock, count }] newly found.
+export const STOCK_FLAGS_HOUR = 7;
+export const FLAGGED_TOLD = "stock/flagged";
+
+const stockFlagsDaily = async (stores, {
+  env, now, catalogIndex, inventory,
+}) => {
+  if (parts(now, tz).hour < STOCK_FLAGS_HOUR) return [];
+
+  const key = `${FLAGGED_TOLD}/${today(now, tz)}`;
+
+  if (await stores.jobs.get(key)) return [];
+
+  const list = await flaggedCounts({ catalogIndex, env, inventory });
+
+  if (!list) return [];
+
+  const found = flaggedInStock(list);
+  const told = ((await stores.jobs.get(FLAGGED_TOLD)) || {}).counts || {};
+  const fresh = found.filter((i) => told[i.sku] !== i.count);
+
+  await stores.jobs.set(FLAGGED_TOLD, {
+    at: now.toISOString(),
+    counts: Object.fromEntries(found.map((i) => [i.sku, i.count])),
+  });
+  await stores.jobs.set(key, { at: now.toISOString(), count: found.length });
+  if (fresh.length) {
+    log.warn({ event: "stock.flagged_in_stock",
+      skus: fresh.map((i) => i.sku) });
+  }
+
+  return fresh.map((i) => ({
+    rule: "stock.flagged", id: i.sku, restock: i.restock, count: i.count,
+  }));
 };
 
 // A money change that takes effect on a date (data/delivery.json,

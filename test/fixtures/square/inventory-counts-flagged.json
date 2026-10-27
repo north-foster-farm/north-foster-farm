@@ -1,0 +1,52 @@
+{
+  "_source": "PLACEHOLDER, not yet recorded: shaped by hand by a cloud lane for #499, which cannot reach Square, after the batch-retrieve answer lib/square.mjs countsAt reads. The coordinator replaces it with a recording from the Square sandbox (bin/fixtures/record) before landing, keeping the placeholder ids below.",
+  "_record": "In the sandbox, four variations with inventory tracked at one location, counts set to 0, 3, 2 and 5. POST /v2/inventory/counts/batch-retrieve with the request below, their ids in that order. Scrub the variation ids to VAR-HIATUS-ZERO, VAR-HIATUS-SOME, VAR-DISC-SOME and VAR-PLAIN-SOME, and the location to <LOCATION_ID>. If Square leaves the count at 0 out, keep its answer as it is: the tests pass either way.",
+  "_shows": "Square's IN_STOCK counts at the farm's location for a hiatus variation at 0, one at 3, a discontinued one at 2 and an unflagged one at 5.",
+  "request": {
+    "catalog_object_ids": [
+      "VAR-HIATUS-ZERO",
+      "VAR-HIATUS-SOME",
+      "VAR-DISC-SOME",
+      "VAR-PLAIN-SOME"
+    ],
+    "location_ids": ["<LOCATION_ID>"],
+    "states": ["IN_STOCK"],
+    "limit": 1000
+  },
+  "response": {
+    "counts": [
+      {
+        "catalog_object_id": "VAR-HIATUS-ZERO",
+        "catalog_object_type": "ITEM_VARIATION",
+        "state": "IN_STOCK",
+        "location_id": "<LOCATION_ID>",
+        "quantity": "0",
+        "calculated_at": "2026-10-27T12:00:00.000Z"
+      },
+      {
+        "catalog_object_id": "VAR-HIATUS-SOME",
+        "catalog_object_type": "ITEM_VARIATION",
+        "state": "IN_STOCK",
+        "location_id": "<LOCATION_ID>",
+        "quantity": "3",
+        "calculated_at": "2026-10-27T12:00:00.000Z"
+      },
+      {
+        "catalog_object_id": "VAR-DISC-SOME",
+        "catalog_object_type": "ITEM_VARIATION",
+        "state": "IN_STOCK",
+        "location_id": "<LOCATION_ID>",
+        "quantity": "2",
+        "calculated_at": "2026-10-27T12:00:00.000Z"
+      },
+      {
+        "catalog_object_id": "VAR-PLAIN-SOME",
+        "catalog_object_type": "ITEM_VARIATION",
+        "state": "IN_STOCK",
+        "location_id": "<LOCATION_ID>",
+        "quantity": "5",
+        "calculated_at": "2026-10-27T12:00:00.000Z"
+      }
+    ]
+  }
+}

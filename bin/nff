@@ -1977,7 +1977,8 @@ const run = async () => {
         c.customersMade ?? 0}${
         (r.errors || []).map((e) => `\n    error ${e.id || "-"}: ${e.error}`)
           .join("")}${(r.invariants || []).map((v) =>
-        `\n    invariant ${v.rule}: ${v.id}`).join("")}`);
+        `\n    invariant ${v.rule}: ${v.id}${v.restock
+          ? ` (${v.restock}, ${v.count} on hand)` : ""}`).join("")}`);
     }
     if (!runs.length) out("No runs recorded.");
 

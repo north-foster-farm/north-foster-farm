@@ -264,6 +264,42 @@ export const archivedInStock = async (stores, {
   }
 };
 
+// A variation the catalog says is not coming back for now, `hiatus`
+// or `discontinued`, with stock in Square anyway (#499): the flag is
+// stale or the count is wrong, and the page sells it either way, since
+// stock wins over both. The jobs tell the farm once a day (lib/jobs.mjs,
+// the `stock.flagged` invariant); `bin/nff stock flags` prints them on
+// demand.
+export const FLAGGED = ["discontinued", "hiatus"];
+
+// Every flagged variation with Square's count at the farm's location.
+// -> [{ sku, name, restock, count }], count null where Square doesn't
+// count it, or null when Square can't be asked or doesn't answer.
+// `inventory` is for tests.
+export const flaggedCounts = async ({
+  catalogIndex = index, env = process.env, deadline,
+  inventory = inventoryCounts,
+} = {}) => {
+  const flagged = [...catalogIndex.values()]
+    .filter((item) => FLAGGED.includes(item.restock));
+  const ids = flagged.map((i) => i.squareVariationId).filter(Boolean);
+  const square = ids.length
+    ? await readSquare(ids, { env, deadline, inventory })
+    : {};
+
+  if (!square) return null;
+
+  return flagged.map((item) => ({
+    sku: item.sku,
+    name: item.lineName,
+    restock: item.restock,
+    count: Object.hasOwn(square, item.squareVariationId || "")
+      ? square[item.squareVariationId] : null,
+  }));
+};
+
+export const flaggedInStock = (list) => list.filter((i) => i.count > 0);
+
 // Errors keyed like the validator's, for lines that cannot be filled.
 // Always a fresh read of Square; `check` names the check in the log.
 export const checkLines = async (stores, lines, {
