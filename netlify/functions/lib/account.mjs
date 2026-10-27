@@ -129,6 +129,9 @@ export const publicOrder = (order, now = clock()) => ({
   customer: {
     firstName: order.customer.firstName || "",
     lastName: order.customer.lastName || "",
+    // The customer's own address, which the order page fills in for a
+    // change (#284): the edit keeps the record's whatever is sent.
+    email: order.customer.email || "",
     phone: order.customer.phone || "",
     contact: order.customer.contact || "",
   },

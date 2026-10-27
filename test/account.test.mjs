@@ -163,6 +163,12 @@ describe("listOrders", () => {
       assert.equal(orders[0].canChange, true);
       assert.equal(orders[0].square, undefined);
       assert.equal(orders[0].history, undefined);
+      // The order page fills a change in from the order itself, the
+      // email included (#284).
+      assert.deepEqual(orders[0].customer, {
+        firstName: "", lastName: "", email: "pat@example.com", phone: "",
+        contact: "",
+      });
     });
 
   it("shows no receipt link for a sandbox payment (#441)", async () => {

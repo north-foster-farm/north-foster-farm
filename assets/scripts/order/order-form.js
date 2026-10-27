@@ -34,7 +34,7 @@ import { stampFrom } from "../session/cache.js";
 import {
   SCRUBBED, pullCart, scrubStray,
 } from "../session/cart-sync.js";
-import { me } from "../session/session.js";
+import { forget, me } from "../session/session.js";
 import { api } from "../utils/api.js";
 import { setBusy as spin } from "../utils/busy-button.js";
 import { whileLoading } from "../utils/skeleton.js";
@@ -338,6 +338,13 @@ export class OrderForm {
     const who = await me().catch(() => ({}));
     const customer = (who && who.customer) || {};
 
+    // The orders answer just named the customer, so a cached /api/me
+    // that says signed out is stale (the header shows Sign in while
+    // the account's own answers come): forgotten, so the next page
+    // asks again. The order's own address fills the form either way
+    // (#284); the edit keeps the record's whatever is sent.
+    if (who && who.signedIn === false) forget();
+
     this.group = customer.discountGroup || null;
     this.pass = order.pass || null;
     this.passFee = !!(order.pass && order.passWaivesFee);
@@ -345,7 +352,9 @@ export class OrderForm {
     const saved = this.draft.load();
 
     this.restore(saved ? saved.payload : {
-      customer: { ...order.customer, email: customer.email },
+      customer: {
+        ...order.customer, email: order.customer.email || customer.email,
+      },
       lines: order.lines.map(({ sku, qty }) => ({ sku, qty })),
       fulfilment: order.fulfilment,
       code: order.code,
