@@ -173,14 +173,20 @@ whole-bird tier goes back to `soon`, not `discontinued`.
 Switching one is a catalog edit and a deploy. The labels live in
 `layouts/partials/order/restock-label.html`.
 
-A `hiatus` or `discontinued` item with stock is a mistake somewhere,
-in the flag or in Square's count, and it sells anyway (#499). The
-jobs check once a day from 07:00: each such variation Square counts
-above 0 at the farm's location goes on the run's invariants as
-`stock.flagged`, with its SKU, flag and count, and the
+Every type but `archived` describes only the sold-out state, so no
+type may hide stock (James, #303 6454589969, 2026-10-27): a `hiatus`
+or `discontinued` item with stock sells, as it should. What can still
+hide stock is a tier the page won't sell whatever its count, an entry
+with `inStock: false` or an `archived` one, that Square counts above
+0: packs on hand that nobody can order (#499). The jobs check once a
+day from 07:00: each such tier at the farm's location goes on the
+run's invariants as `stock.hidden`, with its SKU, why it is hidden
+(`inStock false` or `archived`) and its count, and the
 `jobs.invariants` alert goes out (`docs/monitoring.md`). A SKU is told
-once per count. `bin/nff stock flags` prints every flagged variation
-with its count on demand, read only, and exits 1 when one has stock.
+once per count, and marked told only once the alert is sent.
+`bin/nff stock hidden` prints every such tier with its count on
+demand, read only, and exits 1 when one has stock. Fix the count in
+Square, or the entry in `data/catalog.json`.
 
 The order page's **Show** control (`order/restock.js`, James,
 6303649455) is a radio group (`role="radiogroup"`, named "Show"
