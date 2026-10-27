@@ -267,6 +267,10 @@ const USAGE = `Usage:
                                       off the morning report
   bin/nff stock list
   bin/nff stock set <sku> <count|none>
+  bin/nff stock flags                 every variation flagged hiatus or
+                                      discontinued, with Square's count;
+                                      read only, exits 1 when one has
+                                      stock (the jobs alert on it daily)
   bin/nff login <email>               print a sign-in link
   bin/nff masquerade <email>          open a sign-in link as them
   bin/nff audience import <csv> [--date=YYYY-MM-DD] [--market=..]
@@ -1564,6 +1568,20 @@ const run = async () => {
     return out(await admin.stockList(stores));
   case "stock set":
     return out(await admin.stockSet(stores, rest[0], rest[1]));
+  case "stock flags": {
+    const r = await admin.stockFlags();
+
+    for (const i of r.list) out(admin.flagLine(i));
+    if (!r.list.length) out("No variation is flagged hiatus or discontinued.");
+    if (r.inStock.length) {
+      process.exitCode = 1;
+
+      return out(`${r.inStock.length} flagged with stock: fix the count ` +
+        "in Square or the flag in data/catalog.json.");
+    }
+
+    return out("Every flagged variation is at 0 or not counted.");
+  }
   case "audience invite":
     throw new Error("The old list is imported as subscribed now, with no "
       + "invitation (#303): bin/nff audience import <csv> --date=..");

@@ -8,7 +8,9 @@ import { dollars } from "../../../assets/scripts/order/lib/totals.mjs";
 import {
   addDays, today, weekday,
 } from "../../../assets/scripts/order/lib/zoned.mjs";
-import { adjust, getCounts, setCount } from "./stock.mjs";
+import {
+  adjust, flaggedCounts, flaggedInStock, getCounts, setCount,
+} from "./stock.mjs";
 import { normalizeEmail, validEmail } from "./auth.mjs";
 import { company } from "./company.mjs";
 import { DELIVERING } from "./health.mjs";
@@ -928,3 +930,25 @@ export const stockList = (stores) => getCounts(stores);
 
 export const stockSet = (stores, sku, value) =>
   setCount(stores, sku, value === "none" ? null : Number(value));
+
+// `stock flags` (#499): every variation flagged hiatus or discontinued
+// with Square's count, read only. -> { list, inStock }, inStock those
+// above 0, the ones the jobs alert on. Throws when Square can't be
+// read, so the command never passes on counts it didn't see.
+// `inventory` and `catalogIndex` are for tests.
+export const stockFlags = async (opts = {}) => {
+  const list = await flaggedCounts(opts);
+
+  if (!list) {
+    throw new Error("Square's counts could not be read: it didn't answer, " +
+      "or this environment has no production catalog to ask (try " +
+      "--production).");
+  }
+
+  return { list, inStock: flaggedInStock(list) };
+};
+
+// One line of `stock flags`: "IN STOCK  SKU  hiatus  3  name".
+export const flagLine = (i) => `${i.count > 0 ? "IN STOCK" : "ok      "}  ${
+  i.sku}  ${i.restock}  ${i.count === null ? "not counted" : i.count}  ${
+  i.name}`;

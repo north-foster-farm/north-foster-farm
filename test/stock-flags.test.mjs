@@ -1,5 +1,6 @@
 // A variation flagged hiatus or discontinued with stock in Square
-// (#499): the jobs' daily invariant and its alert. Square's answer is
+// (#499): `bin/nff stock flags`, and the jobs' daily invariant and its
+// alert. Square's answer is
 // replayed from test/fixtures/square/inventory-counts-flagged.json
 // through the real inventory read.
 
@@ -12,6 +13,7 @@ import { instant } from "../assets/scripts/order/lib/zoned.mjs";
 import {
   FLAGGED_TOLD, STOCK_FLAGS_HOUR, runJobs,
 } from "../netlify/functions/lib/jobs.mjs";
+import { flagLine, stockFlags } from "../netlify/functions/lib/admin.mjs";
 import { mark } from "../netlify/functions/lib/health.mjs";
 import { inventoryCounts } from "../netlify/functions/lib/square.mjs";
 import {
@@ -37,7 +39,7 @@ const item = (sku, restock) => ({
   squareVariationId: `VAR-${sku}`,
 });
 
-export const FIXTURE = indexCatalog({
+const FIXTURE =indexCatalog({
   groups: [{
     key: "cuts", label: "Cuts", lines: "name",
     items: [
@@ -51,7 +53,7 @@ export const FIXTURE = indexCatalog({
 
 // The real read, answered by the recording. `counts` changes a SKU's
 // quantity, as the farm would in Square. -> { inventory, asked }.
-export const replay = (counts = {}) => {
+const replay =(counts = {}) => {
   const asked = [];
   const fetchImpl = async (url, init) => {
     asked.push(JSON.parse(init.body).catalog_object_ids);
@@ -121,6 +123,45 @@ describe("flaggedCounts (#499)", () => {
       catalogIndex: FIXTURE,
       inventory: async () => { throw new Error("Square 503"); },
     }), null);
+  });
+});
+
+describe("bin/nff stock flags (#499)", () => {
+  it("prints every flagged variation and fails on the ones with stock",
+    async () => {
+      const r = await stockFlags({
+        catalogIndex: FIXTURE, inventory: replay().inventory,
+      });
+
+      assert.deepEqual(r.list.map(flagLine), [
+        "ok        HIATUS-ZERO  hiatus  0  HIATUS-ZERO",
+        "IN STOCK  HIATUS-SOME  hiatus  3  HIATUS-SOME",
+        "IN STOCK  DISC-SOME  discontinued  2  DISC-SOME",
+      ]);
+      assert.deepEqual(r.inStock.map((i) => i.sku),
+        ["HIATUS-SOME", "DISC-SOME"]);
+    });
+
+  it("passes when every flagged one is at 0, and ignores the rest",
+    async () => {
+      const r = await stockFlags({
+        catalogIndex: FIXTURE,
+        inventory: replay({ "HIATUS-SOME": 0, "DISC-SOME": 0 }).inventory,
+      });
+
+      assert.deepEqual(r.inStock, []);
+      assert.equal(r.list.some((i) => i.sku === "PLAIN-SOME"), false);
+    });
+
+  it("says a variation Square doesn't count is not counted", () => {
+    assert.equal(flagLine({ sku: "S", restock: "hiatus", count: null,
+      name: "N" }), "ok        S  hiatus  not counted  N");
+  });
+
+  it("refuses to pass when Square can't be read", async () => {
+    await assert.rejects(stockFlags({
+      catalogIndex: FIXTURE, inventory: async () => null,
+    }), /could not be read/);
   });
 });
 
