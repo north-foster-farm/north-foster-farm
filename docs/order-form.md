@@ -173,6 +173,15 @@ whole-bird tier goes back to `soon`, not `discontinued`.
 Switching one is a catalog edit and a deploy. The labels live in
 `layouts/partials/order/restock-label.html`.
 
+A `hiatus` or `discontinued` item with stock is a mistake somewhere,
+in the flag or in Square's count, and it sells anyway (#499). The
+jobs check once a day from 07:00: each such variation Square counts
+above 0 at the farm's location goes on the run's invariants as
+`stock.flagged`, with its SKU, flag and count, and the
+`jobs.invariants` alert goes out (`docs/monitoring.md`). A SKU is told
+once per count. `bin/nff stock flags` prints every flagged variation
+with its count on demand, read only, and exits 1 when one has stock.
+
 The order page's **Show** control (`order/restock.js`, James,
 6303649455) is a radio group (`role="radiogroup"`, named "Show"
 for a screen reader, with no visible label since #274) alone and
