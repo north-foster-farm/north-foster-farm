@@ -1,7 +1,10 @@
 // A buying group's sign-up page (#495): /join/?t=<join token>, the
 // link a group's QR code carries. The page asks the server whether the
 // token is in force and what the group is called, then either asks for
-// the name, email address and Farm News, and sends the link, or, for
+// the name, email address and Farm News, and sends the link (which
+// signs in an account holder too, so the token never rides through the
+// sign-in page's next; join/token.mjs keeps it out of the address
+// bar), or, for
 // someone signed in, joins with one button. Either way the join dialog
 // (group/join-dialog.js) asks first. Draft wording, but for the
 // dialog's and ALREADY, which James approved.
@@ -13,6 +16,7 @@ import { say } from "../utils/contact-link.js";
 import { looksLikeEmail } from "../utils/email.js";
 import { fieldError } from "../utils/field-errors.mjs";
 import { forget } from "../session/session.js";
+import { dropToken, takeToken } from "./token.mjs";
 
 const INVALID = "That link to join a group isn't valid. Ask the group's " +
   "host for a new one.";
@@ -32,17 +36,13 @@ const start = async () => {
   const sent = document.getElementById("join-sent");
   const submit = document.getElementById("join-submit");
   const now = document.getElementById("join-now");
-  const token = new URLSearchParams(location.search).get("t") || "";
+  // Off the address bar at once, and never into another URL.
+  const tab = { storage: () => window.sessionStorage };
+  const token = takeToken({ location, history, ...tab });
   const tell = (message) => {
     say(notice, message);
     notice.hidden = false;
   };
-
-  // Sign in first, then back here with the same link.
-  const signin = document.querySelector("[data-join-signin]");
-
-  signin.href = `/login/?next=${encodeURIComponent(
-    `/join/?t=${encodeURIComponent(token)}`)}`;
 
   const { ok, data } = token
     ? await api("/api/join/check", { method: "POST", body: { token } })
@@ -50,6 +50,7 @@ const start = async () => {
     : { ok: false, data: null };
 
   if (!ok || !data || !data.group) {
+    dropToken(tab);
     tell((data && data.message) || INVALID);
 
     return;
@@ -59,6 +60,7 @@ const start = async () => {
     el.textContent = data.group.name;
   }
 
+  if (data.already || data.elsewhere) dropToken(tab);
   if (data.already) {
     tell(ALREADY);
 
@@ -87,6 +89,7 @@ const start = async () => {
       // /api/me now names the group: the header's menu and the
       // account page ask again.
       forget();
+      dropToken(tab);
       location.href = r.data.next;
     });
 

@@ -47,7 +47,9 @@
               <input type="text" id="join-website" name="website" tabindex="-1" autocomplete="off">
             </div>
           </form>
-          <p class="mt-3 mb-0 text-body-secondary">Already have an account? <a href="{{ relURL "login/" }}" data-join-signin>Sign in first</a> and come back to this page.</p>
+          {{/* No trip through /login/: its ?next= would carry the token
+               (#495). The form's link signs an account holder in too. */}}
+          <p class="mt-3 mb-0 text-body-secondary">Already have an account? Use the email address you sign in with. The link signs you in and adds you to the group.</p>
         </div>
 
         {{/* Signed in: no fields, one button. */}}
