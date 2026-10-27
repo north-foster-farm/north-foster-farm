@@ -35,10 +35,26 @@ export const getLedger = async (stores, email) =>
   (await stores.customers.get(creditKey(email)))
   || { email: emailOf(email), entries: [] };
 
+// What a member removed from a group, or who leaves it, keeps of their
+// credit (#495). James has not ruled; this is the one switch:
+//   "keep"  it stays theirs, spendable on any signed-in order until it
+//           expires (the recommended default), and the farm voids it
+//           for abuse with `bin/nff groups credit <email> --void`;
+//   "void"  what is left is voided when they leave.
+export const REMOVED_MEMBER_CREDIT = "keep";
+
+// Whether credit spends on a signed-in order with no group.
+export const creditWithoutGroup = () => REMOVED_MEMBER_CREDIT === "keep";
+
 export const spentOf = (entry) =>
   (entry.spent || []).reduce((s, x) => s + x.amount, 0);
 
-export const leftOf = (entry) => entry.amount - spentOf(entry);
+// What the farm voided of a grant (#495).
+export const voidedOf = (entry) =>
+  (entry.voided || []).reduce((s, x) => s + x.amount, 0);
+
+export const leftOf = (entry) => entry.amount - spentOf(entry)
+  - voidedOf(entry);
 
 export const live = (entry, now) => now.toISOString() <= entry.expiresAt;
 
@@ -197,6 +213,36 @@ export const restoreCredit = async (stores, email, {
   });
 
   return { ledger, restored };
+};
+
+// Voids what is left of every live grant (#495): for abuse, or on
+// leaving a group when REMOVED_MEMBER_CREDIT says so. Each grant keeps
+// what was voided, when and why, so the books still show every dollar.
+// -> { ledger, voided } with `voided` in cents.
+export const voidCredit = async (stores, email, {
+  now = new Date(), reason = "",
+} = {}) => {
+  let voided = 0;
+  const ledger = await swapLedger(stores, email, (stored) => {
+    const at = now.toISOString();
+
+    voided = 0;
+
+    const entries = stored.entries.map((e) => {
+      const left = live(e, now) ? leftOf(e) : 0;
+
+      if (left <= 0) return e;
+      voided += left;
+
+      return {
+        ...e, voided: [...(e.voided || []), { amount: left, at, reason }],
+      };
+    });
+
+    return voided > 0 ? { ...stored, entries } : null;
+  });
+
+  return { ledger, voided };
 };
 
 // How long a spend may stand with no order to show for it: a

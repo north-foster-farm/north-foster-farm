@@ -52,6 +52,8 @@ const REQUEST_BUTTONS = [
   ["layouts/account/single.html", "Save changes"],
   ["layouts/account/single.html", "Yes, cancel it"],
   ["layouts/account/single.html", "Generate new QR code"],
+  ["layouts/account/single.html", "Yes, leave the group"],
+  ["layouts/account/single.html", "Yes, remove"],
   ["layouts/partials/header/account-menu.html", "Sign out"],
   ["layouts/partials/staging-toolbar.html", "Set"],
   ["layouts/partials/staging-toolbar.html", "Reset"],

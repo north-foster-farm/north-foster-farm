@@ -25,7 +25,9 @@ import {
 } from "../../../assets/scripts/order/lib/validate.mjs";
 import { cancelOrder as cancelAndRefund } from "./admin.mjs";
 import { placeOf } from "./describe.mjs";
-import { groupOf, memberKeyOf, memberTerms, retag } from "./groups.mjs";
+import {
+  groupOf, memberKeyOf, memberTerms, offeredGroup, retag,
+} from "./groups.mjs";
 import { AUTOPLAY } from "./auth.mjs";
 import { cutoffAt } from "./jobs.mjs";
 import { now as clock } from "./clock.mjs";
@@ -314,7 +316,11 @@ export const planChange = (order, changes, {
 }) => {
   const c = changes && typeof changes === "object" ? changes : {};
   const errors = {};
-  const buying = groupOf(order.group && order.group.key) || member;
+  const tagged = groupOf(order.group && order.group.key);
+  // The farm's own change keeps the tag's rounds; a customer's is
+  // offered them only while still in the group (#495).
+  const buying = by === "farm" ? tagged || member
+    : offeredGroup(tagged, member);
   const f = JSON.parse(JSON.stringify(order.fulfilment));
   const was = order.fulfilment;
   const wasScheduled = isScheduled(was);
@@ -428,8 +434,8 @@ export const planChange = (order, changes, {
   const patch = { fulfilment: f, notes };
 
   // The group tag's round follows the new day (#471).
-  if (buying && f.date !== order.fulfilment.date) {
-    patch.group = retag(order, buying, terms, f.date);
+  if ((tagged || buying) && f.date !== order.fulfilment.date) {
+    patch.group = retag(order, tagged || buying, terms, f.date);
   }
   if (moved) f.state = "agreed";
   if (moved || f.date !== order.fulfilment.date || !sameSite) {

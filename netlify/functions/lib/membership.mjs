@@ -16,11 +16,14 @@ import {
 import {
   addDays, today,
 } from "../../../assets/scripts/order/lib/zoned.mjs";
-import { groupMembers } from "./group-log.mjs";
-import {
-  GROUPS, getGroupRecord, groupOf, memberKeyOf, namedGroup, privatePlaces,
-} from "./groups.mjs";
 import { normalizeEmail } from "./auth.mjs";
+import { REMOVED_MEMBER_CREDIT, voidCredit } from "./credit.mjs";
+import { audit, groupMembers } from "./group-log.mjs";
+import {
+  GROUPS, getGroupRecord, groupOf, leaveGroup, memberKeyOf, namedGroup,
+  privatePlaces,
+} from "./groups.mjs";
+import { getCustomer } from "./records.mjs";
 
 // The group whose host this address is, or null.
 export const hostedGroup = async (stores, email) => {
@@ -89,6 +92,42 @@ const placeOf = (group) => {
     ? { name: l.name, street: l.street, city: l.city, state: l.state,
       zip: l.zip }
     : null;
+};
+
+// A member out of the group (#495, part 6): the host's Remove, the
+// member's own Leave group, or `bin/nff groups remove`. One logged act.
+// Their open orders stand as placed, at their prices and pickup, and
+// count toward the round; a change can no longer move one into a round
+// (offeredGroup in lib/groups.mjs). Their credit stays theirs, or is
+// voided, by lib/credit.mjs's switch. They get no share of a reward
+// settled after this (lib/rounds.mjs). `action` is "member.remove" or
+// "member.leave". -> { ok } or { ok: false } when they are not in it.
+export const removeMember = async (stores, key, email, {
+  by, action = "member.remove", now = new Date(),
+}) => {
+  const address = normalizeEmail(email);
+  const customer = await getCustomer(stores, address);
+
+  if (!customer || memberKeyOf(customer) !== key) return { ok: false };
+
+  const was = customer.memberGroup;
+
+  await leaveGroup(stores, address);
+
+  const voided = REMOVED_MEMBER_CREDIT === "void"
+    ? (await voidCredit(stores, address, { now, reason: action })).voided
+    : 0;
+
+  await audit(stores, {
+    group: key, by, action, target: address,
+    before: {
+      group: key, joinedAt: was.joinedAt || null, via: was.via || null,
+    },
+    after: { group: null, ...(voided ? { creditVoided: voided } : {}) },
+    now,
+  });
+
+  return { ok: true };
 };
 
 // What the tab shows. -> { group, rounds, host, members? , qr? }

@@ -8,13 +8,15 @@ settings; the rules are the farm's policy as of 2026-10-26.
 
 1. Open the farm's order page and add what you want.
 2. Open **Add discount** in the cart and enter the group's code. The
-   note says "Code applied. Welcome to the group!" and the pickup
-   days now include the gym.
+   note says "Code applied. Welcome to the group!" (or, for someone
+   already in it, "Code applied. You're already in the group.") and
+   the pickup days now include the gym.
 3. Choose the gym under **Pickup days**, enter your details, and pay.
    Cards, Apple Pay, Google Pay, Cash App Pay and Venmo all work.
 
 The link the host hands out does the same as the code: it opens the
-order page with the code already applied.
+order page with the code already applied. The group's QR code joins
+the group without an order (see the Membership tab, below).
 
 Once you have ordered with the code, your email address is on the
 group's list. Sign in with it on your next visit and the gym and your
@@ -49,7 +51,8 @@ prices are there without the code.
     on any order.
   - **Share it**: it is split among the members of the next round in
     proportion to what each spent, and lands on their accounts as
-    credit when that round closes.
+    credit when that round closes. Someone no longer in the group by
+    then gets no share.
   - With no choice by then, it is kept.
 - Credit comes off an order by itself when the member is signed in,
   after the order's discounts. It covers products, not the delivery
@@ -61,6 +64,27 @@ prices are there without the code.
   the money.
 - A reward is worked out once, when the round closes. A later refund
   does not change it.
+
+## The Membership tab
+
+Members see a Membership tab on their account page, and in the
+account menu at the top of every page. It shows the group's name, the
+pickup address, how often rounds run, when this round closes and when
+the next one opens. Members can leave the group there.
+
+As the host, you also see:
+
+- **The group's QR code**, with a button to download it for a sign.
+  Anyone who scans it can join: it opens a page where they enter their
+  name and email address, and the link we email them adds them to the
+  group. The typed code works as before.
+- **Generate new QR code**, if the code has spread further than you
+  want. The old code stops working right away, so anything printed
+  with it must be replaced. Members stay in the group, and the typed
+  code doesn't change.
+- **The members**: each one's name, email address, the date they
+  joined and how. You can remove someone. Their open orders stay as
+  placed, and they can't move an order to a gym pickup after that.
 
 ## Questions
 

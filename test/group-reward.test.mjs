@@ -14,7 +14,10 @@ import {
   groupOf, setGroupHost,
 } from "../netlify/functions/lib/groups.mjs";
 import { runJobs } from "../netlify/functions/lib/jobs.mjs";
-import { saveOrder } from "../netlify/functions/lib/records.mjs";
+import { removeMember } from "../netlify/functions/lib/membership.mjs";
+import {
+  saveCustomer, saveOrder,
+} from "../netlify/functions/lib/records.mjs";
 import {
   chooseReward, closeRound, getRound, rewardFor, rewardWords, roundLine,
   settleReward, settlementWords, splitReward, workRounds,
@@ -49,6 +52,15 @@ const order = (id, email, dollars, round, { credit = 0, refunded = 0,
 
 const seed = async (stores, orders) => {
   for (const o of orders) await saveOrder(stores, o, ny("2026-11-01"));
+};
+
+// The group's members on record: only they share a reward (#495).
+const enrol = async (stores, emails) => {
+  for (const email of emails) {
+    await saveCustomer(stores, { email, name: email.split("@")[0],
+      memberGroup: { id: "vff", joinedAt: "2026-11-01T12:00:00.000Z",
+        via: "code" } });
+  }
 };
 
 describe("the reward on a round", () => {
@@ -117,6 +129,7 @@ describe("the host's choice and the settlement", () => {
       order("NFF-2611-R2AAAA", "b@x.com", 100, "2026-11-22"),
       order("NFF-2611-R2BBBB", "c@x.com", 900, "2026-11-22"),
     ]);
+    await enrol(stores, ["a@x.com", "b@x.com", "c@x.com"]);
     const one = (await closeRound(stores, VFF, "2026-11-08",
       { now: ny("2026-11-08", 0, 1), terms })).round;
     const two = (await closeRound(stores, VFF, "2026-11-22",
@@ -157,6 +170,26 @@ describe("the host's choice and the settlement", () => {
     assert.equal(await creditBalance(stores, "c@x.com", ny("2026-11-23")),
       9_000);
   });
+
+  it("gives no share to a member removed before the close (#495)",
+    async () => {
+      const stores = testStores();
+
+      await rounds(stores);
+      await removeMember(stores, "vff", "c@x.com", { by: { role: "farm" } });
+
+      const chosen = await chooseReward(stores, VFF, "2026-11-08", "share",
+        { now: ny("2026-11-10") });
+      const two = await getRound(stores, "vff", "2026-11-22");
+      const settled = await settleReward(stores, VFF, chosen, two, {
+        now: ny("2026-11-22", 0, 2), terms,
+      });
+
+      assert.deepEqual(settled.settled.shares.map((s) => [s.email, s.amount]),
+        [["b@x.com", 10_000]]);
+      assert.equal(await creditBalance(stores, "c@x.com", ny("2026-11-23")),
+        0);
+    });
 
   it("rounds each share down and keeps what is left", () => {
     const split = splitReward(10_000, [
@@ -575,6 +608,9 @@ describe("credit a lost submission spent", () => {
 describe("a share that fails partway", () => {
   it("is finished as a share, and the choice can't change", async () => {
     const stores = testStores();
+
+    await enrol(stores, ["b@x.com", "c@x.com"]);
+
     const real = stores.customers.create;
     let calls = 0;
 

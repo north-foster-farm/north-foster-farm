@@ -5,13 +5,16 @@
 //                                   ?download=1 saves it as a file
 //   POST /api/membership/qr         { rotate: true } the host replaces
 //                                   it; the old one stops at once
+//   POST /api/membership/remove     { email } the host takes a member
+//                                   out (#495, part 6)
+//   POST /api/membership/leave      {} a member leaves
 //
 // 401 with no session. Anyone who is neither the group's member nor
 // its host gets 404, and a member asking for a host's part gets 404
 // too: nothing says whether there is anything there.
 
 import terms from "./lib/terms.mjs";
-import { sameSite, sessionFrom } from "./lib/auth.mjs";
+import { normalizeEmail, sameSite, sessionFrom } from "./lib/auth.mjs";
 import { now as clock } from "./lib/clock.mjs";
 import { audit } from "./lib/group-log.mjs";
 import {
@@ -20,12 +23,23 @@ import {
 import { json, readJson } from "./lib/http.mjs";
 import { withLog } from "./lib/log.mjs";
 import { gate } from "./lib/maintenance.mjs";
-import { membershipView, roleOf } from "./lib/membership.mjs";
+import {
+  membershipView, removeMember, roleOf,
+} from "./lib/membership.mjs";
 import { qrSvg } from "./lib/qr.mjs";
 import { siteUrl } from "./lib/site.mjs";
 import { stores as defaultStores } from "./lib/store.mjs";
 
 const NOTHING = () => json(404, { error: "Not found." });
+
+const PATHS = [
+  "/api/membership", "/api/membership/qr", "/api/membership/remove",
+  "/api/membership/leave",
+];
+
+// Draft wording for James.
+export const SELF = "To leave the group yourself, use Leave group.";
+export const NOT_IN = "That person isn't in the group.";
 
 // The QR code, the current token's, never cached: after a rotation
 // the next request is the new one.
@@ -49,9 +63,7 @@ export const handle = async (req, {
   const url = new URL(req.url);
   const path = url.pathname.replace(/\/+$/, "");
 
-  if (!["/api/membership", "/api/membership/qr"].includes(path)) {
-    return NOTHING();
-  }
+  if (!PATHS.includes(path)) return NOTHING();
   if (req.method === "POST" && !sameSite(req)) {
     return json(403, { error: "Cross-site request." });
   }
@@ -69,11 +81,52 @@ export const handle = async (req, {
       { "Cache-Control": "no-store" });
   }
 
+  const { key, name } = role.group;
+
+  // A member's own Leave group, with its confirmation on the page.
+  if (path === "/api/membership/leave" && req.method === "POST") {
+    if (!role.member) return NOTHING();
+
+    const closed = await gate(stores);
+
+    if (closed) return closed;
+
+    await removeMember(stores, key, session.email, {
+      by: { role: "member", email: session.email }, action: "member.leave",
+      now,
+    });
+
+    return json(200, { ok: true });
+  }
+
   // Everything past here is the host's alone.
   if (!role.host) return NOTHING();
 
-  const { key, name } = role.group;
   const by = { role: "host", email: session.email };
+
+  if (path === "/api/membership/remove" && req.method === "POST") {
+    const closed = await gate(stores);
+
+    if (closed) return closed;
+
+    const body = await readJson(req);
+    const email = body && typeof body.email === "string"
+      ? normalizeEmail(body.email) : "";
+
+    if (!email) return json(400, { errors: { email: "Expected an email." } });
+    if (email === session.email) {
+      return json(422, { ok: false, message: SELF });
+    }
+
+    const r = await removeMember(stores, key, email, { by, now });
+
+    if (!r.ok) return json(404, { ok: false, message: NOT_IN });
+
+    return json(200, {
+      ok: true,
+      members: (await membershipView(stores, role, { terms, now })).members,
+    });
+  }
 
   if (path === "/api/membership/qr" && req.method === "GET") {
     const token = await joinTokenOf(stores, key, { now });
@@ -106,6 +159,4 @@ export const handle = async (req, {
 
 export default withLog("membership", async (req) => handle(req));
 
-export const config = {
-  path: ["/api/membership", "/api/membership/qr"],
-};
+export const config = { path: PATHS };

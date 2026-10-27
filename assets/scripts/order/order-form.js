@@ -290,6 +290,13 @@ export class OrderForm {
     if (who.customer.memberGroup && !this.member && !this.editing) {
       this.applyGroup("").catch(() => {});
     }
+    // Credit kept after leaving a group (#495): it comes off any order
+    // signed in, as the server takes it.
+    this.ownCredit = Number(who.credit) || 0;
+    if (this.ownCredit && !this.member && !this.editing) {
+      this.credit = this.ownCredit;
+      this.refresh();
+    }
     this.prefill(who.customer);
   }
 
@@ -1158,7 +1165,7 @@ export class OrderForm {
   dropGroup(message) {
     this.member = null;
     this.groupCode = null;
-    this.credit = 0;
+    this.credit = this.ownCredit || 0;
     this.terms = withPlaces(this.terms, this.raw);
     this.dates.dropExtra();
     this.renderGroupDelivery();

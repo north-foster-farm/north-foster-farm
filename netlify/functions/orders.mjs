@@ -36,7 +36,8 @@ import {
 } from "./lib/checkout.mjs";
 import { now as clock, real } from "./lib/clock.mjs";
 import {
-  balanceOf, creditBalance, getLedger, heldBy, restoreCredit, spendCredit,
+  balanceOf, creditBalance, creditWithoutGroup, getLedger, heldBy,
+  restoreCredit, spendCredit,
 } from "./lib/credit.mjs";
 import { json, ORDER_BUDGET_MS, readJson } from "./lib/http.mjs";
 import { alert, count } from "./lib/health.mjs";
@@ -273,9 +274,12 @@ export const handle = async (req, {
   // already holds credit against the id it reserved; that hold counts
   // as available, or the retry would price the order without it and
   // the hold would be lost (security re-re-review, 6427102482).
-  const reserved = session && buying
+  // A member who left or was removed (#495) keeps spending it on any
+  // signed-in order while lib/credit.mjs's switch says so.
+  const spends = !!session && (!!buying || creditWithoutGroup());
+  const reserved = spends
     ? await stores.orders.get(submissionKey(key)) : null;
-  const ledger = session && buying
+  const ledger = spends
     ? await getLedger(stores, session.email) : null;
   const creditAvailable = ledger
     ? balanceOf(ledger, now)

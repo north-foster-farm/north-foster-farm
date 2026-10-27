@@ -302,6 +302,48 @@ class Account {
 
     host.hidden = !view.host;
     if (view.host) this.renderHost(view);
+    this.renderLeave(view);
+  }
+
+  // A member's own Leave group (#495), asked first. Gone, the page
+  // starts again without the tab.
+  renderLeave(view) {
+    const box = qs(document, "[data-mem-leave]");
+
+    box.hidden = !view.member;
+    if (!view.member || this.leaveWired) return;
+    this.leaveWired = true;
+
+    const open = document.getElementById("mem-leave");
+    const confirm = document.getElementById("mem-leave-confirm");
+    const yes = document.getElementById("mem-leave-yes");
+    const ask = (on) => {
+      confirm.hidden = !on;
+      open.setAttribute("aria-expanded", String(on));
+      (on ? yes : open).focus();
+    };
+
+    qs(box, "[data-mem='leave-name']").textContent = view.group.name;
+    open.addEventListener("click", () => ask(true));
+    document.getElementById("mem-leave-keep").addEventListener("click",
+      () => ask(false));
+    yes.addEventListener("click", async () => {
+      if (isBusy(yes)) return;
+
+      const { ok, data } = await whileBusy(yes, api("/api/membership/leave", {
+        method: "POST", body: {},
+      }).catch(() => ({ ok: false, data: null })));
+
+      if (!ok) {
+        failBusy(yes, data && data.message);
+
+        return;
+      }
+      // /api/me changes: the header's menu and this page ask again.
+      forget();
+      location.replace("/account/#orders");
+      location.reload();
+    });
   }
 
   // The host's part: the QR code, its download and replacement, and
@@ -364,8 +406,49 @@ class Account {
       qs(row, "[data-out='name']").textContent = m.name || "No name yet";
       qs(row, "[data-out='email']").textContent = m.email;
       qs(row, "[data-out='joined']").textContent = joinedLine(m, placed);
+      this.wireRemove(row, m);
       list.append(item);
     }
+  }
+
+  // The host's Remove on one member (#495), asked first. The host's
+  // own row has none: they leave with Leave group.
+  wireRemove(row, m) {
+    const remove = qs(row, "[data-out='remove']");
+    const confirm = qs(row, "[data-out='confirm']");
+    const yes = qs(row, "[data-out='yes']");
+    const ask = (on) => {
+      confirm.hidden = !on;
+      remove.hidden = on;
+      (on ? yes : remove).focus();
+    };
+
+    if (m.email === this.customer.email) {
+      remove.remove();
+      confirm.remove();
+
+      return;
+    }
+
+    qs(row, "[data-out='who']").textContent = m.name || m.email;
+    remove.setAttribute("aria-label", `Remove ${m.name || m.email}`);
+    remove.addEventListener("click", () => ask(true));
+    qs(row, "[data-out='keep']").addEventListener("click", () => ask(false));
+    yes.addEventListener("click", async () => {
+      if (isBusy(yes)) return;
+
+      const { ok, data } = await whileBusy(yes, api("/api/membership/remove", {
+        method: "POST", body: { email: m.email },
+      }).catch(() => ({ ok: false, data: null })));
+
+      if (!ok) {
+        failBusy(yes, data && data.message);
+
+        return;
+      }
+      this.renderMembers(data.members || []);
+      this.say(`${m.name || m.email} is no longer in the group.`);
+    });
   }
 
   // Arrived from an email about one order: show that order rather

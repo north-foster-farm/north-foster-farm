@@ -27,10 +27,11 @@ import {
 import { applyChange, planChange } from "./account.mjs";
 import { grantCredit } from "./credit.mjs";
 import {
-  GROUPS, getGroupRecord, roundOccurrence, roundOrders, roundSummary,
+  GROUPS, getGroupRecord, memberKeyOf, roundOccurrence, roundOrders,
+  roundSummary,
 } from "./groups.mjs";
 import { sendMail } from "./mail.mjs";
-import { OPEN } from "./records.mjs";
+import { OPEN, getCustomer } from "./records.mjs";
 import * as squareApi from "./square.mjs";
 
 export const CHOICES = ["keep", "share"];
@@ -301,7 +302,17 @@ export const settleReward = async (stores, group, prior, next, {
   let settledAs = kind;
 
   if (kind === "share") {
-    const split = splitReward(claimed.reward.amount, next.members);
+    // Only those still in the group share it (#495): a member removed,
+    // or who left, before this close gets nothing of it.
+    const still = [];
+
+    for (const m of next.members) {
+      if (memberKeyOf(await getCustomer(stores, m.email)) === group.key) {
+        still.push(m);
+      }
+    }
+
+    const split = splitReward(claimed.reward.amount, still);
 
     shares = split.shares.filter((s) => s.amount > 0);
     leftover = split.leftover;

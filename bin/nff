@@ -249,6 +249,10 @@ const USAGE = `Usage:
                                       qr, walk-in, farm, host, invite).
                                       --backfill logs the members from
                                       before the join log, once
+  bin/nff groups remove <key> <email> take a member out of the group,
+                                      logged: open orders stand as
+                                      placed, credit stays theirs
+                                      (lib/credit.mjs's switch)
   bin/nff groups log <key>            every act on the group by its
                                       host, a member or the farm, and
                                       the join log, oldest first
@@ -272,8 +276,11 @@ const USAGE = `Usage:
                                       the host's choice for that
                                       round's reward, by the close of
                                       the next round (kept otherwise)
-  bin/nff groups credit <email>       a member's credit: balance,
-                                      grants, spends, expiry
+  bin/nff groups credit <email> [--void]
+                                      a member's credit: balance,
+                                      grants, spends, expiry. --void
+                                      voids what is left, for abuse,
+                                      logged in each group it came from
   bin/nff groups close <key>          close any round whose close has
                                       passed and settle rewards now;
                                       the jobs do this on their own
@@ -570,6 +577,7 @@ const [
   { describeError },
   groupLog,
   qr,
+  membership,
 ] = await Promise.all([
   import("../netlify/functions/lib/terms.mjs"),
   import("../netlify/functions/lib/admin.mjs"),
@@ -601,6 +609,7 @@ const [
   import("../netlify/functions/lib/paypal.mjs"),
   import("../netlify/functions/lib/group-log.mjs"),
   import("../netlify/functions/lib/qr.mjs"),
+  import("../netlify/functions/lib/membership.mjs"),
 ]);
 
 // Who acts in a group's audit log when it is this CLI (#495).
@@ -1922,6 +1931,22 @@ const run = async () => {
 
     return undefined;
   }
+  // A member out of the group (#495), logged as the farm's act.
+  case "groups remove": {
+    const g = groups.groupOf(rest[0]);
+
+    if (!g) throw new Error(`Unknown group "${rest[0]}".`);
+    if (!rest[1]) throw new Error("groups remove <key> <email>");
+
+    const r = await membership.removeMember(stores, g.key, rest[1], {
+      by: FARM,
+    });
+
+    if (!r.ok) throw new Error(`${rest[1]} isn't in ${g.key}.`);
+
+    return out(`${rest[1]} is out of ${g.name}. Their open orders stand ` +
+      "as placed.");
+  }
   // The group's audit log and join log, oldest first (#495).
   case "groups log": {
     const g = groups.groupOf(rest[0]);
@@ -2067,10 +2092,27 @@ const run = async () => {
   }
   // A member's credit: the balance and every grant and spend.
   case "groups credit": {
-    if (!rest[0]) throw new Error("groups credit <email>");
+    if (!rest[0]) throw new Error("groups credit <email> [--void]");
+
+    const now = new Date();
+
+    // For abuse (#495): what is left goes, and each group the credit
+    // came from logs it.
+    if (flags.void) {
+      const before = await credit.creditBalance(stores, rest[0], now);
+      const { ledger: after, voided } = await credit.voidCredit(stores,
+        rest[0], { now, reason: "farm" });
+
+      for (const key of new Set(after.entries.map((e) => e.from.group))) {
+        await groupLog.audit(stores, { group: key, by: FARM,
+          action: "credit.void", target: after.email,
+          before: { balance: before }, after: { balance: before - voided },
+          now });
+      }
+      out(`Voided ${dollars(voided)}.`);
+    }
 
     const ledger = await credit.getLedger(stores, rest[0]);
-    const now = new Date();
 
     out(`${ledger.email}  balance ${dollars(credit.balanceOf(ledger, now))}`);
     for (const e of ledger.entries) {

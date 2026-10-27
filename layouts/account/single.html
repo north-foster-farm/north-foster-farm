@@ -126,6 +126,22 @@
                 <ul class="account-membership-list" id="mem-list"></ul>
               </section>
             </div>
+
+            {{/* A member leaves on their own (James, 6452533356), with
+                 the same rules as a removal. */}}
+            <section class="account-group" aria-labelledby="mem-leave-h" data-mem-leave hidden>
+              <h2 class="h4 account-group-title" id="mem-leave-h">Leave the group</h2>
+              <p>Your open orders stay as placed. To join again, you'll need the group's code or QR code.</p>
+              <button class="btn btn-outline-danger" type="button" id="mem-leave" aria-expanded="false" aria-controls="mem-leave-confirm">Leave group</button>
+              <div class="account-order-panel" id="mem-leave-confirm" hidden>
+                <p class="account-panel-title">Leave <span data-mem="leave-name"></span>?</p>
+                <p class="form-text">The host will no longer see your name or email address.</p>
+                <div class="account-panel-actions">
+                  {{ partial "busy-button.html" (dict "label" "Yes, leave the group" "busy" "Leaving" "class" "btn-danger btn-sm" "id" "mem-leave-yes" "type" "button" "error" true) }}
+                  <button type="button" class="btn btn-outline-secondary btn-sm" id="mem-leave-keep">Stay</button>
+                </div>
+              </div>
+            </section>
           </section>
 
           {{/* Forms here are Bootstrap grid forms (Forms, Layout,
@@ -411,6 +427,15 @@
         <span class="account-membership-email" data-out="email"></span>
       </div>
       <span class="account-membership-joined" data-out="joined"></span>
+      <button class="btn btn-link btn-sm text-danger p-0" type="button" data-out="remove">Remove</button>
+      <div class="account-order-panel account-membership-confirm" data-out="confirm" hidden>
+        <p class="account-panel-title">Remove <span data-out="who"></span> from the group?</p>
+        <p class="form-text">Their open orders stay as placed. They could join again with the group's code or QR code.</p>
+        <div class="account-panel-actions">
+          {{ partial "busy-button.html" (dict "label" "Yes, remove" "busy" "Removing" "class" "btn-danger btn-sm" "type" "button" "error" true "attrs" (dict "data-out" "yes")) }}
+          <button type="button" class="btn btn-outline-secondary btn-sm" data-out="keep">Never mind</button>
+        </div>
+      </div>
     </li>
   </template>
 
