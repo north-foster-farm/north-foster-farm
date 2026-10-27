@@ -120,6 +120,13 @@ export const notifyFarm = async (stores, order, key, message, {
   return sendForOrder(stores, order, key, message, { mail, env, now, to });
 };
 
+// Whether the customer was told their order is confirmed. An order
+// paid through the old site's invoices (#490) noted it as
+// `paymentReceived`, and that counts: a restore or replay must not
+// confirm it again.
+export const confirmationSent = (order) => !!(order.emails
+  && (order.emails.orderConfirmed || order.emails.paymentReceived));
+
 // "Your order is confirmed", once, when the order is paid. `again`
 // sends it once more, which the `emails` table would otherwise keep
 // to the first.
@@ -129,7 +136,7 @@ export const confirmOrder = async (stores, order, {
   now = clock(),
   again = false,
 } = {}) => {
-  const done = !!(order.emails && order.emails.orderConfirmed);
+  const done = confirmationSent(order);
 
   if (done && !again) return order;
 

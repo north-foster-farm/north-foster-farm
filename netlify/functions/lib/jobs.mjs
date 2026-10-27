@@ -82,7 +82,7 @@ import { completeInSquare } from "./complete.mjs";
 import { farmEmails, sendMail } from "./mail.mjs";
 import { audienceConfigured, syncAudience } from "./news.mjs";
 import { changedAfterPrint, packingDaily } from "./packing.mjs";
-import { sendForOrder } from "./payments.mjs";
+import { confirmationSent, sendForOrder } from "./payments.mjs";
 import { sweepStrandedCredit } from "./credit.mjs";
 import { workRounds } from "./rounds.mjs";
 import { checkRefunds } from "./settle.mjs";
@@ -234,8 +234,11 @@ export const runJobs = async (stores, {
     // The emails of a paid order are sent after the answer that took
     // the payment (lib/checkout.mjs announceNew); one that never went
     // out, for any reason, goes now. An unpaid order the farm made
-    // (#181) gets its confirmation when it is paid, not here.
-    if (order.status === "paid" && !sent(order, "orderConfirmed")) {
+    // (#181) gets its confirmation when it is paid, not here. One the
+    // old site confirmed (`paymentReceived`) was told, and one whose
+    // day has passed is past telling (#490).
+    if (order.status === "paid" && !confirmationSent(order)
+      && today(now, tz) <= order.fulfilment.date) {
       await announceNew(stores, order, opts);
       report.announced.push(order.id);
     }
