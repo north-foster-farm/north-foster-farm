@@ -34,6 +34,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { loadEnv } from "../../netlify/functions/lib/env.mjs";
 import { devSchedule } from "../dev-schedule.mjs";
+import { e2eEnv } from "./env.mjs";
 import { parseToml } from "./netlify-toml.mjs";
 import { startServer } from "./server.mjs";
 
@@ -50,11 +51,9 @@ if (!process.env.E2E_STAGING_TOKEN) {
 
 loadEnv(join(root, ".env.development.sample"));
 // The outbox is where the specs read the mail the site would have sent
-// (support/staging.mjs, waitForMail), as they do on staging.
-Object.assign(process.env, {
-  SITE_CONTEXT: "dev", SQUARE_ENV: "fake", PAYPAL_ENV: "fake",
-  MAIL_DRIVER: "outbox", SITE_URL: `http://localhost:${port}`,
-});
+// (support/staging.mjs, waitForMail), as they do on staging. Stock is
+// never read from production here (env.mjs).
+Object.assign(process.env, e2eEnv(port));
 if (!process.env.PICKUP_SCHEDULE) process.env.PICKUP_SCHEDULE = devSchedule();
 
 rmSync(site, { recursive: true, force: true });
