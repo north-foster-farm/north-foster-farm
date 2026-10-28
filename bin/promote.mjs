@@ -318,17 +318,18 @@ const releaseFacts = async (sh, sha, main) => {
 
 // Whether the full suite passed against staging on `sha`, from the
 // workflow's runs on e2e/staging-full and, for each green one, its
-// jobs. -> { ok, reason }.
+// jobs. A reply without them counts as no run, so it refuses; a failed
+// call throws. -> { ok, reason }.
 export const stagingSuite = async (api, sha) => {
   const { workflow_runs: runs } = await api(`repos/${REPO}/actions/`
     + `workflows/${STAGING_E2E.workflow}/runs?branch=${STAGING_E2E.branch}`
     + `&head_sha=${sha}&status=success&per_page=100`);
 
-  for (const r of fullRuns(runs, sha)) {
+  for (const r of fullRuns(runs ?? [], sha)) {
     const { jobs } = await api(`repos/${REPO}/actions/runs/${r.id}/jobs`
       + "?per_page=100");
 
-    if (specsRan(jobs)) {
+    if (specsRan(jobs ?? [])) {
       return {
         ok: true, reason: `full e2e passed on staging at ${sha}: ${r.html_url}`,
       };

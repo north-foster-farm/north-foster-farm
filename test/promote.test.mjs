@@ -258,6 +258,40 @@ describe("promoting main", () => {
       }
     });
 
+  // The world, with the Actions API answering paths that hold `part`
+  // through `reply`.
+  const actions = (part, reply) => {
+    const w = world({
+      heads, pulls: pr(), timeline: label("2026-10-18T11:00:00Z"),
+    });
+    const { api } = w.deps;
+
+    w.deps.api = (path, opts) => (path.includes(part)
+      ? reply()
+      : api(path, opts));
+
+    return w;
+  };
+
+  it("refuses when the staging runs can't be read", async () => {
+    const w = actions("/actions/workflows/",
+      () => Promise.reject(new Error("HTTP 502: Bad Gateway")));
+
+    await assert.rejects(promote("main", { out: w.out }, w.deps),
+      /HTTP 502: Bad Gateway/);
+    assert.deepEqual(pushes(w.calls), []);
+  });
+
+  it("refuses when the runs or jobs reply is malformed", async () => {
+    for (const part of ["/actions/workflows/", "/actions/runs/"]) {
+      const w = actions(part, async () => ({}));
+
+      await assert.rejects(promote("main", { out: w.out }, w.deps),
+        /Refused: the full e2e suite has not passed against staging/);
+      assert.deepEqual(pushes(w.calls), []);
+    }
+  });
+
   it("asks staging's promotion for no e2e run", async () => {
     const w = world({ suite: [] });
 
