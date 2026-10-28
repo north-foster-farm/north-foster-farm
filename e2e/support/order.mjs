@@ -174,8 +174,19 @@ export class OrderPage {
   async open(cart = null, { method } = {}) {
     const query = cart ? `?add=${addQuery(cart)}` : "";
 
-    await this.page.goto(`/order/${query}`);
+    // Not the whole `load` (#506): on staging one goto sat 45 s without
+    // it. The page has no images or third-party tags, and fetch() never
+    // holds `load`, but with one category shown the pay section is
+    // within pay.js's 600 px margin, so Square's and PayPal's sandbox
+    // SDK scripts go in before `load` and hold it while they crawl.
+    // What the tests need is the form wired, which order-form.js does
+    // on DOMContentLoaded and the enabled date below proves, and the
+    // site's own fonts in, so layout measures are final.
+    await this.page.goto(`/order/${query}`, {
+      waitUntil: "domcontentloaded",
+    });
     await expect(this.page.locator("#onfarm-date")).toBeEnabled();
+    await this.page.evaluate(() => document.fonts.ready.then(() => {}));
     // ?add= scrolls the cart into view 300 ms after load, smoothly; a
     // test that scrolls first would be scrolled back. Let it finish.
     if (cart) await this.page.waitForTimeout(1_000);
