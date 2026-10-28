@@ -194,6 +194,32 @@ describe("/api/stock with the scope cookie", () => {
         { inStock: true, available: 6 });
     });
 
+  // The desktop and phone copies of a test run at the same moment
+  // (staging run 40632954855): each sees its own count, never the
+  // other's, on the page and in the order check alike.
+  it("keeps two scopes pinning one SKU at once apart", async () => {
+    const stores = testStores();
+    const inventory = sandbox({ [EGGS_VARIATION]: 6 });
+    const lines = [{ sku: EGGS, qty: 2 }];
+
+    await Promise.all([
+      pin(stores, { scope: SCOPE, counts: { [EGGS]: 0 } }, { env: staging }),
+      pin(stores, { scope: OTHER, counts: { [EGGS]: 4 } }, { env: staging }),
+    ]);
+
+    const [mine, theirs, mineCheck, theirsCheck] = await Promise.all([
+      page(stores, staging, SCOPE),
+      page(stores, staging, OTHER),
+      checkLines(stores, lines, { env: staging, inventory, scope: SCOPE }),
+      checkLines(stores, lines, { env: staging, inventory, scope: OTHER }),
+    ]);
+
+    assert.deepEqual(mine[EGGS], { inStock: false, available: 0 });
+    assert.deepEqual(theirs[EGGS], { inStock: true, available: 4 });
+    assert.equal(mineCheck.ok, false);
+    assert.equal(theirsCheck.ok, true);
+  });
+
   it("ignores the cookie in production", async () => {
     const stores = testStores();
 
