@@ -159,21 +159,34 @@ plainly; never report a failing check as passing.
 
 James's standing rule for every feature branch, lane and release from
 release A on (#303, #502, 2026-10-28). It replaces the earlier wording
-that kept the full suite for one final run on a frozen commit.
+that kept the full suite for one final run on a frozen commit. Points
+2, 6 and 7 were added on 2026-10-28, and point 2 replaces the wording
+that had James wait for the full suite before looking.
 
-1. **Once `next` is green, push to `staging` and ping James.** Don't
-   wait to batch, and don't wait to be asked.
-2. **e2e on `next`: only the specs the new code is expected to touch
+1. **Once `next` is green, push to `staging`.** Don't wait to batch,
+   and don't wait to be asked.
+2. **Ping James right away and run the full suite in parallel.** He
+   looks at `staging` while the suite runs. The suite gates the
+   promotion to production, not his look at `staging`.
+3. **e2e on `next`: only the specs the new code is expected to touch
    directly.** Name them in the lane report or the landing comment and
    run them by name (`gh workflow run e2e.yml --ref <branch> -f
    specs="..."`).
-3. **The full suite runs against `staging`** after every push to it:
+4. **The full suite runs against `staging`** after every push to it:
    push staging's sha to `e2e/staging-full`.
-4. **A failure on staging:** triage it, fix it in `next`, rerun the
+5. **A failure on staging:** triage it, fix it in `next`, rerun the
    affected specs on `next`, push the fix to `staging` and rerun the
    full suite there. `staging` is always fixed forward, never
-   reverted. The ping tells James what failed and why.
-5. **Production** is promoted only after James OKs it on staging.
+   reverted. Tell James what failed and why.
+6. **A newer push to `staging` supersedes an older full run.** The
+   older run stands down at its next safe point, between specs and
+   never inside one, and its teardown and the sweep of the suite's
+   leftovers still run. Today the workflow only stands down before
+   the first spec, when the deploy it waits for is no longer
+   staging's; the change for the rest is James's to make in `.github/`.
+7. **Production is promoted only from the exact commit the full suite
+   passed on,** and only after James OKs `staging`. A green run on an
+   earlier commit doesn't count once a later fix lands.
 
 ## The e2e suite against staging
 
@@ -181,7 +194,8 @@ Push staging's sha to `e2e/staging-full` (`git push origin
 <sha>:refs/heads/e2e/staging-full --force`; only the coordinator does)
 and `.github/workflows/e2e-staging.yml` waits for Netlify to serve that
 commit, then runs every spec. That is the run after every push to
-`staging`. A push to `e2e/staging` instead runs every spec not on
+`staging`, and the one production is promoted from: it must have
+passed on that exact commit (point 7). A push to `e2e/staging` instead runs every spec not on
 `e2e/staging-passing.txt`, for a quick rerun of what failed while the
 fix is on its way. The run's summary lists the failed specs and the passed ones as `spec
 sha date` lines: paste those into `e2e/staging-passing.txt` on the next

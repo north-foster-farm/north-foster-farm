@@ -98,7 +98,7 @@ manual steps.
 | | Publish a previous deploy | Revert on `next` and promote |
 | --- | --- | --- |
 | What happens | Netlify serves an older atomic deploy: its HTML, its functions, its schedule | A new commit on `next` undoes the release; it is promoted to `staging` and `main`, and Netlify builds and publishes it |
-| Live in | Seconds once the call is made (Netlify: "instantaneous") | Green checks on `next`, James's approval, two promotions and a build: a few minutes once he approves |
+| Live in | Seconds once the call is made (Netlify: "instantaneous") | Green checks on `next`, the full e2e suite on `staging`, James's approval, two promotions and a build: a few minutes once he approves and the suite has passed (#502, 2026-10-28) |
 | Env vars | The values set when that deploy was built (see below) | The values set now |
 | Survives the next push | Only if auto publishing is locked | Yes |
 | Needs | The deploy still to exist (30 days on this plan) | git, and GitHub Actions up |
