@@ -5,18 +5,21 @@
 
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { describe, it } from "node:test";
+import { after, before, describe, it } from "node:test";
 
 import { handle as authHandle } from "../netlify/functions/auth.mjs";
 import { handle } from "../netlify/functions/membership.mjs";
 import { createSession } from "../netlify/functions/lib/auth.mjs";
 import { auditLog } from "../netlify/functions/lib/group-log.mjs";
 import {
-  findGroupByToken, joinGroup, joinTokenOf, setGroupCode, setGroupHost,
+  GROUPS, findGroupByToken, joinGroup, joinTokenOf, memberKeyOf,
+  setGroupCode, setGroupHost,
 } from "../netlify/functions/lib/groups.mjs";
 import { maskEmail } from "../netlify/functions/lib/mask.mjs";
-import { roundsNow } from "../netlify/functions/lib/membership.mjs";
-import { saveCustomer } from "../netlify/functions/lib/records.mjs";
+import { roleOf, roundsNow } from "../netlify/functions/lib/membership.mjs";
+import {
+  getCustomer, saveCustomer,
+} from "../netlify/functions/lib/records.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
 import terms from "../netlify/functions/lib/terms.mjs";
 import {
@@ -81,8 +84,8 @@ describe("who gets what", () => {
     const { stores, stranger } = await setup();
 
     for (const [path, method, body] of [
-      ["/api/membership", "GET"], ["/api/membership/qr", "GET"],
-      ["/api/membership/qr", "POST", { rotate: true }],
+      ["/api/membership", "GET"], ["/api/membership/qr?group=vff", "GET"],
+      ["/api/membership/qr", "POST", { group: "vff", rotate: true }],
     ]) {
       const res = await call(stores, path, { method, headers: stranger, body });
 
@@ -97,18 +100,18 @@ describe("who gets what", () => {
       const view = await res.json();
 
       assert.equal(res.status, 200);
-      assert.equal(view.member, true);
-      assert.equal(view.host, false);
-      assert.equal(view.group.name, "The Village Family Fitness");
-      assert.equal(typeof view.group.place.street, "string");
-      assert.equal(view.rounds.current.date, "2026-11-08");
-      assert.equal(view.members, undefined);
-      assert.equal(view.qr, undefined);
+      assert.equal(view.member.key, "vff");
+      assert.equal(view.member.group.name, "The Village Family Fitness");
+      assert.equal(typeof view.member.group.place.street, "string");
+      assert.equal(view.member.rounds.current.date, "2026-11-08");
+      assert.equal(view.member.members, undefined);
+      assert.equal(view.member.qr, undefined);
+      assert.deepEqual(view.hosts, []);
 
-      assert.equal((await call(stores, "/api/membership/qr",
+      assert.equal((await call(stores, "/api/membership/qr?group=vff",
         { headers: member })).status, 404);
       assert.equal((await call(stores, "/api/membership/qr", {
-        method: "POST", headers: member, body: { rotate: true },
+        method: "POST", headers: member, body: { group: "vff", rotate: true },
       })).status, 404);
     });
 
@@ -116,22 +119,25 @@ describe("who gets what", () => {
     const { stores, host } = await setup();
     const view = await (await call(stores, "/api/membership",
       { headers: host })).json();
+    const [hosted] = view.hosts;
 
-    assert.equal(view.host, true);
-    assert.deepEqual(view.members.map((m) => [m.email, m.name, m.via]),
+    assert.equal(view.hosts.length, 1);
+    assert.equal(hosted.key, "vff");
+    assert.deepEqual(hosted.members.map((m) => [m.email, m.name, m.via]),
       [[HOST, "Hal Example", "farm"], [PAT, "Pat Example", "qr"]]);
-    assert.deepEqual(Object.keys(view.members[0]).sort(),
+    assert.deepEqual(Object.keys(hosted.members[0]).sort(),
       ["email", "joinedAt", "name", "via"], "nothing past these");
 
-    const qr = await call(stores, "/api/membership/qr", { headers: host });
+    const qr = await call(stores, "/api/membership/qr?group=vff",
+      { headers: host });
 
     assert.equal(qr.status, 200);
     assert.match(qr.headers.get("content-type"), /^image\/svg\+xml/);
     assert.equal(qr.headers.get("cache-control"), "no-store");
     assert.match(await qr.text(), /^<svg /);
 
-    const saved = await call(stores, "/api/membership/qr?download=1",
-      { headers: host });
+    const saved = await call(stores,
+      "/api/membership/qr?group=vff&download=1", { headers: host });
 
     assert.match(saved.headers.get("content-disposition"),
       /^attachment; filename="join-vff-qr\.svg"$/);
@@ -142,7 +148,7 @@ describe("who gets what", () => {
       const { stores, host } = await setup();
       const old = await joinTokenOf(stores, "vff", { now });
       const res = await call(stores, "/api/membership/qr", {
-        method: "POST", headers: host, body: { rotate: true },
+        method: "POST", headers: host, body: { group: "vff", rotate: true },
       });
 
       assert.equal(res.status, 200);
@@ -158,7 +164,7 @@ describe("who gets what", () => {
   it("refuses a rotation from another site", async () => {
     const { stores, host } = await setup();
     const res = await call(stores, "/api/membership/qr", {
-      method: "POST", body: { rotate: true },
+      method: "POST", body: { group: "vff", rotate: true },
       headers: { ...host, "sec-fetch-site": "cross-site" },
     });
 
@@ -172,7 +178,7 @@ describe("who gets what", () => {
       const { stores, host } = await setup();
       const old = await joinTokenOf(stores, "vff", { now });
       const rotate = (headers) => call(stores, "/api/membership/qr", {
-        method: "POST", body: { rotate: true },
+        method: "POST", body: { group: "vff", rotate: true },
         headers: { ...host, ...headers },
       });
 
@@ -201,6 +207,141 @@ describe("who gets what", () => {
       assert.equal((await me(stores, member)).membership, true);
       assert.equal((await me(stores, stranger)).membership, undefined);
     });
+});
+
+// QA item 4 (James, 6458200999): membership and hosting are worked
+// out apart. The member's own group gets the member view, every group
+// the address hosts gets the host view, and a host acts only on a
+// hosted group the request names. Only one group is in the data, so a
+// second one stands in for these tests.
+describe("a member of one group who hosts another", () => {
+  const OTHER = { ...GROUPS[0], key: "gym2", name: "Second Gym" };
+  const ROB = "rob@example.com";
+
+  before(() => GROUPS.push(OTHER));
+  after(() => GROUPS.splice(GROUPS.indexOf(OTHER), 1));
+
+  // The setup above, and Rob in the second group.
+  const twoGroups = async () => {
+    const s = await setup();
+
+    await saveCustomer(s.stores, { email: ROB, firstName: "Rob",
+      lastName: "Example", name: "Rob Example" });
+    await joinGroup(s.stores, ROB, "gym2", { now, via: "farm" });
+
+    return s;
+  };
+
+  const roleKeys = async (stores, email) => {
+    const r = await roleOf(stores,
+      { email, customer: await getCustomer(stores, email) });
+
+    return r && {
+      member: r.member && r.member.key, hosts: r.hosts.map((g) => g.key),
+    };
+  };
+
+  it("works out the roles apart", async () => {
+    const { stores } = await twoGroups();
+
+    // Member only, and member and host of the same group.
+    assert.deepEqual(await roleKeys(stores, PAT),
+      { member: "vff", hosts: [] });
+    assert.deepEqual(await roleKeys(stores, HOST),
+      { member: "vff", hosts: ["vff"] });
+    assert.equal(await roleKeys(stores, STRANGER), null);
+
+    // Host only.
+    await setGroupHost(stores, "gym2", STRANGER, { now });
+    assert.deepEqual(await roleKeys(stores, STRANGER),
+      { member: null, hosts: ["gym2"] });
+
+    // Member of A, hosting B.
+    await setGroupHost(stores, "gym2", PAT, { now });
+    assert.deepEqual(await roleKeys(stores, PAT),
+      { member: "vff", hosts: ["gym2"] });
+
+    // Hosting two.
+    await setGroupHost(stores, "gym2", HOST, { now });
+    assert.deepEqual(await roleKeys(stores, HOST),
+      { member: "vff", hosts: ["vff", "gym2"] });
+  });
+
+  it("shows the member's own group and the hosted one, each in its part",
+    async () => {
+      const { stores, member } = await twoGroups();
+
+      await setGroupHost(stores, "gym2", PAT, { now });
+
+      const view = await (await call(stores, "/api/membership",
+        { headers: member })).json();
+
+      assert.equal(view.member.key, "vff");
+      assert.equal(view.member.members, undefined, "not vff's host");
+      assert.deepEqual(view.hosts.map((h) => h.key), ["gym2"]);
+      assert.equal(view.hosts[0].group.name, "Second Gym");
+      assert.deepEqual(view.hosts[0].members.map((m) => m.email), [ROB]);
+      assert.equal((await me(stores, member)).membership, true);
+    });
+
+  it("acts only on the hosted group named, never the member's own",
+    async () => {
+      const { stores, member } = await twoGroups();
+
+      await setGroupHost(stores, "gym2", PAT, { now });
+
+      const vff = await joinTokenOf(stores, "vff", { now });
+      const gym = await joinTokenOf(stores, "gym2", { now });
+      const rotate = (group) => call(stores, "/api/membership/qr", {
+        method: "POST", headers: member, body: { group, rotate: true },
+      });
+      const remove = (body) => call(stores, "/api/membership/remove",
+        { method: "POST", headers: member, body });
+
+      // The group they belong to, none named, or one they don't host.
+      for (const group of ["vff", undefined, "nope"]) {
+        assert.equal((await rotate(group)).status, 404, String(group));
+        assert.equal((await call(stores,
+          `/api/membership/qr?group=${group || ""}`, { headers: member }))
+          .status, 404, String(group));
+      }
+      assert.equal((await remove({ group: "vff", email: HOST })).status, 404);
+      assert.equal((await remove({ email: HOST })).status, 404);
+      assert.equal((await findGroupByToken(stores, vff)).key, "vff");
+      assert.equal(memberKeyOf(await getCustomer(stores, HOST)), "vff");
+      assert.deepEqual(await auditLog(stores, "vff"), []);
+
+      // The one they host.
+      assert.equal((await call(stores, "/api/membership/qr?group=gym2",
+        { headers: member })).status, 200);
+      assert.equal((await rotate("gym2")).status, 200);
+      assert.equal(await findGroupByToken(stores, gym), null);
+
+      const out = await remove({ group: "gym2", email: ROB });
+
+      assert.equal(out.status, 200);
+      assert.deepEqual((await out.json()).members, []);
+      assert.equal(memberKeyOf(await getCustomer(stores, ROB)), null);
+    });
+
+  it("takes a host of two only out of the group named", async () => {
+    const { stores, host } = await twoGroups();
+
+    await setGroupHost(stores, "gym2", HOST, { now });
+
+    const view = await (await call(stores, "/api/membership",
+      { headers: host })).json();
+
+    assert.deepEqual(view.hosts.map((h) => h.key), ["vff", "gym2"]);
+
+    // Pat is in vff, not gym2: naming gym2 finds no one to remove.
+    const res = await call(stores, "/api/membership/remove", {
+      method: "POST", headers: host, body: { group: "gym2", email: PAT },
+    });
+
+    assert.equal(res.status, 404);
+    assert.equal(memberKeyOf(await getCustomer(stores, PAT)), "vff");
+  });
 });
 
 describe("the rounds", () => {

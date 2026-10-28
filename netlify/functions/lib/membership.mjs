@@ -25,38 +25,43 @@ import {
 } from "./groups.mjs";
 import { getCustomer } from "./records.mjs";
 
-// The group whose host this address is, or null.
-export const hostedGroup = async (stores, email) => {
+// Every group whose host this address is: none, one or more.
+export const hostedGroups = async (stores, email) => {
   const address = normalizeEmail(email);
+  const hosted = [];
 
-  if (!address) return null;
+  if (!address) return hosted;
   for (const g of GROUPS) {
     const record = await getGroupRecord(stores, g.key);
 
-    if (record && record.host && record.host === address) return g;
+    if (record && record.host && record.host === address) hosted.push(g);
   }
 
-  return null;
+  return hosted;
 };
 
-// Who the signed-in customer is to a group: { group, member, host },
-// or null when they are neither. A host who is not a member still
-// runs the group.
+// Who the signed-in customer is to the groups, worked out separately
+// (James, 6458200999): { member, hosts }, where `member` is the group
+// they belong to or null and `hosts` every group they run, or null
+// when they are neither. A host who is not a member still runs the
+// group, and a member of one group can host another.
 export const roleOf = async (stores, session) => {
   if (!session) return null;
 
-  const own = groupOf(memberKeyOf(session.customer));
-  const hosted = await hostedGroup(stores, session.email);
-  const group = own || hosted;
+  const member = groupOf(memberKeyOf(session.customer));
+  const hosts = await hostedGroups(stores, session.email);
 
-  if (!group) return null;
+  if (!member && hosts.length === 0) return null;
 
-  return {
-    group,
-    member: !!own && own.key === group.key,
-    host: !!hosted && hosted.key === group.key,
-  };
+  return { member, hosts };
 };
+
+// The group a host's request names, when this address hosts it, or
+// null: a host acts only on a group named in the request, never on
+// the one they belong to by default.
+export const hostedBy = (role, key) =>
+  (role && typeof key === "string" && role.hosts.find((g) => g.key === key))
+  || null;
 
 // The round being ordered for now, and the one after: each with its
 // pickup day and when ordering for it closes (11:59 PM the day
@@ -150,26 +155,36 @@ export const voidMemberCredit = async (stores, email, {
   return { voided, byGroup };
 };
 
-// What the tab shows. -> { group, rounds, host, members? , qr? }
-export const membershipView = async (stores, role, { terms, now }) => {
-  const named = await namedGroup(stores, role.group);
-  const view = {
-    member: role.member,
-    host: role.host,
-    group: { name: named.name, place: placeOf(role.group) },
-    rounds: roundsNow(role.group, terms, now),
-  };
+// One group as the tab shows it. -> { key, group, rounds }
+const groupView = async (stores, group, { terms, now }) => ({
+  key: group.key,
+  group: {
+    name: (await namedGroup(stores, group)).name, place: placeOf(group),
+  },
+  rounds: roundsNow(group, terms, now),
+});
 
-  if (!role.host) return view;
+// A hosted group's members, as its host sees them.
+export const hostMembers = async (stores, key) =>
+  (await groupMembers(stores, key)).map((m) => ({
+    email: m.email, name: m.name, joinedAt: m.joinedAt, via: m.via,
+  }));
 
-  const record = await getGroupRecord(stores, role.group.key);
+// What the tab shows: the member's own group, and every group they
+// host with its QR code and members. When both are the same group, it
+// is in both. -> { member: { key, group, rounds } | null,
+// hosts: [{ key, group, rounds, qr, members }] }
+export const membershipView = async (stores, role, { terms, now }) => ({
+  member: role.member
+    ? await groupView(stores, role.member, { terms, now }) : null,
+  hosts: await Promise.all(role.hosts.map(async (g) => {
+    const record = await getGroupRecord(stores, g.key);
 
-  return {
-    ...view,
-    // The QR code's version: the image is fetched again when it moves.
-    qr: { setAt: (record && record.joinTokenSetAt) || null },
-    members: (await groupMembers(stores, role.group.key)).map((m) => ({
-      email: m.email, name: m.name, joinedAt: m.joinedAt, via: m.via,
-    })),
-  };
-};
+    return {
+      ...(await groupView(stores, g, { terms, now })),
+      // The QR code's version: the image is fetched again when it moves.
+      qr: { setAt: (record && record.joinTokenSetAt) || null },
+      members: await hostMembers(stores, g.key),
+    };
+  })),
+});

@@ -1,19 +1,23 @@
 // The Membership tab (#495, part 5):
 //
-//   GET  /api/membership            a member's or the host's view
-//   GET  /api/membership/qr         the host's join QR code, as SVG;
-//                                   ?download=1 saves it as a file
-//   POST /api/membership/qr         { rotate: true } the host replaces
-//                                   it; the old one stops at once
-//   POST /api/membership/remove     { email } the host takes a member
-//                                   out (#495, part 6)
-//   POST /api/membership/leave      {} a member leaves
+//   GET  /api/membership            a member's and a host's view
+//   GET  /api/membership/qr         ?group=<key> the host's join QR
+//                                   code, as SVG; &download=1 saves it
+//                                   as a file
+//   POST /api/membership/qr         { group, rotate: true } the host
+//                                   replaces it; the old one stops at
+//                                   once
+//   POST /api/membership/remove     { group, email } the host takes a
+//                                   member out (#495, part 6)
+//   POST /api/membership/leave      {} a member leaves their own group
 //
-// 401 with no session. Anyone who is neither the group's member nor
-// its host gets 404, and a member asking for a host's part gets 404
-// too: nothing says whether there is anything there. The host's POSTs
-// get 403 unless they come from this origin (Sec-Fetch-Site
-// same-origin, or an Origin naming this host); same-site is not enough.
+// 401 with no session. Anyone who is neither a group's member nor a
+// host gets 404. A host's request names the group it acts on, and
+// gets 404 unless this address hosts that group, so a member, another
+// group's host or a host naming the group they belong to gets nothing:
+// nothing says whether there is anything there. The host's POSTs get
+// 403 unless they come from this origin (Sec-Fetch-Site same-origin,
+// or an Origin naming this host); same-site is not enough.
 
 import terms from "./lib/terms.mjs";
 import {
@@ -28,7 +32,7 @@ import { json, readJson } from "./lib/http.mjs";
 import { withLog } from "./lib/log.mjs";
 import { gate } from "./lib/maintenance.mjs";
 import {
-  membershipView, removeMember, roleOf,
+  hostMembers, hostedBy, membershipView, removeMember, roleOf,
 } from "./lib/membership.mjs";
 import { stores as defaultStores } from "./lib/store.mjs";
 
@@ -83,8 +87,6 @@ export const handle = async (req, {
       { "Cache-Control": "no-store" });
   }
 
-  const { key, name } = role.group;
-
   // A member's own Leave group, with its confirmation on the page.
   if (path === "/api/membership/leave" && req.method === "POST") {
     if (!role.member) return NOTHING();
@@ -93,7 +95,7 @@ export const handle = async (req, {
 
     if (closed) return closed;
 
-    await removeMember(stores, key, session.email, {
+    await removeMember(stores, role.member.key, session.email, {
       by: { role: "member", email: session.email }, action: "member.leave",
       now,
     });
@@ -101,13 +103,21 @@ export const handle = async (req, {
     return json(200, { ok: true });
   }
 
-  // Everything past here is the host's alone, and the host's changes
-  // come from this origin only, not merely this site.
-  if (!role.host) return NOTHING();
+  // Everything past here is a host's alone, on the hosted group the
+  // request names, and the host's changes come from this origin only,
+  // not merely this site.
+  if (role.hosts.length === 0) return NOTHING();
   if (req.method === "POST" && !sameOrigin(req)) {
     return json(403, { error: "Cross-origin request." });
   }
 
+  const body = req.method === "POST" ? await readJson(req) : null;
+  const hosted = hostedBy(role, req.method === "POST"
+    ? body && body.group : url.searchParams.get("group"));
+
+  if (!hosted) return NOTHING();
+
+  const { key, name } = hosted;
   const by = { role: "host", email: session.email };
 
   if (path === "/api/membership/remove" && req.method === "POST") {
@@ -115,8 +125,7 @@ export const handle = async (req, {
 
     if (closed) return closed;
 
-    const body = await readJson(req);
-    const email = body && typeof body.email === "string"
+    const email = typeof body.email === "string"
       ? normalizeEmail(body.email) : "";
 
     if (!email) return json(400, { errors: { email: "Expected an email." } });
@@ -128,10 +137,7 @@ export const handle = async (req, {
 
     if (!r.ok) return json(404, { ok: false, message: NOT_IN });
 
-    return json(200, {
-      ok: true,
-      members: (await membershipView(stores, role, { terms, now })).members,
-    });
+    return json(200, { ok: true, members: await hostMembers(stores, key) });
   }
 
   if (path === "/api/membership/qr" && req.method === "GET") {
@@ -147,9 +153,7 @@ export const handle = async (req, {
 
     if (closed) return closed;
 
-    const body = await readJson(req);
-
-    if (!body || body.rotate !== true) {
+    if (body.rotate !== true) {
       return json(400, { errors: { body: "Expected { rotate: true }." } });
     }
 

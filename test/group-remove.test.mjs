@@ -102,7 +102,7 @@ describe("the host's Remove", () => {
   it("takes a member out, logged, and returns the list", async () => {
     const { stores, host } = await setup();
     const res = await post(stores, "/api/membership/remove",
-      { email: PAT }, host);
+      { group: "vff", email: PAT }, host);
     const data = await res.json();
 
     assert.equal(res.status, 200);
@@ -126,13 +126,13 @@ describe("the host's Remove", () => {
     async () => {
       const { stores, host } = await setup();
       const self = await post(stores, "/api/membership/remove",
-        { email: HOST }, host);
+        { group: "vff", email: HOST }, host);
 
       assert.equal(self.status, 422);
       assert.equal((await self.json()).message, SELF);
 
       const out = await post(stores, "/api/membership/remove",
-        { email: SAM }, host);
+        { group: "vff", email: SAM }, host);
 
       assert.equal(out.status, 404);
       assert.equal((await out.json()).message, NOT_IN);
@@ -145,19 +145,20 @@ describe("the host's Remove", () => {
 
       for (const who of [member, stranger]) {
         const res = await post(stores, "/api/membership/remove",
-          { email: HOST }, who);
+          { group: "vff", email: HOST }, who);
 
         assert.equal(res.status, 404);
       }
       assert.equal((await post(stores, "/api/membership/remove",
-        { email: PAT })).status, 401);
+        { group: "vff", email: PAT })).status, 401);
       assert.equal(memberKeyOf(await getCustomer(stores, HOST)), "vff");
       assert.equal(memberKeyOf(await getCustomer(stores, PAT)), "vff");
     });
 
   it("is refused from another site", async () => {
     const { stores, host } = await setup();
-    const res = await post(stores, "/api/membership/remove", { email: PAT },
+    const res = await post(stores, "/api/membership/remove",
+      { group: "vff", email: PAT },
       { ...host, "sec-fetch-site": "cross-site" });
 
     assert.equal(res.status, 403);
@@ -173,8 +174,8 @@ describe("the host's Remove", () => {
       { "sec-fetch-site": "", origin: "http://preview.x" },
       { "sec-fetch-site": "" },
     ]) {
-      const res = await post(stores, "/api/membership/remove", { email: PAT },
-        { ...host, ...headers });
+      const res = await post(stores, "/api/membership/remove",
+        { group: "vff", email: PAT }, { ...host, ...headers });
 
       assert.equal(res.status, 403, JSON.stringify(headers));
     }
