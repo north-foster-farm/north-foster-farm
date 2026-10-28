@@ -1,8 +1,9 @@
-// Every product in data/catalog.json on the order page, with
-// /api/stock answering 0 for all of them and then 5, under both Show
-// choices (#501). Each row is shown or hidden, labeled or orderable,
-// as its restock type says; the rule, and why it is not a table, is in
-// test/catalog-visibility.test.mjs. One page load per count.
+// Every product in data/catalog.json on the order page, with every
+// one pinned at 0 and then 5 on the server for the test's own scope
+// (#507), under both Show choices (#501). Each row is shown or hidden,
+// labeled or orderable, as its restock type says; the rule, and why it
+// is not a table, is in test/catalog-visibility.test.mjs. One page
+// load per count.
 
 import { readFileSync } from "node:fs";
 
@@ -23,27 +24,21 @@ const label = (item) => ({
 })[item.restock] || "";
 
 // The rule: "orderable", "hidden", or the label of a row shown that
-// can't be added.
+// can't be added. A count sells a product the catalog has in stock;
+// one the catalog has out stays out whatever its count (#499), since
+// the server's answer says so.
 const want = (item, n, only) => {
   if (item.restock === "archived") return "hidden";
-  if (n > 0) return "orderable";
+  if (n > 0 && item.inStock) return "orderable";
 
   return only ? "hidden" : label(item) || "hidden";
 };
 
 const row = (page, sku) => page.locator(`.order-item[data-sku="${sku}"]`);
 
-// /api/stock as the server gives it, with every product at `n`. An
-// archived one too: the page must hide it whatever the answer says.
-const stubStock = (page, n) => page.route("**/api/stock", async (route) => {
-  const res = await route.fetch();
-  const body = await res.json();
-
-  for (const item of items) {
-    body.items[item.sku] = { inStock: n > 0, available: n };
-  }
-  await route.fulfill({ response: res, json: body });
-});
+// Every product at `n`, an archived one too: the page must hide it
+// whatever its count.
+const every = (n) => Object.fromEntries(items.map((i) => [i.sku, n]));
 
 const check = async (page, n, only) => {
   for (const item of items) {
@@ -68,26 +63,25 @@ const check = async (page, n, only) => {
 };
 
 test.describe("every catalog product's visibility (#501)", () => {
-  test.afterEach(({ page }) => page.unrouteAll({
-    behavior: "ignoreErrors",
-  }));
-
   for (const n of [0, 5]) {
-    test(`every product at ${n}, under In stock and Full catalog`,
-      async ({ page }) => {
-        const stock = page.waitForResponse("**/api/stock");
+    test.describe(`at ${n}`, () => {
+      test.use({ stockPins: every(n) });
 
-        await stubStock(page, n);
-        await new OrderPage(page).open();
-        await stock;
+      test(`every product at ${n}, under In stock and Full catalog`,
+        async ({ page }) => {
+          const stock = page.waitForResponse("**/api/stock");
 
-        const choice = (name) => page.getByRole("radio", { name });
+          await new OrderPage(page).open();
+          await stock;
 
-        await expect(choice("In stock")).toBeChecked();
-        await check(page, n, true);
-        await choice("Full catalog").click();
-        await expect(choice("Full catalog")).toBeChecked();
-        await check(page, n, false);
-      });
+          const choice = (name) => page.getByRole("radio", { name });
+
+          await expect(choice("In stock")).toBeChecked();
+          await check(page, n, true);
+          await choice("Full catalog").click();
+          await expect(choice("Full catalog")).toBeChecked();
+          await check(page, n, false);
+        });
+    });
   }
 });
