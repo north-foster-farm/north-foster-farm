@@ -31,7 +31,16 @@ const byPager = async (browser, baseURL) => {
     const older = page.locator("[data-news-next]");
 
     if (!await older.count()) break;
+
+    // Read the next page only once it is all there (#506): the click
+    // returns as the navigation starts, and on staging the rows were
+    // read from a page still arriving, one with no title link yet.
+    // Every row has one in the built pages; DOMContentLoaded is when
+    // they are all parsed.
+    const next = new URL(await older.getAttribute("href"), page.url());
+
     await older.click();
+    await page.waitForURL(next.href, { waitUntil: "domcontentloaded" });
   }
   await context.close();
 
