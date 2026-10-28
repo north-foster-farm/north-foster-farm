@@ -92,6 +92,19 @@ describe("the stock fixture", () => {
     assert.equal(options.auto, true);
   });
 
+  // Playwright runs a plain auto fixture for tests only, never for a
+  // beforeAll hook, and it reads a fixture's dependencies from its
+  // parameter list. A hook that orders through the context or the
+  // request fixture still gets the pins.
+  it("is set up wherever the context or the request fixture is", () => {
+    for (const name of ["context", "request"]) {
+      const params = String(stockFixtures[name]).match(/\{([^}]*)\}/)[1]
+        .replace(/\/\/[^\n]*/g, "").split(",").map((p) => p.trim());
+
+      assert.ok(params.includes("stock"), `${name} asks for stock`);
+    }
+  });
+
   it("removes the pins when the test fails", async (t) => {
     const calls = [];
 

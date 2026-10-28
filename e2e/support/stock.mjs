@@ -93,7 +93,10 @@ export const stockFixtures = {
   stockScope: async ({}, use, info) => {
     await use(scopeFor(info));
   },
-  // Every test, so the pins are in place before its body runs.
+  // Every test, so the pins are in place before its body runs. A
+  // plain auto fixture never runs for a beforeAll or afterAll hook, so
+  // the context and the request fixture ask for it too: a hook that
+  // places an order with either has the spec's pins for that hook.
   stock: [async ({ stockScope, stockPins }, use) => {
     const handle = stockFor(stockScope);
 
@@ -108,14 +111,16 @@ export const stockFixtures = {
   }, { auto: true }],
   // The browser's context carries the scope, so every page of the test
   // does.
-  context: async ({ context, stockScope, baseURL }, use) => {
+  // eslint-disable-next-line no-unused-vars
+  context: async ({ context, stock, stockScope, baseURL }, use) => {
     await context.addCookies([scopeCookie(stockScope, baseURL)]);
     await use(context);
   },
   // The request fixture made again with the scope beside the gate
   // cookie, from the config's own storage state.
   request: async ({
-    playwright, baseURL, storageState, stockScope,
+    // eslint-disable-next-line no-unused-vars
+    playwright, baseURL, storageState, stockScope, stock,
   }, use) => {
     const state = storageState && typeof storageState === "object"
       ? storageState : { cookies: [], origins: [] };
