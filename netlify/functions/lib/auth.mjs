@@ -8,6 +8,8 @@
 //                           one use, 15 min
 //   session/<sha256(id)>    { email, createdAt, expires, via }
 //   rate/<email>            { times: [...] }             link requests
+//   rate/join/<email>       { times: [...] }    join-link requests, kept
+//                           apart so they never stop a sign-in (#495)
 
 import { createHash, randomBytes } from "node:crypto";
 
@@ -17,7 +19,9 @@ import {
   getCustomer, reminderPrefs, saveCustomer,
 } from "./records.mjs";
 import { mailLinks, siteUrl } from "./site.mjs";
-import { emailChangeLink, magicLink } from "./templates.mjs";
+import {
+  emailChangeLink, groupJoinLink, magicLink,
+} from "./templates.mjs";
 import accounts from "../../../data/accounts.json" with { type: "json" };
 
 const MINUTE = 60_000;
@@ -113,15 +117,20 @@ export const requestLink = async (stores, { email, next }, {
   limit = true,
   ttl = LINK_TTL,
   changeFrom = null,
+  join = null,
 } = {}) => {
   const address = normalizeEmail(email);
 
   if (!validEmail(address)) return { ok: false, reason: "invalid" };
 
   if (limit) {
-    // Real time: a tester's clock must not reopen the limit.
+    // Real time: a tester's clock must not reopen the limit. A group's
+    // sign-up page counts in its own bucket: anyone with the QR code
+    // can ask for links to an address, and that must never use up the
+    // owner's sign-in links (#495).
     const at = real(now).getTime();
-    const limited = await hit(stores, `rate/${address}`, at, {
+    const bucket = join ? `rate/join/${address}` : `rate/${address}`;
+    const limited = await hit(stores, bucket, at, {
       windowMs: LINK_WINDOW, max: LINKS_PER_WINDOW,
     });
 
@@ -136,10 +145,14 @@ export const requestLink = async (stores, { email, next }, {
     expires: now.getTime() + ttl,
     createdAt: now.toISOString(),
     ...(changeFrom ? { changeFrom: normalizeEmail(changeFrom) } : {}),
+    // A group's sign-up page (#495): following the link joins the
+    // group, by lib/join.mjs. Its `group` is the key, never the token.
+    ...(join ? { join: join.record } : {}),
   });
 
   const url = `${siteUrl(env)}/api/auth/verify?token=${token}`;
-  const letter = changeFrom ? emailChangeLink : magicLink;
+  const letter = changeFrom ? emailChangeLink
+    : (join ? groupJoinLink : magicLink);
 
   if (send) {
     await mail({
@@ -150,6 +163,8 @@ export const requestLink = async (stores, { email, next }, {
       credential: true,
       ...letter(address, url, {
         minutes: ttl / MINUTE, links: mailLinks(env),
+        ...(join
+          ? { group: join.name, news: join.record.news === true } : {}),
       }),
     }, { env });
   }
@@ -180,6 +195,7 @@ const tokenResult = (found) => ({
   email: found.email,
   next: found.next || "/account/",
   changeFrom: found.changeFrom || null,
+  ...(found.join ? { join: found.join } : {}),
 });
 
 // Reads a token without spending it, so a prefetch or a scanner
@@ -312,6 +328,26 @@ export const sameSite = (req) => {
   const origin = req.headers.get("origin");
 
   if (!origin) return true;
+
+  try {
+    return new URL(origin).host === new URL(req.url).host;
+  } catch {
+    return false;
+  }
+};
+
+// Stricter, for a group host's actions (#495): this origin only, never
+// a sibling on the same site (a deploy preview, a branch subdomain).
+// Sec-Fetch-Site must say same-origin; a browser without it must send
+// an Origin naming this host. A request with neither is refused.
+export const sameOrigin = (req) => {
+  const fetchSite = req.headers.get("sec-fetch-site");
+
+  if (fetchSite) return fetchSite === "same-origin";
+
+  const origin = req.headers.get("origin");
+
+  if (!origin) return false;
 
   try {
     return new URL(origin).host === new URL(req.url).host;

@@ -4,6 +4,13 @@
 // canned, so this runs on a local build as on staging and spends no
 // pass; the server's side (single use, the hold, standing passes, the
 // fee in Square, POST /api/orders) is in test/passes.test.mjs.
+//
+// /api/group is canned too, as the miss it would answer: the page asks
+// it first about any code of six characters or more, and four misses
+// a project here drained its limit of 10 in 10 minutes from one
+// address (group.mjs, RATE), which then refused the real code in
+// group-code.spec.mjs on the next project (#495). Groups are not what
+// this spec checks.
 
 import catalog from "../data/catalog.json" with { type: "json" };
 import terms from "../data/delivery.json" with { type: "json" };
@@ -18,6 +25,12 @@ const EGGS = catalog.groups.flatMap((g) => g.items)
 
 const PASS = "ABCD-EFGH";
 const FEE = "WAVE-FEE2";
+
+// What /api/group answers for a code that is no group's (group.mjs).
+const noGroup = (page) => page.route("**/api/group",
+  (route) => route.fulfill({
+    status: 404, json: { ok: false, message: "That code isn't valid." },
+  }));
 
 test.describe("a delivery pass (#182)", () => {
   test("lets a small delivery through, and says why one fails",
@@ -44,6 +57,7 @@ test.describe("a delivery pass (#182)", () => {
         await order.codeApply.click();
       };
 
+      await noGroup(page);
       await cannedDates(page);
       await order.open({ eggs: 1 }, { method: "delivery" });
       await expect(order.short).toBeVisible();
@@ -80,6 +94,7 @@ test.describe("a delivery pass (#182)", () => {
     await page.route("**/api/pass?*", (route) => route.fulfill({
       json: { ok: true, waivesFee: true },
     }));
+    await noGroup(page);
     await cannedDates(page);
     await order.open({ eggs: 1 }, { method: "delivery" });
     await expect(order.fee).toHaveText(`+$${FEE_DOLLARS}`);

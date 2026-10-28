@@ -12,6 +12,7 @@
 import { spawn } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { randomInt } from "node:crypto";
+import { userInfo } from "node:os";
 import { dirname, join } from "node:path";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
@@ -39,6 +40,7 @@ import {
 } from "./env/sample.mjs";
 import { verifyEnv } from "./env/verify.mjs";
 import { setSchedule } from "./schedule-env.mjs";
+import { shipLog } from "./ship-log.mjs";
 import { USAGE as PROMOTE_USAGE, promoteCommand } from "./promote.mjs";
 import { USAGE as SUPPLY_USAGE, supplyCommand } from "./supply/waive.mjs";
 
@@ -54,6 +56,11 @@ const USAGE = `Usage:
   bin/nff customers show <email>
   bin/nff customers set <email> name=.. phone=.. group=friends|none
                                 member=vff|none   (a buying group, #471)
+  bin/nff customers set <email> first=.. last=.. [--dry-run]
+                                      the first and last name, and name
+                                      from them, on the record and the
+                                      Resend contact (a sync never
+                                      changes a contact's name)
   bin/nff customers delete <email>
   bin/nff customers forget <email> [--apply]
                                       delete a customer's details:
@@ -229,6 +236,27 @@ const USAGE = `Usage:
                                       the host, for the reward, and
                                       the name members see (the data
                                       file's name until one is set)
+  bin/nff groups qr <key> [--rotate] [--out <file>]
+                                      the sign-up link the group's QR
+                                      code carries, and with --out the
+                                      code as an SVG. --rotate replaces
+                                      it: the old QR code stops working
+                                      at once, the typed code and the
+                                      members stay
+  bin/nff groups members <key> [--backfill]
+                                      the members: name, email address,
+                                      date joined and how (code, link,
+                                      qr, walk-in, farm, host, invite).
+                                      --backfill logs the members from
+                                      before the join log, once
+  bin/nff groups remove <key> <email> take a member out of the group,
+                                      logged: open orders stand as
+                                      placed, credit stays theirs,
+                                      spendable on any signed-in order
+  bin/nff groups log <key>            every act on the group by its
+                                      host, a member or the farm, and
+                                      the join log, oldest first, every
+                                      address masked
   bin/nff groups round <key> [YYYY-MM-DD]
                                       a round's orders by member, the
                                       pick list and the net total;
@@ -249,8 +277,11 @@ const USAGE = `Usage:
                                       the host's choice for that
                                       round's reward, by the close of
                                       the next round (kept otherwise)
-  bin/nff groups credit <email>       a member's credit: balance,
-                                      grants, spends, expiry
+  bin/nff groups credit <email> [--void]
+                                      an account's credit: balance,
+                                      grants, spends, expiry. --void
+                                      voids what is left, for abuse,
+                                      logged in each group it came from
   bin/nff groups close <key>          close any round whose close has
                                       passed and settle rewards now;
                                       the jobs do this on their own
@@ -267,6 +298,11 @@ const USAGE = `Usage:
                                       off the morning report
   bin/nff stock list
   bin/nff stock set <sku> <count|none>
+  bin/nff stock hidden                every tier the order page won't
+                                      sell (archived or inStock false),
+                                      with Square's count; read only,
+                                      exits 1 when one has stock (the
+                                      jobs alert on it daily)
   bin/nff login <email>               print a sign-in link
   bin/nff masquerade <email>          open a sign-in link as them
   bin/nff audience import <csv> [--date=YYYY-MM-DD] [--market=..]
@@ -286,6 +322,22 @@ const USAGE = `Usage:
                                       sends nothing twice. On
                                       production it asks for the typed
                                       confirmation, like any send
+  bin/nff audience remove <email> [--dry-run]
+                                      a stale or duplicate address the
+                                      import brought in, taken out: an
+                                      import-only record is deleted;
+                                      one with more on it keeps all
+                                      but the import's consent and held
+                                      welcome. Not an unsubscribe, and
+                                      Resend is not called
+  bin/nff audience apply <csv> [--dry-run]
+                                      a cleanup, one row each with the
+                                      header action,email,first,last
+                                      (other columns ignored): keep
+                                      sets the names as given, an empty
+                                      cell blank; remove is customers
+                                      forget --apply. Prints each row
+                                      with the address masked
   bin/nff audience sync [--dry-run]   the Resend audience and the
                                       records, made to agree
   bin/nff schedule check <file>       the pickup schedule, checked as a
@@ -499,7 +551,10 @@ const [
   { runJobs, runsSince, sweepMadeCustomers, sweepSquareOrders },
   { stores: makeStores },
   { CANCEL_REASONS, paymentPhrase, summaryLine },
-  { importSubscribers, parseCsv, sendOwedWelcomes, syncAudience },
+  {
+    importSubscribers, parseApplyCsv, parseCsv, removeImported,
+    sendOwedWelcomes, syncAudience,
+  },
   { dollars, toCents },
   { snapshot },
   { dueOn, keptFee, paidTotal, refundedTotal, refundsOf },
@@ -520,6 +575,9 @@ const [
   groups,
   rounds,
   credit,
+  { describeError },
+  groupLog,
+  membership,
 ] = await Promise.all([
   import("../netlify/functions/lib/terms.mjs"),
   import("../netlify/functions/lib/admin.mjs"),
@@ -548,7 +606,13 @@ const [
   import("../netlify/functions/lib/groups.mjs"),
   import("../netlify/functions/lib/rounds.mjs"),
   import("../netlify/functions/lib/credit.mjs"),
+  import("../netlify/functions/lib/paypal.mjs"),
+  import("../netlify/functions/lib/group-log.mjs"),
+  import("../netlify/functions/lib/membership.mjs"),
 ]);
+
+// Who acts in a group's audit log when it is this CLI (#495).
+const FARM = { role: "farm" };
 
 // --scratch: development's env, but stores of their own
 // (scratch-orders, ...), for the restore rehearsal (docs/backup.md).
@@ -1130,9 +1194,32 @@ const run = async () => {
   }
   case "customers show":
     return out(await admin.showCustomer(stores, rest[0]));
-  case "customers set":
-    return out(await admin.setCustomer(stores, rest[0], kv(rest.slice(1)),
-      terms.money));
+  case "customers set": {
+    const { first, last, ...patch } = kv(rest.slice(1));
+
+    if (first === undefined && last === undefined) {
+      // Production's confirmation skips a dry run, so this form,
+      // which has none, refuses the flag rather than writing.
+      if (flags["dry-run"]) {
+        throw new Error("--dry-run is for first= and last= only. "
+          + "Nothing changed.");
+      }
+
+      return out(await admin.setCustomer(stores, rest[0], patch,
+        terms.money));
+    }
+    if (Object.keys(patch).length) {
+      throw new Error("Set first= and last= on their own: they also "
+        + "change name= and the Resend contact.");
+    }
+    if (first === true || last === true) {
+      throw new Error("Give each name a value: first=Pat last=Example");
+    }
+
+    return out(await admin.setNames(stores, rest[0], { first, last }, {
+      by: userInfo().username, dryRun: !!flags["dry-run"],
+    }));
+  }
   case "customers quiet": {
     const list = await admin.quietCustomers(stores);
 
@@ -1150,10 +1237,10 @@ const run = async () => {
     }));
   case "customers forget":
     return out(await admin.forgetCustomer(stores, rest[0], {
-      apply: !!flags.apply,
+      apply: !!flags.apply, by: userInfo().username,
     }));
   case "customers delete":
-    await admin.removeCustomer(stores, rest[0]);
+    await admin.removeCustomer(stores, rest[0], { by: userInfo().username });
 
     return out(`Deleted ${rest[0]}.`);
   case "address approve":
@@ -1562,6 +1649,20 @@ const run = async () => {
     return out(await admin.stockList(stores));
   case "stock set":
     return out(await admin.stockSet(stores, rest[0], rest[1]));
+  case "stock hidden": {
+    const r = await admin.stockHidden();
+
+    for (const i of r.list) out(admin.hiddenLine(i));
+    if (!r.list.length) out("No tier is archived or marked inStock false.");
+    if (r.inStock.length) {
+      process.exitCode = 1;
+
+      return out(`${r.inStock.length} with stock nobody can order: fix ` +
+        "the count in Square or the entry in data/catalog.json.");
+    }
+
+    return out("Every tier the order page hides is at 0 or not counted.");
+  }
   case "audience invite":
     throw new Error("The old list is imported as subscribed now, with no "
       + "invitation (#303): bin/nff audience import <csv> --date=..");
@@ -1588,6 +1689,33 @@ const run = async () => {
       email: flags.email || null,
       dryRun: !!flags["dry-run"],
     }));
+  }
+  case "audience remove":
+    if (!rest[0]) {
+      throw new Error("Which address? bin/nff audience remove <email>");
+    }
+
+    return out(await removeImported(stores, rest[0], {
+      by: userInfo().username, dryRun: !!flags["dry-run"],
+    }));
+  case "audience apply": {
+    if (!rest[0]) {
+      throw new Error("Which CSV? bin/nff audience apply <csv>");
+    }
+
+    const rows = parseApplyCsv(readFileSync(rest[0], "utf8"));
+    const r = await admin.applyAudience(stores, rows, {
+      by: userInfo().username, dryRun: !!flags["dry-run"],
+    });
+
+    for (const row of r.rows) {
+      out(`${row.action.padEnd(7)}${row.record.padEnd(34)}${row.outcome}${
+        row.resend ? `, Resend: ${row.resend}` : ""}`);
+    }
+
+    return out(`${r.dryRun ? "Dry run, nothing written. " : ""}${
+      Object.entries(r.counts).map(([k, n]) => `${n} ${k}`).join(", ")
+      || "No rows."}`);
   }
   case "audience sync":
     return out(await syncAudience(stores, { dryRun: !!flags["dry-run"] }));
@@ -1683,8 +1811,6 @@ const run = async () => {
     if (!g) throw new Error(`Unknown group "${rest[0]}".`);
 
     const record = await groups.getGroupRecord(stores, g.key);
-    const site = process.env.URL || "";
-
     out({
       ...g,
       name: (record && record.name) || g.name,
@@ -1694,8 +1820,7 @@ const run = async () => {
         : null,
       code: record ? record.code : null,
       codeSetAt: record ? record.codeSetAt : null,
-      link: record && record.code
-        ? `${site}/order/?group=${encodeURIComponent(record.code)}` : null,
+      link: record && record.code ? groups.codeUrl(record.code) : null,
       previous: record ? record.previous : [],
       host: record ? record.host : null,
     });
@@ -1713,6 +1838,10 @@ const run = async () => {
       code: custom,
     });
 
+    // The code is a secret: the log says it changed, not what to.
+    await groupLog.audit(stores, { group: rest[0], by: FARM,
+      action: "code.replace" });
+
     return out(`${rest[0]}  ${record.code}  (members on record stay ` +
       "members; the old code no longer works)");
   }
@@ -1723,19 +1852,120 @@ const run = async () => {
     if (patch.host === undefined && patch.name === undefined) {
       throw new Error("groups set <key> host=<email>|none name=\"...\"");
     }
+    const stored = (await groups.getGroupRecord(stores, rest[0])) || {};
+
     if (patch.host !== undefined) {
       const record = await groups.setGroupHost(stores, rest[0],
         patch.host === "none" ? null : patch.host);
 
+      await groupLog.audit(stores, { group: rest[0], by: FARM,
+        action: "host.set", target: record.host,
+        before: { host: stored.host || null }, after: { host: record.host } });
       said.push(`host ${record.host ? "set" : "cleared"}`);
     }
     if (patch.name !== undefined) {
       const record = await groups.setGroupName(stores, rest[0], patch.name);
 
+      await groupLog.audit(stores, { group: rest[0], by: FARM,
+        action: "name.set", before: { name: stored.name || null },
+        after: { name: record.name } });
       said.push(`name "${record.name}"`);
     }
 
     return out(`${rest[0]}  ${said.join(", ")}.`);
+  }
+  // The join token's link and QR code (#495). The link is the group's
+  // second secret, beside the code: keep it off GitHub.
+  case "groups qr": {
+    const g = groups.groupOf(rest[0]);
+
+    if (!g) throw new Error(`Unknown group "${rest[0]}".`);
+
+    const token = flags.rotate
+      ? (await groups.rotateJoinToken(stores, g.key)).joinToken
+      : await groups.joinTokenOf(stores, g.key);
+
+    if (flags.rotate) {
+      await groupLog.audit(stores, { group: g.key, by: FARM,
+        action: "qr.rotate" });
+    }
+
+    const { link, svg } = groups.joinQr(token, g.name);
+
+    if (typeof flags.out === "string") {
+      const { writeFileSync } = await import("node:fs");
+
+      writeFileSync(flags.out, svg);
+      out(`Wrote ${flags.out}.`);
+    }
+
+    return out(`${g.key}  ${link}${flags.rotate
+      ? "  (new: the old QR code no longer works)" : ""}`);
+  }
+  // Who is in the group and how they came (#495). The output names
+  // members: keep it off GitHub.
+  case "groups members": {
+    const g = groups.groupOf(rest[0]);
+
+    if (!g) throw new Error(`Unknown group "${rest[0]}".`);
+    if (flags.backfill) {
+      const added = await groupLog.backfillJoins(stores, g.key, {
+        apply: true,
+      });
+
+      out(`Backfilled ${added.length} join${added.length === 1 ? "" : "s"}.`);
+    }
+
+    const list = await groupLog.groupMembers(stores, g.key);
+
+    for (const m of list) {
+      out(`${m.email}  ${m.name || "-"}  ${(m.joinedAt || "-").slice(0, 10)}  ${
+        m.via || "-"}${m.logged ? "" : "  (not in the join log)"}`);
+    }
+    out(list.length ? `${list.length} member${list.length === 1 ? "" : "s"}.`
+      : "No members yet.");
+
+    return undefined;
+  }
+  // A member out of the group (#495), logged as the farm's act.
+  case "groups remove": {
+    const g = groups.groupOf(rest[0]);
+
+    if (!g) throw new Error(`Unknown group "${rest[0]}".`);
+    if (!rest[1]) throw new Error("groups remove <key> <email>");
+
+    const r = await membership.removeMember(stores, g.key, rest[1], {
+      by: FARM,
+    });
+
+    if (!r.ok) throw new Error(`${rest[1]} isn't in ${g.key}.`);
+
+    return out(`${rest[1]} is out of ${g.name}. Their open orders stand ` +
+      "as placed.");
+  }
+  // The group's audit log and join log, oldest first (#495).
+  case "groups log": {
+    const g = groups.groupOf(rest[0]);
+
+    if (!g) throw new Error(`Unknown group "${rest[0]}".`);
+
+    const acts = await groupLog.auditLog(stores, g.key);
+    const joins = await groupLog.joinLog(stores, g.key);
+    const lines = [
+      ...acts.map((a) => ({ at: a.at, text: `${a.by.role}${
+        a.by.email ? ` ${a.by.email}` : ""}  ${a.action}${
+        a.target ? ` ${a.target}` : ""}${a.before || a.after
+        ? `  ${JSON.stringify(a.before)} -> ${JSON.stringify(a.after)}`
+        : ""}` })),
+      ...joins.map((j) => ({ at: j.at, text: `${j.event}  ${j.email || "-"}  ${
+        j.via}${j.member ? `  (in ${j.member})` : ""}${
+        j.backfilled ? "  backfilled" : ""}` })),
+    ].sort((a, b) => a.at.localeCompare(b.at));
+
+    for (const l of lines) out(`${l.at}  ${l.text}`);
+    if (!lines.length) out("Nothing logged yet.");
+
+    return undefined;
   }
   // A round's orders by member, the pick list across them, and the
   // net total: what the farm packs and what the host reward reads.
@@ -1858,10 +2088,20 @@ const run = async () => {
   }
   // A member's credit: the balance and every grant and spend.
   case "groups credit": {
-    if (!rest[0]) throw new Error("groups credit <email>");
+    if (!rest[0]) throw new Error("groups credit <email> [--void]");
+
+    const now = new Date();
+
+    // For abuse (#495): what is left goes, logged in each group whose
+    // grants it voided, and nowhere when nothing was left.
+    if (flags.void) {
+      const { voided } = await membership.voidMemberCredit(stores, rest[0],
+        { by: FARM, now });
+
+      out(voided ? `Voided ${dollars(voided)}.` : "Nothing left to void.");
+    }
 
     const ledger = await credit.getLedger(stores, rest[0]);
-    const now = new Date();
 
     out(`${ledger.email}  balance ${dollars(credit.balanceOf(ledger, now))}`);
     for (const e of ledger.entries) {
@@ -1975,7 +2215,8 @@ const run = async () => {
         c.customersMade ?? 0}${
         (r.errors || []).map((e) => `\n    error ${e.id || "-"}: ${e.error}`)
           .join("")}${(r.invariants || []).map((v) =>
-        `\n    invariant ${v.rule}: ${v.id}`).join("")}`);
+        `\n    invariant ${v.rule}: ${v.id}${v.why
+          ? ` (${v.why}, ${v.count} on hand)` : ""}`).join("")}`);
     }
     if (!runs.length) out("No runs recorded.");
 
@@ -2133,9 +2374,15 @@ const run = async () => {
   return undefined;
 };
 
+// The run's log lines go to the log store, failed or not, so a
+// production write is on record (bin/ship-log.mjs); a dry run's don't.
+const ship = () => shipLog({ dryRun: flagOn(flags["dry-run"]) });
+
 try {
   await run();
+  await ship();
 } catch (error) {
-  console.error(redact(error.message, held));
+  console.error(redact(describeError(error), held));
+  await ship();
   process.exit(1);
 }

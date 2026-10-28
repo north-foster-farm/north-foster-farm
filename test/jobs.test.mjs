@@ -73,6 +73,28 @@ const venmo = (id, method = "delivery") => ({
   },
 });
 
+// An order paid through the old site's invoices (#490), shaped as
+// those records are: the Square copy an invoice, one top-level
+// `payment` and no `payments` list, an on-farm time only requested,
+// no occurrence, and the confirmation noted as `paymentReceived`.
+const invoiceEra = (id, method = "onfarm") => {
+  const o = order(id, method);
+
+  return {
+    ...o,
+    fulfilment: {
+      ...o.fulfilment,
+      state: method === "onfarm" ? "requested" : o.fulfilment.state,
+    },
+    square: { invoiceId: `INV-${id}`, customerId: "CUST" },
+    emails: { paymentReceived: { at: placed.toISOString() } },
+    payment: {
+      via: "square", method: "invoice", at: placed.toISOString(),
+      squarePaymentId: `PAY-${id}`, receiptUrl: null,
+    },
+  };
+};
+
 const harness = () => {
   const sent = [];
 
@@ -351,6 +373,96 @@ describe("runJobs", () => {
       assert.equal(sent.filter((m) => /confirmed|^New order/.test(m.subject))
         .length, 2, "no order email is sent twice");
     });
+
+  it("never confirms an order the old site confirmed, nor touches it " +
+    "before its day (#490)", async () => {
+    const stores = testStores();
+    const { opts: base, sent } = harness();
+    const calls = [];
+    const square = new Proxy({}, {
+      get: (_, name) => async (...args) => {
+        calls.push(name);
+
+        return { id: args[0] };
+      },
+    });
+    const opts = { ...base, env: { ...MAILS }, square };
+    const pickup = invoiceEra("A");
+    const delivery = invoiceEra("B", "delivery");
+
+    await saveOrder(stores, pickup, placed);
+    await saveOrder(stores, delivery, placed);
+    const stored = await getOrder(stores, "A");
+
+    const before = await runJobs(stores, {
+      ...opts, now: at("2026-10-06", 10),
+    });
+    const toCustomer = () => sent.filter((m) => m.to === "pat@example.com");
+
+    assert.deepEqual(before.announced, []);
+    assert.deepEqual(before.squareSynced, []);
+    assert.deepEqual(before.closed, []);
+    assert.deepEqual(before.errors, []);
+    assert.deepEqual(before.invariants, []);
+    assert.deepEqual(toCustomer(), []);
+    assert.equal(sent.filter((m) => /^New order/.test(m.subject)).length, 0);
+    assert.deepEqual(await getOrder(stores, "A"), stored, "left as it was");
+    assert.deepEqual(calls, []);
+
+    // A future delivery is still reminded, as any paid one is.
+    const evening = await runJobs(stores, {
+      ...opts, now: at("2026-10-07", 18, 5),
+    });
+
+    assert.deepEqual(evening.deliveryReminded, ["B"]);
+    assert.equal(toCustomer().length, 1);
+    assert.match(toCustomer()[0].subject, /delivery is tomorrow/);
+
+    // After its day it closes like any order. Its Square copy is an
+    // invoice, with no order to complete, so Square is not asked.
+    const after = await runJobs(stores, {
+      ...opts, now: at("2026-10-09", 9),
+    });
+
+    assert.deepEqual(after.announced, []);
+    assert.deepEqual(after.closed.sort(), ["A", "B"]);
+    assert.deepEqual(after.errors, []);
+    assert.deepEqual(after.invariants, []);
+    assert.deepEqual(calls, []);
+    assert.equal(toCustomer().length, 1);
+    assert.equal((await getOrder(stores, "A")).status, "fulfilled");
+    assert.equal((await getOrder(stores, "A")).flags, undefined);
+  });
+
+  it("sends no catch-up confirmation once the order's day has passed " +
+    "(#490)", async () => {
+    const stores = testStores();
+    const { opts: base, sent } = harness();
+    const opts = { ...base, env: { ...MAILS } };
+
+    await saveOrder(stores, { ...order("A", "onfarm"), emails: {} }, placed);
+
+    // Its day, the 7th, is not yet past: the confirmation goes.
+    await saveOrder(stores, { ...order("B", "onfarm"), emails: {} }, placed);
+    const onTheDay = await runJobs(stores, {
+      ...opts, now: at("2026-10-07", 7), orderIds: ["B"],
+    });
+
+    assert.deepEqual(onTheDay.announced, ["B"]);
+
+    const confirms = () => sent.filter((m) => /confirmed/.test(m.subject))
+      .length;
+    const sentBefore = confirms();
+    const r = await runJobs(stores, {
+      ...opts, now: at("2026-10-08", 9), orderIds: ["A"],
+    });
+
+    assert.deepEqual(r.announced, []);
+    assert.deepEqual(r.closed, ["A"]);
+    assert.equal(confirms(), sentBefore);
+    assert.equal((await getOrder(stores, "A")).emails.orderConfirmed,
+      undefined);
+  });
 
   it("reminds again before a missed delivery's new day (#193)", async () => {
     const stores = testStores();
@@ -910,8 +1022,8 @@ describe("runJobs", () => {
     assert.equal(manifest.length, 1);
     assert.equal(manifest[0].subject,
       "Tomorrow, Wednesday, October 7: 1 order");
-    assert.match(manifest[0].text, /\*\*B\*\*, Pat Example, 9 AM – noon/);
-    assert.doesNotMatch(manifest[0].text, /\*\*A\*\*/, "A is Thursday");
+    assert.match(manifest[0].text, /^B, Pat Example, 9 AM – noon/m);
+    assert.doesNotMatch(manifest[0].text, /^A,/m, "A is Thursday");
 
     const thursdayEve = await runJobs(stores, {
       ...opts, env, now: at("2026-10-07", 18),

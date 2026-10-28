@@ -57,6 +57,16 @@ describe("bin/nff's production confirmation (#268)", () => {
       undefined, "a dry run sends nothing, so it asks nothing");
     assert.equal(phrase("audience", "welcome", [], { email: "a@b.co" }),
       "audience welcome", "naming one address still sends");
+    assert.equal(phrase("audience", "remove", ["a@example.com"]),
+      "a@example.com");
+    assert.equal(phrase("audience", "remove", ["a@example.com"],
+      { "dry-run": true }), undefined);
+    assert.equal(phrase("audience", "apply", ["names.csv"]),
+      "audience apply");
+    assert.equal(phrase("audience", "apply", ["names.csv"],
+      { "dry-run": true }), undefined);
+    assert.equal(phrase("customers", "set", ["a@example.com", "first=Pat"],
+      { "dry-run": true }), undefined);
   });
 
   it("guards square deletions pause and resume, not status", () => {
@@ -152,9 +162,9 @@ describe("bin/nff's production confirmation (#268)", () => {
         "customers list", "customers show", "customers quiet",
         "orders list", "orders occurrences", "orders show",
         "events undefined", "events new", "refunds check", "stock list",
-        "schedule check", "passes issue", "passes list",
+        "stock hidden", "schedule check", "passes issue", "passes list",
         "groups list", "groups show", "groups round", "groups rounds",
-        "groups credit",
+        "groups log",
         "jobs history", "health", "alert test", "mail test-dev",
         "news mail",
         "maintenance status", "maintenance links",

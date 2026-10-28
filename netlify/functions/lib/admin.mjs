@@ -8,14 +8,19 @@ import { dollars } from "../../../assets/scripts/order/lib/totals.mjs";
 import {
   addDays, today, weekday,
 } from "../../../assets/scripts/order/lib/zoned.mjs";
-import { adjust, getCounts, setCount } from "./stock.mjs";
+import {
+  adjust, getCounts, hiddenCounts, hiddenInStock, setCount,
+} from "./stock.mjs";
 import { normalizeEmail, validEmail } from "./auth.mjs";
 import { company } from "./company.mjs";
 import { DELIVERING } from "./health.mjs";
 import { completeInSquare } from "./complete.mjs";
 import { restoreCredit } from "./credit.mjs";
+import { audit, noteJoin } from "./group-log.mjs";
 import { GROUPS, groupOf, memberKeyOf } from "./groups.mjs";
+import { log } from "./log.mjs";
 import { devEmails, sendMail } from "./mail.mjs";
+import { maskEmail, maskIn } from "./mask.mjs";
 import * as newsApi from "./news.mjs";
 import {
   customerEmailWithheld, recordRefund, sendForOrder,
@@ -40,7 +45,9 @@ import {
   isScheduled, orderOccurrence,
 } from "../../../assets/scripts/order/lib/dates.mjs";
 
-export { forgetCustomer } from "./forget.mjs";
+import { forgetCustomer } from "./forget.mjs";
+
+export { forgetCustomer };
 
 // Quiet accounts due their notice (#189, lib/retention.mjs), for
 // `bin/nff customers quiet`. Read only: the daily jobs act on them.
@@ -98,7 +105,162 @@ export const setCustomer = async (stores, email, patch, money) => {
       : null;
   }
 
-  return saveCustomer(stores, next);
+  const saved = await saveCustomer(stores, next);
+
+  // A membership the farm moved is in each group's audit log, and a
+  // join in the new group's join log (#495).
+  const was = memberKeyOf(customer);
+  const is = memberKeyOf(next);
+
+  if (was !== is) {
+    const at = new Date();
+    const by = { role: "farm" };
+
+    if (was) {
+      await audit(stores, { group: was, by, action: "member.remove",
+        target: customer.email, before: { group: was },
+        after: { group: is }, now: at });
+    }
+    if (is) {
+      await audit(stores, { group: is, by, action: "member.add",
+        target: customer.email, before: { group: was },
+        after: { group: is }, now: at });
+      await noteJoin(stores, { group: is, email: customer.email,
+        via: "farm", now: new Date(next.memberGroup.joinedAt) });
+    }
+  }
+
+  return saved;
+};
+
+const NAME_MAX = 60;
+
+// A customer's first and last name (#496), on the record and on the
+// Resend contact: the welcome and Resend use firstName and lastName,
+// and `audience sync` never changes a contact's name. A name not given
+// stays as it was, and `name` follows the two. The log line names the
+// address masked and which fields changed, not the names. `contacts`
+// is the audience, when the caller has listed it. With `dryRun`
+// nothing is written and Resend is only read. -> the report.
+export const setNames = async (stores, email, { first, last }, {
+  by = null, dryRun = false, env = process.env, fetchImpl = globalThis.fetch,
+  news = newsApi, contacts = null,
+} = {}) => {
+  const customer = need(await getCustomer(stores, email), "customer");
+  const given = (value, had) => (value === undefined ? had || ""
+    : String(value).trim().slice(0, NAME_MAX));
+  const firstName = given(first, customer.firstName);
+  const lastName = given(last, customer.lastName);
+  const name = [firstName, lastName].filter(Boolean).join(" ");
+  const changed = Object.entries({ firstName, lastName, name })
+    .filter(([key, value]) => (customer[key] || "") !== value)
+    .map(([key]) => key);
+  const report = {
+    dryRun, record: maskEmail(customer.email), firstName, lastName, name,
+    changed,
+  };
+
+  if (!dryRun && changed.length) {
+    await saveCustomer(stores, { ...customer, firstName, lastName, name });
+  }
+  try {
+    report.resend = await news.renameContact(customer.email,
+      { firstName, lastName }, { env, fetchImpl, apply: !dryRun, contacts });
+  } catch (error) {
+    report.resend = maskIn(`not reached: ${error.message}`, customer.email);
+  }
+  if (!dryRun) {
+    log.info({
+      event: "customer.renamed", outcome: changed.length ? "renamed"
+        : "unchanged", by, record: report.record, changed,
+      resend: report.resend,
+    });
+  }
+
+  return report;
+};
+
+const APPLY_PACE = 1100;
+// Why forgetCustomer waited, for the farm (its WAIT is the customer's).
+const HELD_BY = {
+  open: "an order is in progress",
+  return: "a return is open",
+  checkout: "a Venmo payment is under way",
+  square: "Square could not be reached",
+};
+const pause = (ms) => new Promise((r) => { setTimeout(r, ms); });
+
+// `bin/nff audience apply <csv>` (#496): a cleanup of the imported
+// list, one row each of action,email,first,last. A `keep` row sets the
+// names as given (setNames): an empty cell sets that name blank, as a
+// blank or initial last name and an empty first name are all valid on
+// the list (James, comment 6453653919).
+// A `remove` row goes the way of `customers forget --apply`: the record
+// and everything else that names the address, its orders kept but
+// re-pointed to the deleted household, and the Resend contact. A row
+// that fails is reported and the rest go on. Rows are paced for
+// Resend's rate limit. The report names every address masked. With
+// `dryRun` nothing is written. -> { dryRun, rows, counts }.
+export const applyAudience = async (stores, rows, {
+  by = null, dryRun = false, env = process.env, fetchImpl = globalThis.fetch,
+  news = newsApi, square = squareApi, now = new Date(), pace = APPLY_PACE,
+} = {}) => {
+  const outside = news.audienceConfigured(env);
+  const contacts = outside && rows.some((r) => r.action === "keep")
+    ? await news.listContacts(env, fetchImpl) : null;
+  const done = [];
+
+  for (const [i, row] of rows.entries()) {
+    const email = normalizeEmail(row.email);
+    const entry = {
+      action: row.action || "", record: maskEmail(email), outcome: null,
+    };
+
+    if (outside && pace && i) await pause(pace);
+    try {
+      if (!validEmail(email)) {
+        entry.outcome = "not an email address";
+      } else if (entry.action === "keep") {
+        if (!await getCustomer(stores, email)) {
+          entry.outcome = "no record";
+        } else {
+          const r = await setNames(stores, email, {
+            first: row.firstName, last: row.lastName,
+          }, { by, dryRun, env, fetchImpl, news, contacts });
+
+          entry.outcome = r.changed.length ? "names set" : "names as given";
+          entry.resend = r.resend;
+        }
+      } else if (entry.action === "remove") {
+        const r = await forgetCustomer(stores, email, {
+          apply: !dryRun, env, fetchImpl, news, square, now, by,
+        });
+
+        entry.outcome = !r.ok ? `not removed: ${HELD_BY[r.wait] || r.wait}`
+          : r.customer ? "removed" : "no record, the rest removed";
+        if (r.ok) {
+          entry.orders = r.orders.length;
+          entry.resend = maskIn(r.resend, email);
+        }
+      } else {
+        entry.outcome = "action is not keep or remove";
+      }
+    } catch (error) {
+      entry.outcome = `failed: ${maskIn(error.message, email)}`;
+    }
+    done.push(entry);
+  }
+
+  const counts = {};
+
+  for (const { outcome } of done) {
+    const key = outcome.split(":")[0];
+
+    counts[key] = (counts[key] || 0) + 1;
+  }
+  if (!dryRun) log.info({ event: "audience.applied", by, counts });
+
+  return { dryRun, rows: done, counts };
 };
 
 // A customer's email changed, from the CLI (#238): the record, every
@@ -215,9 +377,15 @@ export const renameCustomer = async (stores, from, to, {
   return report;
 };
 
-export const removeCustomer = async (stores, email) => {
+// One log line per deletion, with `by`, who ran it, and the address
+// masked (mask.mjs, #496).
+export const removeCustomer = async (stores, email, { by = null } = {}) => {
   need(await getCustomer(stores, email), "customer");
   await deleteCustomer(stores, email);
+  log.info({
+    event: "customer.deleted", outcome: "deleted", by,
+    record: maskEmail(normalizeEmail(email)),
+  });
 
   return true;
 };
@@ -928,3 +1096,26 @@ export const stockList = (stores) => getCounts(stores);
 
 export const stockSet = (stores, sku, value) =>
   setCount(stores, sku, value === "none" ? null : Number(value));
+
+// `stock hidden` (#499): every tier the order page keeps off whatever
+// its count, archived or `inStock: false`, with Square's count, read
+// only. -> { list, inStock }, inStock those above 0, the ones the jobs
+// alert on. Throws when Square can't be read, so the command never
+// passes on counts it didn't see. `inventory` and `catalogIndex` are
+// for tests.
+export const stockHidden = async (opts = {}) => {
+  const list = await hiddenCounts(opts);
+
+  if (!list) {
+    throw new Error("Square's counts could not be read: it didn't answer, " +
+      "or this environment has no production catalog to ask (try " +
+      "--production).");
+  }
+
+  return { list, inStock: hiddenInStock(list) };
+};
+
+// One line of `stock hidden`: "IN STOCK  SKU  archived  3  name".
+export const hiddenLine = (i) => `${i.count > 0 ? "IN STOCK" : "ok      "}  ${
+  i.sku}  ${i.why}  ${i.count === null ? "not counted" : i.count}  ${
+  i.name}`;

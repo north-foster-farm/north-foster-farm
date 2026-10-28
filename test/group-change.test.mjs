@@ -66,13 +66,16 @@ const member = async (stores) => {
 };
 
 describe("the group a change is offered by", () => {
-  it("is the order's tag, else the customer's membership", async () => {
+  it("is the order's tag while a member, else the membership", async () => {
     const stores = testStores();
 
     assert.equal(await buyingFor(stores, dropOrder()), null);
+    // The tag alone offers nothing (#495): a member removed can't move
+    // an order into a round.
+    assert.equal(await buyingFor(stores, dropOrder({ key: "vff" })), null);
+    await member(stores);
     assert.equal((await buyingFor(stores, dropOrder({ key: "vff" }))).key,
       "vff");
-    await member(stores);
     assert.equal((await buyingFor(stores, dropOrder())).key, "vff");
   });
 

@@ -281,9 +281,13 @@ export const GUIDE = {
   "jobs.invariants": {
     means: "The run finished but the records are not in the state a " +
       "healthy run leaves them. Each violation names its rule and its " +
-      "order.",
+      "order, or for stock.hidden a SKU Square counts above 0 that the " +
+      "order page won't sell (archived or inStock false), with why and " +
+      "the count (told once per SKU and count).",
     action: "Read the rule in the runbook; each names what should have " +
-      "happened to that order.",
+      "happened to that order. For stock.hidden, correct the count in " +
+      "Square or the entry in data/catalog.json; bin/nff stock hidden " +
+      "shows them all.",
   },
   "jobs.crashed": {
     means: "The run itself threw before it could do its work. This is " +

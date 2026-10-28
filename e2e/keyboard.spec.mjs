@@ -16,8 +16,10 @@
 //
 // WebKit tabs to form fields only unless Safari's "Press Tab to
 // highlight each item" is on; Option-Tab is the same with it on, so
-// WebKit presses Alt+Tab. Answers from the functions are canned, so
-// this runs on a local build as well as staging and creates nothing.
+// WebKit presses Alt+Tab. Answers from the functions are canned and
+// the payment SDKs stopped, so this runs on a local build as well as
+// staging, creates nothing, and walks the order page's pay section
+// as "unavailable" (#506).
 // The order page's lapsed dialog opens only after a card is taken, so
 // it isn't reached here.
 
@@ -140,7 +142,9 @@ const install = () => {
     out.name = name(el);
     // Square's card fields are its own iframe, passed over. The stub
     // SDK's plain fields (fake payments, a local run) stand in for it
-    // and ship nowhere, so they are passed over the same way.
+    // and ship nowhere, so they are passed over the same way. With the
+    // SDKs stopped (stopPaySdks, #506) neither mounts here; this stays
+    // for any other iframe.
     out.iframe = el.tagName === "IFRAME" || !!el.closest("[data-fake-card]");
     out.repeat = kbd.seen.has(el);
     kbd.seen.add(el);
@@ -217,6 +221,50 @@ const install = () => {
 const tabKey = (browserName) => (browserName === "webkit" ? "Alt+Tab"
   : "Tab");
 
+// Square's and PayPal's SDKs, real (sandbox or live) and the local
+// fakes (netlify/functions/lib/fake.mjs).
+const PAY_SDKS = new RegExp([
+  String.raw`//(sandbox\.)?web\.squarecdn\.com/v1/square\.js`,
+  String.raw`//www\.paypal\.com/sdk/js`,
+  String.raw`/scripts/fake-(square|paypal)\.js`,
+].join("|"));
+
+// This spec checks tab order, not payments (#506). On staging the pay
+// section waited on the real sandbox SDKs, slow or failing ("Failed to
+// fetch") in headless Chromium, and three walks timed out on it. With
+// the SDKs stopped, pay.js reaches "unavailable" at once, the same on
+// staging and a local build. The report that state raises is answered
+// here, so this spec no longer adds to staging's
+// client.payment_unavailable alerts.
+const stopPaySdks = async (page) => {
+  await page.route(PAY_SDKS, (route) => route.abort());
+  await page.route("**/api/health", (route) => (
+    route.request().method() === "POST"
+      ? route.fulfill({ status: 202, json: { ok: true } })
+      : route.fallback()
+  ));
+};
+
+// The pay section starts (pay.js start) once near the screen or on the
+// first focusin inside it: start it with a focusin, which moves neither
+// the focus nor the page, and wait for it to give up on the stopped
+// SDKs. "off" (payments switched off) loads no SDK at all.
+//
+// Not by scrolling it in and back (#506): at 390 the round trip took
+// the phone's cart past its slot, so it settled and then lifted off
+// closed. The walk then began with a small floating cart that settled
+// and opened under the Tab to the first way to get the order, pushing
+// that radio below the fold in WebKit, which keeps no scroll anchor.
+const payUnavailable = async (page) => {
+  const pay = page.locator("[data-pay]");
+
+  if (!await pay.count()) return;
+  await page.locator("#payment").evaluate(
+    (el) => el.dispatchEvent(new FocusEvent("focusin", { bubbles: true }))
+  );
+  await expect(pay).toHaveAttribute("data-pay-state", /^(unavailable|off)$/);
+};
+
 // Tabs from the top of the page to its end and returns what went
 // wrong, each once.
 const walk = async (page, key) => {
@@ -286,17 +334,19 @@ const settle = async (page) => {
   await page.waitForFunction(
     () => !document.querySelector("[aria-busy='true']"),
   );
-  // The order page's card panel mounts Square's fields under a
-  // skeleton of its own, and the page below it moves when they land.
+  // The order page's pay section, with its SDKs stopped (stopPaySdks):
+  // it used to wait up to 60 s here for the real ones (#506).
   if (await page.locator("#pay-card-panel").count()) {
+    await payUnavailable(page);
+    // The card panel's skeleton clears once pay.js gives up.
     await page.waitForFunction(() => {
       const panel = document.querySelector("#pay-card-panel");
 
       return !panel || !panel.hasAttribute("data-load");
     }, null, { timeout: 30_000 });
-    // And the page's height holds still: the wallets, stock and dates
-    // land at their own pace, and a stop the browser scrolled to can
-    // end up below the fold when the page grows after it.
+    // And the page's height holds still: stock and dates land at
+    // their own pace, and a stop the browser scrolled to can end up
+    // below the fold when the page grows after it.
     let last = -1;
 
     for (let steady = 0; steady < 3;) {
@@ -342,6 +392,7 @@ for (const width of WIDTHS) {
       await page.emulateMedia({ reducedMotion: "reduce" });
       await page.addInitScript(install);
       await keepHome(page, baseURL);
+      await stopPaySdks(page);
     });
 
     test("every page tabs cleanly", async ({ page, request, browserName }) => {
@@ -364,6 +415,10 @@ for (const width of WIDTHS) {
         test.setTimeout(5 * 60_000);
         await cannedDates(page);
         await new OrderPage(page).open(FULL_CART);
+        // The pay section settled before the walk, not under it: it
+        // started on the first Tab into it and grew as the real SDKs
+        // landed (#506).
+        await settle(page);
         await page.evaluate(() => scrollTo(0, 0));
         expect.soft(await walk(page, tabKey(browserName)), "/order/")
           .toEqual([]);

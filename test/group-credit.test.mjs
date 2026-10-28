@@ -19,7 +19,9 @@ import { METHODS } from "../netlify/functions/lib/checkout.mjs";
 import {
   creditBalance, getLedger, grantCredit, heldBy, spendCredit,
 } from "../netlify/functions/lib/credit.mjs";
-import { joinGroup, setGroupCode } from "../netlify/functions/lib/groups.mjs";
+import {
+  joinGroup, leaveGroup, setGroupCode,
+} from "../netlify/functions/lib/groups.mjs";
 import { creditPaid } from "../netlify/functions/lib/rounds.mjs";
 import {
   getOrder, openOrders, paymentsOf, refundedTotal,
@@ -579,6 +581,34 @@ describe("credit and the delivery fee", () => {
     assert.deepEqual(calls[1], ["payment", 500]);
     assert.equal(await creditBalance(stores, EMAIL, now), 4500);
   });
+
+  // Credit is the account's (James, #495 decision 6): someone in no
+  // group, as after leaving one, still spends it signed in.
+  it("spends an account's credit with no group, signed in only",
+    async () => {
+      const { stores, cookie } = await member(10_000);
+      const { square } = fakeSquare();
+
+      await leaveGroup(stores, EMAIL);
+
+      const res = await send(stores, square, delivery(), cookie);
+      const data = await res.json();
+
+      assert.equal(res.status, 200, JSON.stringify(data));
+      assert.equal(data.totals.credit, 5500);
+      assert.equal((await getOrder(stores, data.orderId)).creditFrom, EMAIL);
+      assert.equal(await creditBalance(stores, EMAIL, now), 4500);
+
+      const out = await send(stores, square, delivery({
+        idempotencyKey: "6f7c1e3a-9c9b-4b3a-8e9d-1a2b3c4d5e6f",
+        claimedTotal: 6000,
+      }));
+      const signedOut = await out.json();
+
+      assert.equal(out.status, 200, JSON.stringify(signedOut));
+      assert.equal(signedOut.totals.credit, undefined);
+      assert.equal(await creditBalance(stores, EMAIL, now), 4500);
+    });
 
   it("fails the order, with nothing recorded, when the zero-pay fails",
     async () => {

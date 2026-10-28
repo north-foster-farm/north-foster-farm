@@ -7,7 +7,8 @@
 
 // What each command acts on, by "group action". `target` names the
 // word to type; `apply` is true for a command that only reports until
-// --apply (then it asks only with the flag); `when` is a test of the
+// --apply (then it asks only with the flag); `only` names a flag
+// without which the command only reads; `when` is a test of the
 // words after the action, for a command only some of whose forms act.
 //
 // Left unguarded on purpose: `passes issue`, which only adds a pass
@@ -30,13 +31,23 @@ const DESTRUCTIVE = {
   "orders attempted": { does: "mark order attempted" },
   "returns resolve": { does: "resolve the return on order" },
   "customers delete": { does: "delete customer" },
-  "customers set": { does: "change the details of" },
+  "customers set": { does: "change the details of", unless: "dry-run" },
   "address approve": { does: "approve the delivery address of" },
   "address deny": { does: "deny the delivery address of" },
   "passes revoke": { does: "revoke the pass" },
   // Replacing the code kills the link the host handed out (#471).
   "groups code": { does: "replace the code of the group" },
   "groups set": { does: "change the host of the group" },
+  // Takes a member out of the group (#495).
+  "groups remove": { does: "remove a member of the group" },
+  // Reads a member's credit, and with --void voids it (#495).
+  "groups credit": { does: "void the credit of", only: "void" },
+  // Prints the QR link, and with --rotate kills the printed one (#495).
+  "groups qr": { does: "replace the QR code of the group", only: "rotate" },
+  // Reads the members, and with --backfill logs those from before the
+  // join log (#495).
+  "groups members": { does: "backfill the join log of the group",
+    only: "backfill" },
   // Makes a paid order in Square and the stores (#471).
   "groups walkin": { does: "record a walk-in sale, running",
     unless: "dry-run", whole: true },
@@ -65,6 +76,13 @@ const DESTRUCTIVE = {
   "audience welcome": {
     does: "email the farm-news welcomes the old list is owed, running",
     unless: "dry-run", whole: true,
+  },
+  "audience remove": {
+    does: "take out of our records the imported address", unless: "dry-run",
+  },
+  "audience apply": {
+    does: "set names and erase the details of the addresses in the CSV, "
+      + "running", unless: "dry-run", whole: true,
   },
   "audience sync": { does: "sync the audience, running",
     unless: "dry-run", whole: true },
@@ -96,6 +114,7 @@ export const confirmation = ({ group, action, rest = [], flags = {} }) => {
   const rule = DESTRUCTIVE[`${group} ${action}`];
 
   if (!rule || (rule.apply && !flags.apply)
+    || (rule.only && !flags[rule.only])
     || (rule.when && !rule.when(rest))
     || (rule.unless && flags[rule.unless])) return null;
 

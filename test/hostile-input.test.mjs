@@ -105,6 +105,8 @@ const CASES = {
     { links }), false],
   emailChangeLink: [() => templates.emailChangeLink(
     `${HOSTILE}@example.com`, url, { links }), false],
+  groupJoinLink: [() => templates.groupJoinLink(
+    `${HOSTILE}@example.com`, url, { links, group: HOSTILE }), true],
   emailChanged: [() => templates.emailChanged(`${HOSTILE}@example.com`,
     `${HOSTILE}2@example.com`, { links }), true],
   newsConfirm: [() => templates.newsConfirm(`${HOSTILE}@example.com`, url,
@@ -197,8 +199,8 @@ const CASES = {
 
 // Helpers that return a phrase or a table, not a message.
 const NOT_MESSAGES = [
-  "CANCEL_REASONS", "age", "listBlocks", "optInPhrase", "paymentPhrase",
-  "summaryLine",
+  "CANCEL_REASONS", "JOIN_NEWS", "age", "listBlocks", "optInPhrase",
+  "paymentPhrase", "summaryLine",
 ];
 
 const messagesOf = (result) => (Array.isArray(result) ? result : [result]);

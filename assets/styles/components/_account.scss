@@ -689,3 +689,68 @@
 .login #login-sent {
   text-align: center;
 }
+
+// A buying group's Membership tab (#495): the group's facts as a short
+// list of terms, the host's QR code at a size that scans from a phone,
+// and the members one to a row, a rule between them.
+.account {
+  .account-membership-facts {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 0.375rem 1rem;
+    margin: 0;
+  }
+
+  .account-membership-term {
+    font-weight: bold;
+  }
+
+  .account-membership-value {
+    margin: 0;
+  }
+
+  .account-membership-qr {
+    display: block;
+    width: min(296px, 100%);
+    height: auto;
+    margin-bottom: 0.75rem;
+    border: 1px solid var(--bs-border-color-translucent);
+  }
+
+  .account-membership-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .account-membership-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .account-membership-member {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.25rem 1rem;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid var(--bs-border-color-translucent);
+  }
+
+  .account-membership-who {
+    display: grid;
+  }
+
+  .account-membership-name {
+    font-weight: bold;
+  }
+
+  .account-membership-email,
+  .account-membership-joined {
+    font-size: 0.875rem;
+    color: var(--bs-secondary-color);
+    overflow-wrap: anywhere;
+  }
+}

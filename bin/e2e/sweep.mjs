@@ -4,10 +4,11 @@
 // a failed run left paid or unpaid more than an hour ago. Each is
 // cancelled with its refund, or without one when the refund is refused
 // (said so in the summary), then deleted with its customer record and
-// its mail in the outbox. It runs at the start of e2e-staging.yml and
-// on demand, with E2E_STAGING_TOKEN, through the deploy's own back
-// office (POST /api/staging/e2e), so it holds no other credential and
-// cannot reach production.
+// its mail in the outbox. The stock pins of tests whose teardown never
+// ran (#507) go too, once lapsed. It runs at the start of
+// e2e-staging.yml and on demand, with E2E_STAGING_TOKEN, through the
+// deploy's own back office (POST /api/staging/e2e), so it holds no
+// other credential and cannot reach production.
 //
 //   E2E_STAGING_TOKEN=… node bin/e2e/sweep.mjs [--dry-run] [--hours 1]
 //
@@ -103,7 +104,25 @@ export const sweepOne = async (order, { dryRun = false, ops = op } = {}) => {
   return { id: order.id, removed, notes };
 };
 
-export const summarize = (results, { dryRun = false, checked = 0 } = {}) => {
+// The stock pins (#507) of runs that died before their teardown: every
+// pin past its TTL goes, and one in force, some running test's, stays.
+// A pin lapses by itself, so a failure here is said and nothing more.
+// -> the line for the summary.
+export const sweepPins = async ({ dryRun = false, ops = op } = {}) => {
+  if (dryRun) return "would remove the lapsed ones";
+
+  try {
+    const { removed } = await ops("stock.sweep", {});
+
+    return `${Number(removed) || 0} lapsed removed`;
+  } catch (error) {
+    return `sweep failed (${error.message}); they lapse by themselves`;
+  }
+};
+
+export const summarize = (results, {
+  dryRun = false, checked = 0, pins = null,
+} = {}) => {
   const lines = [
     `## e2e sweep${dryRun ? " (dry run)" : ""}`,
     "",
@@ -112,6 +131,7 @@ export const summarize = (results, { dryRun = false, checked = 0 } = {}) => {
       "removed.",
   ];
 
+  if (pins) lines.push("", `Stock pins: ${pins}.`);
   for (const r of results) lines.push(`- ${r.id}: ${r.notes.join("; ")}`);
 
   return `${lines.join("\n")}\n`;
@@ -154,7 +174,9 @@ export const main = async (argv = process.argv.slice(2), {
     }
   }
 
-  const text = summarize(results, { dryRun, checked: open.length });
+  const text = summarize(results, {
+    dryRun, checked: open.length, pins: await sweepPins({ dryRun, ops }),
+  });
 
   out.write(text);
   if (process.env.GITHUB_STEP_SUMMARY) {

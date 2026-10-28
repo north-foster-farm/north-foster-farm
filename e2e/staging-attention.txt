@@ -1,9 +1,11 @@
 # Specs that open work is likely to break (#449). "Passing for now,
 # needs attention": when a spec here passes on staging, it goes on
 # e2e/staging-passing.txt like any other, but the work named beside it
-# can turn it red, so the final full run on the frozen commit (#423)
-# must cover it. One line per spec: the path, then the issues or pull
-# requests, separated by spaces. A line that starts with # is skipped.
+# can turn it red, so the full run after every push to staging
+# (e2e/staging-full, #502, 2026-10-28) must cover it, and the quick
+# rerun on e2e/staging, which skips passing specs, can miss it. One
+# line per spec: the path, then the issues or pull requests, separated
+# by spaces. A line that starts with # is skipped.
 # Remove a line when its work lands and the spec still passes.
 #
 # Pinned wording that the #400 copy pull requests may change:

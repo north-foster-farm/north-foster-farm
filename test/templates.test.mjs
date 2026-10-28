@@ -63,12 +63,13 @@ describe("the order details block", () => {
     const m = orderConfirmed(order(), { links });
 
     assert.match(m.text, /\nOrder details\n/);
-    assert.match(m.text, /Order number: \*\*NFF-2610-ABCD\*\*/);
+    assert.match(m.text, /Order number: NFF-2610-ABCD\n/);
+    assert.doesNotMatch(m.text, /\*\*/, "no Markdown in the plain text (#490)");
     assert.match(m.html, /Order number: <strong>NFF-2610-ABCD<\/strong>/,
       "a plain line for the customer");
     assert.match(m.text, /^- 2 × Whole Chicken, 3.5 – 3.9 lbs$/m);
     assert.doesNotMatch(m.text, /\$60|Subtotal|Bulk discount|Delivery fee/);
-    assert.match(m.text, /Order type: \*\*Delivery\*\*/);
+    assert.match(m.text, /Order type: Delivery\n/);
     assert.match(m.text,
       /- Arrives: Thursday, October 8, between 10 AM and 4 PM/);
     assert.match(m.text, /- Address: 1 Main St, Foster, RI 02825/);
@@ -77,7 +78,7 @@ describe("the order details block", () => {
   it("gives a pickup its when and where instead", () => {
     const farm = orderConfirmed(order("onfarm"), { links });
 
-    assert.match(farm.text, /Order type: \*\*On-farm pickup\*\*/);
+    assert.match(farm.text, /Order type: On-farm pickup\n/);
     assert.match(farm.text, /- When: Thursday, October 8, 9 AM – noon/);
     assert.match(farm.text, /- Where: 99 East Killingly Road, Foster, RI/);
     assert.doesNotMatch(farm.text, /Arrives:|Address:/);
@@ -87,7 +88,7 @@ describe("the order details block", () => {
     o.fulfilment.date = "2026-10-17";
     const drop = orderConfirmed(o, { links });
 
-    assert.match(drop.text, /Order type: \*\*Pickup days\*\*/);
+    assert.match(drop.text, /Order type: Pickup days\n/);
     assert.match(drop.text,
       /- When: Saturday, October 17, between 10 and 11 AM/);
     assert.match(drop.text, /- Where: Village Green/);
@@ -263,7 +264,7 @@ describe("a booked pickup time (W11d)", () => {
     assert.equal(m.subject, "Pickup moved: NFF-2610-ABCD");
     has(m.text, "Pat Example moved order NFF-2610-ABCD to a new pickup " +
       "time.");
-    has(m.text, "Now: **Thursday, October 8, 9 AM – noon**");
+    has(m.text, "Now: Thursday, October 8, 9 AM – noon");
     assert.doesNotMatch(m.text, /orders confirm|confirming/);
     assert.doesNotMatch(m.text, /View order:|View customer/);
     has(m.text, "Admin: https://admin.example.com");
@@ -278,7 +279,7 @@ describe("scheduled pickup emails", () => {
       const { market } = await library;
       const m = orderConfirmed(market(), { links });
 
-      has(m.text, "Order type: **Pickup days**");
+      has(m.text, "Order type: Pickup days");
       has(m.text, "- When: Sunday, October 25, between 9 AM and 1 PM");
       has(m.text, "- Where: Foster Farmers Market, Shady Acres Diner, " +
         "164 Danielson Pike, Foster");
@@ -292,6 +293,22 @@ describe("scheduled pickup emails", () => {
       assert.match(m.subject, /, pickup at Pop-up at The Village Family/);
       has(m.text, "- Pickup: Pop-up at The Village Family Fitness");
       has(m.text, "- When: Sunday, October 18, between 10 AM and 2 PM");
+    });
+
+  it("names a drop site by its place in the farm's subject (#490)",
+    async () => {
+      const { dropSite } = await library;
+      const m = farmOrderPlaced(dropSite(), { links });
+
+      assert.match(m.subject, /, pickup at The Village Green$/);
+      assert.doesNotMatch(m.subject, /Drop site/);
+
+      // One that no longer resolves keeps the name it is stored under.
+      const gone = dropSite();
+
+      gone.fulfilment = { ...gone.fulfilment, occurrence: "ZZZZ-261017" };
+      assert.match(farmOrderPlaced(gone, { links }).subject,
+        /, pickup at Pickup, ZZZZ-261017$/);
     });
 
   it("names the old and new place when an order moves", async () => {
@@ -313,8 +330,8 @@ describe("scheduled pickup emails", () => {
       before: dropSite().fulfilment, links,
     });
 
-    has(m.text, "Was: **Drop site, Village Green, 46 Institute Lane");
-    has(m.text, "Now: **Foster Farmers Market, Shady Acres Diner");
+    has(m.text, "Was: Drop site, Village Green, 46 Institute Lane");
+    has(m.text, "Now: Foster Farmers Market, Shady Acres Diner");
   });
 
   it("groups a packet by occurrence, not by a fixed heading", async () => {
@@ -324,8 +341,8 @@ describe("scheduled pickup emails", () => {
       { order: market(), kind: "new", changes: [] },
     ], { day: "2026-10-06", slips: 2, links });
 
-    has(m.text, "**Drop site, Saturday, October 17, Village Green");
-    has(m.text, "**Foster Farmers Market, Sunday, October 25, Shady Acres");
+    has(m.text, "\nDrop site, Saturday, October 17, Village Green");
+    has(m.text, "\nFoster Farmers Market, Sunday, October 25, Shady Acres");
     assert.doesNotMatch(m.text, /Market pickup/);
   });
 });
@@ -495,7 +512,7 @@ describe("the monitoring emails", () => {
 
     assert.equal(m.subject, "Tomorrow, Thursday, October 8: 3 orders");
     has(m.text, "\nDeliveries (1)\n");
-    has(m.text, "**NFF-2610-ABCD**, Pat Example, 401-555-0100, paid");
+    has(m.text, "\nNFF-2610-ABCD, Pat Example, 401-555-0100, paid");
     has(m.text, "- Address: 1 Main St, Foster, RI 02825");
     has(m.text, "- Cooler: Side porch");
     has(m.text, "- Gate or door code: 1234");
@@ -506,9 +523,9 @@ describe("the monitoring emails", () => {
       /<li>Pack:<ul style="[^"]*padding-left:1.25em"><li>2 × Whole Chicken/);
     has(m.text, "\nDrop site, Saturday, October 17, Village Green, 46 " +
       "Institute Lane, North Scituate, RI 02857, 10 – 11 AM (1)\n");
-    has(m.text, "**NFF-2610-DROP**, Pat Example, paid");
+    has(m.text, "\nNFF-2610-DROP, Pat Example, paid");
     has(m.text, "\nOn-farm pickups (1)\n");
-    has(m.text, "**NFF-2610-FARM**, Pat Example, 9 AM – noon, paid");
+    has(m.text, "\nNFF-2610-FARM, Pat Example, 9 AM – noon, paid");
 
     // A pickup confirmed before W11d shows its hours; a delivery unpaid
     // from
@@ -524,9 +541,9 @@ describe("the monitoring emails", () => {
       date: "2026-10-08", links,
     });
 
-    has(odd.text, "**NFF-2610-ABCD**, Pat Example, **UNPAID, past the " +
-      "cutoff: it should have been canceled. Check it before loading**");
-    has(odd.text, "**NFF-2610-CONF**, Pat Example, 9 – 11 AM, paid");
+    has(odd.text, "\nNFF-2610-ABCD, Pat Example, UNPAID, past the " +
+      "cutoff: it should have been canceled. Check it before loading");
+    has(odd.text, "\nNFF-2610-CONF, Pat Example, 9 – 11 AM, paid");
 
     const none = farmTomorrow([], { date: "2026-10-09", links });
 
@@ -569,7 +586,7 @@ describe("the monitoring emails", () => {
       }, { at: new Date("2026-10-06T13:05:00Z"), links });
 
       assert.equal(m.subject, "Site alert: order.create_failed");
-      has(m.text, "**order.create_failed** at 2026-10-06 13:05 UTC. " +
+      has(m.text, "\norder.create_failed at 2026-10-06 13:05 UTC. " +
         "Further alerts of this kind are held for an hour.");
       assert.match(m.text, /Field\s+Value\n/);
       assert.match(m.text, /id\s+NFF-2610-ABCD\n/);
@@ -595,12 +612,13 @@ describe("delivery reminder", () => {
       "10 AM and 4 PM.");
     assert.match(m.text, /- Leave your cooler with ice outside in the morning/);
     assert.match(m.text, /- Provide gate or door codes, if needed/);
-    has(m.text, "We'll look for your cooler here: _**Side porch.**_");
+    has(m.text, "We'll look for your cooler here: Side porch.\n");
     assert.match(m.html, /<em><strong>Side porch\.<\/strong><\/em>/);
-    assert.match(m.text, /Gate or door code you gave us: _\*\*1234\*\*_/);
-    has(m.text, "Your notes and instructions: _**Dog is friendly. Eggs on " +
-      "top please.**_");
-    assert.match(m.text, /Order number: \*\*NFF-2610-ABCD\*\*/);
+    assert.match(m.text, /Gate or door code you gave us: 1234\n/);
+    has(m.text, "Your notes and instructions: Dog is friendly. Eggs on " +
+      "top please.\n");
+    assert.doesNotMatch(m.text, /\*\*/, "no marks in the plain text (#490)");
+    assert.match(m.text, /Order number: NFF-2610-ABCD\n/);
     assert.match(m.text, new RegExp(`View or edit this order: ${url}`));
     assert.ok(m.text.includes(`Turn off delivery reminders: ${settings}`));
   });
@@ -624,11 +642,11 @@ describe("order changed and canceled", () => {
 
     assert.equal(m.subject, "Your order is updated");
     assert.match(m.text, /Pat, your order has been updated\./);
-    assert.match(m.text, /Order number: \*\*NFF-2610-ABCD\*\*/);
+    assert.match(m.text, /Order number: NFF-2610-ABCD\n/);
     assert.doesNotMatch(m.text, /\nOrder details\n/, "no heading here");
-    has(m.text, "Where will we find your cooler? _**Side porch**_");
-    assert.match(m.text, /Gate or door code: _\*\*1234\*\*_/);
-    assert.match(m.text, /Other notes or instructions: _\*\*Ring twice\.\*\*_/);
+    has(m.text, "Where will we find your cooler? Side porch\n");
+    assert.match(m.text, /Gate or door code: 1234\n/);
+    assert.match(m.text, /Other notes or instructions: Ring twice\.\n/);
     assert.match(m.text, new RegExp(`View or edit this order: ${url}`));
   });
 
@@ -686,9 +704,9 @@ describe("order changed and canceled", () => {
 
     assert.equal(m.subject, "Your order is canceled");
     has(m.text, "We canceled your order for delivery on Thursday, " +
-      "October 8.\n**A refund of $67 is on its way.**\nMost refunds " +
+      "October 8.\nA refund of $67 is on its way.\nMost refunds " +
       "arrive within a few business days.");
-    assert.match(m.text, /Order number: \*\*NFF-2610-ABCD\*\*/);
+    assert.match(m.text, /Order number: NFF-2610-ABCD\n/);
     assert.doesNotMatch(m.text, /charged/);
   });
 
@@ -730,7 +748,7 @@ describe("order changed and canceled", () => {
       "your order, so we had to cancel it. We're sorry we didn't catch it " +
       "before you placed your order.");
     has(says(order(), { reasonText: "The truck broke down." }),
-      "October 8.\nThe truck broke down.\n**A refund");
+      "October 8.\nThe truck broke down.\nA refund");
     assert.equal(Object.keys(CANCEL_REASONS).length, 5);
   });
 
@@ -739,7 +757,7 @@ describe("order changed and canceled", () => {
       refunded: 6700, refundedOn: "2026-10-07T02:00:00.000Z", links,
     });
 
-    has(m.text, "**We refunded $67 on Tuesday, October 6.**");
+    has(m.text, "\nWe refunded $67 on Tuesday, October 6.\n");
     assert.doesNotMatch(m.text, /on its way/);
   });
 
@@ -878,16 +896,16 @@ describe("order changed and canceled", () => {
 
     has(m.text, "We held your order for seven days and didn't hear from " +
       "you, so we've canceled it.");
-    has(m.text, "**A refund of $62 is on its way.**");
+    has(m.text, "\nA refund of $62 is on its way.\n");
   });
 
   it("states the refund that went out after a missed delivery", () => {
     const kept = orderCancelled(attempted(500), { refunded: 6200, links });
     const full = orderCancelled(attempted(0), { refunded: 6700, links });
 
-    has(kept.text, "**A refund of $62 is on its way.**\nThe delivery " +
+    has(kept.text, "\nA refund of $62 is on its way.\nThe delivery " +
       "fee of $5 isn't refunded because we made the trip.");
-    has(full.text, "**A refund of $67 is on its way.**");
+    has(full.text, "\nA refund of $67 is on its way.\n");
     assert.doesNotMatch(full.text, /delivery fee/);
   });
 });
@@ -920,7 +938,7 @@ describe("addresses and sign-in", () => {
         "outside the published delivery area.");
       assert.doesNotMatch(m.html, /admin\.example\.com\/customers/,
         "no link to a dashboard page without the customer (T5b)");
-      assert.match(m.text, /Location: \*\*5 Far Rd, Nowhere, MA 01234\*\*/);
+      assert.match(m.text, /Location: 5 Far Rd, Nowhere, MA 01234\n/);
       has(m.text, "View location in Maps: https://maps.apple.com/?address=" +
         "5%20Far%20Rd%2C%20Nowhere%2C%20MA%2001234");
       has(m.text, "Approve it:\n\n    bin/nff address approve " +
@@ -985,7 +1003,7 @@ describe("where the order id belongs", () => {
 
     for (const m of customerMail) {
       assert.doesNotMatch(m.subject, /NFF-/, m.subject);
-      assert.match(m.text, /Order number: \*\*NFF-2610-ABCD\*\*/, m.subject);
+      assert.match(m.text, /Order number: NFF-2610-ABCD\n/, m.subject);
       // The receipt prices the lines; no customer email repeats it.
       assert.doesNotMatch(m.text, /\(\$/, m.subject);
     }
@@ -1067,16 +1085,17 @@ describe("the farm's own notices", () => {
     assert.match(m.text, /\nOrder details\n/);
     assert.doesNotMatch(m.text, /View order:|View customer/,
       "the dashboard doesn't show the site's orders yet (T5b)");
-    assert.match(m.text, /Order number: \*\*NFF-2610-ABCD\*\*/);
+    assert.match(m.text, /Order number: NFF-2610-ABCD\n/);
     assert.match(m.text, /- 2 × Whole Chicken, 3.5 – 3.9 lbs \(\$60\)/);
     has(m.text, "- Subtotal $67\n- Bulk discount ($50+) −$5\n" +
       "- Delivery fee +$5\n- Total $67");
-    assert.match(m.text, /Order type: \*\*Delivery\*\*/);
+    assert.match(m.text, /Order type: Delivery\n/);
     assert.match(m.text, /- Address: 1 Main St, Foster, RI 02825/);
     assert.match(m.text, /- Cooler: Side porch/);
     assert.match(m.text, /- Gate or door code: 1234/);
     assert.match(m.text, /- Notes: Dog in the yard\./);
-    has(m.text, "Paid: **$67 by Visa ending 4242**");
+    has(m.text, "Paid: $67 by Visa ending 4242\n");
+    assert.doesNotMatch(m.text, /\*\*/, "no Markdown in the plain text (#490)");
     assert.ok(m.text.includes(`View order in Square: ${square}`));
     assert.doesNotMatch(m.text, /invoice/i);
     has(m.html, '<a href="https://admin.example.com" ' +
@@ -1106,13 +1125,13 @@ describe("the farm's own notices", () => {
 
     assert.match(m.html, new RegExp("Order number</p><p[^>]*><span [^>]*" +
       "user-select:all\">NFF-2610-ABCD</span>"));
-    assert.match(m.text, /Order number: \*\*NFF-2610-ABCD\*\*/);
+    assert.match(m.text, /Order number: NFF-2610-ABCD\n/);
   });
 
   it("gives a pickup its when and where", () => {
     const m = farmOrderPlaced(reachable("onfarm"), { links });
 
-    assert.match(m.text, /Order type: \*\*On-farm pickup\*\*/);
+    assert.match(m.text, /Order type: On-farm pickup\n/);
     assert.match(m.text, /- When: Thursday, October 8, 9 AM – noon/);
     assert.doesNotMatch(m.text, /prefers a call|Cooler/);
   });
@@ -1139,7 +1158,7 @@ describe("the farm's own notices", () => {
     assert.equal(paymentPhrase({ ...order(), payment: undefined }),
       "$67 by card", "a record from before payments were kept");
     has(farmOrderPlaced({ ...order(), payment: { via: "venmo",
-      method: "venmo" } }).text, "Paid: **$67 by Venmo**");
+      method: "venmo" } }).text, "Paid: $67 by Venmo\n");
     // Changed after paying: each payment, in order.
     assert.equal(paymentPhrase({ ...order(), payments: [
       { amount: 6200, via: "square", method: "card", brand: "VISA",

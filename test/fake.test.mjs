@@ -162,7 +162,6 @@ const SQUARE_CALLS = {
   getPayment: (o) => square.getPayment("P1", o),
   getRefund: (o) => square.getRefund("R1", o),
   inventoryCounts: (o) => square.inventoryCounts(["V1"], o),
-  productionStock: (o) => square.productionStock(["NFF-CHK-EGG-LG"], o),
   findPaid: (o) => square.findPaid(order(), o),
   deleteCustomer: (o) => square.deleteCustomer("C1", o),
   customerOrders: (o) => square.customerOrders("C1", {

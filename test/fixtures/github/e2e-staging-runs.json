@@ -1,0 +1,343 @@
+{
+  "_source": "Run 40600000002 (failed) and its jobs are RECORDED from GitHub on 2026-10-28 by the coordinator: GET /repos/north-foster-farm/north-foster-farm/actions/runs/40608586178 and its /jobs, the full staging run on ccf8ab9f, trimmed to the fields bin/promote.mjs reads and their neighbors, with the run and job ids replaced by the placeholders the tests name. Runs 40600000001 (passed) and 40600000003 (stood down) stay shaped by cloud-502 after GitHub's REST reference, because no full staging run had yet passed or stood down to record: replace each with a recording once one exists. Tests rewrite head_sha.",
+  "runs": {
+    "total_count": 3,
+    "workflow_runs": [
+      {
+        "id": 40600000003,
+        "name": "E2E staging",
+        "head_branch": "e2e/staging-full",
+        "head_sha": "0000000000000000000000000000000000000000",
+        "path": ".github/workflows/e2e-staging.yml",
+        "display_title": "Check every catalog product's row on the order page",
+        "run_number": 41,
+        "event": "push",
+        "status": "completed",
+        "conclusion": "success",
+        "workflow_id": 190000001,
+        "html_url": "https://github.com/north-foster-farm/north-foster-farm/actions/runs/40600000003",
+        "created_at": "2026-10-28T01:10:00Z",
+        "updated_at": "2026-10-28T01:12:30Z",
+        "run_attempt": 1,
+        "run_started_at": "2026-10-28T01:10:00Z"
+      },
+      {
+        "id": 40600000002,
+        "name": "E2E staging",
+        "head_branch": "e2e/staging-full",
+        "head_sha": "ccf8ab9f4a3f789a6ebd72aa2d8dde33655d643b",
+        "path": ".github/workflows/e2e-staging.yml",
+        "display_title": "Escape the QR title instead of cutting it",
+        "run_number": 34,
+        "event": "push",
+        "status": "completed",
+        "conclusion": "failure",
+        "workflow_id": 396050911,
+        "html_url": "https://github.com/north-foster-farm/north-foster-farm/actions/runs/40600000002",
+        "created_at": "2026-10-28T00:24:42Z",
+        "updated_at": "2026-10-28T00:56:55Z",
+        "run_attempt": 1,
+        "run_started_at": "2026-10-28T00:24:42Z"
+      },
+      {
+        "id": 40600000001,
+        "name": "E2E staging",
+        "head_branch": "e2e/staging-full",
+        "head_sha": "0000000000000000000000000000000000000000",
+        "path": ".github/workflows/e2e-staging.yml",
+        "display_title": "Check every catalog product's row on the order page",
+        "run_number": 39,
+        "event": "push",
+        "status": "completed",
+        "conclusion": "success",
+        "workflow_id": 190000001,
+        "html_url": "https://github.com/north-foster-farm/north-foster-farm/actions/runs/40600000001",
+        "created_at": "2026-10-28T00:40:00Z",
+        "updated_at": "2026-10-28T00:58:00Z",
+        "run_attempt": 1,
+        "run_started_at": "2026-10-28T00:40:00Z"
+      }
+    ]
+  },
+  "jobs": {
+    "40600000003": {
+      "total_count": 1,
+      "jobs": [
+        {
+          "id": 90000000003,
+          "run_id": 40600000003,
+          "workflow_name": "E2E staging",
+          "head_branch": "e2e/staging-full",
+          "head_sha": "0000000000000000000000000000000000000000",
+          "status": "completed",
+          "conclusion": "success",
+          "name": "e2e-staging",
+          "steps": [
+            {
+              "name": "Set up job",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 1
+            },
+            {
+              "name": "Run actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 2
+            },
+            {
+              "name": "Run actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 3
+            },
+            {
+              "name": "Wait for the deploy",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 4
+            },
+            {
+              "name": "Install",
+              "status": "completed",
+              "conclusion": "skipped",
+              "number": 5
+            },
+            {
+              "name": "Sweep the suite's leftovers",
+              "status": "completed",
+              "conclusion": "skipped",
+              "number": 6
+            },
+            {
+              "name": "Browsers",
+              "status": "completed",
+              "conclusion": "skipped",
+              "number": 7
+            },
+            {
+              "name": "Run",
+              "status": "completed",
+              "conclusion": "skipped",
+              "number": 8
+            },
+            {
+              "name": "Failure screenshots",
+              "status": "completed",
+              "conclusion": "skipped",
+              "number": 9
+            },
+            {
+              "name": "Summary",
+              "status": "completed",
+              "conclusion": "skipped",
+              "number": 10
+            },
+            {
+              "name": "Alert",
+              "status": "completed",
+              "conclusion": "skipped",
+              "number": 11
+            },
+            {
+              "name": "Complete job",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 12
+            }
+          ]
+        }
+      ]
+    },
+    "40600000002": {
+      "total_count": 1,
+      "jobs": [
+        {
+          "id": 90000000002,
+          "run_id": 40600000002,
+          "workflow_name": "E2E staging",
+          "head_branch": "e2e/staging-full",
+          "head_sha": "ccf8ab9f4a3f789a6ebd72aa2d8dde33655d643b",
+          "status": "completed",
+          "conclusion": "failure",
+          "name": "e2e-staging",
+          "steps": [
+            {
+              "name": "Set up job",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 1
+            },
+            {
+              "name": "Run actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 2
+            },
+            {
+              "name": "Run actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 3
+            },
+            {
+              "name": "Wait for the deploy",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 4
+            },
+            {
+              "name": "Install",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 5
+            },
+            {
+              "name": "Sweep the suite's leftovers",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 6
+            },
+            {
+              "name": "Browsers",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 7
+            },
+            {
+              "name": "Run",
+              "status": "completed",
+              "conclusion": "failure",
+              "number": 8
+            },
+            {
+              "name": "Failure screenshots",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 9
+            },
+            {
+              "name": "Summary",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 10
+            },
+            {
+              "name": "Alert",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 11
+            },
+            {
+              "name": "Post Run actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444",
+              "status": "completed",
+              "conclusion": "skipped",
+              "number": 21
+            },
+            {
+              "name": "Post Run actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 22
+            },
+            {
+              "name": "Complete job",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 23
+            }
+          ]
+        }
+      ]
+    },
+    "40600000001": {
+      "total_count": 1,
+      "jobs": [
+        {
+          "id": 90000000001,
+          "run_id": 40600000001,
+          "workflow_name": "E2E staging",
+          "head_branch": "e2e/staging-full",
+          "head_sha": "0000000000000000000000000000000000000000",
+          "status": "completed",
+          "conclusion": "success",
+          "name": "e2e-staging",
+          "steps": [
+            {
+              "name": "Set up job",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 1
+            },
+            {
+              "name": "Run actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 2
+            },
+            {
+              "name": "Run actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 3
+            },
+            {
+              "name": "Wait for the deploy",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 4
+            },
+            {
+              "name": "Install",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 5
+            },
+            {
+              "name": "Sweep the suite's leftovers",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 6
+            },
+            {
+              "name": "Browsers",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 7
+            },
+            {
+              "name": "Run",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 8
+            },
+            {
+              "name": "Failure screenshots",
+              "status": "completed",
+              "conclusion": "skipped",
+              "number": 9
+            },
+            {
+              "name": "Summary",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 10
+            },
+            {
+              "name": "Alert",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 11
+            },
+            {
+              "name": "Complete job",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 12
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

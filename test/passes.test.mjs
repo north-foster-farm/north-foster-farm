@@ -405,7 +405,7 @@ describe("POST /api/orders with a pass", () => {
     })).fulfillments[0].delivery_details.note;
 
     assert.match(notice.text,
-      /Code: \*\*ABCD-EFGH\*\*, which let this order under the minimum/);
+      /Code: ABCD-EFGH, which let this order under the minimum/);
     assert.match(note, /code ABCD-EFGH, under the minimum/);
 
     const waived = { ...order, passWaivesFee: true };

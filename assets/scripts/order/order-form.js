@@ -29,6 +29,7 @@ import { wireSwitch } from "./restock.js";
 import { Stock } from "./stock.js";
 import { Submitter } from "./submit.js";
 import { announceCart } from "../cart-badge/announce.js";
+import { confirmJoin } from "../group/join-dialog.js";
 import { stampFrom } from "../session/cache.js";
 import {
   SCRUBBED, pullCart, scrubStray,
@@ -144,6 +145,9 @@ export class OrderForm {
     this.raw = { locations: data.locations, series: data.series };
     this.member = null;
     this.groupCode = null;
+    // Group codes the customer has said Join to (#495, decision 5): a
+    // draft's, and any confirmed here. Applied again, they don't ask.
+    this.joinConfirmed = new Set();
     // A draft's pickup at a round the lists lack until the group is
     // unlocked, chosen then.
     this.wantedOccurrence = null;
@@ -256,6 +260,8 @@ export class OrderForm {
 
     this.clearQuery("group");
     if (linked) this.cart.setCodeValue(linked);
+    // A code that came by the link, not typed, for the join log (#495).
+    this.groupLinked = !!linked;
     this.applyCode({ quiet: true });
     this.refresh();
     this.stock.start();
@@ -287,6 +293,13 @@ export class OrderForm {
     // group is asked for, and its pickup and prices follow.
     if (who.customer.memberGroup && !this.member && !this.editing) {
       this.applyGroup("").catch(() => {});
+    }
+    // Credit kept after leaving a group (#495): it comes off any order
+    // signed in, as the server takes it.
+    this.ownCredit = Number(who.credit) || 0;
+    if (this.ownCredit && !this.member && !this.editing) {
+      this.credit = this.ownCredit;
+      this.refresh();
     }
     this.prefill(who.customer);
   }
@@ -909,6 +922,8 @@ export class OrderForm {
     });
 
     this.cart.setCodeValue(typed);
+    // Apply pressed: whatever is on now was typed.
+    if (!quiet) this.groupLinked = false;
 
     // Apply with the field empty takes the code off again, and a pass
     // with it; a change keeps the pass its order was placed with.
@@ -952,9 +967,23 @@ export class OrderForm {
       ? { ok: false }
       : await this.applyGroup(typed);
 
+    // Cancel in the join dialog (#495, decision 5): the code stays in
+    // the box, unapplied, and nothing is said.
+    if (member.declined) {
+      this.cart.codeResult();
+      this.refresh();
+
+      return;
+    }
     if (member.ok) {
-      // James's wording (2026-10-26, through the coordinator).
-      accepted("Code applied. Welcome to the group!");
+      // James's wording (2026-10-26, through the coordinator); a
+      // member typing the code again is told so (#495, approved). A
+      // member of another group gets its prices for this order only
+      // (draft).
+      accepted(member.already ? "You're already in the group."
+        : member.elsewhere ? "Code applied to this order. You stay in your " +
+          "own group."
+          : "Code applied. Welcome to the group!");
       this.refresh();
 
       return;
@@ -1012,15 +1041,31 @@ export class OrderForm {
 
   // Asks the server what a buying group's code unlocks (#471), or,
   // with no code, what the signed-in account's group is. An accepted
-  // answer unlocks the group. -> { ok, message? }.
+  // answer unlocks the group. A code, typed or linked, for a group the
+  // customer isn't in asks first in the join dialog (#495, decision
+  // 5); Cancel unlocks nothing.
+  // -> { ok, already?, elsewhere?, declined?, message? }.
   async applyGroup(code) {
     const { ok, data } = await api("/api/group", {
       method: "POST", body: code ? { code } : {},
     }).catch(() => ({ ok: false, data: null }));
+    const found = !!(ok && data && data.group);
+    const already = !!(data && data.already);
+    const elsewhere = !!(data && data.elsewhere);
+    const asks = found && !!code && !already && !elsewhere
+      && !this.joinConfirmed.has(normalizeCode(code));
 
-    if (ok && data && data.group) this.unlockGroup(data, code || null);
+    if (asks) {
+      if (!(await confirmJoin(data.group.name))) {
+        return { ok: false, declined: true };
+      }
+      this.joinConfirmed.add(normalizeCode(code));
+    }
+    if (found) this.unlockGroup(data, code || null);
 
-    return { ok: !!(ok && data && data.group), message: data && data.message };
+    return {
+      ok: found, already, elsewhere, message: data && data.message,
+    };
   }
 
   // The group's place and series join the model and its rounds the
@@ -1144,7 +1189,7 @@ export class OrderForm {
   dropGroup(message) {
     this.member = null;
     this.groupCode = null;
-    this.credit = 0;
+    this.credit = this.ownCredit || 0;
     this.terms = withPlaces(this.terms, this.raw);
     this.dates.dropExtra();
     this.renderGroupDelivery();
@@ -1513,6 +1558,8 @@ export class OrderForm {
       pass: this.pass,
       // A buying group's code (#471), when one was typed or linked.
       groupCode: this.groupCode,
+      // Whether that code came by the group's link (#495).
+      ...(this.groupCode && this.groupLinked ? { groupLink: true } : {}),
       claimedTotal: this.totals().total,
       website: qs(this.form, "[name='website']").value,
     };
@@ -1600,7 +1647,9 @@ export class OrderForm {
     }
     // So is a buying group's code (#471): replaced since, it is gone,
     // and the pickup it unlocked with it.
+    // Said Join to when it went on the draft: not asked again.
     if (payload.groupCode && !this.editing) {
+      this.joinConfirmed.add(normalizeCode(payload.groupCode));
       this.applyGroup(payload.groupCode).catch(() => {});
     }
 

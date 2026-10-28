@@ -627,6 +627,39 @@ describe("the edge", () => {
       }
     });
 
+  it("answers 502, not a throw, when the site behind fails", async () => {
+    const failing = () => Promise.reject(new Error("origin went away"));
+    const quiet = console.error;
+    const logged = [];
+
+    console.error = (line) => logged.push(line);
+    try {
+      const res = await gateRequest(new Request("https://stg.example/api/" +
+        "staging/e2e", { method: "POST",
+        headers: { authorization: "Bearer e2e-token" } }), {
+        deploy: "branch-deploy", env: env(keys), store: () => memoryStore(),
+        next: failing, now: NOW,
+      });
+
+      assert.equal(res.status, 502);
+      assert.equal(res.headers.get("x-robots-tag"), NOINDEX);
+      assert.match(await res.text(), /did not answer/);
+      assert.match(logged[0], /gate\.next_failed/);
+      assert.match(logged[0], /"path":"\/api\/staging\/e2e"/);
+      assert.ok(!logged[0].includes("e2e-token"));
+    } finally {
+      console.error = quiet;
+    }
+
+    // Without a credential it is still stopped before the site is asked.
+    const stopped = await gateRequest(new Request("https://stg.example/x"), {
+      deploy: "branch-deploy", env: env(keys), store: () => memoryStore(),
+      next: failing, now: NOW,
+    });
+
+    assert.equal(stopped.status, 401);
+  });
+
   it("gives a script a bare 401 and a pinger nothing", async () => {
     const res = await edge("/api/orders", { method: "POST" });
 

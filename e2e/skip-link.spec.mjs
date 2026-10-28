@@ -2,7 +2,7 @@
 // main content", and following it takes the keyboard past the top bar
 // and the header into <main>. docs/qa-launch.md, "The autumn refresh".
 
-import { expect, test } from "./support/order.mjs";
+import { expect, stockApplied, test } from "./support/order.mjs";
 
 // The order page marks the rail's link once /api/stock answers; that
 // once moved the Tab starting point to the link (#291). Its cases wait
@@ -31,6 +31,7 @@ test.describe("skip link", () => {
       await page.goto(path);
       if (answered) {
         await answered;
+        await stockApplied(page);
         // The rail is marked on the next frame after the rows change.
         await page.evaluate(() => new Promise((done) => {
           requestAnimationFrame(() => requestAnimationFrame(done));

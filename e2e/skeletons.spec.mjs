@@ -3,12 +3,27 @@
 // without moving the page, and says so with a Try again when the
 // request fails or never answers. Each request is held with
 // page.route and answered on cue, as search.spec.mjs does, and every
-// answer is canned, so this runs on a local build as on staging.
+// answer is canned, so this runs on a local build as on staging. The
+// hold on /api/stock is what's under test; what it lets through is the
+// server's answer with every product pinned in stock for the test's
+// own scope (#507), which a local build gives as staging does.
+
+import { readFileSync } from "node:fs";
 
 import {
   CUSTOMER, ORDER, cannedDates, dates,
 } from "./support/canned.mjs";
 import { expect, test } from "./support/order.mjs";
+import { PLENTY } from "./support/stock.mjs";
+
+const catalog = JSON.parse(readFileSync(
+  new URL("../data/catalog.json", import.meta.url), "utf8"
+));
+
+test.use({
+  stockPins: Object.fromEntries(catalog.groups.flatMap((g) => g.items)
+    .map((item) => [item.sku, PLENTY])),
+});
 
 const SHOW_AFTER_MS = 150;
 const GIVE_UP_MS = 10_000;
@@ -76,7 +91,8 @@ const settled = async (region) => {
 };
 
 const json = (body) => ({ json: body });
-const STOCK = json({ items: {} });
+// A held /api/stock goes on to the server, pins and all.
+const STOCK = undefined;
 
 test.describe("loading skeletons (#271)", () => {
   test.beforeEach(async ({ page }) => {
@@ -365,7 +381,6 @@ test.describe("loading skeletons (#271)", () => {
         if (e.target.closest(".skeleton-failed a")) window.e2eTried();
       }, true);
     });
-    await page.route("**/api/stock", (route) => route.fulfill(STOCK));
     await page.route("**/api/dates", async (route) => {
       if (!tried) await new Promise((r) => setTimeout(r, 500));
 

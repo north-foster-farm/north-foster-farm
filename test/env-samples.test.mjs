@@ -5,7 +5,7 @@ import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { checkFilled } from "../bin/env/filled.mjs";
-import { OPTIONAL } from "../bin/env/netlify.mjs";
+import { OPTIONAL, planPush } from "../bin/env/netlify.mjs";
 import {
   ENVIRONMENTS, parseSample, readSample, sampleFile,
 } from "../bin/env/sample.mjs";
@@ -127,6 +127,39 @@ describe("the tracked env samples", () => {
     assert.deepEqual(stale, [],
       "NOT_IN_A_SAMPLE names a key that is gone, or is now in a sample");
   });
+
+  // A push sets an empty key's value as a secret unless its comment
+  // says "Public:", and Netlify's scan then blocks a build whose
+  // output holds a secret's value (RESEND_SENDING_KEY_NAME, 2026-10-26).
+  it("push a Public: key as a plain variable, never a secret", () => {
+    for (const env of ["staging", "production"]) {
+      const sample = readSample(samples[env], env);
+      const values = new Map(parsed[env].entries
+        .map((e) => [e.name, `filled-${e.name.toLowerCase()}`]));
+      const { sets } = planPush(sample, { values, errors: [] }, `.env.${env}`);
+
+      for (const e of parsed[env].entries.filter((x) => x.public)) {
+        const set = sets.find((s) => s.name === e.name);
+
+        if (!e.local) {
+          assert.ok(set, `${e.name} is pushed from ${sampleFile(env)}`);
+          assert.equal(set.secret, false, `${e.name} in ${sampleFile(env)}`);
+        }
+      }
+    }
+  });
+
+  it("mark Public: every empty key whose comment says it is no secret",
+    () => {
+      for (const env of ["staging", "production"]) {
+        for (const e of parsed[env].entries) {
+          if (/not a secret/i.test(e.purpose.join(" "))) {
+            assert.equal(e.public, true,
+              `${e.name} in ${sampleFile(env)} says "Public:"`);
+          }
+        }
+      }
+    });
 
   it("mark as Optional: every key the tooling lets stay empty", () => {
     for (const env of ["staging", "production"]) {

@@ -98,8 +98,8 @@ export const indexCatalog = (catalog) => {
 
 // An archived item is hidden everywhere and never sold, whatever its
 // stock (#267). Every other restock type ("seasonal", "soon",
-// "hiatus", "discontinued") only labels an item while it is out:
-// stock wins.
+// "hiatus", "discontinued") only labels an item while it is out, and
+// "hidden" (#492) leaves it off the page while it is out: stock wins.
 export const archived = (item) => !!item && item.restock === "archived";
 
 export const inStock = (catalog) => [...indexCatalog(catalog).values()]

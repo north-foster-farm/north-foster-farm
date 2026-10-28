@@ -40,6 +40,7 @@ import { json, readJson } from "./lib/http.mjs";
 import { withLog } from "./lib/log.mjs";
 import { gate } from "./lib/maintenance.mjs";
 import { leaving, leavingChange, noteInteraction } from "./lib/retention.mjs";
+import { scopeOf } from "./lib/stock-pins.mjs";
 import { stores as defaultStores } from "./lib/store.mjs";
 
 // Ownership is checked by the logic; the route only shapes the id.
@@ -127,6 +128,7 @@ export const handle = async (req, {
     if (action === "edit") {
       return answer(await took(await editOrder(stores, customer, id, body, {
         ...opts, group: customer.discountGroup || null,
+        stockScope: scopeOf(req.headers, env),
       })));
     }
     // An order the farm made, paid now by its customer (#181).

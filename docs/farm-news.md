@@ -2,10 +2,11 @@
 
 Opt-in only, ever. Consent is `marketing` and `marketingAt` on the
 customer record (`marketingSource` says how it came: `signup`,
-`order`, `account`, `import`, `resend`, `unsubscribe`, and `confirm`
-for a re-invite link mailed before #303), set by the sign-up field's
-confirmation link, the checkout box, the settings box, or the import
-of the old list's paper sheets below. Anyone with an email address
+`order`, `account`, `import`, `resend`, `unsubscribe`, `join-link`,
+and `confirm` for a re-invite link mailed before #303), set by the
+sign-up field's confirmation link, the checkout box, the settings
+box, a group's join link, or the import of the old list's paper
+sheets below. Anyone with an email address
 may opt in; a record is made for an address that has never ordered.
 
 ## The consent log
@@ -18,7 +19,7 @@ rewritten. A second opt-in keeps the first.
 | Field | Holds |
 | --- | --- |
 | `action` | `in` or `out` |
-| `type` | `website-form`, `checkout`, `account-settings`, `reinvite-confirmation`, `market-sheet`, `in-person`, `resend`, `unsubscribe-link`, or `membership` (reserved) |
+| `type` | `website-form`, `checkout`, `account-settings`, `reinvite-confirmation`, `market-sheet`, `in-person`, `resend`, `unsubscribe-link`, `join-link`, or `membership` (reserved) |
 | `detail` | the page, the order, the market: `the sign-up form on /news/`, `order NFF-2610-K3WM` |
 | `at` | when consent was given; for a market sheet, the sheet's date |
 | `recordedAt` | when it was written here, equal to `marketingAt` |
@@ -40,10 +41,10 @@ Every customer write fills these, and nothing reads them yet (#267):
   issued. Both null until the membership program exists.
 - `memberSince`: when they joined, or null. Joining is also a
   `membership` event in the consent log.
-- `memberGroup`: `{ id, joinedAt }`, or null. It links to a group
-  record (id, name, founder contact, created) that has no store yet;
-  the program's own issue makes one. `discountGroup` is a different
-  thing, the price group.
+- `memberGroup`: `{ id, joinedAt, via }`, or null. `id` is a buying
+  group's key in `data/groups.json`, whose code and join token are
+  the `group/<key>` record in the orders store (`lib/groups.mjs`,
+  #471, #495). `discountGroup` is a different thing, the price group.
 
 James's spec puts these, and the log, on the household record in
 Supabase. Customers live in Blobs until households move there (see
@@ -91,9 +92,15 @@ source `order`). The account page's box writes the same consent,
 source `account`. Neither sends a confirmation. Everything else is in
 `lib/news.mjs`.
 
+A group's sign-up page (`/join/`, #495) has a Farm News box too. Ticked,
+the join email says so in one sentence (`JOIN_NEWS` in `templates.mjs`),
+and following the link is the owner's consent, source `join-link`
+(`lib/join.mjs`). Unticked, the email says nothing of it and nothing
+subscribes.
+
 ## The welcome
 
-A real join from any of the four sends the welcome (`newsWelcome` in
+A real join from any of these sends the welcome (`newsWelcome` in
 `templates.mjs`, T6), the whole welcome sequence (#267); a repeat
 sends nothing. From the order box it goes once the order is paid,
 after the order's own emails. A failed send is logged as
@@ -206,6 +213,91 @@ listing who is `due`).
 
 The record gains the `welcome` field only when imported with `--skip`;
 a record imported without it, or joined any other way, never has it.
+
+### Taking out a stale address: `audience remove`
+
+```
+bin/nff --production audience remove <email> [--dry-run]
+```
+
+takes a dead or duplicate address the import brought in out of our
+records, before a sync adds it to Resend (#496). It is a removal, not
+an unsubscribe: nothing is recorded as a decline (no `forgotten/`
+marker), so a real person can still sign up later, and Resend is never
+called. `removeImported` reports one of:
+
+- `deleted`: the record is the import's alone, with nothing on it but
+  what the import wrote, and no orders, credit or cart. It goes, held
+  welcome and all, with any unsubscribe link a sent welcome left.
+- `cleared`: the record has anything else on it (orders, a sign-in, a
+  group, credit, details). It stays, and only what the import added
+  goes, listed in `cleared`: `marketing` (with `marketingAt` and
+  `marketingSource`, while the import's consent is still the one in
+  force) and a held `welcome`. The record's state is back as it was
+  before the import. The consent log is append-only: the import's
+  `market-sheet` event stays, and a `removed` event follows it. The
+  record keeps no `marketingAt`, so a later import or sign-up is not
+  taken for a decline.
+- `none`: no record, or nothing on it from the import.
+
+Afterward the sync has nothing to add and `audience welcome` nothing to
+send. Each removal logs one line, `news.removed`, with the time, who
+ran it (the Mac's user name), which outcome and the address masked
+(`lib/mask.mjs`: `abcdefgh@example.com` is `abc**fgh@exa*****com`),
+never in full. `customers delete` logs `customer.deleted` the same way
+(2026-10-27, James on #496; these lines hashed the address before). On
+production it asks for the address typed out; `--dry-run` asks nothing
+and writes nothing. `bin/nff` ships these lines to Axiom at the end of
+the run (`docs/monitoring.md`); a dry run ships none.
+
+### Names, and a batch cleanup: `customers set` and `audience apply`
+
+```
+bin/nff --production customers set <email> first=.. last=.. [--dry-run]
+bin/nff --production audience apply <csv> [--dry-run]
+```
+
+The welcome and Resend use `firstName` and `lastName`, and the sync
+never changes the name on a contact that exists, so `customers set`
+with `first=` or `last=` (`setNames`, #496, 2026-10-27) sets both on
+the record, with `name` made from them, and the Resend contact's
+`first_name` and `last_name`. A name left out stays as it was. If
+Resend can't be reached, the record keeps its change and the report
+says `not reached`: run it again. It logs `customer.renamed` with who
+ran it, which fields changed and the address masked, never the names.
+`name=`, `phone=` and the rest are set without the two, as before.
+
+`audience apply` (`applyAudience`) takes a CSV whose header names
+`action,email,first,last`, one row per address. The header must have
+all four, in any order; other columns, such as James's `note`, are
+ignored, and a quoted cell may hold a comma.
+
+- `keep` sets both names in the row as given (2026-10-27: an empty
+  cell sets that name blank, no longer leaves it as it was). A blank
+  last name or an initial is valid on the list, and so is an empty
+  first name, with no warning: the welcome then says "Hi," and never
+  uses the last name.
+- `remove` goes the way of `customers forget --apply`: the record and
+  everything else that names the address go, its orders stay but are
+  re-pointed to the deleted household, and the Resend contact is
+  deleted. A remove waits, and says why, while an order, a return or a
+  Venmo payment is open.
+
+It prints one line per row with the address masked, then the counts,
+and goes on past a row that fails. Keep the CSV off the repository. On
+production it asks for `audience apply` typed out; `--dry-run` asks
+nothing, writes nothing and only reads Resend.
+
+Which removal to use, against Resend: `audience remove` and
+`customers delete` never call Resend. Before the first sync that is
+enough, since the import makes no contacts, unless the address was
+already a contact in Resend (`audience sync --dry-run` lists any it
+would take in under `imported`). Once a sync has made the
+contact, `customers delete` leaves it there, and the next sync takes it
+back in as consent given in Resend, with a new record. `customers
+forget --apply` (and a `remove` row) deletes the contact too, or, if
+Resend can't be reached, leaves a `forgotten/` marker so the next sync
+deletes it.
 
 ## The list template
 

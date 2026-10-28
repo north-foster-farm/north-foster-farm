@@ -1,0 +1,15 @@
+{{/* Joining a buying group (#495, James's decision 5): the one dialog
+     that opens before a group's code, join link or QR code applies,
+     for anyone not yet in the group. Cancel leaves the code unapplied.
+     group/join-dialog.js fills the name and runs it. James's approved
+     wording. */}}
+<dialog class="group-join" id="group-join" aria-labelledby="group-join-title" aria-describedby="group-join-body">
+  <div class="group-join-panel">
+    <h2 class="h4 group-join-title" id="group-join-title">Join <span data-group-join-name></span>?</h2>
+    <p class="group-join-body" id="group-join-body">You'll get member prices and the group's pickup. The group's host can see your name and email address.</p>
+    <div class="group-join-actions">
+      <button type="button" class="btn btn-primary" data-group-join-yes>Join group</button>
+      <button type="button" class="btn btn-outline-secondary" data-group-join-no>Cancel</button>
+    </div>
+  </div>
+</dialog>

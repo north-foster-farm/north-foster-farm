@@ -45,12 +45,15 @@ import {
 } from "../../../assets/scripts/order/lib/catalog.mjs";
 import terms from "../../../data/delivery.json" with { type: "json" };
 import { today } from "../../../assets/scripts/order/lib/zoned.mjs";
-import { now as clock } from "./clock.mjs";
+import { now as clock, real } from "./clock.mjs";
 import { log } from "./log.mjs";
 import { farmEmails, sendMail } from "./mail.mjs";
 import { mailLinks } from "./site.mjs";
-import { inventoryCounts, productionStock } from "./square.mjs";
-import { productionRead, stockOverrides } from "./stock-source.mjs";
+import { inventoryCounts } from "./square.mjs";
+import {
+  productionRead, productionStock, stockOverrides,
+} from "./stock-source.mjs";
+import { applyPins } from "./stock-pins.mjs";
 import { farmArchivedInStock } from "./templates.mjs";
 
 const index = indexCatalog(catalog);
@@ -62,15 +65,19 @@ export const getCounts = async (stores) =>
 
 export const SNAPSHOT = "square";
 export const SNAPSHOT_MS = 15_000;
-// Production's counts by SKU, where staging reads them (#453).
+// Production's counts by SKU, from its public /api/stock, where staging
+// reads them (#453).
 export const PRODUCTION_SNAPSHOT = "square-production";
 
 // Square's counts by variation id, or null when it doesn't answer.
-const readSquare = async (ids, { env, deadline, inventory }) => {
+// The same for production's by SKU, with its own `event`.
+const readSquare = async (ids, {
+  env, deadline, inventory, event = "stock.square_unread",
+}) => {
   try {
     return (await inventory(ids, { env, deadline })) || null;
   } catch (error) {
-    log.warn({ event: "stock.square_unread", error: String(error) });
+    log.warn({ event, error: String(error) });
 
     return null;
   }
@@ -102,38 +109,51 @@ const snapshotCounts = async (stores, ids, opts, now, key = SNAPSHOT) => {
 // that fails is logged and leaves the store's. With `snapshot`,
 // Square's come from the snapshot (above). With `check`, the line
 // logged says whether Square's counts or only the store's were used.
-// On staging and previews, production's counts by SKU may stand in for
-// Square's, and STOCK_OVERRIDES over everything (lib/stock-source.mjs,
-// #453). `inventory` and `production` are for tests.
+// On staging and previews, production's counts by SKU stand over
+// staging's own for every SKU production counts, and STOCK_OVERRIDES
+// over them (lib/stock-source.mjs, #453). A production that is down,
+// slow or rate-limits staging is logged and leaves staging's own. With
+// `scope`, a test's pins stand over everything, for that scope alone
+// (lib/stock-pins.mjs, #507). `inventory` and `production` are for
+// tests.
 export const liveCounts = async (stores, {
   catalogIndex = index, env = process.env, deadline,
   inventory = inventoryCounts, production = productionStock,
-  snapshot = false, now = clock(), check,
+  snapshot = false, now = clock(), check, scope = null,
 } = {}) => {
   const counts = await getCounts(stores);
   const sourced = productionRead(env);
   const skus = new Map();
 
   for (const [sku, item] of catalogIndex) {
-    if (sourced) skus.set(sku, sku);
-    else if (item.squareVariationId) skus.set(item.squareVariationId, sku);
+    if (item.squareVariationId) skus.set(item.squareVariationId, sku);
   }
 
-  const ids = [...skus.keys()];
-  const opts = { env, deadline, inventory: sourced ? production : inventory };
-  const square = snapshot
-    ? await snapshotCounts(stores, ids, opts, now,
-      sourced ? PRODUCTION_SNAPSHOT : SNAPSHOT)
-    : await readSquare(ids, opts);
+  const read = (ids, opts, key) => (snapshot
+    ? snapshotCounts(stores, ids, { env, deadline, ...opts }, now, key)
+    : readSquare(ids, { env, deadline, ...opts }));
+  const [square, prod] = await Promise.all([
+    read([...skus.keys()], { inventory }, SNAPSHOT),
+    sourced
+      ? read([...catalogIndex.keys()], {
+        inventory: production, event: "stock.production_unread",
+      }, PRODUCTION_SNAPSHOT)
+      : null,
+  ]);
 
   for (const [id, n] of Object.entries(square || {})) {
     if (skus.has(id)) counts[skus.get(id)] = n;
   }
+  for (const [sku, n] of Object.entries(prod || {})) {
+    if (catalogIndex.has(sku)) counts[sku] = n;
+  }
   Object.assign(counts, stockOverrides(env));
+  if (scope) await applyPins(stores, counts, { scope, env, now: real(now) });
   if (check) {
     log.info({ event: "stock.checked", for: check,
-      via: square ? "square" : "store",
-      ...(sourced ? { source: "production" } : {}) });
+      via: square || prod ? "square" : "store",
+      ...(sourced ? { source: prod ? "production" : "staging" } : {}),
+      ...(scope ? { pinned: true } : {}) });
   }
 
   return counts;
@@ -264,12 +284,59 @@ export const archivedInStock = async (stores, {
   }
 };
 
-// Errors keyed like the validator's, for lines that cannot be filled.
-// Always a fresh read of Square; `check` names the check in the log.
-export const checkLines = async (stores, lines, {
-  env, deadline, inventory, check = "order",
+// A tier with stock in Square that the order page won't sell (#499,
+// James, #303 6454589969). Every restock type but `archived` describes
+// only the sold-out state, so a count above 0 sells it (availability,
+// above), and no type may hide stock. What still does is a catalog
+// entry with `inStock: false`, or an archived one: the farm has packs
+// nobody can order. The jobs tell the farm once a day (lib/jobs.mjs,
+// the `stock.hidden` invariant); `bin/nff stock hidden` prints them on
+// demand.
+//
+// Whether the page keeps a tier off whatever Square counts, and why.
+// -> "archived" | "inStock false" | null when a count sells it.
+export const hiddenBy = (item) => {
+  if (archived(item)) return "archived";
+
+  return item.inStock ? null : "inStock false";
+};
+
+// Every tier the page keeps off whatever its count, with Square's
+// count at the farm's location. -> [{ sku, name, why, count }], count
+// null where Square doesn't count it, or null when Square can't be
+// asked or doesn't answer. `inventory` is for tests.
+export const hiddenCounts = async ({
+  catalogIndex = index, env = process.env, deadline,
+  inventory = inventoryCounts,
 } = {}) => {
-  const counts = await liveCounts(stores, { env, deadline, inventory, check });
+  const hidden = [...catalogIndex.values()].filter(hiddenBy);
+  const ids = hidden.map((i) => i.squareVariationId).filter(Boolean);
+  const square = ids.length
+    ? await readSquare(ids, { env, deadline, inventory })
+    : {};
+
+  if (!square) return null;
+
+  return hidden.map((item) => ({
+    sku: item.sku,
+    name: item.lineName,
+    why: hiddenBy(item),
+    count: Object.hasOwn(square, item.squareVariationId || "")
+      ? square[item.squareVariationId] : null,
+  }));
+};
+
+export const hiddenInStock = (list) => list.filter((i) => i.count > 0);
+
+// Errors keyed like the validator's, for lines that cannot be filled.
+// Always a fresh read of Square; `check` names the check in the log,
+// and `scope` is the request's pin scope (lib/stock-pins.mjs).
+export const checkLines = async (stores, lines, {
+  env, deadline, inventory, check = "order", scope,
+} = {}) => {
+  const counts = await liveCounts(stores, {
+    env, deadline, inventory, check, scope,
+  });
   const items = await availability(stores, { counts });
   const errors = {};
 

@@ -621,7 +621,9 @@ export const getCustomer = (stores, email) =>
 //   detail      the form or page, the market, the order: plain words
 //   at          when the person gave or withdrew consent (a market
 //               sheet's date, which may be weeks before it is entered)
-//   recordedAt  when it was written here; equals `marketingAt`
+//   recordedAt  when it was written here; equals `marketingAt`, but
+//               for a `removed` event, which leaves `marketingAt`
+//               null, as the record stood before the import
 //   capturedBy  who took an in-person consent (James or Jim), or null
 //   evidence    a pointer to private proof (a scan's file name), never
 //               the proof itself; or null
@@ -635,7 +637,9 @@ export const CONSENT_TYPES = [
   "resend", // Added by hand in Resend, or left there
   "unsubscribe-link", // The one-click link in a list email
   "inactivity", // Taken off after a year without interaction (#189)
+  "removed", // A stale or duplicate import taken out (#496)
   "membership", // Reserved: joining the membership program
+  "join-link", // A group's sign-up page, confirmed by its emailed link
 ];
 
 // How `marketingSource` names the same things.

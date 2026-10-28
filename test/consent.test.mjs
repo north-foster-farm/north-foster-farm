@@ -127,7 +127,7 @@ describe("the consent log", () => {
   it("names a type for every source the code writes", () => {
     for (const type of ["website-form", "checkout", "account-settings",
       "reinvite-confirmation", "market-sheet", "in-person", "resend",
-      "unsubscribe-link", "membership"]) {
+      "unsubscribe-link", "membership", "join-link"]) {
       assert.ok(CONSENT_TYPES.includes(type), type);
     }
   });
@@ -296,6 +296,15 @@ describe("the list template", () => {
     assert.match(m.html, /display:none[^>]*>Peek/);
     assert.match(m.text, /\[Photo: Hen\]\nA hen\./);
     assert.match(m.text, /Order: https:\/\/x\/order\//);
+  });
+
+  it("drops the bold marks from the plain text (#490)", () => {
+    const bold = listMail("Sample", {
+      blocks: [listBlocks.p("**Bold lead.** Then the rest.")], links,
+    });
+
+    assert.match(bold.text, /^Bold lead\. Then the rest\./);
+    assert.doesNotMatch(bold.text, /\*\*/);
   });
 
   it("gives the confirmation no unsubscribe and no reason line", () => {

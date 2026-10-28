@@ -25,8 +25,9 @@
               {{ partial "busy-button.html" (dict "label" "Sign out" "busy" "Signing out" "class" "account-signout" "plain" true "start" true "id" "account-signout" "type" "button" "error" true) }}
             </div>
             {{/* A buying group's member (#471): the group's name and
-                 the credit balance, on the head's right, members only
-                 (James's v1). Draft wording; main.js fills it. */}}
+                 the credit balance, on the head's right. The balance
+                 shows for anyone with credit, a member or not (#495,
+                 decision 6). Draft wording; main.js fills it. */}}
             <div class="account-member" id="account-member" hidden>
               <p class="account-member-group" data-member-group></p>
               <p class="account-member-credit" data-member-credit></p>
@@ -36,6 +37,9 @@
           <nav class="account-nav" aria-label="Account sections">
             <a class="account-tab" href="#orders" data-tab="orders">Orders</a>
             <a class="account-tab" href="#receipts" data-tab="receipts">Receipts</a>
+            {{/* A buying group's member or host only (#495): main.js
+                 takes the tab and its pane out for anyone else. */}}
+            <a class="account-tab" href="#membership" data-tab="membership" data-membership-only hidden>Membership</a>
             <a class="account-tab" href="#address" data-tab="address">Address</a>
             <a class="account-tab" href="#settings" data-tab="settings">Settings</a>
             <a class="account-tab" href="#help" data-tab="help">Help</a>
@@ -70,6 +74,33 @@
               </dl>
               <p class="form-text mb-0">{{ hugo.Data.company.name }}, {{ with hugo.Data.company.address }}{{ .street }}, {{ .city }}, {{ .state }} {{ .zip }}{{ end }}</p>
             </div>
+          </section>
+
+          {{/* A buying group (#495): what a member sees of it, and the
+               host's QR code and member list. main.js fills it from
+               /api/membership; every line is a draft for James. */}}
+          <section class="account-section account-membership" id="acct-membership" data-section="membership" data-membership-only aria-label="Membership" hidden>
+            <div class="alert alert-success" id="membership-joined" role="status" hidden></div>
+            {{/* One block per group, from tpl-mem-group: the member's
+                 own group first, then each other group this address
+                 hosts (James, 6458200999). */}}
+            <div id="mem-groups"></div>
+
+            {{/* A member leaves on their own (James, 6452533356), with
+                 the same rules as a removal. */}}
+            <section class="account-group" aria-labelledby="mem-leave-h" data-mem-leave hidden>
+              <h2 class="h4 account-group-title" id="mem-leave-h">Leave the group</h2>
+              <p>Your open orders stay as placed. To join again, you'll need the group's code or QR code.</p>
+              <button class="btn btn-outline-danger" type="button" id="mem-leave" aria-expanded="false" aria-controls="mem-leave-confirm">Leave group</button>
+              <div class="account-order-panel" id="mem-leave-confirm" hidden>
+                <p class="account-panel-title">Leave <span data-mem="leave-name"></span>?</p>
+                <p class="form-text">The host will no longer see your name or email address.</p>
+                <div class="account-panel-actions">
+                  {{ partial "busy-button.html" (dict "label" "Yes, leave the group" "busy" "Leaving" "class" "btn-danger btn-sm" "id" "mem-leave-yes" "type" "button" "error" true) }}
+                  <button type="button" class="btn btn-outline-secondary btn-sm" id="mem-leave-keep">Stay</button>
+                </div>
+              </div>
+            </section>
           </section>
 
           {{/* Forms here are Bootstrap grid forms (Forms, Layout,
@@ -345,6 +376,80 @@
       <div class="account-order-actions" data-out="actions"></div>
       <div class="account-order-panel" data-out="panel" hidden></div>
     </article>
+  </template>
+
+  {{/* One group on the Membership tab (#495): its facts, and the
+       host's QR code and member list when this address hosts it.
+       main.js gives each heading its id. */}}
+  <template id="tpl-mem-group">
+    <div class="account-membership-group" data-mem-group>
+      <section class="account-group" data-mem-labelled="name">
+        <div class="account-group-head">
+          <h2 class="h4 account-group-title" data-mem="name"></h2>
+        </div>
+        <dl class="account-membership-facts">
+          <dt class="account-membership-term">Pickup</dt>
+          <dd class="account-membership-value" data-mem="place"></dd>
+          <dt class="account-membership-term">Rounds</dt>
+          <dd class="account-membership-value" data-mem="every"></dd>
+          <dt class="account-membership-term">This round closes</dt>
+          <dd class="account-membership-value" data-mem="closes"></dd>
+          <dt class="account-membership-term">Next round opens</dt>
+          <dd class="account-membership-value" data-mem="opens"></dd>
+        </dl>
+      </section>
+
+      <div data-mem-host hidden>
+        <section class="account-group" data-mem-labelled="qr-h">
+          <div class="account-group-head">
+            <h2 class="h4 account-group-title" data-mem="qr-h">Your group's QR code</h2>
+          </div>
+          <p>People who scan this code can join the group. It opens a page where they sign up with their name and email address.</p>
+          <img class="account-membership-qr" data-mem="qr" alt="QR code to join the group" width="296" height="296" hidden>
+          <p class="form-text" data-mem="qr-status" role="status" aria-live="polite"></p>
+          <div class="account-membership-actions">
+            <a class="btn btn-primary" data-mem="download" href="/api/membership/qr?download=1" download>Download QR code</a>
+            <button class="btn btn-outline-primary" type="button" data-mem="qr-new" aria-expanded="false">Generate new QR code</button>
+          </div>
+          <div class="account-order-panel" data-mem="qr-confirm" hidden>
+            <p class="account-panel-title">Generate a new QR code?</p>
+            <p class="form-text">The current code stops working right away, so anything already printed with it must be replaced. Members stay in the group, and the typed code doesn't change.</p>
+            <div class="account-panel-actions">
+              {{ partial "busy-button.html" (dict "label" "Generate new QR code" "busy" "Generating" "class" "btn-danger btn-sm" "type" "button" "error" true "attrs" (dict "data-mem" "rotate")) }}
+              <button type="button" class="btn btn-outline-secondary btn-sm" data-mem="qr-keep">Never mind</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="account-group" data-mem-labelled="list-h">
+          <div class="account-group-head">
+            <h2 class="h4 account-group-title" data-mem="list-h">Members</h2>
+          </div>
+          <p class="account-empty" data-mem="list-empty" hidden>No members yet.</p>
+          <ul class="account-membership-list" data-mem="list"></ul>
+        </section>
+      </div>
+    </div>
+  </template>
+
+  {{/* One member on the host's list (#495). */}}
+  <template id="tpl-member">
+    <li class="account-membership-member" data-member>
+      <div class="account-membership-who">
+        <span class="account-membership-name" data-out="name"></span>
+        <span class="account-membership-email" data-out="email"></span>
+      </div>
+      <span class="account-membership-joined" data-out="joined"></span>
+      <button class="btn btn-link btn-sm text-danger p-0" type="button" data-out="remove">Remove</button>
+      <div class="account-order-panel account-membership-confirm" data-out="confirm" hidden>
+        <p class="account-panel-title">Remove <span data-out="who"></span> from the group?</p>
+        <p class="form-text">Their open orders stay as placed. They could join again with the group's code or QR code.</p>
+        <div class="account-panel-actions">
+          {{ partial "busy-button.html" (dict "label" "Yes, remove" "busy" "Removing" "class" "btn-danger btn-sm" "type" "button" "error" true "attrs" (dict "data-out" "yes")) }}
+          <button type="button" class="btn btn-outline-secondary btn-sm" data-out="keep">Never mind</button>
+        </div>
+      </div>
+    </li>
   </template>
 
   <template id="tpl-line">

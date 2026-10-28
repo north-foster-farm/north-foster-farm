@@ -1,10 +1,11 @@
 // The order page, driven the way a customer drives it. Every spec
 // starts from a fresh browser context, so the draft in localStorage
-// never leaks between tests.
+// never leaks between tests, and with its own stock pins (#507).
 
 import { test as base, expect } from "@playwright/test";
 
 import { orderLimitHeaders } from "./staging.mjs";
+import { PLENTY, stockFixtures } from "./stock.mjs";
 
 // SKUs and prices from data/catalog.json (price list 2026-v9). The
 // sums below are chosen to land on the thresholds in
@@ -70,7 +71,18 @@ export const FULL_CART = {
 export const uniqueEmail = (tag) => `qa-e2e-${tag}-${Date.now().toString(36)}${
   Math.random().toString(36).slice(2, 6)}@example.com`;
 
+// What every test of the order page starts with (#507): the SKUs
+// above pinned in plenty for its own scope, so no spec sells by the
+// farm's live stock. A spec lays its own over these with
+// test.use({ stockPins: { ...SUITE_STOCK, [sku]: n } }), or one test
+// with stock.pin (e2e/support/stock.mjs).
+export const SUITE_STOCK = Object.fromEntries(
+  Object.values(SKU).map((sku) => [sku, PLENTY])
+);
+
 export const test = base.extend({
+  ...stockFixtures,
+  stockPins: [SUITE_STOCK, { option: true }],
   // The staging toolbar sits over the page, and it polls the outbox,
   // which needs a token; with a wrong one it asks again and again.
   // Tests start with it out of sight (a style: its own "Hide" no
@@ -113,6 +125,22 @@ export const test = base.extend({
 });
 
 export { expect };
+
+// The page has applied /api/stock's answer, not just received it.
+// Once the answer is slower than 150 ms its skeleton's bars show, and
+// they hold up to 300 ms more before the rows are marked
+// (utils/skeleton.js). A test that reads the rows when the response
+// lands sees the build's stock: on staging, whose answer is slower,
+// that read as a pin that never applied (#507, staging run
+// 40632954855). Call these once the answer has come.
+export const stockApplied = (page) => expect(
+  page.locator("#order-catalog")
+).not.toHaveAttribute("data-load", /./);
+
+// The same for the search palette's own read of /api/stock.
+export const searchStockApplied = (page) => expect(
+  page.locator("#search-palette .search-palette-body")
+).not.toHaveAttribute("data-load", /./);
 
 // Which payment drivers are the fakes here: none on any Netlify deploy,
 // both on a local run (SQUARE_ENV and PAYPAL_ENV fake work only where
@@ -174,8 +202,19 @@ export class OrderPage {
   async open(cart = null, { method } = {}) {
     const query = cart ? `?add=${addQuery(cart)}` : "";
 
-    await this.page.goto(`/order/${query}`);
+    // Not the whole `load` (#506): on staging one goto sat 45 s without
+    // it. The page has no images or third-party tags, and fetch() never
+    // holds `load`, but with one category shown the pay section is
+    // within pay.js's 600 px margin, so Square's and PayPal's sandbox
+    // SDK scripts go in before `load` and hold it while they crawl.
+    // What the tests need is the form wired, which order-form.js does
+    // on DOMContentLoaded and the enabled date below proves, and the
+    // site's own fonts in, so layout measures are final.
+    await this.page.goto(`/order/${query}`, {
+      waitUntil: "domcontentloaded",
+    });
     await expect(this.page.locator("#onfarm-date")).toBeEnabled();
+    await this.page.evaluate(() => document.fonts.ready.then(() => {}));
     // ?add= scrolls the cart into view 300 ms after load, smoothly; a
     // test that scrolls first would be scrolled back. Let it finish.
     if (cart) await this.page.waitForTimeout(1_000);

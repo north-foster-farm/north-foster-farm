@@ -12,6 +12,7 @@ import {
   BACK_OFFICE_MISSING, BASE_URL, backOffice, clearMail, closeOrder,
   deleteCustomer, linkIn, orderRecord, teardown, waitForMail,
 } from "./support/staging.mjs";
+import { withScope } from "./support/stock.mjs";
 
 const SIGN_IN = "Your secure sign-in link to North Foster Farm";
 const UPDATED = "Your order is updated";
@@ -88,11 +89,15 @@ test.describe("changing a paid order", () => {
       await waitForMail({ to: email, subject: UPDATED, since: asked });
     });
 
-  test("more items: the difference is charged", async ({ playwright }) => {
+  test("more items: the difference is charged", async ({
+    playwright, stockScope,
+  }) => {
     test.skip(!cookies, "Needs the sign-in from the test before.");
 
+    // The sign-in of the test before, with this test's own stock pins.
     const request = await playwright.request.newContext({
-      baseURL: BASE_URL, storageState: { cookies, origins: [] },
+      baseURL: BASE_URL,
+      storageState: { cookies: withScope(cookies, stockScope), origins: [] },
       extraHTTPHeaders: { Origin: BASE_URL },
     });
     const url = `/api/account/orders/${orderId}/edit`;

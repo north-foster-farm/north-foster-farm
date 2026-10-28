@@ -12,7 +12,7 @@ import { forgetJoined, remember } from "../news/hide.js";
 import { forget, showChick, signOut } from "../session/session.js";
 import { api } from "../utils/api.js";
 import {
-  FAILED, isBusy, setBusy, whileBusy,
+  FAILED, failBusy, isBusy, setBusy, whileBusy,
 } from "../utils/busy-button.js";
 import { say } from "../utils/contact-link.js";
 import { fieldError } from "../utils/field-errors.mjs";
@@ -24,6 +24,7 @@ import { Autoplay } from "../video/video.js";
 import {
   METHOD, fileName, ordersCsv, paidWith, receiptsCsv, statusOf,
 } from "./lib/history.mjs";
+import { joinedLine, moment, roundsLine } from "./lib/membership.mjs";
 
 const qs = (root, selector) => root.querySelector(selector);
 const all = (root, selector) => Array.from(root.querySelectorAll(selector));
@@ -158,7 +159,11 @@ class Account {
     }
     if (!me.ok) return null;
 
-    const orders = await api("/api/account/orders");
+    const [orders, membership] = await Promise.all([
+      api("/api/account/orders"),
+      // A buying group's member or host (#495): the Membership tab.
+      me.data.membership ? api("/api/membership") : null,
+    ]);
 
     if (!orders.ok) return null;
 
@@ -166,10 +171,16 @@ class Account {
       customer: me.data.customer, orders: orders.data.orders || [],
       // A buying group's member (#471): the group and the credit.
       member: me.data.member || null,
+      // Credit kept with no group (#495, decision 6).
+      credit: Number(me.data.credit) || 0,
+      membership: membership && membership.ok ? membership.data : null,
     };
   }
 
-  show({ maintenance, customer, orders, member = null }) {
+  show({
+    maintenance, customer, orders, member = null, credit = 0,
+    membership = null,
+  }) {
     if (maintenance) {
       this.loading.textContent = maintenance;
       this.loading.hidden = false;
@@ -178,6 +189,7 @@ class Account {
     }
 
     this.member = member;
+    this.credit = credit;
 
     // Signed in as someone the link isn't for: the sign-in page's
     // card takes it, as it does for any browser (#345).
@@ -201,8 +213,10 @@ class Account {
     this.renderOrders();
     this.renderReceipts();
     this.renderSupportOrders();
+    this.renderMembership(membership);
     this.app.hidden = false;
     this.showTab(location.hash.replace("#", "") || "orders");
+    this.joined();
     this.openOrder(orderFromPath());
     this.emailChanged();
     this.confirmChange();
@@ -235,6 +249,241 @@ class Account {
       + (params.toString() ? `?${params}` : "") + location.hash);
     document.getElementById("email-change-sent").textContent =
       `Your email address has been changed to ${this.customer.email}.`;
+  }
+
+  // Arrived from a group's sign-up link (#495): say so once, then drop
+  // the flag so a reload doesn't repeat it. Draft wording.
+  joined() {
+    const params = new URLSearchParams(location.search);
+
+    if (params.get("joined") !== "1") return;
+
+    params.delete("joined");
+    params.delete("via");
+    history.replaceState(null, "", location.pathname
+      + (params.toString() ? `?${params}` : "") + location.hash);
+
+    const banner = document.getElementById("membership-joined");
+    const own = this.membership && this.membership.member;
+
+    if (!banner || !own) return;
+
+    banner.textContent = `You've joined ${own.group.name}.`;
+    banner.hidden = false;
+    this.showTab("membership");
+  }
+
+  // The Membership tab (#495): the group's facts for a member, and the
+  // QR code and member list for every group this address hosts, each
+  // its own block (James, 6458200999). For anyone else, the tab and
+  // its pane leave the page, so no hash can open them. Draft wording.
+  renderMembership(view) {
+    this.membership = view;
+    if (!view) {
+      for (const node of all(document, "[data-membership-only]")) {
+        node.remove();
+      }
+
+      return;
+    }
+
+    const own = view.member;
+    // The member's own group first, with the host's part when they
+    // host it too, then each other group they host.
+    const blocks = [
+      ...(own ? [[own, view.hosts.find((h) => h.key === own.key)]] : []),
+      ...view.hosts.filter((h) => !own || h.key !== own.key)
+        .map((h) => [h, h]),
+    ];
+
+    qs(document, "[data-tab='membership']").hidden = false;
+    document.getElementById("mem-groups").replaceChildren(
+      ...blocks.map(([g, hosted]) => this.renderGroup(g, hosted))
+    );
+    this.renderLeave(view);
+  }
+
+  // One group's block: its facts, and the host's part when `hosted`.
+  renderGroup(g, hosted) {
+    const item = clone("tpl-mem-group");
+    const box = qs(item, "[data-mem-group]");
+    const out = (name, text) => {
+      qs(box, `[data-mem='${name}']`).textContent = text;
+    };
+    const p = g.group.place;
+    const r = g.rounds;
+    const zone = this.terms.timeZone;
+
+    // Each section is labelled by its heading, its id unique per group.
+    for (const section of all(box, "[data-mem-labelled]")) {
+      const part = section.dataset.memLabelled;
+      const id = `mem-${g.key}-${part}`;
+
+      qs(box, `[data-mem='${part}']`).id = id;
+      section.setAttribute("aria-labelledby", id);
+    }
+    out("name", g.group.name);
+    out("place", p
+      ? `${p.name}, ${p.street}, ${p.city}, ${p.state} ${p.zip}` : "");
+    out("every", r ? roundsLine(r) : "");
+    out("closes", r ? `${moment(r.current.closesAt, zone)}, for pickup ${
+      label(r.current.date)}` : "");
+    out("opens", r && r.next ? `${moment(r.next.opensAt, zone)}, for pickup ${
+      label(r.next.date)}` : "");
+    qs(box, "[data-mem-host]").hidden = !hosted;
+    if (hosted) this.renderHost(box, hosted);
+
+    return box;
+  }
+
+  // A member's own Leave group (#495), asked first. Gone, the page
+  // starts again without the tab.
+  renderLeave(view) {
+    const box = qs(document, "[data-mem-leave]");
+
+    box.hidden = !view.member;
+    if (!view.member || this.leaveWired) return;
+    this.leaveWired = true;
+
+    const open = document.getElementById("mem-leave");
+    const confirm = document.getElementById("mem-leave-confirm");
+    const yes = document.getElementById("mem-leave-yes");
+    const ask = (on) => {
+      confirm.hidden = !on;
+      open.setAttribute("aria-expanded", String(on));
+      (on ? yes : open).focus();
+    };
+
+    qs(box, "[data-mem='leave-name']").textContent = view.member.group.name;
+    open.addEventListener("click", () => ask(true));
+    document.getElementById("mem-leave-keep").addEventListener("click",
+      () => ask(false));
+    yes.addEventListener("click", async () => {
+      if (isBusy(yes)) return;
+
+      const { ok, data } = await whileBusy(yes, api("/api/membership/leave", {
+        method: "POST", body: {},
+      }).catch(() => ({ ok: false, data: null })));
+
+      if (!ok) {
+        failBusy(yes, data && data.message);
+
+        return;
+      }
+      // /api/me changes: the header's menu and this page ask again.
+      forget();
+      location.replace("/account/#orders");
+      location.reload();
+    });
+  }
+
+  // The host's part of one hosted group: the QR code, its download and
+  // replacement, and the members. Every request names the group.
+  renderHost(box, hosted) {
+    const el = (name) => qs(box, `[data-mem='${name}']`);
+    const group = encodeURIComponent(hosted.key);
+    const img = el("qr");
+    const status = el("qr-status");
+    const open = el("qr-new");
+    const confirm = el("qr-confirm");
+    const rotate = el("rotate");
+    const show = (setAt) => {
+      img.src = `/api/membership/qr?group=${group}&v=${
+        encodeURIComponent(setAt || "")}`;
+      img.hidden = false;
+    };
+    const ask = (on) => {
+      confirm.hidden = !on;
+      open.setAttribute("aria-expanded", String(on));
+      (on ? rotate : open).focus();
+    };
+
+    confirm.id = `mem-${hosted.key}-qr-confirm`;
+    open.setAttribute("aria-controls", confirm.id);
+    el("download").href = `/api/membership/qr?group=${group}&download=1`;
+    show(hosted.qr && hosted.qr.setAt);
+    open.addEventListener("click", () => ask(true));
+    el("qr-keep").addEventListener("click", () => ask(false));
+    rotate.addEventListener("click", async () => {
+      if (isBusy(rotate)) return;
+
+      const { ok, data } = await whileBusy(rotate, api("/api/membership/qr", {
+        method: "POST", body: { group: hosted.key, rotate: true },
+      }).catch(() => ({ ok: false, data: null })));
+
+      if (!ok) {
+        failBusy(rotate, data && data.message);
+
+        return;
+      }
+      show(data.qr.setAt);
+      ask(false);
+      status.textContent = "Here's your new QR code. The old one no " +
+        "longer works. Download this one to print.";
+    });
+    this.renderMembers(box, hosted.key, hosted.members || []);
+  }
+
+  renderMembers(box, key, members) {
+    const el = (name) => qs(box, `[data-mem='${name}']`);
+    const list = el("list");
+
+    list.replaceChildren();
+    el("list-empty").hidden = members.length > 0;
+    el("list-h").textContent = members.length
+      ? `Members (${members.length})` : "Members";
+
+    for (const m of members) {
+      const item = clone("tpl-member");
+      const row = qs(item, "[data-member]");
+
+      qs(row, "[data-out='name']").textContent = m.name || "No name yet";
+      qs(row, "[data-out='email']").textContent = m.email;
+      qs(row, "[data-out='joined']").textContent = joinedLine(m, placed);
+      this.wireRemove(box, key, row, m);
+      list.append(item);
+    }
+  }
+
+  // The host's Remove on one member of the hosted group `key` (#495),
+  // asked first. The host's own row has none: they leave with Leave
+  // group.
+  wireRemove(box, key, row, m) {
+    const remove = qs(row, "[data-out='remove']");
+    const confirm = qs(row, "[data-out='confirm']");
+    const yes = qs(row, "[data-out='yes']");
+    const ask = (on) => {
+      confirm.hidden = !on;
+      remove.hidden = on;
+      (on ? yes : remove).focus();
+    };
+
+    if (m.email === this.customer.email) {
+      remove.remove();
+      confirm.remove();
+
+      return;
+    }
+
+    qs(row, "[data-out='who']").textContent = m.name || m.email;
+    remove.setAttribute("aria-label", `Remove ${m.name || m.email}`);
+    remove.addEventListener("click", () => ask(true));
+    qs(row, "[data-out='keep']").addEventListener("click", () => ask(false));
+    yes.addEventListener("click", async () => {
+      if (isBusy(yes)) return;
+
+      const { ok, data } = await whileBusy(yes, api("/api/membership/remove", {
+        method: "POST", body: { group: key, email: m.email },
+      }).catch(() => ({ ok: false, data: null })));
+
+      if (!ok) {
+        failBusy(yes, data && data.message);
+
+        return;
+      }
+      this.renderMembers(box, key, data.members || []);
+      this.say(`${m.name || m.email} is no longer in the group.`);
+    });
   }
 
   // Arrived from an email about one order: show that order rather
@@ -578,18 +827,21 @@ class Account {
     document.getElementById("account-email").textContent = c.email;
 
     // A buying group's member (#471): the group's name and the credit
-    // balance, on the head's right; nothing for anyone else. Draft
-    // wording.
+    // balance, on the head's right. Credit is the account's (#495,
+    // decision 6), so someone who left a group with some still sees
+    // it; with neither, nothing. Draft wording.
     const box = document.getElementById("account-member");
     const m = this.member;
+    const credit = m ? m.credit || 0 : this.credit || 0;
 
     if (box) {
-      box.hidden = !m;
-      if (m) {
-        qs(box, "[data-member-group]").textContent = m.name;
-        qs(box, "[data-member-credit]").textContent =
-          `Credit: ${dollars(m.credit || 0)}`;
-      }
+      const name = qs(box, "[data-member-group]");
+
+      box.hidden = !m && !credit;
+      name.hidden = !m;
+      name.textContent = m ? m.name : "";
+      qs(box, "[data-member-credit]").textContent =
+        `Credit: ${dollars(credit)}`;
     }
   }
 

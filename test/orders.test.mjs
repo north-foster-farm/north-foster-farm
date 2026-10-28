@@ -685,7 +685,7 @@ describe("POST /api/orders with a card", () => {
     assert.equal(farm.length, 1);
     assert.deepEqual(farm[0].to, ["farm@x.com"]);
     assert.match(farm[0].subject, /^New order NFF-.*: \$55, on-farm pickup$/);
-    assert.match(farm[0].text, /Paid: \*\*\$55 by Visa ending 4242\*\*/);
+    assert.match(farm[0].text, /Paid: \$55 by Visa ending 4242\n/);
     assert.match(farm[0].text,
       /app\.squareup\.com\/dashboard\/orders\/overview\/SQO/);
     assert.doesNotMatch(farm[0].text, /orders confirm/);
@@ -856,7 +856,7 @@ describe("POST /api/orders with Venmo", () => {
       });
       assert.equal(await getCheckout(stores, KEY), null);
       assert.match(sent.find((m) => Array.isArray(m.to)).text,
-        /Paid: \*\*\$55 by Venmo\*\*/);
+        /Paid: \$55 by Venmo\n/);
     });
 
   it("reserves a fresh id before PayPal hears of a taken one (#253)",

@@ -16,6 +16,7 @@ import {
   getCustomer, getOrder, ordersFor, saveCustomer, saveOrder,
 } from "../netlify/functions/lib/records.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
+import { resendFake } from "./resend-fixture.mjs";
 
 const now = new Date("2026-10-16T13:00:00Z");
 const PAT = "pat@example.com";
@@ -116,6 +117,7 @@ describe("forgetCustomer", () => {
     await stores.customers.set("messages/m2", { email: "sam@example.com" });
     await stores.auth.set("unsub/t1", { email: PAT });
     await stores.auth.set(`rate/${PAT}`, { times: [1] });
+    await stores.auth.set(`rate/join/${PAT}`, { times: [1] });
     await stores.auth.set(`change-rate/${PAT}`, { times: [1] });
     await createSession(stores, PAT, { now });
 
@@ -170,6 +172,7 @@ describe("forgetCustomer", () => {
     assert.equal((await stores.auth.list("session/")).length, 0);
     assert.equal(await stores.auth.get("unsub/t1"), null);
     assert.equal(await stores.auth.get(`rate/${PAT}`), null);
+    assert.equal(await stores.auth.get(`rate/join/${PAT}`), null);
     assert.equal(await stores.auth.get(`change-rate/${PAT}`), null);
     assert.ok(await getCustomer(stores, "sam@example.com"));
     assert.equal((await getOrder(stores, "B")).customer.email,
@@ -260,16 +263,7 @@ describe("forgetCustomer", () => {
     assert.match(r.resend, /not reached/);
     assert.ok(await stores.customers.get(forgottenKey(PAT)));
 
-    const calls = [];
-    const fetchImpl = async (url, init) => {
-      calls.push(`${init.method} ${url}`);
-
-      return {
-        ok: true,
-        json: async () => (init.method === "GET"
-          ? { data: [{ email: PAT, unsubscribed: false }] } : {}),
-      };
-    };
+    const { calls, contacts, fetchImpl } = resendFake([PAT]);
     const report = await syncAudience(stores, {
       env: { RESEND_AUDIENCE_ID: "aud", RESEND_API_KEY: "k" },
       fetchImpl, now, pace: 0,
@@ -277,7 +271,8 @@ describe("forgetCustomer", () => {
 
     assert.deepEqual(report.forgotten, [PAT]);
     assert.deepEqual(report.imported, []);
-    assert.ok(calls.some((c) => c.startsWith("DELETE")));
+    assert.ok(calls.some((c) => c.method === "DELETE"));
+    assert.deepEqual(contacts, []);
     assert.equal(await getCustomer(stores, PAT), null);
     assert.equal(await stores.customers.get(forgottenKey(PAT)), null);
   });

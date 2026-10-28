@@ -1,0 +1,18 @@
+{
+  "_source": "Recorded from Resend's contacts API on 2026-10-27 by the coordinator, against the production audience with James's approval (#496 comment 6455715793), using one throwaway contact on our domain that was created, renamed and deleted. The audience held 143 contacts before and after. Every real contact was cut from the list answer in memory before writing, and the audience id, contact id and addresses are placeholders. Note: deleting a contact that no longer exists answers 200 with deleted true, not 404.",
+  "name": "update-missing",
+  "recorded": "2026-10-27T23:08:45.286Z",
+  "request": {
+    "method": "PATCH",
+    "path": "/audiences/<AUDIENCE_ID>/contacts/nobody%40example.com",
+    "body": {
+      "first_name": "Pat"
+    }
+  },
+  "status": 404,
+  "response": {
+    "statusCode": 404,
+    "message": "Contact not found",
+    "name": "not_found"
+  }
+}

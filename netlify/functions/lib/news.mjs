@@ -17,8 +17,13 @@ import { normalizeEmail, validEmail } from "./auth.mjs";
 import { now as clock, real } from "./clock.mjs";
 import { log } from "./log.mjs";
 import { sendMail } from "./mail.mjs";
+import { maskEmail } from "./mask.mjs";
 import { resendAllowed, resendRefusal } from "./resend-guard.mjs";
-import { allCustomers, getCustomer, saveCustomer } from "./records.mjs";
+import { creditKey } from "./credit.mjs";
+import {
+  SCHEMA_DEFAULTS, allCustomers, cartKey, consentLog, deleteCustomer,
+  getCustomer, ordersFor, saveCustomer,
+} from "./records.mjs";
 import { customerEmailWithheld } from "./payments.mjs";
 import { mailLinks, siteUrl } from "./site.mjs";
 import { newsConfirm, newsWelcome } from "./templates.mjs";
@@ -613,15 +618,138 @@ export const sendOwedWelcomes = async (stores, {
   return report;
 };
 
+// What an import writes on a record it makes (optIn, then the held
+// welcome). Any other field set, beyond the schema's defaults, is the
+// person's own history: a sign-in, a group, details, an order.
+const IMPORT_FIELDS = [
+  "email", "name", "firstName", "lastName", "marketing", "marketingAt",
+  "marketingSource", "createdAt", "consent", "welcome",
+];
+const blank = (value) => value === null || value === undefined
+  || value === "" || (Array.isArray(value) && !value.length);
+const importMade = (c) => c.createdAt === c.marketingAt
+  && consentLog(c).length === 1
+  && Object.entries(c).every(([key, value]) => IMPORT_FIELDS.includes(key)
+    || (key in SCHEMA_DEFAULTS
+      ? value === SCHEMA_DEFAULTS[key] : blank(value)));
+
+// A stale or duplicate address the import brought in, taken out of our
+// records before a sync adds it to Resend (#496). Not an unsubscribe:
+// nothing is recorded as a decline (no forgottenKey), so a real person
+// can still sign up later, and Resend is never called.
+//
+//   deleted   the record is the import's alone, with no orders, credit
+//             or cart: it goes, held welcome and all, with any
+//             unsubscribe link a welcome left
+//   cleared   the record has more on it: it stays, and only what the
+//             import wrote goes (`cleared` names it): its consent
+//             (`marketing`, `marketingAt`, `marketingSource`), while it
+//             is still the consent in force, and a held `welcome`. The
+//             consent log is append-only: the import's event stays and
+//             a `removed` event follows it
+//   none      no record, or nothing on it from the import
+//
+// `dryRun` reports and writes nothing. Each removal logs one line, with
+// `by`, who ran it, and the address masked (mask.mjs).
+// -> { email, outcome, cleared, dryRun }.
+export const removeImported = async (stores, email, {
+  by = null, dryRun = false, now = clock(),
+} = {}) => {
+  const address = normalizeEmail(email);
+  const customer = await getCustomer(stores, address);
+  const report = { email: address, outcome: "none", cleared: [], dryRun };
+
+  if (!customer) return report;
+
+  const imported = customer.marketing === true
+    && customer.marketingSource === "import";
+
+  if (imported && importMade(customer)
+    && !(await ordersFor(stores, address)).length
+    && !await stores.customers.get(creditKey(address))
+    && !await stores.customers.get(cartKey(address))) {
+    report.outcome = "deleted";
+  } else {
+    if (imported) report.cleared.push("marketing");
+    if (customer.welcome) report.cleared.push("welcome");
+    if (report.cleared.length) report.outcome = "cleared";
+  }
+  if (dryRun || report.outcome === "none") return report;
+
+  if (report.outcome === "deleted") {
+    for (const { key } of await stores.auth.list("unsub/")) {
+      const link = await stores.auth.get(key);
+
+      if (link && normalizeEmail(link.email) === address) {
+        await stores.auth.delete(key);
+      }
+    }
+    await deleteCustomer(stores, address);
+  } else {
+    const rest = { ...customer };
+
+    delete rest.welcome;
+    if (imported) {
+      // Back as it was before the import, which joins only a record
+      // that never said yes or no, so no `marketingAt`: a later import
+      // or sign-up is not taken for a decline. The log keeps the
+      // import's event and says it was taken out.
+      const at = now.toISOString();
+
+      rest.marketing = false;
+      rest.marketingAt = null;
+      delete rest.marketingSource;
+      rest.consent = [...consentLog(customer), {
+        action: "out", type: "removed",
+        detail: "a stale or duplicate import, taken out", at,
+        recordedAt: at, capturedBy: null, evidence: null,
+      }];
+    }
+    await saveCustomer(stores, rest);
+  }
+  log.info({
+    event: "news.removed", outcome: report.outcome, by,
+    record: maskEmail(address), cleared: report.cleared,
+  });
+
+  return report;
+};
+
+// One CSV line's cells. A quoted cell may hold commas, and "" in one
+// is a quote.
+const csvCells = (line) => {
+  const out = [];
+  let cell = "";
+  let quoted = false;
+
+  for (let i = 0; i < line.length; i += 1) {
+    const c = line[i];
+
+    if (quoted && c === "\"" && line[i + 1] === "\"") {
+      cell += "\"";
+      i += 1;
+    } else if (c === "\"") {
+      quoted = !quoted;
+    } else if (c === "," && !quoted) {
+      out.push(cell.trim());
+      cell = "";
+    } else {
+      cell += c;
+    }
+  }
+  out.push(cell.trim());
+
+  return out;
+};
+
 // A CSV of addresses: a header row naming email, first and last, and
-// for the old list's sheets date and market (any order, any case) or,
-// without one, email first then the names.
+// for the old list's sheets date and market, or for `audience apply`
+// action (any order, any case) or, without one, email first then the
+// names. Other columns, such as a note, are ignored.
 export const parseCsv = (content) => {
   const lines = String(content).split(/\r?\n/).map((l) => l.trim())
     .filter(Boolean);
-  const cells = (line) => line.split(",").map((c) => c.trim()
-    .replace(/^"(.*)"$/, "$1"));
-  const rows = lines.map(cells);
+  const rows = lines.map(csvCells);
   const header = rows[0] && rows[0].some((c) => /email/i.test(c))
     ? rows.shift().map((c) => c.toLowerCase())
     : null;
@@ -636,14 +764,38 @@ export const parseCsv = (content) => {
   const l = col("last", 2);
   const d = col("date", -1);
   const m = col("market", -1);
+  const a = col("action", -1);
 
   return rows.map((r) => ({
+    ...(a >= 0 ? { action: (r[a] || "").toLowerCase() } : {}),
     email: e >= 0 ? r[e] || "" : "",
     firstName: f >= 0 ? r[f] || "" : "",
     lastName: l >= 0 ? r[l] || "" : "",
     date: d >= 0 ? r[d] || "" : "",
     market: m >= 0 ? r[m] || "" : "",
   }));
+};
+
+const APPLY_COLUMNS = ["action", "email", "first", "last"];
+
+// `audience apply`'s CSV (#496): a header naming action, email, first
+// and last, any order and any case, with other columns (James's note)
+// ignored. Every cell is taken as given: an empty first or last name
+// sets that name blank. -> rows of { action, email, firstName, lastName }.
+export const parseApplyCsv = (content) => {
+  const first = String(content).split(/\r?\n/).find((l) => l.trim());
+  const header = first ? csvCells(first.trim()).map((c) => c.toLowerCase())
+    : [];
+  const missing = APPLY_COLUMNS
+    .filter((name) => !header.some((h) => h.includes(name)));
+
+  if (missing.length) {
+    throw new Error(`The CSV's header needs ${APPLY_COLUMNS.join(",")}; ` +
+      `it has no ${missing.join(" or ")} column.`);
+  }
+
+  return parseCsv(content).map(({ action, email, firstName, lastName }) =>
+    ({ action, email, firstName, lastName }));
 };
 
 // --- The audience in Resend ----------------------------------------
@@ -678,11 +830,22 @@ const resend = async (env, fetchImpl, method, path, body) => {
   return data;
 };
 
-// Every contact in the audience. -> [{ id, email, first_name,
-// last_name, unsubscribed }]
-export const listContacts = async (env, fetchImpl = globalThis.fetch) =>
-  (await resend(env, fetchImpl, "GET",
-    `/audiences/${env.RESEND_AUDIENCE_ID}/contacts`)).data || [];
+// Every contact in the audience. Asked with no limit, Resend answers
+// the whole audience at once (143 contacts in the #496 recording, with
+// has_more false). An answer with has_more is only part of it, and a
+// sync or removal working from part would take the rest for missing,
+// so it stops here. -> [{ id, email, first_name, last_name,
+// unsubscribed }]
+export const listContacts = async (env, fetchImpl = globalThis.fetch) => {
+  const list = await resend(env, fetchImpl, "GET",
+    `/audiences/${env.RESEND_AUDIENCE_ID}/contacts`);
+
+  if (list.has_more) {
+    throw new Error("Resend listed only part of the audience (has_more)");
+  }
+
+  return list.data || [];
+};
 
 // Our records decide who is in; Resend decides who has left. A record
 // consenting since it last left through Resend (resendLeftAt) overrides
@@ -854,6 +1017,34 @@ export const removeContact = async (email, {
   }
 
   return "removed";
+};
+
+// One contact's first and last name set (#496). `audience sync` makes
+// contacts and changes their choice, never their names, so a corrected
+// name reaches Resend only this way. `contacts` is the audience, when
+// the caller has listed it already. -> "renamed", "none" or
+// "unconfigured"; with `apply` false nothing is written.
+export const renameContact = async (email, { firstName, lastName }, {
+  env = process.env,
+  fetchImpl = globalThis.fetch,
+  apply = false,
+  contacts = null,
+} = {}) => {
+  if (!audienceConfigured(env)) return "unconfigured";
+
+  const address = normalizeEmail(email);
+  const found = (contacts || await listContacts(env, fetchImpl))
+    .find((c) => normalizeEmail(c.email) === address);
+
+  if (!found) return "none";
+  if (apply) {
+    await resend(env, fetchImpl, "PATCH", `/audiences/${
+      env.RESEND_AUDIENCE_ID}/contacts/${encodeURIComponent(address)}`, {
+      first_name: firstName || "", last_name: lastName || "",
+    });
+  }
+
+  return "renamed";
 };
 
 // A deletion that could not reach Resend leaves this marker, the

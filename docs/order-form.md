@@ -148,18 +148,45 @@ It says what an item out of stock shows in place of its quantity:
 | `soon` | "Returning soon" |
 | `hiatus` | "On hiatus" |
 | `discontinued` | "Not available" |
+| `hidden` | Nothing: hidden while out, under either Show choice |
 | `archived` | Nothing: hidden everywhere, whatever the stock |
 
 Stock wins over every type but `archived`: an item in stock sells
-normally. An item with no type is hidden while it is out. Today
-(James, #274, 6330468558): large eggs and feet `soon`; medium and
-small eggs and both sausages `hiatus`; whole chickens from 5.0 lbs,
-boneless breasts from 1.5 lbs, bone-in thighs from 2.0 lbs, wings
-from 2.0 lbs and tenders from 1.5 lbs (#303) `discontinued`; Cornish hens and ground chicken
-`archived` (2026-v9); every other item `seasonal` with
-`restockSeason: "spring"`.
+normally. An item with no type is hidden while it is out, as is a
+`hidden` one (#492), which is for the boundary tiers that only sell
+the processor's oversized packs. While out it is not on the order
+page, under Full catalog, in search or in the page's Product markup;
+when Square counts some, it shows and sells. Its SKU and Square item
+stay, so the POS, processing-day counts and member pricing still
+cover it, and a past order or receipt holding it names it as any
+other line. Such an item keeps `inStock: true`, so that Square's
+count decides.
+
+Today (James, #274, 6330468558, and #492): large eggs and feet
+`soon`; medium and small eggs and both sausages `hiatus`; whole
+chickens from 4.5 lbs, boneless breasts of 1.7 lbs and up, bone-in
+thighs of 2.0 lbs and up and wings of 3.0 lbs and up `hidden`;
+Cornish hens and ground chicken `archived` (2026-v9); every other
+item `seasonal` with `restockSeason: "spring"`, since until spring
+nothing but eggs is restocked. Outside the off-season a sold-out
+whole-bird tier goes back to `soon`, not `discontinued`.
 Switching one is a catalog edit and a deploy. The labels live in
 `layouts/partials/order/restock-label.html`.
+
+Every type but `archived` describes only the sold-out state, so no
+type may hide stock (James, #303 6454589969, 2026-10-27): a `hiatus`
+or `discontinued` item with stock sells, as it should. What can still
+hide stock is a tier the page won't sell whatever its count, an entry
+with `inStock: false` or an `archived` one, that Square counts above
+0: packs on hand that nobody can order (#499). The jobs check once a
+day from 07:00: each such tier at the farm's location goes on the
+run's invariants as `stock.hidden`, with its SKU, why it is hidden
+(`inStock false` or `archived`) and its count, and the
+`jobs.invariants` alert goes out (`docs/monitoring.md`). A SKU is told
+once per count, and marked told only once the alert is sent.
+`bin/nff stock hidden` prints every such tier with its count on
+demand, read only, and exits 1 when one has stock. Fix the count in
+Square, or the entry in `data/catalog.json`.
 
 The order page's **Show** control (`order/restock.js`, James,
 6303649455) is a radio group (`role="radiogroup"`, named "Show"
@@ -437,34 +464,73 @@ Environment variables, set in Netlify, never in the repo:
 not the ones customers see, so staging and deploy previews may read
 production's instead. Only where counts are read from changes: orders,
 payments, fulfilments and every stock change still go to the sandbox
-(`lib/stock-source.mjs`, `productionStock` in `lib/square.mjs`).
+(`lib/stock-source.mjs`).
 
 - `STOCK_SOURCE`: `production` turns the read on; empty or anything
-  else leaves the sandbox's counts, as before.
-- `STOCK_SOURCE_TOKEN`: the read-only production app's token, scoped
-  to `INVENTORY_READ` and `ITEMS_READ` alone, so staging cannot change
-  production Square even with a bug. It comes from the app #331 and
-  #361 set up, never a personal access token, which has full access.
-- `STOCK_SOURCE_LOCATION_ID`: the production location whose counts
-  are read, North Foster Farm.
-- `STOCK_OVERRIDES`: a few SKUs pinned to a count, `SKU:n`
-  comma-separated (`NFF-CHK-WHL-30-34:1,NFF-CHK-WNG-30-99:0`), for the
-  browser tests: a tier at exactly 1, a sold-out item. A listed SKU
-  wins over every read; every other SKU reads as it would without it.
-  A part without a SKU or a whole number is skipped. Never the whole
-  catalog. It works with the production read off too.
+  else leaves staging's own counts, as before. A plain setting, not a
+  secret: the read needs no credential. `.env.staging.sample` and
+  `.env.development.sample` both hold `production`, so staging shows
+  what customers see before a promote and `npm run start:functions`
+  shows production's counts over the fake Square (James, #495,
+  2026-10-28).
+- `STOCK_OVERRIDES`: James's hand-testing override, optional and
+  normally unset (listed empty in `.env.staging.sample` and
+  `.env.development.sample`). A few SKUs pinned to a count, `SKU:n`
+  comma-separated (`NFF-CHK-WHL-30-34:1,NFF-CHK-WNG-30-99:0`): a tier
+  at exactly 1, a sold-out item. A listed SKU wins over every source;
+  every other SKU reads as it would without it. A part without a SKU
+  or a whole number is skipped. Never the whole catalog. It works with
+  the production read off too, and in local development. No test uses
+  it (#507, 2026-10-28: it used to be for the browser tests).
 
-Sandbox and production variation ids differ, so the read asks
-production's item library which variations carry the catalog's SKUs,
-then their counts at the location, and keeps them by SKU in their own
-15 s snapshot (`square-production` in the stock store). A SKU
-production doesn't count sells by the store's count or its flag, as
-before. Neither setting applies outside `branch-deploy` and
-`deploy-preview`, nor where `SQUARE_ENV` is `production`, and
-`bin/nff env check` fails a production that holds any of the four.
-A test order on staging moves the sandbox's count, not production's,
-so staging never sells out by its own orders: pin the SKU at 0 for
-that.
+**A test's own stock counts (#507).** No test depends on a stock count
+it didn't set itself: not the sandbox's, not production's, not the
+store's. A spec pins what it needs with the e2e op `stock.pin { scope,
+counts: { SKU: n }, ttlSeconds }` and removes it with `stock.unpin {
+scope }` (`lib/stock-pins.mjs`), through the Playwright fixture in
+`e2e/support/stock.mjs`, which unpins in teardown whatever happened.
+The scope is one test's id, sent as the `nff_stock_scope` cookie on
+the deploy's host beside the gate cookie, and `liveCounts` lays its
+pins over every other source, `STOCK_OVERRIDES` included, for requests
+carrying that scope alone: `/api/stock`, the order check and the edit
+check. Other tests, James's browsing and parallel shards never see
+them. A pin lapses after its TTL (15 minutes unless given, an hour at
+most), and `bin/e2e/sweep.mjs` removes lapsed ones. Pins exist only on
+staging, deploy previews and local development, never where
+`SQUARE_ENV` is production: there the op is refused and the cookie
+ignored. A spec reads the page only once it has applied the answer
+(`stockApplied` and `searchStockApplied` in `e2e/support/order.mjs`),
+not when the response lands: the skeleton holds a slow answer up to
+300 ms more, and a read in that gap sees the build's stock, which
+looks like a pin that leaked (2026-10-28). `e2e/stock-scope.spec.mjs`
+holds two scopes pinning one SKU at once apart.
+
+The read is a GET of production's public
+`https://www.northfosterfarm.com/api/stock`, the answer the live order
+page uses, never a call to production Square. Sandbox and production
+variation ids differ, so production's `available` is mapped onto
+staging's catalog by SKU and kept in its own 15 s snapshot
+(`square-production` in the stock store), well under production's
+limit of 120 reads per address in ten minutes. A SKU production
+doesn't answer for or doesn't count sells by staging's own count or
+its flag, as before. A 429, a timeout or a production that is down
+counts as no production read: staging sells by its own counts, the
+failure is logged once (`stock.production_unread`) and kept in the
+snapshot, so production isn't asked again for 15 s. With the read on,
+an order check's `stock.checked` line says `source: "production"`, or
+`"staging"` when production didn't answer. Neither setting
+applies outside `branch-deploy` and `deploy-preview`, nor where
+`SQUARE_ENV` is `production`, and `bin/nff env check` fails a
+production that holds either. A test order on staging moves the
+sandbox's count, not production's, so staging never sells out by its
+own orders: pin the SKU at 0 for that.
+
+Corrected 2026-10-28: this section used to read through a token
+"scoped to `INVENTORY_READ` and `ITEMS_READ`" from "the app #331 and
+#361 set up". No such token exists: Square has no scoped personal
+access token, an OAuth token with those scopes expires after 30 days,
+and nothing ever made one, so the read moved to the public answer
+(James, 2026-10-27).
 
 **Which release made an order (#331).** Every Square order the site
 creates, and every change order, carries `metadata { site_version,

@@ -49,6 +49,10 @@
 //   drift       once a day from 07:00: every paid order from today on
 //               compared with its Square copy, and the farm told of a
 //               change made in Square (lib/drift.mjs, #293)
+//   hidden      once a day from 07:00: a tier the order page won't
+//               sell (archived or `inStock: false`) that Square counts
+//               above 0 is an invariant, told once per SKU and count
+//               (#499)
 //   health      each run ends with invariant checks, a ledger line,
 //               alerts for what went wrong, and a heartbeat ping
 
@@ -82,7 +86,7 @@ import { completeInSquare } from "./complete.mjs";
 import { farmEmails, sendMail } from "./mail.mjs";
 import { audienceConfigured, syncAudience } from "./news.mjs";
 import { changedAfterPrint, packingDaily } from "./packing.mjs";
-import { sendForOrder } from "./payments.mjs";
+import { confirmationSent, sendForOrder } from "./payments.mjs";
 import { sweepStrandedCredit } from "./credit.mjs";
 import { workRounds } from "./rounds.mjs";
 import { checkRefunds } from "./settle.mjs";
@@ -96,7 +100,9 @@ import {
 } from "./records.mjs";
 import { remindersOn } from "./reminders.mjs";
 import { rotationDaily } from "./rotation.mjs";
-import { archivedOnHand } from "./stock.mjs";
+import {
+  archivedOnHand, hiddenCounts, hiddenInStock,
+} from "./stock.mjs";
 import { mailLinks, orderUrlFor, settingsUrlFor } from "./site.mjs";
 import * as squareApi from "./square.mjs";
 import { deletionsPaused } from "./square-pause.mjs";
@@ -171,8 +177,11 @@ export const runJobs = async (stores, {
   paypal = paypalApi.configured(env) ? paypalApi : null,
   fetchImpl = globalThis.fetch,
   // The catalog as indexCatalog makes it, for tests of the archived
-  // check; the real one by default.
+  // and hidden checks; the real one by default.
   catalogIndex,
+  // Square's stock read (lib/square.mjs inventoryCounts), for tests of
+  // the hidden check.
+  inventory,
   // The end-to-end suite's run as of another day (lib/e2e.mjs) works
   // only the orders it names, so shared staging orders keep their state.
   orderIds = null,
@@ -234,8 +243,11 @@ export const runJobs = async (stores, {
     // The emails of a paid order are sent after the answer that took
     // the payment (lib/checkout.mjs announceNew); one that never went
     // out, for any reason, goes now. An unpaid order the farm made
-    // (#181) gets its confirmation when it is paid, not here.
-    if (order.status === "paid" && !sent(order, "orderConfirmed")) {
+    // (#181) gets its confirmation when it is paid, not here. One the
+    // old site confirmed (`paymentReceived`) was told, and one whose
+    // day has passed is past telling (#490).
+    if (order.status === "paid" && !confirmationSent(order)
+      && today(now, tz) <= order.fulfilment.date) {
       await announceNew(stores, order, opts);
       report.announced.push(order.id);
     }
@@ -416,8 +428,15 @@ export const runJobs = async (stores, {
   report.creditSwept = (await attempt(null, "creditSweep",
     () => sweepStrandedCredit(stores, { now }))) || [];
 
-  report.invariants = (await attempt(null, "invariants", async () =>
-    checkInvariants(await openOrders(stores), now))) || [];
+  const hidden = (await attempt(null, "stockHidden", () =>
+    stockHiddenDaily(stores, { env, now, catalogIndex, inventory })))
+    || NONE_HIDDEN;
+
+  report.invariants = [
+    ...(await attempt(null, "invariants", async () =>
+      checkInvariants(await openOrders(stores), now))) || [],
+    ...hidden.violations,
+  ];
 
   await recordRun(stores, report, now);
 
@@ -426,11 +445,23 @@ export const runJobs = async (stores, {
       count: report.errors.length, errors: report.errors.slice(0, 10),
     }, { env, mail, now, fetchImpl });
   }
+
+  let told = null;
+
   if (report.invariants.length) {
-    await alert(stores, "jobs.invariants", {
+    // A hidden SKU is told once (stockHiddenDaily), so the hourly mute
+    // must not swallow the run that tells it.
+    const once = hidden.violations.length > 0;
+
+    told = await alert(stores, "jobs.invariants", {
       count: report.invariants.length,
       violations: report.invariants.slice(0, 20),
-    }, { env, mail, now, fetchImpl });
+    }, { env, mail, now, fetchImpl, ...(once ? { dedupe: false } : {}) });
+  }
+  // Hidden stock is marked told once its alert is sent, as
+  // archivedInStock does, so a failed send tells it on the next run.
+  if (!hidden.violations.length || told === "sent") {
+    await attempt(null, "stockHidden", hidden.settle);
   }
 
   const healthy = !report.errors.length && !report.invariants.length;
@@ -778,6 +809,62 @@ const driftDaily = async (stores, {
     checked: r.checked,
     flagged: r.found.filter((f) => f.status === "flagged").length,
     errors: r.errors.length,
+  };
+};
+
+// Stock nobody can order (#499), once a day from STOCK_HIDDEN_HOUR:
+// each tier the order page won't sell, archived or `inStock: false`,
+// that Square counts above 0 goes on the run's invariants as
+// `stock.hidden`, so the jobs.invariants alert tells the farm. A
+// hiatus or discontinued tier with stock sells, as it should, and is
+// not one. A SKU at a count already told is not told again; one whose
+// count changes, or that goes to 0 and comes back, is. The told counts
+// are kept under `stock/hidden`, the day's mark under
+// `stock/hidden/<day>`, and both are written by `settle`, which the run
+// calls once the alert is sent, or at once when there is nothing new
+// to tell. A Square that doesn't answer, or an alert that isn't sent,
+// leaves no mark, so the next run asks again.
+// -> { violations: [{ rule, id, why, count }] newly found, settle }.
+export const STOCK_HIDDEN_HOUR = 7;
+export const HIDDEN_TOLD = "stock/hidden";
+
+const NONE_HIDDEN = { violations: [], settle: async () => {} };
+
+const stockHiddenDaily = async (stores, {
+  env, now, catalogIndex, inventory,
+}) => {
+  if (parts(now, tz).hour < STOCK_HIDDEN_HOUR) return NONE_HIDDEN;
+
+  const key = `${HIDDEN_TOLD}/${today(now, tz)}`;
+
+  if (await stores.jobs.get(key)) return NONE_HIDDEN;
+
+  const list = await hiddenCounts({ catalogIndex, env, inventory });
+
+  if (!list) return NONE_HIDDEN;
+
+  const found = hiddenInStock(list);
+  const told = ((await stores.jobs.get(HIDDEN_TOLD)) || {}).counts || {};
+  const fresh = found.filter((i) => told[i.sku] !== i.count);
+
+  if (fresh.length) {
+    log.warn({ event: "stock.hidden_in_stock",
+      skus: fresh.map((i) => i.sku) });
+  }
+
+  return {
+    violations: fresh.map((i) => ({
+      rule: "stock.hidden", id: i.sku, why: i.why, count: i.count,
+    })),
+    settle: async () => {
+      await stores.jobs.set(HIDDEN_TOLD, {
+        at: now.toISOString(),
+        counts: Object.fromEntries(found.map((i) => [i.sku, i.count])),
+      });
+      await stores.jobs.set(key, {
+        at: now.toISOString(), count: found.length,
+      });
+    },
   };
 };
 

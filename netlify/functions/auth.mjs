@@ -17,6 +17,8 @@ import {
 import { finishEmailChange } from "./lib/email-change.mjs";
 import { creditBalance } from "./lib/credit.mjs";
 import { groupOf, memberKeyOf, namedGroup } from "./lib/groups.mjs";
+import { finishJoin } from "./lib/join.mjs";
+import { roleOf } from "./lib/membership.mjs";
 import { cartOwner } from "./lib/records.mjs";
 import { now as clock, real } from "./lib/clock.mjs";
 import { json, noCopy, readJson } from "./lib/http.mjs";
@@ -129,7 +131,15 @@ export const handle = async (req, {
       now, session: session.id,
     });
 
-    return redirect(safeNext(result.next), [
+    // A link from a group's sign-up page (#495) joins the group too,
+    // and lands on Membership, or on the account when it joined none.
+    const landing = result.join
+      ? (await finishJoin(stores, session.email, result.join, {
+        now, env, mail,
+      })).path
+      : result.next;
+
+    return redirect(safeNext(landing), [
       ["Set-Cookie", cookieHeader(session.id)],
       ["Set-Cookie", stampHeader(now)],
       ["Cache-Control", "no-store"],
@@ -229,6 +239,14 @@ export const handle = async (req, {
       }
       : null;
 
+    // A group's member or host (#495) has the Membership tab and its
+    // entry in the header's menu; no one else sees either.
+    const role = await roleOf(stores, session);
+    // Credit is the account's (#495, decision 6): kept after leaving a
+    // group, shown in the account's head and taken off any signed-in
+    // order, as the order handler does.
+    const kept = member ? 0 : await creditBalance(stores, session.email, now);
+
     // `owner`: the tag of this account's cart draft (#149).
     return json(200, {
       ...closed,
@@ -237,6 +255,8 @@ export const handle = async (req, {
       customer: publicCustomer(session.customer),
       owner: cartOwner(session.email),
       ...(member ? { member } : {}),
+      ...(role ? { membership: true } : {}),
+      ...(kept > 0 ? { credit: kept } : {}),
     });
   }
 

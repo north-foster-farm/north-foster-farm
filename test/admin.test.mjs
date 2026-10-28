@@ -417,7 +417,7 @@ describe("orders from the CLI", () => {
     });
 
     assert.match(sent[0].text, /October 7\.\nSomething in your order sold /);
-    assert.match(sent[0].text, /\*\*A refund of \$14 is on its way\.\*\*/);
+    assert.match(sent[0].text, /\nA refund of \$14 is on its way\.\n/);
     assert.match(sent[1].text, /October 7\.\nThe truck broke down\.\n/);
   });
 

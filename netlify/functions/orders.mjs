@@ -61,6 +61,7 @@ import {
   DECLINE_MESSAGES as SQUARE_DECLINES, receiptLink,
 } from "./lib/square.mjs";
 import { checkLines } from "./lib/stock.mjs";
+import { scopeOf } from "./lib/stock-pins.mjs";
 import { limitExempt } from "./lib/limit-exempt.mjs";
 import { deployContext, stores as defaultStores } from "./lib/store.mjs";
 
@@ -266,16 +267,19 @@ export const handle = async (req, {
   if (groupCode && !buying) {
     return json(422, { errors: { groupCode: INVALID_CODE } });
   }
-  // A member's credit (#471) spends only when signed in: the account
+  // Credit (#471) spends only when signed in: the account
   // is what says the credit is theirs. As much as the order needs
   // comes off, and the rest of the total is paid as usual.
   // A retry of this submission (a timeout kept the spend for it)
   // already holds credit against the id it reserved; that hold counts
   // as available, or the retry would price the order without it and
   // the hold would be lost (security re-re-review, 6427102482).
-  const reserved = session && buying
+  // Credit is the account's (James, #495 decision 6): a member who
+  // left or was removed spends it on any signed-in order, with or
+  // without a group, until it expires.
+  const reserved = session
     ? await stores.orders.get(submissionKey(key)) : null;
-  const ledger = session && buying
+  const ledger = session
     ? await getLedger(stores, session.email) : null;
   const creditAvailable = ledger
     ? balanceOf(ledger, now)
@@ -331,7 +335,7 @@ export const handle = async (req, {
   // whether it still is. Field errors, like the validator's, plus the
   // fresh availability so the page can bring the cart into line.
   const stock = await checkLines(stores, result.order.lines, {
-    env, deadline,
+    env, deadline, scope: scopeOf(req.headers, env),
   });
 
   if (!stock.ok) {
@@ -412,6 +416,9 @@ export const handle = async (req, {
         key: buying.key,
         round: roundFor(buying, terms, result.order.fulfilment.date),
         viaCode: !!groupCode,
+        // The code came by the group's link, not typed: the join log's
+        // path (#495). Only ever true, so other tags are as they were.
+        ...(groupCode && payload.groupLink === true ? { viaLink: true } : {}),
       }
       : null,
     // Whose credit the order spends (security review, 6425904452):

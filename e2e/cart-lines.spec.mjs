@@ -5,11 +5,21 @@
 // quantity are the order page's (order-page.spec.mjs).
 
 import {
-  FULL_CART, OrderPage, expect, test, unfoldCart as unfold,
+  FULL_CART, OrderPage, SUITE_STOCK, expect, test, unfoldCart as unfold,
 } from "./support/order.mjs";
+import { PLENTY } from "./support/stock.mjs";
 
 const PHONE = { width: 390, height: 664 };
 const XL = { width: 1280, height: 800 };
+
+const DRUMS_LARGE = "NFF-CHK-DRM-15-99";
+const LIVERS = "NFF-CHK-LVR-10-14";
+
+// The two lines beyond the suite's own SKUs, in stock for this spec
+// alone (#507).
+test.use({
+  stockPins: { ...SUITE_STOCK, [DRUMS_LARGE]: PLENTY, [LIVERS]: PLENTY },
+});
 
 // No label on sale starts with a letter since 2026-v9 (#267), so this
 // holds the figures as written; test/pack-label.test.mjs holds the
@@ -20,9 +30,7 @@ test("lines carry the pack label, under the group's short name",
 
     const order = new OrderPage(page);
 
-    await order.open({
-      wings: 1, "NFF-CHK-DRM-15-99": 1, "NFF-CHK-LVR-10-14": 1,
-    });
+    await order.open({ wings: 1, [DRUMS_LARGE]: 1, [LIVERS]: 1 });
     await expect(order.cart.locator(".order-cart-item-name"))
       .toHaveText(["1.5 lbs and up", "1.0 – 1.9 lbs",
         "Livers, 1.0 – 1.4 lbs"]);

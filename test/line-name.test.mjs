@@ -20,7 +20,8 @@ import { MORNING, SCHEDULE } from "./schedule-fixture.mjs";
 
 const index = indexCatalog(catalog);
 const LIVERS = "NFF-CHK-LVR-10-14";
-const FEET = "NFF-CHK-FET-0075-0125";
+// Out of stock in the catalog (hiatus), so the order is refused.
+const SWEET = "NFF-CHK-SAUSWT";
 const WINGS = "NFF-CHK-WNG-10-19";
 const EGGS = "NFF-CHK-EGG-LG";
 
@@ -129,10 +130,10 @@ describe("line names", () => {
     });
 
     it("name a sold-out line", () => {
-      const r = order([{ sku: FEET, qty: 1 }]);
+      const r = order([{ sku: SWEET, qty: 1 }]);
 
-      assert.equal(r.errors[`lines.${FEET}`],
-        "Feet, 1.0 – 1.4 lbs: out of stock.");
+      assert.equal(r.errors[`lines.${SWEET}`],
+        "Chicken Sausage, Sweet Italian links: out of stock.");
     });
 
     it("name a line stock can't fill", async () => {

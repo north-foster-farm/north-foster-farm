@@ -4,6 +4,13 @@ import { afterEach, describe, it } from "node:test";
 
 import { ping } from "../netlify/functions/lib/health.mjs";
 import { MailError, sendMail } from "../netlify/functions/lib/mail.mjs";
+import { inventoryCounts } from "../netlify/functions/lib/square.mjs";
+import { liveCounts } from "../netlify/functions/lib/stock.mjs";
+import { pinsAllowed } from "../netlify/functions/lib/stock-pins.mjs";
+import {
+  productionRead, productionStock, stockOverrides,
+} from "../netlify/functions/lib/stock-source.mjs";
+import { testStores } from "../netlify/functions/lib/store.mjs";
 
 const blocked = (error) => error.name === "NetworkBlocked";
 
@@ -55,5 +62,22 @@ describe("the test environment", () => {
   it("records a block that the code swallowed", async () => {
     assert.equal(await ping("https://hc-ping.com/x"), false);
     assert.deepEqual(blockedHosts, ["hc-ping.com"]);
+  });
+
+  // No unit test reads a real stock source (#507): each injects its own
+  // store and inventory. With the environment as the tests see it, no
+  // Square is asked, production's /api/stock is off, and neither the
+  // hand overrides nor a test pin can apply; a store left empty reads
+  // as nothing, and a reach for production is blocked.
+  it("leaves no real stock source for a test to read", async () => {
+    assert.equal(productionRead(), false);
+    assert.deepEqual(stockOverrides(), {});
+    assert.equal(pinsAllowed(), false);
+    assert.equal(await inventoryCounts(["S7XJNPQUKY6JSYQOEYSL6FYS"]), null);
+    assert.deepEqual(await liveCounts(testStores(), { scope: "a-scope-id" }),
+      {});
+    await assert.rejects(productionStock(["NFF-CHK-EGG-LG"]),
+      /Network error calling production/);
+    assert.deepEqual(blockedHosts, ["www.northfosterfarm.com"]);
   });
 });

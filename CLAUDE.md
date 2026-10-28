@@ -11,6 +11,13 @@ North Foster Farm website - a static site built with Hugo (v0.164.0) and hosted 
 These apply to every lane, cloud run and the coordinator. They come from
 decisions James made on GitHub. The issue numbers point to the source.
 
+- **Fix stale notes on sight.** When James corrects something, or the
+  code, a tool or production contradicts a note (a CLAUDE.md, a doc,
+  an issue body, a handoff, a rotation log), fix the note then and
+  there: rewrite or delete the stale line, date the change, and say in
+  one sentence what changed. Never work around stale information.
+  Older notes still called the release a draft after it shipped on
+  2026-10-26 (#494).
 - **Do small work, don't file it.** If a fix can be done, checked and
   landed in about 15 minutes, do it in the change you're making, or
   batch it with others in the same area. Don't open an issue for a
@@ -28,6 +35,21 @@ decisions James made on GitHub. The issue numbers point to the source.
   Actions through `e2e.yml` and `e2e-run.yml` (a local build with fake
   payments), or on James's Mac. Specs that need real staging or a real
   phone are hands-on checks for James (#449).
+- **Promote to staging when green, full e2e on staging** (#502,
+  2026-10-28; the steps are in `docs/cloud-lanes.md`). Once `next` is
+  green, push to `staging` and ping James right away, without batching
+  or waiting to be asked. The full suite runs against `staging` in
+  parallel, after every push to it (`e2e/staging-full`): it gates
+  production, not James's look at staging. On `next`, run by name only
+  the specs the new code touches directly, and name them in the lane
+  or landing comment. A failure on staging is fixed forward through
+  `next`, never reverted, and James hears what failed and why. A newer
+  push to `staging` supersedes an older full run, which stands down at
+  its next safe point while teardown and the sweep still run.
+  Production waits for James's OK on staging and is promoted only from
+  the exact commit the full suite passed on: an earlier green run
+  doesn't count once a later fix lands, and `bin/nff promote main`
+  refuses any other (points 2, 6 and 7 added 2026-10-28).
 - **Customer copy follows the #400 house rules:**
   - no semicolons and no em dashes in prose;
   - no internal model names in customer text ("Pickup days", not
@@ -45,10 +67,42 @@ decisions James made on GitHub. The issue numbers point to the source.
   service returns a fixture recorded from a real request (the sandbox
   will do), with secrets scrubbed but the real shape kept. Never a
   hand-written response object. Note the source and date with it
-  (James, 2026-10-26).
+  (James, 2026-10-26). Cloud runs can't reach Square, PayPal or
+  Resend, so when a cloud lane adds or changes a fake, the coordinator
+  records its requests with `bin/fixtures/record`, swaps them in and
+  reruns the tests before landing, without being asked (#496,
+  2026-10-27).
+- **New dependencies need James's approval** (#303, 2026-10-27):
+  - They are allowed when they provide clear value, especially where a
+    well-tested package replaces code that could break in subtle ways
+    (encoders, parsers, crypto, date handling and similar).
+  - Lean toward fewer dependencies. If a small amount of simple code
+    does the job, write it.
+  - James has the final say on every new package. Before adding one,
+    post a short proposal: the package, its version and license, how
+    well it's maintained, what it replaces, and why it beats
+    hand-rolling. Don't add it until James approves.
+  - Approved packages are pinned.
 - **Confirm dates before production.** Any change to a news post, or to
   a page with a "Last updated" line, has its date confirmed before it
   ships. The right date is often not the commit date.
+- **Log every production change** (#497, 2026-10-27; the full rule is
+  in `docs/security.md`):
+  - **Log:** every change to a production record made by a person or
+    the CLI. Each line records the time, who acted (CLI, farm, host or
+    customer), the action, the target, and the values before and
+    after. Money and membership changes are always logged.
+  - **Don't log:** reads, `--dry-run` and previews, scheduled jobs that
+    changed nothing, and anything on staging or development unless
+    it's needed for debugging.
+  - **Never in a log:** secrets or tokens, payment details, or a full
+    email address, phone number or street address. Mask addresses as
+    in #496, keeping the first three and last three characters of
+    each part.
+  - **Log records are append-only** and follow the retention rules for
+    customer data.
+  - Any new command or action that changes production records ships
+    with its log line and a test, as part of the definition of done.
 - **This repo and its branches are public.** No customer data, no
   credentials, and no full names of James's family members in code,
   issues, comments or screenshots.

@@ -5,6 +5,7 @@
 // (bin/e2e/serve.mjs), where the back office mints the group's code
 // if none is set; on staging it uses the code in force.
 
+import { normalizeCode } from "../assets/scripts/order/lib/validate.mjs";
 import {
   OrderPage, expect, paymentFakes as fakes, pickupValues, test,
   uniqueEmail,
@@ -36,7 +37,13 @@ test.describe("a buying group's code (#471)", () => {
       expect(await pickupValues(page))
         .not.toContainEqual(expect.stringMatching(`^${SERIES}-`));
 
-      // A wrong code says only that it isn't valid.
+      // A wrong code says only that it isn't valid. /api/group holds an
+      // address after 10 misses in 10 minutes (group.mjs, RATE), and
+      // the whole suite shares one address, so only the specs about
+      // codes send it real misses: one a project here, in cart-way and
+      // in pricing. Others answer their misses in the browser
+      // (delivery-pass), or this spec's code is refused on the next
+      // project (#495).
       await order.codeOpen.click();
       await order.codeInput.fill("NOT-A-CODE");
       await order.codeApply.click();
@@ -44,9 +51,26 @@ test.describe("a buying group's code (#471)", () => {
       expect(await pickupValues(page))
         .not.toContainEqual(expect.stringMatching(`^${SERIES}-`));
 
-      // The group's code unlocks its pickup.
+      // The group's code asks first (#495, decision 5): Cancel leaves
+      // it unapplied, Join group unlocks its pickup.
+      const dialog = page.locator("#group-join");
+
       await order.codeInput.fill(code);
       await order.codeApply.click();
+      await expect(dialog).toBeVisible();
+      await expect(dialog).toContainText("The group's host can see your " +
+        "name and email address.");
+      await dialog.getByRole("button", { name: "Cancel" }).click();
+      await expect(dialog).toBeHidden();
+      // The row stays open under the dialog: the code waits in the box
+      // and the focus is back on Apply.
+      await expect(order.codeApply).toBeFocused();
+      await expect(order.codeInput).toHaveValue(normalizeCode(code));
+      expect(await pickupValues(page))
+        .not.toContainEqual(expect.stringMatching(`^${SERIES}-`));
+
+      await order.codeApply.click();
+      await dialog.getByRole("button", { name: "Join group" }).click();
       await expect(order.codeNote)
         .toHaveText("Code applied. Welcome to the group!");
 

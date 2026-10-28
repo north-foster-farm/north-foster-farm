@@ -870,6 +870,18 @@ test.describe("map (#138, #214)", () => {
       await expect(input).toHaveValue("02825");
 
       const filled = await input.boundingBox();
+
+      // The label eases up over 0.1 s, so measure it where it rests.
+      // Not two equal boxes 50 ms apart (#506): a transition moves
+      // only on animation frames, and two reads with no frame between
+      // them matched while it had barely begun, on staging. Wait for
+      // the float itself: its transform set, and no transition left
+      // running on the label.
+      await expect.poll(() => label.evaluate((el) => (
+        getComputedStyle(el).transform !== "none"
+          && !el.getAnimations().length
+      )), "the label's float finishes").toBe(true);
+
       const floatedLabel = await label.boundingBox();
 
       expect(filled.width).toBe(field.width);
@@ -1227,12 +1239,12 @@ test.describe("map (#138, #214)", () => {
     });
 
   // Since #136 the home page's only ZIP check is the map's; the news
-  // post's "Check your ZIP code" link leads to it.
+  // post's "our map" link leads to it.
   test("the news post's ZIP link leads to the map's check",
     async ({ page }) => {
       await page.goto(HOME.path);
       await page.locator(".home-update-card")
-        .getByRole("link", { name: "Check your ZIP code" }).click();
+        .getByRole("link", { name: "our map" }).click();
       await expect(page).toHaveURL(/#map$/);
       await expect(page.locator(HOME.input)).toBeInViewport();
     });

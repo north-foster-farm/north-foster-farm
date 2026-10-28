@@ -41,6 +41,35 @@ when site revenue covers the extra cost. Doing so means re-linking
 Netlify, apps and webhooks, and fixing every anonymous read
 (`raw.githubusercontent.com`, image links) first.
 
+## Logging changes to production records
+
+James approved this rule on #303 on 2026-10-27 (#497). It covers
+the `bin/nff` commands and every server action: Netlify functions,
+scheduled jobs and webhooks.
+
+- **Log:** every change to a production record made by a person or
+  the CLI. Each line records the time, who acted (CLI, farm, host or
+  customer), the action, the target, and the values before and after.
+  Money and membership changes are always logged.
+- **Don't log:** reads, `--dry-run` and previews, scheduled jobs that
+  changed nothing, and anything on staging or development unless it's
+  needed for debugging.
+- **Never in a log:** secrets or tokens, payment details, or a full
+  email address, phone number or street address. Mask addresses as in
+  #496, keeping the first three and last three characters of each
+  part.
+- **Log records are append-only** and follow the retention rules for
+  customer data.
+- Any new command or action that changes production records ships
+  with its log line and a test, as part of the definition of done.
+
+`netlify/functions/lib/log.mjs` already scrubs every line on its way
+in: named personal fields are removed and an email address in any
+string becomes a short hash. The rule asks more of the line than the
+scrubber can supply (who acted, before and after), so each write path
+writes those fields itself. The audit of today's write paths against
+this rule is on #497.
+
 ## GitHub's free security features
 
 The first three are on in both repositories, the site and the
@@ -88,9 +117,18 @@ part updates faster than another.
    and patch in one group each Monday 08:00 Eastern, a major version
    in its own. They pass the full suite like any change. A major bump
    waits for James.
-5. **A new dependency needs a reason.** The pull request that adds a
-   package says why and how big its own dependency tree is. No
-   automation checks this.
+5. **A new dependency needs James's approval** (#303, 2026-10-27).
+   New dependencies are allowed when they provide clear value,
+   especially where a well-tested package replaces code that could
+   break in subtle ways (encoders, parsers, crypto, date handling and
+   similar). Lean toward fewer dependencies: if a small amount of
+   simple code does the job, write it. James has the final say on
+   every new package. Before adding one, post a short proposal: the
+   package, its version and license, how well it's maintained, what it
+   replaces, and why it beats hand-rolling. Don't add it until James
+   approves. Approved packages are pinned. The proposal and the pull
+   request that adds the package also state how big its own
+   dependency tree is. No automation checks this.
 
 Where installing a patched version would pull in young transitive
 packages, adopt an older patched version, or hold the transitive one
@@ -237,7 +275,19 @@ check belongs to its SHA. So:
   `release-audit` runs, and stops. It
   audits the commit's own lockfile first: reported now, blocking once
   `AUDIT_BLOCKS` is set, because a check that passed earlier cannot
-  see an advisory published since.
+  see an advisory published since. When to promote (#502,
+  2026-10-28): `staging` as soon as `next` is green, with a ping to
+  James right away and the full e2e suite against it in parallel; a
+  newer push supersedes an older full run. A failure there is fixed
+  forward through `next`, never reverted. `main` only after James OKs
+  `staging`, and only from the exact commit the full suite passed on
+  (`docs/cloud-lanes.md`; points 2, 6 and 7 added 2026-10-28).
+  `promote main` checks the last: the commit, or a release's staging
+  parent, must be the head of a successful E2E staging run on
+  `e2e/staging-full` whose `Run` step passed, read from the Actions
+  API (`stagingSuite` in `bin/promote.mjs`). A run that stood down for
+  a newer deploy also ends green, but runs no spec, so it does not
+  count.
 - **A release branch to `main`:** `bin/nff promote main release/<name>`
   (James, 2026-10-26) takes `main` one step by a merge commit, so that
   every staging commit stays reachable from `main`. It is still a

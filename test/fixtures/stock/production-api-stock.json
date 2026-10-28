@@ -1,0 +1,161 @@
+{
+  "_source": "Recorded 2026-10-28 by the coordinator: GET https://www.northfosterfarm.com/api/stock on production, the public answer the live order page reads (status 200, content-type application/json, cache-control no-store). For #453: staging maps these items onto its catalog by SKU. Counts are as they stood then; tests may change quantities but keep the shape.",
+  "request": {
+    "method": "GET",
+    "url": "https://www.northfosterfarm.com/api/stock"
+  },
+  "status": 200,
+  "response": {
+    "at": "2026-10-28T00:19:27.555Z",
+    "items": {
+      "NFF-CHK-EGG-LG": {
+        "inStock": true,
+        "available": 16
+      },
+      "NFF-CHK-EGG-MD": {
+        "inStock": false,
+        "available": 0
+      },
+      "NFF-CHK-EGG-SM": {
+        "inStock": false,
+        "available": 0
+      },
+      "NFF-CHK-WHL-20-24": {
+        "inStock": false,
+        "available": 0
+      },
+      "NFF-CHK-WHL-25-29": {
+        "inStock": false,
+        "available": 0
+      },
+      "NFF-CHK-WHL-30-34": {
+        "inStock": true,
+        "available": 2
+      },
+      "NFF-CHK-WHL-35-39": {
+        "inStock": false,
+        "available": 0
+      },
+      "NFF-CHK-WHL-40-44": {
+        "inStock": true,
+        "available": 4
+      },
+      "NFF-CHK-WHL-45-49": {
+        "inStock": true,
+        "available": 1
+      },
+      "NFF-CHK-WHL-50-59": {
+        "inStock": false,
+        "available": 22
+      },
+      "NFF-CHK-WHL-60-69": {
+        "inStock": false,
+        "available": 19
+      },
+      "NFF-CHK-WHL-70-79": {
+        "inStock": false,
+        "available": 9
+      },
+      "NFF-CHK-CRN-0000-0300": {
+        "inStock": false,
+        "available": null
+      },
+      "NFF-CHK-CRN-0300-0400": {
+        "inStock": false,
+        "available": null
+      },
+      "NFF-CHK-BRSBL-10-12": {
+        "inStock": true,
+        "available": 104
+      },
+      "NFF-CHK-BRSBL-13-14": {
+        "inStock": true,
+        "available": 67
+      },
+      "NFF-CHK-BRSBL-15-16": {
+        "inStock": false,
+        "available": 101
+      },
+      "NFF-CHK-BRSBL-17-99": {
+        "inStock": false,
+        "available": 49
+      },
+      "NFF-CHK-THGBN-10-14": {
+        "inStock": true,
+        "available": 241
+      },
+      "NFF-CHK-THGBN-15-19": {
+        "inStock": true,
+        "available": 54
+      },
+      "NFF-CHK-THGBN-20-99": {
+        "inStock": false,
+        "available": 0
+      },
+      "NFF-CHK-TND-10-12": {
+        "inStock": true,
+        "available": 27
+      },
+      "NFF-CHK-TND-13-14": {
+        "inStock": true,
+        "available": 39
+      },
+      "NFF-CHK-TND-15-99": {
+        "inStock": false,
+        "available": 18
+      },
+      "NFF-CHK-DRM-10-14": {
+        "inStock": true,
+        "available": 189
+      },
+      "NFF-CHK-DRM-15-99": {
+        "inStock": true,
+        "available": 72
+      },
+      "NFF-CHK-WNG-10-19": {
+        "inStock": true,
+        "available": 87
+      },
+      "NFF-CHK-WNG-20-29": {
+        "inStock": false,
+        "available": 1
+      },
+      "NFF-CHK-WNG-30-99": {
+        "inStock": false,
+        "available": 0
+      },
+      "NFF-CHK-GRD-0000-0125": {
+        "inStock": false,
+        "available": null
+      },
+      "NFF-CHK-GRD-0125-0175": {
+        "inStock": false,
+        "available": null
+      },
+      "NFF-CHK-SAUMPL": {
+        "inStock": true,
+        "available": 14
+      },
+      "NFF-CHK-SAUSWT": {
+        "inStock": false,
+        "available": 0
+      },
+      "NFF-CHK-LVR-10-14": {
+        "inStock": true,
+        "available": 28
+      },
+      "NFF-CHK-NCK-10-19": {
+        "inStock": true,
+        "available": 43
+      },
+      "NFF-CHK-FET-0075-0125": {
+        "inStock": false,
+        "available": 23
+      },
+      "NFF-CHK-BCK-10-19": {
+        "inStock": true,
+        "available": 71
+      }
+    }
+  }
+}

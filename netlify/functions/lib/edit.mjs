@@ -43,7 +43,9 @@ import {
 } from "./account.mjs";
 import { refundOrder } from "./admin.mjs";
 import { attemptKey, CheckoutError, METHODS } from "./checkout.mjs";
-import { buyingFor, memberTerms, retag } from "./groups.mjs";
+import {
+  buyingFor, lockGroupOf, memberTerms, retag,
+} from "./groups.mjs";
 import { alert } from "./health.mjs";
 import { retry } from "./http.mjs";
 import { now as clock } from "./clock.mjs";
@@ -163,7 +165,7 @@ export const creditOn = (order) => heldOn(order) - keptFee(order);
 // order, next, change } or a failure shaped like the order endpoint's.
 export const planEdit = async (stores, order, body, {
   now, index, terms, codes, group, validate, schedule, env, hold = false,
-  farm = false,
+  farm = false, stockScope = null,
 }) => {
   if (hold) {
     index = new Map(index);
@@ -175,8 +177,12 @@ export const planEdit = async (stores, order, body, {
   }
 
   // A buying group's order (#471), or a member's, is offered the
-  // group's pickup and priced by its lock through every change.
-  const buying = await buyingFor(stores, order);
+  // group's pickup and priced by its lock through every change. A
+  // member removed since (#495) keeps the lock and loses the pickup;
+  // the farm's own change keeps both.
+  const offered = await buyingFor(stores, order);
+  const locked = lockGroupOf(order, offered);
+  const buying = farm ? locked : offered;
 
   // An order placed with a pass (#182) keeps its waiver through every
   // change, the fee's too if the pass waives it; the pass is already
@@ -186,8 +192,8 @@ export const planEdit = async (stores, order, body, {
     placed: order.submittedAt, farm,
     // The lock as it stood the day the order was placed, like the
     // prices (moneyOn), so a change never reprices an order.
-    lock: buying
-      ? lockOn(buying.priceLock || null,
+    lock: locked
+      ? lockOn(locked.priceLock || null,
         today(new Date(order.submittedAt), terms.timeZone))
       : null,
     deliverTo: buying ? terms.model.location(buying.location) || null : null,
@@ -206,12 +212,14 @@ export const planEdit = async (stores, order, body, {
   const next = result.order;
 
   // The tag follows the order's new date (#471).
-  next.group = retag(order, buying, terms, next.fulfilment.date);
+  next.group = retag(order, locked, terms, next.fulfilment.date);
 
   const change = diffLines(order.lines, next.lines);
   // Square's inventory is read only for what the change adds.
   const stock = change.added.length
-    ? await checkLines(stores, change.added, { env, check: "edit" })
+    ? await checkLines(stores, change.added, {
+      env, check: "edit", scope: stockScope,
+    })
     : { ok: true, errors: {}, items: {} };
 
   if (!stock.ok) return fail(422, stock.errors, { stock: stock.items });
@@ -707,7 +715,7 @@ export const editOrder = async (stores, customer, id, body, {
     : await planEdit(stores, order, b, {
       now, index, terms, codes: discountCodes.codes, group,
       validate: validateOrder, schedule: pickupSchedule(options.env),
-      env: options.env,
+      env: options.env, stockScope: options.stockScope,
     });
 
   if (!plan.ok) return plan;

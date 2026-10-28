@@ -239,8 +239,10 @@ test.describe("footer (#141)", () => {
       await button.click({ force: true });
       hold.release();
 
+      // A public sign-up joins once its email is confirmed (63e09442):
+      // the note says the link is on its way.
       await expect(form.locator("[data-farm-list-note]"))
-        .toHaveText("You're on the list. Thanks!");
+        .toHaveText("Check your email: click the link we sent you to join.");
       await page.waitForTimeout(400);
       await expectIdle(button, { width });
       await expect(button).not.toHaveAttribute("style", /width/);

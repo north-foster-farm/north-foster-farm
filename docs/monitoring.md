@@ -53,7 +53,11 @@ sees, so a dead page and a silent failure both reach the phone.
   customer, addresses, phone, notes, mail text) are removed, an email
   address in any string becomes `[email:<hash>]` (one address, one
   hash), and a phone number becomes `[phone]`. Lines name an order by
-  id. The alert pings to Healthchecks are scrubbed the same way.
+  id. A line that has to name a customer (a removal, deletion, forget
+  or name change from `bin/nff`) carries the address masked by `lib/mask.mjs`, never in
+  full (#496). `bin/nff` ships its lines too, at the end of each run
+  on staging or production, marked `source: cli`; a `--dry-run` ships
+  none (`bin/ship-log.mjs`, 2026-10-27). The alert pings to Healthchecks are scrubbed the same way.
   `test/log-privacy.test.mjs` fails when a failed order logs any of
   it. A name typed into free text cannot be found by pattern.
 - **Run ledger.** Each jobs run's report in the jobs store, two days
@@ -619,6 +623,20 @@ an order that half happened. Fix and redeploy; a `POST` to
 `/api/staging/throw` on staging raises one on purpose. The jobs run
 catches its own and raises `jobs.crashed` instead, never both.
 
+**`function.slow`, `gate.next_slow`, `gate.next_failed`.** Log lines,
+no alert (#507). A function that answered in 5 s or more, or with a
+5xx, logs `function.slow` with its path, status and time. On staging
+and previews the access gate logs a hand-off to a function that took
+5 s or more (`gate.next_slow`) or never came back (`gate.next_failed`,
+answered 502: Netlify lost its own connection to the function). Each
+carries `test`, the e2e test's stock scope, when the suite sent it,
+so a failed staging run finds its own lines. After a failed full run,
+`node bin/e2e/logs.mjs <run-id>` on the Mac pulls every staging
+function's and the gate's lines for the run's window through
+`bin/nff netlify` and prints the failed tests, these lines and any
+silent gaps; the raw lines stay in `.ignored/e2e-logs/`, never on
+GitHub.
+
 ## The invariants
 
 Checked at the end of every run against every open order. Each is a
@@ -634,6 +652,14 @@ the job is not doing its job even though it ran.
   Square copy (`square: null`). The jobs retry it every run; this
   fires when the retries keep failing.
 - `order.unreadable`: the rules could not even read the record.
+- `stock.hidden` (#499): no tier the order page won't sell, archived
+  or `inStock: false` in `data/catalog.json`, has stock above 0 in
+  Square at the farm's location. A hiatus or discontinued tier with
+  stock sells, and is not one. Checked once a day from 07:00, not
+  against the orders; it names the SKU, why the page hides it and the
+  count, once per SKU and count, and its alert is never held by the
+  hourly mute. Fix the count in Square or the entry in the catalog;
+  `bin/nff stock hidden` lists them all.
 
 ## The jobs heartbeat and partial failures
 

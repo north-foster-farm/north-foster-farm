@@ -1,11 +1,24 @@
 /* eslint-disable camelcase -- GitHub names its fields its way */
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
 import {
   REQUIRED_CHECKS, approval, auditCommit, fromBranch, fromStaging,
-  missingChecks, promote, promoteCommand, pushedAt, releaseShape,
+  fullRuns, missingChecks, promote, promoteCommand, pushedAt, releaseShape,
+  specsRan,
 } from "../bin/promote.mjs";
+
+// The E2E staging workflow's runs on e2e/staging-full and their jobs:
+// newest a run that stood down, then a failed one, then one that
+// passed (test/fixtures/github/e2e-staging-runs.json says where from).
+const E2E = JSON.parse(readFileSync(
+  new URL("fixtures/github/e2e-staging-runs.json", import.meta.url), "utf8"));
+const PASSED_RUN = 40600000001;
+
+// The fixture's runs, made the runs of `sha`.
+const e2eRuns = (sha, runs = E2E.runs.workflow_runs) => runs
+  .map((r) => ({ ...r, head_sha: sha }));
 
 const SHA = "a".repeat(40);
 const OLD = "b".repeat(40);
@@ -22,11 +35,13 @@ const green = [...new Set(Object.values(REQUIRED_CHECKS).flat())]
 const without = (...names) => green.filter((r) => !names.includes(r.name));
 
 // A stand-in for git and the GitHub API. `heads` maps a branch to its
-// commit; `descends` says whether `to` is behind `from`.
+// commit; `descends` says whether `to` is behind `from`. `suite` lists
+// the commits the full staging suite ran on (all of them by default),
+// and `fullRunsOf` gives those commits' runs.
 const world = ({
   heads = { next: SHA, staging: OLD, main: OLD },
   descends = true, runs = green, pulls = [], timeline = [],
-  activity = [pushOf(SHA)],
+  activity = [pushOf(SHA)], suite, fullRunsOf = e2eRuns,
 } = {}) => {
   const calls = [];
   const sh = async (args) => {
@@ -43,6 +58,15 @@ const world = ({
       posts.push({ path, fields });
 
       return { number: 9, html_url: "https://github.com/pr/9" };
+    }
+    if (path.includes("/actions/workflows/")) {
+      const sha = new URL(path, "https://x/").searchParams.get("head_sha");
+
+      return { workflow_runs: !suite || suite.includes(sha)
+        ? fullRunsOf(sha) : [] };
+    }
+    if (path.includes("/actions/runs/")) {
+      return E2E.jobs[path.match(/runs\/(\d+)\/jobs/)[1]];
     }
     if (path.includes("/check-runs")) return { check_runs: runs };
     if (path.includes("/pulls")) return pulls;
@@ -192,6 +216,102 @@ describe("promoting main", () => {
 
     assert.deepEqual(pushes(w.calls), [`push origin ${SHA}:refs/heads/main`]);
     assert.ok(w.lines.includes("PR #7 approved"));
+  });
+
+  it("names the full staging run that passed on the commit", async () => {
+    const w = world({
+      heads, pulls: pr(), timeline: label("2026-10-18T11:00:00Z"),
+    });
+
+    await promote("main", { out: w.out }, w.deps);
+
+    assert.ok(w.lines.some((l) => l.startsWith(`full e2e passed on staging `
+      + `at ${SHA}: `) && l.endsWith(`/runs/${PASSED_RUN}`)));
+  });
+
+  it("refuses a commit the full staging suite has not passed on",
+    async () => {
+      const w = world({
+        heads, pulls: pr(), timeline: label("2026-10-18T11:00:00Z"),
+        suite: [OLD],
+      });
+
+      await assert.rejects(promote("main", { out: w.out }, w.deps),
+        /has not passed against staging on a{40}\. Push it to e2e\/staging-/);
+      assert.deepEqual(pushes(w.calls), []);
+    });
+
+  it("refuses when the only green full run stood down or ran elsewhere",
+    async () => {
+      const [stoodDown, failed, passed] = E2E.runs.workflow_runs;
+      const only = (...picked) => world({
+        heads, pulls: pr(), timeline: label("2026-10-18T11:00:00Z"),
+        fullRunsOf: (sha) => e2eRuns(sha, picked),
+      });
+
+      for (const w of [only(stoodDown, failed), only({
+        ...passed, head_branch: "e2e/staging",
+      }), only({ ...passed, event: "workflow_dispatch" })]) {
+        await assert.rejects(promote("main", { out: w.out }, w.deps),
+          /full e2e suite has not passed/);
+        assert.deepEqual(pushes(w.calls), []);
+      }
+    });
+
+  // The world, with the Actions API answering paths that hold `part`
+  // through `reply`.
+  const actions = (part, reply) => {
+    const w = world({
+      heads, pulls: pr(), timeline: label("2026-10-18T11:00:00Z"),
+    });
+    const { api } = w.deps;
+
+    w.deps.api = (path, opts) => (path.includes(part)
+      ? reply()
+      : api(path, opts));
+
+    return w;
+  };
+
+  it("refuses when the staging runs can't be read", async () => {
+    const w = actions("/actions/workflows/",
+      () => Promise.reject(new Error("HTTP 502: Bad Gateway")));
+
+    await assert.rejects(promote("main", { out: w.out }, w.deps),
+      /HTTP 502: Bad Gateway/);
+    assert.deepEqual(pushes(w.calls), []);
+  });
+
+  it("refuses when the runs or jobs reply is malformed", async () => {
+    for (const part of ["/actions/workflows/", "/actions/runs/"]) {
+      const w = actions(part, async () => ({}));
+
+      await assert.rejects(promote("main", { out: w.out }, w.deps),
+        /Refused: the full e2e suite has not passed against staging/);
+      assert.deepEqual(pushes(w.calls), []);
+    }
+  });
+
+  it("asks staging's promotion for no e2e run", async () => {
+    const w = world({ suite: [] });
+
+    await promote("staging", { out: w.out }, w.deps);
+
+    assert.equal(pushes(w.calls).length, 1);
+  });
+
+  it("fullRuns() keeps green full runs of the commit, newest first", () => {
+    const runs = [...e2eRuns(SHA), ...e2eRuns(OLD)];
+
+    assert.deepEqual(fullRuns(runs, SHA).map((r) => r.id),
+      [40600000003, PASSED_RUN]);
+  });
+
+  it("specsRan() takes only a run whose Run step passed", () => {
+    assert.equal(specsRan(E2E.jobs[PASSED_RUN].jobs), true);
+    assert.equal(specsRan(E2E.jobs[40600000003].jobs), false);
+    assert.equal(specsRan(E2E.jobs[40600000002].jobs), false);
+    assert.equal(specsRan([]), false);
   });
 
   it("refuses with no pull request for that commit", async () => {
@@ -432,6 +552,27 @@ describe("promoting a release branch", () => {
     assert.ok(w.paths.some((p) => p.includes(`ref=refs/heads/${BRANCH}&`)));
     assert.ok(!w.calls.some((c) => /--force|-f\b/.test(c)));
   });
+
+  it("asks the staging parent, not the merge, for the full suite",
+    async () => {
+      const w = releaseWorld({ suite: [STAGED] });
+
+      await release(w);
+
+      assert.equal(pushes(w.calls).length, 1);
+      assert.ok(w.paths.some((p) => p.includes("/actions/workflows/"
+        + `e2e-staging.yml/runs?branch=e2e/staging-full&head_sha=${STAGED}&`)));
+      assert.ok(!w.paths.some((p) => p.includes(`head_sha=${MERGE}`)));
+    });
+
+  it("does not count a green run on an earlier staging commit",
+    async () => {
+      const w = releaseWorld({ suite: [OLD, MERGE] });
+
+      await assert.rejects(release(w),
+        /full e2e suite has not passed against staging on d{40}/);
+      assert.deepEqual(pushes(w.calls), []);
+    });
 
   it("counts a rebuilt branch's force-push as the push", async () => {
     const ok = releaseWorld({ activity: [created(MERGE, "force_push")] });

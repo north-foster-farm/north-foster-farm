@@ -11,7 +11,9 @@ const down = (route) => route.fulfill({
   status: 500, json: { message: "down" },
 });
 
-// Answers 500 until `state.up`, then passes through to the real one.
+// Answers 500 until `state.up`, then passes through to the real one,
+// which carries the test's own pins (eggs in plenty, #507). The 500 is
+// what's under test, and no pin can give one.
 const flaky = async (page, state) => {
   state.asked = 0;
   await page.route("**/api/stock", async (route) => {

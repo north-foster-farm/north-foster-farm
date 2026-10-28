@@ -14,7 +14,7 @@
 // `/order/?group=<code>`, which the page reads and takes off the
 // address.
 
-import { randomInt } from "node:crypto";
+import { randomBytes, randomInt, timingSafeEqual } from "node:crypto";
 
 import groupData from "../../../data/groups.json" with { type: "json" };
 import locationData from "../../../data/locations.json" with {
@@ -27,10 +27,14 @@ import {
 import {
   addDays, today,
 } from "../../../assets/scripts/order/lib/zoned.mjs";
+import { noteJoin } from "./group-log.mjs";
+import { log } from "./log.mjs";
 import { newPassCode } from "./passes.mjs";
+import { qrSvg } from "./qr.mjs";
 import {
   allOrders, getCustomer, paidTotal, refundedTotal, saveCustomer,
 } from "./records.mjs";
+import { siteUrl } from "./site.mjs";
 
 export const GROUPS = groupData.groups;
 
@@ -131,6 +135,88 @@ export const setGroupName = async (stores, key, name, {
   await stores.orders.set(groupKey(key), record);
 
   return record;
+};
+
+// The join token (#495, James 6452457293): a long random value on the
+// group's record, apart from the typed code, that the group's QR code
+// carries to the sign-up page. Unguessable, so it needs no limit of
+// its own past the misses. Replacing it retires the old QR code at
+// once and leaves the code and the members as they are; the record
+// keeps when, never the old tokens.
+export const newJoinToken = () => randomBytes(32).toString("base64url");
+
+const TOKEN = /^[A-Za-z0-9_-]{40,64}$/;
+
+export const rotateJoinToken = async (stores, key, {
+  now = new Date(), token = newJoinToken(),
+} = {}) => {
+  if (!groupOf(key)) throw new Error(`Unknown group "${key}".`);
+
+  const stored = (await getGroupRecord(stores, key)) || {
+    key, code: null, codeSetAt: null, previous: [], host: null,
+  };
+  const record = {
+    ...stored,
+    joinToken: token,
+    joinTokenSetAt: now.toISOString(),
+    joinTokensRetired: (stored.joinTokensRetired || 0)
+      + (stored.joinToken ? 1 : 0),
+  };
+
+  await stores.orders.set(groupKey(key), record);
+
+  return record;
+};
+
+// The token in force, minted the first time it is asked for.
+export const joinTokenOf = async (stores, key, { now = new Date() } = {}) => {
+  const record = await getGroupRecord(stores, key);
+
+  if (record && record.joinToken) return record.joinToken;
+
+  return (await rotateJoinToken(stores, key, { now })).joinToken;
+};
+
+const same = (a, b) => {
+  const x = Buffer.from(String(a));
+  const y = Buffer.from(String(b));
+
+  return x.length === y.length && timingSafeEqual(x, y);
+};
+
+// The group a join token opens, or null. Only the token in force.
+export const findGroupByToken = async (stores, token) => {
+  if (!TOKEN.test(String(token || ""))) return null;
+
+  for (const g of GROUPS) {
+    const record = await getGroupRecord(stores, g.key);
+
+    if (record && record.joinToken && same(record.joinToken, token)) return g;
+  }
+
+  return null;
+};
+
+// The sign-up page's link, which the QR code encodes.
+export const joinPath = (token) => `/join/?t=${encodeURIComponent(token)}`;
+
+// The links whole, from SITE_URL as the emails build theirs: a phone
+// opens only an absolute address, so a QR code or a link sent to the
+// host never holds a bare path.
+export const joinUrl = (token, env = process.env) =>
+  `${siteUrl(env)}${joinPath(token)}`;
+
+export const codeUrl = (code, env = process.env) =>
+  `${siteUrl(env)}/order/?group=${encodeURIComponent(code)}`;
+
+// The join QR code and the link it holds, for the Membership tab and
+// `bin/nff groups qr`. `draw` is the encoder, swapped in tests.
+export const joinQr = (token, name, {
+  env = process.env, draw = qrSvg,
+} = {}) => {
+  const link = joinUrl(token, env);
+
+  return { link, svg: draw(link, { title: `Join ${name}` }) };
 };
 
 // The group with the name the farm set on its record, if any.
@@ -281,17 +367,26 @@ export const roundSummary = (orders) => {
   };
 };
 
-// The group an order's change is priced and offered by: the one its
-// tag names, else the customer's own membership, else null.
+// The group whose rounds a change may offer (#495): the order's tag's
+// only while the customer is still in that group, so a member removed
+// can't move an order into a round; an untagged order, the customer's
+// own group. A change stays priced by the tag's lock (lockGroupOf):
+// member prices on a placed order never change.
+export const offeredGroup = (tagged, member) => (tagged
+  ? (member && member.key === tagged.key ? tagged : null)
+  : member || null);
+
 export const buyingFor = async (stores, order) => {
   const tagged = groupOf(order.group && order.group.key);
-
-  if (tagged) return tagged;
-
   const customer = await getCustomer(stores, order.customer.email);
 
-  return groupOf(memberKeyOf(customer));
+  return offeredGroup(tagged, groupOf(memberKeyOf(customer)));
 };
+
+// The group whose price lock a change keeps: the order's tag's, member
+// or not, else the group it is offered.
+export const lockGroupOf = (order, buying) =>
+  groupOf(order.group && order.group.key) || buying || null;
 
 // The tag an order carries after a change (#471): the same group,
 // its round following the order's new date; an order that has none
@@ -315,19 +410,47 @@ export const memberKeyOf = (customer) => (customer && customer.memberGroup
 // Marks the customer a member of the group, once: a paid order with
 // the code, or the CLI. -> the record, or null when there is none to
 // mark (the order's touch comes first, so there always is).
+//
+// The member record is the customer's `memberGroup`: { id, joinedAt,
+// via }, where `id` is the group's key. A membership ID and its QR code
+// (James, 6452408603: later) go beside them as `memberId`, so nothing
+// that reads the record today changes; leaving clears the whole of it.
+//
+// A customer is in one group at a time (#495, edge 2). Another
+// group's code prices and places that one order, and never moves the
+// membership: the refusal is logged, and the farm moves someone with
+// `customers set member=`.
 export const joinGroup = async (stores, email, key, {
   now = new Date(), via = "order",
 } = {}) => {
   const customer = await getCustomer(stores, email);
 
   if (!customer) return null;
-  if (memberKeyOf(customer) === key) return customer;
 
-  return saveCustomer(stores, {
+  const current = memberKeyOf(customer);
+
+  if (current === key) return customer;
+  if (current) {
+    log.warn({ event: "group.switch_refused", group: key, member: current,
+      via });
+    await noteJoin(stores, {
+      group: key, email: customer.email, via, now, event: "switch-refused",
+      member: current,
+    });
+
+    return customer;
+  }
+
+  const saved = await saveCustomer(stores, {
     ...customer,
     memberGroup: { id: key, joinedAt: now.toISOString(), via },
     memberSince: customer.memberSince || now.toISOString(),
   });
+
+  // The first join only (#495): every later call returned above.
+  await noteJoin(stores, { group: key, email: customer.email, via, now });
+
+  return saved;
 };
 
 export const leaveGroup = async (stores, email) => {

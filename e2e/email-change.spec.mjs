@@ -66,8 +66,11 @@ test.describe("changing your own email", () => {
     await page.locator("#email-change-send").click();
   };
 
+  // Quarantined on staging (#508, e2e/quarantine.json): the confirm
+  // takes about 15 s there while renameCustomer scans every sign-in
+  // record.
   test("a link to the new address moves the account, only once confirmed",
-    { tag: "@regression" }, async ({ page }) => {
+    { tag: ["@regression", "@quarantine"] }, async ({ page }) => {
       await signIn(page, from);
 
       const asked = new Date();

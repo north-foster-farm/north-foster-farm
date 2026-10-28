@@ -71,9 +71,17 @@ const desktopOnly = [
 const local = host === "localhost" || host === "127.0.0.1";
 const stagingOnly = local ? ["**/gate.spec.mjs"] : [];
 
+// Quarantined tests (e2e/quarantine.json, James's call each time) stay
+// out of a run against staging, so they don't gate a promotion, until
+// their issue is fixed or their expiry passes (test/quarantine.test.mjs
+// fails CI then). E2E_QUARANTINE=1 runs them anyway; a local build
+// always runs them.
+const quarantined = !local && process.env.E2E_QUARANTINE !== "1";
+
 export default defineConfig({
   testDir: "e2e",
   testMatch: "**/*.spec.mjs",
+  ...(quarantined ? { grepInvert: /@quarantine/ } : {}),
   outputDir: "test-results/e2e",
   timeout: 120_000,
   expect: { timeout: 15_000 },

@@ -320,7 +320,18 @@ test.describe("home", () => {
         // After a reload the photograph stays and nothing is fetched.
         const clips = clipRequests(page);
 
-        await page.reload();
+        // Not the whole `load` (#506): on staging at phone width one
+        // reload sat 45 s without it. The page has nothing third-party
+        // to hold it and no clip until one plays (preload="none", no
+        // src), so a slow one of its own files likely held it. What this
+        // needs is the hero wired, which the deferred module does
+        // before DOMContentLoaded, and its photograph in, which is when
+        // hero.js would start the clip: the 2 s from there is the
+        // window a clip would be fetched in.
+        await page.reload({ waitUntil: "domcontentloaded" });
+        await expect.poll(() => h.img.evaluate(
+          (img) => img.complete && img.naturalWidth > 0
+        ), "the photograph loads").toBe(true);
         await page.waitForTimeout(2_000);
         expect(clips, "no clip fetched with autoplay off").toHaveLength(0);
         await expect(h.root).not.toHaveClass(/\bis-ready\b/);

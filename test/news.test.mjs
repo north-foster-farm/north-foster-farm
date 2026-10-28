@@ -6,8 +6,8 @@ import { describe, it } from "node:test";
 import {
   CONFIRM_TTL, REQUESTS_PER_WINDOW, SYNC_KEY, confirmSubscribe,
   forgottenKey, importSubscribers, optIn, optOut, parseCsv,
-  requestSubscribe, sendOwedWelcomes, sentNothing, subscribe, syncAudience,
-  unsubscribe,
+  removeImported, requestSubscribe, sendOwedWelcomes, sentNothing, subscribe,
+  syncAudience, unsubscribe,
 } from "../netlify/functions/lib/news.mjs";
 import { MailError } from "../netlify/functions/lib/mail.mjs";
 import {
@@ -21,6 +21,7 @@ import {
   newsConfirm,
 } from "../netlify/functions/lib/templates.mjs";
 import { handle } from "../netlify/functions/news.mjs";
+import { resendFake } from "./resend-fixture.mjs";
 
 const now = new Date("2026-10-01T12:00:00Z");
 const later = new Date("2026-10-02T12:00:00Z");
@@ -401,13 +402,7 @@ describe("the import of the old list (#303)", () => {
 
   it("reaches Resend at the next sync as a new contact", async () => {
     const stores = testStores();
-    const calls = [];
-    const fetchImpl = async (url, init) => {
-      calls.push({ method: init.method, body: init.body
-        ? JSON.parse(init.body) : null });
-
-      return { ok: true, json: async () => ({ data: [] }) };
-    };
+    const { calls, fetchImpl } = resendFake();
 
     await importSubscribers(stores, [{ email: "new@example.com" }],
       { date: "2024-07-12", now, env, mail: mailbox().mail });
@@ -746,22 +741,158 @@ describe("holding the old list's welcomes (--skip)", () => {
   });
 });
 
+describe("a stale imported address taken out (#496)", () => {
+  const A = "a@example.com";
+  const audience = { ...env, RESEND_AUDIENCE_ID: "aud", RESEND_API_KEY: "k" };
+  const held = (stores, emails = [A]) => importSubscribers(stores,
+    emails.map((email) => ({ email })),
+    { date: "2024-07-12", now, env, skip: true });
+  // After a removal neither the sync nor the welcomes reach the address.
+  const leftOut = async (stores, email) => {
+    const { calls, fetchImpl } = resendFake();
+    const synced = await syncAudience(stores, {
+      env: audience, fetchImpl, now: later, pace: 0,
+    });
+    const { sent, mail } = mailbox();
+    const welcomed = await sendOwedWelcomes(stores,
+      { now: later, env, mail });
+
+    assert.ok(!synced.created.includes(email), "the sync adds no contact");
+    assert.ok(!calls.some((c) => c.body?.email === email),
+      "nothing about it reaches Resend");
+    assert.ok(!welcomed.sent.includes(email));
+    assert.ok(!sent.some((m) => m.to === email), "no welcome goes");
+    assert.equal(await stores.customers.get(forgottenKey(email)), null,
+      "no decline is recorded");
+  };
+
+  it("deletes a record the import made and nothing else touched, held " +
+    "welcome and all", async () => {
+    const stores = testStores();
+
+    await held(stores, [A, "b@example.com"]);
+
+    const report = await removeImported(stores, "A@Example.com ",
+      { by: "james" });
+
+    assert.deepEqual(report,
+      { email: A, outcome: "deleted", cleared: [], dryRun: false });
+    assert.equal(await getCustomer(stores, A), null);
+    assert.ok(await getCustomer(stores, "b@example.com"), "others stay");
+
+    const due = await sendOwedWelcomes(stores, { now: later, env,
+      mail: mailbox().mail, dryRun: true });
+
+    assert.deepEqual(due.due, ["b@example.com"]);
+    await leftOut(stores, A);
+  });
+
+  it("takes the unsubscribe link a sent welcome left", async () => {
+    const stores = testStores();
+    const { mail } = mailbox();
+
+    await importSubscribers(stores, [{ email: A }],
+      { date: "2024-07-12", now, env, mail });
+    assert.equal((await stores.auth.list("unsub/")).length, 1);
+    assert.equal((await removeImported(stores, A)).outcome, "deleted");
+    assert.equal((await stores.auth.list("unsub/")).length, 0);
+  });
+
+  it("keeps a record with orders, clearing only the import's consent and " +
+    "welcome", async () => {
+    const stores = testStores();
+    const before = customer(A, {
+      marketing: false, marketingAt: null,
+      lastOrderAt: "2026-09-15T12:00:00.000Z",
+    });
+
+    await saveCustomer(stores, before);
+    await stores.orders.set("order/NFF-1", { id: "NFF-1" });
+    await stores.orders.set(`by-email/${A}/NFF-1`, { id: "NFF-1" });
+    await held(stores);
+    assert.equal((await getCustomer(stores, A)).marketing, true);
+
+    const imported = (await getCustomer(stores, A)).consent;
+    const report = await removeImported(stores, A, { now: later });
+    const saved = await getCustomer(stores, A);
+
+    assert.deepEqual(report, {
+      email: A, outcome: "cleared", cleared: ["marketing", "welcome"],
+      dryRun: false,
+    });
+    assert.equal(saved.marketing, false);
+    assert.equal(saved.marketingAt, null);
+    assert.equal(saved.marketingSource, undefined);
+    assert.equal(saved.welcome, undefined);
+    assert.deepEqual(saved.consent.slice(0, -1), imported,
+      "the import's event stays");
+    assert.equal(imported.at(-1).type, "market-sheet");
+    assert.deepEqual(saved.consent.at(-1), {
+      action: "out", type: "removed",
+      detail: "a stale or duplicate import, taken out",
+      at: later.toISOString(), recordedAt: later.toISOString(),
+      capturedBy: null, evidence: null,
+    }, "and the removal is appended");
+    assert.equal(saved.lastOrderAt, before.lastOrderAt);
+    assert.equal(saved.name, before.name);
+    await leftOut(stores, A);
+
+    const back = await importSubscribers(stores, [{ email: A }],
+      { date: "2024-07-12", now: later, env, skip: true });
+
+    assert.deepEqual(back.imported, [A], "a later sign-up is not declined");
+  });
+
+  it("keeps an imported record that has credit, a group or a sign-in",
+    async () => {
+      const stores = testStores();
+      const B = "b@example.com";
+      const C = "c@example.com";
+
+      await held(stores, [A, B, C]);
+      await stores.customers.set(`credit/${A}`, { grants: [] });
+      await saveCustomer(stores, { ...await getCustomer(stores, B),
+        memberGroup: { id: "vff", joinedAt: now.toISOString() } });
+      await saveCustomer(stores, { ...await getCustomer(stores, C),
+        interaction: { at: later.toISOString(), kind: "sign-in" } });
+
+      for (const email of [A, B, C]) {
+        assert.equal((await removeImported(stores, email)).outcome, "cleared",
+          email);
+        assert.equal((await getCustomer(stores, email)).marketing, false);
+      }
+    });
+
+  it("reports and writes nothing on a dry run", async () => {
+    const stores = testStores();
+
+    await held(stores);
+
+    const record = await getCustomer(stores, A);
+    const report = await removeImported(stores, A, { dryRun: true });
+
+    assert.equal(report.outcome, "deleted");
+    assert.equal(report.dryRun, true);
+    assert.deepEqual(await getCustomer(stores, A), record);
+  });
+
+  it("leaves a record with nothing from the import alone", async () => {
+    const stores = testStores();
+    const record = customer(A, {
+      marketing: true, marketingAt: now.toISOString(),
+      marketingSource: "order",
+    });
+
+    await saveCustomer(stores, record);
+    assert.equal((await removeImported(stores, A)).outcome, "none");
+    assert.equal((await getCustomer(stores, A)).marketing, true);
+    assert.equal((await removeImported(stores, "x@example.com")).outcome,
+      "none");
+  });
+});
+
 describe("the audience sync", () => {
   const audience = { ...env, RESEND_AUDIENCE_ID: "aud", RESEND_API_KEY: "k" };
-  const fake = (contacts) => {
-    const calls = [];
-    const fetchImpl = async (url, init) => {
-      calls.push({ method: init.method, url, body: init.body
-        ? JSON.parse(init.body) : null });
-
-      return {
-        ok: true,
-        json: async () => (init.method === "GET" ? { data: contacts } : {}),
-      };
-    };
-
-    return { calls, fetchImpl };
-  };
 
   it("does nothing without an audience", async () => {
     const r = await syncAudience(testStores(), { env });
@@ -772,7 +903,7 @@ describe("the audience sync", () => {
   it("adds consenting records, removes withdrawn ones, and takes an " +
     "unsubscribe in Resend as the customer's word", async () => {
     const stores = testStores();
-    const { calls, fetchImpl } = fake([
+    const { calls, fetchImpl } = resendFake([
       { email: "gone@example.com", unsubscribed: true },
       { email: "left@example.com", unsubscribed: false },
       { email: "hand@example.com", first_name: "By", last_name: "Hand",
@@ -832,7 +963,7 @@ describe("the audience sync", () => {
   it("lets a consent here after leaving through Resend resubscribe there",
     async () => {
       const stores = testStores();
-      const { calls, fetchImpl } = fake([
+      const { calls, fetchImpl } = resendFake([
         { email: "back@example.com", unsubscribed: true },
       ]);
 
@@ -853,7 +984,7 @@ describe("the audience sync", () => {
   it("never undoes an unsubscribe in Resend that came after the consent " +
     "(#234)", async () => {
     const stores = testStores();
-    const { calls, fetchImpl } = fake([
+    const { calls, fetchImpl } = resendFake([
       { email: "left@example.com", unsubscribed: true },
       { email: "late@example.com", unsubscribed: true },
     ]);
@@ -887,7 +1018,9 @@ describe("the audience sync", () => {
     // A sign-up here after that does resubscribe at the next sync.
     await optIn(stores, "left@example.com", { source: "signup" }, later);
 
-    const next = fake([{ email: "left@example.com", unsubscribed: true }]);
+    const next = resendFake([
+      { email: "left@example.com", unsubscribed: true },
+    ]);
     const again = await syncAudience(stores, {
       env: audience, fetchImpl: next.fetchImpl, now: later, pace: 0,
     });
@@ -897,7 +1030,7 @@ describe("the audience sync", () => {
 
   it("touches nothing on a dry run", async () => {
     const stores = testStores();
-    const { calls, fetchImpl } = fake([]);
+    const { calls, fetchImpl } = resendFake([]);
 
     await saveCustomer(stores, customer("new@example.com", {
       marketing: true, marketingAt: now.toISOString(),

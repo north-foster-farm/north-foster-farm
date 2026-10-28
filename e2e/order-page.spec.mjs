@@ -4,6 +4,7 @@
 import { readFileSync } from "node:fs";
 
 import { OrderPage, SKU, expect, test } from "./support/order.mjs";
+import { PLENTY } from "./support/stock.mjs";
 
 const catalog = JSON.parse(readFileSync(
   new URL("../data/catalog.json", import.meta.url), "utf8"
@@ -218,13 +219,17 @@ test.describe("order page", () => {
   });
 
   test("every in-stock product has a row and an Add button",
-    async ({ page }) => {
+    async ({ page, stock }) => {
       const order = new OrderPage(page);
 
+      // Every product counted for this test (#507), so the page and the
+      // answer below agree whatever the farm has.
+      await stock.pin(Object.fromEntries(catalog.groups
+        .flatMap((g) => g.items).map((item) => [item.sku, PLENTY])));
       await order.open();
 
-      const stock = await (await page.request.get("/api/stock")).json();
-      const inStock = Object.entries(stock.items)
+      const answer = await (await page.request.get("/api/stock")).json();
+      const inStock = Object.entries(answer.items)
         .filter(([, s]) => s.inStock && s.available !== 0)
         .map(([sku]) => sku);
       const rows = await page.locator(".order-item:not([hidden])")
@@ -261,18 +266,12 @@ test.describe("order page", () => {
   // A stock count of 0 is out of stock too: the row goes, never a
   // sold-out one, and a category it leaves empty goes with its link.
   test("a product whose count reaches 0 loses its row, and its " +
-    "category when empty", async ({ page }) => {
+    "category when empty", async ({ page, stock }) => {
     const gone = [SKU.eggs, "NFF-CHK-DRM-15-99"];
 
-    await page.route("**/api/stock", async (route) => {
-      const res = await route.fetch();
-      const body = await res.json();
-
-      for (const sku of gone) {
-        body.items[sku] = { inStock: false, available: 0 };
-      }
-      await route.fulfill({ response: res, json: body });
-    });
+    // Pinned for this test (#507): the server sells them out, so the
+    // page and the order check agree.
+    await stock.pin(Object.fromEntries(gone.map((sku) => [sku, 0])));
 
     const order = new OrderPage(page);
 
