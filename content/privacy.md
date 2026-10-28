@@ -213,4 +213,4 @@ By using our website, you consent to our privacy policy.
 If you have questions regarding this privacy policy, you may email
 {{% company "email-info" %}}.
 
-Last updated October 26, 2026.
+Last updated October 28, 2026.
