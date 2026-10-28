@@ -102,8 +102,8 @@ describe("parseOverrides", () => {
 describe("the stock source's context guard", () => {
   const overrides = { STOCK_OVERRIDES: `${EGGS}:1` };
 
-  it("applies on staging and deploy previews", () => {
-    for (const SITE_CONTEXT of ["branch-deploy", "deploy-preview"]) {
+  it("applies on staging, deploy previews and in development", () => {
+    for (const SITE_CONTEXT of ["branch-deploy", "deploy-preview", "dev"]) {
       const env = { ...staging, ...overrides, SITE_CONTEXT };
 
       assert.equal(productionRead(env), true);
@@ -120,16 +120,18 @@ describe("the stock source's context guard", () => {
         CONTEXT: "production" },
       // Production's Square, whatever the context says.
       { ...staging, ...overrides, SQUARE_ENV: "production" },
+      { ...staging, ...overrides, SITE_CONTEXT: "dev",
+        SQUARE_ENV: "production" },
     ]) {
       assert.equal(productionRead(env), false);
       assert.deepEqual(stockOverrides(env), {});
     }
   });
 
-  it("stays off with no context, in development, or unasked", () => {
+  it("stays off with no context, an unknown one, or unasked", () => {
     for (const env of [
       { ...staging, ...overrides, SITE_CONTEXT: undefined },
-      { ...staging, ...overrides, SITE_CONTEXT: "dev" },
+      { ...staging, ...overrides, SITE_CONTEXT: "development" },
     ]) {
       assert.equal(productionRead(env), false);
       assert.deepEqual(stockOverrides(env), {});
@@ -208,6 +210,25 @@ describe("liveCounts with the stock source", () => {
     assert.equal(counts[CORNISH], 3);
     assert.ok(!("NFF-NOT-SOLD" in counts));
   });
+
+  it("reads production's counts in development, over the fake Square",
+    async () => {
+      const stores = testStores();
+      const dev = { SITE_CONTEXT: "dev", SQUARE_ENV: "fake",
+        STOCK_SOURCE: "production" };
+      const prod = production();
+
+      await stores.stock.set("counts", { [CORNISH]: 3 });
+      // The fake driver's own read, not a stub: it counts nothing.
+      const counts = await liveCounts(stores,
+        { env: dev, production: via(prod.fetchImpl), snapshot: true });
+
+      assert.equal(prod.seen.length, 1);
+      assert.equal(counts[TWO], 2);
+      assert.equal(counts[ONE], 1);
+      assert.equal(counts[WINGS], 0);
+      assert.equal(counts[CORNISH], 3);
+    });
 
   it("keeps a SKU missing from production's answer as before",
     async () => {

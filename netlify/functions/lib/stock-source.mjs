@@ -15,9 +15,12 @@
 //                             listed wins over every read; the rest
 //                             read as they would without it.
 //
-// Neither ever applies in production: only staging (branch-deploy) and
-// deploy previews, and never where SQUARE_ENV is production. Anywhere
-// else, or with no context set, both are ignored.
+// Neither ever applies in production: only staging (branch-deploy),
+// deploy previews and local development (dev), and never where
+// SQUARE_ENV is production. Anywhere else, or with no context set,
+// both are ignored. Development reads production too, over the fake
+// driver (James, #495, 2026-10-28); the unit tests and the e2e build
+// (bin/e2e/serve.mjs) turn the read off and keep their fakes.
 //
 // A test order on staging moves the sandbox's count, not production's,
 // so with the production read on, staging never sells out by its own
@@ -26,12 +29,12 @@
 import { timedFetch } from "./http.mjs";
 import { deployContext } from "./store.mjs";
 
-export const SOURCE_CONTEXTS = ["branch-deploy", "deploy-preview"];
+export const SOURCE_CONTEXTS = ["branch-deploy", "deploy-preview", "dev"];
 
 const allowed = (env) => SOURCE_CONTEXTS.includes(deployContext(env))
   && env.SQUARE_ENV !== "production";
 
-// -> true where counts are read from production Square.
+// -> true where counts are read from production's /api/stock.
 export const productionRead = (env = process.env) => allowed(env)
   && env.STOCK_SOURCE === "production";
 
