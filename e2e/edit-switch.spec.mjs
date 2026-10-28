@@ -14,6 +14,7 @@ import {
   BACK_OFFICE_MISSING, BASE_URL, backOffice, clearMail, closeOrder,
   deleteCustomer, orderRecord, teardown, waitForMail,
 } from "./support/staging.mjs";
+import { withScope } from "./support/stock.mjs";
 
 const UPDATED = "Your order is updated";
 
@@ -25,7 +26,20 @@ test.describe("switching a paid order between pickup and delivery", () => {
   const email = uniqueEmail("switch");
   let orderId;
   let since;
+  let cookies;
   let api;
+
+  // The sign-in of the first test, with this test's own stock pins
+  // (#507): a context kept from the test before would carry its scope,
+  // whose pins went with it.
+  const signedIn = async (playwright, stockScope) => {
+    if (api) await api.dispose();
+    api = await playwright.request.newContext({
+      baseURL: BASE_URL,
+      storageState: { cookies: withScope(cookies, stockScope), origins: [] },
+      extraHTTPHeaders: { Origin: BASE_URL },
+    });
+  };
 
   // One dozen is $7; six clear the delivery minimum.
   test.beforeAll(async ({ request }) => {
@@ -74,16 +88,13 @@ test.describe("switching a paid order between pickup and delivery", () => {
   };
 
   test("pickup to delivery: the fee is charged", async ({
-    page, playwright, request,
+    page, playwright, request, stockScope,
   }) => {
     const asked = new Date();
 
     await signIn(page, email);
-    api = await playwright.request.newContext({
-      baseURL: BASE_URL,
-      storageState: await page.context().storageState(),
-      extraHTTPHeaders: { Origin: BASE_URL },
-    });
+    cookies = await page.context().cookies();
+    await signedIn(playwright, stockScope);
 
     const before = await orderRecord(orderId);
     const { priced, answer } = await edit({
@@ -119,8 +130,12 @@ test.describe("switching a paid order between pickup and delivery", () => {
     });
   });
 
-  test("delivery to pickup: the fee goes back", async ({ request }) => {
-    test.skip(!api, "Needs the sign-in from the test before.");
+  test("delivery to pickup: the fee goes back", async ({
+    playwright, request, stockScope,
+  }) => {
+    test.skip(!cookies, "Needs the sign-in from the test before.");
+
+    await signedIn(playwright, stockScope);
 
     const asked = new Date();
     const before = await orderRecord(orderId);
