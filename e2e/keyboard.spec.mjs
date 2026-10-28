@@ -245,18 +245,24 @@ const stopPaySdks = async (page) => {
   ));
 };
 
-// The pay section starts (pay.js) once near the screen or focused:
-// bring it near, wait for it to give up on the stopped SDKs, and go back to
-// the top. "off" (payments switched off) loads no SDK at all.
+// The pay section starts (pay.js start) once near the screen or on the
+// first focusin inside it: start it with a focusin, which moves neither
+// the focus nor the page, and wait for it to give up on the stopped
+// SDKs. "off" (payments switched off) loads no SDK at all.
+//
+// Not by scrolling it in and back (#506): at 390 the round trip took
+// the phone's cart past its slot, so it settled and then lifted off
+// closed. The walk then began with a small floating cart that settled
+// and opened under the Tab to the first way to get the order, pushing
+// that radio below the fold in WebKit, which keeps no scroll anchor.
 const payUnavailable = async (page) => {
   const pay = page.locator("[data-pay]");
 
   if (!await pay.count()) return;
   await page.locator("#payment").evaluate(
-    (el) => el.scrollIntoView({ block: "center", behavior: "instant" })
+    (el) => el.dispatchEvent(new FocusEvent("focusin", { bubbles: true }))
   );
   await expect(pay).toHaveAttribute("data-pay-state", /^(unavailable|off)$/);
-  await page.evaluate(() => scrollTo({ top: 0, behavior: "instant" }));
 };
 
 // Tabs from the top of the page to its end and returns what went
