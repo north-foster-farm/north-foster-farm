@@ -461,14 +461,19 @@ Environment variables, set in Netlify, never in the repo:
   site's own `/api/square/webhook`, `SQUARE_WEBHOOK_URL`.
 
 **Staging's stock from production (#453).** The sandbox's counts are
-not the ones customers see, so staging and deploy previews may read
-production's instead. Only where counts are read from changes: orders,
-payments, fulfilments and every stock change still go to the sandbox
+not the ones customers see, so staging, deploy previews and local
+development read production's instead. Only where counts are read
+from changes: orders, payments, fulfilments and every stock change
+still go to the sandbox, or to the fake driver in development
 (`lib/stock-source.mjs`).
 
 - `STOCK_SOURCE`: `production` turns the read on; empty or anything
-  else leaves staging's own counts, as before. A plain setting, not a
-  secret: the read needs no credential.
+  else leaves staging's own counts. A plain setting, not a secret: the
+  read needs no credential. `.env.staging.sample` and
+  `.env.development.sample` both hold `production`, so staging shows
+  what customers see before a promote and `npm run start:functions`
+  shows production's counts over the fake Square (James, #495,
+  2026-10-28).
 - `STOCK_OVERRIDES`: a few SKUs pinned to a count, `SKU:n`
   comma-separated (`NFF-CHK-WHL-30-34:1,NFF-CHK-WNG-30-99:0`), for the
   browser tests: a tier at exactly 1, a sold-out item. A listed SKU
@@ -490,9 +495,15 @@ failure is logged once (`stock.production_unread`) and kept in the
 snapshot, so production isn't asked again for 15 s. With the read on,
 an order check's `stock.checked` line says `source: "production"`, or
 `"staging"` when production didn't answer. Neither setting
-applies outside `branch-deploy` and `deploy-preview`, nor where
-`SQUARE_ENV` is `production`, and `bin/nff env check` fails a
-production that holds either. A test order on staging moves the
+applies outside `branch-deploy`, `deploy-preview` and `dev`, nor
+where `SQUARE_ENV` is `production`, and `bin/nff env check` fails a
+production that holds either. The CI runs never read production: the
+unit suite keeps no `STOCK_SOURCE` (`test/setup.mjs`), and the
+local-build e2e (`bin/e2e/serve.mjs`) turns it off over the
+development sample and the shell (`bin/e2e/env.mjs`), keeping its
+fakes and `STOCK_OVERRIDES`, so its counts are the suite's own and it
+never spends production's rate limit (`test/stock-source.test.mjs`
+holds both). A test order on staging moves the
 sandbox's count, not production's, so staging never sells out by its
 own orders: pin the SKU at 0 for that.
 
@@ -1276,7 +1287,7 @@ function and runs on deploys, never locally.
 
 **Fake payments, the default.** The development env file sets
 `SITE_CONTEXT=dev`, `SQUARE_ENV=fake` and `PAYPAL_ENV=fake` (#265).
-Then no call leaves the machine: `lib/fake-square.mjs` and
+Then no payment call leaves the machine: `lib/fake-square.mjs` and
 `lib/fake-paypal.mjs` answer every call `lib/square.mjs` and
 `lib/paypal.mjs` would send, with the same arguments and the same
 answers, and `/api/checkout/config` points the page at stub SDKs that
@@ -1287,7 +1298,11 @@ with Square's `CARD_DECLINED`. The Venmo button approves at once and
 the capture follows. Orders, records and emails are otherwise real,
 so the whole flow, the account pages and `bin/nff` refunds run with
 no vendor account. `e2e/fake-payments.spec.mjs` places a card order
-and a Venmo order against `netlify dev`.
+and a Venmo order against `netlify dev`. The one call out is the stock
+read of production's public `/api/stock` (`STOCK_SOURCE=production`,
+"Staging's stock from production", above); empty it in `.env` to sell
+by the local stock store alone. Changed 2026-10-28 (#495): development
+used to read no stock but its own.
 
 A fake works only where the deploy context is `dev` (`lib/fake.mjs`).
 Anywhere else, production, staging, a preview or no context at all,
