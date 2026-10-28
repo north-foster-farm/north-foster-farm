@@ -37,13 +37,19 @@ decisions James made on GitHub. The issue numbers point to the source.
   phone are hands-on checks for James (#449).
 - **Promote to staging when green, full e2e on staging** (#502,
   2026-10-28; the steps are in `docs/cloud-lanes.md`). Once `next` is
-  green, push to `staging` and ping James, without batching or waiting
-  to be asked. On `next`, run by name only the specs the new code
-  touches directly, and name them in the lane or landing comment. The
-  full suite runs against `staging` after every push to it
-  (`e2e/staging-full`). A failure there is fixed forward through
-  `next`, never reverted, and the ping says what failed and why.
-  Production waits for James's OK on staging.
+  green, push to `staging` and ping James right away, without batching
+  or waiting to be asked. The full suite runs against `staging` in
+  parallel, after every push to it (`e2e/staging-full`): it gates
+  production, not James's look at staging. On `next`, run by name only
+  the specs the new code touches directly, and name them in the lane
+  or landing comment. A failure on staging is fixed forward through
+  `next`, never reverted, and James hears what failed and why. A newer
+  push to `staging` supersedes an older full run, which stands down at
+  its next safe point while teardown and the sweep still run.
+  Production waits for James's OK on staging and is promoted only from
+  the exact commit the full suite passed on: an earlier green run
+  doesn't count once a later fix lands (points 2, 6 and 7 added
+  2026-10-28).
 - **Customer copy follows the #400 house rules:**
   - no semicolons and no em dashes in prose;
   - no internal model names in customer text ("Pickup days", not
