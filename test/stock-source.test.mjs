@@ -23,22 +23,12 @@ const RECORDED = JSON.parse(readFileSync(new URL(
 const EGGS = "NFF-CHK-EGG-LG";
 const BIRD = "NFF-CHK-WHL-20-24";
 const EGGS_VARIATION = "S7XJNPQUKY6JSYQOEYSL6FYS";
-// Set at 2, 1 and 0 below, whatever the recording held (#507).
+// Production counts these at 2, 1 and 0 in the recording.
 const TWO = "NFF-CHK-WHL-30-34";
 const ONE = "NFF-CHK-WHL-45-49";
 const WINGS = "NFF-CHK-WNG-30-99";
-// Set as one production doesn't count (available null).
+// Production doesn't count it (available null).
 const CORNISH = "NFF-CHK-CRN-0000-0300";
-
-// The counts these tests read, laid over the recording's: the
-// recording is the answer's shape, and a new one may count anything
-// (#507).
-const COUNTED = {
-  [TWO]: { inStock: true, available: 2 },
-  [ONE]: { inStock: true, available: 1 },
-  [WINGS]: { inStock: false, available: 0 },
-  [CORNISH]: { inStock: false, available: null },
-};
 
 const staging = {
   SITE_CONTEXT: "branch-deploy",
@@ -46,15 +36,15 @@ const staging = {
   STOCK_SOURCE: "production",
 };
 
-// Production's /api/stock as recorded, with the counts above and
-// `items` changed where a test says. Every request is kept.
+// Production's /api/stock as recorded, with `items` changed where a test
+// says. Every request is kept.
 const production = ({ items = {}, status = RECORDED.status } = {}) => {
   const seen = [];
   const fetchImpl = async (url, init) => {
     seen.push({ url, init });
 
     const body = { ...RECORDED.response,
-      items: { ...RECORDED.response.items, ...COUNTED, ...items } };
+      items: { ...RECORDED.response.items, ...items } };
 
     return new Response(JSON.stringify(body), {
       status, headers: { "Content-Type": "application/json" },
@@ -112,8 +102,8 @@ describe("parseOverrides", () => {
 describe("the stock source's context guard", () => {
   const overrides = { STOCK_OVERRIDES: `${EGGS}:1` };
 
-  it("applies on staging and deploy previews", () => {
-    for (const SITE_CONTEXT of ["branch-deploy", "deploy-preview"]) {
+  it("applies on staging, deploy previews and in development", () => {
+    for (const SITE_CONTEXT of ["branch-deploy", "deploy-preview", "dev"]) {
       const env = { ...staging, ...overrides, SITE_CONTEXT };
 
       assert.equal(productionRead(env), true);
@@ -130,28 +120,25 @@ describe("the stock source's context guard", () => {
         CONTEXT: "production" },
       // Production's Square, whatever the context says.
       { ...staging, ...overrides, SQUARE_ENV: "production" },
+      { ...staging, ...overrides, SITE_CONTEXT: "dev",
+        SQUARE_ENV: "production" },
     ]) {
       assert.equal(productionRead(env), false);
       assert.deepEqual(stockOverrides(env), {});
     }
   });
 
-  it("stays off with no context, in development, or unasked", () => {
-    assert.equal(productionRead({ ...staging, SITE_CONTEXT: "dev" }), false);
-    assert.deepEqual(stockOverrides(
-      { ...staging, ...overrides, SITE_CONTEXT: undefined }), {});
-    assert.equal(productionRead({ ...staging, SITE_CONTEXT: undefined }),
-      false);
+  it("stays off with no context, an unknown one, or unasked", () => {
+    for (const env of [
+      { ...staging, ...overrides, SITE_CONTEXT: undefined },
+      { ...staging, ...overrides, SITE_CONTEXT: "development" },
+    ]) {
+      assert.equal(productionRead(env), false);
+      assert.deepEqual(stockOverrides(env), {});
+    }
     assert.equal(productionRead({ ...staging, STOCK_SOURCE: "" }), false);
     assert.equal(productionRead({ ...staging, STOCK_SOURCE: "sandbox" }),
       false);
-  });
-
-  it("lets James's hand overrides apply in local development", () => {
-    assert.deepEqual(stockOverrides({ ...overrides, SITE_CONTEXT: "dev",
-      SQUARE_ENV: "fake" }), { [EGGS]: 1 });
-    assert.deepEqual(stockOverrides({ ...overrides, SITE_CONTEXT: "dev",
-      SQUARE_ENV: "production" }), {});
   });
 });
 
@@ -223,6 +210,25 @@ describe("liveCounts with the stock source", () => {
     assert.equal(counts[CORNISH], 3);
     assert.ok(!("NFF-NOT-SOLD" in counts));
   });
+
+  it("reads production's counts in development, over the fake Square",
+    async () => {
+      const stores = testStores();
+      const dev = { SITE_CONTEXT: "dev", SQUARE_ENV: "fake",
+        STOCK_SOURCE: "production" };
+      const prod = production();
+
+      await stores.stock.set("counts", { [CORNISH]: 3 });
+      // The fake driver's own read, not a stub: it counts nothing.
+      const counts = await liveCounts(stores,
+        { env: dev, production: via(prod.fetchImpl), snapshot: true });
+
+      assert.equal(prod.seen.length, 1);
+      assert.equal(counts[TWO], 2);
+      assert.equal(counts[ONE], 1);
+      assert.equal(counts[WINGS], 0);
+      assert.equal(counts[CORNISH], 3);
+    });
 
   it("keeps a SKU missing from production's answer as before",
     async () => {
