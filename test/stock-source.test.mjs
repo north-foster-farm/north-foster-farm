@@ -304,6 +304,23 @@ describe("liveCounts with the stock source", () => {
         (l) => l.event === "stock.production_unread").length, 1);
     });
 
+  it("says in the order check's log which counts it sold by",
+    async (t) => {
+      const lines = [];
+
+      t.mock.method(console, "info", (text) => lines.push(JSON.parse(text)));
+      t.mock.method(console, "warn", () => {});
+      for (const [status, source] of [[200, "production"],
+        [429, "staging"]]) {
+        await liveCounts(testStores(), {
+          env: staging, inventory: reader(null).read, check: "order",
+          production: via(production({ status }).fetchImpl),
+        });
+        assert.equal(lines.at(-1).event, "stock.checked");
+        assert.equal(lines.at(-1).source, source);
+      }
+    });
+
   it("lets STOCK_OVERRIDES win over production's counts", async () => {
     const env = { ...staging,
       STOCK_OVERRIDES: `${TWO}:0,${WINGS}:1` };

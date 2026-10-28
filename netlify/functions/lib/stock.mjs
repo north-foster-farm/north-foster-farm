@@ -148,7 +148,7 @@ export const liveCounts = async (stores, {
   if (check) {
     log.info({ event: "stock.checked", for: check,
       via: square || prod ? "square" : "store",
-      ...(sourced ? { source: prod ? "production" : "sandbox" } : {}) });
+      ...(sourced ? { source: prod ? "production" : "staging" } : {}) });
   }
 
   return counts;
