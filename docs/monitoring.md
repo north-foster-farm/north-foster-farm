@@ -630,7 +630,12 @@ and previews the access gate logs a hand-off to a function that took
 5 s or more (`gate.next_slow`) or never came back (`gate.next_failed`,
 answered 502: Netlify lost its own connection to the function). Each
 carries `test`, the e2e test's stock scope, when the suite sent it,
-so a failed staging run finds its own lines.
+so a failed staging run finds its own lines. After a failed full run,
+`node bin/e2e/logs.mjs <run-id>` on the Mac pulls every staging
+function's and the gate's lines for the run's window through
+`bin/nff netlify` and prints the failed tests, these lines and any
+silent gaps; the raw lines stay in `.ignored/e2e-logs/`, never on
+GitHub.
 
 ## The invariants
 
