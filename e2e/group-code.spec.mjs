@@ -5,6 +5,7 @@
 // (bin/e2e/serve.mjs), where the back office mints the group's code
 // if none is set; on staging it uses the code in force.
 
+import { normalizeCode } from "../assets/scripts/order/lib/validate.mjs";
 import {
   OrderPage, expect, paymentFakes as fakes, pickupValues, test,
   uniqueEmail,
@@ -55,6 +56,10 @@ test.describe("a buying group's code (#471)", () => {
         "name and email address.");
       await dialog.getByRole("button", { name: "Cancel" }).click();
       await expect(dialog).toBeHidden();
+      // The row stays open under the dialog: the code waits in the box
+      // and the focus is back on Apply.
+      await expect(order.codeApply).toBeFocused();
+      await expect(order.codeInput).toHaveValue(normalizeCode(code));
       expect(await pickupValues(page))
         .not.toContainEqual(expect.stringMatching(`^${SERIES}-`));
 
