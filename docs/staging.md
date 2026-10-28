@@ -160,8 +160,10 @@ there is fixed forward on `next`, never reverted on `staging`
 (`docs/cloud-lanes.md`, #502, 2026-10-28). `main` takes a `staging`
 commit once James has OKed it here, and only the exact commit the full
 suite passed on: a green run on an earlier commit doesn't count once a
-later fix lands (points 2, 6 and 7 added 2026-10-28). Neither ever takes a merge
-commit or a rebase-merge: promotion moves a branch to a SHA already
+later fix lands (points 2, 6 and 7 added 2026-10-28). Neither ever
+takes a merge commit or a rebase-merge, save a release branch's merge
+into `main`, which carries the tested `staging` commit's tree
+(`docs/security.md`): promotion moves a branch to a SHA already
 checked, so the commit that ships is the commit that was tested.
 
 Two rulesets, with no bypass actor, enforce it (`docs/security.md`).

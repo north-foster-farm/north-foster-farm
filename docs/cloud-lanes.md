@@ -198,10 +198,11 @@ Push staging's sha to `e2e/staging-full` (`git push origin
 and `.github/workflows/e2e-staging.yml` waits for Netlify to serve that
 commit, then runs every spec. That is the run after every push to
 `staging`, and the one production is promoted from: it must have
-passed on that exact commit (point 7). A push to `e2e/staging` instead runs every spec not on
-`e2e/staging-passing.txt`, for a quick rerun of what failed while the
-fix is on its way. The run's summary lists the failed specs and the passed ones as `spec
-sha date` lines: paste those into `e2e/staging-passing.txt` on the next
+passed on that exact commit (point 7). A push to `e2e/staging`
+instead runs every spec not on `e2e/staging-passing.txt`, for a quick
+rerun of what failed while the fix is on its way. The run's summary
+lists the failed specs and the passed ones as `spec sha date` lines:
+paste those into `e2e/staging-passing.txt` on the next
 commit, so later runs take only what still fails. `e2e/staging-attention.txt`
 names the specs open work may break, and `bin/e2e-summary.mjs` writes the
 summary. It needs the Actions secrets `E2E_STAGING_TOKEN` and
