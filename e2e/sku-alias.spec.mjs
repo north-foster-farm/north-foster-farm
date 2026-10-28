@@ -6,10 +6,15 @@
 // holds the server's side).
 
 import { CUSTOMER, ORDER, cannedDates } from "./support/canned.mjs";
-import { OrderPage, expect, test } from "./support/order.mjs";
+import { OrderPage, SUITE_STOCK, expect, test } from "./support/order.mjs";
 
 const OLD = "NFF-CHK-BRSBL-0000-0125";
 const NEW = "NFF-CHK-BRSBL-10-12";
+const HEN = "NFF-CHK-CRN-0000-0300";
+
+// The archived hen pinned at none beside the suite's SKUs (#507), so
+// no line here reads a count the spec didn't set.
+test.use({ stockPins: { ...SUITE_STOCK, [HEN]: 0 } });
 const qty = (page, sku) => page.locator(`[data-qty="${sku}"]`);
 
 test.describe("old SKUs (#267)", () => {
@@ -26,7 +31,7 @@ test.describe("old SKUs (#267)", () => {
 
   test("an archived one is named, and an unknown one never shown",
     async ({ page }) => {
-      await page.goto("/order/?add=NFF-CHK-CRN-0000-0300:1,NFF-CHK-NOPE:1");
+      await page.goto(`/order/?add=${HEN}:1,NFF-CHK-NOPE:1`);
 
       const notice = page.locator("#order-added");
 

@@ -5,9 +5,13 @@
 // account is canned, so this runs on a local build.
 
 import { CUSTOMER, ORDER, cannedDates } from "./support/canned.mjs";
-import { expect, test } from "./support/order.mjs";
+import { SUITE_STOCK, expect, test } from "./support/order.mjs";
 
 const HEN = "NFF-CHK-CRN-0000-0300";
+
+// The hen pinned at none (#507): an archived line is never sold
+// whatever the count, and the spec reads no count it didn't set.
+test.use({ stockPins: { ...SUITE_STOCK, [HEN]: 0 } });
 const HELD = {
   ...ORDER,
   lines: [...ORDER.lines, {
