@@ -49,8 +49,10 @@ import { now as clock } from "./clock.mjs";
 import { log } from "./log.mjs";
 import { farmEmails, sendMail } from "./mail.mjs";
 import { mailLinks } from "./site.mjs";
-import { inventoryCounts, productionStock } from "./square.mjs";
-import { productionRead, stockOverrides } from "./stock-source.mjs";
+import { inventoryCounts } from "./square.mjs";
+import {
+  productionRead, productionStock, stockOverrides,
+} from "./stock-source.mjs";
 import { farmArchivedInStock } from "./templates.mjs";
 
 const index = indexCatalog(catalog);
@@ -62,15 +64,19 @@ export const getCounts = async (stores) =>
 
 export const SNAPSHOT = "square";
 export const SNAPSHOT_MS = 15_000;
-// Production's counts by SKU, where staging reads them (#453).
+// Production's counts by SKU, from its public /api/stock, where staging
+// reads them (#453).
 export const PRODUCTION_SNAPSHOT = "square-production";
 
 // Square's counts by variation id, or null when it doesn't answer.
-const readSquare = async (ids, { env, deadline, inventory }) => {
+// The same for production's by SKU, with its own `event`.
+const readSquare = async (ids, {
+  env, deadline, inventory, event = "stock.square_unread",
+}) => {
   try {
     return (await inventory(ids, { env, deadline })) || null;
   } catch (error) {
-    log.warn({ event: "stock.square_unread", error: String(error) });
+    log.warn({ event, error: String(error) });
 
     return null;
   }
@@ -102,9 +108,11 @@ const snapshotCounts = async (stores, ids, opts, now, key = SNAPSHOT) => {
 // that fails is logged and leaves the store's. With `snapshot`,
 // Square's come from the snapshot (above). With `check`, the line
 // logged says whether Square's counts or only the store's were used.
-// On staging and previews, production's counts by SKU may stand in for
-// Square's, and STOCK_OVERRIDES over everything (lib/stock-source.mjs,
-// #453). `inventory` and `production` are for tests.
+// On staging and previews, production's counts by SKU stand over
+// staging's own for every SKU production counts, and STOCK_OVERRIDES
+// over everything (lib/stock-source.mjs, #453). A production that is
+// down, slow or rate-limits staging is logged and leaves staging's
+// own. `inventory` and `production` are for tests.
 export const liveCounts = async (stores, {
   catalogIndex = index, env = process.env, deadline,
   inventory = inventoryCounts, production = productionStock,
@@ -115,25 +123,32 @@ export const liveCounts = async (stores, {
   const skus = new Map();
 
   for (const [sku, item] of catalogIndex) {
-    if (sourced) skus.set(sku, sku);
-    else if (item.squareVariationId) skus.set(item.squareVariationId, sku);
+    if (item.squareVariationId) skus.set(item.squareVariationId, sku);
   }
 
-  const ids = [...skus.keys()];
-  const opts = { env, deadline, inventory: sourced ? production : inventory };
-  const square = snapshot
-    ? await snapshotCounts(stores, ids, opts, now,
-      sourced ? PRODUCTION_SNAPSHOT : SNAPSHOT)
-    : await readSquare(ids, opts);
+  const read = (ids, opts, key) => (snapshot
+    ? snapshotCounts(stores, ids, { env, deadline, ...opts }, now, key)
+    : readSquare(ids, { env, deadline, ...opts }));
+  const [square, prod] = await Promise.all([
+    read([...skus.keys()], { inventory }, SNAPSHOT),
+    sourced
+      ? read([...catalogIndex.keys()], {
+        inventory: production, event: "stock.production_unread",
+      }, PRODUCTION_SNAPSHOT)
+      : null,
+  ]);
 
   for (const [id, n] of Object.entries(square || {})) {
     if (skus.has(id)) counts[skus.get(id)] = n;
   }
+  for (const [sku, n] of Object.entries(prod || {})) {
+    if (catalogIndex.has(sku)) counts[sku] = n;
+  }
   Object.assign(counts, stockOverrides(env));
   if (check) {
     log.info({ event: "stock.checked", for: check,
-      via: square ? "square" : "store",
-      ...(sourced ? { source: "production" } : {}) });
+      via: square || prod ? "square" : "store",
+      ...(sourced ? { source: prod ? "production" : "sandbox" } : {}) });
   }
 
   return counts;

@@ -4,11 +4,12 @@
 // that, and only where counts are read from: orders, payments,
 // fulfilments and every stock change still go to the sandbox.
 //
-//   STOCK_SOURCE=production   counts are read from production Square,
-//                             matched to the catalog by SKU, with a
-//                             token that can only read
-//                             (STOCK_SOURCE_TOKEN, INVENTORY_READ and
-//                             ITEMS_READ) at STOCK_SOURCE_LOCATION_ID
+//   STOCK_SOURCE=production   counts are read from production's public
+//                             /api/stock, the answer the live order
+//                             page reads, matched to the catalog by
+//                             SKU. No credential: staging never calls
+//                             production Square at all (James,
+//                             2026-10-27)
 //   STOCK_OVERRIDES           a few SKUs pinned to a count, for the
 //                             browser tests: "SKU:n,SKU:n". Each one
 //                             listed wins over every read; the rest
@@ -22,6 +23,7 @@
 // so with the production read on, staging never sells out by its own
 // orders. Pin the SKU at 0 with STOCK_OVERRIDES for that.
 
+import { timedFetch } from "./http.mjs";
 import { deployContext } from "./store.mjs";
 
 export const SOURCE_CONTEXTS = ["branch-deploy", "deploy-preview"];
@@ -32,6 +34,48 @@ const allowed = (env) => SOURCE_CONTEXTS.includes(deployContext(env))
 // -> true where counts are read from production Square.
 export const productionRead = (env = process.env) => allowed(env)
   && env.STOCK_SOURCE === "production";
+
+// Production's public stock answer. Production allows one address 120
+// reads in ten minutes (functions/stock.mjs); staging's 15 s snapshot
+// (lib/stock.mjs) keeps it far under that.
+export const PRODUCTION_STOCK_URL =
+  "https://www.northfosterfarm.com/api/stock";
+export const PRODUCTION_MS = 1500;
+
+// Production's counts by SKU, for the SKUs asked about: each item's
+// `available`, where production counts it. A SKU production doesn't
+// answer for, or doesn't count (available null), is left out, so it
+// reads as it would without the production read. A GET and nothing
+// else. Throws on a 429, any other status but 200, a timeout or an
+// answer that isn't JSON; liveCounts logs it and keeps the sandbox's.
+// -> { [sku]: n }
+export const productionStock = async (skus, {
+  fetchImpl = globalThis.fetch, deadline,
+} = {}) => {
+  const res = await timedFetch(fetchImpl, PRODUCTION_STOCK_URL, {
+    method: "GET", headers: { Accept: "application/json" },
+  }, {
+    cap: PRODUCTION_MS, deadline, name: "production /api/stock",
+    fail: (message, options) => Object.assign(new Error(message), options),
+  });
+
+  if (!res.ok) {
+    throw Object.assign(new Error(`production /api/stock: ${res.status}`),
+      { status: res.status });
+  }
+
+  const items = ((await res.json()) || {}).items || {};
+  const out = {};
+
+  for (const sku of skus) {
+    const n = Object.hasOwn(items, sku) ? (items[sku] || {}).available
+      : null;
+
+    if (Number.isInteger(n)) out[sku] = n;
+  }
+
+  return out;
+};
 
 // "SKU:n,SKU:n" -> { [sku]: n }. A part without a SKU or a whole
 // number is skipped.
