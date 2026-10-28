@@ -7,7 +7,7 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
 import {
-  KEY, dropToken, takeToken,
+  KEY, dropToken, takeToken, tokenDead,
 } from "../assets/scripts/join/token.mjs";
 
 const TOKEN = "Abc123_-xyzXYZ0987654321abcdefghijklmnopqrs";
@@ -90,5 +90,24 @@ describe("the join page's token", () => {
 
     assert.doesNotMatch(script, /login\/\?next=|location\.search/);
     assert.doesNotMatch(page, /href="[^"]*login/);
+  });
+
+  it("is dropped only when the server says it is dead", () => {
+    assert.equal(tokenDead(404), true);
+    assert.equal(tokenDead(429), true);
+    // A failed fetch (0), a server error or maintenance keeps it, so a
+    // reload on better signal can still join.
+    for (const status of [0, undefined, 500, 502, 503]) {
+      assert.equal(tokenDead(status), false, String(status));
+    }
+  });
+
+  it("asks before dropping it on the check's answer", () => {
+    const script = read("assets/scripts/join/main.js");
+    const check = script.slice(script.indexOf("/api/join/check"),
+      script.indexOf("data-join-group"));
+
+    assert.match(check, /if \(tokenDead\(status\)\) \{\s*dropToken\(tab\)/);
+    assert.equal(check.match(/dropToken\(/g).length, 1);
   });
 });

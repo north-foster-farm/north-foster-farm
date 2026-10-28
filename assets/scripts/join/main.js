@@ -16,10 +16,13 @@ import { say } from "../utils/contact-link.js";
 import { looksLikeEmail } from "../utils/email.js";
 import { fieldError } from "../utils/field-errors.mjs";
 import { forget } from "../session/session.js";
-import { dropToken, takeToken } from "./token.mjs";
+import { dropToken, takeToken, tokenDead } from "./token.mjs";
 
 const INVALID = "That link to join a group isn't valid. Ask the group's " +
   "host for a new one.";
+// Draft, for James: the check didn't get an answer.
+const UNCHECKED = "We couldn't check this link just now. Check your " +
+  "connection and reload the page.";
 // James's approved wording (#495, decision 5).
 const ALREADY = "You're already in the group.";
 const ELSEWHERE = "Your account is already in another group, so this one " +
@@ -44,14 +47,19 @@ const start = async () => {
     notice.hidden = false;
   };
 
-  const { ok, data } = token
+  const { ok, status, data } = token
     ? await api("/api/join/check", { method: "POST", body: { token } })
-      .catch(() => ({ ok: false, data: null }))
-    : { ok: false, data: null };
+      .catch(() => ({ ok: false, status: 0, data: null }))
+    : { ok: false, status: 404, data: null };
 
   if (!ok || !data || !data.group) {
-    dropToken(tab);
-    tell((data && data.message) || INVALID);
+    if (tokenDead(status)) {
+      dropToken(tab);
+      tell((data && data.message) || INVALID);
+    } else {
+      // The token stays in this tab, so a reload tries again.
+      tell(UNCHECKED);
+    }
 
     return;
   }

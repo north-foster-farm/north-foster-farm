@@ -43,6 +43,13 @@ export const takeToken = ({ location, history, storage }) => {
   return fromUrl;
 };
 
+// Whether a check's answer means the token is done with: only when the
+// server said so (404, not in force; 429, too many tries). A fetch that
+// failed or a server error says nothing about the token, and since `t`
+// has already left the address bar, dropping it then would leave
+// someone on weak data with a dead page for good (James, #495).
+export const tokenDead = (status) => status === 404 || status === 429;
+
 // Once the token is spent or found dead, the tab forgets it.
 export const dropToken = ({ storage }) => {
   try {
