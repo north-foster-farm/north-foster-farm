@@ -1,10 +1,11 @@
 // The order page, driven the way a customer drives it. Every spec
 // starts from a fresh browser context, so the draft in localStorage
-// never leaks between tests.
+// never leaks between tests, and with its own stock pins (#507).
 
 import { test as base, expect } from "@playwright/test";
 
 import { orderLimitHeaders } from "./staging.mjs";
+import { PLENTY, stockFixtures } from "./stock.mjs";
 
 // SKUs and prices from data/catalog.json (price list 2026-v9). The
 // sums below are chosen to land on the thresholds in
@@ -70,7 +71,18 @@ export const FULL_CART = {
 export const uniqueEmail = (tag) => `qa-e2e-${tag}-${Date.now().toString(36)}${
   Math.random().toString(36).slice(2, 6)}@example.com`;
 
+// What every test of the order page starts with (#507): the SKUs
+// above pinned in plenty for its own scope, so no spec sells by the
+// farm's live stock. A spec lays its own over these with
+// test.use({ stockPins: { ...SUITE_STOCK, [sku]: n } }), or one test
+// with stock.pin (e2e/support/stock.mjs).
+export const SUITE_STOCK = Object.fromEntries(
+  Object.values(SKU).map((sku) => [sku, PLENTY])
+);
+
 export const test = base.extend({
+  ...stockFixtures,
+  stockPins: [SUITE_STOCK, { option: true }],
   // The staging toolbar sits over the page, and it polls the outbox,
   // which needs a token; with a wrong one it asks again and again.
   // Tests start with it out of sight (a style: its own "Hide" no

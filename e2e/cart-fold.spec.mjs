@@ -8,6 +8,7 @@
 import {
   FULL_CART, OrderPage, expect, test, unfoldCart,
 } from "./support/order.mjs";
+import { scopeCookie } from "./support/stock.mjs";
 
 const PHONE = { width: 390, height: 844 };
 const TABLET = { width: 768, height: 1024 };
@@ -198,11 +199,15 @@ test.describe("the first Add of a session", () => {
 });
 
 test("with reduced motion the fold moves without easing", async ({
-  browser,
+  browser, baseURL, stockScope,
 }) => {
   const context = await browser.newContext({
     viewport: PHONE, reducedMotion: "reduce",
   });
+
+  // The test's own stock pins (#507), as its page fixture would carry.
+  await context.addCookies([scopeCookie(stockScope, baseURL)]);
+
   const page = await context.newPage();
   const order = new OrderPage(page);
   const pill = order.cart.locator("[data-cart-toggle]");

@@ -14,6 +14,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { MACHINE_COOKIE } from "../../netlify/functions/lib/gate.mjs";
+import { SCOPE_COOKIE } from "../../netlify/functions/lib/stock-pins.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
@@ -49,8 +50,12 @@ export const stagingEnv = (name) => env[name] || "";
 
 // Forget the visitor's cookies, the way a signed-out browser does,
 // but keep the staging gate's machine cookie: clearing it too sends
-// the next request to the gate's sign-in page, not to the site.
+// the next request to the gate's sign-in page, not to the site. The
+// test's stock scope stays too (#507), so its pins still apply.
 export const clearSession = async (context) => {
+  const scope = (await context.cookies())
+    .filter((c) => c.name === SCOPE_COOKIE);
+
   await context.clearCookies();
 
   const host = new URL(BASE_URL).hostname;
@@ -61,6 +66,7 @@ export const clearSession = async (context) => {
       path: "/", httpOnly: true, secure: true, sameSite: "Lax",
     }]);
   }
+  if (scope.length) await context.addCookies(scope);
 };
 
 // Whether the back office can be reached from here.
