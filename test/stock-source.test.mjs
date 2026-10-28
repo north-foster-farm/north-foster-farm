@@ -23,12 +23,22 @@ const RECORDED = JSON.parse(readFileSync(new URL(
 const EGGS = "NFF-CHK-EGG-LG";
 const BIRD = "NFF-CHK-WHL-20-24";
 const EGGS_VARIATION = "S7XJNPQUKY6JSYQOEYSL6FYS";
-// Production counts these at 2, 1 and 0 in the recording.
+// Set at 2, 1 and 0 below, whatever the recording held (#507).
 const TWO = "NFF-CHK-WHL-30-34";
 const ONE = "NFF-CHK-WHL-45-49";
 const WINGS = "NFF-CHK-WNG-30-99";
-// Production doesn't count it (available null).
+// Set as one production doesn't count (available null).
 const CORNISH = "NFF-CHK-CRN-0000-0300";
+
+// The counts these tests read, laid over the recording's: the
+// recording is the answer's shape, and a new one may count anything
+// (#507).
+const COUNTED = {
+  [TWO]: { inStock: true, available: 2 },
+  [ONE]: { inStock: true, available: 1 },
+  [WINGS]: { inStock: false, available: 0 },
+  [CORNISH]: { inStock: false, available: null },
+};
 
 const staging = {
   SITE_CONTEXT: "branch-deploy",
@@ -36,15 +46,15 @@ const staging = {
   STOCK_SOURCE: "production",
 };
 
-// Production's /api/stock as recorded, with `items` changed where a test
-// says. Every request is kept.
+// Production's /api/stock as recorded, with the counts above and
+// `items` changed where a test says. Every request is kept.
 const production = ({ items = {}, status = RECORDED.status } = {}) => {
   const seen = [];
   const fetchImpl = async (url, init) => {
     seen.push({ url, init });
 
     const body = { ...RECORDED.response,
-      items: { ...RECORDED.response.items, ...items } };
+      items: { ...RECORDED.response.items, ...COUNTED, ...items } };
 
     return new Response(JSON.stringify(body), {
       status, headers: { "Content-Type": "application/json" },
