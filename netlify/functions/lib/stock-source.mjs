@@ -10,18 +10,22 @@
 //                             SKU. No credential: staging never calls
 //                             production Square at all (James,
 //                             2026-10-27)
-//   STOCK_OVERRIDES           a few SKUs pinned to a count, for the
-//                             browser tests: "SKU:n,SKU:n". Each one
-//                             listed wins over every read; the rest
-//                             read as they would without it.
+//   STOCK_OVERRIDES           a few SKUs pinned to a count, for James's
+//                             hand testing only: "SKU:n,SKU:n". Optional
+//                             and normally unset. Each one listed wins
+//                             over every source; the rest read as they
+//                             would without it. No test uses it: a test
+//                             pins its own counts for its own requests
+//                             (lib/stock-pins.mjs, #507).
 //
 // Neither ever applies in production: only staging (branch-deploy) and
-// deploy previews, and never where SQUARE_ENV is production. Anywhere
-// else, or with no context set, both are ignored.
+// deploy previews, and the overrides in local development too, never
+// where SQUARE_ENV is production. Anywhere else, or with no context
+// set, both are ignored.
 //
 // A test order on staging moves the sandbox's count, not production's,
 // so with the production read on, staging never sells out by its own
-// orders. Pin the SKU at 0 with STOCK_OVERRIDES for that.
+// orders. A test that needs a SKU sold out pins it at 0.
 
 import { timedFetch } from "./http.mjs";
 import { deployContext } from "./store.mjs";
@@ -96,5 +100,10 @@ export const parseOverrides = (text) => {
 };
 
 // The counts STOCK_OVERRIDES pins, or none where it can't apply.
+// Local development reads its own sandbox or fake, so it may override
+// too, though it never reads production.
+const handAllowed = (env) => (allowed(env) || deployContext(env) === "dev")
+  && env.SQUARE_ENV !== "production";
+
 export const stockOverrides = (env = process.env) =>
-  (allowed(env) ? parseOverrides(env.STOCK_OVERRIDES) : {});
+  (handAllowed(env) ? parseOverrides(env.STOCK_OVERRIDES) : {});

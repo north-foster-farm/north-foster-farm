@@ -165,7 +165,7 @@ export const creditOn = (order) => heldOn(order) - keptFee(order);
 // order, next, change } or a failure shaped like the order endpoint's.
 export const planEdit = async (stores, order, body, {
   now, index, terms, codes, group, validate, schedule, env, hold = false,
-  farm = false,
+  farm = false, stockScope = null,
 }) => {
   if (hold) {
     index = new Map(index);
@@ -217,7 +217,9 @@ export const planEdit = async (stores, order, body, {
   const change = diffLines(order.lines, next.lines);
   // Square's inventory is read only for what the change adds.
   const stock = change.added.length
-    ? await checkLines(stores, change.added, { env, check: "edit" })
+    ? await checkLines(stores, change.added, {
+      env, check: "edit", scope: stockScope,
+    })
     : { ok: true, errors: {}, items: {} };
 
   if (!stock.ok) return fail(422, stock.errors, { stock: stock.items });
@@ -713,7 +715,7 @@ export const editOrder = async (stores, customer, id, body, {
     : await planEdit(stores, order, b, {
       now, index, terms, codes: discountCodes.codes, group,
       validate: validateOrder, schedule: pickupSchedule(options.env),
-      env: options.env,
+      env: options.env, stockScope: options.stockScope,
     });
 
   if (!plan.ok) return plan;

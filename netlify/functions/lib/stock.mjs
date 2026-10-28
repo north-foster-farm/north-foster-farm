@@ -45,7 +45,7 @@ import {
 } from "../../../assets/scripts/order/lib/catalog.mjs";
 import terms from "../../../data/delivery.json" with { type: "json" };
 import { today } from "../../../assets/scripts/order/lib/zoned.mjs";
-import { now as clock } from "./clock.mjs";
+import { now as clock, real } from "./clock.mjs";
 import { log } from "./log.mjs";
 import { farmEmails, sendMail } from "./mail.mjs";
 import { mailLinks } from "./site.mjs";
@@ -53,6 +53,7 @@ import { inventoryCounts } from "./square.mjs";
 import {
   productionRead, productionStock, stockOverrides,
 } from "./stock-source.mjs";
+import { applyPins } from "./stock-pins.mjs";
 import { farmArchivedInStock } from "./templates.mjs";
 
 const index = indexCatalog(catalog);
@@ -110,13 +111,15 @@ const snapshotCounts = async (stores, ids, opts, now, key = SNAPSHOT) => {
 // logged says whether Square's counts or only the store's were used.
 // On staging and previews, production's counts by SKU stand over
 // staging's own for every SKU production counts, and STOCK_OVERRIDES
-// over everything (lib/stock-source.mjs, #453). A production that is
-// down, slow or rate-limits staging is logged and leaves staging's
-// own. `inventory` and `production` are for tests.
+// over them (lib/stock-source.mjs, #453). A production that is down,
+// slow or rate-limits staging is logged and leaves staging's own. With
+// `scope`, a test's pins stand over everything, for that scope alone
+// (lib/stock-pins.mjs, #507). `inventory` and `production` are for
+// tests.
 export const liveCounts = async (stores, {
   catalogIndex = index, env = process.env, deadline,
   inventory = inventoryCounts, production = productionStock,
-  snapshot = false, now = clock(), check,
+  snapshot = false, now = clock(), check, scope = null,
 } = {}) => {
   const counts = await getCounts(stores);
   const sourced = productionRead(env);
@@ -145,10 +148,12 @@ export const liveCounts = async (stores, {
     if (catalogIndex.has(sku)) counts[sku] = n;
   }
   Object.assign(counts, stockOverrides(env));
+  if (scope) await applyPins(stores, counts, { scope, env, now: real(now) });
   if (check) {
     log.info({ event: "stock.checked", for: check,
       via: square || prod ? "square" : "store",
-      ...(sourced ? { source: prod ? "production" : "staging" } : {}) });
+      ...(sourced ? { source: prod ? "production" : "staging" } : {}),
+      ...(scope ? { pinned: true } : {}) });
   }
 
   return counts;
@@ -324,11 +329,14 @@ export const hiddenCounts = async ({
 export const hiddenInStock = (list) => list.filter((i) => i.count > 0);
 
 // Errors keyed like the validator's, for lines that cannot be filled.
-// Always a fresh read of Square; `check` names the check in the log.
+// Always a fresh read of Square; `check` names the check in the log,
+// and `scope` is the request's pin scope (lib/stock-pins.mjs).
 export const checkLines = async (stores, lines, {
-  env, deadline, inventory, check = "order",
+  env, deadline, inventory, check = "order", scope,
 } = {}) => {
-  const counts = await liveCounts(stores, { env, deadline, inventory, check });
+  const counts = await liveCounts(stores, {
+    env, deadline, inventory, check, scope,
+  });
   const items = await availability(stores, { counts });
   const errors = {};
 

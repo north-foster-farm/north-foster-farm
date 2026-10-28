@@ -127,16 +127,21 @@ describe("the stock source's context guard", () => {
   });
 
   it("stays off with no context, in development, or unasked", () => {
-    for (const env of [
-      { ...staging, ...overrides, SITE_CONTEXT: undefined },
-      { ...staging, ...overrides, SITE_CONTEXT: "dev" },
-    ]) {
-      assert.equal(productionRead(env), false);
-      assert.deepEqual(stockOverrides(env), {});
-    }
+    assert.equal(productionRead({ ...staging, SITE_CONTEXT: "dev" }), false);
+    assert.deepEqual(stockOverrides(
+      { ...staging, ...overrides, SITE_CONTEXT: undefined }), {});
+    assert.equal(productionRead({ ...staging, SITE_CONTEXT: undefined }),
+      false);
     assert.equal(productionRead({ ...staging, STOCK_SOURCE: "" }), false);
     assert.equal(productionRead({ ...staging, STOCK_SOURCE: "sandbox" }),
       false);
+  });
+
+  it("lets James's hand overrides apply in local development", () => {
+    assert.deepEqual(stockOverrides({ ...overrides, SITE_CONTEXT: "dev",
+      SQUARE_ENV: "fake" }), { [EGGS]: 1 });
+    assert.deepEqual(stockOverrides({ ...overrides, SITE_CONTEXT: "dev",
+      SQUARE_ENV: "production" }), {});
   });
 });
 

@@ -61,6 +61,7 @@ import {
   DECLINE_MESSAGES as SQUARE_DECLINES, receiptLink,
 } from "./lib/square.mjs";
 import { checkLines } from "./lib/stock.mjs";
+import { scopeOf } from "./lib/stock-pins.mjs";
 import { limitExempt } from "./lib/limit-exempt.mjs";
 import { deployContext, stores as defaultStores } from "./lib/store.mjs";
 
@@ -334,7 +335,7 @@ export const handle = async (req, {
   // whether it still is. Field errors, like the validator's, plus the
   // fresh availability so the page can bring the cart into line.
   const stock = await checkLines(stores, result.order.lines, {
-    env, deadline,
+    env, deadline, scope: scopeOf(req.headers, env),
   });
 
   if (!stock.ok) {

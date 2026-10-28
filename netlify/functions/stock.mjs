@@ -17,6 +17,7 @@ import { withLog } from "./lib/log.mjs";
 import {
   archivedInStock, availability, liveCounts,
 } from "./lib/stock.mjs";
+import { applyPins, scopeOf } from "./lib/stock-pins.mjs";
 import { deployContext, stores as defaultStores } from "./lib/store.mjs";
 
 // Per-instance, best effort, as /api/orders.
@@ -62,11 +63,18 @@ export const handle = async (req, {
     });
   }
 
-  // One read of Square for both (#267).
+  // One read of Square for both (#267). A test's pins (#507) are laid
+  // on the page's answer only: the farm's notice reads the real counts.
   const counts = await liveCounts(stores, {
     catalogIndex, env, inventory, snapshot: true, now,
   });
-  const items = await availability(stores, { catalogIndex, counts });
+  const scope = scopeOf(req.headers, env);
+  const items = await availability(stores, {
+    catalogIndex,
+    counts: scope
+      ? await applyPins(stores, { ...counts }, { scope, env, now: real(now) })
+      : counts,
+  });
 
   // A slow or failing Resend must never cost the page its answer:
   // without stock the order page is shut (#333).

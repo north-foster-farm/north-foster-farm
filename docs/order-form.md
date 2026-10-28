@@ -469,12 +469,32 @@ payments, fulfilments and every stock change still go to the sandbox
 - `STOCK_SOURCE`: `production` turns the read on; empty or anything
   else leaves staging's own counts, as before. A plain setting, not a
   secret: the read needs no credential.
-- `STOCK_OVERRIDES`: a few SKUs pinned to a count, `SKU:n`
-  comma-separated (`NFF-CHK-WHL-30-34:1,NFF-CHK-WNG-30-99:0`), for the
-  browser tests: a tier at exactly 1, a sold-out item. A listed SKU
-  wins over every read; every other SKU reads as it would without it.
-  A part without a SKU or a whole number is skipped. Never the whole
-  catalog. It works with the production read off too.
+- `STOCK_OVERRIDES`: James's hand-testing override, optional and
+  normally unset (listed empty in `.env.staging.sample` and
+  `.env.development.sample`). A few SKUs pinned to a count, `SKU:n`
+  comma-separated (`NFF-CHK-WHL-30-34:1,NFF-CHK-WNG-30-99:0`): a tier
+  at exactly 1, a sold-out item. A listed SKU wins over every source;
+  every other SKU reads as it would without it. A part without a SKU
+  or a whole number is skipped. Never the whole catalog. It works with
+  the production read off too, and in local development. No test uses
+  it (#507, 2026-10-28: it used to be for the browser tests).
+
+**A test's own stock counts (#507).** No test depends on a stock count
+it didn't set itself: not the sandbox's, not production's, not the
+store's. A spec pins what it needs with the e2e op `stock.pin { scope,
+counts: { SKU: n }, ttlSeconds }` and removes it with `stock.unpin {
+scope }` (`lib/stock-pins.mjs`), through the Playwright fixture in
+`e2e/support/stock.mjs`, which unpins in teardown whatever happened.
+The scope is one test's id, sent as the `nff_stock_scope` cookie on
+the deploy's host beside the gate cookie, and `liveCounts` lays its
+pins over every other source, `STOCK_OVERRIDES` included, for requests
+carrying that scope alone: `/api/stock`, the order check and the edit
+check. Other tests, James's browsing and parallel shards never see
+them. A pin lapses after its TTL (15 minutes unless given, an hour at
+most), and `bin/e2e/sweep.mjs` removes lapsed ones. Pins exist only on
+staging, deploy previews and local development, never where
+`SQUARE_ENV` is production: there the op is refused and the cookie
+ignored.
 
 The read is a GET of production's public
 `https://www.northfosterfarm.com/api/stock`, the answer the live order

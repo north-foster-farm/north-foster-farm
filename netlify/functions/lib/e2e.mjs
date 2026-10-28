@@ -25,6 +25,7 @@ import { issuePass, passKey } from "./passes.mjs";
 import { getCustomer, saveCustomer } from "./records.mjs";
 import { quietAccounts } from "./retention.mjs";
 import * as squareApi from "./square.mjs";
+import { pin, sweepPins, unpin } from "./stock-pins.mjs";
 
 const need = (value, what) => {
   if (!value) throw new Error(`${what} is required.`);
@@ -282,6 +283,23 @@ export const OPS = {
 
     return { removed: true };
   },
+  // One test's stock counts (#507): `counts` { SKU: n } for the
+  // requests carrying `scope` as the nff_stock_scope cookie, until
+  // `ttlSeconds` (15 minutes unless given) or stock.unpin. Refused
+  // where pins are off (lib/stock-pins.mjs).
+  "stock.pin": async (stores, { scope, counts, ttlSeconds }, env) => ({
+    pin: await pin(stores, { scope, counts, ttlSeconds }, { env }),
+  }),
+  "stock.unpin": async (stores, { scope }, env) => {
+    await unpin(stores, { scope }, { env });
+
+    return { removed: true };
+  },
+  // The pins of runs that died before their teardown: every one past
+  // its time. A pin in force is some test's and stays.
+  "stock.sweep": async (stores, args, env) => ({
+    removed: await sweepPins(stores, { env }),
+  }),
   // Every message in the outbox with its HTML and text, newest first.
   outboxList: async (stores) => {
     const found = await Promise.all(
