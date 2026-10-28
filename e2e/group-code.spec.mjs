@@ -37,7 +37,13 @@ test.describe("a buying group's code (#471)", () => {
       expect(await pickupValues(page))
         .not.toContainEqual(expect.stringMatching(`^${SERIES}-`));
 
-      // A wrong code says only that it isn't valid.
+      // A wrong code says only that it isn't valid. /api/group holds an
+      // address after 10 misses in 10 minutes (group.mjs, RATE), and
+      // the whole suite shares one address, so only the specs about
+      // codes send it real misses: one a project here, in cart-way and
+      // in pricing. Others answer their misses in the browser
+      // (delivery-pass), or this spec's code is refused on the next
+      // project (#495).
       await order.codeOpen.click();
       await order.codeInput.fill("NOT-A-CODE");
       await order.codeApply.click();
