@@ -119,16 +119,22 @@ test.describe("accounts", () => {
 test.describe("sign-in links are rate limited", () => {
   test.skip(!backOffice().ready, BACK_OFFICE_MISSING);
 
-  const email = uniqueEmail("links");
+  let email;
   let since;
 
   test.afterAll(() => teardown([
-    () => deleteCustomer(email),
-    () => clearMail({ to: email, since }),
+    () => (email ? deleteCustomer(email) : null),
+    () => (email ? clearMail({ to: email, since }) : null),
   ]));
 
   test("a fourth link is refused quietly, the first three kept",
     async ({ page }) => {
+      // Its own address, made as the test starts rather than when the
+      // file loads (#506): a link landed on /login/?error=unknown on
+      // staging. Nothing outside this test can count against it: the
+      // link limit is per address, the per-IP one only withholds mail,
+      // and links are voided only by their own address or expiry.
+      email = uniqueEmail("links");
       since = new Date();
 
       for (let i = 1; i <= 4; i += 1) {
@@ -151,10 +157,19 @@ test.describe("sign-in links are rate limited", () => {
 
       expect(sent).toHaveLength(3);
 
-      for (const message of [sent[0], sent[2]]) {
+      // A link is spent when followed, and `unknown` is what a spent
+      // one says, so three different links, or the run would follow
+      // one twice. Each one is named if it fails.
+      const urls = sent.map(
+        (m) => linkIn(m, /\/api\/auth\/verify\?token=/)
+      );
+
+      expect(new Set(urls).size, "three different links").toBe(3);
+
+      for (const n of [0, 2]) {
         await clearSession(page.context());
-        await page.goto(linkIn(message, /\/api\/auth\/verify\?token=/));
-        await expect(page).toHaveURL(/\/account\/?/);
+        await page.goto(urls[n]);
+        await expect(page, `link ${n + 1} of 3`).toHaveURL(/\/account\/?/);
         await expect(page.locator("#account-email")).toHaveText(email);
       }
     });
