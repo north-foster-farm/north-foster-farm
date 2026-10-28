@@ -282,6 +282,12 @@ check belongs to its SHA. So:
   forward through `next`, never reverted. `main` only after James OKs
   `staging`, and only from the exact commit the full suite passed on
   (`docs/cloud-lanes.md`; points 2, 6 and 7 added 2026-10-28).
+  `promote main` checks the last: the commit, or a release's staging
+  parent, must be the head of a successful E2E staging run on
+  `e2e/staging-full` whose `Run` step passed, read from the Actions
+  API (`stagingSuite` in `bin/promote.mjs`). A run that stood down for
+  a newer deploy also ends green, but runs no spec, so it does not
+  count.
 - **A release branch to `main`:** `bin/nff promote main release/<name>`
   (James, 2026-10-26) takes `main` one step by a merge commit, so that
   every staging commit stays reachable from `main`. It is still a

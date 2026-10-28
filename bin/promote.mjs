@@ -22,6 +22,12 @@
 // (#283): release-audit runs only on a pull request into main, and
 // James's LGTM goes on it. Run it again once both are in.
 //
+// For main it also refuses a commit the full e2e suite has not passed
+// on against staging (#502, 2026-10-28): the commit itself, or for a
+// release branch its staging parent, must be the head of a successful
+// E2E staging run on e2e/staging-full whose specs ran. A green run on
+// an earlier commit does not count once a later fix lands.
+//
 // A release branch (`promote main release/<name>`, James, 2026-10-26)
 // takes main one step by a merge commit instead of moving it to a
 // staging commit: its first parent is exactly main, its second parent
@@ -74,6 +80,14 @@ export const RELEASE_BRANCH = /^release\/[a-z0-9][a-z0-9-]*$/;
 export const PUSH_TYPES = ["push"];
 export const RELEASE_PUSH_TYPES = ["push", "force_push", "branch_creation"];
 
+// The full e2e suite against staging, as .github/workflows/
+// e2e-staging.yml runs it: a push to `branch` runs every spec in the
+// `step` of its one `job`.
+export const STAGING_E2E = {
+  workflow: "e2e-staging.yml", branch: "e2e/staging-full",
+  job: "e2e-staging", step: "Run",
+};
+
 export const USAGE = `
   bin/nff promote staging|main [release/<name>] [--dry-run]
                                       fast-forward staging to next, or
@@ -89,7 +103,9 @@ export const USAGE = `
                                       release branch, main takes its
                                       merge commit: first parent main,
                                       second parent on staging, staging's
-                                      tree`
+                                      tree. Main also needs a passed full
+                                      e2e run against staging on that
+                                      staging commit (e2e/staging-full)`
   .slice(1);
 
 const git = async (args) => (await run("git", args)).stdout.trim();
@@ -183,6 +199,21 @@ export const missingChecks = (runs, target) => {
 
   return REQUIRED_CHECKS[target].filter((name) => !passed.has(name));
 };
+
+// The finished green runs of the full staging suite whose head is
+// exactly `sha`, newest first. `runs` are the workflow's runs.
+export const fullRuns = (runs, sha) => runs
+  .filter((r) => r.head_sha === sha && r.head_branch === STAGING_E2E.branch
+    && r.event === "push" && r.status === "completed"
+    && r.conclusion === "success")
+  .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
+
+// Whether a green run's specs ran and passed. A run that stood down
+// because staging had moved on also ends green, with its specs skipped.
+// `jobs` are the run's.
+export const specsRan = (jobs) => jobs.some((j) => j.name === STAGING_E2E.job
+  && j.conclusion === "success" && j.steps?.some((s) => s.name
+    === STAGING_E2E.step && s.conclusion === "success"));
 
 // The pull request that proposes this commit for main, when one does and
 // its approval stands: open, head exactly `sha`, the label put on after
@@ -285,6 +316,30 @@ const releaseFacts = async (sh, sha, main) => {
   };
 };
 
+// Whether the full suite passed against staging on `sha`, from the
+// workflow's runs on e2e/staging-full and, for each green one, its
+// jobs. -> { ok, reason }.
+export const stagingSuite = async (api, sha) => {
+  const { workflow_runs: runs } = await api(`repos/${REPO}/actions/`
+    + `workflows/${STAGING_E2E.workflow}/runs?branch=${STAGING_E2E.branch}`
+    + `&head_sha=${sha}&status=success&per_page=100`);
+
+  for (const r of fullRuns(runs, sha)) {
+    const { jobs } = await api(`repos/${REPO}/actions/runs/${r.id}/jobs`
+      + "?per_page=100");
+
+    if (specsRan(jobs)) {
+      return {
+        ok: true, reason: `full e2e passed on staging at ${sha}: ${r.html_url}`,
+      };
+    }
+  }
+
+  return { ok: false, reason: "the full e2e suite has not passed against "
+    + `staging on ${sha}. Push it to ${STAGING_E2E.branch} and promote `
+    + "once that run is green" };
+};
+
 export const promote = async (
   target, { dryRun = false, out, release }, deps = {},
 ) => {
@@ -311,12 +366,17 @@ export const promote = async (
 
   if (sha === there) return out(`${target} is already at ${from} (${sha}).`);
 
+  // The staging commit the full suite must have passed on.
+  let tested = sha;
+
   if (release) {
-    const shape = releaseShape(await releaseFacts(sh, sha, there));
+    const facts = await releaseFacts(sh, sha, there);
+    const shape = releaseShape(facts);
 
     if (!shape.ok) throw new Error(`Refused: ${shape.reason}. Nothing is `
       + "pushed.");
     out(shape.reason);
+    [, tested] = facts.parents;
   } else if (!await isAncestor(sh, `origin/${target}`, `origin/${from}`)) {
     // A release merge puts a commit on main that staging never held, so
     // from then on staging is no fast-forward of main.
@@ -384,6 +444,11 @@ export const promote = async (
     if (!verdict.ok) throw new Error(`Refused: ${verdict.reason}.`);
     refuseMissing(missing.filter((name) => PR_CHECKS.includes(name)));
     out(verdict.reason);
+
+    const suite = await stagingSuite(api, tested);
+
+    if (!suite.ok) throw new Error(`Refused: ${suite.reason}.`);
+    out(suite.reason);
   }
 
   if (dryRun) return out(`Would fast-forward ${target} to ${sha}.`);

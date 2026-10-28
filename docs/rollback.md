@@ -419,7 +419,9 @@ bin/nff promote main
 
 `promote main` refuses until James's `LGTM` is on the open
 staging-to-main pull request, put on after the revert reached
-`staging`. If no
+`staging`, and until the full e2e suite has passed against `staging`
+on the revert's own commit (push it to `e2e/staging-full`; #502,
+2026-10-28). If no
 such pull request is open, the first run opens it and stops.
 
 **After the launch merge, promote `main` from a release branch.** The

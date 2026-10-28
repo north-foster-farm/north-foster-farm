@@ -48,8 +48,8 @@ decisions James made on GitHub. The issue numbers point to the source.
   its next safe point while teardown and the sweep still run.
   Production waits for James's OK on staging and is promoted only from
   the exact commit the full suite passed on: an earlier green run
-  doesn't count once a later fix lands (points 2, 6 and 7 added
-  2026-10-28).
+  doesn't count once a later fix lands, and `bin/nff promote main`
+  refuses any other (points 2, 6 and 7 added 2026-10-28).
 - **Customer copy follows the #400 house rules:**
   - no semicolons and no em dashes in prose;
   - no internal model names in customer text ("Pickup days", not

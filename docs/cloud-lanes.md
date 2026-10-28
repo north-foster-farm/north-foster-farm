@@ -186,7 +186,10 @@ that had James wait for the full suite before looking.
    staging's; the change for the rest is James's to make in `.github/`.
 7. **Production is promoted only from the exact commit the full suite
    passed on,** and only after James OKs `staging`. A green run on an
-   earlier commit doesn't count once a later fix lands.
+   earlier commit doesn't count once a later fix lands. `bin/nff
+   promote main` refuses a commit (for a release branch, its staging
+   parent) that is not the head of a successful run of the E2E staging
+   workflow on `e2e/staging-full` whose specs ran.
 
 ## The e2e suite against staging
 
