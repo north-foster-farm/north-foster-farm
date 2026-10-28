@@ -15,8 +15,8 @@
     "start": "bin/dev",
     "start:bind": "HUGO_BIND_TO_IP=true bin/dev",
     "start:functions": "node bin/dev-functions.mjs",
-    "test": "node --import ./test/setup.mjs --test test/",
-    "check": "npm run lint && npm test",
+    "test": "node --import ./test/setup.mjs --test \"test/**/*.test.mjs\"",
+    "check": "npm run check:node && npm run lint && npm test",
     "build:orphans": "node bin/orphans/wrap.mjs public",
     "check:grid": "node bin/grid/check.mjs public",
     "check:schema": "node bin/schema/check.mjs public",
@@ -34,7 +34,8 @@
     "svg:clean": "node bin/svg/clean.mjs",
     "e2e": "playwright test",
     "e2e:serve": "node bin/e2e/serve.mjs",
-    "prepare": "git config core.hooksPath .githooks 2>/dev/null || true"
+    "prepare": "git config core.hooksPath .githooks 2>/dev/null || true",
+    "check:node": "node bin/check-node.mjs"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
@@ -55,5 +56,12 @@
     "age-encryption": "0.3.1",
     "bootstrap": "5.3.3",
     "qrcode-generator": "2.0.4"
+  },
+  "devEngines": {
+    "runtime": {
+      "name": "node",
+      "version": "24.22.1",
+      "onFail": "error"
+    }
   }
 }
