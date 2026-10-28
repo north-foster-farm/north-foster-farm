@@ -87,6 +87,31 @@ const marked = (res) => {
   return out;
 };
 
+// A request the gate let by, passed on. When the site behind fails to
+// answer, `next()` rejects, and left alone the edge answers 500
+// "uncaught exception" (full staging run 40638741710). It answers a
+// plain 502 instead, which clients already treat as worth a retry, and
+// says so in the log. Nothing of the site is let out either way.
+const passOn = async (next) => {
+  try {
+    return marked(await next());
+  } catch (error) {
+    console.error(JSON.stringify({
+      level: "error", event: "gate.next_failed",
+      error: String((error && error.message) || error).slice(0, 200),
+    }));
+
+    return new Response("The site did not answer. Try again.\n", {
+      status: 502,
+      headers: {
+        "X-Robots-Tag": NOINDEX,
+        "Cache-Control": "no-store",
+        "Content-Type": "text/plain; charset=utf-8",
+      },
+    });
+  }
+};
+
 const wantsPage = (req) => ["GET", "HEAD"].includes(req.method)
   && (req.headers.get("accept") || "").includes("text/html");
 
@@ -122,14 +147,14 @@ export const gateRequest = async (req, {
   if (!deploy || deploy === "production") return next();
   // Any other context that is not guarded (a local `netlify dev`) is
   // still kept out of search engines.
-  if (!gateActive(deploy)) return marked(await next());
+  if (!gateActive(deploy)) return passOn(next);
 
   const url = new URL(req.url);
 
-  if (await exemption(req, url.pathname, env)) return marked(await next());
+  if (await exemption(req, url.pathname, env)) return passOn(next);
 
   const session = await sessionFor(store(), cookieValue(req.headers, COOKIE),
     now);
 
-  return session ? marked(await next()) : stop(req, url);
+  return session ? passOn(next) : stop(req, url);
 };
