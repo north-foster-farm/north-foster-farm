@@ -45,7 +45,6 @@ HEALTHCHECKS_BACKUP_URL | planned | production | planned, not done | James
 HEALTHCHECKS_PACKING_URL | planned | production | planned, not done | James
 PICKUP_SCHEDULE_HOOK | planned | production | planned, not done | James
 GATE_RESEND_KEY | planned | staging | planned, not done | James
-STOCK_SOURCE_TOKEN | planned | staging | planned, not done | James
 age private key | planned | production | planned, not done | James
 MAINTENANCE_SECRET | planned | production | planned, not done | James
 MAINTENANCE_SECRET | planned | staging | planned, not done | James

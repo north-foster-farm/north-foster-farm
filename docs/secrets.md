@@ -137,7 +137,6 @@ of every row.
 | `SQUARE_ACCESS_TOKEN` | secret | production; staging | env file | Square |
 | `SQUARE_WEBHOOK_SIGNATURE_KEY` | secret | production; staging | env file | Square |
 | `SQUARE_WEBHOOK_SIGNATURE_KEY_PREVIOUS` | secret, optional | production, during a swap only | env file | Square |
-| `STOCK_SOURCE_TOKEN` | secret, optional | staging only; never production | `.env.staging` | Square |
 | `PAYPAL_CLIENT_SECRET` | secret | production; staging | env file | PayPal |
 | `PAYPAL_WEBHOOK_ID` | id | production; staging | env file | PayPal |
 | `RESEND_API_KEY` | secret | production only | env file | Resend |
@@ -465,18 +464,16 @@ under maintenance mode (`docs/order-form.md`).
 permissions) instead of the all-powerful personal access token, to
 limit what a leak could do.
 
-**`STOCK_SOURCE_TOKEN` (#453).** Staging's read of production stock
-counts (`docs/order-form.md`, "Staging's stock from production"). A
-production token from the scoped app #331 and #361 set up, with
-`INVENTORY_READ` and `ITEMS_READ` and nothing else, so staging cannot
-change production Square even with a bug; never a personal access
-token, which has full access. Set on the staging context alone: env
-check fails a production that holds it. Leaked, it shows the farm's
-catalog and stock counts and nothing more. To rotate, make the new
-token in the app, `bin/nff env push --staging`, deploy staging, and
-revoke the old one; until then the read falls back to the store's
-counts, so nothing breaks in between. Add the line to
-`docs/rotation-log.md`.
+**Staging's read of production stock (#453) needs no secret.** It is
+a GET of production's public `/api/stock` (`docs/order-form.md`,
+"Staging's stock from production"), turned on by `STOCK_SOURCE`, a
+plain setting. Corrected 2026-10-28: this paragraph used to describe
+a `STOCK_SOURCE_TOKEN` "from the scoped app #331 and #361 set up",
+with `INVENTORY_READ` and `ITEMS_READ` alone. No such token exists:
+Square has no scoped personal access token, an OAuth token with
+those scopes expires after 30 days, and nothing ever made one, so
+the token and `STOCK_SOURCE_LOCATION_ID` are gone (James,
+2026-10-27).
 
 ## PayPal
 

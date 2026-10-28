@@ -464,16 +464,11 @@ Environment variables, set in Netlify, never in the repo:
 not the ones customers see, so staging and deploy previews may read
 production's instead. Only where counts are read from changes: orders,
 payments, fulfilments and every stock change still go to the sandbox
-(`lib/stock-source.mjs`, `productionStock` in `lib/square.mjs`).
+(`lib/stock-source.mjs`).
 
 - `STOCK_SOURCE`: `production` turns the read on; empty or anything
-  else leaves the sandbox's counts, as before.
-- `STOCK_SOURCE_TOKEN`: the read-only production app's token, scoped
-  to `INVENTORY_READ` and `ITEMS_READ` alone, so staging cannot change
-  production Square even with a bug. It comes from the app #331 and
-  #361 set up, never a personal access token, which has full access.
-- `STOCK_SOURCE_LOCATION_ID`: the production location whose counts
-  are read, North Foster Farm.
+  else leaves staging's own counts, as before. A plain setting, not a
+  secret: the read needs no credential.
 - `STOCK_OVERRIDES`: a few SKUs pinned to a count, `SKU:n`
   comma-separated (`NFF-CHK-WHL-30-34:1,NFF-CHK-WNG-30-99:0`), for the
   browser tests: a tier at exactly 1, a sold-out item. A listed SKU
@@ -481,17 +476,32 @@ payments, fulfilments and every stock change still go to the sandbox
   A part without a SKU or a whole number is skipped. Never the whole
   catalog. It works with the production read off too.
 
-Sandbox and production variation ids differ, so the read asks
-production's item library which variations carry the catalog's SKUs,
-then their counts at the location, and keeps them by SKU in their own
-15 s snapshot (`square-production` in the stock store). A SKU
-production doesn't count sells by the store's count or its flag, as
-before. Neither setting applies outside `branch-deploy` and
-`deploy-preview`, nor where `SQUARE_ENV` is `production`, and
-`bin/nff env check` fails a production that holds any of the four.
-A test order on staging moves the sandbox's count, not production's,
-so staging never sells out by its own orders: pin the SKU at 0 for
-that.
+The read is a GET of production's public
+`https://www.northfosterfarm.com/api/stock`, the answer the live order
+page uses, never a call to production Square. Sandbox and production
+variation ids differ, so production's `available` is mapped onto
+staging's catalog by SKU and kept in its own 15 s snapshot
+(`square-production` in the stock store), well under production's
+limit of 120 reads per address in ten minutes. A SKU production
+doesn't answer for or doesn't count sells by staging's own count or
+its flag, as before. A 429, a timeout or a production that is down
+counts as no production read: staging sells by its own counts, the
+failure is logged once (`stock.production_unread`) and kept in the
+snapshot, so production isn't asked again for 15 s. With the read on,
+an order check's `stock.checked` line says `source: "production"`, or
+`"staging"` when production didn't answer. Neither setting
+applies outside `branch-deploy` and `deploy-preview`, nor where
+`SQUARE_ENV` is `production`, and `bin/nff env check` fails a
+production that holds either. A test order on staging moves the
+sandbox's count, not production's, so staging never sells out by its
+own orders: pin the SKU at 0 for that.
+
+Corrected 2026-10-28: this section used to read through a token
+"scoped to `INVENTORY_READ` and `ITEMS_READ`" from "the app #331 and
+#361 set up". No such token exists: Square has no scoped personal
+access token, an OAuth token with those scopes expires after 30 days,
+and nothing ever made one, so the read moved to the public answer
+(James, 2026-10-27).
 
 **Which release made an order (#331).** Every Square order the site
 creates, and every change order, carries `metadata { site_version,
