@@ -468,7 +468,11 @@ payments, fulfilments and every stock change still go to the sandbox
 
 - `STOCK_SOURCE`: `production` turns the read on; empty or anything
   else leaves staging's own counts, as before. A plain setting, not a
-  secret: the read needs no credential.
+  secret: the read needs no credential. `.env.staging.sample` and
+  `.env.development.sample` both hold `production`, so staging shows
+  what customers see before a promote and `npm run start:functions`
+  shows production's counts over the fake Square (James, #495,
+  2026-10-28).
 - `STOCK_OVERRIDES`: James's hand-testing override, optional and
   normally unset (listed empty in `.env.staging.sample` and
   `.env.development.sample`). A few SKUs pinned to a count, `SKU:n`

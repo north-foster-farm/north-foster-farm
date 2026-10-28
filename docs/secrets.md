@@ -467,7 +467,11 @@ limit what a leak could do.
 **Staging's read of production stock (#453) needs no secret.** It is
 a GET of production's public `/api/stock` (`docs/order-form.md`,
 "Staging's stock from production"), turned on by `STOCK_SOURCE`, a
-plain setting. Corrected 2026-10-28: this paragraph used to describe
+plain setting whose value, `production`, is in `.env.staging.sample`
+and `.env.development.sample` alike: local development reads it too,
+over the fake Square, and the unit suite and the local-build e2e
+never do (2026-10-28, #495). Production holds no `STOCK_SOURCE` at
+all (`bin/nff env check`). Corrected 2026-10-28: this paragraph used to describe
 a `STOCK_SOURCE_TOKEN` "from the scoped app #331 and #361 set up",
 with `INVENTORY_READ` and `ITEMS_READ` alone. No such token exists:
 Square has no scoped personal access token, an OAuth token with
