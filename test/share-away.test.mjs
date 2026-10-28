@@ -43,6 +43,21 @@ describe("awayFrom", () => {
     assert.equal(awayFrom(share, page, true), false);
   });
 
+  it("keeps the row for a tap or a focus in an open dialog", () => {
+    const button = Object.assign(node(), {
+      closest: (selector) => (selector === "dialog[open]" ? {} : null),
+    });
+
+    assert.equal(awayFrom(share, button), false);
+    assert.equal(awayFrom(share, button, true), false);
+  });
+
+  it("folds the row for a focus outside any open dialog", () => {
+    const button = Object.assign(node(), { closest: () => null });
+
+    assert.equal(awayFrom(share, button, true), true);
+  });
+
   it("has nothing to fold when the row is shut", () => {
     const shut = Object.assign(node(), { dataset: { share: "" } });
 
