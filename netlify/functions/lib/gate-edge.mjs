@@ -87,17 +87,48 @@ const marked = (res) => {
   return out;
 };
 
+// A hand-off slower than this is logged, as the functions log theirs.
+export const SLOW_PASS_MS = 5000;
+
+// The request's path (never its query) and the e2e test it came from,
+// for a log line.
+const traced = (req) => {
+  const raw = req.headers.get("cookie") || "";
+  const scope = raw.match(/(?:^|;\s*)nff_stock_scope=([A-Za-z0-9_-]{8,64})/);
+
+  return {
+    method: req.method, path: new URL(req.url).pathname,
+    test: scope ? scope[1] : null,
+  };
+};
+
 // A request the gate let by, passed on. When the site behind fails to
-// answer, `next()` rejects, and left alone the edge answers 500
-// "uncaught exception" (full staging run 40638741710). It answers a
-// plain 502 instead, which clients already treat as worth a retry, and
-// says so in the log. Nothing of the site is let out either way.
-const passOn = async (next) => {
+// answer, `next()` rejects: Netlify's own hand-off to the function
+// lost its connection ("http2 error: connection error received" at
+// 06:07:10Z in full staging run 40638741710), and left alone the edge
+// answers 500 "uncaught exception". It answers a plain 502 instead,
+// which clients already treat as worth a retry, and says so in the
+// log; a hand-off that took SLOW_PASS_MS or more is logged too.
+// Nothing of the site is let out either way.
+const passOn = async (next, req, clock = Date.now) => {
+  const started = clock();
+
   try {
-    return marked(await next());
+    const res = await next();
+    const ms = clock() - started;
+
+    if (ms >= SLOW_PASS_MS) {
+      console.warn(JSON.stringify({
+        level: "warn", event: "gate.next_slow", ms, status: res.status,
+        ...traced(req),
+      }));
+    }
+
+    return marked(res);
   } catch (error) {
     console.error(JSON.stringify({
-      level: "error", event: "gate.next_failed",
+      level: "error", event: "gate.next_failed", ms: clock() - started,
+      ...traced(req),
       error: String((error && error.message) || error).slice(0, 200),
     }));
 
@@ -147,14 +178,14 @@ export const gateRequest = async (req, {
   if (!deploy || deploy === "production") return next();
   // Any other context that is not guarded (a local `netlify dev`) is
   // still kept out of search engines.
-  if (!gateActive(deploy)) return passOn(next);
+  if (!gateActive(deploy)) return passOn(next, req);
 
   const url = new URL(req.url);
 
-  if (await exemption(req, url.pathname, env)) return passOn(next);
+  if (await exemption(req, url.pathname, env)) return passOn(next, req);
 
   const session = await sessionFor(store(), cookieValue(req.headers, COOKIE),
     now);
 
-  return session ? passOn(next) : stop(req, url);
+  return session ? passOn(next, req) : stop(req, url);
 };

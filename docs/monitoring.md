@@ -623,6 +623,15 @@ an order that half happened. Fix and redeploy; a `POST` to
 `/api/staging/throw` on staging raises one on purpose. The jobs run
 catches its own and raises `jobs.crashed` instead, never both.
 
+**`function.slow`, `gate.next_slow`, `gate.next_failed`.** Log lines,
+no alert (#507). A function that answered in 5 s or more, or with a
+5xx, logs `function.slow` with its path, status and time. On staging
+and previews the access gate logs a hand-off to a function that took
+5 s or more (`gate.next_slow`) or never came back (`gate.next_failed`,
+answered 502: Netlify lost its own connection to the function). Each
+carries `test`, the e2e test's stock scope, when the suite sent it,
+so a failed staging run finds its own lines.
+
 ## The invariants
 
 Checked at the end of every run against every open order. Each is a

@@ -159,24 +159,64 @@ export const alertCrash = async (detail, error, {
   });
 };
 
+// A request that answers this slowly, or with a 5xx, gets one line.
+export const SLOW_MS = 5000;
+
+// The e2e test a request came from: its stock scope cookie (#507),
+// present only on the suite's requests. -> the id, or null.
+const SCOPE_ID = /^[A-Za-z0-9_-]{8,64}$/;
+
+export const testOf = (req) => {
+  const raw = (req && req.headers && req.headers.get("cookie")) || "";
+  const match = raw.match(/(?:^|;\s*)nff_stock_scope=([^;]+)/);
+
+  return match && SCOPE_ID.test(match[1]) ? match[1] : null;
+};
+
+// -> the request's path and method, or nulls for a scheduled run.
+const where = (req) => {
+  try {
+    return { method: req.method || null, path: new URL(req.url).pathname };
+  } catch {
+    return { method: null, path: null };
+  }
+};
+
 // Wraps a function handler so its lines ship after it answers,
 // whatever happened inside. An exception the handler did not catch is
 // logged as function.crashed with the function's name and a trimmed
 // stack, raises one alert (`onCrash`), and is thrown on unchanged, so
 // Netlify answers exactly as it would have. The report never fails
-// the request: a failing onCrash is logged and dropped.
+// the request: a failing onCrash is logged and dropped. An answer
+// slower than SLOW_MS or with a 5xx status is logged as
+// function.slow, with the path (never the query) and the e2e test it
+// came from, so a failed staging run can find its own lines.
 //
 //   withLog("orders", handler)
 //   withLog("orders", handler, { onCrash, flushImpl })
 export const withLog = (name, handler, {
   onCrash = alertCrash,
   flushImpl = flush,
+  now = Date.now,
 } = {}) => {
   if (typeof name === "function") return withLog("unnamed", name, handler);
 
   return async (req, context) => {
+    const started = now();
+
     try {
-      return await within(req, () => handler(req, context));
+      const res = await within(req, () => handler(req, context));
+      const ms = now() - started;
+      const status = res && typeof res.status === "number" ? res.status : null;
+
+      if (ms >= SLOW_MS || (status !== null && status >= 500)) {
+        line("warn", {
+          event: "function.slow", function: name, ...where(req), status,
+          ms, test: testOf(req),
+        });
+      }
+
+      return res;
     } catch (error) {
       let path = null;
 

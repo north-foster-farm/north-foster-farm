@@ -645,6 +645,7 @@ describe("the edge", () => {
       assert.equal(res.headers.get("x-robots-tag"), NOINDEX);
       assert.match(await res.text(), /did not answer/);
       assert.match(logged[0], /gate\.next_failed/);
+      assert.match(logged[0], /"path":"\/api\/staging\/e2e"/);
       assert.ok(!logged[0].includes("e2e-token"));
     } finally {
       console.error = quiet;
