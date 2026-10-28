@@ -35,6 +35,15 @@ decisions James made on GitHub. The issue numbers point to the source.
   Actions through `e2e.yml` and `e2e-run.yml` (a local build with fake
   payments), or on James's Mac. Specs that need real staging or a real
   phone are hands-on checks for James (#449).
+- **Promote to staging when green, full e2e on staging** (#502,
+  2026-10-28; the steps are in `docs/cloud-lanes.md`). Once `next` is
+  green, push to `staging` and ping James, without batching or waiting
+  to be asked. On `next`, run by name only the specs the new code
+  touches directly, and name them in the lane or landing comment. The
+  full suite runs against `staging` after every push to it
+  (`e2e/staging-full`). A failure there is fixed forward through
+  `next`, never reverted, and the ping says what failed and why.
+  Production waits for James's OK on staging.
 - **Customer copy follows the #400 house rules:**
   - no semicolons and no em dashes in prose;
   - no internal model names in customer text ("Pickup days", not

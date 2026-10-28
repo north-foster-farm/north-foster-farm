@@ -155,14 +155,35 @@ A run that is blocked says `cloud-<issue> blocked:` instead, with the
 blocker first and the branch if you committed to one. Say what failed
 plainly; never report a failing check as passing.
 
+## Promoting to staging and e2e
+
+James's standing rule for every feature branch, lane and release from
+release A on (#303, #502, 2026-10-28). It replaces the earlier wording
+that kept the full suite for one final run on a frozen commit.
+
+1. **Once `next` is green, push to `staging` and ping James.** Don't
+   wait to batch, and don't wait to be asked.
+2. **e2e on `next`: only the specs the new code is expected to touch
+   directly.** Name them in the lane report or the landing comment and
+   run them by name (`gh workflow run e2e.yml --ref <branch> -f
+   specs="..."`).
+3. **The full suite runs against `staging`** after every push to it:
+   push staging's sha to `e2e/staging-full`.
+4. **A failure on staging:** triage it, fix it in `next`, rerun the
+   affected specs on `next`, push the fix to `staging` and rerun the
+   full suite there. `staging` is always fixed forward, never
+   reverted. The ping tells James what failed and why.
+5. **Production** is promoted only after James OKs it on staging.
+
 ## The e2e suite against staging
 
-Push staging's sha to `e2e/staging` (`git push origin
-<sha>:refs/heads/e2e/staging --force`; only the coordinator does) and
-`.github/workflows/e2e-staging.yml` waits for Netlify to serve that commit,
-then runs every spec not on `e2e/staging-passing.txt`; push to
-`e2e/staging-full` for the whole suite, as the final run on the frozen
-commit. The run's summary lists the failed specs and the passed ones as `spec
+Push staging's sha to `e2e/staging-full` (`git push origin
+<sha>:refs/heads/e2e/staging-full --force`; only the coordinator does)
+and `.github/workflows/e2e-staging.yml` waits for Netlify to serve that
+commit, then runs every spec. That is the run after every push to
+`staging`. A push to `e2e/staging` instead runs every spec not on
+`e2e/staging-passing.txt`, for a quick rerun of what failed while the
+fix is on its way. The run's summary lists the failed specs and the passed ones as `spec
 sha date` lines: paste those into `e2e/staging-passing.txt` on the next
 commit, so later runs take only what still fails. `e2e/staging-attention.txt`
 names the specs open work may break, and `bin/e2e-summary.mjs` writes the

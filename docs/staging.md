@@ -152,9 +152,12 @@ looking at the page itself; the tab is back on reload.
 
 Work lands on `next`, which does not build. Every push to `next`
 runs the `lint-and-test` check (`.github/workflows/ci.yml`), and
-`staging` is fast-forwarded to a `next` commit that passed it, one
-batch at a time. `main` is fast-forwarded the same way to a `staging`
-commit once it has been reviewed here. Neither ever takes a merge
+`staging` is fast-forwarded to a `next` commit that passed it as soon
+as `next` is green, without waiting to batch, and the full e2e suite
+then runs against it. A failure there is fixed forward on `next`,
+never reverted on `staging` (`docs/cloud-lanes.md`, #502, 2026-10-28).
+`main` is fast-forwarded the same way to a `staging` commit once James
+has OKed it here. Neither ever takes a merge
 commit or a rebase-merge: promotion moves a branch to a SHA already
 checked, so the commit that ships is the commit that was tested.
 

@@ -275,7 +275,11 @@ check belongs to its SHA. So:
   `release-audit` runs, and stops. It
   audits the commit's own lockfile first: reported now, blocking once
   `AUDIT_BLOCKS` is set, because a check that passed earlier cannot
-  see an advisory published since.
+  see an advisory published since. When to promote (#502,
+  2026-10-28): `staging` as soon as `next` is green, then the full e2e
+  suite against it and a ping to James. A failure there is fixed
+  forward through `next`, never reverted. `main` only after James OKs
+  `staging` (`docs/cloud-lanes.md`).
 - **A release branch to `main`:** `bin/nff promote main release/<name>`
   (James, 2026-10-26) takes `main` one step by a merge commit, so that
   every staging commit stays reachable from `main`. It is still a
