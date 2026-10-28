@@ -4,7 +4,9 @@
 // quantity in the cart as on the order page (#208).
 // docs/qa-launch.md, "The autumn refresh".
 
-import { OrderPage, expect, test } from "./support/order.mjs";
+import {
+  OrderPage, expect, searchStockApplied, test,
+} from "./support/order.mjs";
 
 const palette = (page) => {
   const dialog = page.locator("#search-palette");
@@ -206,6 +208,7 @@ test.describe("search (#142)", () => {
       await p.opener.click();
       await p.input.fill("drum");
       await answered;
+      await searchStockApplied(page);
 
       const row = p.rows.and(page.locator(`[data-sku="${gone}"]`));
 

@@ -126,6 +126,22 @@ export const test = base.extend({
 
 export { expect };
 
+// The page has applied /api/stock's answer, not just received it.
+// Once the answer is slower than 150 ms its skeleton's bars show, and
+// they hold up to 300 ms more before the rows are marked
+// (utils/skeleton.js). A test that reads the rows when the response
+// lands sees the build's stock: on staging, whose answer is slower,
+// that read as a pin that never applied (#507, staging run
+// 40632954855). Call these once the answer has come.
+export const stockApplied = (page) => expect(
+  page.locator("#order-catalog")
+).not.toHaveAttribute("data-load", /./);
+
+// The same for the search palette's own read of /api/stock.
+export const searchStockApplied = (page) => expect(
+  page.locator("#search-palette .search-palette-body")
+).not.toHaveAttribute("data-load", /./);
+
 // Which payment drivers are the fakes here: none on any Netlify deploy,
 // both on a local run (SQUARE_ENV and PAYPAL_ENV fake work only where
 // SITE_CONTEXT is dev; netlify/functions/lib/fake.mjs).

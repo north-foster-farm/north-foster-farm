@@ -9,7 +9,8 @@
 import { readFileSync } from "node:fs";
 
 import {
-  OrderPage, SKU, SUITE_STOCK, expect, test,
+  OrderPage, SKU, SUITE_STOCK, expect, searchStockApplied, stockApplied,
+  test,
 } from "./support/order.mjs";
 import { PLENTY } from "./support/stock.mjs";
 
@@ -86,12 +87,13 @@ const stubStock = (page, over) => page.route("**/api/stock",
     await route.fulfill({ response: res, json: body });
   });
 
-// Opens the order page and waits for its stock check.
+// Opens the order page and waits for its stock check, applied.
 const open = async (page, cart) => {
   const stock = page.waitForResponse("**/api/stock");
 
   await new OrderPage(page).open(cart);
   await stock;
+  await stockApplied(page);
 };
 
 test.describe("restock types (#267)", () => {
@@ -406,6 +408,8 @@ test.describe("restock types (#267)", () => {
       await stock.pin(SOON_OUT);
       await open(page);
       await show(page, "Full catalog");
+      await expect(row(page, OUT.soon).locator(".order-qty-out"))
+        .toBeVisible();
 
       const add = await page.locator(
         ".order-item:not([data-stock='out']) .order-qty-add"
@@ -523,6 +527,7 @@ test.describe("restock types (#267)", () => {
       await page.locator("[data-search-open]").click();
       await page.locator("#search-palette-input").fill("whole");
       await answered.catch(() => null);
+      await searchStockApplied(page);
 
       const n = await page.locator(
         `#search-palette-list [role='option'][data-sku="${HIDDEN}"]`
@@ -655,6 +660,7 @@ test.describe("restock types (#267)", () => {
       await page.locator("[data-search-open]").click();
       await page.locator("#search-palette-input").fill("wings");
       await answered.catch(() => null);
+      await searchStockApplied(page);
 
       const rows = page.locator("#search-palette-list [role='option']");
 
@@ -699,6 +705,7 @@ test.describe("search and restock types (#267)", () => {
     await page.locator("[data-search-open]").click();
     await p.input.fill(query);
     await stock;
+    await searchStockApplied(page);
 
     return p;
   };

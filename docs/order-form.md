@@ -498,7 +498,12 @@ them. A pin lapses after its TTL (15 minutes unless given, an hour at
 most), and `bin/e2e/sweep.mjs` removes lapsed ones. Pins exist only on
 staging, deploy previews and local development, never where
 `SQUARE_ENV` is production: there the op is refused and the cookie
-ignored.
+ignored. A spec reads the page only once it has applied the answer
+(`stockApplied` and `searchStockApplied` in `e2e/support/order.mjs`),
+not when the response lands: the skeleton holds a slow answer up to
+300 ms more, and a read in that gap sees the build's stock, which
+looks like a pin that leaked (2026-10-28). `e2e/stock-scope.spec.mjs`
+holds two scopes pinning one SKU at once apart.
 
 The read is a GET of production's public
 `https://www.northfosterfarm.com/api/stock`, the answer the live order

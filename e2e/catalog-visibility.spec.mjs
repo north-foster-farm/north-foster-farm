@@ -7,7 +7,9 @@
 
 import { readFileSync } from "node:fs";
 
-import { OrderPage, expect, test } from "./support/order.mjs";
+import {
+  OrderPage, expect, stockApplied, test,
+} from "./support/order.mjs";
 
 const catalog = JSON.parse(readFileSync(
   new URL("../data/catalog.json", import.meta.url), "utf8"
@@ -73,6 +75,7 @@ test.describe("every catalog product's visibility (#501)", () => {
 
           await new OrderPage(page).open();
           await stock;
+          await stockApplied(page);
 
           const choice = (name) => page.getByRole("radio", { name });
 
