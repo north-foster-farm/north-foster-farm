@@ -157,6 +157,8 @@ test.describe("search (#142)", () => {
   // Found by QA, 2026-09-24: the palette asks /api/stock as it opens,
   // and the answer re-renders the card. A slow answer (a cold function)
   // lands after the customer has added, and must leave the cart alone.
+  // The hold on /api/stock is what's under test, which no pin can be;
+  // the answer it lets through is the test's own pinned counts.
   test("stock arriving late keeps what's in the cart", async ({ page }) => {
     let release;
     const held = new Promise((resolve) => {
@@ -190,24 +192,20 @@ test.describe("search (#142)", () => {
   // label in place of its price, and cannot be added; never "Sold
   // out".
   test("a product whose count reaches 0 shows its restock label",
-    async ({ page }) => {
+    async ({ page, stock }) => {
       const gone = "NFF-CHK-DRM-15-99";
 
-      await page.route("**/api/stock", async (route) => {
-        const res = await route.fetch();
-        const body = await res.json();
-
-        body.items[gone] = { inStock: false, available: 0 };
-        await route.fulfill({ response: res, json: body });
-      });
+      // Pinned for this test (#507); the other drumsticks are the
+      // suite's, in stock.
+      await stock.pin({ [gone]: 0 });
       await page.goto("/about/");
 
       const p = palette(page);
-      const stock = page.waitForResponse("**/api/stock");
+      const answered = page.waitForResponse("**/api/stock");
 
       await p.opener.click();
       await p.input.fill("drum");
-      await stock;
+      await answered;
 
       const row = p.rows.and(page.locator(`[data-sku="${gone}"]`));
 
