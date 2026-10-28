@@ -49,7 +49,10 @@ export const qrSvg = (text, { scale = 8, quiet = 4, title = "" } = {}) => {
     }
   }
 
-  const name = String(title).replace(/[<>&"]/g, "");
+  // Escaped to entities, not deleted, so "Smith & Co" stays whole.
+  const name = String(title).replace(/[<>&"']/g, (c) => ({
+    "<": "&lt;", ">": "&gt;", "&": "&amp;", "\"": "&quot;", "'": "&#39;",
+  })[c]);
 
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${side} ${
     side}" width="${side}" height="${side}" shape-rendering="crispEdges"${

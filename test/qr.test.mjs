@@ -59,12 +59,14 @@ describe("the join QR code", () => {
       assert.ok(svg.includes(`M${(37 - 7 + 4) * 4} 16h28v4h-28z`));
     });
 
-  it("escapes the title", () => {
-    const svg = qrSvg(LINK, { title: "Join <the> group" });
+  it("escapes the title to entities, keeping every character", () => {
+    const svg = qrSvg(LINK, { title: "Join <the> \"Smith & Co's\" group" });
+    const kept = "Join &lt;the&gt; &quot;Smith &amp; Co&#39;s&quot; group";
 
-    assert.match(svg, /<title>Join the group<\/title>/);
-    assert.match(svg, /aria-label="Join the group"/);
+    assert.ok(svg.includes(`<title>${kept}</title>`));
+    assert.ok(svg.includes(`aria-label="${kept}"`));
     assert.ok(!svg.includes("<the>"));
+    assert.ok(!svg.includes("Smith & Co"));
   });
 
   it("refuses text that is not ASCII", () => {
