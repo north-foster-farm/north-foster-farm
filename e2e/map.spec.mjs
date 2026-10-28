@@ -872,14 +872,17 @@ test.describe("map (#138, #214)", () => {
       const filled = await input.boundingBox();
 
       // The label eases up over 0.1 s, so measure it where it rests.
-      let floatedLabel = await label.boundingBox();
+      // Not two equal boxes 50 ms apart (#506): a transition moves
+      // only on animation frames, and two reads with no frame between
+      // them matched while it had barely begun, on staging. Wait for
+      // the float itself: its transform set, and no transition left
+      // running on the label.
+      await expect.poll(() => label.evaluate((el) => (
+        getComputedStyle(el).transform !== "none"
+          && !el.getAnimations().length
+      )), "the label's float finishes").toBe(true);
 
-      await expect.poll(async () => {
-        const last = floatedLabel;
-
-        floatedLabel = await label.boundingBox();
-        return floatedLabel.y === last.y && floatedLabel.height === last.height;
-      }, { intervals: [50] }).toBe(true);
+      const floatedLabel = await label.boundingBox();
 
       expect(filled.width).toBe(field.width);
       expect(filled.height).toBe(field.height);
