@@ -88,15 +88,16 @@ export const BACK_OFFICE_MISSING = "Needs E2E_STAGING_TOKEN, in the " +
 const TRANSIENT = new Set([502, 503, 504]);
 
 // One op on the deploy -> its answer. Throws with the deploy's message
-// unless `allowFail`, which answers null.
+// unless `allowFail`, which answers null. `timeoutMs` bounds each try.
 export const op = async (name, args = {}, {
-  allowFail = false, tries = 3,
+  allowFail = false, tries = 3, timeoutMs,
 } = {}) => {
   for (let attempt = 1; ; attempt += 1) {
     let res;
 
     try {
       res = await fetch(`${BASE_URL}/api/staging/e2e`, {
+        signal: timeoutMs ? AbortSignal.timeout(timeoutMs) : undefined,
         method: "POST",
         headers: {
           Authorization: `Bearer ${env.E2E_STAGING_TOKEN}`,

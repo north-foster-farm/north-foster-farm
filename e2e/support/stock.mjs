@@ -78,7 +78,12 @@ export const stockFor = (scope, { ops = op } = {}) => {
       const had = Object.keys(counts).length > 0;
 
       counts = {};
-      if (had) await ops("stock.unpin", { scope });
+      // Bounded: two tries of 15 s at most, then it fails with its
+      // cause, well inside the test timeout. The pins' TTL and the
+      // sweep are the backstop for one left behind.
+      if (had) {
+        await ops("stock.unpin", { scope }, { tries: 2, timeoutMs: 15_000 });
+      }
     },
   };
 };
