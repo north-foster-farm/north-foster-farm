@@ -7,6 +7,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
+import { e2eEnv } from "../bin/e2e/env.mjs";
+import { readValues } from "../bin/env/sample.mjs";
 import {
   PRODUCTION_SNAPSHOT, SNAPSHOT, availability, liveCounts,
 } from "../netlify/functions/lib/stock.mjs";
@@ -139,6 +141,41 @@ describe("the stock source's context guard", () => {
     assert.equal(productionRead({ ...staging, STOCK_SOURCE: "" }), false);
     assert.equal(productionRead({ ...staging, STOCK_SOURCE: "sandbox" }),
       false);
+  });
+});
+
+describe("the e2e build's stock", () => {
+  // As bin/e2e/serve.mjs runs: the shell's variables, then the
+  // development sample's under them, then e2eEnv over both.
+  const sample = readValues(readFileSync(new URL(
+    "../.env.development.sample", import.meta.url), "utf8")).values;
+  const run = (shell = {}) =>
+    ({ ...Object.fromEntries(sample), ...shell, ...e2eEnv(8895) });
+
+  it("never reads production, though development does", () => {
+    assert.equal(sample.get("STOCK_SOURCE"), "production");
+    assert.equal(productionRead(Object.fromEntries(sample)), true);
+    assert.equal(productionRead(run()), false);
+    assert.equal(productionRead(run({ STOCK_SOURCE: "production" })), false);
+  });
+
+  it("keeps the fakes and STOCK_OVERRIDES", async () => {
+    const env = run({ STOCK_OVERRIDES: `${TWO}:1` });
+    const prod = production();
+    const counts = await liveCounts(testStores(),
+      { env, production: via(prod.fetchImpl) });
+
+    assert.equal(env.SQUARE_ENV, "fake");
+    assert.equal(env.PAYPAL_ENV, "fake");
+    assert.equal(prod.seen.length, 0);
+    assert.equal(counts[TWO], 1);
+  });
+
+  it("is what serve.mjs runs with", () => {
+    const serve = readFileSync(new URL("../bin/e2e/serve.mjs",
+      import.meta.url), "utf8");
+
+    assert.match(serve, /Object\.assign\(process\.env, e2eEnv\(port\)\)/);
   });
 });
 
@@ -378,6 +415,18 @@ describe("liveCounts with the stock source", () => {
 
     assert.equal(prod.seen.length, 0);
     assert.equal(counts[EGGS], 7);
+  });
+
+  it("asks production nothing in the unit suite, by default", async (t) => {
+    const lines = warnings(t);
+
+    // The suite's setup (test/setup.mjs) keeps no STOCK_SOURCE and no
+    // context.
+    assert.equal(process.env.STOCK_SOURCE, undefined);
+    assert.equal(productionRead(), false);
+    // The real read: it would reach the network, which fails the file.
+    await liveCounts(testStores(), { inventory: reader(null).read });
+    assert.deepEqual(lines, []);
   });
 
   it("asks production nothing with the read off", async () => {
