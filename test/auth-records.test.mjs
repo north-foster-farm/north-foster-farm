@@ -8,8 +8,8 @@ import {
   COOKIE, createSession, endSession, requestLink, sessionFrom, verifyToken,
 } from "../netlify/functions/lib/auth.mjs";
 import {
-  AUTH_PREFIXES, INDEX, authRecordsFor, backfillIndex, deleteAuth, indexKey,
-  namedBy, putAuth, staleIndexKey,
+  AUTH_PREFIXES, INDEX, INDEX_GRACE, authRecordsFor, backfillIndex, deleteAuth,
+  indexKey, namedBy, pruneIndex, putAuth, staleIndexKey,
 } from "../netlify/functions/lib/auth-records.mjs";
 import { maskEmail } from "../netlify/functions/lib/mask.mjs";
 import {
@@ -147,6 +147,52 @@ describe("the auth records' index (#508)", () => {
     assert.deepEqual(await keysUnder(stores, INDEX), []);
   });
 
+  it("stores when each index key was written", async () => {
+    const stores = testStores();
+    const start = Date.now();
+
+    await putAuth(stores, "token/t1", { email: PAT });
+
+    const { at } = await stores.auth.get(indexKey(PAT, "token/t1"));
+
+    assert.ok(at >= start && at <= Date.now(), `at ${at}`);
+  });
+
+  // The sweep can list an index key putAuth has just written and read
+  // its record before putAuth writes it. A young key is left for later.
+  it("is pruned only once a stale key is 10 minutes old", async () => {
+    const stores = testStores();
+    const at = Date.now();
+
+    await stores.auth.set(indexKey(PAT, "token/young"), { at });
+    await stores.auth.set(indexKey(PAT, "token/old"), {
+      at: at - INDEX_GRACE,
+    });
+    await stores.auth.set(indexKey(PAT, "token/before"), {});
+    await putAuth(stores, "token/live", { email: PAT });
+
+    assert.equal(await pruneIndex(stores, { now: at }), 2);
+    assert.deepEqual(await keysUnder(stores, INDEX),
+      [indexKey(PAT, "token/live"), indexKey(PAT, "token/young")].sort());
+
+    // The record lands, and the young key is its index.
+    await stores.auth.set("token/young", { email: PAT });
+    assert.equal(await pruneIndex(stores, {
+      now: at + INDEX_GRACE + 1,
+    }), 0);
+    await assertInStep(stores);
+  });
+
+  it("is pruned in batches past the first", async () => {
+    const stores = testStores();
+
+    for (let i = 0; i < 60; i += 1) {
+      await stores.auth.set(indexKey(PAT, `token/gone${i}`), {});
+    }
+    assert.equal(await pruneIndex(stores), 60);
+    assert.deepEqual(await keysUnder(stores, INDEX), []);
+  });
+
   it("is kept when every session ends", async () => {
     const stores = testStores();
 
@@ -159,11 +205,15 @@ describe("the auth records' index (#508)", () => {
 });
 
 describe("auth backfill-index (#508)", () => {
-  // Records as the code before the index wrote them.
+  const SESSION = `session/${"a".repeat(64)}`;
+
+  // Records as the code before the index wrote them, and a session from
+  // before sessions were stored under a hash of the id.
   const seed = async () => {
     const stores = testStores();
 
-    await stores.auth.set("session/s1", { email: PAT, expires: 1 });
+    await stores.auth.set(SESSION, { email: PAT, expires: 1 });
+    await stores.auth.set("session/rawid", { email: PAT, expires: 1 });
     await stores.auth.set("token/t1", {
       email: SAM, changeFrom: PAT, expires: 1,
     });
@@ -191,7 +241,7 @@ describe("auth backfill-index (#508)", () => {
     const before = await keysUnder(stores, "");
 
     assert.deepEqual(await backfillIndex(stores), {
-      apply: false, records: 4, missing: 4, written: 0,
+      apply: false, records: 4, skipped: 1, missing: 4, written: 0,
     });
     assert.deepEqual(await keysUnder(stores, ""), before);
     assert.deepEqual(lines, []);
@@ -203,10 +253,9 @@ describe("auth backfill-index (#508)", () => {
 
     assert.deepEqual(await backfillIndex(stores, {
       apply: true, by: "james",
-    }), { apply: true, records: 4, missing: 4, written: 4 });
-    await assertInStep(stores);
+    }), { apply: true, records: 4, skipped: 1, missing: 4, written: 4 });
     assert.deepEqual((await authRecordsFor(stores, PAT)).map((r) => r.key),
-      ["session/s1", "token/t1", "unsub/u1"]);
+      [SESSION, "token/t1", "unsub/u1"]);
 
     const logged = lines.map((l) => JSON.parse(l))
       .filter((l) => l.event === "auth.index_backfilled");
@@ -214,14 +263,45 @@ describe("auth backfill-index (#508)", () => {
     assert.equal(logged.length, 4);
     assert.deepEqual(logged[0], {
       _time: logged[0]._time, level: "info",
-      event: "auth.index_backfilled", by: "james", key: "session/s1",
+      event: "auth.index_backfilled", by: "james", prefix: "session",
       record: maskEmail(PAT), before: "absent", after: "present",
     });
+    assert.deepEqual(logged.map((l) => l.prefix),
+      ["session", "token", "token", "unsub"]);
     assert.ok(lines.every((l) => !l.includes(PAT) && !l.includes(SAM)));
 
     assert.deepEqual(await backfillIndex(stores, { apply: true }), {
-      apply: true, records: 4, missing: 0, written: 0,
+      apply: true, records: 4, skipped: 1, missing: 0, written: 0,
     });
+  });
+
+  // A record's key is the hash of its secret, and a raw-id session's
+  // key is the secret itself: neither reaches a log.
+  it("never logs a record's key", async (t) => {
+    const stores = await seed();
+    const lines = capture(t);
+    const keys = (await keysUnder(stores, "")).filter((key) =>
+      AUTH_PREFIXES.some((p) => key.startsWith(p)));
+
+    await backfillIndex(stores, { apply: true, by: "james" });
+    assert.equal(lines.length, 5);
+    for (const key of keys) {
+      const [, secret] = key.split("/");
+
+      assert.ok(lines.every((l) => !l.includes(secret)), `${key} logged`);
+    }
+  });
+
+  it("leaves a session under a raw id for the sweep", async () => {
+    const stores = await seed();
+
+    await backfillIndex(stores, { apply: true });
+    assert.equal(await stores.auth.get(indexKey(PAT, "session/rawid")), null);
+    assert.ok(await stores.auth.get("session/rawid"));
+
+    await sweepAuth(stores, now);
+    assert.equal(await stores.auth.get("session/rawid"), null);
+    await assertInStep(stores);
   });
 });
 

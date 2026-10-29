@@ -8,7 +8,10 @@
 // deleted after it, so a rename or a deletion lists one prefix.
 //
 // Store layout (the `auth` store), beside lib/auth.mjs's:
-//   by-email/<sha256(email)>/<record key>   {}
+//   by-email/<sha256(email)>/<record key>   { at }
+//
+// `at` is when the index key was written (ms), so the sweep can leave
+// one whose record putAuth is still writing (pruneIndex).
 //
 // A record names its `email`, and an email-change link also the
 // address it moves from (`changeFrom`). Every write and delete of a
@@ -22,6 +25,28 @@ import { maskEmail } from "./mask.mjs";
 
 export const AUTH_PREFIXES = ["session/", "token/", "unsub/", "news/"];
 export const INDEX = "by-email/";
+
+// A session stored under a hash of its id (lib/auth.mjs). One under any
+// other key is from before that, and the sweep deletes it.
+export const HASHED_SESSION = /^session\/[0-9a-f]{64}$/;
+
+// An index key younger than this may belong to a record putAuth has
+// not written yet, so the sweep leaves it.
+export const INDEX_GRACE = 10 * 60_000;
+
+const BATCH = 25;
+
+// Runs `fn` over `items` in parallel batches of BATCH, so a scan of the
+// store neither reads one key at a time nor all at once. -> the results.
+export const inBatches = async (items, fn) => {
+  const results = [];
+
+  for (let i = 0; i < items.length; i += BATCH) {
+    results.push(...await Promise.all(items.slice(i, i + BATCH).map(fn)));
+  }
+
+  return results;
+};
 
 const hash = (value) => createHash("sha256").update(value).digest("hex");
 const address = (email) => String(email || "").trim().toLowerCase();
@@ -41,7 +66,9 @@ export const namedBy = (value) => (value && typeof value === "object"
 export const putAuth = async (stores, key, value, { before = null } = {}) => {
   const names = namedBy(value);
 
-  for (const email of names) await stores.auth.set(indexKey(email, key), {});
+  for (const email of names) {
+    await stores.auth.set(indexKey(email, key), { at: Date.now() });
+  }
   await stores.auth.set(key, value);
   for (const email of namedBy(before)) {
     if (!names.includes(email)) await stores.auth.delete(indexKey(email, key));
@@ -89,60 +116,74 @@ export const staleIndexKey = async (stores, key) => {
 
 // `bin/nff auth backfill-index`: an index key for every record that
 // lacks one, for the records written before the index (#508) or by
-// older code after a rollback. A report unless `apply`; each key
-// written is logged with `by`, who ran it, and the address masked
-// (mask.mjs, #496). Safe to run twice. -> { apply, records, missing,
-// written }
+// older code after a rollback. A session under its raw id is skipped:
+// the id is live to anyone who reads its key, and the sweep deletes it.
+// A report unless `apply`; each key written is logged with `by`, who
+// ran it, the record's prefix and the address masked (mask.mjs, #496),
+// never the record's key, which for a link is half of its secret. Safe
+// to run twice. -> { apply, records, skipped, missing, written }
 export const backfillIndex = async (stores, {
   apply = false, by = null,
 } = {}) => {
-  const report = { apply, records: 0, missing: 0, written: 0 };
-  const BATCH = 25;
+  const report = { apply, records: 0, skipped: 0, missing: 0, written: 0 };
 
   for (const prefix of AUTH_PREFIXES) {
-    const keys = (await stores.auth.list(prefix)).map(({ key }) => key);
+    const keys = [];
 
-    for (let i = 0; i < keys.length; i += BATCH) {
-      const batch = await Promise.all(keys.slice(i, i + BATCH)
-        .map(async (key) => ({ key, value: await stores.auth.get(key) })));
+    for (const { key } of await stores.auth.list(prefix)) {
+      if (prefix === "session/" && !HASHED_SESSION.test(key)) {
+        report.skipped += 1;
+      } else {
+        keys.push(key);
+      }
+    }
 
-      for (const { key, value } of batch) {
-        if (!value) continue;
-        report.records += 1;
-        for (const email of namedBy(value)) {
-          if (await stores.auth.get(indexKey(email, key))) continue;
-          report.missing += 1;
-          if (!apply) continue;
-          await stores.auth.set(indexKey(email, key), {});
-          report.written += 1;
-          log.info({
-            event: "auth.index_backfilled", by, key,
-            record: maskEmail(email), before: "absent", after: "present",
-          });
-        }
+    const records = await inBatches(keys,
+      async (key) => ({ key, value: await stores.auth.get(key) }));
+
+    for (const { key, value } of records) {
+      if (!value) continue;
+      report.records += 1;
+      for (const email of namedBy(value)) {
+        if (await stores.auth.get(indexKey(email, key))) continue;
+        report.missing += 1;
+        if (!apply) continue;
+        await stores.auth.set(indexKey(email, key), { at: Date.now() });
+        report.written += 1;
+        log.info({
+          event: "auth.index_backfilled", by, prefix: prefix.slice(0, -1),
+          record: maskEmail(email), before: "absent", after: "present",
+        });
       }
     }
   }
   if (apply) {
     log.info({
       event: "auth.index_backfill", by, records: report.records,
-      written: report.written,
+      skipped: report.skipped, written: report.written,
     });
   }
 
   return report;
 };
 
-// Deletes every stale index key, for the daily sweep. -> how many.
-export const pruneIndex = async (stores) => {
-  let pruned = 0;
+// Deletes every stale index key older than INDEX_GRACE, read in
+// parallel batches, for the auth sweep, which runs with the jobs every
+// 15 minutes. One younger may be putAuth's, written just before its
+// record, and is left for a later sweep. One with no `at` is from
+// before it was stored and counts as old. -> how many.
+export const pruneIndex = async (stores, { now = Date.now() } = {}) => {
+  const keys = (await stores.auth.list(INDEX)).map(({ key }) => key);
+  const pruned = await inBatches(keys, async (key) => {
+    if (!await staleIndexKey(stores, key)) return 0;
 
-  for (const { key } of await stores.auth.list(INDEX)) {
-    if (await staleIndexKey(stores, key)) {
-      await stores.auth.delete(key);
-      pruned += 1;
-    }
-  }
+    const { at } = await stores.auth.get(key) || {};
 
-  return pruned;
+    if (Number.isFinite(at) && now - at < INDEX_GRACE) return 0;
+    await stores.auth.delete(key);
+
+    return 1;
+  });
+
+  return pruned.reduce((sum, n) => sum + n, 0);
 };

@@ -2380,7 +2380,9 @@ const run = async () => {
 
     return out(`${r.records} sign-in record${r.records === 1 ? "" : "s"}, ${
       r.missing} index key${r.missing === 1 ? "" : "s"} missing. ${r.apply
-      ? `Wrote ${r.written}.` : "A dry run: --apply writes them."}`);
+      ? `Wrote ${r.written}.` : "A dry run: --apply writes them."}${
+      r.skipped ? ` Skipped ${r.skipped} session${r.skipped === 1 ? "" : "s"
+      } under a raw id, which the auth sweep deletes.` : ""}`);
   }
   case "errors show":
     return errorsShow(rest[0]);

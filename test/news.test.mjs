@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { describe, it } from "node:test";
 
+import { indexPrefix } from "../netlify/functions/lib/auth-records.mjs";
 import {
   CONFIRM_TTL, REQUESTS_PER_WINDOW, SYNC_KEY, confirmSubscribe,
   forgottenKey, importSubscribers, optIn, optOut, parseCsv,
@@ -794,7 +795,20 @@ describe("a stale imported address taken out (#496)", () => {
     await importSubscribers(stores, [{ email: A }],
       { date: "2024-07-12", now, env, mail });
     assert.equal((await stores.auth.list("unsub/")).length, 1);
+
+    // It finds the link by the address's index, not by reading every
+    // link (#508).
+    const listed = [];
+    const list = stores.auth.list;
+
+    stores.auth.list = (prefix) => {
+      listed.push(prefix);
+
+      return list(prefix);
+    };
     assert.equal((await removeImported(stores, A)).outcome, "deleted");
+    assert.deepEqual(listed, [indexPrefix(A)]);
+    stores.auth.list = list;
     assert.equal((await stores.auth.list("unsub/")).length, 0);
   });
 
