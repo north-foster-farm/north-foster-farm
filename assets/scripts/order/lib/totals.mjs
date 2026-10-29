@@ -2,6 +2,8 @@
 // function recomputes everything here from the catalog on every
 // submission.
 
+import { perkEffects } from "./perks.mjs";
+
 export const toCents = (dollars) => Math.round(Number(dollars) * 100);
 
 export const dollars = (cents) => {
@@ -123,10 +125,16 @@ export const lockOn = (lock, day) =>
 // discount, so it comes off after every discount and fee, and
 // `total` is then the money due. `credit` on the totals is what it
 // covered, only when it covered something.
+// `perks` is the customer's perk types in force (#514, lib/perks.mjs),
+// which the caller has read from the signed-in account or the
+// customer's record. A perk that lifts the fee waives it as a pass
+// does, and `perks` on the totals names every one the order was
+// priced with, so a change to the order keeps them.
 export const computeTotals = ({
   lines, method, index, money, group, code, lock, zipStatus,
-  waiveFee = false, credit = 0,
+  waiveFee = false, credit = 0, perks = [],
 }) => {
+  const perk = perkEffects(perks);
   let subtotal = 0;
 
   for (const { sku, qty } of lines) {
@@ -161,7 +169,7 @@ export const computeTotals = ({
     ? toCents(money.outsideAreaFee || 0)
     : 0;
   const owed = baseFee + areaFee;
-  const feeWaived = !!waiveFee && owed > 0;
+  const feeWaived = (!!waiveFee || perk.fee) && owed > 0;
   const deliveryFee = feeWaived ? 0 : owed;
 
   const discountAmount = useCode
@@ -199,6 +207,8 @@ export const computeTotals = ({
     ...(useLock ? { discountLock: true, lockLines: byLock.lines } : {}),
     // Only on an order credit covered some of (#471).
     ...(creditUsed > 0 ? { credit: creditUsed } : {}),
+    // Only on an order of a customer with a perk (#514).
+    ...(perk.types.length ? { perks: perk.types } : {}),
     total: owedBeforeCredit - creditUsed,
   };
 };

@@ -269,6 +269,17 @@ discount applied and is what every surface shows; `discountTier`,
 `discountGroup`, `discountCode` and `discountLock` say which kind it
 was.
 
+A customer's perks (#514) live on their record as `perks` and are set
+with `bin/nff perks add|list|remove`. The order handler reads those in
+force today from the session, never the payload; the farm's own
+command reads the record. `free-delivery` waives the delivery fee and
+the outside-area fee as a fee pass does (`totals.feeWaived`), and
+`minimum-waived` lets a delivery under the minimum through
+(`flags.minimumWaived`). A pass is held and used up only for what the
+perks leave. `totals.perks` names the perks an order was priced with,
+and a change to the order keeps them, whatever the customer holds by
+then. A perk past its end day stops applying by itself.
+
 A buying group's member price (#471, `priceLock` in `data/groups.json`)
 is not a discount today: the member prices are the retail prices of
 the day they were set. A member pays the lower of the member price

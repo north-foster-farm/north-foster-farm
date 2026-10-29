@@ -131,6 +131,9 @@
         </div>
       </div>
       <p class="order-cart-code-note" id="order-code-note" data-code-note aria-live="polite" hidden></p>
+      {{/* A signed-in customer's perks (#514), one sentence each, filled
+           from /api/me. Draft wording, lib/perks.mjs. */}}
+      <p class="order-cart-code-note" data-cart-perks hidden></p>
     </div>
 
     {{/* The foot never gives way: Expand or Hide on the left (below

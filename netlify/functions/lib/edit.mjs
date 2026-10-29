@@ -203,6 +203,9 @@ export const planEdit = async (stores, order, body, {
       minimum: !!order.pass,
       fee: !!order.passWaivesFee,
     },
+    // And with the perks it was priced with (#514), whatever the
+    // customer holds now, so a change never reprices an order.
+    perks: (order.totals && order.totals.perks) || [],
   });
 
   if (!result.ok) {

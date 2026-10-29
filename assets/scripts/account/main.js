@@ -4,6 +4,7 @@
 // URL hash.
 
 import { mergeScheduled } from "../order/lib/group.mjs";
+import { perkSentence } from "../order/lib/perks.mjs";
 import { pickupTimes, windowLabel } from "../order/lib/schedule.mjs";
 import { dollars } from "../order/lib/totals.mjs";
 import { forgetCustomer } from "../order/draft.js";
@@ -906,12 +907,16 @@ class Account {
     const group = c.discountGroup && groups[c.discountGroup];
     const row = document.getElementById("prof-group-row");
 
-    row.hidden = !group;
-    if (group) {
-      document.getElementById("prof-group").textContent =
-        `${group.label}: ${group.percent}% off, whenever that beats the ` +
-        "bulk discount.";
-    }
+    // And the customer's perks (#514), each as its sentence (drafts).
+    const perks = Array.isArray(c.perks) ? c.perks : [];
+    const lines = [
+      ...group ? [`${group.label}: ${group.percent}% off, whenever that ` +
+        "beats the bulk discount."] : [],
+      ...perks.map(perkSentence),
+    ];
+
+    row.hidden = !lines.length;
+    document.getElementById("prof-group").textContent = lines.join(" ");
   }
 
   async saveAddress() {
