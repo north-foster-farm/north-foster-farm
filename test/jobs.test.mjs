@@ -464,6 +464,48 @@ describe("runJobs", () => {
       undefined);
   });
 
+  it("works named orders alone, with no sweep or report (#516)",
+    async () => {
+      const stores = testStores();
+      const { sent, opts } = harness();
+      const listed = [];
+
+      await saveOrder(stores, order("A"), placed);
+      await saveOrder(stores, order("B"), placed);
+      // Every sweep and report starts by listing a store; the named
+      // orders are read by id.
+      for (const [name, store] of Object.entries(stores)) {
+        if (!store || typeof store.list !== "function") continue;
+
+        const list = store.list.bind(store);
+
+        store.list = (prefix, ...rest) => {
+          listed.push(`${name}:${prefix}`);
+
+          return list(prefix, ...rest);
+        };
+      }
+
+      const r = await runJobs(stores, {
+        ...opts, now: at("2026-10-07", 18, 5), orderIds: ["A", "NFF-NONE"],
+      });
+
+      assert.deepEqual(r.deliveryReminded, ["A"]);
+      assert.deepEqual(r.errors, []);
+      assert.deepEqual(sent.map((m) => m.subject),
+        ["Your delivery is tomorrow"]);
+      assert.deepEqual(listed, [], "no store is listed");
+      assert.equal(r.tomorrow, null, "the 18:00 report is not sent");
+      assert.equal(await stores.jobs.get(`run/${r.at}`), null,
+        "no ledger line");
+      assert.equal((await getOrder(stores, "B")).emails.deliveryReminder,
+        undefined, "B is not worked");
+
+      // The scheduled run, by contrast, sweeps and reports.
+      await runJobs(stores, { ...opts, now: at("2026-10-07", 18, 6) });
+      assert.ok(listed.length > 0);
+    });
+
   it("reminds again before a missed delivery's new day (#193)", async () => {
     const stores = testStores();
     const { sent, opts } = harness();

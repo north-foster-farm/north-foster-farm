@@ -187,7 +187,11 @@ export const runJobs = async (stores, {
   // the hidden check.
   inventory,
   // The end-to-end suite's run as of another day (lib/e2e.mjs) works
-  // only the orders it names, so shared staging orders keep their state.
+  // only the orders it names, so shared staging orders keep their state,
+  // and only their own jobs (reminder, close, missed notice and the
+  // rest of workOrder): no sweep, report, ledger line or heartbeat.
+  // Those read every record, and on staging's stores ran the e2e call
+  // past the function's 30 s (#516).
   orderIds = null,
 } = {}) => {
   const report = {
@@ -331,9 +335,20 @@ export const runJobs = async (stores, {
     }
   };
 
-  for (const order of await openOrders(stores)) {
-    if (orderIds && !orderIds.includes(order.id)) continue;
+  // Named orders are read by id; workOrder passes over one not open.
+  const orders = orderIds
+    ? (await Promise.all(orderIds.map((id) => getOrder(stores, id))))
+      .filter(Boolean)
+    : await openOrders(stores);
+
+  for (const order of orders) {
     await attempt(order.id, "order", () => workOrder(order));
+  }
+
+  if (orderIds) {
+    log.info({ event: "jobs.run", scope: "orders", ...summarize(report) });
+
+    return report;
   }
 
   // Before the sweep, so an approved payment is never dropped unpaid.
