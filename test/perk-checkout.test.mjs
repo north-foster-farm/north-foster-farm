@@ -1,6 +1,9 @@
 // Checkout applies a signed-in customer's perks (#514): free delivery
 // takes the fee off, the minimum waived lets a small delivery through,
-// an expired perk does neither, and a perk never spends a pass.
+// an expired perk does neither, and a perk never spends a pass. The
+// payload's own `perks` count for nothing, Square still gets the $0
+// delivery of a waived fee, and a change keeps only the perks its
+// order was priced with that the customer still holds.
 
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
@@ -8,17 +11,22 @@ import { describe, it } from "node:test";
 import catalog from "../data/catalog.json" with { type: "json" };
 import terms from "../data/delivery.json" with { type: "json" };
 import { indexCatalog } from "../assets/scripts/order/lib/catalog.mjs";
+import { parseSchedule } from "../assets/scripts/order/lib/schedule.mjs";
 import { computeTotals } from "../assets/scripts/order/lib/totals.mjs";
+import { validateOrder } from "../assets/scripts/order/lib/validate.mjs";
 import { instant } from "../assets/scripts/order/lib/zoned.mjs";
 import { handle } from "../netlify/functions/orders.mjs";
 import {
   createSession, publicCustomer,
 } from "../netlify/functions/lib/auth.mjs";
+import { runOp } from "../netlify/functions/lib/e2e.mjs";
+import { planEdit } from "../netlify/functions/lib/edit.mjs";
 import { getPass, issuePass } from "../netlify/functions/lib/passes.mjs";
-import { addPerk } from "../netlify/functions/lib/perks.mjs";
+import { addPerk, removePerk } from "../netlify/functions/lib/perks.mjs";
 import { getCustomer, getOrder } from "../netlify/functions/lib/records.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
-import { MORNING } from "./schedule-fixture.mjs";
+import liveTerms from "../netlify/functions/lib/terms.mjs";
+import { MORNING, SCHEDULE } from "./schedule-fixture.mjs";
 
 const now = instant("2026-10-06", 9, 0, "America/New_York");
 const KEY = "5b1d0f3e-2c4a-4e6b-9a8d-7c6b5a4f3e2d";
@@ -33,6 +41,7 @@ const square = () => ({
     squarePaymentId: "PAY", status: "COMPLETED", receiptUrl: null,
     brand: "VISA", last4: "4242", wallet: null,
   }),
+  payZeroOrder: async (id) => ({ squareOrderId: id }),
   cancelOrder: async (id) => ({ id, cancelled: true }),
   findPaid: async () => null,
 });
@@ -227,6 +236,164 @@ describe("the perks /api/me shows", () => {
     assert.deepEqual(publicCustomer(c, now).perks, [
       { type: "free-delivery", start: "2026-10-01", end: "2027-12-31" },
     ]);
+  });
+});
+
+describe("the perks a payload names", () => {
+  const claims = { perks: ["family", "free-delivery", "minimum-waived"] };
+
+  it("are ignored for an order not signed in", async (t) => {
+    quietLog(t);
+
+    const stores = testStores();
+    // Two chickens, the $5 tier and the $5 fee: $60, not $0.
+    const res = await place(stores, delivery(2, 0, claims));
+    const data = await res.json();
+
+    assert.equal(res.status, 422);
+    assert.equal(data.totals.total, 6000);
+    assert.equal(data.totals.perks, undefined);
+  });
+
+  it("are ignored beside the account's own", async (t) => {
+    quietLog(t);
+
+    const { stores, session } = await holder("free-delivery");
+    const res = await place(stores, delivery(2, 5500, claims), session);
+    const data = await res.json();
+
+    assert.equal(res.status, 200);
+    assert.deepEqual(data.totals.perks, ["free-delivery"]);
+    assert.equal(data.totals.discountPerk, undefined);
+    assert.equal(data.totals.total, 5500);
+  });
+});
+
+// The fake Square on a local build (bin/e2e/serve.mjs), as
+// e2e/pass-order.spec.mjs reads it back through the back office.
+const fakeEnv = {
+  SITE_CONTEXT: "dev", SQUARE_ENV: "fake", SITE_URL: "https://x.test",
+  MAIL_DRIVER: "outbox",
+};
+
+const inSquare = async (stores, id) => (await runOp(stores, {
+  op: "squareOrder", id,
+}, fakeEnv)).body.squareOrder;
+
+describe("Square's $0 delivery with perks about", () => {
+  const sent = (stores, payload, session) => handle(post(payload, session), {
+    stores, env: fakeEnv, now, ...quiet,
+  });
+  const card = { payment: { method: "card", sourceId: "cnon:card-nonce-ok" } };
+
+  it("goes with a fee pass and no perk, and spends the pass", async (t) => {
+    quietLog(t);
+
+    const stores = testStores();
+    const pass = await issuePass(stores, { email: PAT, waiveFee: true, now });
+    // One chicken, under the minimum, with no fee: $30.
+    const res = await sent(stores, delivery(1, 3000, {
+      ...card, pass: pass.code,
+    }));
+    const data = await res.json();
+
+    assert.equal(res.status, 200, JSON.stringify(data));
+
+    const square = await inSquare(stores, data.orderId);
+
+    assert.deepEqual(square.serviceCharges,
+      [{ name: "Delivery fee", amount: 0 }]);
+    assert.deepEqual(square.discounts, []);
+    assert.equal(square.total, 3000);
+    assert.equal(square.fulfillments[0].type, "DELIVERY");
+    assert.equal((await getOrder(stores, data.orderId)).pass, pass.code);
+    assert.equal((await getPass(stores, pass.code)).usedBy, data.orderId);
+  });
+
+  it("goes with a perk that lifts the fee, and spends no pass",
+    async (t) => {
+      quietLog(t);
+
+      const { stores, session } = await holder("free-delivery");
+
+      await addPerk(stores, PAT, "minimum-waived", { by: "james", now });
+
+      const pass = await issuePass(stores, { email: PAT, waiveFee: true,
+        now });
+      const res = await sent(stores, delivery(1, 3000, {
+        ...card, pass: pass.code,
+      }), session);
+      const data = await res.json();
+
+      assert.equal(res.status, 200, JSON.stringify(data));
+      assert.deepEqual((await inSquare(stores, data.orderId)).serviceCharges,
+        [{ name: "Delivery fee", amount: 0 }]);
+      assert.equal((await getOrder(stores, data.orderId)).pass, null);
+      assert.equal((await getPass(stores, pass.code)).usedBy, null);
+    });
+});
+
+describe("a change to an order placed with perks", () => {
+  const edit = (stores, order, body) => planEdit(stores, order, body, {
+    now, index, terms: liveTerms, codes: [], group: null,
+    validate: validateOrder, schedule: parseSchedule(SCHEDULE).windows,
+  });
+  const paidFree = { payment: { method: "credit" } };
+
+  it("reprices without a perk removed since", async (t) => {
+    quietLog(t);
+
+    const { stores, session } = await holder("family");
+    const res = await place(stores, delivery(1, 0, paidFree), session);
+    const placed = await getOrder(stores, (await res.json()).orderId);
+
+    assert.deepEqual(placed.totals.perks, ["family"]);
+    await removePerk(stores, PAT, "family", { by: "james", now });
+
+    // Two chickens now: $60 less the $5 tier, and the $5 fee.
+    const plan = await edit(stores, placed, {
+      lines: [{ sku: SKU, qty: 2 }], claimedTotal: 6000,
+    });
+
+    assert.equal(plan.ok, true, JSON.stringify(plan.errors));
+    assert.equal(plan.next.totals.total, 6000);
+    assert.equal(plan.next.totals.discountPerk, undefined);
+    assert.equal(plan.next.totals.perks, undefined);
+  });
+
+  it("gains no perk granted since", async (t) => {
+    quietLog(t);
+
+    const stores = testStores();
+    const session = await createSession(stores, PAT, { now });
+    const res = await place(stores, delivery(2, 6000), session);
+    const placed = await getOrder(stores, (await res.json()).orderId);
+
+    await addPerk(stores, PAT, "family", { by: "james", now, owner: true });
+
+    // Three chickens: $90 less the $5 tier, and the $5 fee.
+    const plan = await edit(stores, placed, {
+      lines: [{ sku: SKU, qty: 3 }], claimedTotal: 9000,
+    });
+
+    assert.equal(plan.ok, true, JSON.stringify(plan.errors));
+    assert.equal(plan.next.totals.total, 9000);
+    assert.equal(plan.next.totals.perks, undefined);
+  });
+
+  it("keeps a perk the customer still holds", async (t) => {
+    quietLog(t);
+
+    const { stores, session } = await holder("free-delivery");
+    const res = await place(stores, delivery(2, 5500), session);
+    const placed = await getOrder(stores, (await res.json()).orderId);
+    const plan = await edit(stores, placed, {
+      lines: [{ sku: SKU, qty: 3 }], claimedTotal: 8500,
+    });
+
+    assert.equal(plan.ok, true, JSON.stringify(plan.errors));
+    assert.deepEqual(plan.next.totals.perks, ["free-delivery"]);
+    assert.equal(plan.next.totals.deliveryFee, 0);
   });
 });
 

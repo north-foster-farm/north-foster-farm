@@ -99,6 +99,53 @@ describe("computeTotals for friends and family", () => {
     assert.equal(t.discountPerk, undefined);
   });
 
+  it("beats the 10% group when its amounts are larger", () => {
+    // Three large eggs at $7: $1 off each is $3, the group's 10% $2.
+    const t = totals([{ sku: "NFF-CHK-EGG-LG", qty: 3 }], ["friends"],
+      { group: "friends" });
+
+    assert.equal(t.discountAmount, 300);
+    assert.equal(t.discountPerk, "friends");
+    assert.equal(t.discountGroup, null);
+    assert.equal(t.total, 1800);
+  });
+
+  it("gives the 10% group when it is larger, never both", () => {
+    // Four breasts at $24: $2 off each is $8, the group's 10% of $96
+    // $10, the tier $5.
+    const t = totals([{ sku: "NFF-CHK-BRSBL-15-16", qty: 4 }], ["friends"],
+      { group: "friends" });
+
+    assert.equal(t.discountAmount, 1000);
+    assert.equal(t.discountGroup, "friends");
+    assert.equal(t.discountPerk, undefined);
+    assert.equal(t.perkLines, undefined);
+    assert.equal(t.deliveryFee, 0, "free delivery goes with it");
+    assert.equal(t.total, 8600);
+  });
+
+  it("beats a smaller code", () => {
+    // Two chickens at $30, $3 off each: $6 against a $5 code.
+    const t = totals([{ sku: "NFF-CHK-WHL-35-39", qty: 2 }], ["friends"],
+      { code: { code: "FIVE", off: 5 } });
+
+    assert.equal(t.discountAmount, 600);
+    assert.equal(t.discountPerk, "friends");
+    assert.equal(t.discountCode, null);
+    assert.equal(t.total, 5400);
+  });
+
+  it("gives a larger code, never both", () => {
+    const t = totals([{ sku: "NFF-CHK-WHL-35-39", qty: 2 }], ["friends"],
+      { code: { code: "TEN", off: 10 } });
+
+    assert.equal(t.discountAmount, 1000);
+    assert.equal(t.discountCode, "TEN");
+    assert.equal(t.discountPerk, undefined);
+    assert.equal(t.deliveryFee, 0, "free delivery goes with it");
+    assert.equal(t.total, 5000);
+  });
+
   it("gives nothing off an item with no amount", () => {
     const t = totals([{ sku: "NFF-CHK-EGG-SM", qty: 3 }], ["friends"]);
 

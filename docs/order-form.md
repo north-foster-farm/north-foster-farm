@@ -278,9 +278,11 @@ command reads the record. `free-delivery` waives the delivery fee and
 the outside-area fee as a fee pass does (`totals.feeWaived`), and
 `minimum-waived` lets a delivery under the minimum through
 (`flags.minimumWaived`). A pass is held and used up only for what the
-perks leave. `totals.perks` names the perks an order was priced with,
-and a change to the order keeps them, whatever the customer holds by
-then. A perk past its end day stops applying by itself.
+perks leave. `totals.perks` names the perks an order was priced with.
+A change to the order keeps only those the customer still holds on
+the day of the change: one removed or ended since stops applying, and
+one granted since is not gained (security review, 2026-10-29). A perk
+past its end day stops applying by itself.
 
 `friends` and `family` also lift the fee and the minimum, and each
 brings a discount that competes with the rest (James, 2026-10-29): the

@@ -266,6 +266,56 @@ export const completeOrder = async (squareOrderId) => {
 // been paid gets its own tenders.
 const UNPAID = "order-get-line-discount";
 
+// An order with an order-scope discount or a service charge starts from
+// the recording of one (a family order's whole-order discount and its
+// $0 delivery, #514).
+const WHOLE = "order-get-discount-fee-zero";
+
+// Each discount and service charge as Square lists it, from the
+// recording of one of its kind, with the built order's values put in.
+// Square leaves the key out when there are none.
+const discountsOf = (built) => (built.discounts || []).map((d, i) => {
+  const [shape] = answer(d.scope === "LINE_ITEM" ? UNPAID : WHOLE)
+    .response.order.discounts;
+
+  return {
+    ...shape, uid: d.uid || `discount-${i}`, name: d.name,
+    amount_money: { ...shape.amount_money, ...d.amount_money },
+    applied_money: { ...shape.applied_money, ...d.amount_money },
+    scope: d.scope,
+  };
+});
+
+const chargesOf = (built) => (built.service_charges || []).map((c, i) => {
+  const [shape] = answer(WHOLE).response.order.service_charges;
+
+  return {
+    ...shape, uid: `service-charge-${i}`, name: c.name,
+    amount_money: { ...shape.amount_money, ...c.amount_money },
+    applied_money: { ...shape.applied_money, ...c.amount_money },
+    total_money: { ...shape.total_money, ...c.amount_money },
+    calculation_phase: c.calculation_phase, taxable: c.taxable,
+  };
+});
+
+const orderTemplate = (built, paid) => {
+  if (paid) return "order-get-paid";
+
+  return built.service_charges
+    || (built.discounts || []).some((d) => d.scope === "ORDER")
+    ? WHOLE : UNPAID;
+};
+
+// A recorded order without its own discounts and service charges.
+const bareOrder = (name) => {
+  const order = answer(name).response.order;
+
+  delete order.discounts;
+  delete order.service_charges;
+
+  return order;
+};
+
 export const getOrder = async (squareOrderId) => {
   const known = memory.orders.get(squareOrderId);
 
@@ -276,8 +326,9 @@ export const getOrder = async (squareOrderId) => {
 
   const paid = [...memory.payments.values()]
     .filter((p) => p.payment.order_id === squareOrderId);
-  const order = answer(paid.length ? "order-get-paid" : UNPAID)
-    .response.order;
+  const order = bareOrder(orderTemplate(known.built, paid.length > 0));
+  const madeDiscounts = discountsOf(known.built);
+  const madeCharges = chargesOf(known.built);
 
   return {
     ...order,
@@ -287,6 +338,8 @@ export const getOrder = async (squareOrderId) => {
       .map((line, i) => ({ uid: `line-${i}`, ...line })),
     fulfillments: (known.built.fulfillments || [])
       .map((f, i) => ({ uid: `fulfillment-${i}`, ...f })),
+    ...madeDiscounts.length && { discounts: madeDiscounts },
+    ...madeCharges.length && { service_charges: madeCharges },
     total_money: { ...order.total_money, amount: known.total },
     ...paid.length && {
       tenders: paid.map((p) => ({
