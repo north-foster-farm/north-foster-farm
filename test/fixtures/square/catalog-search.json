@@ -1,0 +1,50 @@
+{
+  "_source": {
+    "service": "square",
+    "environment": "sandbox",
+    "recorded": "2026-10-29",
+    "squareVersion": "2026-09-16",
+    "by": "bin/fixtures/record, scrubbed by bin/fixtures/scrub"
+  },
+  "status": 200,
+  "request": {
+    "method": "POST",
+    "path": "/v2/catalog/search",
+    "headers": {
+      "Square-Version": "2026-09-16",
+      "Content-Type": "application/json"
+    },
+    "body": {
+      "object_types": [
+        "ITEM_VARIATION"
+      ],
+      "limit": 10
+    }
+  },
+  "response": {
+    "objects": [
+      {
+        "type": "ITEM_VARIATION",
+        "id": "CATALOG_OBJECT_ID_1",
+        "updated_at": "2026-09-19T23:48:02.671Z",
+        "created_at": "2026-09-19T23:48:02.714Z",
+        "version": 1789861682671,
+        "is_deleted": false,
+        "present_at_all_locations": true,
+        "item_variation_data": {
+          "item_id": "ITEM_ID_1",
+          "name": "each",
+          "ordinal": 0,
+          "pricing_type": "FIXED_PRICING",
+          "price_money": {
+            "amount": 1000,
+            "currency": "USD"
+          },
+          "sellable": true,
+          "stockable": true
+        }
+      }
+    ],
+    "latest_time": "2026-10-27T22:15:43.477Z"
+  }
+}

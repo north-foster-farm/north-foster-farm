@@ -1,0 +1,35 @@
+{
+  "_source": {
+    "service": "square",
+    "environment": "sandbox",
+    "recorded": "2026-10-29",
+    "squareVersion": "2026-09-16",
+    "by": "bin/fixtures/record, scrubbed by bin/fixtures/scrub"
+  },
+  "status": 400,
+  "request": {
+    "method": "PUT",
+    "path": "/v2/orders/ORDER_ID_10",
+    "headers": {
+      "Square-Version": "2026-09-16",
+      "Content-Type": "application/json"
+    },
+    "body": {
+      "order": {
+        "location_id": "LOCATION_ID_1",
+        "version": 1,
+        "state": "CANCELED"
+      }
+    }
+  },
+  "response": {
+    "errors": [
+      {
+        "code": "INVALID_VALUE",
+        "detail": "All fulfillments must have a state of COMPLETED, CANCELED, or FAILED for an order to be able to have a state of CANCELED.",
+        "field": "order.fulfillments[0]",
+        "category": "INVALID_REQUEST_ERROR"
+      }
+    ]
+  }
+}

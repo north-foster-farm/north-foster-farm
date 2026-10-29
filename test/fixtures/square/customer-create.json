@@ -1,0 +1,43 @@
+{
+  "_source": {
+    "service": "square",
+    "environment": "sandbox",
+    "recorded": "2026-10-29",
+    "squareVersion": "2026-09-16",
+    "by": "bin/fixtures/record, scrubbed by bin/fixtures/scrub"
+  },
+  "status": 200,
+  "request": {
+    "method": "POST",
+    "path": "/v2/customers",
+    "headers": {
+      "Square-Version": "2026-09-16",
+      "Content-Type": "application/json"
+    },
+    "body": {
+      "idempotency_key": "IDEMPOTENCY_KEY_1",
+      "given_name": "Given",
+      "family_name": "Family",
+      "email_address": "customer@example.com",
+      "phone_number": "+15555550100",
+      "reference_id": "NFF-2610-FIXT"
+    }
+  },
+  "response": {
+    "customer": {
+      "id": "CUSTOMER_ID_1",
+      "created_at": "2026-10-29T23:06:39.44Z",
+      "updated_at": "2026-10-29T23:06:39Z",
+      "given_name": "Given",
+      "family_name": "Family",
+      "email_address": "customer@example.com",
+      "phone_number": "+15555550100",
+      "reference_id": "NFF-2610-FIXT",
+      "preferences": {
+        "email_unsubscribed": false
+      },
+      "creation_source": "THIRD_PARTY",
+      "version": 0
+    }
+  }
+}

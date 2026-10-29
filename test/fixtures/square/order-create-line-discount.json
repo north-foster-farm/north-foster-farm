@@ -1,0 +1,231 @@
+{
+  "_source": {
+    "service": "square",
+    "environment": "sandbox",
+    "recorded": "2026-10-29",
+    "squareVersion": "2026-09-16",
+    "by": "bin/fixtures/record, scrubbed by bin/fixtures/scrub"
+  },
+  "status": 200,
+  "request": {
+    "method": "POST",
+    "path": "/v2/orders",
+    "headers": {
+      "Square-Version": "2026-09-16",
+      "Content-Type": "application/json"
+    },
+    "body": {
+      "idempotency_key": "IDEMPOTENCY_KEY_24",
+      "order": {
+        "location_id": "LOCATION_ID_1",
+        "reference_id": "NFF-2610-FIXT",
+        "source": {
+          "name": "northfosterfarm.com v1.0"
+        },
+        "metadata": {
+          "site_version": "1.0.0",
+          "order_flow": "order-page"
+        },
+        "customer_id": "CUSTOMER_ID_1",
+        "line_items": [
+          {
+            "name": "Whole Chicken (per each), 3.5 - 3.9 lbs",
+            "quantity": "2",
+            "base_price_money": {
+              "amount": 3000,
+              "currency": "USD"
+            },
+            "applied_discounts": [
+              {
+                "discount_uid": "APPLIED_DISCOUNT_UID_9"
+              }
+            ]
+          }
+        ],
+        "fulfillments": [
+          {
+            "type": "PICKUP",
+            "state": "PROPOSED",
+            "pickup_details": {
+              "recipient": {
+                "display_name": "Display Name",
+                "email_address": "customer@example.com",
+                "phone_number": "+15555550100"
+              },
+              "schedule_type": "SCHEDULED",
+              "pickup_at": "2026-11-05T14:00:00.000Z",
+              "note": "On-farm pickup · prefers text · pickup 9 AM – noon · heard via Fixture recorder"
+            }
+          }
+        ],
+        "discounts": [
+          {
+            "uid": "APPLIED_DISCOUNT_UID_9",
+            "name": "Member price",
+            "amount_money": {
+              "amount": 600,
+              "currency": "USD"
+            },
+            "scope": "LINE_ITEM"
+          }
+        ]
+      }
+    }
+  },
+  "response": {
+    "order": {
+      "id": "ORDER_ID_8",
+      "location_id": "LOCATION_ID_1",
+      "line_items": [
+        {
+          "uid": "LINE_ITEM_UID_7",
+          "quantity": "2",
+          "name": "Whole Chicken (per each), 3.5 - 3.9 lbs",
+          "base_price_money": {
+            "amount": 3000,
+            "currency": "USD"
+          },
+          "gross_sales_money": {
+            "amount": 6000,
+            "currency": "USD"
+          },
+          "total_tax_money": {
+            "amount": 0,
+            "currency": "USD"
+          },
+          "total_discount_money": {
+            "amount": 600,
+            "currency": "USD"
+          },
+          "total_money": {
+            "amount": 5400,
+            "currency": "USD"
+          },
+          "variation_total_price_money": {
+            "amount": 6000,
+            "currency": "USD"
+          },
+          "applied_discounts": [
+            {
+              "uid": "APPLIED_DISCOUNT_UID_10",
+              "discount_uid": "APPLIED_DISCOUNT_UID_9",
+              "applied_money": {
+                "amount": 600,
+                "currency": "USD"
+              }
+            }
+          ],
+          "item_type": "ITEM",
+          "total_service_charge_money": {
+            "amount": 0,
+            "currency": "USD"
+          },
+          "total_card_surcharge_money": {
+            "amount": 0,
+            "currency": "USD"
+          }
+        }
+      ],
+      "discounts": [
+        {
+          "uid": "APPLIED_DISCOUNT_UID_9",
+          "name": "Member price",
+          "amount_money": {
+            "amount": 600,
+            "currency": "USD"
+          },
+          "applied_money": {
+            "amount": 600,
+            "currency": "USD"
+          },
+          "type": "FIXED_AMOUNT",
+          "scope": "LINE_ITEM"
+        }
+      ],
+      "fulfillments": [
+        {
+          "uid": "FULFILLMENT_UID_6",
+          "type": "PICKUP",
+          "state": "PROPOSED",
+          "pickup_details": {
+            "pickup_at": "2026-11-05T14:00:00.000Z",
+            "note": "On-farm pickup · prefers text · pickup 9 AM – noon · heard via Fixture recorder",
+            "schedule_type": "SCHEDULED",
+            "recipient": {
+              "display_name": "Display Name",
+              "email_address": "customer@example.com",
+              "phone_number": "+15555550100"
+            }
+          }
+        }
+      ],
+      "metadata": {
+        "order_flow": "order-page",
+        "site_version": "1.0.0"
+      },
+      "created_at": "2026-10-29T23:07:07.756Z",
+      "updated_at": "2026-10-29T23:07:07.756Z",
+      "state": "OPEN",
+      "version": 1,
+      "reference_id": "NFF-2610-FIXT",
+      "total_tax_money": {
+        "amount": 0,
+        "currency": "USD"
+      },
+      "total_discount_money": {
+        "amount": 600,
+        "currency": "USD"
+      },
+      "total_tip_money": {
+        "amount": 0,
+        "currency": "USD"
+      },
+      "total_money": {
+        "amount": 5400,
+        "currency": "USD"
+      },
+      "total_service_charge_money": {
+        "amount": 0,
+        "currency": "USD"
+      },
+      "net_amounts": {
+        "total_money": {
+          "amount": 5400,
+          "currency": "USD"
+        },
+        "tax_money": {
+          "amount": 0,
+          "currency": "USD"
+        },
+        "discount_money": {
+          "amount": 600,
+          "currency": "USD"
+        },
+        "tip_money": {
+          "amount": 0,
+          "currency": "USD"
+        },
+        "service_charge_money": {
+          "amount": 0,
+          "currency": "USD"
+        },
+        "card_surcharge_money": {
+          "amount": 0,
+          "currency": "USD"
+        }
+      },
+      "source": {
+        "name": "northfosterfarm.com v1.0"
+      },
+      "customer_id": "CUSTOMER_ID_1",
+      "net_amount_due_money": {
+        "amount": 5400,
+        "currency": "USD"
+      },
+      "total_card_surcharge_money": {
+        "amount": 0,
+        "currency": "USD"
+      }
+    }
+  }
+}

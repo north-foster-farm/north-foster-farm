@@ -1,0 +1,132 @@
+{
+  "_source": {
+    "service": "square",
+    "environment": "sandbox",
+    "recorded": "2026-10-29",
+    "squareVersion": "2026-09-16",
+    "by": "bin/fixtures/record, scrubbed by bin/fixtures/scrub"
+  },
+  "status": 200,
+  "request": {
+    "method": "GET",
+    "path": "/v2/orders/ORDER_ID_7",
+    "headers": {
+      "Square-Version": "2026-09-16"
+    },
+    "body": null
+  },
+  "response": {
+    "order": {
+      "id": "ORDER_ID_7",
+      "location_id": "LOCATION_ID_1",
+      "line_items": [
+        {
+          "uid": "LINE_ITEM_UID_6",
+          "quantity": "1",
+          "name": "Changes to order NFF-2610-FIXT",
+          "base_price_money": {
+            "amount": 0,
+            "currency": "USD"
+          },
+          "gross_sales_money": {
+            "amount": 0,
+            "currency": "USD"
+          },
+          "total_tax_money": {
+            "amount": 0,
+            "currency": "USD"
+          },
+          "total_discount_money": {
+            "amount": 0,
+            "currency": "USD"
+          },
+          "total_money": {
+            "amount": 0,
+            "currency": "USD"
+          },
+          "variation_total_price_money": {
+            "amount": 0,
+            "currency": "USD"
+          },
+          "item_type": "ITEM",
+          "total_service_charge_money": {
+            "amount": 0,
+            "currency": "USD"
+          },
+          "total_card_surcharge_money": {
+            "amount": 0,
+            "currency": "USD"
+          }
+        }
+      ],
+      "metadata": {
+        "order_flow": "order-page",
+        "site_version": "1.0.0"
+      },
+      "created_at": "2026-10-29T23:07:05.482Z",
+      "updated_at": "2026-10-29T23:07:06.673Z",
+      "state": "COMPLETED",
+      "version": 2,
+      "reference_id": "NFF-2610-FIXT",
+      "total_tax_money": {
+        "amount": 0,
+        "currency": "USD"
+      },
+      "total_discount_money": {
+        "amount": 0,
+        "currency": "USD"
+      },
+      "total_tip_money": {
+        "amount": 0,
+        "currency": "USD"
+      },
+      "total_money": {
+        "amount": 0,
+        "currency": "USD"
+      },
+      "closed_at": "2026-10-29T23:07:06.777Z",
+      "total_service_charge_money": {
+        "amount": 0,
+        "currency": "USD"
+      },
+      "net_amounts": {
+        "total_money": {
+          "amount": 0,
+          "currency": "USD"
+        },
+        "tax_money": {
+          "amount": 0,
+          "currency": "USD"
+        },
+        "discount_money": {
+          "amount": 0,
+          "currency": "USD"
+        },
+        "tip_money": {
+          "amount": 0,
+          "currency": "USD"
+        },
+        "service_charge_money": {
+          "amount": 0,
+          "currency": "USD"
+        },
+        "card_surcharge_money": {
+          "amount": 0,
+          "currency": "USD"
+        }
+      },
+      "source": {
+        "name": "northfosterfarm.com v1.0"
+      },
+      "customer_id": "CUSTOMER_ID_1",
+      "net_amount_due_money": {
+        "amount": 0,
+        "currency": "USD"
+      },
+      "total_card_surcharge_money": {
+        "amount": 0,
+        "currency": "USD"
+      }
+    }
+  }
+}
