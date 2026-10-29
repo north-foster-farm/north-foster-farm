@@ -12,7 +12,9 @@ import {
   adjust, getCounts, hiddenCounts, hiddenInStock, setCount,
 } from "./stock.mjs";
 import { normalizeEmail, validEmail } from "./auth.mjs";
-import { deleteAuth, putAuth } from "./auth-records.mjs";
+import {
+  authRecordsFor, deleteAuth, putAuth,
+} from "./auth-records.mjs";
 import { company } from "./company.mjs";
 import { DELIVERING } from "./health.mjs";
 import { completeInSquare } from "./complete.mjs";
@@ -295,17 +297,9 @@ export const renameCustomer = async (stores, from, to, {
   }
 
   const orders = await ordersFor(stores, old);
-  const auth = [];
-
-  for (const prefix of ["session/", "token/", "unsub/", "news/"]) {
-    for (const { key } of await stores.auth.list(prefix)) {
-      const value = await stores.auth.get(key);
-      const forOld = value && (normalizeEmail(value.email) === old
-        || (value.changeFrom && normalizeEmail(value.changeFrom) === old));
-
-      if (forOld) auth.push({ key, value });
-    }
-  }
+  // Its sessions and links, from its index alone (#508): each names
+  // the old address as its email or, a change link, as changeFrom.
+  const auth = await authRecordsFor(stores, old);
 
   const support = await stores.customers.list(`support/${old}/`);
   const count = (prefix) => auth.filter((a) => a.key.startsWith(prefix))

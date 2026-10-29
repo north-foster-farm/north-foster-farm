@@ -14,7 +14,9 @@
 import { createHash, randomBytes } from "node:crypto";
 
 import { normalizeEmail, validEmail } from "./auth.mjs";
-import { deleteAuth, putAuth } from "./auth-records.mjs";
+import {
+  authRecordsFor, deleteAuth, putAuth,
+} from "./auth-records.mjs";
 import { now as clock, real } from "./clock.mjs";
 import { log } from "./log.mjs";
 import { sendMail } from "./mail.mjs";
@@ -678,12 +680,10 @@ export const removeImported = async (stores, email, {
   if (dryRun || report.outcome === "none") return report;
 
   if (report.outcome === "deleted") {
-    for (const { key } of await stores.auth.list("unsub/")) {
-      const link = await stores.auth.get(key);
-
-      if (link && normalizeEmail(link.email) === address) {
-        await deleteAuth(stores, key, link);
-      }
+    for (const { key, value } of await authRecordsFor(stores, address, {
+      prefixes: ["unsub/"],
+    })) {
+      await deleteAuth(stores, key, value);
     }
     await deleteCustomer(stores, address);
   } else {

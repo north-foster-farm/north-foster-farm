@@ -11,7 +11,7 @@ import {
   fieldError,
 } from "../../../assets/scripts/utils/field-errors.mjs";
 import { renameCustomer } from "./admin.mjs";
-import { deleteAuth } from "./auth-records.mjs";
+import { authRecordsFor, deleteAuth } from "./auth-records.mjs";
 import {
   LINK_WINDOW, LINKS_PER_WINDOW, hit, normalizeEmail, requestLink,
   validEmail,
@@ -40,14 +40,15 @@ const TOO_MANY = refuse("We've sent you as many links as we can for " +
 
 // Voids any change token still waiting for `from` (a stale one from an
 // earlier request, or one made moot by the move it's about to send),
-// so at most one can ever be followed.
-const voidChangeTokens = async (stores, from) => {
-  for (const { key } of await stores.auth.list("token/")) {
-    const value = await stores.auth.get(key);
-    const stale = value && value.changeFrom
-      && normalizeEmail(value.changeFrom) === from;
+// so at most one can ever be followed. Only `from`'s own links are
+// read, from its index (#508).
+export const voidChangeTokens = async (stores, from) => {
+  const links = await authRecordsFor(stores, from, { prefixes: ["token/"] });
 
-    if (stale) await deleteAuth(stores, key, value);
+  for (const { key, value } of links) {
+    if (value.changeFrom && normalizeEmail(value.changeFrom) === from) {
+      await deleteAuth(stores, key, value);
+    }
   }
 };
 
