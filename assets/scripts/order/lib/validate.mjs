@@ -6,6 +6,7 @@ import { archived } from "./catalog.mjs";
 import { datesFor, occurrenceFor } from "./dates.mjs";
 import { legacyOccurrence } from "./events.mjs";
 import { moneyOn } from "./money-on.mjs";
+import { perkEffects } from "./perks.mjs";
 import { computeTotals, meetsMinimum } from "./totals.mjs";
 import { today } from "./zoned.mjs";
 import {
@@ -101,10 +102,15 @@ export const findCode = (value, codes) => {
 // `credit` is the member's credit in cents (lib/credit.mjs), which the
 // caller has read for the signed-in customer; the totals take as much
 // of it as the order needs, and `total` is then the money due.
+// `perks` is the customer's perk types in force (#514), never the
+// payload's: like `group`, the server reads them from the signed-in
+// account, or the farm's command from the record. One that lifts the
+// minimum lets a delivery under it through, as a pass does, and the
+// totals take the rest.
 export const validateOrder = (payload, {
   index, terms, now, group, codes, code, lock = null, deliverTo = null,
   credit = 0, schedule = [], held = {}, waive = {}, placed = null,
-  farm = false, kept = null,
+  farm = false, kept = null, perks = [],
 }) => {
   const errors = {};
   const p = payload && typeof payload === "object" ? payload : {};
@@ -220,8 +226,9 @@ export const validateOrder = (payload, {
     : null;
   const totals = computeTotals({
     lines, method, index, money, group, code: discountCode, lock,
-    zipStatus, waiveFee: !!waive.fee, credit,
+    zipStatus, waiveFee: !!waive.fee, credit, perks,
   });
+  const waiveMinimum = !!waive.minimum || perkEffects(perks).minimum;
   const out = {
     customer: {
       firstName, lastName, name, email, phone, contact, marketing,
@@ -247,7 +254,7 @@ export const validateOrder = (payload, {
     const f = where;
 
     // A pass is used only when the order needs it.
-    if (!meetsMinimum(totals, money) && waive.minimum) {
+    if (!meetsMinimum(totals, money) && waiveMinimum) {
       out.minimumWaived = true;
     } else if (!meetsMinimum(totals, money)) {
       errors["delivery.minimum"] =

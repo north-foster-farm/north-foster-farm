@@ -27,6 +27,11 @@ import {
   emailChangeLink, groupJoinLink, magicLink,
 } from "./templates.mjs";
 import accounts from "../../../data/accounts.json" with { type: "json" };
+import terms from "../../../data/delivery.json" with { type: "json" };
+import {
+  activePerks, publicPerk,
+} from "../../../assets/scripts/order/lib/perks.mjs";
+import { today } from "../../../assets/scripts/order/lib/zoned.mjs";
 
 const MINUTE = 60_000;
 
@@ -373,7 +378,7 @@ const nameParts = (customer) => {
   return [first || "", rest.join(" ")];
 };
 
-export const publicCustomer = (customer) => ({
+export const publicCustomer = (customer, now = clock()) => ({
   email: customer.email,
   name: customer.name || "",
   firstName: nameParts(customer)[0],
@@ -381,6 +386,10 @@ export const publicCustomer = (customer) => ({
   phone: customer.phone || "",
   avatar: customer.avatar || null,
   discountGroup: customer.discountGroup || null,
+  // The perks in force today (#514), so the order page prices with
+  // them and the account page names them. The server reads them again
+  // from the record; nothing here is trusted back.
+  perks: activePerks(customer, today(now, terms.timeZone)).map(publicPerk),
   // A buying group's key (#471), so the order page asks /api/group for
   // the group's pickup and prices with no code.
   memberGroup: customer.memberGroup && typeof customer.memberGroup === "object"

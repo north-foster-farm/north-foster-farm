@@ -5,6 +5,7 @@ import {
   draftOccurrence, dropSeriesCode, fulfilmentDate, whereLine,
 } from "./lib/scheduled.mjs";
 import { groupFromQuery, withPlaces } from "./lib/group.mjs";
+import { perkEffects } from "./lib/perks.mjs";
 import { linkedMethod, withoutParam } from "./lib/query.mjs";
 import { sentence } from "./lib/sentence.mjs";
 import { summarize } from "./lib/summary.mjs";
@@ -208,6 +209,9 @@ export class OrderForm {
     // The signed-in customer's discount group, from /api/me. The server
     // applies it again from the session; this only shows it.
     this.group = null;
+    // The signed-in customer's perks (#514), from /api/me: [{ type,
+    // start, end }]. The server reads them again from the record.
+    this.perks = [];
     // Whether /api/me said so: the thank-you card then leaves out the
     // line about the account the order made (#114).
     this.isSignedIn = false;
@@ -289,6 +293,14 @@ export class OrderForm {
       this.group = group;
       this.refresh();
     }
+
+    const perks = Array.isArray(who.customer.perks) ? who.customer.perks : [];
+
+    if (perks.length) {
+      this.perks = perks;
+      this.cart.setPerks(perks);
+      this.refresh();
+    }
     // A buying group's member (#471) needs no code: the account's
     // group is asked for, and its pickup and prices follow.
     if (who.customer.memberGroup && !this.member && !this.editing) {
@@ -358,6 +370,8 @@ export class OrderForm {
     if (who && who.signedIn === false) forget();
 
     this.group = customer.discountGroup || null;
+    this.perks = ((order.totals && order.totals.perks) || [])
+      .map((type) => ({ type }));
     this.pass = order.pass || null;
     this.passFee = !!(order.pass && order.passWaivesFee);
 
@@ -908,6 +922,7 @@ export class OrderForm {
       zipStatus: this.zipStatus(),
       waiveFee: !!this.pass && this.passFee,
       credit: this.editing ? 0 : this.credit,
+      perks: this.perkTypes(),
     });
   }
 
@@ -1198,10 +1213,17 @@ export class OrderForm {
     this.draft.save(this.collect());
   }
 
-  // The money rules the page holds the order to: a pass lifts the
-  // delivery minimum, and nothing else.
+  // The money rules the page holds the order to: a pass or a perk
+  // (#514) lifts the delivery minimum, and nothing else.
   rules() {
-    return this.pass ? { ...this.money, deliveryMinimum: 0 } : this.money;
+    return this.pass || perkEffects(this.perkTypes()).minimum
+      ? { ...this.money, deliveryMinimum: 0 } : this.money;
+  }
+
+  // The signed-in customer's perk types (#514), from /api/me; while
+  // changing an order, the ones it was priced with.
+  perkTypes() {
+    return this.perks.map((p) => p.type);
   }
 
 
@@ -1738,6 +1760,7 @@ export class OrderForm {
       deliverTo: this.groupPlace(),
       credit: this.editing ? 0 : this.credit,
       waive: { minimum: !!this.pass, fee: !!this.pass && this.passFee },
+      perks: this.perkTypes(),
     });
   }
 

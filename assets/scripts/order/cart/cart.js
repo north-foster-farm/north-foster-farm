@@ -13,6 +13,7 @@ import Tooltip from "bootstrap/js/dist/tooltip.js";
 import { celebrate } from "../celebrate.js";
 import { ringsCart } from "../lib/cart-scroll.mjs";
 import { packLabel } from "../lib/catalog.mjs";
+import { perkSentence } from "../lib/perks.mjs";
 import { awayFrom } from "../lib/share-away.mjs";
 import { dollars } from "../lib/totals.mjs";
 import { label } from "../lib/zoned.mjs";
@@ -592,6 +593,16 @@ export class Cart {
   // lapses.
   keepOpen() {
     if (this.teaching) this.teaching.keep();
+  }
+
+  // The signed-in customer's perks (#514), each as its sentence: what
+  // the totals already apply, said so the customer knows why.
+  setPerks(perks) {
+    const note = qs(this.root, "[data-cart-perks]");
+
+    if (!note) return;
+    note.textContent = perks.map(perkSentence).join(" ");
+    note.hidden = !perks.length;
   }
 
   // The outcome of a code the form applied: `text` and `tone` for the
