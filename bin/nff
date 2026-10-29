@@ -228,6 +228,24 @@ const USAGE = `Usage:
                                       $0 too (Square gets a $0 charge)
   bin/nff passes list
   bin/nff passes revoke <code>
+  bin/nff perks add <email> <type> [--start YYYY-MM-DD] [--end YYYY-MM-DD]
+                    [--owner]
+                                      a perk on the customer's record
+                                      (#514), applied to every order of
+                                      theirs, signed in or made by the
+                                      farm: free-delivery,
+                                      minimum-waived, friends (Friends
+                                      and Fam amounts off, free delivery,
+                                      no minimum) or family (nothing to
+                                      pay; James only, with --owner).
+                                      --end is the last day it applies;
+                                      without it the perk lasts until
+                                      removed. Makes the record of a
+                                      customer who has never ordered
+                                      online. Logged
+  bin/nff perks list [<email>]        every perk and its state: active,
+                                      future, ended or removed
+  bin/nff perks remove <email> <type> ends the perk today, logged
   bin/nff groups list                 the buying groups (#471) and
                                       whether each has a code
   bin/nff groups show <key>           the group, its code, the link
@@ -574,6 +592,7 @@ const [
   backup,
   maintenance,
   passes,
+  perks,
   square,
   { checkRefunds },
   { applyAmend, planAmend },
@@ -605,6 +624,7 @@ const [
   import("../netlify/functions/lib/backup.mjs"),
   import("../netlify/functions/lib/maintenance.mjs"),
   import("../netlify/functions/lib/passes.mjs"),
+  import("../netlify/functions/lib/perks.mjs"),
   import("../netlify/functions/lib/square-pause.mjs"),
   import("../netlify/functions/lib/settle.mjs"),
   import("../netlify/functions/lib/amend.mjs"),
@@ -649,7 +669,7 @@ const VALUED = ["reason", "amount", "note", "at", "until", "n", "since",
   "date", "window", "phone", "contact", "address1", "address2", "town",
   "zip", "cooler", "gate", "delivery-notes", "notes", "key", "site",
   "market", "captured-by", "evidence", "first", "last", "line", "code",
-  "occurrence", "paid", "ref", "preview", "set"];
+  "occurrence", "paid", "ref", "preview", "set", "start", "end"];
 // Flags given more than once keep every value, in order: `--line`.
 const REPEATED = ["line"];
 const args = process.argv.slice(2);
@@ -1799,6 +1819,35 @@ const run = async () => {
   }
   case "passes revoke":
     return out(`Revoked ${(await passes.revokePass(stores, rest[0])).code}.`);
+  case "perks add": {
+    const r = await perks.addPerk(stores, rest[0], rest[1], {
+      start: flags.start || null, end: flags.end || null,
+      by: userInfo().username, owner: flagOn(flags.owner),
+    });
+
+    return out(`Added ${r.perk.type} for ${rest[0]}, from ${r.perk.start}${
+      r.perk.end ? ` through ${r.perk.end}` : " until removed"}${
+      r.made ? ". Made their customer record" : ""}.`);
+  }
+  case "perks list": {
+    const list = await perks.listPerks(stores, { email: rest[0] || null });
+
+    for (const p of list) {
+      out(`${p.email}  ${p.type}  ${p.state}  ${p.start || "-"} to ${
+        p.end || "open"}  set by ${p.setBy}${
+        p.removedAt ? `, removed ${p.removedAt.slice(0, 10)}` : ""}`);
+    }
+    if (!list.length) out("No perks.");
+
+    return undefined;
+  }
+  case "perks remove": {
+    const r = await perks.removePerk(stores, rest[0], rest[1], {
+      by: userInfo().username,
+    });
+
+    return out(`Removed ${r.perk.type} for ${rest[0]}.`);
+  }
   // Buying groups (#471). The code is the group's only secret: it is
   // printed here and nowhere public. `show` prints the host's email
   // too, so keep the output off GitHub.
