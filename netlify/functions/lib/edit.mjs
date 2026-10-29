@@ -52,6 +52,7 @@ import { now as clock } from "./clock.mjs";
 import { log } from "./log.mjs";
 import { sendMail } from "./mail.mjs";
 import { notifyFarm, sendForOrder } from "./payments.mjs";
+import { perkTypes } from "./perks.mjs";
 import { pickupSchedule } from "./pickups.mjs";
 import * as paypalApi from "./paypal.mjs";
 import { DECLINE_MESSAGES as PAYPAL_DECLINES } from "./paypal.mjs";
@@ -183,6 +184,15 @@ export const planEdit = async (stores, order, body, {
   const offered = await buyingFor(stores, order);
   const locked = lockGroupOf(order, offered);
   const buying = farm ? locked : offered;
+  // The perks it was priced with (#514) that the customer still holds
+  // today: a change never gains a perk granted since, and one removed
+  // or ended since stops applying, so items added to an old family
+  // order are not free.
+  const email = order.customer && order.customer.email;
+  const holder = email ? await getCustomer(stores, email) : null;
+  const held = holder ? perkTypes(holder, now) : [];
+  const perks = ((order.totals && order.totals.perks) || [])
+    .filter((type) => held.includes(type));
 
   // An order placed with a pass (#182) keeps its waiver through every
   // change, the fee's too if the pass waives it; the pass is already
@@ -203,9 +213,7 @@ export const planEdit = async (stores, order, body, {
       minimum: !!order.pass,
       fee: !!order.passWaivesFee,
     },
-    // And with the perks it was priced with (#514), whatever the
-    // customer holds now, so a change never reprices an order.
-    perks: (order.totals && order.totals.perks) || [],
+    perks,
   });
 
   if (!result.ok) {

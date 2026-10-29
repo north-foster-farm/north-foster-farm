@@ -296,7 +296,9 @@ export class OrderForm {
 
     const perks = Array.isArray(who.customer.perks) ? who.customer.perks : [];
 
-    if (perks.length) {
+    // A change keeps the perks its order was priced with (startEdit), so
+    // the account's own are not laid over them.
+    if (!this.editing && (perks.length || this.perks.length)) {
       this.perks = perks;
       this.cart.setPerks(perks);
       this.refresh();
@@ -370,7 +372,14 @@ export class OrderForm {
     if (who && who.signedIn === false) forget();
 
     this.group = customer.discountGroup || null;
+    // The perks the order was priced with that the account still holds,
+    // as the server prices the change (lib/edit.mjs). With no answer
+    // from /api/me, those of the order; the server has the last word.
+    const holds = Array.isArray(customer.perks)
+      ? customer.perks.map((p) => p.type) : null;
+
     this.perks = ((order.totals && order.totals.perks) || [])
+      .filter((type) => !holds || holds.includes(type))
       .map((type) => ({ type }));
     this.pass = order.pass || null;
     this.passFee = !!(order.pass && order.passWaivesFee);
