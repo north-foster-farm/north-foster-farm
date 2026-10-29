@@ -13,6 +13,7 @@
           "name": "Eggs, Large",
           "price": 7,
           "inStock": true,
+          "alwaysInStock": true,
           "squareVariationId": "S7XJNPQUKY6JSYQOEYSL6FYS",
           "restock": "soon"
         },
