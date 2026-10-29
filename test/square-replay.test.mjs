@@ -194,17 +194,6 @@ describe("createPayment", () => {
       rec("payment-card-ok").request.body.amount_money.amount);
   });
 
-  // FINDING (recorded 2026-10-29): Square takes a card payment on a
-  // cancelled order. Nothing downstream may count on Square refusing it.
-  it("reads the payment Square took on a cancelled order", async () => {
-    const taken = rec("payment-order-canceled");
-    const result = await replay(["payment-order-canceled"],
-      pay("payment-order-canceled", { sourceId: "cnon:card-nonce-ok" }));
-
-    assert.equal(taken.status, 200);
-    assert.equal(result.squarePaymentId, taken.response.payment.id);
-  });
-
   it("reads a Venmo payment recorded as an external tender", async () => {
     const result = await replay(["payment-external"], pay("payment-external",
       { external: { source: "Venmo", sourceId: "FIXTURE-VENMO-1",
@@ -241,7 +230,7 @@ describe("createPayment", () => {
   }
 
   for (const name of [
-    "payment-key-reused", "payment-already-paid",
+    "payment-key-reused", "payment-already-paid", "payment-order-canceled",
     "payment-zero-amount", "payment-zero-order", "payment-over-total",
   ]) {
     it(`${name}: is our problem, not the card's`, async () => {

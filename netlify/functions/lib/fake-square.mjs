@@ -9,11 +9,11 @@
 // It remembers what it has been told, in this process (forgetFake()
 // clears it): the totals Square would work out for each order, what
 // has been paid and refunded, the keys it has seen. So it refuses what
-// Square refuses (a payment over the order's total, or on a paid order,
-// or for nothing; a refund over what is left; a payment key reused with
-// another body) by throwing the recorded refusal, and takes what Square
-// takes (a payment on a cancelled order; an order key reused with
-// another body, which answers with the first order). Ids come
+// Square refuses (a payment off the order's total, or on a paid or a
+// cancelled order, or for nothing; a refund over what is left; a payment
+// key reused with another body) by throwing the recorded refusal, and
+// takes what Square takes (an order key reused with another body, which
+// answers with the first order). Ids come
 // from the idempotency key, so a retry returns what the first try made,
 // even in a process that remembers nothing.
 //
@@ -193,9 +193,11 @@ export const createPayment = async ({
     throw refusal(known && known.total === 0
       ? "payment-zero-order" : "payment-zero-amount", path);
   }
-  // Square takes a payment on a cancelled order (payment-order-canceled
-  // .json is a 200), so the fake does too; site code must not rely on
-  // Square to refuse it.
+  // Square refuses a payment on a cancelled order: "The order must be
+  // OPEN to be paid" (payment-order-canceled.json).
+  if (known && known.state === "CANCELED") {
+    throw refusal("payment-order-canceled", path);
+  }
   if (known && known.paid >= known.total) {
     throw refusal("payment-already-paid", path);
   }

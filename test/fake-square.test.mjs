@@ -125,14 +125,14 @@ describe("a payment the fake refuses, as Square did", () => {
       refused("payment-already-paid"));
   });
 
-  // Square took it (payment-order-canceled.json is a 200), so the fake does.
-  it("takes a payment on a cancelled order, as Square did", async () => {
+  it("refuses a payment on a cancelled order", async () => {
     const id = await placed("k-cancel");
 
     assert.deepEqual(await square.cancelOrder(id, { env: DEV }),
       { id, cancelled: true });
     assert.equal((await square.getOrder(id, { env: DEV })).state, "CANCELED");
-    assert.equal((await pay(id, "k-cancel", 5500)).status, "COMPLETED");
+    await assert.rejects(pay(id, "k-cancel", 5500),
+      refused("payment-order-canceled"));
   });
 
   it("refuses nothing to pay", async () => {
