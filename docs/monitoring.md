@@ -635,7 +635,11 @@ so a failed staging run finds its own lines. After a failed full run,
 function's and the gate's lines for the run's window through
 `bin/nff netlify` and prints the failed tests, these lines and any
 silent gaps; the raw lines stay in `.ignored/e2e-logs/`, never on
-GitHub.
+GitHub. `blobs.retryable` (#516) is a Blobs call answered with a 429
+or a 5xx, or not at all: its client sleeps 5 s before trying again
+(1 s or more when a 429 says when to). The line has the store, the
+method and the status, never the key. A `function.slow` near 5.5 s
+beside one is Blobs, not the site.
 
 ## The invariants
 
