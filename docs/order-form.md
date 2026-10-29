@@ -253,7 +253,9 @@ bulk        = highest tier where subtotal >= threshold   (never stacked)
 group       = customer's discountGroup percent × subtotal (signed in)
 code        = a known discount code's `off`, capped at the subtotal
 lock        = Σ qty × (unitPrice - member price), a buying group member
-discount    = max(bulk, group, code, lock)                (never stacked)
+friends     = Σ qty × the item's Friends and Fam amount (friends perk)
+family      = subtotal                                    (family perk)
+discount    = max(bulk, group, code, lock, friends, family) (never stacked)
 baseFee     = delivery && subtotal < 150.00 ? 5.00 : 0    (pre-discount)
 areaFee     = delivery && ZIP unlisted (other RI) ? 3.00 : 0 (never waived)
 deliveryFee = baseFee + areaFee
@@ -279,6 +281,21 @@ the outside-area fee as a fee pass does (`totals.feeWaived`), and
 perks leave. `totals.perks` names the perks an order was priced with,
 and a change to the order keeps them, whatever the customer holds by
 then. A perk past its end day stops applying by itself.
+
+`friends` and `family` also lift the fee and the minimum, and each
+brings a discount that competes with the rest (James, 2026-10-29): the
+largest wins. A tie goes, in order, to family, a code, the member
+price, Friends and Fam, the tier, then the group. Friends
+and Fam is the whole-dollar amount per item in
+`money.friendsAndFam.off`, the amounts of Square's own Friends and Fam
+discounts, and goes to Square as one line-item discount per item under
+Square's name for it. Family is the whole subtotal, sent as one order
+discount, so the order is recorded with nothing charged: it is placed
+like an order credit covers (`nothingDue`, `payWithCredit`), paid in
+Square as a zero order, with no payment on the record.
+`totals.discountPerk` says which perk's discount won, `totals.perkLines`
+holds the Friends and Fam amounts, and the Square order's metadata
+carries `perk`.
 
 A buying group's member price (#471, `priceLock` in `data/groups.json`)
 is not a discount today: the member prices are the retail prices of

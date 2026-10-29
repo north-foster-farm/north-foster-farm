@@ -261,6 +261,10 @@ const money = (amount) => ({ amount, currency: "USD" });
 export const SITE_VERSION = pkg.version;
 export const SOURCE_NAME = `${company.email.split("@")[1]} v${
   SITE_VERSION.split(".").slice(0, 2).join(".")}`;
+// The name of Square's own Friends and Fam discounts (#514), which the
+// site's line-item discounts carry.
+export const FRIENDS_SQUARE_NAME = (terms.money.friendsAndFam
+  && terms.money.friendsAndFam.squareName) || "Friends and Fam";
 export const ORDER_METADATA = Object.freeze({
   site_version: SITE_VERSION,
   order_flow: "order-page",
@@ -392,13 +396,17 @@ const fulfillment = (order) => {
 };
 
 // The release's metadata, and, on a buying group's order (#471), its
-// group and round, so a Square report can add a round up.
+// group and round, so a Square report can add a round up; on a perk's
+// discount, which perk.
 export const orderMetadata = (order) => ({
   ...ORDER_METADATA,
   ...(order.group && order.group.key ? {
     group: order.group.key,
     ...(order.group.round ? { round: order.group.round } : {}),
   } : {}),
+  // The perk whose discount the order took (#514): friends or family.
+  ...(order.totals && order.totals.discountPerk
+    ? { perk: order.totals.discountPerk } : {}),
 });
 
 export const buildOrder = (order, customerId, cfg) => {
@@ -425,19 +433,30 @@ export const buildOrder = (order, customerId, cfg) => {
 
   // A buying group's member price (#471) is per item, whole dollars, so
   // the receipt shows each item at retail with its own discount, as
-  // #132 wants member pricing recorded. Every other discount is one
-  // order-scope amount.
-  if (t.discountLock && (t.lockLines || []).length) {
-    const uid = (sku) => `lock-${sku}`;
+  // #132 wants member pricing recorded. So is Friends and Fam (#514),
+  // under the name of Square's own discount, so the register's and
+  // the site's read alike in Square's reports. Every other discount is
+  // one order-scope amount: a family order's (#514) is the whole of
+  // its items, a real discount, so nothing is charged.
+  const perItem = t.discountLock && (t.lockLines || []).length
+    ? { prefix: "lock", lines: t.lockLines,
+      name: t.discountLabel || "Member price" }
+    : t.discountPerk === "friends" && (t.perkLines || []).length
+      ? { prefix: "friends", lines: t.perkLines,
+        name: FRIENDS_SQUARE_NAME }
+      : null;
 
-    out.discounts = t.lockLines.map((l) => ({
+  if (perItem) {
+    const uid = (sku) => `${perItem.prefix}-${sku}`;
+
+    out.discounts = perItem.lines.map((l) => ({
       uid: uid(l.sku),
-      name: t.discountLabel || "Member price",
+      name: perItem.name,
       amount_money: money(l.amount),
       scope: "LINE_ITEM",
     }));
     out.line_items = out.line_items.map((item, i) => {
-      const held = t.lockLines.find((l) => l.sku === order.lines[i].sku);
+      const held = perItem.lines.find((l) => l.sku === order.lines[i].sku);
 
       return held
         ? { ...item, applied_discounts: [{ discount_uid: uid(held.sku) }] }

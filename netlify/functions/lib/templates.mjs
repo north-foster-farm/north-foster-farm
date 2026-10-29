@@ -1360,6 +1360,12 @@ const onePayment = (p) => {
 export const paymentPhrase = (order) => {
   const payments = paymentsOf(order);
 
+  // A family order (#514) has no payment and nothing due: "$0, nothing
+  // to pay". Draft wording.
+  if (!payments.length && order.totals.total === 0) {
+    return "$0, nothing to pay";
+  }
+
   return payments.length
     ? payments.map(onePayment).join(", then ")
     : onePayment({ amount: order.totals.total });
