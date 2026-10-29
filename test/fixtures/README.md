@@ -76,7 +76,10 @@ same value has the same placeholder in every file, so the payment in
 | `order-complete` | `completeOrder` |
 | `order-cancel`, `order-cancel-catalog` | `cancelOrder` after a decline |
 | `orders-search-recent`, `-open`, `-customer` | `findPaid`, `searchOpenOrders`, `customerOrders` |
-| `catalog-search`, `inventory-counts` | `productionStock`, `inventoryCounts` |
+| `catalog-search` | the recorder's own lookup of a sandbox variation id; no function of ours searches the catalog since staging's stock moved to production's `/api/stock` |
+| `inventory-counts` | `inventoryCounts` |
+| `order-create-line-discount`, `order-get-line-discount`, `order-cancel-line-discount` | `createOrder` with a LINE_ITEM discount per member-priced item (#514) |
+| `order-create-discount-fee-zero`, `order-get-discount-fee-zero`, `order-cancel-discount-fee-zero` | `createOrder` with one ORDER discount and a $0 delivery service charge (#514) |
 
 ## Resend
 

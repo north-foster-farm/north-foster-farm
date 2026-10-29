@@ -254,6 +254,33 @@ describe("bin/fixtures/request.mjs", () => {
     ]);
   });
 
+  it("discounts each member-priced item on its own line", () => {
+    const sent = request("create-order", {
+      ...args,
+      totals: {
+        discountLock: true, discountAmount: 0, discountTier: 0, total: 5400,
+        lockLines: [{ sku: "NFF-CHK-WHL-35-39", amount: 600 }],
+      },
+    });
+    const { discounts, line_items: items } = sent[2].body.order;
+
+    assert.equal(discounts[0].scope, "LINE_ITEM");
+    assert.deepEqual(items[0].applied_discounts,
+      [{ discount_uid: "lock-NFF-CHK-WHL-35-39" }]);
+  });
+
+  it("sends one order discount beside a $0 delivery fee", () => {
+    const sent = request("create-order", {
+      ...args,
+      kind: "delivery",
+      totals: { discountAmount: 500, feeWaived: true, deliveryFee: 0 },
+    });
+    const order = sent[2].body.order;
+
+    assert.equal(order.discounts[0].scope, "ORDER");
+    assert.equal(order.service_charges[0].amount_money.amount, 0);
+  });
+
   it("pays a $0 order with no payment ids", () => {
     const [sent] = request("pay-zero", { ...args, orderId: "O1" });
 

@@ -18,7 +18,7 @@ import {
   buildChangeOrder, cancelFulfillment, cancelOrder, completeOrder,
   createChangeOrder, createOrder, createPayment, customerOrders,
   deleteCustomer, findPaid, inventoryCounts, payZeroOrder, refundPayment,
-  productionStock, renameCustomerEmail, searchOpenOrders, updateFulfillment,
+  renameCustomerEmail, searchOpenOrders, updateFulfillment,
 } from "../../netlify/functions/lib/square.mjs";
 import { sendMail } from "../../netlify/functions/lib/mail.mjs";
 import { testStores } from "../../netlify/functions/lib/store.mjs";
@@ -28,7 +28,9 @@ const day = (days) => new Date(Date.now() + days * 864e5)
 
 // The order record the order function hands square.mjs (see the
 // `order` helper in test/square.test.mjs). `kind` picks the shape.
-export const sampleOrder = ({ kind = "pickup", email, variationId }) => ({
+export const sampleOrder = ({
+  kind = "pickup", email, variationId, totals,
+}) => ({
   id: "NFF-2610-FIXT",
   customer: {
     name: "Pat Fixture",
@@ -61,15 +63,20 @@ export const sampleOrder = ({ kind = "pickup", email, variationId }) => ({
     lineTotal: 60,
     squareVariationId: kind === "catalog" ? variationId : null,
   }],
-  totals: kind === "delivery"
-    ? {
-      subtotal: 6000, discountTier: 0, discountAmount: 0,
-      deliveryFee: 500, total: 6500,
-    }
-    : {
-      subtotal: 6000, discountTier: 50, discountAmount: 500,
-      deliveryFee: 0, total: 5500,
-    },
+  // `totals` overrides fields, for the discount shapes the recorder asks
+  // for (line-item member prices, a waived delivery fee).
+  totals: {
+    ...(kind === "delivery"
+      ? {
+        subtotal: 6000, discountTier: 0, discountAmount: 0,
+        deliveryFee: 500, total: 6500,
+      }
+      : {
+        subtotal: 6000, discountTier: 50, discountAmount: 500,
+        deliveryFee: 0, total: 5500,
+      }),
+    ...totals,
+  },
   notes: "",
   source: "Fixture recorder",
   flags: { zipUnlisted: false, totalMismatch: false },
@@ -154,12 +161,6 @@ const CALLS = {
     since: new Date(Date.now() - 36e5),
   }, o),
   "inventory-counts": (a, o) => inventoryCounts(a.ids, o),
-  "catalog-search": (a, o) => productionStock(["NFF-CHK-EGG-LG"], {
-    ...o,
-    env: {
-      STOCK_SOURCE_TOKEN: "stub", STOCK_SOURCE_LOCATION_ID: a.locationId,
-    },
-  }),
   // The one Resend send: mail.mjs builds the request, MAIL_DRIVER=resend
   // and the production context let it through, the stub keeps it local.
   "resend-send": (a, o) => sendMail(a.message, {

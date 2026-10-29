@@ -362,8 +362,42 @@ ARGS="$(margs --arg orderId "$ZERO_ORDER" --arg key "$K-zero")"
 send order-pay-zero square "$(pick pay-zero "$ARGS" 0)"
 send order-get-zero-paid square "$(sq GET "/v2/orders/$ZERO_ORDER")"
 
+# ---- Discount shapes (#514): per-item, and whole-order with a $0 fee ----
+# A member price is a LINE_ITEM discount on each item it covers.
+TOTALS='{"discountLock": true, "discountLabel": "Member price",
+  "discountAmount": 0, "discountTier": 0, "total": 5400,
+  "lockLines": [{"sku": "NFF-CHK-WHL-35-39", "amount": 600}]}'
+ARGS="$(margs --arg key "$K-lock" --arg kind pickup \
+  --argjson totals "$TOTALS")"
+send order-create-line-discount square "$(pick create-order "$ARGS" 2 \
+  | jq -c --arg c "$CUSTOMER_ID" '.body.order.customer_id = $c')"
+LOCK_ORDER="$(got .response.order.id)"
+send order-get-line-discount square "$(sq GET "/v2/orders/$LOCK_ORDER")"
+ARGS="$(margs --arg orderId "$LOCK_ORDER" \
+  --argjson current "$(jq -c .response.order "$OUT")")"
+send order-cancel-line-discount square "$(pick cancel-order "$ARGS" 0)"
+
+# One ORDER-scope discount beside a delivery fee waived to $0.
+TOTALS='{"discountLabel": "Welcome", "discountAmount": 500,
+  "discountTier": 0, "feeWaived": true, "deliveryFee": 0, "total": 5500}'
+ARGS="$(margs --arg key "$K-waived" --arg kind delivery \
+  --argjson totals "$TOTALS")"
+send order-create-discount-fee-zero square "$(pick create-order "$ARGS" 2 \
+  | jq -c --arg c "$CUSTOMER_ID" '.body.order.customer_id = $c')"
+WAIVED_ORDER="$(got .response.order.id)"
+send order-get-discount-fee-zero square "$(sq GET "/v2/orders/$WAIVED_ORDER")"
+ARGS="$(margs --arg orderId "$WAIVED_ORDER" \
+  --argjson current "$(jq -c .response.order "$OUT")")"
+send order-cancel-discount-fee-zero square "$(pick cancel-order "$ARGS" 0)"
+
 # ---- The catalog and stock ----------------------------------------------
-send catalog-search square "$(pick catalog-search "$(margs)" 0)"
+# No function of ours searches the sandbox catalog any more (staging's
+# stock reads production's /api/stock, 2026-10-28), so this lookup of a
+# variation id to order is the recorder's own.
+send catalog-search square "$(jq -nc --arg v "$VERSION" \
+  '{method: "POST", path: "/v2/catalog/search",
+    headers: {"Square-Version": $v, "Content-Type": "application/json"},
+    body: {object_types: ["ITEM_VARIATION"], limit: 10}}')"
 IDS="$(jq -c '[.response.objects[]? | select(.is_deleted != true) | .id]
   | .[0:3]' "$OUT")"
 VARIATION="$(printf '%s' "$IDS" | jq -r '.[0] // empty')"
