@@ -737,6 +737,18 @@ staging toolbar's email library previews the email and the PDF.
 Staging's own jobs runs put its packet in the outbox, never in a
 mailbox, and a run with `reset` lets the day's packet go again.
 
+**Packing slips for tomorrow**, 15:00 the day before (#515, same
+file), so the farm can pack the night before: every slip for the next
+day, new, revised, a reprint of one printed earlier, or a CANCELLED
+sheet, with the same cover; "nothing due" when there is none. It is
+started by 21:00 or not at all, and `packing/eve/<day>` keeps it sent
+with its `cutoff`, the moment the packet was fixed. The next morning's
+packet compares with what it printed, so it carries only the orders
+that came in, changed or were cancelled after the cutoff (on Sunday,
+the rest of the week as well), and a quiet morning says "nothing
+changed since 3 PM". A failure pings the packing check's `/fail`; a
+success does not ping, so the check's 6:00 schedule stands.
+
 ## The log
 
 Every function writes one JSON line per event to the console (as

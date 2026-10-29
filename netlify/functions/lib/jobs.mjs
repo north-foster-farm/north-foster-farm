@@ -39,6 +39,8 @@
 //   packing     6:00 daily, always: the packing slips as one PDF, or
 //               "nothing to print"; then, all day, an order due today
 //               that changes after it was printed (lib/packing.mjs)
+//   packingEve  15:00 daily, always: every slip for tomorrow, so the
+//               6:00 packet carries only what came after it (#515)
 //   audience    once a day from 05:00: the farm-news audience in Resend
 //               and the records made to agree
 //   rotation    8:00 on Dec 1 and weekly after, to the developer: the
@@ -85,7 +87,9 @@ import { quietAccounts } from "./retention.mjs";
 import { completeInSquare } from "./complete.mjs";
 import { farmEmails, sendMail } from "./mail.mjs";
 import { audienceConfigured, syncAudience } from "./news.mjs";
-import { changedAfterPrint, packingDaily } from "./packing.mjs";
+import {
+  changedAfterPrint, packingDaily, packingEve,
+} from "./packing.mjs";
 import { confirmationSent, sendForOrder } from "./payments.mjs";
 import { sweepStrandedCredit } from "./credit.mjs";
 import { workRounds } from "./rounds.mjs";
@@ -191,7 +195,7 @@ export const runJobs = async (stores, {
     squareSynced: [], muted: [], missedTold: [], holdsExpired: [], rebuilt: [],
     checkoutsRescued: [], checkoutsSwept: 0, authSwept: 0, squareOpen: [],
     customersMade: [], pickupsToConfirm: [], scrubbed: [], tomorrow: null,
-    packing: null, changedAfterPrint: [], rotation: null,
+    packing: null, packingEve: null, changedAfterPrint: [], rotation: null,
     errors: [], invariants: [],
   };
   const opts = { env, mail, now };
@@ -390,6 +394,8 @@ export const runJobs = async (stores, {
     () => tomorrowReport(stores, { env, mail, now }));
   report.packing = await attempt(null, "packing",
     () => packingDaily(stores, { env, mail, now, fetchImpl }));
+  report.packingEve = await attempt(null, "packingEve",
+    () => packingEve(stores, { env, mail, now, fetchImpl }));
   report.changedAfterPrint = (await attempt(null, "changedAfterPrint",
     () => changedAfterPrint(stores, { env, mail, now }))) || [];
   report.rotation = await attempt(null, "rotationReminder",
@@ -927,6 +933,7 @@ export const summarize = (report) => ({
   customersDeleted: (report.customersMade || []).filter((c) => c.deleted)
     .length,
   packing: report.packing || null,
+  packingEve: report.packingEve || null,
   checkoutsSwept: report.checkoutsSwept || 0,
   authSwept: report.authSwept || 0,
   tomorrow: report.tomorrow,

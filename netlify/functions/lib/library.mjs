@@ -14,8 +14,8 @@
 import { launchEmail } from "./launch.mjs";
 import { postMailFromBuild } from "./post-mail.mjs";
 import {
-  attachment, byFulfillment, changesBetween, countsOf, fileName, packetPdf,
-  packetTitle, snapshotOf,
+  EVE_TIME, PACKING_TIME, attachment, byFulfillment, changesBetween, countsOf,
+  eveTitle, fileName, packetPdf, packetTitle, snapshotOf,
 } from "./packing.mjs";
 import * as t from "./templates.mjs";
 import { orderPathFor } from "./site.mjs";
@@ -330,6 +330,26 @@ const packetMail = (links) => {
     }),
     attachments: [attachment(filename, packetPdf({
       entries, now, title: packetTitle(day),
+    }))],
+  };
+};
+
+// The 3 PM packet the day before (#515), from the sample's first day:
+// its new orders as reprints of slips printed earlier, as most are.
+const eveMail = (links) => {
+  const { now, entries: all } = samplePacket();
+  const day = all[0].order.fulfilment.date;
+  const entries = all.filter((e) => e.order.fulfilment.date === day)
+    .map((e, i) => (e.kind === "new" && i ? { ...e, kind: "weekly" } : e));
+  const filename = fileName(day, "-full");
+
+  return {
+    ...t.farmPackingSlips(entries, {
+      day, ...countsOf(entries), filename, links, eve: EVE_TIME,
+      next: PACKING_TIME,
+    }),
+    attachments: [attachment(filename, packetPdf({
+      entries, now, title: eveTitle(day),
     }))],
   };
 };
@@ -819,6 +839,31 @@ export const library = [
     audience: F, tags: ["report"],
     build: (links) => t.farmPackingSlips([], {
       day: "2026-10-06", quiet: true, links,
+    }),
+  },
+  {
+    id: "farm-packing-eve", name: "Packing slips for tomorrow",
+    when: "Every day at 15:00, with every slip for the next day",
+    audience: F, tags: ["report", "delivery", "pickup", "drop site", "pdf"],
+    build: eveMail,
+  },
+  {
+    id: "farm-packing-eve-quiet", name: "Packing slips for tomorrow, none due",
+    when: "Every day at 15:00 when no order is due the next day",
+    audience: F, tags: ["report"],
+    build: (links) => t.farmPackingSlips([], {
+      day: "2026-10-07", quiet: true, links, eve: EVE_TIME,
+      next: PACKING_TIME,
+    }),
+  },
+  {
+    id: "farm-packing-since-quiet",
+    name: "Packing slips, nothing changed since 3 PM",
+    when: "Every day at 6:00 when nothing is new, changed or canceled " +
+      "since the 3 PM packet",
+    audience: F, tags: ["report"],
+    build: (links) => t.farmPackingSlips([], {
+      day: "2026-10-06", quiet: true, links, since: EVE_TIME,
     }),
   },
   {
