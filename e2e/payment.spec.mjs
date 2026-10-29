@@ -7,7 +7,7 @@
 // 4000 0000 0000 0002 is declined.
 
 import {
-  OrderPage, expect, test, uniqueEmail,
+  OrderPage, expect, recordedCard, test, uniqueEmail,
 } from "./support/order.mjs";
 import {
   BACK_OFFICE_MISSING, backOffice, clearMail, closeOrder, deleteCustomer,
@@ -68,7 +68,7 @@ test.describe("payments", () => {
     );
     await expect(card.locator("[data-out='total']")).toHaveText("$7");
     await expect(card.locator("[data-out='how']"))
-      .toHaveText("Visa ending 1111");
+      .toHaveText(recordedCard().how);
     await expect(card.locator("[data-out='email']")).toHaveText(email);
     await expect(card.locator("[data-out='orderId']")).toHaveText(ORDER_ID);
     await expect(card.locator("[data-out='when']")).toHaveText(
@@ -89,7 +89,7 @@ test.describe("payments", () => {
     expect(record.status).toBe("paid");
     expect(record.payments).toHaveLength(1);
     expect(record.payments[0]).toMatchObject({
-      via: "square", method: "card", last4: "1111", amount: 700,
+      via: "square", method: "card", last4: recordedCard().last4, amount: 700,
     });
     expect(record.square && record.square.squareOrderId).toBeTruthy();
     // Booked by paying (W11d).
@@ -117,7 +117,7 @@ test.describe("payments", () => {
       since,
     });
 
-    expect(farm.text).toContain("$7 by Visa ending 1111");
+    expect(farm.text).toContain(`$7 by ${recordedCard().how}`);
     expect(farm.text).not.toContain("orders confirm");
 
     // The draft is gone: a reload starts a new, empty order.
@@ -295,7 +295,7 @@ test.describe("payments", () => {
       expect(record.totals.total).toBe(1400);
       expect(record.meta.attempt).toBeGreaterThanOrEqual(2);
       await expect(page.locator("#order-result")).toContainText(
-        "Visa ending 1111"
+        recordedCard().how
       );
     });
 });

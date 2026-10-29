@@ -4,6 +4,7 @@
 
 import { test as base, expect } from "@playwright/test";
 
+import { recorded } from "../../netlify/functions/lib/fake.mjs";
 import { orderLimitHeaders } from "./staging.mjs";
 import { PLENTY, stockFixtures } from "./stock.mjs";
 
@@ -145,6 +146,17 @@ export const searchStockApplied = (page) => expect(
 // Which payment drivers are the fakes here: none on any Netlify deploy,
 // both on a local run (SQUARE_ENV and PAYPAL_ENV fake work only where
 // SITE_CONTEXT is dev; netlify/functions/lib/fake.mjs).
+// The card the fake, and the sandbox's approved nonce, pay with, read
+// from the sandbox's recorded payment (test/fixtures/square): { last4,
+// how } with how as the card shows it, "Visa ending 5858".
+export const recordedCard = () => {
+  const { card } = recorded("square", "payment-card-ok")
+    .response.payment.card_details;
+  const brand = card.card_brand[0] + card.card_brand.slice(1).toLowerCase();
+
+  return { last4: card.last_4, how: `${brand} ending ${card.last_4}` };
+};
+
 export const paymentFakes = async (request) => {
   const res = await request.get("/api/checkout/config");
   const cfg = res.ok() ? await res.json() : {};
