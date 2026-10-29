@@ -4,13 +4,15 @@
 // order is paid with nothing charged.
 
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { beforeEach, describe, it } from "node:test";
 
 import { instant } from "../assets/scripts/order/lib/zoned.mjs";
 import { createFarmOrder } from "../netlify/functions/lib/farm-orders.mjs";
+import * as recordedSquare from "../netlify/functions/lib/fake-square.mjs";
 import { PACKED } from "../netlify/functions/lib/packing.mjs";
 import { addPerk } from "../netlify/functions/lib/perks.mjs";
 import { getCustomer, getOrder } from "../netlify/functions/lib/records.mjs";
+import { FRIENDS_SQUARE_NAME } from "../netlify/functions/lib/square.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
 import { SCHEDULE } from "./schedule-fixture.mjs";
 
@@ -23,6 +25,8 @@ const env = {
   PICKUP_SCHEDULE: SCHEDULE,
 };
 const KEY = "farm-3c2b1a09-8f7e-4d6c-9b5a-4f3e2d1c0b9a";
+
+beforeEach(() => recordedSquare.forgetFake());
 
 const delivery = (qty = 1) => ({
   customer: {
@@ -38,31 +42,34 @@ const delivery = (qty = 1) => ({
   },
 });
 
+// The fake Square (lib/fake-square.mjs), which answers from Square's
+// recordings (order-create-discount-fee-zero, order-pay-zero), with
+// its calls counted. `zeroFails` makes PayOrder fail that many times
+// first, as a Square outage would, before the fake is asked.
 const fakeSquare = ({ zeroFails = 0 } = {}) => {
   const calls = [];
   let failing = zeroFails;
   const square = {
-    createOrder: async (order, key) => {
+    ...recordedSquare,
+    createOrder: (order, key, opts) => {
       calls.push(["order", key, order.totals.total]);
 
-      return { squareOrderId: "SQO", customerId: "CUST" };
+      return recordedSquare.createOrder(order, key, opts);
     },
-    payZeroOrder: async (id) => {
+    payZeroOrder: async (id, key, opts) => {
       calls.push(["zero", id]);
       if (failing > 0) {
         failing -= 1;
         throw new Error("Square 503");
       }
 
-      return { squareOrderId: id };
+      return recordedSquare.payZeroOrder(id, key, opts);
     },
-    createPayment: async (args) => {
+    createPayment: (args, opts) => {
       calls.push(["payment", args.amount]);
 
-      return { squarePaymentId: "PAY", status: "COMPLETED" };
+      return recordedSquare.createPayment(args, opts);
     },
-    findPaid: async () => null,
-    getOrder: async (id) => ({ id, tenders: [] }),
   };
 
   return { square, calls };
@@ -103,6 +110,18 @@ describe("orders create for a customer with a perk", () => {
       assert.deepEqual(r.order.totals.perks, ["friends"]);
       assert.equal(r.order.flags.minimumWaived, true);
       assert.ok(PACKED.includes(r.order.status), "it gets a packing slip");
+
+      // Square's copy, in the shape of order-get-line-discount: the
+      // chicken's own Friends and Fam discount and the $0 delivery.
+      const copy = await square.getOrder(r.order.square.squareOrderId);
+
+      assert.deepEqual(copy.discounts.map((d) => [d.name, d.scope,
+        d.amount_money.amount]), [[FRIENDS_SQUARE_NAME, "LINE_ITEM", 300]]);
+      assert.equal(copy.line_items[0].applied_discounts[0].discount_uid,
+        copy.discounts[0].uid);
+      assert.deepEqual(copy.service_charges.map((c) => [c.name,
+        c.amount_money.amount]), [["Delivery fee", 0]]);
+      assert.equal(copy.total_money.amount, 2700);
 
       // The record the perk made now has the customer's details.
       const lee = await getCustomer(stores, LEE);
@@ -150,6 +169,18 @@ describe("orders create for family", () => {
     assert.equal(r.order.totals.discountAmount, 6000);
     assert.deepEqual(r.order.payments, []);
     assert.deepEqual(calls.map((c) => c[0]), ["order", "zero"]);
+
+    // Square's copy, in the shape of order-get-discount-fee-zero: one
+    // whole-order discount and the $0 delivery, closed, nothing due.
+    const copy = await square.getOrder(r.order.square.squareOrderId);
+
+    assert.equal(copy.state, "COMPLETED");
+    assert.deepEqual(copy.discounts.map((d) => [d.scope, d.amount_money
+      .amount, d.applied_money.amount]), [["ORDER", 6000, 6000]]);
+    assert.deepEqual(copy.service_charges.map((c) => [c.name,
+      c.amount_money.amount, c.calculation_phase]),
+    [["Delivery fee", 0, "SUBTOTAL_PHASE"]]);
+    assert.equal(copy.total_money.amount, 0);
     assert.ok(PACKED.includes(r.order.status));
     assert.ok(sent.some((m) => [].concat(m.to).includes(LEE)),
       "the customer has the confirmation");

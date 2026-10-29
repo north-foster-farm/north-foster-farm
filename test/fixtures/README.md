@@ -55,9 +55,14 @@ same value has the same placeholder in every file, so the payment in
   it was told in this process (`forgetFake()` clears it) and refuses
   what Square refused: a payment off the order's total (over or under;
   there are no part payments), on a paid order, or for nothing; a refund
-  over what is left; a payment key reused with another body. It takes
-  what Square took: a payment on a cancelled order, an order key reused.
-  The refusal it throws is the recorded one.
+  over what is left; a payment key reused with another body; a payment
+  on a cancelled order. It takes what Square took: an order key reused.
+  The refusal it throws is the recorded one. (2026-10-29: the cancelled
+  order moved to the refusals with `payment-order-canceled`.) Its
+  `getOrder` lists the order's own discounts and service charges in
+  the shapes of `order-get-line-discount` and
+  `order-get-discount-fee-zero`, and leaves the key out when there are
+  none, as Square does.
 - `test/square-replay.test.mjs` serves the recordings to the real
   functions of `lib/square.mjs` and holds what they send to what each
   was recorded with. Change a request and it fails until the recorder
