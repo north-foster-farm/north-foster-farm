@@ -739,15 +739,19 @@ mailbox, and a run with `reset` lets the day's packet go again.
 
 **Packing slips for tomorrow**, 15:00 the day before (#515, same
 file), so the farm can pack the night before: every slip for the next
-day, new, revised, a reprint of one printed earlier, or a CANCELLED
-sheet, with the same cover; "nothing due" when there is none. It is
-started by 21:00 or not at all, and `packing/eve/<day>` keeps it sent
-with its `cutoff`, the moment the packet was fixed. The next morning's
-packet compares with what it printed, so it carries only the orders
-that came in, changed or were cancelled after the cutoff (on Sunday,
-the rest of the week as well), and a quiet morning says "nothing
-changed since 3 PM". A failure pings the packing check's `/fail`; a
-success does not ping, so the check's 6:00 schedule stands.
+day, new, revised, a reprint of one printed earlier, or a CANCELED
+sheet, with the same cover, and each order new, changed or canceled
+for a later day, as the morning packet would have it; "nothing due"
+when there is none. It is started by 21:00 or not at all (a packet
+already started is retried after), and `packing/eve/<day>` keeps it
+sent with its `cutoff`, the time of the run that fixed the packet.
+The next morning's packet compares with what it printed, not with the
+time, so it carries only the orders that came in, changed or were
+cancelled after the 3 PM packet read them (on Sunday, the rest of the
+week as well), and a quiet morning says "nothing changed since 3 PM".
+A failure pings the packing check's `/fail`; a success does not ping,
+so the check's 6:00 schedule stands, and after a 3 PM failure the
+check stays down until the morning's packet goes.
 
 ## The log
 

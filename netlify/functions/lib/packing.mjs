@@ -5,7 +5,7 @@
 //                Saturday, plus the daily set for later weeks
 //   other days   a slip for each order not printed yet, a revision
 //                sheet and a fresh slip for each one changed since it
-//                was printed, a CANCELLED sheet for each printed one
+//                was printed, a CANCELED sheet for each printed one
 //                since cancelled
 //   quiet day    the email still goes, saying there is nothing to print
 //
@@ -24,12 +24,14 @@
 // At 3:00 PM the day before (#515), a second packet has every slip for
 // the next day: a new one, a revised one, a reprint of one printed
 // earlier and unchanged, a CANCELED sheet for one printed and since
-// cancelled. It records its slips printed like the morning packet, so
-// the next morning carries only what came in or changed after it: the
-// cutoff is the moment it was fixed, kept as `cutoff` in
-// `packing/eve/<day>`, the day the slips are for. The morning after
-// it reprints none of that day's slips for the week, nor says the day
-// is quiet without naming the 3 PM packet.
+// cancelled. It also has what the morning packet would for later days:
+// each new, changed or cancelled order. It records its slips printed
+// like the morning packet, so the next morning carries only what came
+// in or changed after it: the cutoff, kept as `cutoff` in
+// `packing/eve/<day>` (the day the slips are for), is the time of the
+// run that fixed it. The morning after it reprints none of that day's
+// slips for the week, nor says the day is quiet without naming the 3
+// PM packet.
 //
 // Each run that sends pings HEALTHCHECKS_PACKING_URL (production
 // only), or its /fail when the packet could not be built or sent.
@@ -290,11 +292,13 @@ export const choose = ({ open, printed, gone, day, reprint }) => {
   return entries.sort(byFulfillment);
 };
 
-// The 3 PM packet for `day` (#515): every slip for that day and only
-// that day, a printed and unchanged one as a reprint.
+// The 3 PM packet for `day` (#515): every slip for that day, a printed
+// and unchanged one as a reprint, and each new, changed or cancelled
+// entry for a later day, as the morning packet has them. It leaves
+// nothing pending, so the next morning carries only what came after it.
 export const chooseEve = ({ open, printed, gone, day }) => choose({
   open, printed, gone, day, reprint: (date) => date === day,
-}).filter((e) => e.order.fulfilment.date === day);
+});
 
 // The morning's choice once the 3 PM packet had the day's slips: on
 // Sunday the rest of the week is reprinted, never the day itself.
@@ -1054,9 +1058,12 @@ export const missingPingKey = (env) => sendsForReal(env) && !env[PING_KEY];
 // send went out, so the packet counts as sent, as the pending record
 // printed it, and the change is caught later.
 //
-// The fixed time is the packet's cutoff: an order in it is printed as
-// it stood then, and anything later is the next packet's. `sentKey`
-// keeps it as `cutoff`. -> the summary.
+// The fixed time is the packet's cutoff, kept by `sentKey` as `cutoff`:
+// the run's `now`, taken when the 15-minute run starts, a little before
+// the orders are read. What governs is the snapshot each order is
+// printed with, not the time: an order saved in that gap is in the
+// packet though stamped after it, and one saved after the read is the
+// next packet's. -> the summary.
 const sendPacket = async (stores, {
   day, to, mail, env, now, pending: fixed, pendingKey, sentKey,
   idempotencyKey, event, entries: chosen, summary: extra, filename, title,
@@ -1181,9 +1188,12 @@ export const packingDaily = async (stores, {
 export const eveTitle = (day) => `Full packing slips, ${label(day)}`;
 
 // From EVE_HOUR, once a day: every slip for tomorrow (#515), so the
-// farm can pack the night before, or the email saying none is due. A
-// failure pings the packing check's /fail; a success leaves the check
-// to the morning's packet, which its schedule expects.
+// farm can pack the night before, with what is new, changed or
+// cancelled for later days, or the email saying none is due. A failure
+// pings the packing check's /fail; a success leaves the check to the
+// morning's packet, which its schedule expects, so after a 3 PM
+// failure the check stays down until the morning's packet goes, even
+// if a retry sent the 3 PM one.
 // -> { day, quiet, slips, revised, cancelled } or null when nothing
 // was done this run. Throws when the packet could not go.
 export const packingEve = async (stores, {

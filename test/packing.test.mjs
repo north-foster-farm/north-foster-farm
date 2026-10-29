@@ -839,7 +839,7 @@ describe("the 3 PM packet the day before (#515)", () => {
     await setStatus(stores, "D", "cancelled", at("2026-10-07", 12));
   };
 
-  it("has every slip for tomorrow, and only tomorrow's", async () => {
+  it("has every slip for tomorrow, and no later day's reprint", async () => {
     const stores = testStores();
     const h = harness();
 
@@ -866,6 +866,7 @@ describe("the 3 PM packet the day before (#515)", () => {
     assert.equal(m.attachments[0].filename,
       "packing-slips-2026-10-08-full.pdf");
     assert.match(m.text, /a slip for every order due Thursday, October 8,/);
+    assert.match(m.text, /anything new, changed, or canceled for later days/);
     assert.match(m.text, /The 6 AM email brings only what comes in/);
     assert.match(text, /\(Full packing slips, Thursday, October 8\)/);
     assert.match(text, /\(Reprint\)/, "A, printed Tuesday, again");
@@ -941,8 +942,8 @@ describe("the 3 PM packet the day before (#515)", () => {
     await assert.rejects(eve(stores, down, at("2026-10-07", 15)),
       /Resend 503/);
     assert.deepEqual(down.pings.map((p) => p.url), [`${URL}/fail`]);
-    // Placed while the packet was building: the retry sends the packet
-    // as first fixed, and the morning has the new order.
+    // Placed between the failed try and its retry: the retry sends the
+    // packet as first fixed, and the morning has the new order.
     await saveOrder(stores, order("LATE"), at("2026-10-07", 15, 5));
 
     const retry = await eve(stores, up, at("2026-10-07", 15, 15));
@@ -957,6 +958,75 @@ describe("the 3 PM packet the day before (#515)", () => {
       ["LATE"]);
     assert.deepEqual(up.pings.map((p) => p.url), [URL],
       "a 3 PM success leaves the check to the morning");
+  });
+
+  it("takes later days' new and changed orders from the day before",
+    async () => {
+      const stores = testStores();
+      const h = harness();
+
+      await week(stores, h);
+      // After Wednesday's 6 AM packet: FRI comes in at 10 AM for
+      // Friday, and LATER, printed Tuesday, changes.
+      await saveOrder(stores, order("FRI", { date: "2026-10-09" }),
+        at("2026-10-07", 10));
+      await amendOrder(stores, "LATER", { notes: "Ring twice" }, "edited",
+        at("2026-10-07", 10));
+
+      const sent = await eve(stores, h, at("2026-10-07", 15));
+      const text = pdfText(h.sent.at(-1));
+      const thu = await run(stores, h, at(THURSDAY, 6));
+
+      assert.deepEqual(sent, {
+        day: THURSDAY, quiet: false, slips: 5, revised: 2, cancelled: 1,
+      });
+      assert.deepEqual((await stores.jobs.get(`${EVE}${THURSDAY}`)).ids,
+        ["A", "C", "B", "D", "FRI", "LATER"]);
+      assert.match(text, /\(Friday, October 9\)/);
+      assert.equal(thu.quiet, true, "FRI and LATER went at 3 PM");
+      assert.deepEqual((await stores.jobs.get(`${SENT}${THURSDAY}`)).ids,
+        []);
+    });
+
+  it("leaves an order saved while it sends to the morning", async () => {
+    const stores = testStores();
+    const h = harness();
+
+    await saveOrder(stores, order("A"), placed);
+    await eve(stores, {
+      ...h, mail: async (m) => {
+        await saveOrder(stores, order("LATE"), at("2026-10-07", 15, 1));
+
+        return h.mail(m);
+      },
+    }, at("2026-10-07", 15));
+
+    const thu = await run(stores, h, at(THURSDAY, 6));
+
+    assert.deepEqual((await stores.jobs.get(`${EVE}${THURSDAY}`)).ids,
+      ["A"]);
+    assert.equal(thu.slips, 1);
+    assert.deepEqual((await stores.jobs.get(`${SENT}${THURSDAY}`)).ids,
+      ["LATE"]);
+  });
+
+  it("retries a packet started by 9 PM after 9 PM", async () => {
+    const stores = testStores();
+    const h = harness();
+
+    await saveOrder(stores, order("A"), placed);
+    await assert.rejects(eve(stores, harness({ failMail: true }),
+      at("2026-10-07", 20, 45)), /Resend 503/);
+    // A new order waits for the morning.
+    await saveOrder(stores, order("B"), at("2026-10-07", 21));
+
+    const retry = await eve(stores, h, at("2026-10-07", 21, 15));
+
+    assert.equal(retry.slips, 1);
+    assert.deepEqual((await stores.jobs.get(`${EVE}${THURSDAY}`)).ids,
+      ["A"]);
+    assert.equal(await stores.jobs.get(`${PENDING}${THURSDAY}-eve`), null);
+    assert.equal(await eve(stores, h, at("2026-10-07", 21, 30)), null);
   });
 
   it("says when nothing is due tomorrow, and waits after 9 PM", async () => {

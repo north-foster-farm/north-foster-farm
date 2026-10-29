@@ -2284,8 +2284,9 @@ export const farmPackingSlips = (entries, {
   let scope = null;
 
   if (eve) {
-    scope = p(`It has a slip for every order due ${when}, and replaces ` +
-      `every earlier slip for that day. The ${next} email brings ` +
+    scope = p(`It has a slip for every order due ${when}, as well as ` +
+      "anything new, changed, or canceled for later days, and replaces " +
+      `every earlier slip for ${when}. The ${next} email brings ` +
       "only what comes in, changes, or is canceled after this one.");
   } else if (sunday) {
     scope = p(`It's Sunday, so it has a slip for every order due ${
