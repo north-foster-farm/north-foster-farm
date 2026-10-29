@@ -266,9 +266,10 @@ export const completeOrder = async (squareOrderId) => {
 // been paid gets its own tenders.
 const UNPAID = "order-get-line-discount";
 
-// An order with an order-scope discount or a service charge starts from
-// the recording of one (a family order's whole-order discount and its
-// $0 delivery, #514).
+// An order with line-item discounts starts from the recording of one;
+// one with an order-scope discount or only a service charge, from the
+// recording of a family order's whole-order discount and its $0
+// delivery (#514).
 const WHOLE = "order-get-discount-fee-zero";
 
 // Each discount and service charge as Square lists it, from the
@@ -299,11 +300,12 @@ const chargesOf = (built) => (built.service_charges || []).map((c, i) => {
 });
 
 const orderTemplate = (built, paid) => {
-  if (paid) return "order-get-paid";
+  const scopes = (built.discounts || []).map((d) => d.scope);
 
-  return built.service_charges
-    || (built.discounts || []).some((d) => d.scope === "ORDER")
-    ? WHOLE : UNPAID;
+  if (paid) return "order-get-paid";
+  if (scopes.includes("LINE_ITEM")) return UNPAID;
+
+  return built.service_charges || scopes.includes("ORDER") ? WHOLE : UNPAID;
 };
 
 // A recorded order without its own discounts and service charges.
