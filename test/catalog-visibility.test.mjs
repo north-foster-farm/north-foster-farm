@@ -11,6 +11,9 @@
 //   0      soon, seasonal, hiatus, discontinued   hidden    label only
 //   0      hidden, archived                       hidden    hidden
 //
+// A product marked `alwaysInStock` (#511, Large eggs) is orderable at
+// any count, 0 included, while its catalog flag is on.
+//
 // Two layers give the result: the server's availability(), then the
 // order page's row rule (order/restock.js) over a row as
 // order/row.html writes it and order/stock.js marks it.
@@ -20,7 +23,9 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
 import catalog from "../data/catalog.json" with { type: "json" };
-import { indexCatalog } from "../assets/scripts/order/lib/catalog.mjs";
+import {
+  indexCatalog, uncounted,
+} from "../assets/scripts/order/lib/catalog.mjs";
 import { showRows } from "../assets/scripts/order/restock.js";
 import { availability, hiddenBy } from "../netlify/functions/lib/stock.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
@@ -94,7 +99,9 @@ const page = async (n) => {
 // The table's answer for an item at `n` packs.
 const rule = (item, n) => {
   if (item.restock === "archived") return { stock: "hidden", full: "hidden" };
-  if (n > 0) return { stock: "orderable", full: "orderable" };
+  if (n > 0 || uncounted(item)) {
+    return { stock: "orderable", full: "orderable" };
+  }
   if (LABELED.includes(item.restock)) {
     return { stock: "hidden", full: label(item) };
   }

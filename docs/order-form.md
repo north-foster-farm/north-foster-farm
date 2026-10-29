@@ -188,6 +188,19 @@ once per count, and marked told only once the alert is sent.
 demand, read only, and exits 1 when one has stock. Fix the count in
 Square, or the entry in `data/catalog.json`.
 
+**Always in stock** (#511, James, 2026-10-28). An entry with
+`alwaysInStock: true`, today Large eggs alone, sells by its `inStock`
+flag and nothing else. Whatever Square or the store counts, 0 or
+below included, `/api/stock` reports it `{ inStock: true, available:
+null }`: the order page and search show no count and cap no quantity,
+the cart is never lowered for it, and checkout and `POST /api/orders`
+never refuse it for stock. Orders still record the sale in Square, so
+its count there may go negative. To sell it out, set `inStock: false`
+(`bin/stock`, then a deploy); its restock type then labels it as
+usual. Square's own "Mark as sold out" is not read: with inventory
+tracked, Square sets that same flag by itself when the count reaches
+0, so it would undo the point of the setting.
+
 The order page's **Show** control (`order/restock.js`, James,
 6303649455) is a radio group (`role="radiogroup"`, named "Show"
 for a screen reader, with no visible label since #274) alone and
