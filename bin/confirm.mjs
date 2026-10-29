@@ -35,6 +35,9 @@ const DESTRUCTIVE = {
   "address approve": { does: "approve the delivery address of" },
   "address deny": { does: "deny the delivery address of" },
   "passes revoke": { does: "revoke the pass" },
+  // What a customer pays from now on (#514).
+  "perks add": { does: "grant a perk to" },
+  "perks remove": { does: "end a perk of" },
   // Replacing the code kills the link the host handed out (#471).
   "groups code": { does: "replace the code of the group" },
   "groups set": { does: "change the host of the group" },
