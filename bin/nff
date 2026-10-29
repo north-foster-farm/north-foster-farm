@@ -80,6 +80,13 @@ const USAGE = `Usage:
   bin/nff sessions end-all [--yes]    end every customer session; asks
                                       first unless --yes, and emails
                                       the developer
+  bin/nff auth backfill-index [--apply]
+                                      index every session and link
+                                      under its customer, for those
+                                      written before the index or by
+                                      older code after a rollback
+                                      (#508). Safe to run twice. A dry
+                                      run unless --apply
   bin/nff address approve|deny <email>
   bin/nff orders list [--open] [--status=paid] [--email=x]
   bin/nff orders occurrences          every occurrence a stored order
@@ -2363,6 +2370,17 @@ const run = async () => {
     return out(`Ended ${r.count}. ${r.notified
       ? "The developer was emailed."
       : "No DEV_NOTIFICATIONS_EMAIL, so no email."}`);
+  }
+  case "auth backfill-index": {
+    const { backfillIndex } = await import(
+      "../netlify/functions/lib/auth-records.mjs");
+    const r = await backfillIndex(stores, {
+      apply: !!flags.apply, by: userInfo().username,
+    });
+
+    return out(`${r.records} sign-in record${r.records === 1 ? "" : "s"}, ${
+      r.missing} index key${r.missing === 1 ? "" : "s"} missing. ${r.apply
+      ? `Wrote ${r.written}.` : "A dry run: --apply writes them."}`);
   }
   case "errors show":
     return errorsShow(rest[0]);

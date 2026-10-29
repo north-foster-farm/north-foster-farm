@@ -8,9 +8,10 @@ import {
   COOKIE, createSession, endSession, requestLink, sessionFrom, verifyToken,
 } from "../netlify/functions/lib/auth.mjs";
 import {
-  AUTH_PREFIXES, INDEX, authRecordsFor, deleteAuth, indexKey, namedBy,
-  putAuth, staleIndexKey,
+  AUTH_PREFIXES, INDEX, authRecordsFor, backfillIndex, deleteAuth, indexKey,
+  namedBy, putAuth, staleIndexKey,
 } from "../netlify/functions/lib/auth-records.mjs";
+import { maskEmail } from "../netlify/functions/lib/mask.mjs";
 import {
   confirmSubscribe, requestSubscribe, unsubscribeLinks,
 } from "../netlify/functions/lib/news.mjs";
@@ -154,6 +155,73 @@ describe("the auth records' index (#508)", () => {
     await endAllSessions(stores, { apply: true, env: {}, now });
 
     assert.deepEqual(await keysUnder(stores, INDEX), []);
+  });
+});
+
+describe("auth backfill-index (#508)", () => {
+  // Records as the code before the index wrote them.
+  const seed = async () => {
+    const stores = testStores();
+
+    await stores.auth.set("session/s1", { email: PAT, expires: 1 });
+    await stores.auth.set("token/t1", {
+      email: SAM, changeFrom: PAT, expires: 1,
+    });
+    await stores.auth.set("unsub/u1", { email: "Pat@Example.com" });
+    await putAuth(stores, "news/n1", { email: SAM });
+    await stores.auth.set(`rate/${PAT}`, { times: [1] });
+
+    return stores;
+  };
+  const capture = (t) => {
+    const lines = [];
+
+    for (const level of ["log", "info", "warn", "error"]) {
+      t.mock.method(console, level, (...args) => {
+        lines.push(args.map(String).join(" "));
+      });
+    }
+
+    return lines;
+  };
+
+  it("only reports by default", async (t) => {
+    const stores = await seed();
+    const lines = capture(t);
+    const before = await keysUnder(stores, "");
+
+    assert.deepEqual(await backfillIndex(stores), {
+      apply: false, records: 4, missing: 4, written: 0,
+    });
+    assert.deepEqual(await keysUnder(stores, ""), before);
+    assert.deepEqual(lines, []);
+  });
+
+  it("with apply, indexes every record and logs each key", async (t) => {
+    const stores = await seed();
+    const lines = capture(t);
+
+    assert.deepEqual(await backfillIndex(stores, {
+      apply: true, by: "james",
+    }), { apply: true, records: 4, missing: 4, written: 4 });
+    await assertInStep(stores);
+    assert.deepEqual((await authRecordsFor(stores, PAT)).map((r) => r.key),
+      ["session/s1", "token/t1", "unsub/u1"]);
+
+    const logged = lines.map((l) => JSON.parse(l))
+      .filter((l) => l.event === "auth.index_backfilled");
+
+    assert.equal(logged.length, 4);
+    assert.deepEqual(logged[0], {
+      _time: logged[0]._time, level: "info",
+      event: "auth.index_backfilled", by: "james", key: "session/s1",
+      record: maskEmail(PAT), before: "absent", after: "present",
+    });
+    assert.ok(lines.every((l) => !l.includes(PAT) && !l.includes(SAM)));
+
+    assert.deepEqual(await backfillIndex(stores, { apply: true }), {
+      apply: true, records: 4, missing: 0, written: 0,
+    });
   });
 });
 

@@ -17,6 +17,9 @@
 
 import { createHash } from "node:crypto";
 
+import { log } from "./log.mjs";
+import { maskEmail } from "./mask.mjs";
+
 export const AUTH_PREFIXES = ["session/", "token/", "unsub/", "news/"];
 export const INDEX = "by-email/";
 
@@ -82,6 +85,52 @@ export const staleIndexKey = async (stores, key) => {
   const value = await stores.auth.get(rest.join("/"));
 
   return !namedBy(value).some((email) => hash(email) === digest);
+};
+
+// `bin/nff auth backfill-index`: an index key for every record that
+// lacks one, for the records written before the index (#508) or by
+// older code after a rollback. A report unless `apply`; each key
+// written is logged with `by`, who ran it, and the address masked
+// (mask.mjs, #496). Safe to run twice. -> { apply, records, missing,
+// written }
+export const backfillIndex = async (stores, {
+  apply = false, by = null,
+} = {}) => {
+  const report = { apply, records: 0, missing: 0, written: 0 };
+  const BATCH = 25;
+
+  for (const prefix of AUTH_PREFIXES) {
+    const keys = (await stores.auth.list(prefix)).map(({ key }) => key);
+
+    for (let i = 0; i < keys.length; i += BATCH) {
+      const batch = await Promise.all(keys.slice(i, i + BATCH)
+        .map(async (key) => ({ key, value: await stores.auth.get(key) })));
+
+      for (const { key, value } of batch) {
+        if (!value) continue;
+        report.records += 1;
+        for (const email of namedBy(value)) {
+          if (await stores.auth.get(indexKey(email, key))) continue;
+          report.missing += 1;
+          if (!apply) continue;
+          await stores.auth.set(indexKey(email, key), {});
+          report.written += 1;
+          log.info({
+            event: "auth.index_backfilled", by, key,
+            record: maskEmail(email), before: "absent", after: "present",
+          });
+        }
+      }
+    }
+  }
+  if (apply) {
+    log.info({
+      event: "auth.index_backfill", by, records: report.records,
+      written: report.written,
+    });
+  }
+
+  return report;
 };
 
 // Deletes every stale index key, for the daily sweep. -> how many.

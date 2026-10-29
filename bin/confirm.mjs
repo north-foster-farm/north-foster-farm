@@ -57,6 +57,10 @@ const DESTRUCTIVE = {
     whole: true },
   "customers rename": { does: "move the account of", apply: true },
   "customers forget": { does: "erase the details of", apply: true },
+  "auth backfill-index": {
+    does: "index every sign-in record by customer, running", apply: true,
+    whole: true,
+  },
   "stock set": { does: "set the stock count of" },
   "maintenance on": { does: "put the site in maintenance, running",
     whole: true },
