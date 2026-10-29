@@ -202,7 +202,10 @@ const USAGE = `Usage:
                                       the order is paid from the start.
                                       --dry-run prices and changes
                                       nothing. The same --key again
-                                      finds the order it made
+                                      finds the order it made. The
+                                      customer's perks apply (#514); a
+                                      family order is paid at once
+                                      with nothing to charge
   bin/nff orders pay <id> --cash|--venmo|--check [--ref <id>]
                                       money the farm took on an unpaid
                                       order, recorded in Square on the
@@ -1599,10 +1602,18 @@ const run = async () => {
         dollars(o.totals.discountAmount)})` : ""}${
       o.totals.deliveryFee ? ` (delivery ${dollars(o.totals.deliveryFee)})`
         : ""}`);
+    // The customer's perks the order was priced with (#514).
+    if ((o.totals.perks || []).length) {
+      out(`  Perks: ${o.totals.perks.join(", ")}${
+        o.totals.discountPerk ? `; the ${o.totals.discountPerk} discount ` +
+          "won" : ""}`);
+    }
     if (r.dryRun) {
       return out(`--dry-run: nothing was made. It would be ${
-        paid ? `paid, ${dollars(o.totals.total)} by ${
-          paid.tender}` : "unpaid"}.`);
+        o.totals.total === 0 && o.totals.discountPerk === "family"
+          ? "paid, with nothing to charge"
+          : paid ? `paid, ${dollars(o.totals.total)} by ${
+            paid.tender}` : "unpaid"}.`);
     }
     if (r.found) out(`Already made by this key: ${o.id}.`);
     out(summaryLine(o));
