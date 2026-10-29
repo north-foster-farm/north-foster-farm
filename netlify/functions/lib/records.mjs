@@ -27,6 +27,7 @@
 
 import { createHash } from "node:crypto";
 
+import { deleteAuth, pruneIndex } from "./auth-records.mjs";
 import { now as clock } from "./clock.mjs";
 
 export const OPEN = ["paid", "unpaid"];
@@ -520,6 +521,10 @@ export const sweepCheckouts = async (stores, now = clock(), {
 // any other key was written before that, under its raw id, and is a
 // live id to anyone who can read Blobs: it is deleted whatever its
 // expiry, and its customer signs in again by link.
+//
+// Each record goes with its index keys (lib/auth-records.mjs, #508),
+// and an index key a write cut short left behind goes too. Those are
+// not counted: the count is of records.
 export const AUTH_SWEPT = ["token/", "session/", "news/"];
 
 const HASHED_SESSION = /^session\/[0-9a-f]{64}$/;
@@ -530,7 +535,7 @@ export const sweepAuth = async (stores, now = clock()) => {
   for (const prefix of AUTH_SWEPT) {
     for (const { key } of await stores.auth.list(prefix)) {
       if (prefix === "session/" && !HASHED_SESSION.test(key)) {
-        await stores.auth.delete(key);
+        await deleteAuth(stores, key);
         swept += 1;
         continue;
       }
@@ -539,11 +544,12 @@ export const sweepAuth = async (stores, now = clock()) => {
 
       if (found && Number.isFinite(found.expires)
         && found.expires < now.getTime()) {
-        await stores.auth.delete(key);
+        await deleteAuth(stores, key, found);
         swept += 1;
       }
     }
   }
+  await pruneIndex(stores);
 
   return swept;
 };

@@ -10,9 +10,13 @@
 //   rate/<email>            { times: [...] }             link requests
 //   rate/join/<email>       { times: [...] }    join-link requests, kept
 //                           apart so they never stop a sign-in (#495)
+//
+// Links and sessions are written and deleted through lib/auth-records,
+// which keeps each one's index key under its address (#508).
 
 import { createHash, randomBytes } from "node:crypto";
 
+import { deleteAuth, putAuth } from "./auth-records.mjs";
 import { now as clock, real } from "./clock.mjs";
 import { sendMail } from "./mail.mjs";
 import {
@@ -139,7 +143,7 @@ export const requestLink = async (stores, { email, next }, {
 
   const token = secret();
 
-  await stores.auth.set(`token/${hash(token)}`, {
+  await putAuth(stores, `token/${hash(token)}`, {
     email: address,
     next: safeNext(next),
     expires: now.getTime() + ttl,
@@ -220,7 +224,7 @@ export const verifyToken = async (stores, token, { now = clock() } = {}) => {
 
   if (look.reason) return { ok: false, reason: look.reason };
 
-  await stores.auth.delete(look.key);
+  await deleteAuth(stores, look.key, look.found);
 
   if (now.getTime() > look.found.expires) {
     return expired(look.found);
@@ -247,7 +251,7 @@ export const createSession = async (stores, email, {
   const address = normalizeEmail(email);
 
   await ensureCustomer(stores, address, now);
-  await stores.auth.set(sessionKey(id), {
+  await putAuth(stores, sessionKey(id), {
     email: address,
     createdAt: now.toISOString(),
     expires: now.getTime() + SESSION_TTL,
@@ -302,7 +306,7 @@ export const sessionFrom = async (stores, req, { now = clock() } = {}) => {
 
   if (!session) return null;
   if (now.getTime() > session.expires) {
-    await stores.auth.delete(key);
+    await deleteAuth(stores, key, session);
 
     return null;
   }
@@ -313,7 +317,7 @@ export const sessionFrom = async (stores, req, { now = clock() } = {}) => {
 };
 
 export const endSession = async (stores, id) => {
-  if (id) await stores.auth.delete(sessionKey(id));
+  if (id) await deleteAuth(stores, sessionKey(id));
 };
 
 // A state-changing request with a session must come from this site.

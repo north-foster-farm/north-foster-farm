@@ -12,6 +12,7 @@ import {
   adjust, getCounts, hiddenCounts, hiddenInStock, setCount,
 } from "./stock.mjs";
 import { normalizeEmail, validEmail } from "./auth.mjs";
+import { deleteAuth, putAuth } from "./auth-records.mjs";
 import { company } from "./company.mjs";
 import { DELIVERING } from "./health.mjs";
 import { completeInSquare } from "./complete.mjs";
@@ -351,9 +352,11 @@ export const renameCustomer = async (stores, from, to, {
   }
   for (const { key, value } of auth) {
     if (/^(session|token)\//.test(key)) {
-      await stores.auth.delete(key);
+      await deleteAuth(stores, key, value);
     } else {
-      await stores.auth.set(key, { ...value, email: next });
+      await putAuth(stores, key, { ...value, email: next }, {
+        before: value,
+      });
     }
   }
   // The address's email-change limit follows it (#240).
@@ -1033,7 +1036,7 @@ export const endAllSessions = async (stores, {
 
   if (!apply) return { count: keys.length, ended: false };
 
-  for (const key of keys) await stores.auth.delete(key);
+  for (const key of keys) await deleteAuth(stores, key);
 
   const to = devEmails(env);
 

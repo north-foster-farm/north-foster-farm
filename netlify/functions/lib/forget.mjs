@@ -28,6 +28,7 @@
 // notes and anything else the customer wrote.
 
 import { normalizeEmail } from "./auth.mjs";
+import { deleteAuth } from "./auth-records.mjs";
 import { namingKeys, scrubbed } from "./group-log.mjs";
 import { log } from "./log.mjs";
 import { maskEmail, maskIn } from "./mask.mjs";
@@ -327,7 +328,7 @@ export const forgetCustomer = async (stores, rawEmail, {
   }
   for (const key of support) await stores.customers.delete(key);
   for (const key of messages) await stores.customers.delete(key);
-  for (const key of auth) await stores.auth.delete(key);
+  for (const key of auth) await deleteAuth(stores, key);
   for (const pass of passes) {
     await endPass(stores, pass.code, { revoke: true, now });
   }

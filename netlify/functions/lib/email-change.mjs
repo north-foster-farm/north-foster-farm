@@ -11,6 +11,7 @@ import {
   fieldError,
 } from "../../../assets/scripts/utils/field-errors.mjs";
 import { renameCustomer } from "./admin.mjs";
+import { deleteAuth } from "./auth-records.mjs";
 import {
   LINK_WINDOW, LINKS_PER_WINDOW, hit, normalizeEmail, requestLink,
   validEmail,
@@ -46,7 +47,7 @@ const voidChangeTokens = async (stores, from) => {
     const stale = value && value.changeFrom
       && normalizeEmail(value.changeFrom) === from;
 
-    if (stale) await stores.auth.delete(key);
+    if (stale) await deleteAuth(stores, key, value);
   }
 };
 
