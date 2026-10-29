@@ -370,20 +370,28 @@ describe("orders read and changed", () => {
     assert.equal(typeof result.version, "number");
   });
 
-  // FINDING (recorded 2026-10-29): Square refuses to cancel an order
-  // whose fulfillment is still proposed, so cancelOrder as written
-  // cannot cancel an order after a decline. It needs the fulfillment
-  // cancelled first (or in the same update), then a recording of the
-  // order that results.
+  // Square refuses to cancel an order while its fulfillment is open
+  // (recorded 2026-10-29), so cancelOrder cancels the fulfillment first
+  // and the order at the version that answer gives. The two recordings
+  // below need `bin/fixtures/record` run again after the cancel fix.
   it("is refused cancelling an order with an open fulfillment",
-    async () => {
-      const { status, response } = rec("order-cancel");
-      const error = await failed(["order-get-before-cancel", "order-cancel"],
-        (o) => cancelOrder(id, o));
+    { skip: !have("order-cancel-refused") }, () => {
+      const { status, response, request } = rec("order-cancel-refused");
 
       assert.equal(status, 400);
-      assert.equal(error.code, response.errors[0].code);
-      assert.equal(error.code, "INVALID_VALUE");
+      assert.equal(response.errors[0].code, "INVALID_VALUE");
+      assert.equal(request.body.order.state, "CANCELED");
+      assert.equal(request.body.order.fulfillments, undefined);
+    });
+
+  it("cancels the fulfillment, then the order",
+    { skip: !have("order-cancel-fulfillment") }, async () => {
+      const result = await replay([
+        "order-get-before-cancel", "order-cancel-fulfillment", "order-cancel",
+      ], (o) => cancelOrder(id, o));
+
+      assert.deepEqual(result, { id, cancelled: true });
+      assert.equal(rec("order-cancel").response.order.state, "CANCELED");
     });
 
   it("leaves a paid order alone when told to cancel only unpaid ones",

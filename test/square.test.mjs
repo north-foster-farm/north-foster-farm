@@ -778,6 +778,28 @@ describe("cancelOrder", () => {
     });
   });
 
+  it("cancels an open fulfillment first, then the order at the new " +
+    "version", async () => {
+    const open = recorded("square", "order-get-before-cancel").response.order;
+    const { impl, calls } = fakeFetch({
+      [`/v2/orders/${open.id}`]: (n) => new Response(JSON.stringify({
+        order: { ...open, version: open.version + n - 1 },
+      })),
+    });
+    const out = await cancelOrder(open.id, { env, fetchImpl: impl });
+
+    assert.deepEqual(out, { id: open.id, cancelled: true });
+    assert.deepEqual(calls.map((c) => c.method), ["GET", "PUT", "PUT"]);
+    assert.deepEqual(calls[1].body.order.fulfillments,
+      [{ uid: open.fulfillments[0].uid, state: "CANCELED" }]);
+    assert.equal(calls[1].body.order.version, open.version);
+    assert.deepEqual(calls[2].body.order, {
+      location_id: open.location_id || "LOC",
+      version: open.version + 1,
+      state: "CANCELED",
+    });
+  });
+
   it("leaves an order that is no longer open alone", async () => {
     const { impl, calls } = fakeFetch(answers("COMPLETED"));
     const out = await cancelOrder("SQO", { env, fetchImpl: impl });

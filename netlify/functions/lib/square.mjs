@@ -986,10 +986,31 @@ export const cancelOrder = async (squareOrderId, {
     return { id: squareOrderId, cancelled: false, paid };
   }
 
+  let version = current.version;
+
+  // Square refuses to cancel an order while a fulfillment is open
+  // (INVALID_VALUE, recorded 2026-10-29), so the fulfillment goes first.
+  // The order's new version comes back with it.
+  const open = (current.fulfillments || []).filter(
+    (f) => !["COMPLETED", "CANCELED", "FAILED"].includes(f.state)
+  );
+
+  if (open.length) {
+    const data = await call(cfg, orderPath(squareOrderId), {
+      order: {
+        location_id: current.location_id || cfg.locationId,
+        version,
+        fulfillments: open.map((f) => ({ uid: f.uid, state: "CANCELED" })),
+      },
+    }, fetchImpl, "PUT");
+
+    version = (data.order && data.order.version) || version;
+  }
+
   await call(cfg, orderPath(squareOrderId), {
     order: {
       location_id: current.location_id || cfg.locationId,
-      version: current.version,
+      version,
       state: "CANCELED",
     },
   }, fetchImpl, "PUT");

@@ -219,6 +219,22 @@ pay() {
   send "payment-$name" square "$PAY_REQUEST" "$want"
 }
 
+# Cancels an order as cancelOrder does: its open fulfillment first, then
+# the order at the version that answer gives. cancel_order NAME ARGS, with
+# ARGS holding the order as last read.
+cancel_order() {
+  local name="$1" args="$2" version
+
+  # Once, the order alone: what Square refuses while a fulfillment is open.
+  if [ "$name" = "order-cancel" ]; then
+    send order-cancel-refused square "$(pick cancel-order "$args" 1)" 4
+  fi
+  send "$name-fulfillment" square "$(pick cancel-order "$args" 0)"
+  version="$(jq -r '.response.order.version // empty' "$OUT")"
+  send "$name" square "$(pick cancel-order "$args" 1 \
+    | jq -c --argjson v "${version:-0}" '.body.order.version = $v')"
+}
+
 echo "Recording from Square's sandbox (location ${LOC:0:4}...)."
 
 # ---- Locations and the version the code sends ---------------------------
@@ -316,7 +332,7 @@ send order-update-fulfillment square "$(pick update-fulfillment "$ARGS" 0)"
 send order-get-before-cancel square "$(sq GET "/v2/orders/$DELIVERY_ORDER")"
 ARGS="$(margs --arg orderId "$DELIVERY_ORDER" \
   --argjson current "$(jq -c .response.order "$OUT")")"
-send order-cancel square "$(pick cancel-order "$ARGS" 0)"
+cancel_order order-cancel "$ARGS"
 send order-get-canceled square "$(sq GET "/v2/orders/$DELIVERY_ORDER")"
 pay order-canceled '{"sourceId": "cnon:card-nonce-ok"}' "$DELIVERY_TOTAL" 4
 
@@ -375,7 +391,7 @@ LOCK_ORDER="$(got .response.order.id)"
 send order-get-line-discount square "$(sq GET "/v2/orders/$LOCK_ORDER")"
 ARGS="$(margs --arg orderId "$LOCK_ORDER" \
   --argjson current "$(jq -c .response.order "$OUT")")"
-send order-cancel-line-discount square "$(pick cancel-order "$ARGS" 0)"
+cancel_order order-cancel-line-discount "$ARGS"
 
 # One ORDER-scope discount beside a delivery fee waived to $0.
 TOTALS='{"discountLabel": "Welcome", "discountAmount": 500,
@@ -388,7 +404,7 @@ WAIVED_ORDER="$(got .response.order.id)"
 send order-get-discount-fee-zero square "$(sq GET "/v2/orders/$WAIVED_ORDER")"
 ARGS="$(margs --arg orderId "$WAIVED_ORDER" \
   --argjson current "$(jq -c .response.order "$OUT")")"
-send order-cancel-discount-fee-zero square "$(pick cancel-order "$ARGS" 0)"
+cancel_order order-cancel-discount-fee-zero "$ARGS"
 
 # ---- The catalog and stock ----------------------------------------------
 # No function of ours searches the sandbox catalog any more (staging's
@@ -412,7 +428,7 @@ else
   send order-get-catalog square "$(sq GET "/v2/orders/$CATALOG_ORDER")"
   ARGS="$(margs --arg orderId "$CATALOG_ORDER" \
     --argjson current "$(jq -c .response.order "$OUT")")"
-  send order-cancel-catalog square "$(pick cancel-order "$ARGS" 0)"
+  cancel_order order-cancel-catalog "$ARGS"
 fi
 send inventory-counts square \
   "$(pick inventory-counts "$(margs --argjson ids "$IDS")" 0)"

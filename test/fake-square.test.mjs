@@ -129,10 +129,9 @@ describe("a payment the fake refuses, as Square did", () => {
   it("takes a payment on a cancelled order, as Square did", async () => {
     const id = await placed("k-cancel");
 
-    await assert.rejects(square.cancelOrder(id, { env: DEV }),
-      refused("order-cancel"));
-    await square.cancelFulfillment(id, { env: DEV });
-    await square.cancelOrder(id, { env: DEV });
+    assert.deepEqual(await square.cancelOrder(id, { env: DEV }),
+      { id, cancelled: true });
+    assert.equal((await square.getOrder(id, { env: DEV })).state, "CANCELED");
     assert.equal((await pay(id, "k-cancel", 5500)).status, "COMPLETED");
   });
 

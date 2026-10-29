@@ -311,12 +311,10 @@ export const cancelOrder = async (squareOrderId, { unpaid = false } = {}) => {
     if (known.state !== "OPEN" || (unpaid && paid)) {
       return { id: squareOrderId, cancelled: false, paid };
     }
-    // FINDING (recorded 2026-10-29): Square refuses to cancel an order
-    // whose fulfillment is still open (order-cancel.json is a 400).
-    if ((known.built.fulfillments || []).length
-      && !known.fulfillmentCanceled) {
-      throw refusal("order-cancel", `/v2/orders/${squareOrderId}`);
-    }
+    // Square refuses to cancel an order while its fulfillment is open
+    // (order-cancel-refused.json), so the real cancelOrder cancels the
+    // fulfillment first; the fake does both.
+    known.fulfillmentCanceled = true;
     known.state = "CANCELED";
   }
 

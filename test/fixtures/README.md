@@ -53,9 +53,11 @@ same value has the same placeholder in every file, so the payment in
   a recording, with the request's ids, amounts and status put in, and
   read by the same code that reads Square's answers. It remembers what
   it was told in this process (`forgetFake()` clears it) and refuses
-  what Square refused: a payment over the order's total, on a paid or a
-  cancelled order, or for nothing; a refund over what is left; a key
-  reused with another body. The refusal it throws is the recorded one.
+  what Square refused: a payment off the order's total (over or under;
+  there are no part payments), on a paid order, or for nothing; a refund
+  over what is left; a payment key reused with another body. It takes
+  what Square took: a payment on a cancelled order, an order key reused.
+  The refusal it throws is the recorded one.
 - `test/square-replay.test.mjs` serves the recordings to the real
   functions of `lib/square.mjs` and holds what they send to what each
   was recorded with. Change a request and it fails until the recorder
@@ -92,7 +94,8 @@ same value has the same placeholder in every file, so the payment in
 | `order-update-fulfillment` | `updateFulfillment` (a customer's change) |
 | `fulfillment-cancel`, `order-update-stale-version` | `cancelFulfillment`; the same version again (VERSION_MISMATCH) |
 | `order-complete` | `completeOrder` |
-| `order-cancel`, `order-cancel-catalog` | `cancelOrder` after a decline |
+| `order-cancel-refused` | the order alone, cancelled while its fulfillment is open: 400 INVALID_VALUE |
+| `order-cancel-fulfillment`, `order-cancel`, and the same with `-catalog` | `cancelOrder` after a decline: the fulfillment, then the order |
 | `orders-search-recent`, `-open`, `-customer` | `findPaid`, `searchOpenOrders`, `customerOrders` |
 | `catalog-search` | the recorder's own lookup of a sandbox variation id; no function of ours searches the catalog since staging's stock moved to production's `/api/stock` |
 | `inventory-counts` | `inventoryCounts` |
