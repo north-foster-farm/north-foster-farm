@@ -113,9 +113,10 @@ describe("an order a payment left open is cancelled whole", () => {
         },
       });
 
-      await assert.rejects(payWithCredit(testStores(),
-        order({ total: 0, credit: 6000 }), { key: KEY },
-      { square, env: ENV, fetchImpl: net.impl, sleep: async () => {} }));
+      await assert.rejects(payWithCredit(
+        testStores(), order({ total: 0, credit: 6000 }), { key: KEY },
+        { square, env: ENV, fetchImpl: net.impl, sleep: async () => {} }
+      ));
       assertCancelled(net);
     });
 
