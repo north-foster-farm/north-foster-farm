@@ -1,10 +1,1 @@
-[
-  {
-    "spec": "e2e/email-change.spec.mjs",
-    "test": "a link to the new address moves the account, only once confirmed",
-    "issue": 508,
-    "expires": "2026-11-11",
-    "approved": "James, 2026-10-28 (#495)",
-    "why": "On staging the confirm answers in about 15 s while renameCustomer reads every sign-in record; it passes on a local build."
-  }
-]
+[]
