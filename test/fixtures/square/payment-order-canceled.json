@@ -6,7 +6,7 @@
     "squareVersion": "2026-09-16",
     "by": "bin/fixtures/record, scrubbed by bin/fixtures/scrub"
   },
-  "status": 200,
+  "status": 400,
   "request": {
     "method": "POST",
     "path": "/v2/payments",
@@ -30,19 +30,26 @@
     }
   },
   "response": {
+    "errors": [
+      {
+        "code": "BAD_REQUEST",
+        "detail": "The order must be OPEN to be paid.",
+        "category": "INVALID_REQUEST_ERROR"
+      }
+    ],
     "payment": {
       "id": "PAYMENT_ID_7",
-      "created_at": "2026-10-29T23:06:57.299Z",
-      "updated_at": "2026-10-29T23:06:57.533Z",
+      "created_at": "2026-10-29T23:20:44.899Z",
+      "updated_at": "2026-10-29T23:20:45.079Z",
       "amount_money": {
         "amount": 6500,
         "currency": "USD"
       },
-      "status": "COMPLETED",
+      "status": "CANCELED",
       "delay_duration": "PT168H",
       "source_type": "CARD",
       "card_details": {
-        "status": "CAPTURED",
+        "status": "VOIDED",
         "card": {
           "card_brand": "VISA",
           "last_4": "5858",
@@ -58,15 +65,15 @@
         "avs_status": "AVS_ACCEPTED",
         "statement_description": "SQ *DEFAULT TEST ACCOUNT",
         "card_payment_timeline": {
-          "authorized_at": "2026-10-29T23:06:57.424Z",
-          "captured_at": "2026-10-29T23:06:57.534Z"
+          "authorized_at": "2026-10-29T23:20:45.026Z",
+          "voided_at": "2026-10-29T23:20:45.079Z"
         }
       },
       "location_id": "LOCATION_ID_1",
       "order_id": "ORDER_ID_3",
       "reference_id": "NFF-2610-FIXT",
       "risk_evaluation": {
-        "created_at": "2026-10-29T23:06:57.424Z",
+        "created_at": "2026-10-29T23:20:45.026Z",
         "risk_level": "NORMAL"
       },
       "buyer_email_address": "customer@example.com",
@@ -80,10 +87,8 @@
         "amount": 6500,
         "currency": "USD"
       },
-      "receipt_number": "RECEIPT_NUMBER_2",
-      "receipt_url": "https://squareupsandbox.com/receipt/preview/PAYMENT_ID_7",
       "delay_action": "CANCEL",
-      "delayed_until": "2026-11-05T23:06:57.299Z",
+      "delayed_until": "2026-11-05T23:20:44.899Z",
       "application_details": {
         "square_product": "ECOMMERCE_API",
         "application_id": "APPLICATION_ID_1"

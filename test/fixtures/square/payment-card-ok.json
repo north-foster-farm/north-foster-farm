@@ -32,8 +32,8 @@
   "response": {
     "payment": {
       "id": "PAYMENT_ID_1",
-      "created_at": "2026-10-29T23:06:41.371Z",
-      "updated_at": "2026-10-29T23:06:41.619Z",
+      "created_at": "2026-10-29T23:20:27.866Z",
+      "updated_at": "2026-10-29T23:20:28.112Z",
       "amount_money": {
         "amount": 5500,
         "currency": "USD"
@@ -58,15 +58,15 @@
         "avs_status": "AVS_ACCEPTED",
         "statement_description": "SQ *DEFAULT TEST ACCOUNT",
         "card_payment_timeline": {
-          "authorized_at": "2026-10-29T23:06:41.500Z",
-          "captured_at": "2026-10-29T23:06:41.619Z"
+          "authorized_at": "2026-10-29T23:20:27.991Z",
+          "captured_at": "2026-10-29T23:20:28.112Z"
         }
       },
       "location_id": "LOCATION_ID_1",
       "order_id": "ORDER_ID_1",
       "reference_id": "NFF-2610-FIXT",
       "risk_evaluation": {
-        "created_at": "2026-10-29T23:06:41.500Z",
+        "created_at": "2026-10-29T23:20:27.991Z",
         "risk_level": "NORMAL"
       },
       "buyer_email_address": "customer@example.com",
@@ -83,7 +83,7 @@
       "receipt_number": "RECEIPT_NUMBER_1",
       "receipt_url": "https://squareupsandbox.com/receipt/preview/PAYMENT_ID_1",
       "delay_action": "CANCEL",
-      "delayed_until": "2026-11-05T23:06:41.371Z",
+      "delayed_until": "2026-11-05T23:20:27.866Z",
       "application_details": {
         "square_product": "ECOMMERCE_API",
         "application_id": "APPLICATION_ID_1"

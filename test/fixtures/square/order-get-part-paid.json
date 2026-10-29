@@ -106,8 +106,8 @@
         "order_flow": "order-page",
         "site_version": "1.0.0"
       },
-      "created_at": "2026-10-29T23:06:58.147Z",
-      "updated_at": "2026-10-29T23:07:00.058Z",
+      "created_at": "2026-10-29T23:20:45.597Z",
+      "updated_at": "2026-10-29T23:20:47.503Z",
       "state": "OPEN",
       "version": 5,
       "reference_id": "NFF-2610-FIXT",
@@ -132,7 +132,7 @@
           "id": "PAYMENT_ID_8",
           "location_id": "LOCATION_ID_1",
           "transaction_id": "ORDER_ID_4",
-          "created_at": "2026-10-29T23:06:58.833Z",
+          "created_at": "2026-10-29T23:20:46.318Z",
           "note": "North Foster Farm order NFF-2610-FIXT",
           "amount_money": {
             "amount": 5600,
@@ -159,7 +159,7 @@
           "id": "PAYMENT_ID_9",
           "location_id": "LOCATION_ID_1",
           "transaction_id": "ORDER_ID_4",
-          "created_at": "2026-10-29T23:06:59.756Z",
+          "created_at": "2026-10-29T23:20:47.223Z",
           "note": "North Foster Farm order NFF-2610-FIXT",
           "amount_money": {
             "amount": 5400,

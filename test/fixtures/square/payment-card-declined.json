@@ -39,8 +39,8 @@
     ],
     "payment": {
       "id": "PAYMENT_ID_3",
-      "created_at": "2026-10-29T23:06:51.203Z",
-      "updated_at": "2026-10-29T23:06:51.328Z",
+      "created_at": "2026-10-29T23:20:37.654Z",
+      "updated_at": "2026-10-29T23:20:37.779Z",
       "amount_money": {
         "amount": 6500,
         "currency": "USD"
@@ -69,7 +69,7 @@
           }
         ],
         "card_payment_timeline": {
-          "authorized_at": "2026-10-29T23:06:51.328Z"
+          "authorized_at": "2026-10-29T23:20:37.779Z"
         }
       },
       "location_id": "LOCATION_ID_1",
@@ -87,7 +87,7 @@
         "currency": "USD"
       },
       "delay_action": "CANCEL",
-      "delayed_until": "2026-11-05T23:06:51.203Z",
+      "delayed_until": "2026-11-05T23:20:37.654Z",
       "application_details": {
         "square_product": "ECOMMERCE_API",
         "application_id": "APPLICATION_ID_1"

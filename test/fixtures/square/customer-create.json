@@ -26,8 +26,8 @@
   "response": {
     "customer": {
       "id": "CUSTOMER_ID_1",
-      "created_at": "2026-10-29T23:06:39.44Z",
-      "updated_at": "2026-10-29T23:06:39Z",
+      "created_at": "2026-10-29T23:20:25.942Z",
+      "updated_at": "2026-10-29T23:20:25Z",
       "given_name": "Given",
       "family_name": "Family",
       "email_address": "customer@example.com",

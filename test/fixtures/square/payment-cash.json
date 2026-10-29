@@ -38,8 +38,8 @@
   "response": {
     "payment": {
       "id": "PAYMENT_ID_11",
-      "created_at": "2026-10-29T23:07:04.419Z",
-      "updated_at": "2026-10-29T23:07:04.520Z",
+      "created_at": "2026-10-29T23:20:51.923Z",
+      "updated_at": "2026-10-29T23:20:52.044Z",
       "amount_money": {
         "amount": 5500,
         "currency": "USD"
@@ -72,7 +72,7 @@
           "currency": "USD"
         }
       },
-      "receipt_number": "RECEIPT_NUMBER_4",
+      "receipt_number": "RECEIPT_NUMBER_3",
       "receipt_url": "https://squareupsandbox.com/receipt/preview/PAYMENT_ID_11",
       "application_details": {
         "square_product": "ECOMMERCE_API",

@@ -144,16 +144,16 @@
           "pickup_details": {
             "pickup_at": "2026-11-05T14:00:00.000Z",
             "note": "On-farm pickup · prefers text · pickup 9 AM – noon · heard via Fixture recorder",
-            "placed_at": "2026-10-29T23:06:41.647Z",
-            "accepted_at": "2026-10-29T23:06:48.144Z",
-            "ready_at": "2026-10-29T23:06:48.144Z",
+            "placed_at": "2026-10-29T23:20:28.141Z",
+            "accepted_at": "2026-10-29T23:20:34.581Z",
+            "ready_at": "2026-10-29T23:20:34.581Z",
             "schedule_type": "SCHEDULED",
             "recipient": {
               "display_name": "Display Name",
               "email_address": "customer@example.com",
               "phone_number": "+15555550100"
             },
-            "picked_up_at": "2026-10-29T23:06:48.144Z"
+            "picked_up_at": "2026-10-29T23:20:34.581Z"
           }
         }
       ],
@@ -161,8 +161,8 @@
         "order_flow": "order-page",
         "site_version": "1.0.0"
       },
-      "created_at": "2026-10-29T23:06:40.543Z",
-      "updated_at": "2026-10-29T23:06:48.889Z",
+      "created_at": "2026-10-29T23:20:27.051Z",
+      "updated_at": "2026-10-29T23:20:35.251Z",
       "state": "COMPLETED",
       "version": 8,
       "reference_id": "NFF-2610-FIXT",
@@ -182,13 +182,13 @@
         "amount": 5500,
         "currency": "USD"
       },
-      "closed_at": "2026-10-29T23:06:48.129Z",
+      "closed_at": "2026-10-29T23:20:34.574Z",
       "tenders": [
         {
           "id": "PAYMENT_ID_1",
           "location_id": "LOCATION_ID_1",
           "transaction_id": "ORDER_ID_1",
-          "created_at": "2026-10-29T23:06:41.371Z",
+          "created_at": "2026-10-29T23:20:27.866Z",
           "note": "North Foster Farm order NFF-2610-FIXT",
           "amount_money": {
             "amount": 5500,

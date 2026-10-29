@@ -6,7 +6,7 @@
     "squareVersion": "2026-09-16",
     "by": "bin/fixtures/record, scrubbed by bin/fixtures/scrub"
   },
-  "status": 400,
+  "status": 200,
   "request": {
     "method": "PUT",
     "path": "/v2/orders/ORDER_ID_3",
@@ -17,19 +17,313 @@
     "body": {
       "order": {
         "location_id": "LOCATION_ID_1",
-        "version": 6,
+        "version": 7,
         "state": "CANCELED"
       }
     }
   },
   "response": {
-    "errors": [
-      {
-        "code": "INVALID_VALUE",
-        "detail": "All fulfillments must have a state of COMPLETED, CANCELED, or FAILED for an order to be able to have a state of CANCELED.",
-        "field": "order.fulfillments[0]",
-        "category": "INVALID_REQUEST_ERROR"
+    "order": {
+      "id": "ORDER_ID_3",
+      "location_id": "LOCATION_ID_1",
+      "line_items": [
+        {
+          "uid": "LINE_ITEM_UID_2",
+          "quantity": "2",
+          "name": "Whole Chicken (per each), 3.5 - 3.9 lbs",
+          "base_price_money": {
+            "amount": 3000,
+            "currency": "USD"
+          },
+          "gross_sales_money": {
+            "amount": 6000,
+            "currency": "USD"
+          },
+          "total_tax_money": {
+            "amount": 0,
+            "currency": "USD"
+          },
+          "total_discount_money": {
+            "amount": 0,
+            "currency": "USD"
+          },
+          "total_money": {
+            "amount": 6000,
+            "currency": "USD"
+          },
+          "variation_total_price_money": {
+            "amount": 6000,
+            "currency": "USD"
+          },
+          "item_type": "ITEM",
+          "total_service_charge_money": {
+            "amount": 0,
+            "currency": "USD"
+          },
+          "total_card_surcharge_money": {
+            "amount": 0,
+            "currency": "USD"
+          }
+        }
+      ],
+      "fulfillments": [
+        {
+          "uid": "FULFILLMENT_UID_2",
+          "type": "DELIVERY",
+          "state": "CANCELED",
+          "delivery_details": {
+            "recipient": {
+              "display_name": "Display Name",
+              "email_address": "customer@example.com",
+              "phone_number": "+15555550100",
+              "address": {
+                "address_line_1": "ADDRESS_LINE_1",
+                "locality": "LOCALITY",
+                "administrative_district_level_1": "ST",
+                "postal_code": "00000",
+                "country": "US"
+              }
+            },
+            "schedule_type": "SCHEDULED",
+            "deliver_at": "2026-11-05T15:00:00.000Z",
+            "note": "prefers text · cooler: yes · heard via Fixture recorder",
+            "canceled_at": "2026-10-29T23:20:43.364Z",
+            "managed_delivery": false
+          }
+        }
+      ],
+      "metadata": {
+        "order_flow": "order-page",
+        "site_version": "1.0.0"
+      },
+      "created_at": "2026-10-29T23:20:36.932Z",
+      "updated_at": "2026-10-29T23:20:43.889Z",
+      "state": "CANCELED",
+      "version": 8,
+      "reference_id": "NFF-2610-FIXT",
+      "total_tax_money": {
+        "amount": 0,
+        "currency": "USD"
+      },
+      "total_discount_money": {
+        "amount": 0,
+        "currency": "USD"
+      },
+      "total_tip_money": {
+        "amount": 0,
+        "currency": "USD"
+      },
+      "total_money": {
+        "amount": 6500,
+        "currency": "USD"
+      },
+      "closed_at": "2026-10-29T23:20:43.889Z",
+      "tenders": [
+        {
+          "id": "PAYMENT_ID_3",
+          "location_id": "LOCATION_ID_1",
+          "transaction_id": "ORDER_ID_3",
+          "created_at": "2026-10-29T23:20:37.654Z",
+          "note": "North Foster Farm order NFF-2610-FIXT",
+          "amount_money": {
+            "amount": 6500,
+            "currency": "USD"
+          },
+          "type": "CARD",
+          "card_details": {
+            "status": "FAILED",
+            "card": {
+              "card_brand": "VISA",
+              "last_4": "0002",
+              "exp_month": 10,
+              "exp_year": 2028,
+              "fingerprint": "FINGERPRINT_2",
+              "card_type": "CREDIT",
+              "prepaid_type": "NOT_PREPAID",
+              "bin": "400000"
+            },
+            "entry_method": "KEYED",
+            "errors": [
+              {
+                "code": "GENERIC_DECLINE",
+                "detail": "Authorization error: 'GENERIC_DECLINE'",
+                "category": "PAYMENT_METHOD_ERROR"
+              }
+            ]
+          },
+          "payment_id": "PAYMENT_ID_3"
+        },
+        {
+          "id": "PAYMENT_ID_4",
+          "location_id": "LOCATION_ID_1",
+          "transaction_id": "ORDER_ID_3",
+          "created_at": "2026-10-29T23:20:38.448Z",
+          "note": "North Foster Farm order NFF-2610-FIXT",
+          "amount_money": {
+            "amount": 6500,
+            "currency": "USD"
+          },
+          "type": "CARD",
+          "card_details": {
+            "status": "FAILED",
+            "card": {
+              "card_brand": "VISA",
+              "last_4": "5858",
+              "exp_month": 10,
+              "exp_year": 2028,
+              "fingerprint": "FINGERPRINT_1",
+              "card_type": "CREDIT",
+              "prepaid_type": "NOT_PREPAID",
+              "bin": "453275"
+            },
+            "entry_method": "KEYED",
+            "errors": [
+              {
+                "code": "CVV_FAILURE",
+                "detail": "Authorization error: 'CVV_FAILURE'",
+                "category": "PAYMENT_METHOD_ERROR"
+              }
+            ]
+          },
+          "payment_id": "PAYMENT_ID_4"
+        },
+        {
+          "id": "PAYMENT_ID_5",
+          "location_id": "LOCATION_ID_1",
+          "transaction_id": "ORDER_ID_3",
+          "created_at": "2026-10-29T23:20:39.315Z",
+          "note": "North Foster Farm order NFF-2610-FIXT",
+          "amount_money": {
+            "amount": 6500,
+            "currency": "USD"
+          },
+          "type": "CARD",
+          "card_details": {
+            "status": "FAILED",
+            "card": {
+              "card_brand": "VISA",
+              "last_4": "5858",
+              "exp_month": 10,
+              "exp_year": 2028,
+              "fingerprint": "FINGERPRINT_1",
+              "card_type": "CREDIT",
+              "prepaid_type": "NOT_PREPAID",
+              "bin": "453275"
+            },
+            "entry_method": "KEYED",
+            "errors": [
+              {
+                "code": "ADDRESS_VERIFICATION_FAILURE",
+                "detail": "Authorization error: 'ADDRESS_VERIFICATION_FAILURE'",
+                "category": "PAYMENT_METHOD_ERROR"
+              }
+            ]
+          },
+          "payment_id": "PAYMENT_ID_5"
+        },
+        {
+          "id": "PAYMENT_ID_6",
+          "location_id": "LOCATION_ID_1",
+          "transaction_id": "ORDER_ID_3",
+          "created_at": "2026-10-29T23:20:40.136Z",
+          "note": "North Foster Farm order NFF-2610-FIXT",
+          "amount_money": {
+            "amount": 6500,
+            "currency": "USD"
+          },
+          "type": "CARD",
+          "card_details": {
+            "status": "FAILED",
+            "card": {
+              "card_brand": "VISA",
+              "last_4": "5858",
+              "exp_month": 1,
+              "exp_year": 2040,
+              "fingerprint": "FINGERPRINT_1",
+              "card_type": "CREDIT",
+              "prepaid_type": "NOT_PREPAID",
+              "bin": "453275"
+            },
+            "entry_method": "KEYED",
+            "errors": [
+              {
+                "code": "INVALID_EXPIRATION",
+                "detail": "Authorization error: 'INVALID_EXPIRATION'",
+                "category": "PAYMENT_METHOD_ERROR"
+              }
+            ]
+          },
+          "payment_id": "PAYMENT_ID_6"
+        }
+      ],
+      "service_charges": [
+        {
+          "uid": "SERVICE_CHARGE_UID_1",
+          "name": "Delivery fee",
+          "amount_money": {
+            "amount": 500,
+            "currency": "USD"
+          },
+          "applied_money": {
+            "amount": 500,
+            "currency": "USD"
+          },
+          "calculation_phase": "SUBTOTAL_PHASE",
+          "taxable": false,
+          "total_money": {
+            "amount": 500,
+            "currency": "USD"
+          },
+          "total_tax_money": {
+            "amount": 0,
+            "currency": "USD"
+          },
+          "type": "CUSTOM",
+          "treatment_type": "LINE_ITEM_TREATMENT"
+        }
+      ],
+      "total_service_charge_money": {
+        "amount": 500,
+        "currency": "USD"
+      },
+      "net_amounts": {
+        "total_money": {
+          "amount": 6500,
+          "currency": "USD"
+        },
+        "tax_money": {
+          "amount": 0,
+          "currency": "USD"
+        },
+        "discount_money": {
+          "amount": 0,
+          "currency": "USD"
+        },
+        "tip_money": {
+          "amount": 0,
+          "currency": "USD"
+        },
+        "service_charge_money": {
+          "amount": 500,
+          "currency": "USD"
+        },
+        "card_surcharge_money": {
+          "amount": 0,
+          "currency": "USD"
+        }
+      },
+      "source": {
+        "name": "northfosterfarm.com v1.0"
+      },
+      "customer_id": "CUSTOMER_ID_1",
+      "net_amount_due_money": {
+        "amount": 6500,
+        "currency": "USD"
+      },
+      "total_card_surcharge_money": {
+        "amount": 0,
+        "currency": "USD"
       }
-    ]
+    }
   }
 }

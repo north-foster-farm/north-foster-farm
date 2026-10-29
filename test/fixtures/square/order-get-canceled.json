@@ -63,7 +63,7 @@
         {
           "uid": "FULFILLMENT_UID_2",
           "type": "DELIVERY",
-          "state": "PROPOSED",
+          "state": "CANCELED",
           "delivery_details": {
             "recipient": {
               "display_name": "Display Name",
@@ -80,6 +80,7 @@
             "schedule_type": "SCHEDULED",
             "deliver_at": "2026-11-05T15:00:00.000Z",
             "note": "prefers text · cooler: yes · heard via Fixture recorder",
+            "canceled_at": "2026-10-29T23:20:43.364Z",
             "managed_delivery": false
           }
         }
@@ -88,10 +89,10 @@
         "order_flow": "order-page",
         "site_version": "1.0.0"
       },
-      "created_at": "2026-10-29T23:06:50.524Z",
-      "updated_at": "2026-10-29T23:06:55.373Z",
-      "state": "OPEN",
-      "version": 6,
+      "created_at": "2026-10-29T23:20:36.932Z",
+      "updated_at": "2026-10-29T23:20:43.889Z",
+      "state": "CANCELED",
+      "version": 8,
       "reference_id": "NFF-2610-FIXT",
       "total_tax_money": {
         "amount": 0,
@@ -109,12 +110,13 @@
         "amount": 6500,
         "currency": "USD"
       },
+      "closed_at": "2026-10-29T23:20:43.889Z",
       "tenders": [
         {
           "id": "PAYMENT_ID_3",
           "location_id": "LOCATION_ID_1",
           "transaction_id": "ORDER_ID_3",
-          "created_at": "2026-10-29T23:06:51.203Z",
+          "created_at": "2026-10-29T23:20:37.654Z",
           "note": "North Foster Farm order NFF-2610-FIXT",
           "amount_money": {
             "amount": 6500,
@@ -148,7 +150,7 @@
           "id": "PAYMENT_ID_4",
           "location_id": "LOCATION_ID_1",
           "transaction_id": "ORDER_ID_3",
-          "created_at": "2026-10-29T23:06:51.983Z",
+          "created_at": "2026-10-29T23:20:38.448Z",
           "note": "North Foster Farm order NFF-2610-FIXT",
           "amount_money": {
             "amount": 6500,
@@ -182,7 +184,7 @@
           "id": "PAYMENT_ID_5",
           "location_id": "LOCATION_ID_1",
           "transaction_id": "ORDER_ID_3",
-          "created_at": "2026-10-29T23:06:52.888Z",
+          "created_at": "2026-10-29T23:20:39.315Z",
           "note": "North Foster Farm order NFF-2610-FIXT",
           "amount_money": {
             "amount": 6500,
@@ -216,7 +218,7 @@
           "id": "PAYMENT_ID_6",
           "location_id": "LOCATION_ID_1",
           "transaction_id": "ORDER_ID_3",
-          "created_at": "2026-10-29T23:06:53.674Z",
+          "created_at": "2026-10-29T23:20:40.136Z",
           "note": "North Foster Farm order NFF-2610-FIXT",
           "amount_money": {
             "amount": 6500,

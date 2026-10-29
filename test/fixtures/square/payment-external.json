@@ -37,8 +37,8 @@
   "response": {
     "payment": {
       "id": "PAYMENT_ID_10",
-      "created_at": "2026-10-29T23:07:01.725Z",
-      "updated_at": "2026-10-29T23:07:01.828Z",
+      "created_at": "2026-10-29T23:20:49.206Z",
+      "updated_at": "2026-10-29T23:20:49.298Z",
       "amount_money": {
         "amount": 5500,
         "currency": "USD"
@@ -66,7 +66,7 @@
         "source": "Venmo",
         "source_id": "FIXTURE-VENMO-1"
       },
-      "receipt_number": "RECEIPT_NUMBER_3",
+      "receipt_number": "RECEIPT_NUMBER_2",
       "receipt_url": "https://squareupsandbox.com/receipt/preview/PAYMENT_ID_10",
       "application_details": {
         "square_product": "ECOMMERCE_API",

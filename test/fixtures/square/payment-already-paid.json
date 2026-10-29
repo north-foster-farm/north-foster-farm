@@ -39,8 +39,8 @@
     ],
     "payment": {
       "id": "PAYMENT_ID_2",
-      "created_at": "2026-10-29T23:06:43.268Z",
-      "updated_at": "2026-10-29T23:06:43.454Z",
+      "created_at": "2026-10-29T23:20:29.765Z",
+      "updated_at": "2026-10-29T23:20:29.945Z",
       "amount_money": {
         "amount": 5500,
         "currency": "USD"
@@ -65,15 +65,15 @@
         "avs_status": "AVS_ACCEPTED",
         "statement_description": "SQ *DEFAULT TEST ACCOUNT",
         "card_payment_timeline": {
-          "authorized_at": "2026-10-29T23:06:43.399Z",
-          "voided_at": "2026-10-29T23:06:43.454Z"
+          "authorized_at": "2026-10-29T23:20:29.892Z",
+          "voided_at": "2026-10-29T23:20:29.945Z"
         }
       },
       "location_id": "LOCATION_ID_1",
       "order_id": "ORDER_ID_1",
       "reference_id": "NFF-2610-FIXT",
       "risk_evaluation": {
-        "created_at": "2026-10-29T23:06:43.399Z",
+        "created_at": "2026-10-29T23:20:29.892Z",
         "risk_level": "NORMAL"
       },
       "buyer_email_address": "customer@example.com",
@@ -88,7 +88,7 @@
         "currency": "USD"
       },
       "delay_action": "CANCEL",
-      "delayed_until": "2026-11-05T23:06:43.268Z",
+      "delayed_until": "2026-11-05T23:20:29.765Z",
       "application_details": {
         "square_product": "ECOMMERCE_API",
         "application_id": "APPLICATION_ID_1"
