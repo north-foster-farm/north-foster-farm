@@ -763,7 +763,10 @@ with a 1.5-second cap; a failure to ship is swallowed. Query by
 `webhook.rejected`, `jobs.run`, `alert`, `health.checked`, ...), by
 `id` for one order, or by `level: error`. The jobs run's full report
 is one `jobs.run` line every 15 minutes, so "when did it start" is a
-query for the first run whose `errors` is not empty. Deploy id and
+query for the first run whose `errors` is not empty. Before it, each
+step of the run logs one `jobs.step` line with its `step` name and
+`ms`, so a sweep growing toward the function's 30 s limit shows by
+name (#516). Deploy id and
 context ride on every line. Every function is wrapped in
 `withLog(name, handler)`, so an exception no handler caught is one
 `function.crashed` line with the function's name and the top of its

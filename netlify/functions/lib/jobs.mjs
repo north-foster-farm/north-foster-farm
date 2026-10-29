@@ -218,6 +218,19 @@ export const runJobs = async (stores, {
       return undefined;
     }
   };
+  // Each step of the run logs how long it took, so a slow one shows by
+  // name before the run nears the function's 30 s (#516). Real time,
+  // whatever `now` is.
+  const timed = async (step, work) => {
+    const started = Date.now();
+
+    try {
+      return await work();
+    } finally {
+      log.info({ event: "jobs.step", step, ms: Date.now() - started });
+    }
+  };
+  const step = (name, work) => timed(name, () => attempt(null, name, work));
 
   // A customer's reminder settings, read once per run however many
   // orders they have open. A reminder they turned off is skipped and
@@ -336,14 +349,16 @@ export const runJobs = async (stores, {
   };
 
   // Named orders are read by id; workOrder passes over one not open.
-  const orders = orderIds
-    ? (await Promise.all(orderIds.map((id) => getOrder(stores, id))))
-      .filter(Boolean)
-    : await openOrders(stores);
+  await timed("orders", async () => {
+    const orders = orderIds
+      ? (await Promise.all(orderIds.map((id) => getOrder(stores, id))))
+        .filter(Boolean)
+      : await openOrders(stores);
 
-  for (const order of orders) {
-    await attempt(order.id, "order", () => workOrder(order));
-  }
+    for (const order of orders) {
+      await attempt(order.id, "order", () => workOrder(order));
+    }
+  });
 
   if (orderIds) {
     log.info({ event: "jobs.run", scope: "orders", ...summarize(report) });
@@ -355,7 +370,7 @@ export const runJobs = async (stores, {
   // A checkout whose rescue failed is kept by the sweep for the next run.
   const unrescued = new Set();
 
-  if (paypal) {
+  if (paypal) await timed("rescue", async () => {
     for (const checkout of (await attempt(null, "checkouts",
       () => listCheckouts(stores))) || []) {
       const saved = await attempt(checkout.order && checkout.order.id,
@@ -374,59 +389,59 @@ export const runJobs = async (stores, {
           () => announceNew(stores, saved, opts));
       }
     }
-  }
+  });
 
-  report.rebuilt = (await attempt(null, "rebuild",
+  report.rebuilt = (await step("rebuild",
     () => rebuildDaily(stores, { env, now: realNow, fetchImpl, fail }))) || [];
-  report.checkoutsSwept = (await attempt(null, "checkouts",
+  report.checkoutsSwept = (await step("checkouts",
     () => sweepCheckouts(stores, realNow, { keep: unrescued }))) || 0;
-  report.authSwept = (await attempt(null, "auth",
+  report.authSwept = (await step("auth",
     () => sweepAuth(stores, realNow))) || 0;
-  report.scrubbed = (await attempt(null, "retention",
+  report.scrubbed = (await step("retention",
     () => scrubDaily(stores, realNow))) || [];
-  report.quiet = await attempt(null, "quietAccounts",
+  report.quiet = await step("quietAccounts",
     () => quietDaily(stores, { env, mail, now: realNow }));
   // Square's orders are shared data: the sweep reads the real time.
-  report.squareOpen = (await attempt(null, "squareSweep",
+  report.squareOpen = (await step("squareSweep",
     () => squareDaily(stores, "open", realNow, () => sweepSquareOrders(
       stores, { env, now: realNow, square, fetchImpl },
     )))) || [];
   for (const o of report.squareOpen) {
     if (o.error) fail(o.orderId, "squareCancel", o.error);
   }
-  report.customersMade = (await attempt(null, "customers",
+  report.customersMade = (await step("customers",
     () => squareDaily(stores, "profiles", realNow, () => sweepMadeCustomers(
       stores, { env, now: realNow, square, fetchImpl },
     )))) || [];
   for (const c of report.customersMade) {
     if (c.error) fail(c.orderId, "customerDelete", c.error);
   }
-  report.pickupsToConfirm = (await attempt(null, "morningReport",
+  report.pickupsToConfirm = (await step("morningReport",
     () => morningReport(stores, {
       env, mail, now, fetchImpl, catalogIndex,
     }))) || [];
-  report.tomorrow = await attempt(null, "tomorrowReport",
+  report.tomorrow = await step("tomorrowReport",
     () => tomorrowReport(stores, { env, mail, now }));
-  report.packing = await attempt(null, "packing",
+  report.packing = await step("packing",
     () => packingDaily(stores, { env, mail, now, fetchImpl }));
-  report.packingEve = await attempt(null, "packingEve",
+  report.packingEve = await step("packingEve",
     () => packingEve(stores, { env, mail, now, fetchImpl }));
-  report.changedAfterPrint = (await attempt(null, "changedAfterPrint",
+  report.changedAfterPrint = (await step("changedAfterPrint",
     () => changedAfterPrint(stores, { env, mail, now }))) || [];
-  report.rotation = await attempt(null, "rotationReminder",
+  report.rotation = await step("rotationReminder",
     () => rotationDaily(stores, { env, mail, now }));
-  report.escalated = (await attempt(null, "escalation",
+  report.escalated = (await step("escalation",
     () => escalate(stores, { env, mail, now }))) || [];
   // Farm news: once a day the audience in Resend and the records are
   // made to agree. Null when there is no audience to sync.
-  report.audience = await attempt(null, "audienceSync",
+  report.audience = await step("audienceSync",
     () => audienceSyncDaily(stores, { env, now, fetchImpl }));
-  report.refunds = await attempt(null, "refundCheck",
+  report.refunds = await step("refundCheck",
     () => refundCheckDaily(stores, {
       env, mail, now, square, paypal, fetchImpl, fail,
     }));
 
-  report.drift = await attempt(null, "squareDrift",
+  report.drift = await step("squareDrift",
     () => driftDaily(stores, { env, mail, now, square, fetchImpl, fail }));
 
   // A buying group's rounds (#471): closed once their close has
@@ -434,7 +449,7 @@ export const runJobs = async (stores, {
   // Every run; nothing is done twice. A round that cannot settle (no
   // host on record) goes on the report as an error and is tried
   // again next run.
-  report.rounds = await attempt(null, "rounds", async () => {
+  report.rounds = await step("rounds", async () => {
     const r = await workRounds(stores, {
       now, terms, env, mail, ...(square ? { square } : {}),
     });
@@ -446,15 +461,15 @@ export const runJobs = async (stores, {
 
   // Credit a submission spent a day ago and never settled goes back
   // to its member (lib/credit.mjs). Every run; nothing twice.
-  report.creditSwept = (await attempt(null, "creditSweep",
+  report.creditSwept = (await step("creditSweep",
     () => sweepStrandedCredit(stores, { now }))) || [];
 
-  const hidden = (await attempt(null, "stockHidden", () =>
+  const hidden = (await step("stockHidden", () =>
     stockHiddenDaily(stores, { env, now, catalogIndex, inventory })))
     || NONE_HIDDEN;
 
   report.invariants = [
-    ...(await attempt(null, "invariants", async () =>
+    ...(await step("invariants", async () =>
       checkInvariants(await openOrders(stores), now))) || [],
     ...hidden.violations,
   ];

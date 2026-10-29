@@ -506,6 +506,39 @@ describe("runJobs", () => {
       assert.ok(listed.length > 0);
     });
 
+  it("logs how long each step took, by name (#516)", async (t) => {
+    const stores = testStores();
+    const { opts } = harness();
+    const lines = [];
+
+    t.mock.method(console, "info", (text) => {
+      lines.push(JSON.parse(text));
+    });
+    await saveOrder(stores, order("A"), placed);
+    await runJobs(stores, { ...opts, now: at("2026-10-07", 18, 5) });
+
+    const steps = lines.filter((l) => l.event === "jobs.step");
+
+    for (const s of steps) {
+      assert.ok(Number.isInteger(s.ms) && s.ms >= 0, JSON.stringify(s));
+    }
+    for (const name of [
+      "orders", "checkouts", "auth", "retention", "quietAccounts",
+      "squareSweep", "customers", "morningReport", "tomorrowReport",
+      "packing", "packingEve", "invariants",
+    ]) {
+      assert.equal(steps.filter((s) => s.step === name).length, 1, name);
+    }
+
+    // The e2e run's one step is its orders.
+    lines.length = 0;
+    await runJobs(stores, {
+      ...opts, now: at("2026-10-07", 18, 6), orderIds: ["A"],
+    });
+    assert.deepEqual(lines.filter((l) => l.event === "jobs.step")
+      .map((s) => s.step), ["orders"]);
+  });
+
   it("reminds again before a missed delivery's new day (#193)", async () => {
     const stores = testStores();
     const { sent, opts } = harness();
