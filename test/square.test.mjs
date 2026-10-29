@@ -7,7 +7,8 @@ import {
   ORDER_METADATA, SITE_VERSION, SOURCE_NAME, SquareError, buildChangeOrder,
   buildOrder, cancelFulfillment, cancelOrder, clientConfig, completeOrder,
   createOrder, createPayment, customerOrders, dashboardUrl, deleteCustomer,
-  e164, getPayment, inventoryCounts, receiptLink, refundPayment,
+  e164, getPayment, inventoryCounts, paymentRecord, receiptLink,
+  refundPayment,
   searchOpenOrders, settings, updateFulfillment,
 } from "../netlify/functions/lib/square.mjs";
 import {
@@ -15,6 +16,7 @@ import {
 } from "../netlify/functions/lib/square-pause.mjs";
 import { buildModel } from "../assets/scripts/order/lib/events.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
+import { recorded, reply } from "./recorded.mjs";
 
 const env = {
   SQUARE_ACCESS_TOKEN: "tok",
@@ -79,13 +81,12 @@ const fakeFetch = (answers) => {
   return { impl, calls };
 };
 
-const completed = (extra = {}) => ({
-  payment: {
-    id: "PAY-1", status: "COMPLETED", receipt_url: "https://sq/receipt",
-    card_details: { card: { card_brand: "VISA", last_4: "4242" } },
-    ...extra,
-  },
+// A payment Square took, as the sandbox recorded one
+// (test/fixtures/square), with whatever a test changes.
+const completed = (extra = {}, name = "payment-card-ok") => ({
+  payment: { ...recorded("square", name).response.payment, ...extra },
 });
+const card = recorded("square", "payment-card-ok").response.payment;
 
 // #241 and #236: one switch stops every automatic Square cleanup.
 describe("the Square deletion kill switch", () => {
@@ -581,11 +582,11 @@ describe("createPayment", () => {
       const out = await createPayment(args(), { env, fetchImpl: impl });
 
       assert.deepEqual(out, {
-        squarePaymentId: "PAY-1",
+        squarePaymentId: card.id,
         status: "COMPLETED",
-        receiptUrl: "https://sq/receipt",
-        brand: "VISA",
-        last4: "4242",
+        receiptUrl: card.receipt_url,
+        brand: card.card_details.card.card_brand,
+        last4: card.card_details.card.last_4,
         wallet: null,
       });
       assert.equal(calls.length, 1);
@@ -615,7 +616,7 @@ describe("createPayment", () => {
   it("records money that came another way as an external tender",
     async () => {
       const { impl, calls } = fakeFetch({
-        "/v2/payments": completed({ card_details: undefined }),
+        "/v2/payments": completed({}, "payment-external"),
       });
       const out = await createPayment(args({
         source: { external: { source: "Venmo", sourceId: "CAP-1" } },
@@ -626,14 +627,15 @@ describe("createPayment", () => {
         type: "SOCIAL", source: "Venmo", source_id: "CAP-1",
       });
       assert.equal(calls[0].body.verification_token, undefined);
-      assert.equal(out.brand, null);
-      assert.equal(out.last4, null);
+      assert.deepEqual(out, paymentRecord(
+        recorded("square", "payment-external").response.payment
+      ));
     });
 
   it("records cash the farm took as Square's cash payment, the buyer's " +
     "money being the amount (#181)", async () => {
     const { impl, calls } = fakeFetch({
-      "/v2/payments": completed({ card_details: undefined }),
+      "/v2/payments": completed({}, "payment-cash"),
     });
 
     await createPayment(args({ source: { cash: true }, amount: 2000 }),
@@ -651,7 +653,7 @@ describe("createPayment", () => {
   it("records a check as an external payment of its own type (#181)",
     async () => {
       const { impl, calls } = fakeFetch({
-        "/v2/payments": completed({ card_details: undefined }),
+        "/v2/payments": completed({}, "payment-external"),
       });
 
       await createPayment(args({
@@ -677,19 +679,16 @@ describe("createPayment", () => {
   });
 
   it("says a declined card was declined, with Square's code", async () => {
+    const declined = recorded("square", "payment-card-declined");
     const { impl } = fakeFetch({
-      "/v2/payments": () => new Response(
-        JSON.stringify({ errors: [{
-          category: "PAYMENT_METHOD_ERROR", code: "CARD_DECLINED",
-        }] }), { status: 402 }
-      ),
+      "/v2/payments": () => reply("square", "payment-card-declined"),
     });
 
     await assert.rejects(
       createPayment(args(), { env, fetchImpl: impl }),
       (e) => e instanceof SquareError && e.declined === true
-        && e.code === "CARD_DECLINED" && e.retryable === false
-        && e.status === 402
+        && e.code === declined.response.errors[0].code
+        && e.retryable === false && e.status === declined.status
     );
   });
 
@@ -1102,26 +1101,25 @@ describe("refundPayment", () => {
 
 describe("getPayment", () => {
   it("reads one payment back in the record's shape", async () => {
-    const { impl, calls } = fakeFetch({ "/v2/payments/PAY-1": completed() });
+    const { impl, calls } = fakeFetch({
+      "/v2/payments/PAY-1": recorded("square", "payment-get").response,
+    });
     const out = await getPayment("PAY-1", { env, fetchImpl: impl });
+    const got = recorded("square", "payment-get").response.payment;
 
     assert.equal(calls[0].method, "GET");
     assert.equal(calls[0].body, null);
-    assert.equal(out.squarePaymentId, "PAY-1");
-    assert.equal(out.last4, "4242");
+    assert.equal(out.squarePaymentId, got.id);
+    assert.equal(out.last4, got.card_details.card.last_4);
     assert.equal(out.refunded, 0, "nothing back yet");
   });
 
   it("says how much has been refunded", async () => {
-    // As the sandbox answered for a $7 Venmo copy with $2 back.
-    const { impl } = fakeFetch({
-      "/v2/payments/PAY-1": completed({
-        refunded_money: { amount: 200, currency: "USD" },
-      }),
-    });
+    const back = recorded("square", "payment-get-refunded").response;
+    const { impl } = fakeFetch({ "/v2/payments/PAY-1": back });
 
     assert.equal((await getPayment("PAY-1", { env, fetchImpl: impl }))
-      .refunded, 200);
+      .refunded, back.payment.refunded_money.amount);
   });
 });
 

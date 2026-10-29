@@ -199,6 +199,25 @@ export const PAYMENT_MS = 6000;
 const orderPath = (squareOrderId) => `/v2/orders/${
   encodeURIComponent(squareOrderId)}`;
 
+// What Square's refusal is to the rest of the code: the status, and the
+// first of its errors for the code. The fake throws the same from a
+// recorded body (lib/fake-square.mjs).
+export const failure = (status, data, path) => {
+  const errors = data && Array.isArray(data.errors) ? data.errors : [];
+  const first = errors[0] || {};
+  const code = first.code || null;
+  const declined = !!(code && DECLINE_MESSAGES[code]);
+
+  return new SquareError(`Square ${status} on ${path}`, {
+    retryable: status === 429 || status >= 500
+      || code === "TEMPORARY_ERROR",
+    status,
+    detail: errors.length ? errors : data,
+    declined,
+    code,
+  });
+};
+
 const call = async (cfg, path, body, fetchImpl, method = "POST") => {
   const res = await timedFetch(fetchImpl, `${cfg.host}${path}`, {
     method,
@@ -227,21 +246,7 @@ const call = async (cfg, path, body, fetchImpl, method = "POST") => {
     });
   });
 
-  if (!res.ok) {
-    const errors = Array.isArray(data.errors) ? data.errors : [];
-    const first = errors[0] || {};
-    const code = first.code || null;
-    const declined = !!(code && DECLINE_MESSAGES[code]);
-
-    throw new SquareError(`Square ${res.status} on ${path}`, {
-      retryable: res.status === 429 || res.status >= 500
-        || code === "TEMPORARY_ERROR",
-      status: res.status,
-      detail: errors.length ? errors : data,
-      declined,
-      code,
-    });
-  }
+  if (!res.ok) throw failure(res.status, data, path);
 
   return data;
 };
@@ -640,7 +645,7 @@ export const receiptLink = (url) => {
 };
 
 // What the record keeps of a Square payment.
-const paymentRecord = (payment) => {
+export const paymentRecord = (payment) => {
   const card = payment.card_details && payment.card_details.card;
   const wallet = payment.wallet_details || null;
 
@@ -653,6 +658,21 @@ const paymentRecord = (payment) => {
     wallet: wallet ? wallet.brand || null : null,
   };
 };
+
+// What the code keeps of a Square refund. `amount` is what to say when
+// the answer names none.
+export const refundRecord = (refund, amount) => ({
+  squareRefundId: refund.id,
+  status: refund.status,
+  amount: refund.amount_money ? refund.amount_money.amount : amount,
+});
+
+// A payment as the record keeps it, with what has been refunded of it
+// so far (cents).
+export const paymentView = (payment) => ({
+  ...paymentRecord(payment),
+  refunded: payment.refunded_money ? payment.refunded_money.amount : 0,
+});
 
 // Takes the money for an order. `source` is the SDK's token for a
 // card or wallet, or { external: { source, sourceId, type } } for
@@ -675,7 +695,7 @@ export const createPayment = async ({
 } = {}) => {
   if (isFake(env)) {
     return fake.createPayment({
-      order, squareOrderId, customerId, key, source,
+      order, squareOrderId, customerId, key, source, amount,
     }, { env });
   }
 
@@ -955,7 +975,7 @@ export const cancelOrder = async (squareOrderId, {
   deadline,
   unpaid = false,
 } = {}) => {
-  if (isFake(env)) return fake.cancelOrder(squareOrderId, { env });
+  if (isFake(env)) return fake.cancelOrder(squareOrderId, { env, unpaid });
 
   const cfg = { ...settings(env), deadline };
   const current = await currentOrder(cfg, squareOrderId, fetchImpl);
@@ -1049,13 +1069,8 @@ export const refundPayment = async ({
     amount_money: money(amount),
     reason: reason ? String(reason).slice(0, 192) : undefined,
   }, fetchImpl);
-  const refund = data.refund || {};
 
-  return {
-    squareRefundId: refund.id,
-    status: refund.status,
-    amount: refund.amount_money ? refund.amount_money.amount : amount,
-  };
+  return refundRecord(data.refund || {}, amount);
 };
 
 // One refund, by id, for the check that every refund settled (#215).
@@ -1070,13 +1085,8 @@ export const getRefund = async (squareRefundId, {
   const data = await call(
     cfg, `/v2/refunds/${squareRefundId}`, null, fetchImpl, "GET"
   );
-  const refund = data.refund || {};
 
-  return {
-    squareRefundId: refund.id,
-    status: refund.status,
-    amount: refund.amount_money ? refund.amount_money.amount : 0,
-  };
+  return refundRecord(data.refund || {}, 0);
 };
 
 // One payment, by id, for reconciling a webhook, with what has been
@@ -1091,12 +1101,8 @@ export const getPayment = async (squarePaymentId, {
   const data = await call(
     cfg, `/v2/payments/${squarePaymentId}`, null, fetchImpl, "GET"
   );
-  const payment = data.payment || {};
 
-  return {
-    ...paymentRecord(payment),
-    refunded: payment.refunded_money ? payment.refunded_money.amount : 0,
-  };
+  return paymentView(data.payment || {});
 };
 
 // Square's stock at the site's location (#267: every sale and all

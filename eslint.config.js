@@ -92,6 +92,9 @@ module.exports = [
       "test/sourcemaps.test.mjs", "test/groups.test.mjs",
       "test/group-credit.test.mjs", "test/square-fixtures.test.mjs",
       "test/fixtures-record.test.mjs",
+      "test/square-replay.test.mjs", "test/fake-square.test.mjs",
+      "test/mail-replay.test.mjs",
+      "netlify/functions/lib/fake-square.mjs",
     ],
     "rules": {
       "camelcase": ["error", { "properties": "never" }],

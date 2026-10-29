@@ -285,6 +285,15 @@ export const scrubAll = (files) => {
   });
 };
 
+// Whether a string in a fixture is one the scrubber put there (a
+// placeholder, a replaced name, a made-up email or phone), so a test
+// comparing what our code sends with a recorded request treats it as
+// "any value".
+export const isPlaceholder = (value) => typeof value === "string"
+  && (PLACEHOLDER.test(value) || Object.values(FIXED).includes(value)
+    || /^customer(-\d+)?@example\.com$/.test(value)
+    || /^\+1555555\d{4}$/.test(value));
+
 // Paths of the response's strings that no rule covered and that do not
 // look harmless. Paths only, so the report itself leaks nothing.
 const review = (response) => {
@@ -296,9 +305,7 @@ const review = (response) => {
 
     if (keepValue(value) || PLACEHOLDER.test(value) || ENUM.test(value)
       || TIME.test(value) || NUMBER.test(value) || SQUARE_URL.test(value)
-      || SAFE_KEYS.has(key) || Object.values(FIXED).includes(value)
-      || /^customer(-\d+)?@example\.com$/.test(value)
-      || /^\+1555555\d{4}$/.test(value)) {
+      || SAFE_KEYS.has(key) || isPlaceholder(value)) {
       return value;
     }
     found.push(keys.join("."));

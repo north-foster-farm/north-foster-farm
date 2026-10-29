@@ -47,6 +47,24 @@ same value has the same placeholder in every file, so the payment in
 `payment-card-ok` is the one `order-get-paid` lists as a tender.
 `test/recorded.mjs` loads them.
 
+## Who uses them
+
+- `lib/fake-square.mjs` (SQUARE_ENV=fake) answers every Square call with
+  a recording, with the request's ids, amounts and status put in, and
+  read by the same code that reads Square's answers. It remembers what
+  it was told in this process (`forgetFake()` clears it) and refuses
+  what Square refused: a payment over the order's total, on a paid or a
+  cancelled order, or for nothing; a refund over what is left; a key
+  reused with another body. The refusal it throws is the recorded one.
+- `test/square-replay.test.mjs` serves the recordings to the real
+  functions of `lib/square.mjs` and holds what they send to what each
+  was recorded with. Change a request and it fails until the recorder
+  runs again.
+- `test/fake-square.test.mjs` holds the fake to Square's rules.
+- `test/fake.test.mjs` and `test/square.test.mjs` take their Square
+  bodies from here. `test/recorded.mjs` loads and serves them.
+- `test/mail-replay.test.mjs` does the same for Resend, if recorded.
+
 ## Square
 
 | Fixture | What our code does |
