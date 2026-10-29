@@ -17,6 +17,32 @@
     "discountGroups": {
       "friends": { "label": "Friends & family", "percent": 10 },
       "wholesale": { "label": "Wholesale", "percent": 20 }
+    },
+    "friendsAndFam": {
+      "label": "Friends and family",
+      "squareName": "Friends and Fam",
+      "off": {
+        "NFF-CHK-EGG-LG": 1, "NFF-CHK-EGG-MD": 1,
+        "NFF-CHK-WHL-20-24": 2, "NFF-CHK-WHL-25-29": 2,
+        "NFF-CHK-WHL-30-34": 3, "NFF-CHK-WHL-35-39": 3,
+        "NFF-CHK-WHL-40-44": 3, "NFF-CHK-WHL-45-49": 4,
+        "NFF-CHK-WHL-50-59": 5, "NFF-CHK-WHL-60-69": 5,
+        "NFF-CHK-WHL-70-79": 6,
+        "NFF-CHK-CRN-0000-0300": 2, "NFF-CHK-CRN-0300-0400": 2,
+        "NFF-CHK-BRSBL-10-12": 2, "NFF-CHK-BRSBL-13-14": 2,
+        "NFF-CHK-BRSBL-15-16": 2, "NFF-CHK-BRSBL-17-99": 3,
+        "NFF-CHK-THGBN-10-14": 1, "NFF-CHK-THGBN-15-19": 2,
+        "NFF-CHK-THGBN-20-99": 2,
+        "NFF-CHK-TND-10-12": 2, "NFF-CHK-TND-13-14": 2,
+        "NFF-CHK-TND-15-99": 2,
+        "NFF-CHK-DRM-10-14": 1, "NFF-CHK-DRM-15-99": 1,
+        "NFF-CHK-WNG-10-19": 1, "NFF-CHK-WNG-20-29": 2,
+        "NFF-CHK-WNG-30-99": 2,
+        "NFF-CHK-GRD-0000-0125": 1, "NFF-CHK-GRD-0125-0175": 2,
+        "NFF-CHK-SAUMPL": 2, "NFF-CHK-SAUSWT": 2,
+        "NFF-CHK-LVR-10-14": 1, "NFF-CHK-NCK-10-19": 1,
+        "NFF-CHK-FET-0075-0125": 1, "NFF-CHK-BCK-10-19": 1
+      }
     }
   },
   "delivery": {

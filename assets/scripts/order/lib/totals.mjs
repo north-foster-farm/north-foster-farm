@@ -103,6 +103,41 @@ export const lockDiscountFor = (lines, index, lock) => {
     : null;
 };
 
+// Friends and family (#514): the whole-dollar amount off each item
+// that Square's Friends and Fam discounts take at the register, about
+// 10% of its price (James, 2026-10-29, decision 2), from
+// `money.friendsAndFam.off` ({ [sku]: dollars }). An item with no
+// amount gets none, and no item goes below nothing. -> { key, label,
+// amount, lines: [{ sku, off, qty, amount }] } in cents, or null.
+export const friendsDiscountFor = (lines, index, friends) => {
+  if (!friends || !friends.off) return null;
+
+  const out = [];
+  let amount = 0;
+
+  for (const { sku, qty } of lines) {
+    const item = index.get(sku);
+    const each = friends.off[sku];
+
+    if (!item || !(each > 0)) continue;
+
+    const off = Math.min(toCents(each), toCents(item.price));
+
+    out.push({ sku, off, qty, amount: off * qty });
+    amount += off * qty;
+  }
+
+  return amount > 0
+    ? { key: "friends", label: friends.label || "Friends and family",
+      amount, lines: out }
+    : null;
+};
+
+// Family who are part of the business (#514, decision 3): 100% off,
+// so the order is recorded and nothing is charged. Draft label.
+export const familyDiscountFor = (subtotal) => (subtotal > 0
+  ? { key: "family", label: "Family", amount: subtotal } : null);
+
 // The lock while it holds: through its last day (`through`, an ISO
 // date), by the order's own day in the farm's zone, the day it is
 // placed or, for a change, was. After that a member pays retail
@@ -129,7 +164,10 @@ export const lockOn = (lock, day) =>
 // which the caller has read from the signed-in account or the
 // customer's record. A perk that lifts the fee waives it as a pass
 // does, and `perks` on the totals names every one the order was
-// priced with, so a change to the order keeps them.
+// priced with, so a change to the order keeps them. Friends and family
+// and family are discounts like the rest: they compete, and the
+// largest wins (James, 2026-10-29, decision 1). Free delivery is not
+// a discount, so it goes with whichever wins.
 export const computeTotals = ({
   lines, method, index, money, group, code, lock, zipStatus,
   waiveFee = false, credit = 0, perks = [],
@@ -147,15 +185,29 @@ export const computeTotals = ({
   const byGroup = groupDiscountFor(subtotal, group, money);
   const byCode = codeDiscountFor(subtotal, code);
   const byLock = lockDiscountFor(lines, index, lock);
+  const byFriends = perk.friends
+    ? friendsDiscountFor(lines, index, money.friendsAndFam) : null;
+  const byFamily = perk.family ? familyDiscountFor(subtotal) : null;
   const best = Math.max(
     bulk.amount, byGroup ? byGroup.amount : 0, byCode ? byCode.amount : 0,
-    byLock ? byLock.amount : 0
+    byLock ? byLock.amount : 0, byFriends ? byFriends.amount : 0,
+    byFamily ? byFamily.amount : 0
   );
-  const useCode = !!byCode && byCode.amount === best && byCode.amount > 0;
+  // Family is the whole subtotal, which nothing beats: a tie goes to
+  // it, so the record says why nothing was charged.
+  const useFamily = !!byFamily && byFamily.amount === best;
+  const useCode = !useFamily && !!byCode && byCode.amount === best
+    && byCode.amount > 0;
   // A tie between the lock and the tier goes to the lock: it is the
   // member's own, and the record then says which group the order is.
-  const useLock = !useCode && !!byLock && byLock.amount === best;
-  const useGroup = !useCode && !useLock && !!byGroup
+  const useLock = !useFamily && !useCode && !!byLock
+    && byLock.amount === best;
+  // A tie between Friends and Fam and the tier or the group goes to
+  // Friends and Fam: the register's own discount for the customer.
+  const useFriends = !useFamily && !useCode && !useLock && !!byFriends
+    && byFriends.amount === best;
+  const usePerk = useFamily || useFriends;
+  const useGroup = !usePerk && !useCode && !useLock && !!byGroup
     && byGroup.amount > bulk.amount;
   // An empty cart owes nothing, whatever method is chosen: Delivery
   // is the starting choice, and a fee on nothing read as a $5 order.
@@ -172,16 +224,17 @@ export const computeTotals = ({
   const feeWaived = (!!waiveFee || perk.fee) && owed > 0;
   const deliveryFee = feeWaived ? 0 : owed;
 
-  const discountAmount = useCode
-    ? byCode.amount
-    : (useLock ? byLock.amount
-      : (useGroup ? byGroup.amount : bulk.amount));
-  const discountLabel = useCode
-    ? byCode.label
-    : (useLock ? byLock.label
-      : (useGroup
-        ? `${byGroup.label} (${byGroup.percent}%)`
-        : (bulk.tier ? `Bulk discount ($${bulk.tier}+)` : null)));
+  const byPerk = useFamily ? byFamily : (useFriends ? byFriends : null);
+  const discountAmount = byPerk ? byPerk.amount
+    : useCode ? byCode.amount
+      : (useLock ? byLock.amount
+        : (useGroup ? byGroup.amount : bulk.amount));
+  const discountLabel = byPerk ? byPerk.label
+    : useCode ? byCode.label
+      : (useLock ? byLock.label
+        : (useGroup
+          ? `${byGroup.label} (${byGroup.percent}%)`
+          : (bulk.tier ? `Bulk discount ($${bulk.tier}+)` : null)));
   const owedBeforeCredit = subtotal - discountAmount + deliveryFee;
   // Credit covers the items, never the delivery fee: Square carries
   // the credit as an order discount, which it applies to the items
@@ -193,7 +246,8 @@ export const computeTotals = ({
 
   return {
     subtotal,
-    discountTier: useCode || useGroup || useLock ? null : bulk.tier,
+    discountTier: useCode || useGroup || useLock || usePerk ? null
+      : bulk.tier,
     discountGroup: useGroup ? byGroup.key : null,
     discountCode: useCode ? byCode.key : null,
     discountLabel,
@@ -209,6 +263,10 @@ export const computeTotals = ({
     ...(creditUsed > 0 ? { credit: creditUsed } : {}),
     // Only on an order of a customer with a perk (#514).
     ...(perk.types.length ? { perks: perk.types } : {}),
+    // Only on an order a perk's discount won: which one, and for
+    // Friends and Fam the per-item amounts Square records.
+    ...(byPerk ? { discountPerk: byPerk.key } : {}),
+    ...(useFriends ? { perkLines: byFriends.lines } : {}),
     total: owedBeforeCredit - creditUsed,
   };
 };

@@ -1125,10 +1125,17 @@ export class OrderForm {
     if (!note) return;
 
     const used = (totals && totals.credit) || 0;
-    const covered = used > 0 && totals.total === 0;
+    // A family order (#514) has nothing to pay either, and places the
+    // same way.
+    const family = !!totals && totals.discountPerk === "family"
+      && totals.total === 0;
+    const covered = family || (used > 0 && totals.total === 0);
 
-    note.hidden = used === 0;
-    if (used > 0) {
+    note.hidden = used === 0 && !family;
+    if (family) {
+      // Draft wording.
+      note.textContent = "Nothing to pay on this order.";
+    } else if (used > 0) {
       note.textContent = covered
         ? `Your credit covers this order: ${dollars(used)}, nothing to pay.`
         : `${dollars(used)} of your credit comes off; ${

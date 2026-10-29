@@ -32,7 +32,7 @@ import { validateOrder } from "../../assets/scripts/order/lib/validate.mjs";
 import { parts, today } from "../../assets/scripts/order/lib/zoned.mjs";
 import { sessionFrom } from "./lib/auth.mjs";
 import {
-  METHODS, announceNew, finishVenmo, ownRecord, payWithCredit,
+  METHODS, announceNew, finishVenmo, nothingDue, ownRecord, payWithCredit,
   payWithSquare, startVenmo,
 } from "./lib/checkout.mjs";
 import { now as clock, real } from "./lib/clock.mjs";
@@ -515,7 +515,9 @@ export const handle = async (req, {
     // totals, not the page, decide, so a card on a covered order is
     // never charged and credit alone never pays an order with money
     // due.
-    const covered = order.totals.total === 0 && order.totals.credit > 0;
+    // A family order (#514) is the same: its discount is the whole of
+    // it, and nothing is charged.
+    const covered = nothingDue(order);
 
     if (covered || method === "credit") {
       if (!covered) {
