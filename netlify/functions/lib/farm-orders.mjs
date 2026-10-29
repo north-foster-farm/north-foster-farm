@@ -30,6 +30,13 @@
 // completed in Square then, since Square refuses to complete an order
 // nobody paid for.
 //
+// The customer's perks (#514) price it as they price the customer's
+// own orders, read from the record, so an order the farm takes by
+// phone or at the door gets them, with the packing slip and the record
+// a website order gets, for a customer who has never ordered online
+// too (`bin/nff perks add` makes their record). A family order has
+// nothing due: it is paid at once, as a zero order in Square.
+//
 // Nothing here changes what the checkout sends to Square.
 
 import { randomUUID } from "node:crypto";
@@ -46,7 +53,9 @@ import {
 import { today } from "../../../assets/scripts/order/lib/zoned.mjs";
 import { orderId } from "../orders.mjs";
 import { publicOrder } from "./account.mjs";
-import { METHODS, announceNew, attemptKey } from "./checkout.mjs";
+import {
+  METHODS, announceNew, attemptKey, nothingDue,
+} from "./checkout.mjs";
 import { now as clock } from "./clock.mjs";
 import { completeInSquare } from "./complete.mjs";
 import { KEY } from "./edit.mjs";
@@ -57,6 +66,7 @@ import { alert, mark } from "./health.mjs";
 import { retry } from "./http.mjs";
 import { log } from "./log.mjs";
 import { sendMail } from "./mail.mjs";
+import { perkTypes } from "./perks.mjs";
 import { pickupSchedule } from "./pickups.mjs";
 import {
   dueOn, getCustomer, getOrder, paymentsOf, reserveOrderId, saveOrder,
@@ -312,6 +322,10 @@ export const planFarmOrder = async (stores, body, {
   const options = {
     index, terms: memberTerms(terms, buying), now, codes: discountCodes.codes,
     group: (customer && customer.discountGroup) || null,
+    // The customer's perks in force today (#514), from the record, as
+    // the session gives them to the page: free delivery, the minimum
+    // waived, friends and family, or family with nothing to pay.
+    perks: customer ? perkTypes(customer, now) : [],
     lock: buying
       ? lockOn(buying.priceLock || null, today(now, terms.timeZone))
       : null,
@@ -378,13 +392,26 @@ export const createFarmOrder = async (stores, body, {
   if (!planned.ok) return planned;
 
   const draft = planned.order;
+  // A family order (#514) has nothing to charge: it is paid as a zero
+  // order the moment it is made, so no tender goes with it.
+  const free = nothingDue(draft);
 
+  if (free && paid) {
+    return fail({ paid: "Nothing is due on this order (the family " +
+      "perk), so there is no money to record. Leave out --paid." });
+  }
   if (dryRun) return { ok: true, dryRun: true, order: draft };
 
   const id = await reserveOrderId(stores, key, (n) => orderId(key, now, n),
     now);
   const found = await getOrder(stores, id);
 
+  // A family order whose zero pay failed is finished by the retry.
+  if (found && free && found.status === "unpaid") {
+    return { ...await settleFree(stores, found, key, {
+      now, env, mail, square, fetchImpl,
+    }), found: true };
+  }
   if (found) return { ok: true, order: found, found: true };
 
   const order = {
@@ -421,6 +448,11 @@ export const createFarmOrder = async (stores, body, {
   await mark(stores, "order", { id }, now);
   log.info({ event: "order.farm_made", id, paid: !!paid });
 
+  if (free) {
+    return settleFree(stores, saved, key, {
+      now, env, mail, square, fetchImpl,
+    });
+  }
   if (!paid) return { ok: true, order: saved };
 
   try {
@@ -442,6 +474,52 @@ export const createFarmOrder = async (stores, body, {
         `--${paid.tender}`,
     } };
   }
+};
+
+// A farm-made order with nothing due (a family order, #514): Square's
+// copy is paid as a zero order, so it does not sit in the dashboard
+// unpaid, then the record is paid with no payment, the day is marked
+// and the confirmation goes, as for any paid order. A zero pay Square
+// refuses leaves the order standing unpaid with nothing due, and the
+// command says so; run again with the same --key, it finishes it.
+// -> { ok: true, order } or { ok: false, errors, order }.
+const settleFree = async (stores, order, key, {
+  now, env, mail, square, fetchImpl,
+}) => {
+  const k = attemptKey(key, 1);
+  const holder = order.square && order.square.squareOrderId;
+
+  try {
+    if (holder) await square.payZeroOrder(holder, k, { env, fetchImpl });
+  } catch (error) {
+    const detail = {
+      id: order.id, squareOrderId: holder,
+      error: String(error && error.message),
+    };
+
+    // The farm is at the command, so it hears there.
+    log.error({ event: "square.zero_pay_failed", ...detail });
+
+    return { ok: false, order, errors: {
+      order: `Order ${order.id} was made, with nothing due, but Square ` +
+        `would not close its copy: ${detail.error}. Run the same command ` +
+        `again with --key ${key} to finish it.`,
+    } };
+  }
+
+  const paid = await updateOrder(stores, order.id, (stored) => (
+    stored.status !== "unpaid" ? stored : {
+      ...stored, status: "paid", paidAt: now.toISOString(),
+      history: line(stored, "paid", now, { source: "family" }),
+    }));
+
+  await mark(stores, "paid", { id: order.id, via: "family" }, now);
+  log.info({ event: "order.farm_paid", id: order.id, amount: 0,
+    via: "family", due: 0 });
+
+  const announced = await announceNew(stores, paid, { mail, env, now });
+
+  return { ok: true, order: announced || paid };
 };
 
 // Records the tender that settles an order the farm made, in Square
