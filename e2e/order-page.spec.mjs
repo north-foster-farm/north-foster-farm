@@ -265,9 +265,13 @@ test.describe("order page", () => {
 
   // A stock count of 0 is out of stock too: the row goes, never a
   // sold-out one, and a category it leaves empty goes with its link.
+  // Every thigh goes, a counted category: Large eggs are `alwaysInStock`
+  // (#511) and keep their row at 0.
   test("a product whose count reaches 0 loses its row, and its " +
     "category when empty", async ({ page, stock }) => {
-    const gone = [SKU.eggs, "NFF-CHK-DRM-15-99"];
+    const thighs = catalog.groups.find((g) => g.key === "thighs").items
+      .map((item) => item.sku);
+    const gone = [...thighs, "NFF-CHK-DRM-15-99"];
 
     // Pinned for this test (#507): the server sells them out, so the
     // page and the order check agree.
@@ -275,19 +279,19 @@ test.describe("order page", () => {
 
     const order = new OrderPage(page);
 
-    await order.open({ eggs: 1 });
+    await order.open({ thighs: 1 });
 
     const row = (sku) => page.locator(`.order-item[data-sku="${sku}"]`);
 
     for (const sku of gone) await expect(row(sku)).toBeHidden();
     await expect(page.getByText("Sold out", { exact: true }))
       .toHaveCount(0);
-    await expect(page.locator("#cat-eggs")).toBeHidden();
-    await expect(page.locator("#order-nav a[href='#cat-eggs']"))
+    await expect(page.locator("#cat-thighs")).toBeHidden();
+    await expect(page.locator("#order-nav a[href='#cat-thighs']"))
       .toBeHidden();
     await expect(row(SKU.drums)).toBeVisible();
     await expect(page.locator("#order-stock"))
-      .toContainText("Eggs, Grade A · Large: out of stock, so we"
+      .toContainText("Bone-In Thighs, 1.0 – 1.4 lbs: out of stock, so we"
         + " removed it from your cart.");
     await expect(order.count).toHaveText("0 items");
   });

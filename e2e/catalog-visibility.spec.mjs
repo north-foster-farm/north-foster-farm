@@ -7,6 +7,7 @@
 
 import { readFileSync } from "node:fs";
 
+import { uncounted } from "../assets/scripts/order/lib/catalog.mjs";
 import {
   OrderPage, expect, stockApplied, test,
 } from "./support/order.mjs";
@@ -28,10 +29,11 @@ const label = (item) => ({
 // The rule: "orderable", "hidden", or the label of a row shown that
 // can't be added. A count sells a product the catalog has in stock;
 // one the catalog has out stays out whatever its count (#499), since
-// the server's answer says so.
+// the server's answer says so. One marked `alwaysInStock` (#511, Large
+// eggs) sells at any count, 0 included, while its flag is on.
 const want = (item, n, only) => {
   if (item.restock === "archived") return "hidden";
-  if (n > 0 && item.inStock) return "orderable";
+  if ((n > 0 || uncounted(item)) && item.inStock) return "orderable";
 
   return only ? "hidden" : label(item) || "hidden";
 };
