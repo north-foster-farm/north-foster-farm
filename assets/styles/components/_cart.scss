@@ -1148,9 +1148,15 @@
         grid-column: 1 / -1;
       }
 
+      // Never under their own height: an ease pins the pane's height
+      // (animateFold), and rows sized from a zero floor gave way to
+      // it, so the list scrolled inside a settled pane (#517). The
+      // phone's lines never shrink, and lay out at the new height at
+      // once like these.
       .order-cart-lines {
         grid-column: 1;
         grid-row: 1 / span 8;
+        min-height: min-content;
         padding-right: 1.5rem;
         border-right: 1px solid var(--bs-border-color-translucent);
       }
