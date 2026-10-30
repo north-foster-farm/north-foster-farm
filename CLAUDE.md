@@ -288,7 +288,9 @@ Deployment configured in `netlify.toml`:
   `.github/workflows/ci.yml`), which `staging` and `main` require.
   CI's `build` job repeats the Hugo build, `check:grid`, `check:schema`,
   `check:fresh` and `check:news` on every push, so a template error shows on the commit
-- Hugo version: 0.164.0 (pinned; Node 26 via NODE_VERSION and .nvmrc)
+- Hugo version: 0.164.0 (pinned; Node 24.22.1 via `.nvmrc` alone,
+  enforced by `bin/check-node.mjs`; corrected 2026-10-30, it said Node
+  26 via NODE_VERSION)
 - Deploy previews build drafts/future/expired content
 - Custom redirects (e.g., `/venmo` → Venmo profile)
 - Security headers: CSP, HSTS, nosniff, etc.
