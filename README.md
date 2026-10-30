@@ -15,8 +15,8 @@ and hosted on [Netlify][netlify].
 - **Hugo 0.164.0, extended.** The extended build is the one that can
   compile SCSS; the standard build cannot. Pinned in `netlify.toml`,
   floored in `config/_default/hugo.toml`.
-- **Node 26.** Pinned in `.nvmrc` and as `NODE_VERSION` in
-  `netlify.toml`.
+- **Node 24.22.1.** Pinned in `.nvmrc` alone, which `npm run check`
+  enforces (`bin/check-node.mjs`, 2026-10-27).
 - **npm.** `package-lock.json` is the lockfile. Netlify picks its
   package manager from whichever lockfile it finds, so do not add a
   `yarn.lock`.
@@ -248,6 +248,14 @@ requests into `next`: it waits for the check on the labeled head,
 rebase-merges that exact head, then runs `ci.yml` on `next`, since the
 rebased commits are new. A pull request into `staging` or `main` is
 refused; those branches move only by fast-forward.
+
+To build a context again without a push, after a fix to a Netlify
+setting for instance, run `bin/nff redeploy --staging` or `bin/nff
+redeploy --production` (#510). It names the commit it builds (the
+branch's head on GitHub) and the one served now (`/version.json`),
+asks first on production unless `--yes`, and waits until the deploy
+is ready and `/version.json` shows the commit, or reports the failure
+with the deploy's URL. Each rebuild is logged.
 
 `netlify.toml` holds the build config, redirects, and security headers
 (CSP, HSTS, cache policy). It is the source of truth for all three, so
