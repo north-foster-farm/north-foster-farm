@@ -41,7 +41,7 @@
 
 import catalog from "../../../data/catalog.json" with { type: "json" };
 import {
-  archived, indexCatalog,
+  archived, indexCatalog, uncounted,
 } from "../../../assets/scripts/order/lib/catalog.mjs";
 import terms from "../../../data/delivery.json" with { type: "json" };
 import { today } from "../../../assets/scripts/order/lib/zoned.mjs";
@@ -192,15 +192,23 @@ export const adjust = async (stores, lines, sign) => {
   return counts;
 };
 
+// Whether a count stands for this item: one is kept, and the catalog
+// doesn't mark it always in stock (#511). Orders still move the
+// count, in Square and the store, so it may go below 0.
+const counted = (item, counts, sku) => Object.hasOwn(counts, sku)
+  && !uncounted(item);
+
 // Whether stock has this item on hand, its restock type aside: the
-// catalog flag, and the count above 0 where there is one.
+// catalog flag, and the count above 0 where one stands.
 const onHand = (item, counts, sku) => !!item.inStock
-  && (!Object.hasOwn(counts, sku) || counts[sku] > 0);
+  && (!counted(item, counts, sku) || counts[sku] > 0);
 
 // What the page needs for every catalog item, counted or not.
-//   { sku: { inStock, available } }  available is null when uncounted.
-// An archived item is never in stock. `catalogIndex` is for tests;
-// `counts`, when given, are liveCounts already read.
+//   { sku: { inStock, available } }  available is null when uncounted,
+// and always for an item marked always in stock (#511), so nothing
+// downstream caps it or refuses it. An archived item is never in
+// stock. `catalogIndex` is for tests; `counts`, when given, are
+// liveCounts already read.
 export const availability = async (stores, {
   catalogIndex = index, env, deadline, inventory, counts: given,
 } = {}) => {
@@ -209,8 +217,8 @@ export const availability = async (stores, {
   const items = {};
 
   for (const [sku, item] of catalogIndex) {
-    const counted = Object.hasOwn(counts, sku);
-    const available = counted ? Math.max(0, counts[sku]) : null;
+    const available = counted(item, counts, sku)
+      ? Math.max(0, counts[sku]) : null;
 
     items[sku] = {
       inStock: onHand(item, counts, sku) && !archived(item),

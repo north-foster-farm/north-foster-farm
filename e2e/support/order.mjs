@@ -4,6 +4,7 @@
 
 import { test as base, expect } from "@playwright/test";
 
+import { recorded } from "../../netlify/functions/lib/fake.mjs";
 import { orderLimitHeaders } from "./staging.mjs";
 import { PLENTY, stockFixtures } from "./stock.mjs";
 
@@ -145,6 +146,17 @@ export const searchStockApplied = (page) => expect(
 // Which payment drivers are the fakes here: none on any Netlify deploy,
 // both on a local run (SQUARE_ENV and PAYPAL_ENV fake work only where
 // SITE_CONTEXT is dev; netlify/functions/lib/fake.mjs).
+// The card the fake, and the sandbox's approved nonce, pay with, read
+// from the sandbox's recorded payment (test/fixtures/square): { last4,
+// how } with how as the card shows it, "Visa ending 5858".
+export const recordedCard = () => {
+  const { card } = recorded("square", "payment-card-ok")
+    .response.payment.card_details;
+  const brand = card.card_brand[0] + card.card_brand.slice(1).toLowerCase();
+
+  return { last4: card.last_4, how: `${brand} ending ${card.last_4}` };
+};
+
 export const paymentFakes = async (request) => {
   const res = await request.get("/api/checkout/config");
   const cfg = res.ok() ? await res.json() : {};
@@ -153,6 +165,22 @@ export const paymentFakes = async (request) => {
     square: !!cfg.square && cfg.square.env === "fake",
     paypal: !!cfg.paypal && cfg.paypal.env === "fake",
   };
+};
+
+// Square's sandbox test Visa, approved; OrderPage.card types it.
+export const TEST_CARD = "4111111111111111";
+
+// The card a paid order shows, { last4, how }: the recording's where
+// Square is the fake, which answers with it whatever was typed, and
+// the typed one where the real sandbox charges it (staging run
+// 40978293081 showed "Visa ending 1111", #517). The sandbox cards the
+// suite types are all Visas.
+export const paidCard = async (request, number = TEST_CARD) => {
+  if ((await paymentFakes(request)).square) return recordedCard();
+
+  const last4 = number.slice(-4);
+
+  return { last4, how: `Visa ending ${last4}` };
 };
 
 // The scheduled pickup radios, their values, and the one chosen.
@@ -362,7 +390,7 @@ export class OrderPage {
 
   // Fills Square's card field, or the stub SDK's plain fields where
   // payments are fake (a local run, as CI's e2e makes; docs/order-form.md).
-  async card(number = "4111111111111111", {
+  async card(number = TEST_CARD, {
     expiry = "12/30", cvv = "111", postal = "11111",
   } = {}) {
     const fake = this.page.locator("[data-fake-card]");

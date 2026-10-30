@@ -10,9 +10,13 @@
 //   rate/<email>            { times: [...] }             link requests
 //   rate/join/<email>       { times: [...] }    join-link requests, kept
 //                           apart so they never stop a sign-in (#495)
+//
+// Links and sessions are written and deleted through lib/auth-records,
+// which keeps each one's index key under its address (#508).
 
 import { createHash, randomBytes } from "node:crypto";
 
+import { deleteAuth, putAuth } from "./auth-records.mjs";
 import { now as clock, real } from "./clock.mjs";
 import { sendMail } from "./mail.mjs";
 import {
@@ -23,6 +27,11 @@ import {
   emailChangeLink, groupJoinLink, magicLink,
 } from "./templates.mjs";
 import accounts from "../../../data/accounts.json" with { type: "json" };
+import terms from "../../../data/delivery.json" with { type: "json" };
+import {
+  activePerks, publicPerk,
+} from "../../../assets/scripts/order/lib/perks.mjs";
+import { today } from "../../../assets/scripts/order/lib/zoned.mjs";
 
 const MINUTE = 60_000;
 
@@ -139,7 +148,7 @@ export const requestLink = async (stores, { email, next }, {
 
   const token = secret();
 
-  await stores.auth.set(`token/${hash(token)}`, {
+  await putAuth(stores, `token/${hash(token)}`, {
     email: address,
     next: safeNext(next),
     expires: now.getTime() + ttl,
@@ -220,7 +229,7 @@ export const verifyToken = async (stores, token, { now = clock() } = {}) => {
 
   if (look.reason) return { ok: false, reason: look.reason };
 
-  await stores.auth.delete(look.key);
+  await deleteAuth(stores, look.key, look.found);
 
   if (now.getTime() > look.found.expires) {
     return expired(look.found);
@@ -247,7 +256,7 @@ export const createSession = async (stores, email, {
   const address = normalizeEmail(email);
 
   await ensureCustomer(stores, address, now);
-  await stores.auth.set(sessionKey(id), {
+  await putAuth(stores, sessionKey(id), {
     email: address,
     createdAt: now.toISOString(),
     expires: now.getTime() + SESSION_TTL,
@@ -302,7 +311,7 @@ export const sessionFrom = async (stores, req, { now = clock() } = {}) => {
 
   if (!session) return null;
   if (now.getTime() > session.expires) {
-    await stores.auth.delete(key);
+    await deleteAuth(stores, key, session);
 
     return null;
   }
@@ -313,7 +322,7 @@ export const sessionFrom = async (stores, req, { now = clock() } = {}) => {
 };
 
 export const endSession = async (stores, id) => {
-  if (id) await stores.auth.delete(sessionKey(id));
+  if (id) await deleteAuth(stores, sessionKey(id));
 };
 
 // A state-changing request with a session must come from this site.
@@ -369,7 +378,7 @@ const nameParts = (customer) => {
   return [first || "", rest.join(" ")];
 };
 
-export const publicCustomer = (customer) => ({
+export const publicCustomer = (customer, now = clock()) => ({
   email: customer.email,
   name: customer.name || "",
   firstName: nameParts(customer)[0],
@@ -377,6 +386,10 @@ export const publicCustomer = (customer) => ({
   phone: customer.phone || "",
   avatar: customer.avatar || null,
   discountGroup: customer.discountGroup || null,
+  // The perks in force today (#514), so the order page prices with
+  // them and the account page names them. The server reads them again
+  // from the record; nothing here is trusted back.
+  perks: activePerks(customer, today(now, terms.timeZone)).map(publicPerk),
   // A buying group's key (#471), so the order page asks /api/group for
   // the group's pickup and prices with no code.
   memberGroup: customer.memberGroup && typeof customer.memberGroup === "object"

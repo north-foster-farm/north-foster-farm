@@ -28,6 +28,7 @@
 // notes and anything else the customer wrote.
 
 import { normalizeEmail } from "./auth.mjs";
+import { authRecordsFor, deleteAuth } from "./auth-records.mjs";
 import { namingKeys, scrubbed } from "./group-log.mjs";
 import { log } from "./log.mjs";
 import { maskEmail, maskIn } from "./mask.mjs";
@@ -239,15 +240,10 @@ export const forgetCustomer = async (stores, rawEmail, {
   if (wait) return { ok: false, wait, message: WAIT[wait] };
 
   const profiles = squareProfiles(orders);
-  const auth = [];
+  // Its sessions and links, from its index alone (#508), with an
+  // email-change link to or from the address: each carries it.
+  const auth = (await authRecordsFor(stores, email)).map(({ key }) => key);
 
-  for (const prefix of ["session/", "token/", "unsub/", "news/"]) {
-    for (const { key } of await stores.auth.list(prefix)) {
-      const value = await stores.auth.get(key);
-
-      if (value && normalizeEmail(value.email) === email) auth.push(key);
-    }
-  }
   for (const key of [
     `rate/${email}`, `rate/news/${email}`, `rate/join/${email}`,
     `change-rate/${email}`,
@@ -327,7 +323,7 @@ export const forgetCustomer = async (stores, rawEmail, {
   }
   for (const key of support) await stores.customers.delete(key);
   for (const key of messages) await stores.customers.delete(key);
-  for (const key of auth) await stores.auth.delete(key);
+  for (const key of auth) await deleteAuth(stores, key);
   for (const pass of passes) {
     await endPass(stores, pass.code, { revoke: true, now });
   }

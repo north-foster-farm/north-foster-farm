@@ -91,6 +91,10 @@ module.exports = [
       "test/payments.test.mjs", "test/fake.test.mjs", "test/webhooks.test.mjs",
       "test/sourcemaps.test.mjs", "test/groups.test.mjs",
       "test/group-credit.test.mjs", "test/square-fixtures.test.mjs",
+      "test/fixtures-record.test.mjs",
+      "test/square-replay.test.mjs", "test/fake-square.test.mjs",
+      "test/mail-replay.test.mjs",
+      "netlify/functions/lib/fake-square.mjs",
     ],
     "rules": {
       "camelcase": ["error", { "properties": "never" }],
@@ -98,7 +102,7 @@ module.exports = [
   },
   {
     // The CLIs have no extension; they are ES modules all the same.
-    "files": ["bin/nff", "bin/gh-shot"],
+    "files": ["bin/nff", "bin/gh-shot", "bin/fixtures/scrub"],
     "languageOptions": {
       "sourceType": "module",
     },
