@@ -47,6 +47,16 @@ describe("the Node pin", () => {
     }
   });
 
+  it("is the Node the docs name", () => {
+    const version = pinOf(read(".nvmrc"));
+
+    for (const doc of ["README.md", "CLAUDE.md", "docs/cloud-lanes.md",
+      "docs/security.md"]) {
+      assert.ok(read(doc).includes(`Node ${version}`), `${doc}: ${version}`);
+      assert.doesNotMatch(read(doc), /Node 26\b/, doc);
+    }
+  });
+
   it("makes npm refuse another Node through devEngines", () => {
     const { devEngines } = JSON.parse(read("package.json"));
 

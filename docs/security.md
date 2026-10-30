@@ -95,8 +95,8 @@ part updates faster than another.
 
 1. **Exact versions.** No `^` or `~` in any `package.json`; `.npmrc`
    sets `save-exact=true`. Lockfiles are committed and CI installs
-   with `npm ci`. Node (`.nvmrc`, `NODE_VERSION`) and Hugo
-   (`HUGO_VERSION`) are pinned. Actions are pinned to full commit SHAs
+   with `npm ci`. `.nvmrc` alone pins Node 24.22.1 (held by
+   `check:node` and `devEngines`), and `HUGO_VERSION` pins Hugo. Actions are pinned to full commit SHAs
    with the version in a comment.
 2. **Cooldown.** No release is adopted until it has been public for
    7 days. Dependabot's `cooldown` enforces it, and the

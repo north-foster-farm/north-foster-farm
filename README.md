@@ -15,8 +15,10 @@ and hosted on [Netlify][netlify].
 - **Hugo 0.164.0, extended.** The extended build is the one that can
   compile SCSS; the standard build cannot. Pinned in `netlify.toml`,
   floored in `config/_default/hugo.toml`.
-- **Node 26.** Pinned in `.nvmrc` and as `NODE_VERSION` in
-  `netlify.toml`.
+- **Node 24.22.1.** Pinned in `.nvmrc`, the only pin, which GitHub
+  Actions and Netlify read. `npm install` refuses any other Node. On a
+  Mac whose system Node differs, mise gives the repo its own (see
+  `CLAUDE.md`, Node).
 - **npm.** `package-lock.json` is the lockfile. Netlify picks its
   package manager from whichever lockfile it finds, so do not add a
   `yarn.lock`.

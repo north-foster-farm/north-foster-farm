@@ -150,6 +150,32 @@ bin/prod
 To check a production build locally, run the linters and then
 `hugo --environment production` directly, skipping `bin/prod`.
 
+### Node
+
+Node 24.22.1, pinned in `.nvmrc`, the only pin (#504). GitHub's
+workflows set Node up from it and Netlify reads it.
+`npm run check:node` (`bin/check-node.mjs`) fails on any other Node and
+runs first in `npm run check` and every Netlify build, and
+`package.json`'s `devEngines` makes `npm ci` and `npm install` refuse
+one (EBADDEVENGINES). Bump `.nvmrc` and `devEngines` together.
+
+On James's Mac, Homebrew's Node stays the system's and this repo gets
+its own through mise's shims, with no global mise Node:
+
+- `brew install mise`;
+- `~/.config/mise/config.toml` holds
+  `idiomatic_version_file_enable_tools = ["node"]`, so mise reads
+  `.nvmrc`; there is no `mise.toml` or `.tool-versions` in the repo;
+- `eval "$(mise activate zsh --shims)"` in `~/.zprofile` (shims only,
+  no `mise activate zsh` in `.zshrc`), so git hooks, `bin/nff`, npm
+  scripts and tmux panes get the pinned Node too;
+- `mise install` in the repo after `.nvmrc` changes.
+
+Check it: `node --version` prints `.nvmrc`'s version inside the repo
+and Homebrew's outside it. A command run in a folder outside the repo
+gets Homebrew's Node, so one that runs npm there writes `.nvmrc` beside
+the `package.json` it copies (`bin/promote.mjs`, `auditCommit`).
+
 ### Screenshots in issues and comments
 
 `gh` can't attach images, so `bin/gh-shot [--issue N] FILE...` uploads
@@ -288,7 +314,8 @@ Deployment configured in `netlify.toml`:
   `.github/workflows/ci.yml`), which `staging` and `main` require.
   CI's `build` job repeats the Hugo build, `check:grid`, `check:schema`,
   `check:fresh` and `check:news` on every push, so a template error shows on the commit
-- Hugo version: 0.164.0 (pinned; Node 26 via NODE_VERSION and .nvmrc)
+- Hugo version: 0.164.0 (pinned); Node 24.22.1 from `.nvmrc` (see
+  Node above; `NODE_VERSION` is gone from `netlify.toml`)
 - Deploy previews build drafts/future/expired content
 - Custom redirects (e.g., `/venmo` → Venmo profile)
 - Security headers: CSP, HSTS, nosniff, etc.
