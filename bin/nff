@@ -42,6 +42,7 @@ import { verifyEnv } from "./env/verify.mjs";
 import { setSchedule } from "./schedule-env.mjs";
 import { shipLog } from "./ship-log.mjs";
 import { USAGE as PROMOTE_USAGE, promoteCommand } from "./promote.mjs";
+import { USAGE as REDEPLOY_USAGE, redeploy } from "./redeploy.mjs";
 import { USAGE as SUPPLY_USAGE, supplyCommand } from "./supply/waive.mjs";
 
 const USAGE = `Usage:
@@ -449,6 +450,7 @@ ${BREAKER_USAGE}
 ${GATE_USAGE}
 ${SUPPLY_USAGE}
 ${PROMOTE_USAGE}
+${REDEPLOY_USAGE}
   bin/nff health                     what /api/health would answer
   bin/nff alert test [--production|--staging]
                                       one real alert, past the hourly
@@ -1191,6 +1193,17 @@ const run = async () => {
   }
   if (group === "promote") {
     return promoteCommand(action, rest, { flags, out });
+  }
+  // Asks for itself on production (bin/redeploy.mjs).
+  if (group === "redeploy") {
+    if (action) throw new Error("redeploy takes only --production or "
+      + "--staging.");
+
+    return redeploy(context, {
+      yes: flagOn(flags.yes), dryRun: flagOn(flags["dry-run"]),
+      by: userInfo().username, out,
+      ask: process.stdin.isTTY ? askLine : null,
+    });
   }
   if (group === "supply") {
     return supplyCommand(action, rest, { flags, out, root });
