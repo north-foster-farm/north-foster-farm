@@ -14,6 +14,9 @@
 import { createHash, randomBytes } from "node:crypto";
 
 import { normalizeEmail, validEmail } from "./auth.mjs";
+import {
+  authRecordsFor, deleteAuth, putAuth,
+} from "./auth-records.mjs";
 import { now as clock, real } from "./clock.mjs";
 import { log } from "./log.mjs";
 import { sendMail } from "./mail.mjs";
@@ -147,7 +150,7 @@ export const unsubscribeLinks = async (stores, email, {
   const token = secret();
   const site = siteUrl(env);
 
-  await stores.auth.set(`unsub/${hash(token)}`, {
+  await putAuth(stores, `unsub/${hash(token)}`, {
     email: normalizeEmail(email), createdAt: now.toISOString(),
   });
 
@@ -325,7 +328,7 @@ export const requestSubscribe = async (stores, {
   const first = text(firstName);
   const last = text(lastName);
 
-  await stores.auth.set(`news/${hash(token)}`, {
+  await putAuth(stores, `news/${hash(token)}`, {
     email: address,
     firstName: first,
     lastName: last,
@@ -373,7 +376,7 @@ export const confirmSubscribe = async (stores, token, {
 
   if (!found) return { ok: false, reason: "unknown" };
 
-  await stores.auth.delete(key);
+  await deleteAuth(stores, key, found);
 
   if (now.getTime() > found.expires) return { ok: false, reason: "expired" };
 
@@ -677,12 +680,10 @@ export const removeImported = async (stores, email, {
   if (dryRun || report.outcome === "none") return report;
 
   if (report.outcome === "deleted") {
-    for (const { key } of await stores.auth.list("unsub/")) {
-      const link = await stores.auth.get(key);
-
-      if (link && normalizeEmail(link.email) === address) {
-        await stores.auth.delete(key);
-      }
+    for (const { key, value } of await authRecordsFor(stores, address, {
+      prefixes: ["unsub/"],
+    })) {
+      await deleteAuth(stores, key, value);
     }
     await deleteCustomer(stores, address);
   } else {

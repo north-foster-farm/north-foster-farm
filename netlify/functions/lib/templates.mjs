@@ -1360,6 +1360,12 @@ const onePayment = (p) => {
 export const paymentPhrase = (order) => {
   const payments = paymentsOf(order);
 
+  // A family order (#514) has no payment and nothing due: "$0, nothing
+  // to pay". Draft wording.
+  if (!payments.length && order.totals.total === 0) {
+    return "$0, nothing to pay";
+  }
+
   return payments.length
     ? payments.map(onePayment).join(", then ")
     : onePayment({ amount: order.totals.total });
@@ -2241,41 +2247,71 @@ const packetLine = (e) => {
   return `**${e.order.id}**${who ? `, ${who}` : ""}: ${PACKET_KIND[e.kind]}`;
 };
 
+// The day before's packet (#515) passes `eve`, the time it goes ("3
+// PM") and `next`, the morning packet's ("6 AM"): `day` is the day its
+// slips are for. The morning after one passes its time as `since`.
 export const farmPackingSlips = (entries, {
   day, sunday = false, quiet = false, slips = 0, revised = 0,
-  cancelled = 0, filename = "", links,
+  cancelled = 0, filename = "", links, eve = null, next = null,
+  since = null,
 } = {}) => {
   const when = label(day);
 
   if (quiet) {
-    const title = `Packing slips, ${when}: nothing to print`;
+    const title = eve
+      ? `Packing slips for tomorrow, ${when}: nothing due`
+      : `Packing slips, ${when}: ${since
+        ? `nothing changed since ${since}` : "nothing to print"}`;
+    let body = "No order has come in, changed, or been canceled since " +
+      "the last packet.";
+
+    if (eve) {
+      body = `No order is due ${when}. The ${next} email brings ` +
+        "any that come in after this one.";
+    } else if (since) {
+      body = "No order has come in, changed, or been canceled since " +
+        `yesterday's ${since} packet. Pack from that one.`;
+    }
 
     return {
       subject: title,
-      ...render(title, [
-        p("No order has come in, changed, or been canceled since the " +
-          "last packet."),
-        adminFooter(links),
-      ], links, { tag: "Packing slips" }),
+      ...render(title, [p(body), adminFooter(links)], links,
+        { tag: "Packing slips" }),
     };
   }
 
   const counts = packetCounts({ slips, revised, cancelled });
-  const title = sunday
-    ? `Packing slips for the week of ${when}: ${counts}`
-    : `Packing slips, ${when}: ${counts}`;
+  let title = `Packing slips, ${when}: ${counts}`;
+
+  if (eve) title = `Packing slips for tomorrow, ${when}: ${counts}`;
+  else if (sunday) title = `Packing slips for the week of ${when}: ${counts}`;
+
+  const after = since ? `yesterday's ${since} packet` : "yesterday";
+  let scope = null;
+
+  if (eve) {
+    scope = p(`It has a slip for every order due ${when}, as well as ` +
+      "anything new, changed, or canceled for later days, and replaces " +
+      `every earlier slip for ${when}. The ${next} email brings ` +
+      "only what comes in, changes, or is canceled after this one.");
+  } else if (sunday) {
+    scope = p(`It's Sunday, so it has a slip for every order due ${
+      since ? `from ${label(addDays(day, 1))} to ` : "by "}${
+      label(addDays(day, 6))}, as well as anything new, changed, or ` +
+      `canceled since ${after}, and replaces every earlier slip for ${
+        since ? "those days" : "this week"}.`);
+  } else if (since) {
+    scope = p(`Yesterday's ${since} packet had a slip for every order ` +
+      "due today. This one has only what came in, changed, or was " +
+      "canceled since then.");
+  }
 
   return {
     subject: title,
     ...render(title, [
       p(`Print the attached PDF${filename ? `, ${filename}` : ""}. It ` +
         "opens with the pick list for every slip in it."),
-      sunday
-        ? p(`It's Sunday, so it has a slip for every order due by ${
-          label(addDays(day, 6))}, as well as anything new, changed, or ` +
-          "canceled since yesterday, and replaces every earlier slip for " +
-          "this week.")
-        : null,
+      scope,
       revised || cancelled
         ? p("A **revised** order has a sheet saying what changed, then a " +
           "new slip: throw away its old one. A **CANCELED** order has a " +

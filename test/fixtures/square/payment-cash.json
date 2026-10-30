@@ -1,0 +1,84 @@
+{
+  "_source": {
+    "service": "square",
+    "environment": "sandbox",
+    "recorded": "2026-10-29",
+    "squareVersion": "2026-09-16",
+    "by": "bin/fixtures/record, scrubbed by bin/fixtures/scrub"
+  },
+  "status": 200,
+  "request": {
+    "method": "POST",
+    "path": "/v2/payments",
+    "headers": {
+      "Square-Version": "2026-09-16",
+      "Content-Type": "application/json"
+    },
+    "body": {
+      "idempotency_key": "IDEMPOTENCY_KEY_20",
+      "amount_money": {
+        "amount": 5500,
+        "currency": "USD"
+      },
+      "order_id": "ORDER_ID_6",
+      "location_id": "LOCATION_ID_1",
+      "customer_id": "CUSTOMER_ID_1",
+      "buyer_email_address": "customer@example.com",
+      "reference_id": "NFF-2610-FIXT",
+      "note": "North Foster Farm order NFF-2610-FIXT",
+      "source_id": "CASH",
+      "cash_details": {
+        "buyer_supplied_money": {
+          "amount": 5500,
+          "currency": "USD"
+        }
+      }
+    }
+  },
+  "response": {
+    "payment": {
+      "id": "PAYMENT_ID_11",
+      "created_at": "2026-10-29T23:20:51.923Z",
+      "updated_at": "2026-10-29T23:20:52.044Z",
+      "amount_money": {
+        "amount": 5500,
+        "currency": "USD"
+      },
+      "status": "COMPLETED",
+      "source_type": "CASH",
+      "location_id": "LOCATION_ID_1",
+      "order_id": "ORDER_ID_6",
+      "reference_id": "NFF-2610-FIXT",
+      "buyer_email_address": "customer@example.com",
+      "note": "North Foster Farm order NFF-2610-FIXT",
+      "customer_id": "CUSTOMER_ID_1",
+      "total_money": {
+        "amount": 5500,
+        "currency": "USD"
+      },
+      "capabilities": [
+        "EDIT_AMOUNT_UP",
+        "EDIT_AMOUNT_DOWN",
+        "EDIT_TIP_AMOUNT_UP",
+        "EDIT_TIP_AMOUNT_DOWN"
+      ],
+      "cash_details": {
+        "buyer_supplied_money": {
+          "amount": 5500,
+          "currency": "USD"
+        },
+        "change_back_money": {
+          "amount": 0,
+          "currency": "USD"
+        }
+      },
+      "receipt_number": "RECEIPT_NUMBER_3",
+      "receipt_url": "https://squareupsandbox.com/receipt/preview/PAYMENT_ID_11",
+      "application_details": {
+        "square_product": "ECOMMERCE_API",
+        "application_id": "APPLICATION_ID_1"
+      },
+      "version_token": "TOKEN_12"
+    }
+  }
+}

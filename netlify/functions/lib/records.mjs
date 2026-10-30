@@ -27,6 +27,9 @@
 
 import { createHash } from "node:crypto";
 
+import {
+  HASHED_SESSION, deleteAuth, inBatches, pruneIndex,
+} from "./auth-records.mjs";
 import { now as clock } from "./clock.mjs";
 
 export const OPEN = ["paid", "unpaid"];
@@ -520,30 +523,41 @@ export const sweepCheckouts = async (stores, now = clock(), {
 // any other key was written before that, under its raw id, and is a
 // live id to anyone who can read Blobs: it is deleted whatever its
 // expiry, and its customer signs in again by link.
+//
+// Each record goes with its index keys (lib/auth-records.mjs, #508),
+// and an index key a write cut short left behind goes too, once it is
+// 10 minutes old (pruneIndex). Those are not counted: the count is of
+// records. The jobs run this every 15 minutes, so it reads in parallel
+// batches rather than one key at a time.
 export const AUTH_SWEPT = ["token/", "session/", "news/"];
-
-const HASHED_SESSION = /^session\/[0-9a-f]{64}$/;
 
 export const sweepAuth = async (stores, now = clock()) => {
   let swept = 0;
 
   for (const prefix of AUTH_SWEPT) {
-    for (const { key } of await stores.auth.list(prefix)) {
+    const keys = (await stores.auth.list(prefix)).map(({ key }) => key);
+    const done = await inBatches(keys, async (key) => {
       if (prefix === "session/" && !HASHED_SESSION.test(key)) {
-        await stores.auth.delete(key);
-        swept += 1;
-        continue;
+        await deleteAuth(stores, key);
+
+        return 1;
       }
 
       const found = await stores.auth.get(key);
 
       if (found && Number.isFinite(found.expires)
         && found.expires < now.getTime()) {
-        await stores.auth.delete(key);
-        swept += 1;
+        await deleteAuth(stores, key, found);
+
+        return 1;
       }
-    }
+
+      return 0;
+    });
+
+    swept += done.reduce((sum, n) => sum + n, 0);
   }
+  await pruneIndex(stores);
 
   return swept;
 };

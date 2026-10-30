@@ -26,12 +26,13 @@ import discountCodes from "../../data/discount-codes.json" with {
   type: "json",
 };
 import { indexCatalog } from "../../assets/scripts/order/lib/catalog.mjs";
+import { perkEffects } from "../../assets/scripts/order/lib/perks.mjs";
 import { lockOn } from "../../assets/scripts/order/lib/totals.mjs";
 import { validateOrder } from "../../assets/scripts/order/lib/validate.mjs";
 import { parts, today } from "../../assets/scripts/order/lib/zoned.mjs";
 import { sessionFrom } from "./lib/auth.mjs";
 import {
-  METHODS, announceNew, finishVenmo, ownRecord, payWithCredit,
+  METHODS, announceNew, finishVenmo, nothingDue, ownRecord, payWithCredit,
   payWithSquare, startVenmo,
 } from "./lib/checkout.mjs";
 import { now as clock, real } from "./lib/clock.mjs";
@@ -53,6 +54,7 @@ import {
   waivesFee,
 } from "./lib/passes.mjs";
 import { PAYMENTS_OFF, paymentsOff } from "./lib/payments.mjs";
+import { perkTypes } from "./lib/perks.mjs";
 import { pickupSchedule } from "./lib/pickups.mjs";
 import {
   getOrder, orderForSubmission, paymentsOf, reserveOrderId, submissionKey,
@@ -255,6 +257,11 @@ export const handle = async (req, {
   const group = session && session.customer
     ? session.customer.discountGroup || null
     : null;
+  // So do their perks (#514), those in force today: an expired one
+  // simply is not among them.
+  const perks = session && session.customer
+    ? perkTypes(session.customer, now) : [];
+  const lifted = perkEffects(perks);
   // A buying group (#471): the code the page applied, checked again
   // here, or the signed-in customer's own membership. A code that no
   // longer works is answered first, like a refused pass, so the page
@@ -322,6 +329,7 @@ export const handle = async (req, {
       minimum: !!passCode && !problem,
       fee: !!passCode && !problem && waivesFee(pass),
     },
+    perks,
   });
 
   if (!result.ok) {
@@ -390,8 +398,11 @@ export const handle = async (req, {
 
   // Every way is booked by paying: a window the schedule offers needs
   // no second yes from the farm (W11d).
-  const waived = result.order.flags.minimumWaived
-    || !!result.order.totals.feeWaived;
+  // The pass is used only for what the customer's perks (#514) do not
+  // already lift, so a perk never spends a single-use pass.
+  const waived = !!passCode && !problem
+    && ((result.order.flags.minimumWaived && !lifted.minimum)
+      || (!!result.order.totals.feeWaived && !lifted.fee));
 
   // Held by a swap (#301): another submission that took the pass in
   // the meantime wins, and this one is refused like any spent code.
@@ -476,6 +487,7 @@ export const handle = async (req, {
           minimum: !!passCode && !problem,
           fee: !!passCode && !problem && waivesFee(pass),
         },
+        perks,
       });
 
       return json(422, {
@@ -503,7 +515,9 @@ export const handle = async (req, {
     // totals, not the page, decide, so a card on a covered order is
     // never charged and credit alone never pays an order with money
     // due.
-    const covered = order.totals.total === 0 && order.totals.credit > 0;
+    // A family order (#514) is the same: its discount is the whole of
+    // it, and nothing is charged.
+    const covered = nothingDue(order);
 
     if (covered || method === "credit") {
       if (!covered) {

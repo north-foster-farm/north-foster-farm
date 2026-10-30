@@ -635,7 +635,11 @@ so a failed staging run finds its own lines. After a failed full run,
 function's and the gate's lines for the run's window through
 `bin/nff netlify` and prints the failed tests, these lines and any
 silent gaps; the raw lines stay in `.ignored/e2e-logs/`, never on
-GitHub.
+GitHub. `blobs.retryable` (#516) is a Blobs call answered with a 429
+or a 5xx, or not at all: its client sleeps 5 s before trying again
+(1 s or more when a 429 says when to). The line has the store, the
+method and the status, never the key. A `function.slow` near 5.5 s
+beside one is Blobs, not the site.
 
 ## The invariants
 
@@ -737,6 +741,22 @@ staging toolbar's email library previews the email and the PDF.
 Staging's own jobs runs put its packet in the outbox, never in a
 mailbox, and a run with `reset` lets the day's packet go again.
 
+**Packing slips for tomorrow**, 15:00 the day before (#515, same
+file), so the farm can pack the night before: every slip for the next
+day, new, revised, a reprint of one printed earlier, or a CANCELED
+sheet, with the same cover, and each order new, changed or canceled
+for a later day, as the morning packet would have it; "nothing due"
+when there is none. It is started by 21:00 or not at all (a packet
+already started is retried after), and `packing/eve/<day>` keeps it
+sent with its `cutoff`, the time of the run that fixed the packet.
+The next morning's packet compares with what it printed, not with the
+time, so it carries only the orders that came in, changed or were
+cancelled after the 3 PM packet read them (on Sunday, the rest of the
+week as well), and a quiet morning says "nothing changed since 3 PM".
+A failure pings the packing check's `/fail`; a success does not ping,
+so the check's 6:00 schedule stands, and after a 3 PM failure the
+check stays down until the morning's packet goes.
+
 ## The log
 
 Every function writes one JSON line per event to the console (as
@@ -747,7 +767,10 @@ with a 1.5-second cap; a failure to ship is swallowed. Query by
 `webhook.rejected`, `jobs.run`, `alert`, `health.checked`, ...), by
 `id` for one order, or by `level: error`. The jobs run's full report
 is one `jobs.run` line every 15 minutes, so "when did it start" is a
-query for the first run whose `errors` is not empty. Deploy id and
+query for the first run whose `errors` is not empty. Before it, each
+step of the run logs one `jobs.step` line with its `step` name and
+`ms`, so a sweep growing toward the function's 30 s limit shows by
+name (#516). Deploy id and
 context ride on every line. Every function is wrapped in
 `withLog(name, handler)`, so an exception no handler caught is one
 `function.crashed` line with the function's name and the top of its

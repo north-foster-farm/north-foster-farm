@@ -19,6 +19,7 @@ import { testStores } from "../netlify/functions/lib/store.mjs";
 import { handle as checkoutConfig } from "../netlify/functions/checkout.mjs";
 import { handle as orders, orderId } from "../netlify/functions/orders.mjs";
 import { instant } from "../assets/scripts/order/lib/zoned.mjs";
+import { reply } from "./recorded.mjs";
 import { MORNING, SCHEDULE } from "./schedule-fixture.mjs";
 
 const MAILS = {
@@ -70,41 +71,30 @@ const order = () => ({
   flags: { zipUnlisted: false },
 });
 
-// Square as the real module meets it: one canned answer per path.
+// Square as the real module meets it: its recorded answers
+// (test/fixtures/square), one per path.
 const squareHost = () => async (url, { method }) => {
   const path = new URL(url).pathname;
-  const payment = {
-    id: "P1", status: "COMPLETED", receipt_url: "https://r",
-    card_details: { card: { card_brand: "VISA", last_4: "1111" } },
-    refunded_money: { amount: 0 },
-  };
   const answers = [
-    [/^\/v2\/customers\/search$/, { customers: [{ id: "C1" }] }],
-    [/^\/v2\/customers\//, { customer: { id: "C1" } }],
-    [/^\/v2\/orders\/[^/]+\/pay$/, { order: { id: "O1" } }],
-    [/^\/v2\/orders\/search$/, { orders: [] }],
-    [/^\/v2\/locations$/, { locations: [{ id: "L" }] }],
+    [/^\/v2\/customers\/search$/, "customers-search-found"],
+    [/^\/v2\/customers\//, method === "DELETE"
+      ? "customer-delete" : "customer-update"],
+    [/^\/v2\/orders\/[^/]+\/pay$/, "order-pay-zero"],
+    [/^\/v2\/orders\/search$/, "orders-search-customer"],
+    [/^\/v2\/locations$/, "locations-list"],
     [/^\/v2\/orders\/[^/]+$/, method === "GET"
-      ? {
-        order: {
-          id: "O1", version: 3, state: "OPEN",
-          fulfillments: [{ uid: "F1", state: "PROPOSED" }],
-        },
-      }
-      : { order: { id: "O1", version: 4 } }],
-    [/^\/v2\/orders$/, { order: { id: "O1" } }],
-    [/^\/v2\/payments/, { payment }],
-    [/^\/v2\/refunds$/, {
-      refund: { id: "R1", status: "PENDING", amount_money: { amount: 100 } },
-    }],
-    [/^\/v2\/refunds\/R1$/, {
-      refund: { id: "R1", status: "COMPLETED", amount_money: { amount: 100 } },
-    }],
-    [/^\/v2\/customers\/C1$/, {}],
+      ? "order-get-line-discount" : "order-update-fulfillment"],
+    [/^\/v2\/orders$/, "order-create-pickup"],
+    [/^\/v2\/payments\/[^/]+$/, "payment-get"],
+    [/^\/v2\/payments$/, "payment-card-ok"],
+    [/^\/v2\/refunds$/, "refund-create"],
+    [/^\/v2\/refunds\//, "refund-get"],
+    [/^\/v2\/catalog\/search$/, "catalog-search"],
+    [/^\/v2\/inventory\//, "inventory-counts"],
   ];
-  const [, data] = answers.find(([re]) => re.test(path));
+  const [, name] = answers.find(([re]) => re.test(path));
 
-  return new Response(JSON.stringify(data), { status: 200 });
+  return reply("square", name);
 };
 
 const paypalHost = () => async (url) => {
@@ -145,7 +135,7 @@ const SQUARE_CALLS = {
   createOrder: (o) => square.createOrder(order(), KEY, o),
   createChangeOrder: (o) => square.createChangeOrder(order(), {
     added: [], difference: 500, carries: false,
-  }, KEY, o),
+  }, `${KEY}-change`, o),
   payZeroOrder: (o) => square.payZeroOrder("O1", KEY, o),
   createPayment: (o) => square.createPayment({
     order: order(), squareOrderId: "O1", customerId: "C1", key: KEY,
@@ -264,7 +254,7 @@ describe("the fakes match the real calls", () => {
   it("square: the sandbox's test nonces decline as the sandbox does",
     async () => {
       for (const [nonce, code] of [
-        ["cnon:card-nonce-declined", "CARD_DECLINED"],
+        ["cnon:card-nonce-declined", "GENERIC_DECLINE"],
         ["cnon:card-nonce-rejected-cvv", "CVV_FAILURE"],
       ]) {
         await assert.rejects(square.createPayment({

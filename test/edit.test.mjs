@@ -12,8 +12,11 @@ import {
 import {
   amendOrder, getCheckout, getOrder, paymentsOf,
 } from "../netlify/functions/lib/records.mjs";
-import { buildChangeOrder } from "../netlify/functions/lib/square.mjs";
+import {
+  buildChangeOrder, cancelOrder as cancelSquareOrder,
+} from "../netlify/functions/lib/square.mjs";
 import { SquareError } from "../netlify/functions/lib/square.mjs";
+import { recorded } from "./recorded.mjs";
 import { getCounts, setCount } from "../netlify/functions/lib/stock.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
 import terms from "../netlify/functions/lib/terms.mjs";
@@ -404,6 +407,48 @@ describe("editOrder", () => {
     assert.deepEqual(await getOrder(stores, id), before);
     assert.equal((await getCounts(stores))[SKU], 10);
     assert.ok(calls.some((c) => c[0] === "cancelOrder" && c[1] === "SQC1"));
+  });
+
+  it("cancels the change order's fulfillment, then the order, when the " +
+    "card is declined", async () => {
+    const { stores, id } = await placed();
+    const open = recorded("square", "order-get-before-cancel").response.order;
+    const sent = [];
+    const fetchImpl = async (url, init) => {
+      sent.push({ method: init.method, body: JSON.parse(init.body || "null") });
+
+      return new Response(JSON.stringify({
+        order: { ...open, version: open.version + sent.length - 1 },
+      }));
+    };
+    const { square } = fakeSquare({
+      pay: () => {
+        throw new SquareError("declined", {
+          declined: true, code: "CARD_DECLINED",
+        });
+      },
+    });
+
+    await setCount(stores, SKU, 10);
+    square.cancelOrder = cancelSquareOrder;
+
+    const result = await edit(stores, id, {
+      idempotencyKey: editKey(), lines: [{ sku: SKU, qty: 3 }],
+      payment: { method: "card", sourceId: "cnon:bad" },
+    }, square, {
+      env: {
+        ...env, SQUARE_ENV: "sandbox", SQUARE_ACCESS_TOKEN: "tok",
+        SQUARE_LOCATION_ID: "LOC",
+      },
+      fetchImpl,
+    });
+    const puts = sent.filter((c) => c.method === "PUT");
+
+    assert.equal(result.status, 402);
+    assert.deepEqual(puts[0].body.order.fulfillments,
+      [{ uid: open.fulfillments[0].uid, state: "CANCELED" }]);
+    assert.equal(puts[1].body.order.state, "CANCELED");
+    assert.equal(puts[1].body.order.version, open.version + 1);
   });
 
   it("keeps a line that sold out since, and refuses more of it",

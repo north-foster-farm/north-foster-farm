@@ -188,6 +188,19 @@ once per count, and marked told only once the alert is sent.
 demand, read only, and exits 1 when one has stock. Fix the count in
 Square, or the entry in `data/catalog.json`.
 
+**Always in stock** (#511, James, 2026-10-28). An entry with
+`alwaysInStock: true`, today Large eggs alone, sells by its `inStock`
+flag and nothing else. Whatever Square or the store counts, 0 or
+below included, `/api/stock` reports it `{ inStock: true, available:
+null }`: the order page and search show no count and cap no quantity,
+the cart is never lowered for it, and checkout and `POST /api/orders`
+never refuse it for stock. Orders still record the sale in Square, so
+its count there may go negative. To sell it out, set `inStock: false`
+(`bin/stock`, then a deploy); its restock type then labels it as
+usual. Square's own "Mark as sold out" is not read: with inventory
+tracked, Square sets that same flag by itself when the count reaches
+0, so it would undo the point of the setting.
+
 The order page's **Show** control (`order/restock.js`, James,
 6303649455) is a radio group (`role="radiogroup"`, named "Show"
 for a screen reader, with no visible label since #274) alone and
@@ -240,7 +253,9 @@ bulk        = highest tier where subtotal >= threshold   (never stacked)
 group       = customer's discountGroup percent × subtotal (signed in)
 code        = a known discount code's `off`, capped at the subtotal
 lock        = Σ qty × (unitPrice - member price), a buying group member
-discount    = max(bulk, group, code, lock)                (never stacked)
+friends     = Σ qty × the item's Friends and Fam amount (friends perk)
+family      = subtotal                                    (family perk)
+discount    = max(bulk, group, code, lock, friends, family) (never stacked)
 baseFee     = delivery && subtotal < 150.00 ? 5.00 : 0    (pre-discount)
 areaFee     = delivery && ZIP unlisted (other RI) ? 3.00 : 0 (never waived)
 deliveryFee = baseFee + areaFee
@@ -255,6 +270,34 @@ session, never from the payload. `totals.discountLabel` names whichever
 discount applied and is what every surface shows; `discountTier`,
 `discountGroup`, `discountCode` and `discountLock` say which kind it
 was.
+
+A customer's perks (#514) live on their record as `perks` and are set
+with `bin/nff perks add|list|remove`. The order handler reads those in
+force today from the session, never the payload; the farm's own
+command reads the record. `free-delivery` waives the delivery fee and
+the outside-area fee as a fee pass does (`totals.feeWaived`), and
+`minimum-waived` lets a delivery under the minimum through
+(`flags.minimumWaived`). A pass is held and used up only for what the
+perks leave. `totals.perks` names the perks an order was priced with.
+A change to the order keeps only those the customer still holds on
+the day of the change: one removed or ended since stops applying, and
+one granted since is not gained (security review, 2026-10-29). A perk
+past its end day stops applying by itself.
+
+`friends` and `family` also lift the fee and the minimum, and each
+brings a discount that competes with the rest (James, 2026-10-29): the
+largest wins. A tie goes, in order, to family, a code, the member
+price, Friends and Fam, the tier, then the group. Friends
+and Fam is the whole-dollar amount per item in
+`money.friendsAndFam.off`, the amounts of Square's own Friends and Fam
+discounts, and goes to Square as one line-item discount per item under
+Square's name for it. Family is the whole subtotal, sent as one order
+discount, so the order is recorded with nothing charged: it is placed
+like an order credit covers (`nothingDue`, `payWithCredit`), paid in
+Square as a zero order, with no payment on the record.
+`totals.discountPerk` says which perk's discount won, `totals.perkLines`
+holds the Friends and Fam amounts, and the Square order's metadata
+carries `perk`.
 
 A buying group's member price (#471, `priceLock` in `data/groups.json`)
 is not a discount today: the member prices are the retail prices of

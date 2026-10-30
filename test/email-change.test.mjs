@@ -4,8 +4,11 @@ import { describe, it } from "node:test";
 import { handle as account } from "../netlify/functions/account.mjs";
 import { handle as auth } from "../netlify/functions/auth.mjs";
 import {
-  LINK_TTL, createSession, sessionKey,
+  LINK_TTL, createSession, requestLink, sessionKey,
 } from "../netlify/functions/lib/auth.mjs";
+import {
+  authRecordsFor, indexPrefix,
+} from "../netlify/functions/lib/auth-records.mjs";
 import {
   finishEmailChange, requestEmailChange,
 } from "../netlify/functions/lib/email-change.mjs";
@@ -105,6 +108,44 @@ describe("asking to change the email (#240)", () => {
         /That email address already exists/);
       assert.equal((await ask("nope")).status, 422);
       assert.equal(sent.length, 0);
+    });
+
+  it("voids the address's waiting change link from its index alone (#508)",
+    async () => {
+      const stores = await seed();
+      const { mail } = mailbox();
+      const ask = (email) => requestEmailChange(stores, { email: OLD },
+        email, { now, env, mail });
+
+      // Another address's change link and a sign-in link of OLD's own,
+      // which both stay.
+      await requestLink(stores, { email: "sam.new@example.com" }, {
+        now, env, send: false, limit: false, changeFrom: "sam@example.com",
+      });
+      await requestLink(stores, { email: OLD }, {
+        now, env, send: false, limit: false,
+      });
+      await ask("first@example.com");
+
+      const prefixes = [];
+      const list = stores.auth.list;
+
+      stores.auth.list = (prefix) => {
+        prefixes.push(prefix);
+
+        return list(prefix);
+      };
+      await ask(NEW);
+      stores.auth.list = list;
+
+      assert.deepEqual(prefixes, [indexPrefix(OLD)]);
+
+      const links = (await stores.auth.list("token/")).length;
+      const changes = (await authRecordsFor(stores, OLD))
+        .filter((a) => a.value.changeFrom === OLD);
+
+      assert.equal(links, 3);
+      assert.deepEqual(changes.map((a) => a.value.email), [NEW]);
     });
 
   it("sends no more links than sign-in does", async () => {

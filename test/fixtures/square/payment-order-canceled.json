@@ -1,0 +1,99 @@
+{
+  "_source": {
+    "service": "square",
+    "environment": "sandbox",
+    "recorded": "2026-10-29",
+    "squareVersion": "2026-09-16",
+    "by": "bin/fixtures/record, scrubbed by bin/fixtures/scrub"
+  },
+  "status": 400,
+  "request": {
+    "method": "POST",
+    "path": "/v2/payments",
+    "headers": {
+      "Square-Version": "2026-09-16",
+      "Content-Type": "application/json"
+    },
+    "body": {
+      "idempotency_key": "IDEMPOTENCY_KEY_13",
+      "amount_money": {
+        "amount": 6500,
+        "currency": "USD"
+      },
+      "order_id": "ORDER_ID_3",
+      "location_id": "LOCATION_ID_1",
+      "customer_id": "CUSTOMER_ID_1",
+      "buyer_email_address": "customer@example.com",
+      "reference_id": "NFF-2610-FIXT",
+      "note": "North Foster Farm order NFF-2610-FIXT",
+      "source_id": "cnon:card-nonce-ok"
+    }
+  },
+  "response": {
+    "errors": [
+      {
+        "code": "BAD_REQUEST",
+        "detail": "The order must be OPEN to be paid.",
+        "category": "INVALID_REQUEST_ERROR"
+      }
+    ],
+    "payment": {
+      "id": "PAYMENT_ID_7",
+      "created_at": "2026-10-29T23:20:44.899Z",
+      "updated_at": "2026-10-29T23:20:45.079Z",
+      "amount_money": {
+        "amount": 6500,
+        "currency": "USD"
+      },
+      "status": "CANCELED",
+      "delay_duration": "PT168H",
+      "source_type": "CARD",
+      "card_details": {
+        "status": "VOIDED",
+        "card": {
+          "card_brand": "VISA",
+          "last_4": "5858",
+          "exp_month": 10,
+          "exp_year": 2028,
+          "fingerprint": "FINGERPRINT_1",
+          "card_type": "CREDIT",
+          "prepaid_type": "NOT_PREPAID",
+          "bin": "453275"
+        },
+        "entry_method": "KEYED",
+        "cvv_status": "CVV_ACCEPTED",
+        "avs_status": "AVS_ACCEPTED",
+        "statement_description": "SQ *DEFAULT TEST ACCOUNT",
+        "card_payment_timeline": {
+          "authorized_at": "2026-10-29T23:20:45.026Z",
+          "voided_at": "2026-10-29T23:20:45.079Z"
+        }
+      },
+      "location_id": "LOCATION_ID_1",
+      "order_id": "ORDER_ID_3",
+      "reference_id": "NFF-2610-FIXT",
+      "risk_evaluation": {
+        "created_at": "2026-10-29T23:20:45.026Z",
+        "risk_level": "NORMAL"
+      },
+      "buyer_email_address": "customer@example.com",
+      "note": "North Foster Farm order NFF-2610-FIXT",
+      "customer_id": "CUSTOMER_ID_1",
+      "total_money": {
+        "amount": 6500,
+        "currency": "USD"
+      },
+      "approved_money": {
+        "amount": 6500,
+        "currency": "USD"
+      },
+      "delay_action": "CANCEL",
+      "delayed_until": "2026-11-05T23:20:44.899Z",
+      "application_details": {
+        "square_product": "ECOMMERCE_API",
+        "application_id": "APPLICATION_ID_1"
+      },
+      "version_token": "TOKEN_8"
+    }
+  }
+}

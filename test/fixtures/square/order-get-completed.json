@@ -1,0 +1,208 @@
+{
+  "_source": {
+    "service": "square",
+    "environment": "sandbox",
+    "recorded": "2026-10-29",
+    "squareVersion": "2026-09-16",
+    "by": "bin/fixtures/record, scrubbed by bin/fixtures/scrub"
+  },
+  "status": 200,
+  "request": {
+    "method": "GET",
+    "path": "/v2/orders/ORDER_ID_1",
+    "headers": {
+      "Square-Version": "2026-09-16"
+    },
+    "body": null
+  },
+  "response": {
+    "order": {
+      "id": "ORDER_ID_1",
+      "location_id": "LOCATION_ID_1",
+      "line_items": [
+        {
+          "uid": "LINE_ITEM_UID_1",
+          "quantity": "2",
+          "name": "Whole Chicken (per each), 3.5 - 3.9 lbs",
+          "base_price_money": {
+            "amount": 3000,
+            "currency": "USD"
+          },
+          "gross_sales_money": {
+            "amount": 6000,
+            "currency": "USD"
+          },
+          "total_tax_money": {
+            "amount": 0,
+            "currency": "USD"
+          },
+          "total_discount_money": {
+            "amount": 500,
+            "currency": "USD"
+          },
+          "total_money": {
+            "amount": 5500,
+            "currency": "USD"
+          },
+          "variation_total_price_money": {
+            "amount": 6000,
+            "currency": "USD"
+          },
+          "applied_discounts": [
+            {
+              "uid": "APPLIED_DISCOUNT_UID_1",
+              "discount_uid": "APPLIED_DISCOUNT_UID_2",
+              "applied_money": {
+                "amount": 500,
+                "currency": "USD"
+              }
+            }
+          ],
+          "item_type": "ITEM",
+          "total_service_charge_money": {
+            "amount": 0,
+            "currency": "USD"
+          },
+          "total_card_surcharge_money": {
+            "amount": 0,
+            "currency": "USD"
+          }
+        }
+      ],
+      "discounts": [
+        {
+          "uid": "APPLIED_DISCOUNT_UID_2",
+          "name": "Discount",
+          "amount_money": {
+            "amount": 500,
+            "currency": "USD"
+          },
+          "applied_money": {
+            "amount": 500,
+            "currency": "USD"
+          },
+          "type": "FIXED_AMOUNT",
+          "scope": "ORDER"
+        }
+      ],
+      "fulfillments": [
+        {
+          "uid": "FULFILLMENT_UID_1",
+          "type": "PICKUP",
+          "state": "COMPLETED",
+          "pickup_details": {
+            "pickup_at": "2026-11-05T14:00:00.000Z",
+            "note": "On-farm pickup · prefers text · pickup 9 AM – noon · heard via Fixture recorder",
+            "placed_at": "2026-10-29T23:20:28.141Z",
+            "accepted_at": "2026-10-29T23:20:34.581Z",
+            "ready_at": "2026-10-29T23:20:34.581Z",
+            "schedule_type": "SCHEDULED",
+            "recipient": {
+              "display_name": "Display Name",
+              "email_address": "customer@example.com",
+              "phone_number": "+15555550100"
+            },
+            "picked_up_at": "2026-10-29T23:20:34.581Z"
+          }
+        }
+      ],
+      "metadata": {
+        "order_flow": "order-page",
+        "site_version": "1.0.0"
+      },
+      "created_at": "2026-10-29T23:20:27.051Z",
+      "updated_at": "2026-10-29T23:20:34.574Z",
+      "state": "COMPLETED",
+      "version": 7,
+      "reference_id": "NFF-2610-FIXT",
+      "total_tax_money": {
+        "amount": 0,
+        "currency": "USD"
+      },
+      "total_discount_money": {
+        "amount": 500,
+        "currency": "USD"
+      },
+      "total_tip_money": {
+        "amount": 0,
+        "currency": "USD"
+      },
+      "total_money": {
+        "amount": 5500,
+        "currency": "USD"
+      },
+      "closed_at": "2026-10-29T23:20:34.574Z",
+      "tenders": [
+        {
+          "id": "PAYMENT_ID_1",
+          "location_id": "LOCATION_ID_1",
+          "transaction_id": "ORDER_ID_1",
+          "created_at": "2026-10-29T23:20:27.866Z",
+          "note": "North Foster Farm order NFF-2610-FIXT",
+          "amount_money": {
+            "amount": 5500,
+            "currency": "USD"
+          },
+          "type": "CARD",
+          "card_details": {
+            "status": "CAPTURED",
+            "card": {
+              "card_brand": "VISA",
+              "last_4": "5858",
+              "exp_month": 10,
+              "exp_year": 2028,
+              "fingerprint": "FINGERPRINT_1",
+              "card_type": "CREDIT",
+              "prepaid_type": "NOT_PREPAID",
+              "bin": "453275"
+            },
+            "entry_method": "KEYED"
+          },
+          "payment_id": "PAYMENT_ID_1"
+        }
+      ],
+      "total_service_charge_money": {
+        "amount": 0,
+        "currency": "USD"
+      },
+      "net_amounts": {
+        "total_money": {
+          "amount": 5500,
+          "currency": "USD"
+        },
+        "tax_money": {
+          "amount": 0,
+          "currency": "USD"
+        },
+        "discount_money": {
+          "amount": 500,
+          "currency": "USD"
+        },
+        "tip_money": {
+          "amount": 0,
+          "currency": "USD"
+        },
+        "service_charge_money": {
+          "amount": 0,
+          "currency": "USD"
+        },
+        "card_surcharge_money": {
+          "amount": 0,
+          "currency": "USD"
+        }
+      },
+      "source": {
+        "name": "northfosterfarm.com v1.0"
+      },
+      "customer_id": "CUSTOMER_ID_1",
+      "net_amount_due_money": {
+        "amount": 0,
+        "currency": "USD"
+      },
+      "total_card_surcharge_money": {
+        "amount": 0,
+        "currency": "USD"
+      }
+    }
+  }
+}

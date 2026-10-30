@@ -160,8 +160,8 @@ export const OPS = {
     }),
   }),
   // The scheduled jobs as of `at` (an ISO time within the clock's
-  // reach), working only the named orders. The sweeps and reports keep
-  // the real time, as in the toolbar's run.
+  // reach), working only the named orders and only their own jobs: the
+  // sweeps and reports, which read every record, are not run (#516).
   jobsRun: async (stores, { at, orders }, env) => {
     const when = new Date(need(at, "at"));
 

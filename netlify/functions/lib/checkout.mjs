@@ -598,11 +598,17 @@ export const recordOnSquare = async (stores, order, k, capture, {
   }
 };
 
-// An order a member's credit covers whole (#471): the Square order is
-// made as for any other, with the credit as its discount, and paid
-// as a zero order, so it does not sit in the dashboard unpaid; then
-// the record, with the credit as its one tender. No money moves.
-// -> the record.
+// Whether an order has nothing to charge: a member's credit covers it
+// whole (#471), or it is a family order (#514), whose discount is the
+// whole of its items and which has no fee.
+export const nothingDue = (order) => order.totals.total === 0
+  && (order.totals.credit > 0 || order.totals.discountPerk === "family");
+
+// An order with nothing to charge (nothingDue): the Square order is
+// made as for any other, with the credit or the family discount as its
+// discount, and paid as a zero order, so it does not sit in the
+// dashboard unpaid; then the record, with the credit as its one tender,
+// or for a family order none. No money moves. -> the record.
 export const payWithCredit = async (stores, order, {
   key, attempt = 1,
 }, {
@@ -616,7 +622,7 @@ export const payWithCredit = async (stores, order, {
   const { deadline } = options;
   const until = deadline || 0;
 
-  if (!(order.totals.total === 0 && order.totals.credit > 0)) {
+  if (!nothingDue(order)) {
     throw new CheckoutError("This order is not covered by credit.", {
       code: "credit.short",
     });
@@ -657,7 +663,8 @@ export const payWithCredit = async (stores, order, {
 
   return completeOrder(stores, order, {
     square: squareRecord(created),
-    payment: { via: "credit", method: "credit" },
+    payment: order.totals.credit > 0 ? { via: "credit", method: "credit" }
+      : { via: "family", method: "family" },
   }, options);
 };
 

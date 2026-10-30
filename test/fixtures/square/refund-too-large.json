@@ -1,0 +1,37 @@
+{
+  "_source": {
+    "service": "square",
+    "environment": "sandbox",
+    "recorded": "2026-10-29",
+    "squareVersion": "2026-09-16",
+    "by": "bin/fixtures/record, scrubbed by bin/fixtures/scrub"
+  },
+  "status": 400,
+  "request": {
+    "method": "POST",
+    "path": "/v2/refunds",
+    "headers": {
+      "Square-Version": "2026-09-16",
+      "Content-Type": "application/json"
+    },
+    "body": {
+      "idempotency_key": "IDEMPOTENCY_KEY_6",
+      "payment_id": "PAYMENT_ID_1",
+      "amount_money": {
+        "amount": 999900,
+        "currency": "USD"
+      },
+      "reason": "Fixture too large"
+    }
+  },
+  "response": {
+    "errors": [
+      {
+        "code": "REFUND_AMOUNT_INVALID",
+        "detail": "The requested refund amount exceeds the amount available to refund.",
+        "field": "amount_money.amount",
+        "category": "REFUND_ERROR"
+      }
+    ]
+  }
+}

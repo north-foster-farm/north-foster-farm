@@ -325,6 +325,10 @@ carry the trailer:
 - `netlify/functions/lib/store.mjs` (stores and keys)
 - `netlify/functions/lib/records.mjs` (order and customer records and
   their indexes)
+- `netlify/functions/lib/auth-records.mjs` (the auth store's index of
+  sign-in records by customer, #508). Code from before it writes
+  sessions and links with no index key, so after rolling back past it
+  and forward again, run `bin/nff auth backfill-index --apply`
 - `netlify/functions/lib/checkout.mjs`, `edit.mjs`, `account.mjs`,
   `admin.mjs`, `forget.mjs`, `backup.mjs` and `stock.mjs` (the code
   that writes, rewrites, restores or removes them)

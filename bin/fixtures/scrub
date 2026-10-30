@@ -1,0 +1,361 @@
+#!/usr/bin/env node
+// Turns the raw responses bin/fixtures/record keeps in
+// .ignored/fixtures-raw/ into the fixtures the tests replay, in
+// test/fixtures/<service>/<name>.json (#471). Run it again after every
+// recording: it rewrites the same names and touches nothing else.
+//
+//   bin/fixtures/scrub            scrub, and list what to look at
+//   bin/fixtures/scrub --strict   the same, but exit 1 if anything is
+//                                 listed
+//
+// The shape stays the vendor's. What changes: ids, idempotency keys,
+// tokens, emails, phone numbers, names and addresses become placeholders
+// (ORDER_ID_1, customer@example.com). The same value gets the same
+// placeholder in every file, so a payment id in one fixture is still the
+// payment id in the next. A value is judged by its key, not its look, so
+// a rule here must name any new kind of field; whatever no rule covers
+// and does not look harmless (an enum, a timestamp, a number, ours) is
+// listed as "to review" by path, never by value.
+
+import {
+  existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync,
+} from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
+
+// Values the tests and the vendors both use, never replaced.
+const KEEP = new Set([
+  "CASH", "EXTERNAL", "USD", "US", "delivered@resend.dev",
+  "onboarding@resend.dev",
+]);
+const keepValue = (v) => KEEP.has(v) || v.startsWith("cnon:");
+
+// Keys whose value is always this, whatever it was.
+const FIXED = {
+  "given_name": "Given",
+  "family_name": "Family",
+  "display_name": "Display Name",
+  nickname: "Nickname",
+  "company_name": "Company Name",
+  "business_name": "Business Name",
+  "address_line_1": "ADDRESS_LINE_1",
+  "address_line_2": "ADDRESS_LINE_2",
+  "address_line_3": "ADDRESS_LINE_3",
+  locality: "LOCALITY",
+  sublocality: "SUBLOCALITY",
+  "administrative_district_level_1": "ST",
+  "administrative_district_level_2": "DISTRICT_2",
+  "postal_code": "00000",
+  "website_url": "https://example.com",
+  "twitter_username": "twitter",
+  "instagram_username": "instagram",
+  "facebook_url": "https://example.com/facebook",
+  "logo_url": "https://example.com/logo.png",
+  "full_format_logo_url": "https://example.com/logo.png",
+  "pos_background_url": "https://example.com/background.png",
+  "statement_description_identifier": "STATEMENT",
+  from: "Farm <farm@example.com>",
+  "reply_to": "reply@example.com",
+};
+
+// Keys that hold a secret or a one-off string: each distinct value gets
+// the next number of its kind.
+const NUMBERED = [
+  [/^idempotency[-_]key$/i, "IDEMPOTENCY_KEY"],
+  [/^fingerprint$/, "FINGERPRINT"],
+  [/^receipt_number$/, "RECEIPT_NUMBER"],
+  [/^cursor$/, "CURSOR"],
+  [/(^|_)(access_|refresh_)?token$/, "TOKEN"],
+  [/^(secret|password|signature|api_key)$/, "SECRET"],
+];
+
+// A location is James's business: only these of its fields survive.
+const LOCATION_KEEP = new Set([
+  "status", "type", "country", "currency", "language_code", "timezone",
+  "capabilities", "created_at", "mcc", "business_hours",
+]);
+
+// Strings that are harmless wherever they sit, for the review list.
+const ENUM = /^[A-Z][A-Z0-9_]*$/;
+const PLACEHOLDER = /^[A-Z][A-Z0-9_]*_\d+$/;
+const TIME = /^\d{4}-\d{2}-\d{2}([T ]|$)/;
+const NUMBER = /^-?\d+(\.\d+)?$/;
+const SQUARE_URL =
+  /^https:\/\/([a-z0-9-]+\.)*(squareup|squareupsandbox)\.com\//;
+const SAFE_KEYS = new Set([
+  "currency", "country", "type", "status", "state", "code", "category",
+  "source_type", "entry_method", "card_brand", "card_type", "prepaid_type",
+  "cvv_status", "avs_status", "statement_description", "scope",
+  "calculation_phase", "quantity", "item_type", "channel", "field",
+  "detail", "message", "name", "sku", "method", "path", "reference_id",
+  "note", "source", "order_flow", "site_version", "language_code",
+  "timezone", "object", "statusCode", "version", "owner", "action",
+  "last_4", "reason", "exp_month", "exp_year", "bin", "buyer_email_address",
+  "category_name", "unit", "schedule_type", "mcc", "Content-Type",
+  "Square-Version", "X-Fixture", "subject", "text", "html", "filename",
+  "content", "content_type", "to", "service", "environment", "recorded",
+  "by", "squareVersion", "payment_ids", "kind",
+]);
+
+const singular = (key) => key.replace(/s$/, "");
+const upper = (key) => key.toUpperCase();
+
+// What an id-bearing key stands for: [kind, strong]. A key that names
+// its thing (payment_id) outvotes one that is only "id" under a parent
+// (a tender's id is the payment's).
+const idKind = (key, parent, top) => {
+  if (key === "reference_id" || key === "source_id") return null;
+  if (/_ids?$/.test(key)) {
+    return [upper(key.replace(/s$/, "")), true];
+  }
+  if (key === "id") return [`${upper(singular(parent || top))}_ID`, false];
+  if (key === "uid" || key.endsWith("_uid")) {
+    return [`${upper(singular(parent || top))}_UID`, false];
+  }
+
+  return null;
+};
+
+const EMAIL = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
+
+// Walks every leaf string of a value: visit(value, key, keys) where
+// keys is the path of object keys (array positions left out).
+const walk = (node, visit, keys = []) => {
+  if (Array.isArray(node)) {
+    return node.map((item) => walk(item, visit, keys));
+  }
+  if (node && typeof node === "object") {
+    return Object.fromEntries(Object.entries(node)
+      .map(([key, value]) => [key, walk(value, visit, [...keys, key])]));
+  }
+
+  return visit(node, keys);
+};
+
+const leafKey = (keys) => keys[keys.length - 1] || "";
+
+// -> the envelopes' scrubbed fixtures, [{ service, name, json, review }].
+// Each file: { name, service, status, request, response, recorded }.
+export const scrubAll = (files) => {
+  const votes = new Map();
+  const vote = (value, kind, strong) => {
+    const had = votes.get(value);
+
+    if (!had || (strong && !had.strong)) votes.set(value, { kind, strong });
+  };
+  const own = (file) => ({ request: file.request, response: file.response });
+
+  // First pass: what is an id, and what kind.
+  for (const file of files) {
+    const top = file.service === "resend" ? "email" : "";
+    // Keys[0] is "request" or "response": a parent starts at keys[1].
+
+    walk(own(file), (value, keys) => {
+      if (typeof value !== "string" || !value || keepValue(value)) {
+        return value;
+      }
+      const key = leafKey(keys);
+      const parent = keys.length > 2 ? keys[keys.length - 2] : undefined;
+      const found = idKind(key, parent, top || "id");
+
+      if (found) vote(value, found[0], found[1]);
+      for (const [pattern, kind] of NUMBERED) {
+        if (pattern.test(key)) vote(value, kind, true);
+      }
+
+      return value;
+    });
+    // An array of ids (payment_ids, refund_ids) is walked leaf by leaf
+    // with its own key, which idKind reads.
+  }
+
+  // Numbering: in the order the values first appear.
+  const names = new Map();
+  const counts = {};
+  const nameOf = (value) => {
+    if (!names.has(value)) {
+      const { kind } = votes.get(value);
+
+      counts[kind] = (counts[kind] || 0) + 1;
+      names.set(value, `${kind}_${counts[kind]}`);
+    }
+
+    return names.get(value);
+  };
+  const emails = new Map();
+  const phones = new Map();
+  const emailOf = (value) => {
+    if (keepValue(value)) return value;
+    if (!emails.has(value)) {
+      const n = emails.size + 1;
+
+      emails.set(value, n === 1 ? "customer@example.com"
+        : `customer-${n}@example.com`);
+    }
+
+    return emails.get(value);
+  };
+  const phoneOf = (value) => {
+    if (!phones.has(value)) {
+      const n = String(100 + phones.size).padStart(4, "0");
+
+      phones.set(value, `+1555555${n}`);
+    }
+
+    return phones.get(value);
+  };
+
+  // Second pass: replace, in the same order as the first.
+  const replaced = files.map((file) => {
+    const scrubbed = walk(own(file), (value, keys) => {
+      if (typeof value === "number") {
+        const key = leafKey(keys);
+
+        return key === "latitude" || key === "longitude" ? 0 : value;
+      }
+      if (typeof value !== "string" || !value || keepValue(value)) {
+        return value;
+      }
+
+      const key = leafKey(keys);
+      const inLocation = keys[0] === "response" && keys.includes("locations");
+
+      if (inLocation) {
+        const field = keys[keys.indexOf("locations") + 1];
+
+        if (!LOCATION_KEEP.has(field) && !/_id$|^id$/.test(field)) {
+          return FIXED[key] || "REDACTED";
+        }
+      }
+      if (key in FIXED) return FIXED[key];
+      if (votes.has(value)) return nameOf(value);
+      if (/email/.test(key) && !/^(from|reply_to)$/.test(key)) {
+        return emailOf(value);
+      }
+      if (key === "phone_number") return phoneOf(value);
+
+      return value;
+    });
+
+    return { file, scrubbed };
+  });
+
+  // Every id has its number before any text is searched for it.
+  for (const value of votes.keys()) nameOf(value);
+
+  // Whatever else carries a known id or email (a path, a URL, a message
+  // that quotes one): the same replacement, longest value first.
+  const swaps = [
+    ...[...names].map(([from, to]) => [from, to]),
+    ...[...emails].map(([from, to]) => [from, to]),
+  ].sort((a, b) => b[0].length - a[0].length);
+  const mop = (text) => {
+    let out = text;
+
+    for (const [from, to] of swaps) out = out.split(from).join(to);
+
+    return out.replace(EMAIL, (m) => (m.endsWith("@example.com")
+      ? m : emailOf(m)));
+  };
+
+  return replaced.map(({ file, scrubbed }) => {
+    const clean = walk(scrubbed, (value) => (
+      typeof value === "string" && !keepValue(value)
+        && !PLACEHOLDER.test(value) ? mop(value) : value));
+    const version = file.request.headers
+      && file.request.headers["Square-Version"];
+
+    return {
+      service: file.service,
+      name: file.name,
+      json: {
+        _source: {
+          service: file.service,
+          environment: file.service === "square" ? "sandbox" : "test address",
+          recorded: file.recorded,
+          ...(version ? { squareVersion: version } : {}),
+          by: "bin/fixtures/record, scrubbed by bin/fixtures/scrub",
+        },
+        status: file.status,
+        request: clean.request,
+        response: clean.response,
+      },
+      review: review(clean.response),
+    };
+  });
+};
+
+// Whether a string in a fixture is one the scrubber put there (a
+// placeholder, a replaced name, a made-up email or phone), so a test
+// comparing what our code sends with a recorded request treats it as
+// "any value".
+export const isPlaceholder = (value) => typeof value === "string"
+  && (PLACEHOLDER.test(value) || Object.values(FIXED).includes(value)
+    || /^customer(-\d+)?@example\.com$/.test(value)
+    || /^\+1555555\d{4}$/.test(value));
+
+// Paths of the response's strings that no rule covered and that do not
+// look harmless. Paths only, so the report itself leaks nothing.
+const review = (response) => {
+  const found = [];
+
+  walk(response, (value, keys) => {
+    if (typeof value !== "string" || !value) return value;
+    const key = leafKey(keys);
+
+    if (keepValue(value) || PLACEHOLDER.test(value) || ENUM.test(value)
+      || TIME.test(value) || NUMBER.test(value) || SQUARE_URL.test(value)
+      || SAFE_KEYS.has(key) || isPlaceholder(value)) {
+      return value;
+    }
+    found.push(keys.join("."));
+
+    return value;
+  });
+
+  return found;
+};
+
+const main = async () => {
+  const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
+  const raw = join(root, ".ignored", "fixtures-raw");
+  const out = join(root, "test", "fixtures");
+  const strict = process.argv.includes("--strict");
+
+  if (!existsSync(raw)) {
+    console.error(`No recordings in ${raw}. Run bin/fixtures/record first.`);
+    process.exit(1);
+  }
+
+  // In the order they were recorded, so ORDER_ID_1 is the first order.
+  const files = readdirSync(raw).filter((f) => f.endsWith(".json")).sort()
+    .map((f) => {
+      const path = join(raw, f);
+      const envelope = JSON.parse(readFileSync(path, "utf8"));
+
+      return {
+        ...envelope,
+        recorded: statSync(path).mtime.toISOString().slice(0, 10),
+      };
+    })
+    .sort((a, b) => (a.seq ?? 1e9) - (b.seq ?? 1e9));
+  const made = scrubAll(files);
+  let listed = 0;
+
+  for (const { service, name, json, review: look } of made) {
+    const dir = join(out, service);
+
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, `${name}.json`),
+      `${JSON.stringify(json, null, 2)}\n`);
+    console.log(`  test/fixtures/${service}/${name}.json`);
+    for (const path of look) {
+      console.log(`    to review: ${path}`);
+      listed += 1;
+    }
+  }
+  console.log(`${made.length} fixtures written; ${listed} strings to review.`);
+  if (strict && listed) process.exit(1);
+};
+
+if (import.meta.url === pathToFileURL(process.argv[1]).href) await main();
