@@ -809,4 +809,27 @@ describe("the audit at promotion", () => {
       assert.equal(result.failed, true);
       assert.match(result.counts[0], /unresolved: 1/);
     });
+
+  it("runs npm beside the commit's .nvmrc, so mise picks its Node",
+    async () => {
+      const show = async (sha, path, list) => {
+        if (list) return "";
+        if (path === ".nvmrc") return "24.22.1\n";
+        if (path === "security/exceptions.json") return "[]";
+
+        return "{}";
+      };
+      const dirs = [];
+      const audit = async (dir) => {
+        dirs.push(dir);
+
+        return { vulnerabilities: {} };
+      };
+
+      await auditCommit(SHA, { show, audit });
+
+      assert.equal(dirs.length, 1);
+      assert.equal(readFileSync(`${dirs[0]}/.nvmrc`, "utf8"), "24.22.1\n");
+      assert.equal(readFileSync(`${dirs[0]}/package.json`, "utf8"), "{}");
+    });
 });
