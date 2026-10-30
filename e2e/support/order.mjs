@@ -167,6 +167,22 @@ export const paymentFakes = async (request) => {
   };
 };
 
+// Square's sandbox test Visa, approved; OrderPage.card types it.
+export const TEST_CARD = "4111111111111111";
+
+// The card a paid order shows, { last4, how }: the recording's where
+// Square is the fake, which answers with it whatever was typed, and
+// the typed one where the real sandbox charges it (staging run
+// 40978293081 showed "Visa ending 1111", #517). The sandbox cards the
+// suite types are all Visas.
+export const paidCard = async (request, number = TEST_CARD) => {
+  if ((await paymentFakes(request)).square) return recordedCard();
+
+  const last4 = number.slice(-4);
+
+  return { last4, how: `Visa ending ${last4}` };
+};
+
 // The scheduled pickup radios, their values, and the one chosen.
 export const pickupRadios = (page) => page.locator(
   "#scheduled-pickups input"
@@ -374,7 +390,7 @@ export class OrderPage {
 
   // Fills Square's card field, or the stub SDK's plain fields where
   // payments are fake (a local run, as CI's e2e makes; docs/order-form.md).
-  async card(number = "4111111111111111", {
+  async card(number = TEST_CARD, {
     expiry = "12/30", cvv = "111", postal = "11111",
   } = {}) {
     const fake = this.page.locator("[data-fake-card]");

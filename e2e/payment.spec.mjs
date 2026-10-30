@@ -7,7 +7,7 @@
 // 4000 0000 0000 0002 is declined.
 
 import {
-  OrderPage, expect, recordedCard, test, uniqueEmail,
+  OrderPage, TEST_CARD, expect, paidCard, test, uniqueEmail,
 } from "./support/order.mjs";
 import {
   BACK_OFFICE_MISSING, backOffice, clearMail, closeOrder, deleteCustomer,
@@ -38,9 +38,10 @@ test.describe("payments", () => {
   ]));
 
   test("a card pays for an on-farm pickup, booked by paying " +
-    "(W11d)", { tag: "@regression" }, async ({ page }) => {
+    "(W11d)", { tag: "@regression" }, async ({ page, request }) => {
     const order = new OrderPage(page);
     const email = uniqueEmail("card");
+    const paid = await paidCard(request);
 
     emails.push(email);
     await order.open({ eggs: 1 });
@@ -68,7 +69,7 @@ test.describe("payments", () => {
     );
     await expect(card.locator("[data-out='total']")).toHaveText("$7");
     await expect(card.locator("[data-out='how']"))
-      .toHaveText(recordedCard().how);
+      .toHaveText(paid.how);
     await expect(card.locator("[data-out='email']")).toHaveText(email);
     await expect(card.locator("[data-out='orderId']")).toHaveText(ORDER_ID);
     await expect(card.locator("[data-out='when']")).toHaveText(
@@ -89,7 +90,7 @@ test.describe("payments", () => {
     expect(record.status).toBe("paid");
     expect(record.payments).toHaveLength(1);
     expect(record.payments[0]).toMatchObject({
-      via: "square", method: "card", last4: recordedCard().last4, amount: 700,
+      via: "square", method: "card", last4: paid.last4, amount: 700,
     });
     expect(record.square && record.square.squareOrderId).toBeTruthy();
     // Booked by paying (W11d).
@@ -117,7 +118,7 @@ test.describe("payments", () => {
       since,
     });
 
-    expect(farm.text).toContain(`$7 by ${recordedCard().how}`);
+    expect(farm.text).toContain(`$7 by ${paid.how}`);
     expect(farm.text).not.toContain("orders confirm");
 
     // The draft is gone: a reload starts a new, empty order.
@@ -251,9 +252,10 @@ test.describe("payments", () => {
     });
 
   test("a declined card says so, and the next card pays the new total",
-    { tag: "@regression" }, async ({ page }) => {
+    { tag: "@regression" }, async ({ page, request }) => {
       const order = new OrderPage(page);
       const email = uniqueEmail("decline");
+      const paid = await paidCard(request, TEST_CARD);
 
       emails.push(email);
       await order.open({ eggs: 1 });
@@ -281,7 +283,7 @@ test.describe("payments", () => {
       await (await order.showRow("eggs"))
         .getByRole("button", { name: "One more" }).click();
       await expect(order.total).toHaveText("$14");
-      await order.card("4111111111111111");
+      await order.card(TEST_CARD);
 
       const second = await order.pay();
 
@@ -294,8 +296,6 @@ test.describe("payments", () => {
 
       expect(record.totals.total).toBe(1400);
       expect(record.meta.attempt).toBeGreaterThanOrEqual(2);
-      await expect(page.locator("#order-result")).toContainText(
-        recordedCard().how
-      );
+      await expect(page.locator("#order-result")).toContainText(paid.how);
     });
 });
