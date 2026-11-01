@@ -2302,7 +2302,7 @@ const run = async () => {
 
     return undefined;
   }
-  case "health":
+  case "health undefined":
     return out(await snapshot(stores));
   case "alert test": {
     const r = await alertTest(stores);

@@ -166,7 +166,7 @@ describe("bin/nff's production confirmation (#268)", () => {
         "perks list",
         "groups list", "groups show", "groups round", "groups rounds",
         "groups log",
-        "jobs history", "health", "alert test", "mail test-dev",
+        "jobs history", "health undefined", "alert test", "mail test-dev",
         "news mail",
         "maintenance status", "maintenance links",
         "sessions end-all", "errors show",
@@ -180,4 +180,18 @@ describe("bin/nff's production confirmation (#268)", () => {
       assert.deepEqual(open, [], "a bin/nff command is neither guarded " +
         "nor on the list of those that change nothing");
     });
+
+  // The switch keys on "<group> <action>", so a one-word command is
+  // "<group> undefined"; a bare "health" case never ran (#494).
+  it("names every case as the switch spells it", async () => {
+    const { readFileSync } = await import("node:fs");
+    const source = readFileSync(new URL("../bin/nff", import.meta.url),
+      "utf8");
+    const switchBody = source.slice(
+      source.indexOf("switch (`${group} ${action}`)"));
+    const oneWord = [...switchBody.matchAll(/^ {2}case "([^" ]+)":/gm)]
+      .map((m) => m[1]);
+
+    assert.deepEqual(oneWord, []);
+  });
 });
