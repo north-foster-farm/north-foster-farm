@@ -32,7 +32,10 @@ such a record kept: one that had opted out has lost its opt-in.
 
 ## Fields kept for later
 
-Every customer write fills these, and nothing reads them yet (#267):
+Every customer write fills these. Buying groups read and write
+`memberGroup` and set `memberSince` on joining (`lib/groups.mjs`,
+#471, #495); the rest wait on #267 (2026-11-01, #494: this said
+nothing read them yet):
 
 - `language`: a BCP-47 tag, `en` by default; `es` is the only other
   planned value.

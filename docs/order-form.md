@@ -1401,6 +1401,9 @@ to the function log; Square's receipt still reaches the customer.
 
 ## Before it ships
 
+The checklist the launch shipped by on 2026-10-26, kept as the record
+and for setting up a new environment (2026-11-01, #494).
+
 1. **Netlify variables**, one value per context (production, and the
    sandbox values for `deploy-preview`, `branch-deploy` and `dev`):
    `SQUARE_APPLICATION_ID`; a `SQUARE_ACCESS_TOKEN` whose scopes

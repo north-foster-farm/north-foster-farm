@@ -6,7 +6,8 @@ the detector that raises `orders.not_recorded` is #375, not built
 check stands in for it.
 
 - **Who:** James.
-- **When:** every morning from launch day, covering the day before.
+- **When:** every morning, covering the day before (since launch day,
+  2026-10-26).
   On a Monday, cover Friday to Sunday. About ten minutes.
 - **Until:** #375 lands on production. Then delete this page and its
   links.
@@ -91,7 +92,7 @@ packed. Act the same morning.
    the payment id, the amount, the time. Tell the developers: a
    payment with no order is the bug #375 exists to catch. Two in a
    day, or one with no alert, is the "orders not recorded" emergency:
-   maintenance mode on and `docs/rollback.md`, "At launch".
+   maintenance mode on and `docs/rollback.md`, "Fix forward".
 
 **An order with no payment.** Records are born paid, so this should
 not happen. It points to a payment refunded or voided in the

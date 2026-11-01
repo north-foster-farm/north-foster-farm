@@ -13,8 +13,8 @@ remain in them (the privacy page says so).
 The code is `netlify/functions/backup.mjs` and
 `netlify/functions/lib/backup.mjs`; the alert is `backup.failed` in
 `docs/monitoring.md`. A Backblaze B2 second copy, versioned record
-shapes and a recovery procedure for every store come after launch
-(#267, D-EXPORT).
+shapes and a recovery procedure for every store are still to come:
+the launch shipped without them (#267, D-EXPORT; 2026-11-01, #494).
 
 ## Setting it up
 
@@ -70,7 +70,7 @@ missed night.
 
 ## Restoring
 
-The rehearsal before launch, and any real restore, start the same
+The rehearsal, and any real restore, start the same
 way. James does the decryption; no agent holds the key.
 
 1. **Download.** Cloudflare → R2 → the bucket → the object
@@ -111,7 +111,9 @@ it.
 
 ## Rehearsal record
 
-Before launch, James runs steps 1 to 5 once on a production copy and
-notes here the date, the object restored and the counts.
+James runs steps 1 to 5 once on a production copy and notes here the
+date, the object restored and the counts. It was due before the
+launch (2026-10-26) and nothing is recorded, so it is overdue unless
+it ran and went unrecorded (2026-11-01, #494).
 
 - Not yet run.

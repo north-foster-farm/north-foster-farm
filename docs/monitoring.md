@@ -165,7 +165,8 @@ sees, so a dead page and a silent failure both reach the phone.
    What that gives up: a failed production deploy does not buzz the
    phone. It is not an outage, since a failed build publishes nothing
    and the live site stays as it was, but the fix waits until the
-   email is read. After launch, if that is too slow: a small function
+   email is read. If that proves too slow (not built as of 2026-11-01,
+   #494; this said "after launch"): a small function
    that receives Netlify's deploy webhook (JWS-signed), drops any
    deploy whose `context` is not `production`, and posts `/fail` and
    then the success ping to `HEALTHCHECKS_ALERT_URL`, as `alert()`

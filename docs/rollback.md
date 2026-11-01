@@ -8,7 +8,10 @@ while the fix is built, and the fix goes out the normal way.
 This page covers that, then the rollback that exists from the second
 production release on: publishing the previous deploy of the new site.
 
-## At launch: fix forward
+## Fix forward
+
+(Titled "At launch: fix forward" until 2026-11-01, #494; it holds
+for every release.)
 
 1. **Stop the damage.** Turn maintenance mode on for production:
    `bin/nff --production maintenance on`, or from a phone the signed
@@ -122,8 +125,7 @@ variable values that were set at the time of deployment"
 republished deploy should carry its own snapshot, not today's values.
 This is inferred for a restored deploy; the docs do not say it
 outright. The env-snapshot test (see "The rehearsals") proves it on
-staging before the second production release, and before launch if it
-fits. Until its result is recorded on #267 and here, the rule below
+staging before the second production release. Until its result is recorded on #267 and here, the rule below
 stands.
 
 **The rule for key changes.** Netlify applies an env change only to a
@@ -225,7 +227,8 @@ design is the open item. What he has decided:
 - **Wording.** The message is a draft, `escalation` in
   `lib/templates.mjs`: "James hasn't responded to an urgent problem
   with online orders", with a "Switch on maintenance mode" button.
-  James approves the words before launch.
+  James approves the words before it ships (2026-11-01, #494: this
+  said "before launch", which passed with the draft unapproved).
 - **Hard gate.** The one-tap rollback must be built and rehearsed
   before the second production release. It is a blocking step in the
   launch guide and in the post-deploy checklist (#237): that release
@@ -245,7 +248,7 @@ The site id is in `.netlify/state.json` of a linked checkout.
    fault is fixed forward. Put maintenance mode on first if
    customers could be hurt while you decide
    (`bin/nff --production maintenance on`).
-2. **Look at what is in flight**, as in "At launch" step 2.
+2. **Look at what is in flight**, as in "Fix forward" step 2.
 3. **Search the release's commits for `Record-shape:`**
    (`git log --grep 'Record-shape:' <previous release>..<release>`).
    If any commit carries a trailer other than `Record-shape: none`,
@@ -428,8 +431,8 @@ on the revert's own commit (point 7 of "Promoting to staging and
 e2e" in `docs/cloud-lanes.md`). If no
 such pull request is open, the first run opens it and stops.
 
-**After the launch merge, promote `main` from a release branch.** The
-launch put a merge commit on `main` alone, and the linear-history rule
+**Since the launch merge, `main` is promoted from a release branch.**
+The launch put a merge commit on `main` alone, and the linear-history rule
 keeps it off `staging`, so `staging` is no fast-forward of `main` any
 more and plain `promote main` refuses. Every later release, a revert
 included, goes as `release/<name>` (first parent `main`, second parent
@@ -451,17 +454,19 @@ it. Only James can switch the ruleset off in the repository's
 settings, push, switch it on again and write it up in `incidents/`.
 Publishing the previous deploy needs none of this.
 
-After launch, the revert is scripted as one command, `bin/nff
-rollback revert`: branch, revert range, push to `next`, watch CI,
-promote twice. It stops on any failure and asks James for his go
-before it promotes to `main`. It is tracked under After launch and does not
-block anything.
+A one-command revert, `bin/nff rollback revert` (branch, revert
+range, push to `next`, watch CI, promote twice, stopping on any
+failure and asking James for his go before `main`), is planned and
+not built: `bin/nff` has no `rollback` command (checked 2026-11-01,
+#494). Until it is, run the steps above. It is tracked under After
+launch and does not block anything.
 
 ## The rehearsals
 
-The launch rehearsals are three, all before launch (the third before
-the second production release at the latest, before launch if it
-fits):
+The rehearsals are three. They were planned for before the launch
+(the third before the second production release at the latest), and
+none is recorded here as done, so each stays open until its result is
+written down (2026-11-01, #494: the launch shipped on 2026-10-26):
 
 - **Maintenance mode, on staging** (a launch guide step): the open-tab
   case, a payment made just before the switch is flipped, and a
@@ -483,7 +488,7 @@ The drill that rehearsed rolling back to the invoice checkout is
 retired: its parts A (publish a deploy of `ff6270c` on production),
 B (revert to `ff6270c`, on staging), and C (old code over new
 records) existed only for that rollback. Part D stays. The webhook
-commands are needed at launch whichever way a problem is fixed, and
+commands are needed whichever way a problem is fixed, and
 an incident needs them known in advance.
 
 ### D. The webhooks, in the sandbox

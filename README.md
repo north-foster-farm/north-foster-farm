@@ -187,7 +187,8 @@ outside its source; `node bin/facts/check.mjs` lists them.
 
 `/order` is a custom form backed by Netlify Functions and Square.
 `docs/order-form.md` explains the data files, the rules, the recovery
-design and what is still needed before launch. Day to day:
+design and the checklist the launch shipped by (2026-11-01, #494:
+this said "still needed before launch"). Day to day:
 
 ```bash
 bin/stock                 # flip items in and out of stock, no code edit
