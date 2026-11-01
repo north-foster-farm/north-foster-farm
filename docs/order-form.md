@@ -162,13 +162,15 @@ cover it, and a past order or receipt holding it names it as any
 other line. Such an item keeps `inStock: true`, so that Square's
 count decides.
 
-Today (James, #274, 6330468558, and #492): large eggs and feet
-`soon`; medium and small eggs and both sausages `hiatus`; whole
+Today (James, #274, 6330468558, and #492): large eggs `soon`; medium
+and small eggs and both sausages `hiatus`; whole
 chickens from 4.5 lbs, boneless breasts of 1.7 lbs and up, bone-in
 thighs of 2.0 lbs and up and wings of 3.0 lbs and up `hidden`;
 Cornish hens and ground chicken `archived` (2026-v9); every other
-item `seasonal` with `restockSeason: "spring"`, since until spring
-nothing but eggs is restocked. Outside the off-season a sold-out
+item `seasonal` with `restockSeason: "spring"`, feet included, since
+until spring nothing but eggs is restocked (2026-11-01, #494: feet
+were listed as `soon`; `data/catalog.json` has them `seasonal`).
+Outside the off-season a sold-out
 whole-bird tier goes back to `soon`, not `discontinued`.
 Switching one is a catalog edit and a deploy. The labels live in
 `layouts/partials/order/restock-label.html`.
@@ -229,7 +231,12 @@ item stock has on hand (a count above 0, or flagged in stock and not
 counted). It emails `FARM_NOTIFICATIONS_EMAIL`, and no one else, once
 a product a day ("Hidden but in stock", `stock/archived/<day>` in the
 jobs store), and the morning report lists each one until the type is
-changed or the count zeroed. `test/restock.test.mjs` holds it.
+changed or the count zeroed. `test/restock.test.mjs` holds it. It
+overlaps the daily `stock.hidden` invariant above, which covers
+archived tiers too, alongside `inStock: false` ones; the two are
+separate alerts until James picks one to retire (2026-11-01, #494).
+`stock.hidden` is not the `hidden` restock type: that type hides a
+tier while it is out, and the invariant flags one hidden with stock.
 
 **Archived in a paid order** (James, 6305650920). An archived item
 stays in the catalog, so a paid order that holds one still names it.
@@ -562,7 +569,9 @@ failure is logged once (`stock.production_unread`) and kept in the
 snapshot, so production isn't asked again for 15 s. With the read on,
 an order check's `stock.checked` line says `source: "production"`, or
 `"staging"` when production didn't answer. Neither setting
-applies outside `branch-deploy` and `deploy-preview`, nor where
+applies outside `branch-deploy`, `deploy-preview` and `dev`
+(`SOURCE_CONTEXTS` in `lib/stock-source.mjs`; 2026-11-01, #494: `dev`
+was missing here), nor where
 `SQUARE_ENV` is `production`, and `bin/nff env check` fails a
 production that holds either. A test order on staging moves the
 sandbox's count, not production's, so staging never sells out by its

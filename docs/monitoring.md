@@ -663,7 +663,10 @@ the job is not doing its job even though it ran.
   against the orders; it names the SKU, why the page hides it and the
   count, once per SKU and count, and its alert is never held by the
   hourly mute. Fix the count in Square or the entry in the catalog;
-  `bin/nff stock hidden` lists them all.
+  `bin/nff stock hidden` lists them all. It overlaps the "Hidden but
+  in stock" email for archived items (`docs/order-form.md`, "Archived
+  with stock"); both stand until James retires one (2026-11-01,
+  #494).
 
 ## The jobs heartbeat and partial failures
 
