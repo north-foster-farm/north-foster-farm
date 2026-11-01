@@ -104,6 +104,8 @@ same value has the same placeholder in every file, so the payment in
 | `orders-search-recent`, `-open`, `-customer` | `findPaid`, `searchOpenOrders`, `customerOrders` |
 | `catalog-search` | the recorder's own lookup of a sandbox variation id; no function of ours searches the catalog since staging's stock moved to production's `/api/stock` |
 | `inventory-counts` | `inventoryCounts` |
+| `catalog-batch-sold-out`, `catalog-batch-in-stock` | `soldOutFlags` reads a variation marked sold out at our location, and one not (#513) |
+| `catalog-mark-sold-out`, `-in-stock`, `-restored` | the recorder's own upserts that set those marks on the sandbox variation and put it back; no function of ours writes the catalog |
 | `order-create-line-discount`, `order-get-line-discount`, `order-cancel-line-discount` | `createOrder` with a LINE_ITEM discount per member-priced item (#514) |
 | `order-create-discount-fee-zero`, `order-get-discount-fee-zero`, `order-cancel-discount-fee-zero` | `createOrder` with one ORDER discount and a $0 delivery service charge (#514) |
 

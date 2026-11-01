@@ -14,7 +14,8 @@ import {
   buildChangeOrder, buildOrder, cancelFulfillment, cancelOrder,
   completeOrder, createOrder, createPayment, customerOrders, deleteCustomer,
   findPaid, getPayment, getRefund, inventoryCounts, payZeroOrder,
-  paymentRecord, refundPayment, searchOpenOrders, updateFulfillment,
+  paymentRecord, refundPayment, searchOpenOrders, soldOutFlags,
+  updateFulfillment,
 } from "../netlify/functions/lib/square.mjs";
 import { squareTotal } from "../netlify/functions/lib/fake-square.mjs";
 import { differences, recorded, serve as serveFrom } from "./recorded.mjs";
@@ -469,4 +470,33 @@ describe("stock", () => {
       assert.equal(Number.isInteger(n), true);
     }
   });
+
+  // Square's "Mark as sold out" for a variation it doesn't track (#513).
+  for (const [name, out] of [
+    ["catalog-batch-sold-out", true], ["catalog-batch-in-stock", false],
+  ]) {
+    it(`soldOutFlags reads ${name}`,
+      { skip: !have(name) && "not recorded yet: bin/fixtures/record" },
+      async () => {
+        const ids = rec(name).request.body.object_ids;
+        const net = serve(name);
+        const result = await soldOutFlags(ids, {
+          env: CATALOG, fetchImpl: net.impl,
+        });
+
+        assert.deepEqual(net.problems, []);
+        assert.deepEqual(result, Object.fromEntries(ids.map((id) =>
+          [id, out])));
+      });
+  }
+
+  it("soldOutFlags asks nothing of the sandbox, which has other ids",
+    async () => {
+      const net = serve();
+
+      assert.equal(await soldOutFlags(["V1"], {
+        env: SANDBOX, fetchImpl: net.impl,
+      }), null);
+      assert.deepEqual(net.problems, []);
+    });
 });

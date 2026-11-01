@@ -440,5 +440,8 @@ export const getRefund = async (squareRefundId) => {
 // No Square to count stock: the store's counts stand (#267).
 export const inventoryCounts = async () => null;
 
+// Nor a catalog to mark sold out: the catalog's flag stands (#513).
+export const soldOutFlags = async () => null;
+
 // No customers here to rename.
 export const renameCustomerEmail = async () => [];

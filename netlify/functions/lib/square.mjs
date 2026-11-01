@@ -1201,6 +1201,44 @@ const countsAt = async (cfg, ids, fetchImpl) => {
   return counts;
 };
 
+// Square's own "Mark as sold out" at the site's location (#513), for
+// variations Square doesn't track: the farm sets it by hand, and
+// Square keeps it in the variation's location_overrides. -> { [id]:
+// true when marked sold out there, else false } for the variations
+// Square returns. Null where inventoryCounts is, and read within the
+// same STOCK_MS.
+export const soldOutFlags = async (variationIds, {
+  env = process.env,
+  fetchImpl = globalThis.fetch,
+  deadline,
+} = {}) => {
+  if (isFake(env)) return fake.soldOutFlags();
+  if (!env.SQUARE_ACCESS_TOKEN || !env.SQUARE_LOCATION_ID) return null;
+
+  const base = settings(env);
+
+  if (!base.catalog || !variationIds.length) return null;
+
+  const end = Date.now() + STOCK_MS;
+  const cfg = { ...base, deadline: deadline ? Math.min(deadline, end) : end };
+  const data = await call(cfg, "/v2/catalog/batch-retrieve", {
+    object_ids: variationIds,
+    include_related_objects: false,
+  }, fetchImpl);
+  const flags = {};
+
+  for (const o of data.objects || []) {
+    if (o.type !== "ITEM_VARIATION" || !o.id) continue;
+
+    const here = ((o.item_variation_data || {}).location_overrides || [])
+      .find((l) => l.location_id === cfg.locationId);
+
+    flags[o.id] = !!here && here.sold_out === true;
+  }
+
+  return flags;
+};
+
 // Every Square customer under one email, moved to another, for
 // `bin/nff customers rename` (#238). -> the ids found; with `apply`
 // false nothing is written.

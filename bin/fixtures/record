@@ -417,6 +417,9 @@ send catalog-search square "$(jq -nc --arg v "$VERSION" \
 IDS="$(jq -c '[.response.objects[]? | select(.is_deleted != true) | .id]
   | .[0:3]' "$OUT")"
 VARIATION="$(printf '%s' "$IDS" | jq -r '.[0] // empty')"
+# The variation as it was, to put it back after the sold-out marks.
+ORIGINAL="$(jq -c --arg id "$VARIATION" \
+  '.response.objects[]? | select(.id == $id)' "$OUT")"
 
 if [ -z "$VARIATION" ]; then
   echo "  (no catalog in this sandbox: no catalog-line order, stock asked"
@@ -432,6 +435,77 @@ else
 fi
 send inventory-counts square \
   "$(pick inventory-counts "$(margs --argjson ids "$IDS")" 0)"
+
+# ---- Square's "Mark as sold out" (#513) ---------------------------------
+# soldOutFlags reads a variation's location_overrides[].sold_out at our
+# location. The recorder marks the sandbox variation sold out there,
+# untracked as Large eggs are in production, reads it, marks it not
+# sold out, reads it again, and puts the variation back as it was.
+
+# Upserts CATALOG_OBJECT with JQ_FILTER applied ($loc and $orig, the
+# variation as it was, are bound), and keeps Square's answer in
+# CATALOG_OBJECT for the next version. upsert NAME JQ_FILTER
+upsert() {
+  local name="$1" filter="$2" object
+  object="$(printf '%s' "$CATALOG_OBJECT" | jq -c --arg loc "$LOC" \
+    --argjson orig "$ORIGINAL" "del(.updated_at, .created_at) | $filter")"
+  send "$name" square "$(jq -nc --arg v "$VERSION" --arg k "$K-$name" \
+    --argjson o "$object" \
+    '{method: "POST", path: "/v2/catalog/object",
+      headers: {"Square-Version": $v, "Content-Type": "application/json"},
+      body: {idempotency_key: $k, object: $o}}')"
+  CATALOG_OBJECT="$(jq -c '.response.catalog_object // empty' "$OUT")"
+}
+
+# Our location's override, untracked and marked as MARK (true or false).
+mark() {
+  printf '%s' '.item_variation_data.location_overrides =
+    ([.item_variation_data.location_overrides[]?
+      | select(.location_id != $loc)]
+     + [{location_id: $loc, track_inventory: false, sold_out: '"$1"'}])'
+}
+
+# Whether the last read shows the variation sold out at our location.
+read_mark() {
+  jq -r --arg loc "$LOC" '[.response.objects[]?.item_variation_data
+    .location_overrides[]? | select(.location_id == $loc)
+    | .sold_out == true] | any' "$OUT"
+}
+
+if [ -z "$ORIGINAL" ]; then
+  echo "  (no catalog in this sandbox: no sold-out marks recorded)"
+else
+  MARKS_REQUEST="$(pick sold-out-flags \
+    "$(margs --argjson ids "[\"$VARIATION\"]")" 0)"
+  CATALOG_OBJECT="$ORIGINAL"
+
+  upsert catalog-mark-sold-out "$(mark true)"
+  if [ -n "$CATALOG_OBJECT" ]; then
+    send catalog-batch-sold-out square "$MARKS_REQUEST"
+    if [ "$(read_mark)" != "true" ]; then
+      echo "  catalog-batch-sold-out: Square did not keep sold_out: true." >&2
+      echo "  Mark the variation sold out in the sandbox Dashboard and" >&2
+      echo "  run again, or this case is not recorded." >&2
+      FAILED=$((FAILED + 1))
+    fi
+    CATALOG_OBJECT="$(jq -c '.response.objects[0] // empty' "$OUT")"
+    upsert catalog-mark-in-stock "$(mark false)"
+    send catalog-batch-in-stock square "$MARKS_REQUEST"
+    [ "$(read_mark)" = "false" ] \
+      || { echo "  catalog-batch-in-stock: still sold out." >&2
+           FAILED=$((FAILED + 1)); }
+
+    # Put back: the original overrides, at the version Square holds now.
+    CATALOG_OBJECT="$(jq -c '.response.objects[0] // empty' "$OUT")"
+    upsert catalog-mark-restored \
+      'if $orig.item_variation_data.location_overrides == null
+       then del(.item_variation_data.location_overrides)
+       else .item_variation_data.location_overrides =
+         $orig.item_variation_data.location_overrides end'
+    [ -n "$CATALOG_OBJECT" ] || echo "  catalog-mark-restored failed:" \
+      "put the sandbox variation's location overrides back by hand." >&2
+  fi
+fi
 
 # ---- Searches (the index may take a moment, so these come late) ---------
 sleep 3

@@ -18,7 +18,7 @@ import {
   buildChangeOrder, cancelFulfillment, cancelOrder, completeOrder,
   createChangeOrder, createOrder, createPayment, customerOrders,
   deleteCustomer, findPaid, inventoryCounts, payZeroOrder, refundPayment,
-  renameCustomerEmail, searchOpenOrders, updateFulfillment,
+  renameCustomerEmail, searchOpenOrders, soldOutFlags, updateFulfillment,
 } from "../../netlify/functions/lib/square.mjs";
 import { sendMail } from "../../netlify/functions/lib/mail.mjs";
 import { testStores } from "../../netlify/functions/lib/store.mjs";
@@ -161,6 +161,7 @@ const CALLS = {
     since: new Date(Date.now() - 36e5),
   }, o),
   "inventory-counts": (a, o) => inventoryCounts(a.ids, o),
+  "sold-out-flags": (a, o) => soldOutFlags(a.ids, o),
   // The one Resend send: mail.mjs builds the request, MAIL_DRIVER=resend
   // and the production context let it through, the stub keeps it local.
   "resend-send": (a, o) => sendMail(a.message, {
@@ -194,7 +195,8 @@ const main = async () => {
   const net = stub(args.current || {}, !!args.found);
   // "production" turns on catalog lines and stock reads; the stub
   // keeps it off the wire.
-  const catalog = args.kind === "catalog" || call === "inventory-counts";
+  const catalog = args.kind === "catalog"
+    || ["inventory-counts", "sold-out-flags"].includes(call);
   const env = {
     SQUARE_ENV: catalog ? "production" : "sandbox",
     SQUARE_ACCESS_TOKEN: "stub",

@@ -192,16 +192,23 @@ Square, or the entry in `data/catalog.json`.
 
 **Always in stock** (#511, James, 2026-10-28). An entry with
 `alwaysInStock: true`, today Large eggs alone, sells by its `inStock`
-flag and nothing else. Whatever Square or the store counts, 0 or
-below included, `/api/stock` reports it `{ inStock: true, available:
-null }`: the order page and search show no count and cap no quantity,
-the cart is never lowered for it, and checkout and `POST /api/orders`
-never refuse it for stock. Orders still record the sale in Square, so
-its count there may go negative. To sell it out, set `inStock: false`
-(`bin/stock`, then a deploy); its restock type then labels it as
-usual. Square's own "Mark as sold out" is not read: with inventory
-tracked, Square sets that same flag by itself when the count reaches
-0, so it would undo the point of the setting.
+flag and Square's "Mark as sold out", and nothing else. Whatever
+Square or the store counts, 0 or below included, `/api/stock` reports
+it `{ inStock: true, available: null }`: the order page and search
+show no count and cap no quantity, the cart is never lowered for it,
+and checkout and `POST /api/orders` never refuse it for stock. Orders
+still record the sale in Square, so its count there may go negative.
+To sell it out, mark it sold out in Square for the farm's location
+(#513): `/api/stock` then reports `{ inStock: false, available: null
+}` (within its 15 s snapshot), checkout refuses it, and its restock
+type labels it as usual. The page reads the variation's
+`location_overrides[].sold_out` (`soldOutFlags`, lib/square.mjs) with
+the counts, within the same time; a Square that can't be read leaves
+the catalog's flag. Large eggs no longer track inventory in Square
+(off since 2026-10-29), so Square sets the mark only by hand: with
+tracking on it would set it by itself at a count of 0. `inStock:
+false` (`bin/stock`, then a deploy) still sells it out too.
+(2026-11-01, #513: this said Square's mark was not read.)
 
 The order page's **Show** control (`order/restock.js`, James,
 6303649455) is a radio group (`role="radiogroup"`, named "Show"

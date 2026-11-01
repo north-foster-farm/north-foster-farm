@@ -1,13 +1,20 @@
 import assert from "node:assert/strict";
+import { existsSync } from "node:fs";
 import { describe, it, mock } from "node:test";
 
 import catalog from "../data/catalog.json" with { type: "json" };
 import { indexCatalog } from "../assets/scripts/order/lib/catalog.mjs";
 import {
+  MAX, room, soldOut as searchSoldOut,
+} from "../assets/scripts/search/stock.js";
+import { soldOutFlags } from "../netlify/functions/lib/square.mjs";
+import {
   adjust, availability, checkLines, getCounts, setCount, SNAPSHOT,
+  SOLD_OUT_SNAPSHOT,
 } from "../netlify/functions/lib/stock.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
 import { handle } from "../netlify/functions/stock.mjs";
+import { recorded } from "./recorded.mjs";
 
 const THIGHS = "NFF-CHK-THGBN-10-14";   // In stock in the catalog
 const THIGHS_VARIATION = "T366DS6FNIHDC5LVUDI46PXN";
@@ -305,6 +312,146 @@ describe("an item marked always in stock", () => {
       assert.equal(bad.errors[`lines.${SMALL}`],
         "Eggs, Grade A · Small: out of stock.");
     });
+});
+
+// Large eggs aren't tracked in Square, so the farm marks them sold out
+// there by hand (#513, James, 2026-10-28). Square's answers are the
+// sandbox's (test/fixtures/square/catalog-batch-*.json), for one of
+// its variations, answered here for the ids asked about, through the
+// real read.
+describe("an item always in stock, marked sold out in Square", () => {
+  const MARKS_ENV = {
+    SQUARE_ENV: "production", SQUARE_ACCESS_TOKEN: "tok",
+    SQUARE_LOCATION_ID: "LOCATION_ID_1",
+  };
+  const have = (name) => existsSync(new URL(
+    `./fixtures/square/${name}.json`, import.meta.url
+  ));
+  const WHY = "not recorded yet: bin/fixtures/record";
+  const marks = (name) => {
+    const seen = [];
+    const fetchImpl = async (url, init) => {
+      const asked = JSON.parse(init.body).object_ids;
+      const { status, response } = recorded("square", name);
+      const [object] = response.objects;
+
+      seen.push(asked);
+
+      return new Response(JSON.stringify({
+        ...response, objects: asked.map((id) => ({ ...object, id })),
+      }), { status });
+    };
+
+    return {
+      seen,
+      soldOutMarks: (ids, o) => soldOutFlags(ids, {
+        ...o, env: MARKS_ENV, fetchImpl,
+      }),
+    };
+  };
+  const SOLD_OUT = "catalog-batch-sold-out";
+  const IN_STOCK = "catalog-batch-in-stock";
+  const stock = async (soldOutMarks, extra = {}) => {
+    const res = await handle(new Request("http://x/api/stock"), {
+      stores: testStores(), soldOutMarks, ...extra,
+    });
+
+    return (await res.json()).items;
+  };
+
+  it("is sold out on the order page, in search and at checkout",
+    { skip: !have(SOLD_OUT) && WHY }, async () => {
+      const { soldOutMarks, seen } = marks(SOLD_OUT);
+      const items = await stock(soldOutMarks, {
+        inventory: async () => ({ [EGGS_VARIATION]: 40 }),
+      });
+
+      assert.deepEqual(seen, [[EGGS_VARIATION]]);
+      assert.deepEqual(items[EGGS], { inStock: false, available: null });
+      assert.equal(searchSoldOut(items, EGGS), true);
+      assert.equal(room(items, EGGS, 0), 0);
+      // Every other product reads as before.
+      assert.deepEqual(items[BIRD], { inStock: true, available: null });
+
+      const check = await checkLines(testStores(),
+        [{ sku: EGGS, qty: 1 }], { soldOutMarks });
+
+      assert.equal(check.ok, false);
+      assert.equal(check.errors[`lines.${EGGS}`],
+        "Eggs, Grade A · Large: out of stock.");
+      assert.deepEqual(check.items[EGGS],
+        { inStock: false, available: null });
+    });
+
+  it("is in stock with no count or cap when not marked",
+    { skip: !have(IN_STOCK) && WHY }, async () => {
+      const { soldOutMarks } = marks(IN_STOCK);
+      const items = await stock(soldOutMarks, {
+        inventory: async () => ({ [EGGS_VARIATION]: 0 }),
+      });
+
+      assert.deepEqual(items[EGGS], { inStock: true, available: null });
+      assert.equal(searchSoldOut(items, EGGS), false);
+      assert.equal(room(items, EGGS, 0), MAX);
+
+      const check = await checkLines(testStores(),
+        [{ sku: EGGS, qty: 60 }], { soldOutMarks });
+
+      assert.equal(check.ok, true);
+    });
+
+  it("keeps the mark in the page's snapshot, as the counts are",
+    { skip: !have(SOLD_OUT) && WHY }, async () => {
+      const stores = testStores();
+      const { soldOutMarks, seen } = marks(SOLD_OUT);
+      const at = (s) => new Date(Date.UTC(2026, 9, 29, 12, 0, s));
+
+      for (const s of [0, 14]) {
+        await handle(new Request("http://x/api/stock"), {
+          stores, soldOutMarks, now: at(s),
+        });
+      }
+      assert.equal(seen.length, 1);
+      assert.deepEqual(await stores.stock.get(SOLD_OUT_SNAPSHOT),
+        { at: at(0).toISOString(), counts: { [EGGS_VARIATION]: true } });
+    });
+
+  // A read that fails, times out or has no Square to ask leaves the
+  // catalog's flag, on or off.
+  it("falls back to the catalog's flag when Square can't be read",
+    async () => {
+      const failing = [
+        async () => { throw new Error("Square 503"); },
+        async () => null,
+      ];
+      const catalogIndex = indexCatalog(catalog);
+      const off = new Map(catalogIndex);
+
+      off.set(EGGS, { ...off.get(EGGS), inStock: false });
+      for (const soldOutMarks of failing) {
+        assert.deepEqual((await stock(soldOutMarks))[EGGS],
+          { inStock: true, available: null });
+        assert.deepEqual((await stock(soldOutMarks, {
+          catalogIndex: off,
+        }))[EGGS], { inStock: false, available: null });
+        assert.equal((await checkLines(testStores(),
+          [{ sku: EGGS, qty: 60 }], { soldOutMarks })).ok, true);
+      }
+    });
+
+  it("asks within the order check's time", async () => {
+    const seen = [];
+    const soldOutMarks = async (ids, opts) => {
+      seen.push({ ids, opts });
+
+      return null;
+    };
+
+    await checkLines(testStores(), [{ sku: EGGS, qty: 1 }],
+      { soldOutMarks, deadline: 123 });
+    assert.deepEqual(seen.map((s) => [s.ids, s.opts.deadline]),
+      [[[EGGS_VARIATION], 123]]);
+  });
 });
 
 describe("the /api/stock limit", () => {

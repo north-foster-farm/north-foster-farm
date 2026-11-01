@@ -38,6 +38,16 @@
 // whatever its count (#267). If stock shows one on hand anyway, the
 // farm is told (archivedInStock, below): it would otherwise sit
 // hidden from the people waiting for it, and nobody would know why.
+//
+// A product the catalog marks `alwaysInStock` (#511, Large eggs) has
+// no count: Square doesn't track it. The farm marks it sold out by
+// hand in Square instead, and the page shows it sold out while that
+// mark stands (#513, liveSoldOut, below). A Square that can't be read
+// leaves the catalog's flag.
+//
+//   square-sold-out  { at, counts: { [variationId]: true | false }
+//                    or null }, Square's marks as the page last read
+//                    them, kept as SNAPSHOT is
 
 import catalog from "../../../data/catalog.json" with { type: "json" };
 import {
@@ -49,7 +59,7 @@ import { now as clock, real } from "./clock.mjs";
 import { log } from "./log.mjs";
 import { farmEmails, sendMail } from "./mail.mjs";
 import { mailLinks } from "./site.mjs";
-import { inventoryCounts } from "./square.mjs";
+import { inventoryCounts, soldOutFlags } from "./square.mjs";
 import {
   productionRead, productionStock, stockOverrides,
 } from "./stock-source.mjs";
@@ -68,6 +78,9 @@ export const SNAPSHOT_MS = 15_000;
 // Production's counts by SKU, from its public /api/stock, where staging
 // reads them (#453).
 export const PRODUCTION_SNAPSHOT = "square-production";
+// Square's sold-out marks by variation id, for the items always in
+// stock (#513).
+export const SOLD_OUT_SNAPSHOT = "square-sold-out";
 
 // Square's counts by variation id, or null when it doesn't answer.
 // The same for production's by SKU, with its own `event`.
@@ -159,6 +172,37 @@ export const liveCounts = async (stores, {
   return counts;
 };
 
+// The SKUs marked always in stock that the farm has marked sold out in
+// Square at the site's location (#513). -> a Set, empty when Square
+// doesn't answer, so the catalog's flag stands. With `snapshot`, the
+// marks come from their own snapshot, as the counts do. `soldOut` is
+// for tests.
+export const liveSoldOut = async (stores, {
+  catalogIndex = index, env = process.env, deadline,
+  soldOut = soldOutFlags, snapshot = false, now = clock(),
+} = {}) => {
+  const skus = new Map();
+
+  for (const [sku, item] of catalogIndex) {
+    if (uncounted(item) && item.squareVariationId) {
+      skus.set(item.squareVariationId, sku);
+    }
+  }
+  if (!skus.size) return new Set();
+
+  const opts = {
+    env, deadline, inventory: soldOut, event: "stock.sold_out_unread",
+  };
+  const flags = snapshot
+    ? await snapshotCounts(stores, [...skus.keys()], opts, now,
+      SOLD_OUT_SNAPSHOT)
+    : await readSquare([...skus.keys()], opts);
+
+  return new Set(Object.entries(flags || {})
+    .filter(([id, out]) => out === true && skus.has(id))
+    .map(([id]) => skus.get(id)));
+};
+
 export const setCounts = (stores, counts) => stores.stock.set(COUNTS, counts);
 
 // A null count clears it: the SKU goes back to flag only.
@@ -207,13 +251,22 @@ const onHand = (item, counts, sku) => !!item.inStock
 //   { sku: { inStock, available } }  available is null when uncounted,
 // and always for an item marked always in stock (#511), so nothing
 // downstream caps it or refuses it. An archived item is never in
-// stock. `catalogIndex` is for tests; `counts`, when given, are
-// liveCounts already read.
+// stock, nor one marked always in stock that the farm has marked sold
+// out in Square (#513). `catalogIndex`, `inventory` and `soldOutMarks`
+// are for tests; `counts`, when given, are liveCounts already read,
+// and `soldOut` liveSoldOut, none when not given with them.
 export const availability = async (stores, {
-  catalogIndex = index, env, deadline, inventory, counts: given,
+  catalogIndex = index, env, deadline, inventory, soldOutMarks,
+  counts: given, soldOut: marked,
 } = {}) => {
-  const counts = given
-    || await liveCounts(stores, { catalogIndex, env, deadline, inventory });
+  const [counts, soldOut] = given
+    ? [given, marked || new Set()]
+    : await Promise.all([
+      liveCounts(stores, { catalogIndex, env, deadline, inventory }),
+      marked || liveSoldOut(stores, {
+        catalogIndex, env, deadline, soldOut: soldOutMarks,
+      }),
+    ]);
   const items = {};
 
   for (const [sku, item] of catalogIndex) {
@@ -221,7 +274,8 @@ export const availability = async (stores, {
       ? Math.max(0, counts[sku]) : null;
 
     items[sku] = {
-      inStock: onHand(item, counts, sku) && !archived(item),
+      inStock: onHand(item, counts, sku) && !archived(item)
+        && !soldOut.has(sku),
       available,
     };
   }
@@ -340,12 +394,13 @@ export const hiddenInStock = (list) => list.filter((i) => i.count > 0);
 // Always a fresh read of Square; `check` names the check in the log,
 // and `scope` is the request's pin scope (lib/stock-pins.mjs).
 export const checkLines = async (stores, lines, {
-  env, deadline, inventory, check = "order", scope,
+  env, deadline, inventory, soldOutMarks, check = "order", scope,
 } = {}) => {
-  const counts = await liveCounts(stores, {
-    env, deadline, inventory, check, scope,
-  });
-  const items = await availability(stores, { counts });
+  const [counts, soldOut] = await Promise.all([
+    liveCounts(stores, { env, deadline, inventory, check, scope }),
+    liveSoldOut(stores, { env, deadline, soldOut: soldOutMarks }),
+  ]);
+  const items = await availability(stores, { counts, soldOut });
   const errors = {};
 
   for (const line of lines || []) {

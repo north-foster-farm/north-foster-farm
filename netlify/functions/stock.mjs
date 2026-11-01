@@ -15,7 +15,7 @@ import { now as clock, real } from "./lib/clock.mjs";
 import { json } from "./lib/http.mjs";
 import { withLog } from "./lib/log.mjs";
 import {
-  archivedInStock, availability, liveCounts,
+  archivedInStock, availability, liveCounts, liveSoldOut,
 } from "./lib/stock.mjs";
 import { applyPins, scopeOf } from "./lib/stock-pins.mjs";
 import { deployContext, stores as defaultStores } from "./lib/store.mjs";
@@ -43,6 +43,7 @@ export const handle = async (req, {
   mail,
   catalogIndex,
   inventory,
+  soldOutMarks,
   // Where the farm's daily notice runs once the answer is out: the
   // platform's waitUntil for the real function; here it is awaited,
   // which tests rely on.
@@ -63,14 +64,19 @@ export const handle = async (req, {
     });
   }
 
-  // One read of Square for both (#267). A test's pins (#507) are laid
-  // on the page's answer only: the farm's notice reads the real counts.
-  const counts = await liveCounts(stores, {
-    catalogIndex, env, inventory, snapshot: true, now,
-  });
+  // One read of Square for both (#267), beside one of its sold-out
+  // marks (#513). A test's pins (#507) are laid on the page's answer
+  // only: the farm's notice reads the real counts.
+  const [counts, soldOut] = await Promise.all([
+    liveCounts(stores, { catalogIndex, env, inventory, snapshot: true, now }),
+    liveSoldOut(stores, {
+      catalogIndex, env, soldOut: soldOutMarks, snapshot: true, now,
+    }),
+  ]);
   const scope = scopeOf(req.headers, env);
   const items = await availability(stores, {
     catalogIndex,
+    soldOut,
     counts: scope
       ? await applyPins(stores, { ...counts }, { scope, env, now: real(now) })
       : counts,

@@ -64,9 +64,10 @@ const label = (item) => {
 
 // What the page shows of an item at `n` packs: per Show choice,
 // whether its row shows, can be added, and its label while out.
-const page = async (n) => {
+// `soldOut` names those marked sold out in Square (#513).
+const page = async (n, soldOut = new Set()) => {
   const counts = Object.fromEntries(items.map((i) => [i.sku, n]));
-  const state = await availability(testStores(), { counts });
+  const state = await availability(testStores(), { counts, soldOut });
   const out = {};
 
   for (const item of items) {
@@ -147,4 +148,18 @@ describe("every catalog product's visibility (#501)", () => {
       }
     });
   }
+
+  // Marked sold out in Square, one always in stock shows as a counted
+  // product does at 0, at any count (#513).
+  it("shows one always in stock as sold out while Square marks it",
+    async () => {
+      const always = items.filter(uncounted);
+      const seen = await page(3, new Set(always.map((i) => i.sku)));
+
+      assert.ok(always.length > 0);
+      for (const item of always) {
+        assert.deepEqual(seen[item.sku],
+          rule({ ...item, alwaysInStock: false }, 0), item.sku);
+      }
+    });
 });
