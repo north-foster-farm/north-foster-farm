@@ -1,5 +1,10 @@
 # QA guide: fulfilment step A
 
+> **The pre-launch walkthrough, kept as a record (2026-11-01, #494).**
+> The checkout it tested shipped on 2026-10-26. The Playwright suite
+> (`docs/qa-launch.md`) now holds most of these checks; use this for
+> the sandbox setup steps and the hands-on Venmo pass.
+
 What to try once the on-page checkout is on staging, what should
 happen, and where to look when it does not. Work through it on the
 staging deploy against the Square and PayPal sandboxes
@@ -216,7 +221,8 @@ inbox hears.
 - [ ] 8:00: "Morning report: <today>" arrives every day, numbers first
       (placed, by card, by Venmo, declined, cancelled, refunded, open,
       mail failures, runs, errors, violations), then pickups (or "No
-      pickups waiting on a decision"). It pings the *Alerts* check
+      pickups waiting on the customer.", as `lib/templates.mjs` words
+      it; 2026-11-01, #494). It pings the *Alerts* check
       well; that check is green after 8:00.
 - [ ] 18:00: "Tomorrow, <date>: N orders" arrives every day, grouped
       delivery, then one heading per scheduled occurrence ("<series
@@ -243,7 +249,9 @@ inbox hears.
       evening before (the toolbar's "As 18:00 today" the day before).
 - [ ] A scheduled pickup order likewise: at the drop site, and at a
       market or pop-up (`docs/qa-launch.md`, SP-01 to SP-03).
-- [ ] The About page says "the orders page".
+- [ ] The About page says "the order page" (2026-11-01, #494: this
+      quoted "the orders page"; `content/about.md` says "the order
+      page").
 
 ## Undo
 

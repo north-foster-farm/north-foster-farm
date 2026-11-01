@@ -1,5 +1,9 @@
 # Tailwind migration inventory (measured 2026-07-30)
 
+> **Dated (2026-11-01, #494).** The site still has no Tailwind, and
+> these figures predate the order page, the map and the account area.
+> Measure again before using them for an estimate.
+
 What the site actually uses of Bootstrap 5.3.3 today, so the migration
 to Tailwind can be estimated instead of guessed at. Read-only survey —
 nothing here changes behaviour.
