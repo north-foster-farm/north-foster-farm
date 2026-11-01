@@ -33,8 +33,10 @@ decisions James made on GitHub. The issue numbers point to the source.
 - **e2e:** Claude cloud runs (`.github/workflows/claude.yml`) have no
   browser, so never ask one to run Playwright. The suite runs in GitHub
   Actions through `e2e.yml` and `e2e-run.yml` (a local build with fake
-  payments), or on James's Mac. Specs that need real staging or a real
-  phone are hands-on checks for James (#449).
+  payments), against `staging` through `e2e-staging.yml` (next rule),
+  or on James's Mac. Checks that need a real phone or production are
+  hands-on for James (#449; 2026-11-01, #494: "real staging" dropped,
+  since the full suite now runs there in Actions).
 - **Promote to staging when green, full e2e on staging** (#502). The
   rule lives in one place, "Promoting to staging and e2e" in
   `docs/cloud-lanes.md`. In short: `next` green goes to `staging` with
@@ -63,37 +65,19 @@ decisions James made on GitHub. The issue numbers point to the source.
   records its requests with `bin/fixtures/record`, swaps them in and
   reruns the tests before landing, without being asked (#496,
   2026-10-27).
-- **New dependencies need James's approval** (#303, 2026-10-27):
-  - They are allowed when they provide clear value, especially where a
-    well-tested package replaces code that could break in subtle ways
-    (encoders, parsers, crypto, date handling and similar).
-  - Lean toward fewer dependencies. If a small amount of simple code
-    does the job, write it.
-  - James has the final say on every new package. Before adding one,
-    post a short proposal: the package, its version and license, how
-    well it's maintained, what it replaces, and why it beats
-    hand-rolling. Don't add it until James approves.
-  - Approved packages are pinned.
+- **New dependencies need James's approval** (#303, 2026-10-27).
+  Lean toward fewer, and post a proposal before adding one. The rule,
+  with what the proposal holds, is point 5 of "Dependency policy" in
+  `docs/security.md` (2026-11-01, #494: the copy here, which left out
+  the size of the dependency tree, moved there).
 - **Confirm dates before production.** Any change to a news post, or to
   a page with a "Last updated" line, has its date confirmed before it
   ships. The right date is often not the commit date.
-- **Log every production change** (#497, 2026-10-27; the full rule is
-  in `docs/security.md`):
-  - **Log:** every change to a production record made by a person or
-    the CLI. Each line records the time, who acted (CLI, farm, host or
-    customer), the action, the target, and the values before and
-    after. Money and membership changes are always logged.
-  - **Don't log:** reads, `--dry-run` and previews, scheduled jobs that
-    changed nothing, and anything on staging or development unless
-    it's needed for debugging.
-  - **Never in a log:** secrets or tokens, payment details, or a full
-    email address, phone number or street address. Mask addresses as
-    in #496, keeping the first three and last three characters of
-    each part.
-  - **Log records are append-only** and follow the retention rules for
-    customer data.
-  - Any new command or action that changes production records ships
-    with its log line and a test, as part of the definition of done.
+- **Log every production change** (#497, 2026-10-27). Each change a
+  person or the CLI makes to a production record is logged, masked
+  and append-only, and a new write path ships with its log line and a
+  test. The rule is "Logging changes to production records" in
+  `docs/security.md` (2026-11-01, #494: the copy here moved there).
 - **This repo and its branches are public.** No customer data, no
   credentials, and no full names of James's family members in code,
   issues, comments or screenshots.
@@ -287,10 +271,13 @@ ES6 modules with explicit imports:
 ## Netlify Configuration
 
 Deployment configured in `netlify.toml`:
-- Build command: `npm run check:env && npm run check:schedule &&
-  npm run check:events && bin/prod && HUGO_BUILD_SHA=$COMMIT_REF
-  hugo --gc && npm run
-  build:orphans && npm run check:grid`. `build:orphans` keeps the
+- Build command: the `command` lines in `netlify.toml`, one per
+  context, are the source (2026-11-01, #494: the copy quoted here had
+  lost `check:node` and the last three checks). In order: the
+  `check:node`, `check:env`, `check:schedule` and `check:events`
+  guards, `bin/prod`, `hugo --gc`, then `build:orphans`,
+  `check:grid`, `check:schema`, `check:fresh` and `check:news`.
+  `build:orphans` keeps the
   last two words of every paragraph, heading and list item on one
   line (see `bin/orphans/wrap.mjs`); `hugo server` skips it.
   `check:grid` holds the built HTML to Bootstrap's grid
@@ -304,7 +291,8 @@ Deployment configured in `netlify.toml`:
   no lint or tests: those run in GitHub Actions (`lint-and-test`,
   `.github/workflows/ci.yml`), which `staging` and `main` require.
   CI's `build` job repeats the Hugo build, `check:grid`, `check:schema`,
-  `check:fresh` and `check:news` on every push, so a template error shows on the commit
+  `check:fresh` and `check:news` on every push, so a template error
+  shows on the commit.
 - Hugo version: 0.164.0 (pinned); Node 24.22.1 from `.nvmrc` (see
   Node above; `NODE_VERSION` is gone from `netlify.toml`)
 - Deploy previews build drafts/future/expired content
