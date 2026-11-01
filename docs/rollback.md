@@ -32,9 +32,12 @@ for every release.)
    order record, as in the daily payments check
    (`docs/daily-check.md`), and refund each where it was taken.
 3. **Fix on `next`**, let it reach `staging`, check it there, then the
-   coordinator fast-forwards `main` after James's go. The usual path
-   applies, including `lint-and-test`.
-4. **Check production** with the live checks from the launch guide,
+   coordinator releases it to `main` after James's go, as a release
+   branch (`bin/nff promote main release/<name>`, below). The usual
+   path applies, including `lint-and-test` (2026-11-01, #494: this
+   said `main` is fast-forwarded, the flow before the launch merge).
+4. **Check production** with the live checks on #237 (the launch
+   guide's, which is no longer a file),
    then turn maintenance off (`bin/nff --production maintenance off`)
    and confirm an order page loads.
 5. **Write down what happened** in the gitignored `incidents/`

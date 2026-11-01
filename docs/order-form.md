@@ -805,7 +805,8 @@ skips, and reports as `muted`, one the customer turned off. The
 wording is James's (review of 2026-09-22). Every customer message
 ends on a "Your orders | Contact us" row and the farm's on "Admin";
 `mailLinks(env)` in `lib/site.mjs` supplies those from
-`ACCOUNTS_ENABLED`, `CONTACT_URL` (else the farm's mailbox) and
+`ACCOUNTS_ENABLED`, `CONTACT_URL` (else the site's `/contact/` page;
+2026-11-01, #494: this said the farm's mailbox) and
 `ADMIN_URL` (default admin.northfosterfarm.com; the order and customer
 pages it links to arrive with the dashboard's order views). A resolved
 return sends nothing: James answers those himself. Links point at
@@ -975,7 +976,8 @@ after its date, listed in the packing slips and the evening report
 under its own heading.
 
 A customer who cancels from the account page is refunded and
-cancelled at once (T1d), and the farm is emailed "Cancelled: <id>".
+cancelled at once (T1d), and the farm is emailed "Canceled: <id> by
+<email>" (2026-11-01, #494: this quoted "Cancelled: <id>").
 Only if that refund fails is the order flagged `cancelRequested`,
 its stock released, and the farm emailed "Refund needed" with the
 command; it stays `paid` until the CLI refunds and closes it. A
@@ -1160,8 +1162,11 @@ order (`lib/farm-orders.mjs`, #181; money taken by hand is refunded
 by hand, and the site lets its customer neither cancel nor change
 such an order); fulfill; delete), returns resolve, stock
 (list, set), schedule (check, set), login and masquerade (a
-single-use sign-in link, opened for you), audience (invite, sync),
-jobs (run, history), health.
+single-use sign-in link, opened for you), audience (import, apply,
+remove, sync, welcome), jobs (run, history), health, and more: the usage `bin/nff`
+prints is the full list (2026-11-01, #494: `audience invite`, retired,
+was listed here, and perks, passes, groups, refunds, messages and
+others were not).
 `--staging` and `--preview` act on that deploy context's stores.
 Flags that take a value accept both `--reason "..."` and
 `--reason=...`. `lib/admin.mjs` holds the rules with tests.
@@ -1182,7 +1187,9 @@ Flags that take a value accept both `--reason "..."` and
   farm can't keep is cancelled and refunded.
 - **No Google Sheet.** Square is the system of record; the function log
   is the fallback record.
-- **Catalog version 2026-v8, keyed by SKU.** The spec's 2026-v5 list of
+- **Catalog version 2026-v9 today, keyed by SKU** (2026-11-01, #494:
+  this said 2026-v8; v9 archived the Cornish hens and ground chicken,
+  as under the restock types above). The spec's 2026-v5 list of
   31 keyed by `group.item` is superseded. Its 20 in-stock items are the
   same 20; v6 adds Medium and Pullet eggs, Cornish Hens, Ground Chicken
   and splits the sausage flavors. 2026-v7 (#275, 2026-10-20) changes

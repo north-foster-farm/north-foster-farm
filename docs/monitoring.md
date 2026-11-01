@@ -216,7 +216,7 @@ an alert there would reach nobody, and prints what it reached:
 
 ```
 Alert test (alert.test) on production.
-  Email: sent to farm@... (MAIL_DRIVER resend).
+  Email: sent to dev@... (MAIL_DRIVER resend).
   Phone: /fail accepted by hc-ping.com; re-arm accepted.
   A down push, then an up push, should reach the phone within a minute.
 ```

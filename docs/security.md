@@ -247,8 +247,10 @@ to-do list and prints the line to paste into the pull request.
 `next`, `staging` and `main` take fast-forwards only. Two rulesets on
 `north-foster-farm`, with no bypass actor:
 
-- `fast-forward only: next, staging, main`: linear history, no force
-  push, no deletion.
+- `fast-forward only: next, staging, main`: no force push, no
+  deletion, and linear history on `next` and `staging` only, so that
+  `main` can take a release branch's merge (below; 2026-11-01, #494:
+  this said linear history on all three, against the release rule).
 - `required checks: staging, main`: `lint-and-test`, `supply-chain`
   and `codeql`, each from the GitHub Actions app. James decided the
   next sets on 2026-10-20 (#283): `build` on both, `release-audit` on

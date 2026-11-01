@@ -163,8 +163,9 @@ into `main`, which carries the tested `staging` commit's tree
 checked, so the commit that ships is the commit that was tested.
 
 Two rulesets, with no bypass actor, enforce it (`docs/security.md`).
-All three branches take fast-forwards only: linear history, no force
-push, no deletion. `staging` and `main` also require `lint-and-test`,
+All three branches take fast-forwards only, with no force push or
+deletion, and linear history on `next` and `staging` (`main` takes a
+release branch's merge; 2026-11-01, #494). `staging` and `main` also require `lint-and-test`,
 `supply-chain` and `codeql`, so a push to a commit with no passing
 check is refused. `next` requires no check, so the lanes can push to
 it. `bin/nff promote staging|main` makes the two promotions and
