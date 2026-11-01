@@ -177,15 +177,21 @@ describe("POST /api/orders with a perk", () => {
         /Delivery requires \$40/);
     });
 
+  // Neither the account's perk nor perks the payload names (merged
+  // with "the perks a payload names", #494).
   it("applies none to an order not signed in, whatever its email",
     async (t) => {
       quietLog(t);
 
       const { stores } = await holder("free-delivery");
-      const res = await place(stores, delivery(2, 5500));
+      const res = await place(stores, delivery(2, 5500, {
+        perks: ["family", "free-delivery", "minimum-waived"],
+      }));
+      const data = await res.json();
 
       assert.equal(res.status, 422);
-      assert.equal((await res.json()).totals.total, 6000);
+      assert.equal(data.totals.total, 6000);
+      assert.equal(data.totals.perks, undefined);
     });
 
   it("never spends a pass on what a perk already lifts", async (t) => {
@@ -241,19 +247,6 @@ describe("the perks /api/me shows", () => {
 
 describe("the perks a payload names", () => {
   const claims = { perks: ["family", "free-delivery", "minimum-waived"] };
-
-  it("are ignored for an order not signed in", async (t) => {
-    quietLog(t);
-
-    const stores = testStores();
-    // Two chickens, the $5 tier and the $5 fee: $60, not $0.
-    const res = await place(stores, delivery(2, 0, claims));
-    const data = await res.json();
-
-    assert.equal(res.status, 422);
-    assert.equal(data.totals.total, 6000);
-    assert.equal(data.totals.perks, undefined);
-  });
 
   it("are ignored beside the account's own", async (t) => {
     quietLog(t);

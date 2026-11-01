@@ -123,24 +123,23 @@ describe("the totals Square works out", () => {
         squareTotal(request.body.order), name);
     });
   }
-
-  it("a change order with nothing to pay totals nothing", () => {
-    assert.equal(rec("order-create-zero").response.order.total_money.amount,
-      0);
-  });
-
-  it("Square refuses a $0 card payment, alone and on a $0 order", () => {
-    for (const name of ["payment-zero-amount", "payment-zero-order"]) {
-      assert.ok(rec(name).status >= 400, `${name} was refused`);
-    }
-  });
+  // A $0 change order's total is the loop's order-create-zero, and a
+  // $0 card payment's refusal is createPayment's below (#494).
 });
 
 describe("createOrder", () => {
   it("finds no customer, makes one, and makes the order", async () => {
+    const headers = [];
     const result = await replay(
       ["customers-search-none", "customer-create", "order-create-pickup"],
-      (o) => createOrder(order(), "fx-cust-pickup", o)
+      (o) => createOrder(order(), "fx-cust-pickup", {
+        ...o,
+        fetchImpl: (url, init) => {
+          headers.push(init.headers);
+
+          return o.fetchImpl(url, init);
+        },
+      })
     );
 
     assert.equal(result.squareOrderId,
@@ -148,6 +147,13 @@ describe("createOrder", () => {
     assert.equal(result.customerId,
       rec("customer-create").response.customer.id);
     assert.equal(result.customerMade, true);
+    // The replay holds the bodies; every call also carries the API
+    // version and the token.
+    assert.equal(headers.length, 3);
+    for (const h of headers) {
+      assert.equal(h["Square-Version"], "2026-09-16");
+      assert.equal(h.Authorization, "Bearer tok");
+    }
   });
 
   it("uses the profile it finds, made for this order by a try before",

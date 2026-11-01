@@ -1009,11 +1009,8 @@ describe("where the order id belongs", () => {
     }
   });
 
-  it("stays in the farm's subjects, which list many orders", () => {
-    for (const m of [farmOrderPlaced(o), farmPickupChanged(order("onfarm"))]) {
-      assert.match(m.subject, /NFF-2610-ABCD/);
-    }
-  });
+  // The order number staying in the farm's subjects is held by their
+  // exact subjects ("farmOrderPlaced", "farmPickupChanged").
 });
 
 describe("the farm's own notices", () => {

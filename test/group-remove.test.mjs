@@ -155,21 +155,12 @@ describe("the host's Remove", () => {
       assert.equal(memberKeyOf(await getCustomer(stores, PAT)), "vff");
     });
 
-  it("is refused from another site", async () => {
-    const { stores, host } = await setup();
-    const res = await post(stores, "/api/membership/remove",
-      { group: "vff", email: PAT },
-      { ...host, "sec-fetch-site": "cross-site" });
-
-    assert.equal(res.status, 403);
-    assert.equal(memberKeyOf(await getCustomer(stores, PAT)), "vff");
-  });
-
   // The coordinator's security review: same-site is not enough.
-  it("is refused when same-site but not same-origin", async () => {
+  it("is refused cross-site, or same-site but not same-origin", async () => {
     const { stores, host } = await setup();
 
     for (const headers of [
+      { "sec-fetch-site": "cross-site" },
       { "sec-fetch-site": "same-site" },
       { "sec-fetch-site": "", origin: "http://preview.x" },
       { "sec-fetch-site": "" },

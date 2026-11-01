@@ -161,19 +161,9 @@ describe("who gets what", () => {
       ]);
     });
 
-  it("refuses a rotation from another site", async () => {
-    const { stores, host } = await setup();
-    const res = await call(stores, "/api/membership/qr", {
-      method: "POST", body: { group: "vff", rotate: true },
-      headers: { ...host, "sec-fetch-site": "cross-site" },
-    });
-
-    assert.equal(res.status, 403);
-  });
-
   // The coordinator's security review: same-site lets a sibling
   // (a deploy preview, a branch subdomain) act as the host.
-  it("refuses a rotation that is same-site but not same-origin",
+  it("refuses a rotation cross-site, or same-site but not same-origin",
     async () => {
       const { stores, host } = await setup();
       const old = await joinTokenOf(stores, "vff", { now });
@@ -183,6 +173,7 @@ describe("who gets what", () => {
       });
 
       for (const headers of [
+        { "sec-fetch-site": "cross-site" },
         { "sec-fetch-site": "same-site" },
         { "sec-fetch-site": "none" },
         { "sec-fetch-site": "", origin: "http://preview.x" },

@@ -144,12 +144,16 @@ describe("the staging endpoints", () => {
     assert.equal(staging({ SITE_CONTEXT: "deploy-preview" }), true);
     assert.equal(staging({ SITE_CONTEXT: "production" }), false);
 
+    // Every route below, the email library's included (#494: the
+    // per-route production checks folded in here).
     for (const e of [{}, { CONTEXT: "production" }]) {
-      const res = await handle(req("/api/staging/info"), {
-        stores: testStores(), env: e,
-      });
+      for (const [method, path] of routes) {
+        const res = await handle(ask(method, path), {
+          stores: testStores(), env: e, run,
+        });
 
-      assert.equal(res.status, 404);
+        assert.equal(res.status, 404, `${method} ${path}`);
+      }
     }
   });
 
@@ -304,16 +308,6 @@ describe("the staging endpoints", () => {
         await assert.rejects(handle(ask("POST", THROWS, bearer),
           { stores: testStores(), env }), /Staging proof/);
       });
-
-    it("opens no email library, outbox or signatures", async () => {
-      for (const path of ["/api/staging/outbox", "/api/staging/emails",
-        "/api/staging/signatures"]) {
-        const res = await handle(ask("GET", path, bearer),
-          { stores: testStores(), env });
-
-        assert.equal(res.status, 403, path);
-      }
-    });
 
     it("is not taken as a query", async () => {
       const res = await handle(req(`/api/staging/info?token=${TOKEN}`,
@@ -495,17 +489,6 @@ describe("the email library", () => {
     CONTEXT: "branch-deploy", SITE_URL: "https://staging.test",
     STAGING_TOKEN: TOKEN, GATE_TOOLBAR_EMAIL: OWNER,
   };
-
-  it("is a 404 in production, like every staging path", async () => {
-    for (const path of ["/api/staging/emails",
-      "/api/staging/emails/sign-in-link"]) {
-      const res = await handle(req(path), {
-        stores: testStores(), env: { CONTEXT: "production" },
-      });
-
-      assert.equal(res.status, 404);
-    }
-  });
 
   it("lists every email, built, tagged and marked for approval",
     async () => {
@@ -773,17 +756,7 @@ describe("James's review in the library", () => {
     assert.deepEqual(diffLines("a\nb\nc", "a\nx\nc"),
       ["  a", "+ x", "- b", "  c"]);
   });
-
-  it("is a 404 in production", async () => {
-    for (const kind of ["approval", "rewrite"]) {
-      const res = await handle(req(`/api/staging/emails/${ID}/${kind}`,
-        "PUT", { version: "x" }), {
-        stores: testStores(), env: { CONTEXT: "production" },
-      });
-
-      assert.equal(res.status, 404);
-    }
-  });
+  // A 404 in production is "answer only off production", every route.
 });
 
 describe("the e2e endpoint (#266)", () => {

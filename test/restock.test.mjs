@@ -12,7 +12,6 @@ import { checkOrder } from "../bin/schema/check.mjs";
 import {
   archived, indexCatalog,
 } from "../assets/scripts/order/lib/catalog.mjs";
-import { showRows } from "../assets/scripts/order/restock.js";
 import { withStock } from "../assets/scripts/order/schema.js";
 import { parseSchedule } from "../assets/scripts/order/lib/schedule.mjs";
 import { validateOrder } from "../assets/scripts/order/lib/validate.mjs";
@@ -69,11 +68,7 @@ describe("the catalog's restock types", () => {
   const items = [...indexCatalog(catalog).values()];
   const of = (key) => items.filter((i) => i.groupKey === key);
 
-  it("are one of the six on every product", () => {
-    for (const item of items) {
-      assert.ok(TYPES.includes(item.restock), item.sku);
-    }
-  });
+  // That each is one of the six is catalog-visibility.test's.
 
   // #267's assignments with James's corrections (#274, 6330468558),
   // and the tiers #492 hides while empty, every other tier back next
@@ -118,41 +113,42 @@ describe("the catalog's restock types", () => {
 });
 
 describe("availability by restock type", () => {
-  it("lets stock win over every type but archived", async () => {
-    const stores = testStores();
-    const items = await availability(stores, { catalogIndex: FIXTURE });
-
-    for (const type of ["SEASONAL", "SOON", "HIATUS", "DISCONTINUED",
-      "HIDDEN", "PLAIN"]) {
-      assert.equal(items[type].inStock, true, type);
-    }
-    assert.equal(items.ARCHIVED.inStock, false);
-  });
-
   // Every type but archived describes only the sold-out state, so no
-  // flag hides stock (#499, James, #303 6454589969).
-  it("sells every type but archived when its count is above 0",
-    async () => {
+  // flag hides stock (#499, James, #303 6454589969). Uncounted, the
+  // catalog flag decides; counted, the count does; archived never
+  // sells.
+  it("lets stock win over every type but archived", async () => {
+    const SELLS = TYPES.filter((t) => t !== "archived")
+      .map((t) => t.toUpperCase());
+    const read = async (n) => {
       const stores = testStores();
 
-      for (const type of TYPES) await setCount(stores, type.toUpperCase(), 3);
-      const items = await availability(stores, { catalogIndex: FIXTURE });
-
-      for (const type of TYPES.filter((t) => t !== "archived")) {
-        assert.deepEqual(items[type.toUpperCase()],
-          { inStock: true, available: 3 }, type);
+      if (n !== undefined) {
+        for (const type of TYPES) {
+          await setCount(stores, type.toUpperCase(), n);
+        }
       }
-      assert.equal(items.ARCHIVED.inStock, false);
-    });
 
-  it("is out at a count of 0, whatever the type", async () => {
-    const stores = testStores();
+      return availability(stores, { catalogIndex: FIXTURE });
+    };
+    const uncounted = await read();
 
-    for (const type of TYPES) await setCount(stores, type.toUpperCase(), 0);
-    const items = await availability(stores, { catalogIndex: FIXTURE });
+    for (const sku of [...SELLS, "PLAIN"]) {
+      assert.equal(uncounted[sku].inStock, true, sku);
+    }
+    assert.equal(uncounted.ARCHIVED.inStock, false);
+
+    const three = await read(3);
+
+    for (const sku of SELLS) {
+      assert.deepEqual(three[sku], { inStock: true, available: 3 }, sku);
+    }
+    assert.equal(three.ARCHIVED.inStock, false);
+
+    const none = await read(0);
 
     for (const type of TYPES) {
-      assert.equal(items[type.toUpperCase()].inStock, false, type);
+      assert.equal(none[type.toUpperCase()].inStock, false, type);
     }
   });
 
@@ -197,36 +193,9 @@ describe("a hidden product", () => {
   const SKU = "NFF-CHK-WHL-50-59";
   const NAME = "Whole Chicken, 5.0 – 5.9 lbs";
 
-  // A row as order/row.html writes it and order/stock.js marks it.
-  const row = (out) => ({
-    dataset: { restockLabel: "" },
-    hidden: false,
-    hasAttribute: (name) => name === "data-out" && out,
-  });
-  const shown = (r, only) => {
-    showRows({ querySelectorAll: (s) => (s === ".order-item" ? [r] : []) },
-      only);
-
-    return !r.hidden;
-  };
-
-  it("is out at a count of 0 and in above it", async () => {
-    const stores = testStores();
-
-    await setCount(stores, "HIDDEN", 0);
-    assert.equal((await availability(stores, { catalogIndex: FIXTURE }))
-      .HIDDEN.inStock, false);
-    await setCount(stores, "HIDDEN", 3);
-    assert.deepEqual((await availability(stores, { catalogIndex: FIXTURE }))
-      .HIDDEN, { inStock: true, available: 3 });
-  });
-
-  it("has no row while out, under either Show choice", () => {
-    assert.equal(shown(row(true), true), false, "In stock");
-    assert.equal(shown(row(true), false), false, "Full catalog");
-    assert.equal(shown(row(false), true), true, "in stock, In stock");
-    assert.equal(shown(row(false), false), true, "in stock, Full catalog");
-  });
+  // Its count deciding is "lets stock win over every type but
+  // archived" above; its row under each Show choice is
+  // catalog-visibility.test's.
 
   it("leaves the Product markup while out and comes back", () => {
     const product = (sku) => ({
@@ -402,7 +371,7 @@ describe("an archived product stock has on hand", () => {
     assert.equal(sent.length, 0);
   });
 
-  it("is not raised by the real catalog, which archives nothing",
+  it("is not raised by the real catalog, its archived items flagged out",
     async () => {
       const { sent, mail } = mailer();
 
