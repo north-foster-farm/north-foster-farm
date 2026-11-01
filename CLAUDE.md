@@ -27,9 +27,13 @@ decisions James made on GitHub. The issue numbers point to the source.
   soon as you notice it. Steps only James can take go on #237, his
   checklist, not into issues of their own. #303 is the one ordered
   queue.
-- **Work has landed when it is on `next`.** Approved PRs are squashed
-  onto `next` and closed, so GitHub shows them as "closed", not
-  "merged". Check `next`'s history before calling anything stalled.
+- **Work has landed when it is on `next`.** The coordinator squashes
+  approved lane PRs onto `next` and closes them, so GitHub shows them
+  as "closed", not "merged". Check `next`'s history before calling
+  anything stalled. A PR the `LGTM` label merges
+  (`lgtm-automerge.yml`) is rebase-merged instead and shows as merged
+  (2026-11-01, #494: added, since the repository allows only rebase
+  merges).
 - **e2e:** Claude cloud runs (`.github/workflows/claude.yml`) have no
   browser, so never ask one to run Playwright. The suite runs in GitHub
   Actions through `e2e.yml` and `e2e-run.yml` (a local build with fake
@@ -118,7 +122,8 @@ npm run check
 # Production build. NETLIFY ONLY -- do not run this locally.
 # bin/prod installs Dart Sass into /opt/build/repo, a path that only
 # exists on the Netlify build image, so this fails on a dev machine.
-# Netlify runs it via `bin/prod && hugo --gc`; it runs no tests.
+# Netlify runs it inside its build command (see Netlify Configuration
+# below); it runs no tests.
 bin/prod
 ```
 
@@ -186,47 +191,28 @@ Key Hugo settings:
 
 ### Directory Structure
 
+Top level only; `ls` the folders for the rest (2026-11-01, #494: the
+deeper tree here had fallen years behind, naming `company.yaml` and a
+`ctas/` partials folder that no longer exist).
+
 ```
 assets/
   images/          # Image assets processed by Hugo
-  scripts/         # JavaScript modules (ES6+)
-    main.js        # Entry point (imports Bootstrap, Extensions, Copyright, Touchable)
-    extensions/    # Custom JS extensions
-    copyright/     # Auto-update copyright year
-    touchable/     # Touch event handling
-    utils/         # Utility functions
-  styles/          # SCSS source files
-    main.scss      # Entry point (imports Bootstrap + custom styles)
-    components/    # Component-specific styles
-    mixins/        # SCSS mixins
-    utilities/     # Utility classes
-
+  scripts/         # JS: main.js, one folder per feature (order/,
+                   # map/, session/, search/ ...), report.js
+  styles/          # SCSS: main.scss, components/, mixins/, utilities/
 config/            # Hugo configuration (layered by environment)
-content/           # Markdown content files
-  _index.md        # Homepage content
-  accessibility.md # Accessibility statement
-  privacy.md       # Privacy policy
-  news/            # Past updates, one post each; see layouts/news/
-
-data/              # YAML data files
-  company.yaml     # Company info (name, address, phone, email)
-  socialMedia.yaml # Social media links
-
-layouts/           # Hugo templates
-  _default/        # Base templates (baseof, list, single)
-  partials/        # Reusable template partials
-    home/          # Homepage-specific partials (copy.html, contact.html)
-    footer/        # Footer components
-    head/          # Head tag components
-    header/        # Header/navigation
-    ctas/          # Call-to-action components
-  index.html       # Homepage template
-
-static/            # Static files (copied as-is to output)
-
-bin/
-  dev              # Development server wrapper script
-  prod             # Production build script (installs Dart Sass)
+content/           # Markdown pages; news/ holds one post each
+data/              # JSON data (catalog, company, delivery, groups,
+                   # series ...) and socialMedia.yaml
+layouts/           # Templates: _default/, partials/ (heavily reused),
+                   # shortcodes/, one folder per section
+netlify/           # Functions (functions/, lib/ inside) and edge
+                   # functions
+static/            # Copied as-is to the output
+bin/               # nff (the farm's CLI), dev, prod and the checks
+test/  e2e/        # Unit tests (node --test) and Playwright specs
+docs/              # Runbooks and design notes
 ```
 
 ### Build Process
@@ -256,17 +242,24 @@ Bootstrap 5.3.3 forms the foundation with extensive customization:
 Import order in `main.scss`:
 1. Custom fonts
 2. Bootstrap functions → custom variables → Bootstrap variables/maps/mixins
-3. Utilities (custom → Bootstrap)
-4. Custom mixins
-5. Global styles
-6. Component styles
+3. Utilities (Bootstrap's utility API → custom utilities)
+4. The rest of Bootstrap
+5. Custom mixins
+6. Global styles
+7. Component styles, then `debug`
 
 ### JavaScript Architecture
 
-ES6 modules with explicit imports:
-- Bootstrap components imported individually (`Collapse` in `main.js`)
-- Custom modules: Extensions (prototype methods), Copyright (year updater), Touchable (touch events)
-- No build step - uses native ES modules in browser
+ES modules with explicit imports, bundled and minified by Hugo's
+`js.Build` (esbuild; `layouts/partials/footer/scripts.html`), not
+served as native modules (2026-11-01, #494: this said "no build step"
+and listed a `main.js` of four modules):
+- Bootstrap components imported individually (Dropdown and Offcanvas
+  in `main.js`)
+- `main.js` wires one module per feature folder (cart badge, search,
+  session, video and so on); a page that sets `pageScript` in its front
+  matter also gets `scripts/<name>/main.js`, and the error reporter and
+  staging toolbar are bundled on their own
 
 ## Netlify Configuration
 
@@ -295,13 +288,15 @@ Deployment configured in `netlify.toml`:
   shows on the commit.
 - Hugo version: 0.164.0 (pinned); Node 24.22.1 from `.nvmrc` (see
   Node above; `NODE_VERSION` is gone from `netlify.toml`)
-- Deploy previews build drafts/future/expired content
+- Deploy previews and branch deploys (`staging`) build
+  drafts/future/expired content and run `bin/install-gate.mjs`
 - Custom redirects (e.g., `/venmo` → Venmo profile)
 - Security headers: CSP, HSTS, nosniff, etc.
 
 ## Data Management
 
-Site data stored in YAML files under `data/`:
+Site data stored in JSON files under `data/`, plus
+`socialMedia.yaml` (2026-11-01, #494: this said YAML throughout):
 - Access in templates via `hugo.Data.company` or `hugo.Data.socialMedia`
 - Company info includes phone (display + plain formats), email, address
 - Centralized data avoids hardcoding in templates
@@ -311,6 +306,9 @@ Site data stored in YAML files under `data/`:
 - **Sass**: Production builds require Dart Sass (auto-installed by `bin/prod`)
 - **Images**: Use Hugo's image processing in templates; originals go in `assets/images/`
 - **Content**: Markdown files in `content/` are processed by Hugo
-- **Linting**: Must pass ESLint (JS) and Stylelint (SCSS) before deployment
+- **Linting**: Must pass ESLint (JS) and Stylelint (SCSS) before
+  promotion to `staging` and `main`, which require `lint-and-test`;
+  Netlify itself runs no lint (2026-11-01, #494: this said "before
+  deployment", which a branch deploy never checked)
 - **Bootstrap**: Customizations made via variables, not direct Bootstrap file edits
 - **Templates**: Partials are heavily reused; check `layouts/partials/` before creating new ones
