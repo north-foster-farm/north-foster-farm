@@ -236,16 +236,19 @@ SCSS import order, and where the site's data lives.
 
 ## Deployment
 
-Netlify builds `npm run check:env && npm run check:schedule &&
-bin/prod && HUGO_BUILD_SHA=$COMMIT_REF hugo --gc && npm run
-check:grid` and publishes `public/`, after the local build plugin
-`plugins/source-maps` has moved the source maps into Blobs. Branch deploys add
-Hugo's draft, future and expired flags.
+Netlify runs the build command in `netlify.toml` (the checks,
+`bin/prod`, `hugo --gc`, then the orphan and grid passes) and
+publishes `public/`, after the local build plugin
+`plugins/source-maps` has moved the source maps into Blobs. Branch
+deploys add Hugo's draft, future and expired flags. (2026-11-01: the
+command quoted here had fallen behind `netlify.toml`, #494.)
 
 Work lands on `next`, which does not build. Promotion is a
 fast-forward push, never a merge: `staging` moves to a `next` commit
-that passed `lint-and-test`, and `main` to a `staging` commit that has
-been reviewed (`docs/staging.md`). The `LGTM` label merges only pull
+that passed its checks, and `main` to a `staging` commit James has
+OKed, from a release branch since the launch (`docs/staging.md`).
+When each moves is the #502 rule in "Promoting to staging and e2e" in
+`docs/cloud-lanes.md`. The `LGTM` label merges only pull
 requests into `next`: it waits for the check on the labeled head,
 rebase-merges that exact head, then runs `ci.yml` on `next`, since the
 rebased commits are new. A pull request into `staging` or `main` is

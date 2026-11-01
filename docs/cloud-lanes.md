@@ -161,7 +161,10 @@ James's standing rule for every feature branch, lane and release from
 release A on (#303, #502, 2026-10-28). It replaces the earlier wording
 that kept the full suite for one final run on a frozen commit. Points
 2, 6 and 7 were added on 2026-10-28, and point 2 replaces the wording
-that had James wait for the full suite before looking.
+that had James wait for the full suite before looking. This section is
+the rule's one home: `CLAUDE.md`, `README.md`, `docs/staging.md`,
+`docs/security.md`, `docs/qa-launch.md` and `docs/rollback.md` link
+here instead of restating it (2026-11-01, #494).
 
 1. **Once `next` is green, push to `staging`.** Don't wait to batch,
    and don't wait to be asked.
@@ -179,11 +182,13 @@ that had James wait for the full suite before looking.
    full suite there. `staging` is always fixed forward, never
    reverted. Tell James what failed and why.
 6. **A newer push to `staging` supersedes an older full run.** The
-   older run stands down at its next safe point, between specs and
-   never inside one, and its teardown and the sweep of the suite's
-   leftovers still run. Today the workflow only stands down before
-   the first spec, when the deploy it waits for is no longer
-   staging's; the change for the rest is James's to make in `.github/`.
+   older run is meant to stand down at its next safe point, between
+   specs and never inside one, with its teardown and the sweep of the
+   suite's leftovers still run. **The mid-run stand-down is not
+   built** (checked 2026-11-01, #494): `e2e-staging.yml` stands down
+   only before the first spec, when the deploy it waits for is no
+   longer staging's, and a run already inside the specs goes on to the
+   end. Building the rest is James's change to make in `.github/`.
 7. **Production is promoted only from the exact commit the full suite
    passed on,** and only after James OKs `staging`. A green run on an
    earlier commit doesn't count once a later fix lands. `bin/nff

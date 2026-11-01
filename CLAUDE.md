@@ -35,21 +35,12 @@ decisions James made on GitHub. The issue numbers point to the source.
   Actions through `e2e.yml` and `e2e-run.yml` (a local build with fake
   payments), or on James's Mac. Specs that need real staging or a real
   phone are hands-on checks for James (#449).
-- **Promote to staging when green, full e2e on staging** (#502,
-  2026-10-28; the steps are in `docs/cloud-lanes.md`). Once `next` is
-  green, push to `staging` and ping James right away, without batching
-  or waiting to be asked. The full suite runs against `staging` in
-  parallel, after every push to it (`e2e/staging-full`): it gates
-  production, not James's look at staging. On `next`, run by name only
-  the specs the new code touches directly, and name them in the lane
-  or landing comment. A failure on staging is fixed forward through
-  `next`, never reverted, and James hears what failed and why. A newer
-  push to `staging` supersedes an older full run, which stands down at
-  its next safe point while teardown and the sweep still run.
-  Production waits for James's OK on staging and is promoted only from
-  the exact commit the full suite passed on: an earlier green run
-  doesn't count once a later fix lands, and `bin/nff promote main`
-  refuses any other (points 2, 6 and 7 added 2026-10-28).
+- **Promote to staging when green, full e2e on staging** (#502). The
+  rule lives in one place, "Promoting to staging and e2e" in
+  `docs/cloud-lanes.md`. In short: `next` green goes to `staging` with
+  a ping to James, the full suite runs there, and `main` takes only
+  the commit it passed on, after James's OK (2026-11-01: the copy that
+  stood here moved there, #494).
 - **Customer copy follows the #400 house rules:**
   - no semicolons and no em dashes in prose;
   - no internal model names in customer text ("Pickup days", not

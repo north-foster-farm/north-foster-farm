@@ -275,14 +275,10 @@ check belongs to its SHA. So:
   `release-audit` runs, and stops. It
   audits the commit's own lockfile first: reported now, blocking once
   `AUDIT_BLOCKS` is set, because a check that passed earlier cannot
-  see an advisory published since. When to promote (#502,
-  2026-10-28): `staging` as soon as `next` is green, with a ping to
-  James right away and the full e2e suite against it in parallel; a
-  newer push supersedes an older full run. A failure there is fixed
-  forward through `next`, never reverted. `main` only after James OKs
-  `staging`, and only from the exact commit the full suite passed on
-  (`docs/cloud-lanes.md`; points 2, 6 and 7 added 2026-10-28).
-  `promote main` checks the last: the commit, or a release's staging
+  see an advisory published since. When to promote is the #502 rule
+  in "Promoting to staging and e2e" in `docs/cloud-lanes.md`
+  (2026-11-01: the copy here moved there, #494). `promote main`
+  checks its point 7: the commit, or a release's staging
   parent, must be the head of a successful E2E staging run on
   `e2e/staging-full` whose `Run` step passed, read from the Actions
   API (`stagingSuite` in `bin/promote.mjs`). A run that stood down for
