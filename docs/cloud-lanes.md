@@ -161,26 +161,38 @@ James's standing rule for every feature branch, lane and release from
 release A on (#303, #502, 2026-10-28). It replaces the earlier wording
 that kept the full suite for one final run on a frozen commit. Points
 2, 6 and 7 were added on 2026-10-28, and point 2 replaces the wording
-that had James wait for the full suite before looking. This section is
+that had James wait for the full suite before looking. Points 2, 4 and
+5 changed on 2026-11-02 (#519): Netlify restricted the account for
+Functions overages, so the full suite runs against `staging` once per
+release candidate, where it had run after every push. This section is
 the rule's one home: `CLAUDE.md`, `README.md`, `docs/staging.md`,
 `docs/security.md`, `docs/qa-launch.md` and `docs/rollback.md` link
 here instead of restating it (2026-11-01, #494).
 
 1. **Once `next` is green, push to `staging`.** Don't wait to batch,
    and don't wait to be asked.
-2. **Ping James right away and run the full suite in parallel.** He
-   looks at `staging` while the suite runs. The suite gates the
-   promotion to production, not his look at `staging`.
+2. **Ping James right away.** He looks at `staging` without waiting
+   for the suite. The suite gates the promotion to production, not
+   his look at `staging`.
 3. **e2e on `next`: only the specs the new code is expected to touch
    directly.** Name them in the lane report or the landing comment and
-   run them by name (`gh workflow run e2e.yml --ref <branch> -f
-   specs="..."`).
-4. **The full suite runs against `staging`** after every push to it:
-   push staging's sha to `e2e/staging-full`.
+   run them by name on a lane branch (`gh workflow run e2e.yml --ref
+   <branch> -f specs="..."`).
+4. **One full staging run per release candidate, not one per push**
+   (#519). A release candidate is the `staging` commit meant for
+   `main`: the release's work has landed and James has looked at it.
+   Push its sha to `e2e/staging-full`. A push to `staging` that is not
+   a candidate takes no full run. No `--repeat-each` against `staging`
+   without James's OK. Sharding a staging run (#503) is on hold until
+   its cost is known, since running in parallel makes no fewer calls:
+   each run writes its count of function calls (see "The e2e suite
+   against staging").
 5. **A failure on staging:** triage it, fix it in `next`, rerun the
-   affected specs on `next`, push the fix to `staging` and rerun the
-   full suite there. `staging` is always fixed forward, never
-   reverted. Tell James what failed and why.
+   affected specs on `next`, push the fix to `staging` and rerun only
+   what failed there (`e2e/staging`). The fixed commit is the new
+   candidate and takes its one full run before `main` (point 7).
+   `staging` is always fixed forward, never reverted. Tell James what
+   failed and why.
 6. **A newer push to `staging` supersedes an older full run.** The
    older run is meant to stand down at its next safe point, between
    specs and never inside one, with its teardown and the sweep of the
@@ -201,9 +213,9 @@ here instead of restating it (2026-11-01, #494).
 Push staging's sha to `e2e/staging-full` (`git push origin
 <sha>:refs/heads/e2e/staging-full --force`; only the coordinator does)
 and `.github/workflows/e2e-staging.yml` waits for Netlify to serve that
-commit, then runs every spec. That is the run after every push to
-`staging`, and the one production is promoted from: it must have
-passed on that exact commit (point 7). A push to `e2e/staging`
+commit, then runs every spec. That is the one run per release
+candidate (point 4), and the one production is promoted from: it must
+have passed on that exact commit (point 7). A push to `e2e/staging`
 instead runs every spec not on `e2e/staging-passing.txt`, for a quick
 rerun of what failed while the fix is on its way. The run's summary
 lists the failed specs and the passed ones as `spec sha date` lines:
@@ -213,3 +225,13 @@ names the specs open work may break, and `bin/e2e-summary.mjs` writes the
 summary. It needs the Actions secrets `E2E_STAGING_TOKEN` and
 `E2E_STAGING_PING_URL`, and a failure alerts through the Healthchecks
 `/fail`. `orders-api` closes the paid sandbox order it places (#463).
+
+Every run counts the function calls it makes (#519): each request to
+`/api/` or `/.netlify/functions/` from a test's pages, its request
+contexts and the back office (the stock pins among them), but not one
+a spec's route answers itself. It writes the count to
+`test-results/function-calls.json`, total, per spec file and per path,
+and prints one `Function calls:` line with the total and the ten
+busiest specs (`e2e/support/calls.mjs`). A request Netlify serves from
+the edge or a redirect is not a function call, so the count is an
+upper bound for those few.

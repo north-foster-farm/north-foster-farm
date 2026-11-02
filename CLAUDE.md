@@ -44,9 +44,11 @@ decisions James made on GitHub. The issue numbers point to the source.
 - **Promote to staging when green, full e2e on staging** (#502). The
   rule lives in one place, "Promoting to staging and e2e" in
   `docs/cloud-lanes.md`. In short: `next` green goes to `staging` with
-  a ping to James, the full suite runs there, and `main` takes only
-  the commit it passed on, after James's OK (2026-11-01: the copy that
-  stood here moved there, #494).
+  a ping to James, the full suite runs there once per release
+  candidate, and `main` takes only the commit it passed on, after
+  James's OK (2026-11-01: the copy that stood here moved there, #494;
+  2026-11-02, #519: once per candidate, not per push, after Netlify's
+  Functions overage).
 - **Customer copy follows the #400 house rules:**
   - no semicolons and no em dashes in prose;
   - no internal model names in customer text ("Pickup days", not
