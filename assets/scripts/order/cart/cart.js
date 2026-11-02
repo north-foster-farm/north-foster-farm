@@ -475,9 +475,11 @@ export class Cart {
     qs(box, "[data-total='paid']").textContent = dollars(held);
     qs(box, "[data-edit-kept]").hidden = !kept;
     qs(box, "[data-total='kept']").textContent = `−${dollars(kept)}`;
-    qs(box, "[data-total='kept-label']").textContent = keptDate
-      ? `Delivery fee for the trip on ${label(keptDate)}`
-      : "Delivery fee for the trip";
+    // A kept fee always has its day: `orders attempted` dates the miss.
+    if (kept) {
+      qs(box, "[data-total='kept-label']").textContent =
+        `Delivery fee for the trip on ${label(keptDate)}`;
+    }
     qs(box, "[data-total='due-label']").textContent = diff < 0
       ? "We refund" : "You pay";
     qs(box, "[data-total='due']").textContent = dollars(Math.abs(diff));

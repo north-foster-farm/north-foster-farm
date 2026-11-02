@@ -89,7 +89,8 @@ const missed = (fee, over = {}, cause = "no-cooler", detail = "") => order({
   },
   payments: [{ ...card, amount: 9900 }],
   attempted: {
-    at: "2026-10-08T17:00:00.000Z", cause, fee, waived: !fee,
+    at: "2026-10-08T17:00:00.000Z", date: "2026-10-08", cause, fee,
+    waived: !fee,
     note: fee || ["weather", "farm"].includes(cause) ? "" :
       "First delivery; we'll let it go.",
     ...detail && { detail },

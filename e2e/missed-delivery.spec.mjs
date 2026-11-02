@@ -24,6 +24,7 @@ const MISSED = {
   question: { kind: "missed", reason: "", until: "2026-10-01",
     openedAt: "2026-09-24T18:00:00.000Z", answeredAt: null },
   keptFee: 500,
+  keptDate: "2026-09-24",
 };
 
 const setUp = async (page, context, baseURL, order = MISSED) => {
@@ -100,6 +101,9 @@ test.describe("a missed delivery", () => {
       await expect(money.locator("[data-total='paid']")).toHaveText("$61");
       await expect(money.locator("[data-edit-kept]")).toBeVisible();
       await expect(money.locator("[data-total='kept']")).toHaveText("−$5");
+      await expect(money.locator("[data-total='kept-label']")).toHaveText(
+        "Delivery fee for the trip on Thursday, September 24",
+      );
     });
 
   test("the booked day, now past, is not offered back",

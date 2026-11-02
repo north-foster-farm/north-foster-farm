@@ -94,8 +94,10 @@ const CASES = {
   }), true],
   missedDelivery: [() => templates.missedDelivery(order(),
     { pickUrl: url, links }), true],
-  movedDelivery: [() => templates.movedDelivery(order(),
-    { pickUrl: url, links }), true],
+  // Moved from the week before, the day it missed.
+  movedDelivery: [() => templates.movedDelivery({
+    ...order(), attempted: { cause: "farm", date: "2026-10-01" },
+  }, { pickUrl: url, links }), true],
   orderCancelled: [() => templates.orderCancelled(order(), {
     by: "farm", refunded: 700, reasonText: HOSTILE, links,
   }), true],

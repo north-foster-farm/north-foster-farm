@@ -629,10 +629,10 @@ const missedReason = (order) => {
 
 // The day of a miss as both emails name it: "today" on the day, and
 // "on Thursday, October 8" once the day is past (a resend, a late
-// mark). With no `date` (a record from before misses were dated) it
-// stays "today".
+// mark). Every miss is dated: `orders attempted` has written the date
+// since 2026-09-28 (#237).
 const missedOn = (date, now) => {
-  const late = !!date && today(now, terms.timeZone) > date;
+  const late = today(now, terms.timeZone) > date;
 
   return { late, day: late ? `on ${label(date)}` : "today" };
 };
@@ -702,7 +702,7 @@ export const movedDelivery = (order, {
 } = {}) => {
   const a = order.attempted || {};
   const date = order.fulfilment.date;
-  const next = !a.date || addDays(a.date, 7) === date;
+  const next = addDays(a.date, 7) === date;
   const when = next ? `next ${DELIVERY_DAY}` : DELIVERY_DAY;
   const title = `Your delivery has moved to ${next ? when : label(date)}`;
   const { day } = missedOn(a.date, now);

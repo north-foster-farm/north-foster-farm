@@ -762,7 +762,9 @@ describe("order changed and canceled", () => {
   });
 
   const attempted = (fee) => ({
-    ...order(), attempted: { cause: "customer", fee, waived: !fee },
+    ...order(), attempted: {
+      cause: "customer", date: order().fulfilment.date, fee, waived: !fee,
+    },
   });
   // The evening of the missed delivery.
   const missedOn = new Date("2026-10-08T20:00:00Z");
@@ -885,12 +887,6 @@ describe("order changed and canceled", () => {
       { links, now: new Date("2026-10-09T02:00:00Z") });
 
     has(same.text, "We weren't able to deliver your order today, so");
-
-    // A record from before the miss was dated has no day to name.
-    const undated = movedDelivery(moved("farm", { date: undefined }),
-      { links, now: later });
-
-    has(undated.text, "We weren't able to deliver your order today, so");
   });
 
   it("says why when the hold ran out", () => {
