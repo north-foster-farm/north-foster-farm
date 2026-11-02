@@ -855,7 +855,10 @@ describe("order changed and canceled", () => {
     // A holiday a week on: the day is named, not "next".
     assert.equal(h.subject, "Your delivery has moved to Thursday, October 22");
     has(h.text, "we've moved your delivery to Thursday, October 22.");
-    has(h.text, "If that day doesn't suit you");
+    has(h.text, "If that day doesn't work for you");
+    has(w.text, "If next Thursday doesn't work for you, you can choose " +
+      "another day");
+    assert.doesNotMatch(`${w.text}${f.text}${h.text}`, /suit you/);
   });
 
   it("names the missed day when the moved email is sent late, as the " +

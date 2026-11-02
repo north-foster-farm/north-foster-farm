@@ -574,6 +574,16 @@ export const library = [
     }),
   },
   {
+    id: "moved-delivery-late", name: "Delivery moved, sent later",
+    when: "The weather stopped a delivery, and the email went out the " +
+      "next day",
+    audience: C, tags: ["missed delivery", "delivery", "weather"],
+    build: (links) => t.movedDelivery(movedOn("weather"), {
+      pickUrl: signIn(links), links,
+      now: new Date("2026-10-09T14:00:00Z"),
+    }),
+  },
+  {
     id: "order-cancelled-hold-fee-kept",
     name: "Hold ran out, fee kept",
     when: "Seven days after a customer's miss, with no choice made",
@@ -908,6 +918,12 @@ const C4 = "James approved it on #233 (C4, 2026-09-28): a cancel " +
 const T5A = "Decided on #233 (T5a, 2026-09-28): it uses the farm " +
   "card, as the other farm notices do. No View order or View customer " +
   "button until the dashboard shows the site\x27s orders (T5b).";
+// James's review of the missed-delivery words, by voice (#237,
+// 2026-11-02).
+const MISSED = "James approved it as written on #237 (2026-11-02), " +
+  "the reason lines with it.";
+const MOVED = "James approved it on #237 (2026-11-02), with \"work " +
+  "for you\" and the missed day named when it goes out later.";
 const APPROVED = {
   "order-confirmed-delivery": "James\x27s rewrite of 2026-09-22, verbatim.",
   "order-confirmed-dropsite": LIBRARY,
@@ -936,6 +952,19 @@ const APPROVED = {
   "order-cancelled-hold-fee-kept": `${C4} Sent by the job that ends ` +
     "the hold (#193).",
   "order-cancelled-hold-full-refund": `${C4} As above.`,
+  "missed-delivery-fee-kept": `${MISSED} Sent by bin/nff orders ` +
+    "attempted for the customer\x27s miss (#193).",
+  "missed-delivery-no-fee": `${MISSED} A waived miss gets the same ` +
+    "seven-day hold (C8b).",
+  "missed-delivery-no-access": `${MISSED} The words in brackets are ` +
+    "the farm\x27s --detail; without it the line goes without.",
+  "missed-delivery-no-address": `${MISSED} The address is the one the ` +
+    "customer gave.",
+  "moved-delivery-weather": `${MOVED} Sent by bin/nff orders attempted ` +
+    "for a weather or farm miss, which moves the order (#193).",
+  "moved-delivery-farm": MOVED,
+  "moved-delivery-late": `${MOVED} Sent after the day of the miss (a ` +
+    "resend, a late mark), so it names that day instead of \"today\".",
   "farm-support": T5A,
   "farm-refund-needed": T5A,
   "farm-return-request": T5A,
@@ -945,10 +974,6 @@ const APPROVED = {
 // Rewrites of 2026-09-26 that have landed come back here to approve,
 // showing the landed text.
 const LANDED = "His rewrite of 2026-09-26, landed";
-const C3 = "Policy-pages\x27 draft of 2026-09-28 for C3, C7 and C8 " +
-  "(#192): it switches on the fee the missed delivery kept.";
-const REASON = " The reason line is his C6a draft for the cause " +
-  "(2026-09-28); the other causes have their own entries.";
 const T4 = "Removed items head the list under \"Removed\", as plain " +
   "lines (T4, 2026-09-28). Draft: the heading \"Your order now\" above " +
   "what is still coming.";
@@ -979,18 +1004,6 @@ const WAITING = {
   "order-changed-refunded": `${T4} Its refund line he kept (T3).`,
   "farm-order-changed": `He approved it on 2026-09-26; since then ${T4}`,
   "address-denied": `${LANDED}, verbatim.`,
-  "missed-delivery-fee-kept": `${C3}${REASON} Sent by ` +
-    "bin/nff orders attempted for the customer\x27s miss (#193).",
-  "missed-delivery-no-fee": `${C3}${REASON} A waived miss gets the ` +
-    "same seven-day hold (C8b).",
-  "missed-delivery-no-access": `${C3}${REASON} The words in brackets ` +
-    "are the farm\x27s --detail; without it the line goes without.",
-  "missed-delivery-no-address": `${C3}${REASON} The address is the one ` +
-    "the customer gave.",
-  "moved-delivery-weather": `${C3} It offers another day as well as ` +
-    "pickup or a refund (C7b, 2026-09-28). Sent by bin/nff orders attempted " +
-    "for a weather or farm miss, which moves the order (#193).",
-  "moved-delivery-farm": C3,
   "farm-order-placed-onfarm": `He approved it on 2026-09-26. ${W11D} ` +
     "The confirm and deny commands are gone from it.",
   "farm-pickup-changed": `${W11D} Now a notice, "Pickup moved", with ` +
