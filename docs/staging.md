@@ -194,9 +194,9 @@ makes the Venmo button show. `docs/qa-fulfilment-a.md` has the steps.
 Netlify runs scheduled functions on the production deploy only. The
 `Staging jobs` workflow (`.github/workflows/staging-jobs.yml`) calls
 `/api/staging/jobs/run` instead, so staging's jobs run on Netlify,
-with its own environment. It asks for every fifteen minutes, off the
-quarter hour, but GitHub schedules it only from `main` and throttles
-it: runs have come two to six hours apart (#164). Those gaps are
+with its own environment. It asks for once an hour, at seven past
+(every fifteen minutes until Netlify's Functions overage, #519), but
+GitHub schedules it only from `main` and throttles it: runs have come two to six hours apart (#164). Those gaps are
 accepted, and the schedule is not a test tool. The jobs are safe to
 run late or twice, but a day with no run between 18:00 and midnight
 gets no delivery reminder and no manifest. A tester who needs a job

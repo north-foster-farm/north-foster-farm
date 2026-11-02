@@ -6,7 +6,7 @@ name: E2E staging
 # coordinator pushes staging's sha to one of two branches.
 #
 #   e2e/staging       every spec not on e2e/staging-passing.txt
-#   e2e/staging-full  every spec (the final run on the frozen commit)
+#   e2e/staging-full  every spec, once per release candidate (#519)
 #
 # workflow_dispatch works only once a workflow is on the default
 # branch, which is not ours to push, so a branch push is the trigger.
