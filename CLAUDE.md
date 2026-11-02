@@ -51,6 +51,9 @@ decisions James made on GitHub. The issue numbers point to the source.
   Functions overage).
 - **Customer copy follows the #400 house rules:**
   - no semicolons and no em dashes in prose;
+  - a fragment used as a label, badge, row heading or row value never
+    takes a trailing period or other end punctuation, while full
+    sentences keep theirs (James, 2026-11-02, #514);
   - no internal model names in customer text ("Pickup days", not
     "scheduled pickup");
   - "email address" when it means the address;

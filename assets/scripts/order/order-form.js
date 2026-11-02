@@ -1142,8 +1142,8 @@ export class OrderForm {
 
     note.hidden = used === 0 && !family;
     if (family) {
-      // Draft wording.
-      note.textContent = "Nothing to pay on this order.";
+      // Approved by James (#514, 2026-11-02).
+      note.textContent = "There's nothing to pay on this order.";
     } else if (used > 0) {
       note.textContent = covered
         ? `Your credit covers this order: ${dollars(used)}, nothing to pay.`

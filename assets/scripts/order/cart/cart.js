@@ -595,13 +595,21 @@ export class Cart {
     if (this.teaching) this.teaching.keep();
   }
 
-  // The signed-in customer's perks (#514), each as its sentence: what
-  // the totals already apply, said so the customer knows why.
+  // The signed-in customer's perks (#514), one line each: what the
+  // totals already apply, said so the customer knows why. The lines
+  // are fragments with no end punctuation, so each takes its own line.
   setPerks(perks) {
     const note = qs(this.root, "[data-cart-perks]");
 
     if (!note) return;
-    note.textContent = perks.map(perkSentence).join(" ");
+    note.replaceChildren(...perks.map((perk) => {
+      const line = document.createElement("span");
+
+      line.className = "d-block";
+      line.textContent = perkSentence(perk);
+
+      return line;
+    }));
     note.hidden = !perks.length;
   }
 

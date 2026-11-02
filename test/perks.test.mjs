@@ -218,13 +218,25 @@ describe("a perk's dates", () => {
   });
 });
 
-describe("perk wording (drafts)", () => {
+describe("perk wording (approved, 2026-11-02)", () => {
   it("says the end date, or nothing for an open perk", () => {
     assert.equal(perkSentence({ type: "free-delivery", end: "2027-12-31" }),
-      "Free delivery through the end of 2027.");
+      "Free delivery through the end of 2027");
+    assert.equal(perkSentence({ type: "free-delivery", end: "2027-03-03" }),
+      "Free delivery through March 3, 2027");
     assert.equal(perkSentence({ type: "free-delivery", end: null }),
-      "Free delivery.");
+      "Free delivery");
     assert.equal(perkSentence({ type: "minimum-waived", end: "2027-03-03" }),
-      "No delivery minimum through March 3, 2027.");
+      "No delivery minimum through March 3, 2027");
+  });
+
+  it("names each perk as approved, with no end punctuation", () => {
+    assert.equal(perkSentence({ type: "minimum-waived" }),
+      "No delivery minimum");
+    assert.equal(perkSentence({ type: "friends" }),
+      "Friends and family pricing, with free delivery and no delivery " +
+      "minimum");
+    assert.equal(perkSentence({ type: "family" }),
+      "Family orders, with nothing to pay");
   });
 });

@@ -907,7 +907,8 @@ class Account {
     const group = c.discountGroup && groups[c.discountGroup];
     const row = document.getElementById("prof-group-row");
 
-    // And the customer's perks (#514), each as its sentence (drafts).
+    // And the customer's perks (#514), one line each: fragments with no
+    // end punctuation, so each takes its own line.
     const perks = Array.isArray(c.perks) ? c.perks : [];
     const lines = [
       ...group ? [`${group.label}: ${group.percent}% off, whenever that ` +
@@ -916,7 +917,15 @@ class Account {
     ];
 
     row.hidden = !lines.length;
-    document.getElementById("prof-group").textContent = lines.join(" ");
+    document.getElementById("prof-group").replaceChildren(
+      ...lines.map((text) => {
+        const line = document.createElement("span");
+
+        line.className = "d-block";
+        line.textContent = text;
+
+        return line;
+      }));
   }
 
   async saveAddress() {

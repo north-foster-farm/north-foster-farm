@@ -1361,7 +1361,7 @@ export const paymentPhrase = (order) => {
   const payments = paymentsOf(order);
 
   // A family order (#514) has no payment and nothing due: "$0, nothing
-  // to pay". Draft wording.
+  // to pay", as James approved (#514, 2026-11-02).
   if (!payments.length && order.totals.total === 0) {
     return "$0, nothing to pay";
   }

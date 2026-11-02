@@ -78,7 +78,7 @@ export const publicPerk = (perk) => ({
   type: perk.type, start: perk.start || null, end: perk.end || null,
 });
 
-// Draft wording, pending James's approval (#514, Q8).
+// Approved by James (#514, 2026-11-02).
 const NAMES = {
   "free-delivery": "Free delivery",
   "minimum-waived": "No delivery minimum",
@@ -99,11 +99,12 @@ const through = (end) => {
     : `through ${MONTHS[m - 1]} ${d}, ${y}`;
 };
 
-// One sentence for a perk, as the customer sees it: "Free delivery
-// through the end of 2027." or "Free delivery." Draft wording.
+// One line for a perk, as the customer sees it: "Free delivery
+// through the end of 2027" or "Free delivery". A fragment, so no end
+// punctuation (#514, 2026-11-02).
 export const perkSentence = (perk) => {
   const name = NAMES[perk.type] || perk.type;
 
-  return perk.end && DAY.test(perk.end) ? `${name} ${through(perk.end)}.`
-    : `${name}.`;
+  return perk.end && DAY.test(perk.end) ? `${name} ${through(perk.end)}`
+    : name;
 };
