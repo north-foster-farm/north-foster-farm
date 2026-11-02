@@ -194,6 +194,39 @@ describe("POST /api/orders with a perk", () => {
       assert.equal(data.totals.perks, undefined);
     });
 
+  // A typed address is no proof of who is ordering (#521): a perk
+  // holder's, signed out, is answered as a stranger's is, apart from
+  // the order's own id and the address itself.
+  it("answers a perk holder's address signed out as it answers anyone's",
+    async (t) => {
+      quietLog(t);
+
+      const answer = async (email) => {
+        const { stores } = await holder("friends");
+        const res = await place(stores, {
+          ...delivery(2, 6000),
+          customer: { ...delivery(2, 6000).customer, email },
+        });
+        const text = await res.text();
+        const { orderId } = JSON.parse(text);
+
+        return {
+          status: res.status,
+          body: JSON.parse(text.replaceAll(orderId || "\0", "ID")
+            .replaceAll(email, "EMAIL")),
+        };
+      };
+
+      const theirs = await answer(PAT);
+      const anyone = await answer("someone.else@example.com");
+
+      assert.equal(theirs.status, 200, JSON.stringify(theirs.body));
+      assert.deepEqual(theirs, anyone);
+      assert.equal(theirs.body.totals.total, 6000);
+      assert.equal(theirs.body.totals.perks, undefined);
+      assert.equal(theirs.body.totals.discountPerk, undefined);
+    });
+
   it("never spends a pass on what a perk already lifts", async (t) => {
     quietLog(t);
 
