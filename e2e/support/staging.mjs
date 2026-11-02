@@ -242,6 +242,20 @@ const FORMS = {
     return `Deleted ${email}.`;
   },
   login: async ([, email]) => (await op("login", { email })).url,
+  // `["perks", "add", email, type, "--end=YYYY-MM-DD"]` (#521).
+  "perks add": async ([, , email, type, ...rest]) => {
+    const { perk } = await op("perksAdd", {
+      email, type, start: flag(rest, "start"), end: flag(rest, "end"),
+    });
+
+    return `Added ${type} to ${email} from ${perk.start}${
+      perk.end ? ` through ${perk.end}` : " until removed"}.`;
+  },
+  "perks remove": async ([, , email, type]) => {
+    await op("perksRemove", { email, type });
+
+    return `Removed ${type} from ${email}.`;
+  },
   "maintenance status": async () => `Maintenance is ${
     (await op("maintenanceStatus")).on ? "ON" : "off"}.`,
   "maintenance on": async () => {

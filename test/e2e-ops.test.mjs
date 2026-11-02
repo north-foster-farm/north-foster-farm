@@ -6,6 +6,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { runOp } from "../netlify/functions/lib/e2e.mjs";
+import { maskEmail } from "../netlify/functions/lib/mask.mjs";
 import { getPass, passKey } from "../netlify/functions/lib/passes.mjs";
 import {
   getCustomer, saveCustomer,
@@ -187,6 +188,94 @@ describe("the pass ops (#182)", () => {
     assert.equal((await runOp(stores, { op: "passDelete" }, env)).status,
       400);
   });
+});
+
+describe("the perk ops (#521)", () => {
+  const capture = (t) => {
+    const lines = [];
+
+    for (const level of ["log", "info", "warn", "error"]) {
+      t.mock.method(console, level, (...args) => {
+        lines.push(args.map(String).join(" "));
+      });
+    }
+
+    return lines;
+  };
+  const logged = (lines, event) => lines
+    .filter((l) => l.includes(event)).map((l) => JSON.parse(l));
+
+  it("add a perk, logged with the address masked and the suite as who",
+    async (t) => {
+      const lines = capture(t);
+      const stores = testStores();
+      const res = await runOp(stores, {
+        op: "perksAdd", email: "Pat@Example.com", type: "free-delivery",
+        end: "2027-12-31",
+      }, env);
+
+      assert.equal(res.status, 200, JSON.stringify(res.body));
+      assert.equal(res.body.record, maskEmail("pat@example.com"));
+      assert.equal(res.body.perk.type, "free-delivery");
+      assert.equal(res.body.perk.end, "2027-12-31");
+      assert.equal(res.body.perk.setBy, "e2e");
+      assert.deepEqual(
+        (await getCustomer(stores, "pat@example.com")).perks.map((p) => p.type),
+        ["free-delivery"]);
+
+      const [line] = logged(lines, "perk.added");
+
+      assert.equal(line.by, "e2e");
+      assert.equal(line.record, maskEmail("pat@example.com"));
+      assert.deepEqual(line.after, ["free-delivery"]);
+      assert.doesNotMatch(JSON.stringify(lines), /pat@example\.com/i);
+    });
+
+  it("remove a perk, logged the same way", async (t) => {
+    const lines = capture(t);
+    const stores = testStores();
+
+    await runOp(stores, {
+      op: "perksAdd", email: "pat@example.com", type: "friends",
+    }, env);
+
+    const res = await runOp(stores, {
+      op: "perksRemove", email: "pat@example.com", type: "friends",
+    }, env);
+
+    assert.equal(res.status, 200, JSON.stringify(res.body));
+    assert.equal(res.body.perk.removedBy, "e2e");
+
+    const [line] = logged(lines, "perk.removed");
+
+    assert.equal(line.by, "e2e");
+    assert.equal(line.record, maskEmail("pat@example.com"));
+    assert.deepEqual(line.before, ["friends"]);
+    assert.deepEqual(line.after, []);
+    assert.doesNotMatch(JSON.stringify(lines), /pat@example\.com/i);
+  });
+
+  it("never set the family perk, and refuse what the CLI refuses",
+    async (t) => {
+      capture(t);
+
+      const stores = testStores();
+      const family = await runOp(stores, {
+        op: "perksAdd", email: "pat@example.com", type: "family",
+      }, env);
+
+      assert.equal(family.status, 400);
+      assert.equal(await getCustomer(stores, "pat@example.com"), null);
+      assert.equal((await runOp(stores, {
+        op: "perksAdd", email: "pat@example.com", type: "nope",
+      }, env)).status, 400);
+      assert.equal((await runOp(stores, {
+        op: "perksAdd", type: "friends",
+      }, env)).status, 400);
+      assert.equal((await runOp(stores, {
+        op: "perksRemove", email: "pat@example.com", type: "friends",
+      }, env)).status, 404, "no such customer");
+    });
 });
 
 describe("an op's error", () => {
