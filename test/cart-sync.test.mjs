@@ -3,7 +3,7 @@ import { describe, it } from "node:test";
 
 import { Draft, forgetCustomer } from "../assets/scripts/order/draft.js";
 import {
-  cartOf, settle, signedOut, stray,
+  carryOf, cartOf, settle, signedOut, stray,
 } from "../assets/scripts/order/lib/cart-sync.mjs";
 import {
   SCRUBBED, pullCart, push, scrubStray,
@@ -11,7 +11,9 @@ import {
 import {
   cartOwner, getCart, saveCart,
 } from "../netlify/functions/lib/account.mjs";
-import { createSession } from "../netlify/functions/lib/auth.mjs";
+import {
+  createSession, requestLink,
+} from "../netlify/functions/lib/auth.mjs";
 import {
   deleteCustomer, saveCustomer,
 } from "../netlify/functions/lib/records.mjs";
@@ -77,10 +79,57 @@ describe("the cart across devices (#149)", () => {
     // What then goes up to the next account signed in here.
     assert.deepEqual(cartOf(left).fulfilment.delivery, {
       address1: "", address2: "", town: "", zip: "", cooler: "",
-      notes: "",
+      notes: "", toGroup: false,
     });
     assert.equal(cartOf(left).customer.email, "");
   });
+
+  it("carries a scheduled pickup, a group's delivery, a pass and a " +
+    "group code (#521)", () => {
+    const cart = cartOf({
+      ...payload(),
+      fulfilment: { method: "scheduled", occurrence: "36TS-261010",
+        delivery: { toGroup: true } },
+      pass: "AB7K-Q2MX",
+      groupCode: "GYM2026",
+      groupLink: true,
+    });
+
+    assert.equal(cart.fulfilment.occurrence, "36TS-261010");
+    assert.equal(cart.fulfilment.delivery.toGroup, true);
+    assert.equal(cart.pass, "AB7K-Q2MX");
+    assert.equal(cart.groupCode, "GYM2026");
+    assert.equal("groupLink" in cart, false, "how the code came stays");
+
+    // None of them, or junk in their place, carries nothing.
+    const none = cartOf({
+      ...payload(), pass: null, groupCode: { x: 1 },
+      fulfilment: { occurrence: 7, delivery: { toGroup: "yes" } },
+    });
+
+    assert.equal(none.pass, "");
+    assert.equal(none.groupCode, "");
+    assert.equal(none.fulfilment.occurrence, "");
+    assert.equal(none.fulfilment.delivery.toGroup, false);
+  });
+
+  it("the account keeps a scheduled pickup and a group code (#521)",
+    async () => {
+      const stores = testStores();
+
+      await saveCart(stores, pat, {
+        payload: {
+          ...payload(), groupCode: "GYM2026",
+          fulfilment: { method: "scheduled", occurrence: "36TS-261010" },
+        },
+        savedAt: T,
+      }, { now });
+
+      const { cart } = await getCart(stores, pat);
+
+      assert.equal(cart.payload.fulfilment.occurrence, "36TS-261010");
+      assert.equal(cart.payload.groupCode, "GYM2026");
+    });
 
   it("the copy saved last wins", () => {
     const local = { payload: payload(), savedAt: 200 };
@@ -454,4 +503,229 @@ describe("a session that ended on the server (#149)", () => {
     assert.equal(scrubStray(A), false);
     assert.ok(!mine.events.includes(SCRUBBED), "the owner's own: no scrub");
   });
+});
+
+// A guest's draft as the order page keeps it: their details, their
+// address and notes, a code, the way and the day, and a payment
+// attempt's keys.
+const guestDraft = (savedAt = T - 60_000) => ({
+  savedAt,
+  payload: {
+    ...payload([{ sku: "NFF-CHK-WHL-35-39", qty: 2 }]),
+    fulfilment: {
+      method: "delivery", date: "2026-10-08",
+      onfarm: { window: "09:00-12:00" },
+      delivery: { address1: "1 Main St", town: "Foster", zip: "02825",
+        cooler: "Porch", notes: "Gate code 1234", toGroup: false },
+    },
+    pass: "AB7K-Q2MX",
+    groupCode: "GYM2026",
+    extra: { anything: "else" },
+  },
+});
+
+const PRIVATE = new RegExp(["Pat", "Example", "pat@", "Main St", "Foster",
+  "02825", "Porch", "Gate code", "HELLO", "AB7K", "GYM2026", "else"]
+  .join("|"));
+
+describe("the cart a sign-in link carries (#521)", () => {
+  it("is the lines and the delivery choice, nothing more", () => {
+    assert.deepEqual(carryOf(guestDraft()), {
+      savedAt: T - 60_000,
+      payload: {
+        lines: [{ sku: "NFF-CHK-WHL-35-39", qty: 2 }],
+        fulfilment: {
+          method: "delivery", date: "2026-10-08",
+          onfarm: { window: "09:00-12:00" },
+        },
+      },
+    });
+    assert.doesNotMatch(JSON.stringify(carryOf(guestDraft())), PRIVATE);
+
+    const scheduled = carryOf({ savedAt: 1, payload: {
+      lines: [{ sku: "A", qty: 1 }],
+      fulfilment: { method: "scheduled", occurrence: "36TS-261010",
+        delivery: { toGroup: true, address1: "1 Main St" } },
+    } });
+
+    assert.deepEqual(scheduled.payload.fulfilment, {
+      method: "scheduled", occurrence: "36TS-261010",
+      delivery: { toGroup: true },
+    });
+  });
+
+  it("drops what isn't its shape, and bounds the lines", () => {
+    const odd = carryOf({ savedAt: 5, payload: {
+      lines: [{ sku: "<b>x</b>", qty: 1 }, { sku: "A", qty: 2 }],
+      fulfilment: { method: "teleport", date: "tomorrow",
+        occurrence: "a b", onfarm: { window: "<script>" } },
+    } });
+
+    assert.deepEqual(odd, {
+      savedAt: 5,
+      payload: { lines: [{ sku: "A", qty: 2 }], fulfilment: { method: "" } },
+    });
+
+    const many = carryOf({ savedAt: 5, payload: {
+      lines: Array.from({ length: 5000 }, (_, i) => ({ sku: `S${i}`, qty: 1 })),
+    } });
+
+    assert.equal(many.payload.lines.length, 200);
+
+    for (const junk of [null, "x", {}, { savedAt: 5 },
+      { savedAt: 5, payload: { lines: [] } },
+      { savedAt: "soon", payload: { lines: [{ sku: "A", qty: 1 }] } },
+      { savedAt: -1, payload: { lines: [{ sku: "A", qty: 1 }] } }]) {
+      assert.equal(carryOf(junk), null, JSON.stringify(junk));
+    }
+  });
+
+  const post = (body) => new Request("https://x/api/auth/request", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json", "sec-fetch-site": "same-origin",
+    },
+    body: JSON.stringify(body),
+  });
+  const mailbox = () => {
+    const sent = [];
+
+    return { sent, mail: async (m) => sent.push(m) && { id: "m" } };
+  };
+  const env = { URL: "https://northfosterfarm.com" };
+  const tokens = async (stores) => Promise.all(
+    (await stores.auth.list("token/")).map(({ key }) => stores.auth.get(key))
+  );
+  const follow = async (stores, sent) => {
+    const token = new URL(sent.at(-1).text.match(/https:\S+/)[0])
+      .searchParams.get("token");
+
+    return authHandle(new Request(
+      `https://x/api/auth/verify?token=${token}`), { stores, env, now });
+  };
+
+  it("rides on the link's record and lands on the account's cart",
+    async () => {
+      const stores = testStores();
+      const { sent, mail } = mailbox();
+      const res = await authHandle(post({
+        email: pat.email, next: "/order/", cart: guestDraft(),
+      }), { stores, env, now, mail });
+
+      assert.equal(res.status, 200);
+
+      const [record] = await tokens(stores);
+
+      assert.deepEqual(record.cart, carryOf(guestDraft()));
+      assert.equal(record.next, "/order/");
+      assert.doesNotMatch(JSON.stringify(record.cart), PRIVATE);
+
+      const verified = await follow(stores, sent);
+
+      assert.equal(verified.status, 302);
+      assert.match(verified.headers.get("location"), /^\/order\//);
+
+      const { cart } = await getCart(stores, pat);
+
+      assert.equal(cart.savedAt, T - 60_000, "the guest draft's own time");
+      assert.deepEqual(cart.payload.lines,
+        [{ sku: "NFF-CHK-WHL-35-39", qty: 2 }]);
+      assert.equal(cart.payload.fulfilment.method, "delivery");
+      assert.equal(cart.payload.fulfilment.date, "2026-10-08");
+      assert.equal(cart.payload.customer.email, "");
+      assert.equal(cart.payload.fulfilment.delivery.address1, "");
+      assert.doesNotMatch(JSON.stringify(cart), PRIVATE);
+
+      // Still one use: gone once followed.
+      assert.deepEqual(await tokens(stores), []);
+      assert.equal((await follow(stores, sent)).headers.get("location"),
+        "/login/?error=unknown");
+    });
+
+  it("opens in another browser with the cart, and changes nothing in " +
+    "the one it came from", async () => {
+    const stores = testStores();
+    const { sent, mail } = mailbox();
+
+    await authHandle(post({
+      email: pat.email, next: "/order/", cart: guestDraft(),
+    }), { stores, env, now, mail });
+    await follow(stores, sent);
+
+    const account = await getCart(stores, pat);
+    const reply = (method, body) => (method === "GET"
+      ? { data: account }
+      : { data: { ok: true, kept: true, owner: B, cart: body } });
+
+    // Another browser: no draft of its own, so it takes the account's.
+    browser({ cookie: SIGNED_IN, reply });
+    assert.equal(await pullCart(), true);
+    assert.deepEqual(new Draft().current().payload.lines,
+      [{ sku: "NFF-CHK-WHL-35-39", qty: 2 }]);
+    assert.equal(new Draft().current().payload.fulfilment.date, "2026-10-08");
+
+    // The browser it came from holds the same draft, same time: kept,
+    // with the details and address typed there.
+    const { sent: same } = browser({ cookie: SIGNED_IN, reply });
+
+    window.localStorage.setItem("nff-order-draft",
+      JSON.stringify(guestDraft()));
+    assert.equal(await pullCart(), false);
+    assert.equal(new Draft().current().payload.customer.firstName, "Pat");
+    assert.equal(new Draft().current().payload.fulfilment.delivery.address1,
+      "1 Main St");
+    assert.equal(same.filter((r) => r.method === "PUT").length, 0);
+  });
+
+  it("never replaces a newer cart on the account", async () => {
+    const stores = testStores();
+    const { sent, mail } = mailbox();
+
+    await saveCart(stores, pat, { payload: payload(), savedAt: T - 1000 },
+      { now });
+    await authHandle(post({
+      email: pat.email, cart: guestDraft(T - 60_000),
+    }), { stores, env, now, mail });
+    await follow(stores, sent);
+    assert.deepEqual((await getCart(stores, pat)).cart.payload.lines,
+      [{ sku: "A", qty: 2 }]);
+  });
+
+  it("answers the same, whoever the address is", async () => {
+    const stores = testStores();
+    const { mail } = mailbox();
+
+    await saveCustomer(stores, {
+      email: pat.email, firstName: "Pat",
+      perks: [{ type: "free-delivery", start: "2026-10-01", end: null }],
+    });
+
+    const ask = async (email) => {
+      const res = await authHandle(post({
+        email, next: "/order/", cart: guestDraft(),
+      }), { stores, env, now, mail });
+
+      return { status: res.status, body: await res.text(),
+        headers: [...res.headers] };
+    };
+
+    assert.deepEqual(await ask(pat.email), await ask("nobody@example.com"));
+  });
+
+  it("is not carried by a change of address or a group's sign-up",
+    async () => {
+      const stores = testStores();
+
+      await requestLink(stores, {
+        email: "new@example.com", cart: guestDraft(),
+      }, { now, env, send: false, changeFrom: pat.email });
+      await requestLink(stores, {
+        email: "joiner@example.com", cart: guestDraft(),
+      }, { now, env, send: false, join: { record: { group: "vff" } } });
+
+      const made = await tokens(stores);
+
+      assert.equal(made.length, 2);
+      assert.ok(made.every((t) => !("cart" in t)));
+    });
 });

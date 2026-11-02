@@ -4,8 +4,9 @@
 // same way to sign in as a customer.
 //
 // Store layout (the `auth` store):
-//   token/<sha256(token)>   { email, expires, next, changeFrom? }
-//                           one use, 15 min
+//   token/<sha256(token)>   { email, expires, next, changeFrom?, cart? }
+//                           one use, 15 min; `cart` is a guest's cart
+//                           lines and delivery choice (#521, carryOf)
 //   session/<sha256(id)>    { email, createdAt, expires, via }
 //   rate/<email>            { times: [...] }             link requests
 //   rate/join/<email>       { times: [...] }    join-link requests, kept
@@ -28,6 +29,7 @@ import {
 } from "./templates.mjs";
 import accounts from "../../../data/accounts.json" with { type: "json" };
 import terms from "../../../data/delivery.json" with { type: "json" };
+import { carryOf } from "../../../assets/scripts/order/lib/cart-sync.mjs";
 import {
   activePerks, publicPerk,
 } from "../../../assets/scripts/order/lib/perks.mjs";
@@ -81,8 +83,9 @@ export const hit = async (stores, key, now, { windowMs, max }) => {
 // Only a same-site path may follow a sign-in, never another site. A
 // control character is out too: browsers drop a tab or newline from a
 // URL, so "/\t/evil.example" would resolve to "//evil.example".
+// Only a string: a JSON body may send anything (#521).
 export const safeNext = (next) => {
-  const s = String(next || "");
+  const s = typeof next === "string" ? next : "";
 
   // eslint-disable-next-line no-control-regex
   const control = /[\x00-\x1f]/.test(s);
@@ -118,7 +121,10 @@ export const ensureCustomer = async (stores, email, now) => {
 // longer (`ttl`). With `changeFrom`, the link confirms a signed-in
 // customer's new address (#240): it goes to that address, and
 // following it moves the account from `changeFrom` (lib/email-change).
-export const requestLink = async (stores, { email, next }, {
+// `cart`, from the sign-in page, is a guest's cart: what carryOf keeps
+// of it rides on the link to the account (#521). Nothing here reads
+// the customer's record, so the answer is the same for any address.
+export const requestLink = async (stores, { email, next, cart }, {
   now = clock(),
   env = process.env,
   mail = sendMail,
@@ -147,6 +153,8 @@ export const requestLink = async (stores, { email, next }, {
   }
 
   const token = secret();
+  // A change of address or a group's sign-up carries no cart.
+  const carried = changeFrom || join ? null : carryOf(cart);
 
   await putAuth(stores, `token/${hash(token)}`, {
     email: address,
@@ -157,6 +165,7 @@ export const requestLink = async (stores, { email, next }, {
     // A group's sign-up page (#495): following the link joins the
     // group, by lib/join.mjs. Its `group` is the key, never the token.
     ...(join ? { join: join.record } : {}),
+    ...(carried ? { cart: carried } : {}),
   });
 
   const url = `${siteUrl(env)}/api/auth/verify?token=${token}`;
@@ -205,6 +214,7 @@ const tokenResult = (found) => ({
   next: found.next || "/account/",
   changeFrom: found.changeFrom || null,
   ...(found.join ? { join: found.join } : {}),
+  ...(found.cart ? { cart: found.cart } : {}),
 });
 
 // Reads a token without spending it, so a prefetch or a scanner

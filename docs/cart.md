@@ -300,7 +300,18 @@ issues. Wording below is today's, approved under #400.
   goes to `/api/account/cart` 1.5 s later or on `pagehide`, newest
   wins, a placed order clears both; a draft tagged for another account
   is scrubbed of its details (`cart-sync.mjs`, `draft.js`). The header
-  reads the same draft on other pages and on `storage` events.
+  reads the same draft on other pages and on `storage` events. The
+  account's copy keeps a scheduled pickup's occurrence, a group's
+  delivery, a pass and a group code too (2026-11-02, #521).
+- **Signing in partway** (#521). The sign-in page sends a guest's
+  cart with the link request: the lines and the delivery choice
+  (`fulfilment.method`, `date`, `occurrence`, `onfarm.window` and
+  `delivery.toGroup`), never the details or the address
+  (`carryOf`). The link's record holds it, and following the link
+  puts it on the account's copy under the draft's own `savedAt`, so a
+  link opened in another browser brings the cart and the browser it
+  came from sees no change. An order tab left open asks `/api/me`
+  again when the stamp cookie is new (`session/watch.js`).
 - **What it sends** at checkout: `lines`, `fulfilment.method`, `code`,
   `pass`, `claimedTotal`, with the customer and fulfilment fields.
 - **The mini cart.** The header's cart icon, shown with items, opens a

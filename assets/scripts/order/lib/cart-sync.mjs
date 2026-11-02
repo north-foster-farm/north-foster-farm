@@ -12,21 +12,26 @@ const text = (value, max = 200) =>
 
 const obj = (value) => (value && typeof value === "object" ? value : {});
 
+const linesOf = (list) => (Array.isArray(list) ? list : [])
+  .map((l) => ({
+    sku: text(obj(l).sku, 40),
+    qty: Math.min(99, Math.max(0, Math.floor(Number(obj(l).qty) || 0))),
+  }))
+  .filter((l) => l.sku && l.qty > 0)
+  .slice(0, MAX_LINES);
+
 // -> the part of a draft's payload worth carrying to another device:
-// the customer's details, the cart, the way and the code. A payment
-// attempt's keys and the claimed total stay with the device.
+// the customer's details, the cart, the way and the code, a pass and a
+// buying group's code (each asked about again when the draft is
+// restored), and a scheduled pickup's occurrence and a member's
+// delivery to the group (#521). A payment attempt's keys and the
+// claimed total stay with the device.
 export const cartOf = (payload) => {
   const p = obj(payload);
   const c = obj(p.customer);
   const f = obj(p.fulfilment);
   const d = obj(f.delivery);
-  const lines = (Array.isArray(p.lines) ? p.lines : [])
-    .map((l) => ({
-      sku: text(obj(l).sku, 40),
-      qty: Math.min(99, Math.max(0, Math.floor(Number(obj(l).qty) || 0))),
-    }))
-    .filter((l) => l.sku && l.qty > 0)
-    .slice(0, MAX_LINES);
+  const lines = linesOf(p.lines);
 
   return {
     formVersion: text(p.formVersion, 20),
@@ -42,6 +47,7 @@ export const cartOf = (payload) => {
     fulfilment: {
       method: text(f.method, 20),
       date: text(f.date, 10),
+      occurrence: text(f.occurrence, 30),
       onfarm: { window: text(obj(f.onfarm).window, 20) },
       delivery: {
         address1: text(d.address1),
@@ -50,10 +56,57 @@ export const cartOf = (payload) => {
         zip: text(d.zip, 10),
         cooler: text(d.cooler, 300),
         notes: text(d.notes, 1000),
+        toGroup: d.toGroup === true,
       },
     },
     code: text(p.code, 40),
+    pass: text(p.pass, 40),
+    groupCode: text(p.groupCode, 40),
   };
+};
+
+const SKU = /^[\w-]{1,40}$/;
+const DAY = /^\d{4}-\d{2}-\d{2}$/;
+const OCCURRENCE = /^[\w-]{1,30}$/;
+const WINDOW = /^[\w:.-]{1,20}$/;
+const WAYS = ["onfarm", "scheduled", "delivery"];
+
+const match = (value, pattern) => (typeof value === "string"
+  && pattern.test(value) ? value : "");
+
+// What the sign-in page carries to a link that may open in another
+// browser (#521): the cart lines and the delivery choice (the way, the
+// day or the scheduled pickup, the on-farm window, and whether a
+// member's delivery goes to the group's place), and nothing that names
+// the customer or where they live. `draft` is { payload, savedAt }, as
+// the browser keeps it. The page sends this and the auth API takes it
+// again, so a field not named here never reaches the link's record.
+// -> { payload, savedAt }, or null with no line to carry.
+export const carryOf = (draft) => {
+  const r = obj(draft);
+  const p = obj(r.payload);
+  const f = obj(p.fulfilment);
+  const savedAt = Number(r.savedAt);
+  // Bounded before anything is read from it: a request may send more.
+  const lines = linesOf(Array.isArray(p.lines) && p.lines.slice(0, MAX_LINES))
+    .filter((l) => SKU.test(l.sku));
+
+  if (!lines.length || !Number.isFinite(savedAt) || savedAt <= 0) {
+    return null;
+  }
+
+  const method = WAYS.includes(f.method) ? f.method : "";
+  const fulfilment = { method };
+  const date = match(f.date, DAY);
+  const occurrence = match(f.occurrence, OCCURRENCE);
+  const window = match(obj(f.onfarm).window, WINDOW);
+
+  if (date) fulfilment.date = date;
+  if (occurrence) fulfilment.occurrence = occurrence;
+  if (window) fulfilment.onfarm = { window };
+  if (obj(f.delivery).toGroup === true) fulfilment.delivery = { toGroup: true };
+
+  return { payload: { lines, fulfilment }, savedAt };
 };
 
 // A draft's payload once its customer signs out: their details and

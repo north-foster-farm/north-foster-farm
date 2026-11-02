@@ -1,6 +1,7 @@
 // Sign-in, sign-out and "who am I":
 //
-//   POST /api/auth/request   { email, next }  -> 200 always (no leaks)
+//   POST /api/auth/request   { email, next, cart? }
+//                                              -> 200 always (no leaks)
 //   GET  /api/auth/verify?token=...            -> 302 to next, cookie set
 //   POST /api/auth/signout                     -> 204, cookie cleared
 //   GET  /api/me                               -> { signedIn, customer }
@@ -14,6 +15,7 @@ import {
   requestLink, safeNext, sameSite, sessionFrom, stampHeader, tokenEmail,
   verifyToken,
 } from "./lib/auth.mjs";
+import { saveCart } from "./lib/account.mjs";
 import { finishEmailChange } from "./lib/email-change.mjs";
 import { creditBalance } from "./lib/credit.mjs";
 import { groupOf, memberKeyOf, namedGroup } from "./lib/groups.mjs";
@@ -22,7 +24,7 @@ import { roleOf } from "./lib/membership.mjs";
 import { cartOwner } from "./lib/records.mjs";
 import { now as clock, real } from "./lib/clock.mjs";
 import { json, noCopy, readJson } from "./lib/http.mjs";
-import { withLog } from "./lib/log.mjs";
+import { log, withLog } from "./lib/log.mjs";
 import {
   MESSAGE, gate, isAdminAddress, readState,
 } from "./lib/maintenance.mjs";
@@ -42,6 +44,22 @@ const rateLimited = (ip, now) => {
   hits.set(ip, recent);
 
   return recent.length > RATE.max;
+};
+
+// A guest's cart that rode on the link (#521) goes on the account's
+// copy, the newer one winning as between two devices (saveCart), so
+// the browser the link opens in finds it (session/cart-sync.js
+// pullCart). It keeps the time the guest's draft was saved, so the
+// browser it came from, holding the same draft, sees no change. A
+// cart that can't be kept never stops the sign-in.
+const carryCart = async (stores, email, cart, now) => {
+  if (!cart) return;
+
+  try {
+    await saveCart(stores, { email }, cart, { now });
+  } catch (error) {
+    log.warn({ event: "auth.cart-failed", error: error.message });
+  }
 };
 
 // Headers as [name, value] pairs, so Set-Cookie can repeat.
@@ -130,6 +148,7 @@ export const handle = async (req, {
     await noteInteraction(stores, session.email, "sign-in", {
       now, session: session.id,
     });
+    await carryCart(stores, session.email, result.cart, now);
 
     // A link from a group's sign-up page (#495) joins the group too,
     // and lands on Membership, or on the account when it joined none.
@@ -181,6 +200,9 @@ export const handle = async (req, {
     const session = await createSession(stores, result.email, {
       now, via: "link",
     });
+
+    await carryCart(stores, session.email, result.cart, now);
+
     const headers = new Headers({
       "Content-Type": "application/json; charset=utf-8",
       "Cache-Control": "no-store",
