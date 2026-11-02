@@ -15,6 +15,7 @@ import { fileURLToPath } from "node:url";
 
 import { MACHINE_COOKIE } from "../../netlify/functions/lib/gate.mjs";
 import { SCOPE_COOKIE } from "../../netlify/functions/lib/stock-pins.mjs";
+import { countCall } from "./calls.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
@@ -95,6 +96,8 @@ export const op = async (name, args = {}, {
   for (let attempt = 1; ; attempt += 1) {
     let res;
 
+    // Every try is a call (#519).
+    countCall(`${BASE_URL}/api/staging/e2e`, BASE_URL);
     try {
       res = await fetch(`${BASE_URL}/api/staging/e2e`, {
         signal: timeoutMs ? AbortSignal.timeout(timeoutMs) : undefined,

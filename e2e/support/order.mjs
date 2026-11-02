@@ -2,9 +2,8 @@
 // starts from a fresh browser context, so the draft in localStorage
 // never leaks between tests, and with its own stock pins (#507).
 
-import { test as base, expect } from "@playwright/test";
-
 import { recorded } from "../../netlify/functions/lib/fake.mjs";
+import { test as base, expect } from "./counted.mjs";
 import { orderLimitHeaders } from "./staging.mjs";
 import { PLENTY, stockFixtures } from "./stock.mjs";
 

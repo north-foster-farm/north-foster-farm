@@ -3,7 +3,7 @@
 // stranger arrives. Nothing here sends mail: the address asked for is
 // not on the allowlist.
 
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./support/counted.mjs";
 
 const stranger = { cookies: [], origins: [] };
 

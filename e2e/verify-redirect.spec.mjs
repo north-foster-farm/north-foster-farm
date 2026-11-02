@@ -4,7 +4,7 @@
 // in a request line a server could log (#345, #449). A staging run once
 // ended on /account/?token=... with nothing in the code adding it, and
 // this finds which layer does.
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./support/counted.mjs";
 
 test.describe("the sign-in link's redirect", () => {
   test("an unknown token is sent to the sign-in page without it",

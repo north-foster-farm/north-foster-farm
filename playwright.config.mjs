@@ -83,6 +83,9 @@ export default defineConfig({
   testMatch: "**/*.spec.mjs",
   ...(quarantined ? { grepInvert: /@quarantine/ } : {}),
   outputDir: "test-results/e2e",
+  // The run's count of function calls (#519), in
+  // test-results/function-calls.json and one line.
+  globalTeardown: "./e2e/support/calls-teardown.mjs",
   timeout: 120_000,
   expect: { timeout: 15_000 },
   fullyParallel: false,
