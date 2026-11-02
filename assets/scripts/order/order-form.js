@@ -36,6 +36,7 @@ import {
   SCRUBBED, pullCart, scrubStray,
 } from "../session/cart-sync.js";
 import { forget, me } from "../session/session.js";
+import { watchSignIn } from "../session/watch.js";
 import { api } from "../utils/api.js";
 import { setBusy as spin } from "../utils/busy-button.js";
 import { whileLoading } from "../utils/skeleton.js";
@@ -280,12 +281,21 @@ export class OrderForm {
       : [];
 
     whileLoading(fields, me, { render: (who) => this.signedIn(who) });
+
+    // Signed in since in another tab, or in this one after Back
+    // (#521): the perks, the group and the credit apply before Pay, or
+    // the server's total would differ from the page's and refuse it.
+    watchSignIn(() => {
+      me().then((who) => this.signedIn(who)).catch(() => {});
+    }, { key: this.draft.name });
   }
 
   signedIn(who) {
     if (!who.signedIn || !who.customer) return;
 
     this.isSignedIn = true;
+    // "Have an account?" (#521) goes by the session alone.
+    this.hideSignInPrompt();
 
     const group = who.customer.discountGroup || null;
 
@@ -316,6 +326,12 @@ export class OrderForm {
       this.refresh();
     }
     this.prefill(who.customer);
+  }
+
+  hideSignInPrompt() {
+    const prompt = qs(this.form, "[data-signin-prompt]");
+
+    if (prompt) prompt.hidden = true;
   }
 
   // /order/?edit=<id>: the page opens one of the customer's paid orders
@@ -363,6 +379,9 @@ export class OrderForm {
 
     const who = await me().catch(() => ({}));
     const customer = (who && who.customer) || {};
+
+    // The orders answer just named the customer: signed in (#521).
+    this.hideSignInPrompt();
 
     // The orders answer just named the customer, so a cached /api/me
     // that says signed out is stale (the header shows Sign in while
