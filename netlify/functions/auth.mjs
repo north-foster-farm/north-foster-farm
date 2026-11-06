@@ -15,13 +15,13 @@ import {
   requestLink, safeNext, sameSite, sessionFrom, stampHeader, tokenEmail,
   verifyToken,
 } from "./lib/auth.mjs";
-import { saveCart } from "./lib/account.mjs";
+import { getCart, saveCart } from "./lib/account.mjs";
 import { finishEmailChange } from "./lib/email-change.mjs";
 import { creditBalance } from "./lib/credit.mjs";
 import { groupOf, memberKeyOf, namedGroup } from "./lib/groups.mjs";
 import { finishJoin } from "./lib/join.mjs";
 import { roleOf } from "./lib/membership.mjs";
-import { cartOwner } from "./lib/records.mjs";
+import { cartKey, cartOwner } from "./lib/records.mjs";
 import { now as clock, real } from "./lib/clock.mjs";
 import { json, noCopy, readJson } from "./lib/http.mjs";
 import { log, withLog } from "./lib/log.mjs";
@@ -47,15 +47,25 @@ const rateLimited = (ip, now) => {
 };
 
 // A guest's cart that rode on the link (#521) goes on the account's
-// copy, the newer one winning as between two devices (saveCart), so
-// the browser the link opens in finds it (session/cart-sync.js
-// pullCart). It keeps the time the guest's draft was saved, so the
-// browser it came from, holding the same draft, sees no change. A
-// cart that can't be kept never stops the sign-in.
+// copy, so the browser the link opens in finds it (session/cart-sync.js
+// pullCart), but only into an account with no cart to lose: none, or
+// one with no lines. A link the owner never asked for can't replace a
+// cart they built on another device; it is dropped without a word. A
+// cleared copy is taken out first, so a later clearing doesn't win
+// over the carried cart (saveCart). The cart keeps the time the guest's
+// draft was saved, so the browser it came from, holding the same
+// draft, sees no change. A cart that can't be kept never stops the
+// sign-in.
 const carryCart = async (stores, email, cart, now) => {
   if (!cart) return;
 
   try {
+    const { cart: stored } = await getCart(stores, { email });
+
+    if (stored && stored.payload && (stored.payload.lines || []).length) {
+      return;
+    }
+    if (stored) await stores.customers.delete(cartKey(email));
     await saveCart(stores, { email }, cart, { now });
   } catch (error) {
     log.warn({ event: "auth.cart-failed", error: error.message });

@@ -677,18 +677,45 @@ describe("the cart a sign-in link carries (#521)", () => {
     assert.equal(same.filter((r) => r.method === "PUT").length, 0);
   });
 
-  it("never replaces a newer cart on the account", async () => {
-    const stores = testStores();
-    const { sent, mail } = mailbox();
+  it("never replaces a cart the account has, newer or older",
+    async () => {
+      for (const savedAt of [T - 1000, T - 120_000]) {
+        const stores = testStores();
+        const { sent, mail } = mailbox();
 
-    await saveCart(stores, pat, { payload: payload(), savedAt: T - 1000 },
-      { now });
-    await authHandle(post({
-      email: pat.email, cart: guestDraft(T - 60_000),
-    }), { stores, env, now, mail });
-    await follow(stores, sent);
-    assert.deepEqual((await getCart(stores, pat)).cart.payload.lines,
-      [{ sku: "A", qty: 2 }]);
+        await saveCart(stores, pat, { payload: payload(), savedAt },
+          { now });
+        await authHandle(post({
+          email: pat.email, cart: guestDraft(T - 60_000),
+        }), { stores, env, now, mail });
+
+        const verified = await follow(stores, sent);
+        const { cart } = await getCart(stores, pat);
+
+        assert.equal(verified.status, 302, "still signs in");
+        assert.deepEqual(cart.payload.lines, [{ sku: "A", qty: 2 }]);
+        assert.equal(cart.savedAt, savedAt, "the account's own copy");
+      }
+    });
+
+  it("goes into an account with no cart or an emptied one", async () => {
+    for (const before of [null, { payload: null, savedAt: T - 1000 },
+      { payload: payload([]), savedAt: T - 1000 }]) {
+      const stores = testStores();
+      const { sent, mail } = mailbox();
+
+      if (before) await saveCart(stores, pat, before, { now });
+      await authHandle(post({
+        email: pat.email, cart: guestDraft(T - 60_000),
+      }), { stores, env, now, mail });
+      await follow(stores, sent);
+
+      const { cart } = await getCart(stores, pat);
+
+      assert.deepEqual(cart.payload.lines,
+        [{ sku: "NFF-CHK-WHL-35-39", qty: 2 }], JSON.stringify(before));
+      assert.equal(cart.savedAt, T - 60_000);
+    }
   });
 
   it("answers the same, whoever the address is", async () => {
