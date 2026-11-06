@@ -5,8 +5,9 @@
 // phone's mail app), the cart lines and the delivery choice arrive with
 // it, and nothing typed; where an order tab stayed open, it notices
 // the sign-in when the customer comes back to it, prices with the perk
-// and pays at that price. The back office sets the perk (perks add) and
-// takes it off after.
+// and pays at that price. A tab left open when another signs out
+// reloads once, at the signed-out price. The back office sets the perk
+// (perks add) and takes it off after.
 
 import {
   OrderPage, expect, test, uniqueEmail,
@@ -130,5 +131,52 @@ test.describe("signing in partway through an order (#521)", () => {
       orders.push(body.orderId);
       expect(body.totals.perks).toEqual(["free-delivery"]);
       expect(body.totals.deliveryFee).toBe(0);
+    });
+
+  test("an order tab left open reloads once when another tab signs out",
+    async ({ page }) => {
+      await clearSession(page.context());
+      await page.goto(await nff(["login", email]));
+      await expect(page).toHaveURL(/\/account\/?/);
+
+      const order = new OrderPage(page);
+
+      await order.open({ whole: 3 });
+      await order.delivery();
+      await order.firstDate("delivery");
+      await expect(page.locator("[data-cart-perks]")).toHaveText(PERK);
+      await expect(order.fee).toHaveText("$0");
+      await expect(page.locator("[data-signin-prompt]")).toBeHidden();
+
+      let loads = 0;
+
+      page.on("load", () => {
+        loads += 1;
+      });
+
+      // Signed out in another tab, with the account page's button.
+      const other = await page.context().newPage();
+
+      await other.goto("/account/");
+      await other.locator("#account-signout").click();
+      await other.waitForURL((url) => url.pathname === "/");
+      await other.close();
+
+      // Back to the order tab: it reloads as a signed-out visitor's,
+      // keeping the cart, with the fee and the prompt back.
+      await page.bringToFront();
+      await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+      await expect.poll(() => loads).toBe(1);
+      await expect(order.qty("whole")).toHaveValue("3");
+      await expect(page.locator("[data-cart-perks]")).toBeHidden();
+      await expect(order.fee).toHaveText("+$5");
+      await expect(page.locator("[data-signin-prompt]")).toHaveText(PROMPT);
+
+      // Once per sign-out: coming back again changes nothing.
+      await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+      await page.evaluate(() => document.dispatchEvent(
+        new Event("visibilitychange")));
+      await page.waitForTimeout(500);
+      expect(loads).toBe(1);
     });
 });

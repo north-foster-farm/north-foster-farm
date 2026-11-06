@@ -285,9 +285,17 @@ export class OrderForm {
     // Signed in since in another tab, or in this one after Back
     // (#521): the perks, the group and the credit apply before Pay, or
     // the server's total would differ from the page's and refuse it.
+    // Signed out in another tab: a page that showed the account's
+    // prices and details reloads once, as a signed-out visitor's, so
+    // its perks and Pay don't linger. The draft keeps the cart.
     watchSignIn(() => {
       me().then((who) => this.signedIn(who)).catch(() => {});
-    }, { key: this.draft.name });
+    }, {
+      key: this.draft.name,
+      onSignOut: () => {
+        if (this.isSignedIn) location.reload();
+      },
+    });
   }
 
   signedIn(who) {

@@ -3,20 +3,28 @@
 // comes back to the page (it shows again, takes focus, or comes back
 // from the back/forward cache) or when another tab saves the draft
 // under `key`. The page then asks /api/me again, which the new stamp
-// makes fresh. Only a sign-in is told: a page that saw the stamp go
-// leaves that to the server, which prices from the session.
+// makes fresh. A page that had a stamp and sees it go is told once, by
+// `onSignOut`, so it can reload as the signed-out visitor it now is:
+// the stamp it had is forgotten, so the same absence is never told
+// twice, and a page that never had one is never told.
 
 import { stampFrom } from "./cache.js";
 
-export const watchSignIn = (onSignIn, { key = null } = {}) => {
+export const watchSignIn = (onSignIn, {
+  key = null, onSignOut = null,
+} = {}) => {
   let seen = stampFrom(document.cookie);
 
   const check = () => {
     const stamp = stampFrom(document.cookie);
 
     if (stamp === seen) return;
+
+    const had = seen;
+
     seen = stamp;
     if (stamp) onSignIn(stamp);
+    else if (had && onSignOut) onSignOut();
   };
 
   document.addEventListener("visibilitychange", () => {

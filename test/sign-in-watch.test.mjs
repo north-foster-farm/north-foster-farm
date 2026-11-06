@@ -64,7 +64,7 @@ describe("watchSignIn (#521)", () => {
     assert.deepEqual(told, ["abc"]);
   });
 
-  it("tells nothing when the stamp goes", () => {
+  it("tells no sign-in when the stamp goes", () => {
     const { fire } = page("nff_signed_in=abc");
     const told = [];
 
@@ -72,5 +72,58 @@ describe("watchSignIn (#521)", () => {
     document.cookie = "";
     fire("window", "focus");
     assert.deepEqual(told, []);
+  });
+
+  it("tells a sign-out once, on any of the signals", () => {
+    const { fire } = page("nff_signed_in=abc");
+    const out = [];
+
+    watchSignIn(() => {}, {
+      key: "nff-order-draft", onSignOut: () => out.push("out"),
+    });
+    document.cookie = "";
+    fire("window", "storage", { key: "nff-order-draft" });
+    fire("window", "focus");
+    fire("window", "pageshow");
+    fire("document", "visibilitychange");
+    assert.deepEqual(out, ["out"], "once, never again for the same");
+
+    for (const [where, type, event] of [
+      ["window", "focus"], ["window", "pageshow"],
+      ["document", "visibilitychange"],
+      ["window", "storage", { key: "nff-order-draft" }],
+    ]) {
+      document.cookie = "nff_signed_in=new";
+      fire("window", "focus");
+      document.cookie = "";
+      fire(where, type, event);
+    }
+    assert.equal(out.length, 5, "once per sign-out");
+  });
+
+  it("tells a sign-in, then its sign-out, on a page that began signed " +
+    "out", () => {
+    const { fire } = page();
+    const told = [];
+
+    watchSignIn((stamp) => told.push(stamp), {
+      onSignOut: () => told.push("out"),
+    });
+    document.cookie = "nff_signed_in=abc";
+    fire("window", "focus");
+    document.cookie = "";
+    fire("window", "focus");
+    assert.deepEqual(told, ["abc", "out"]);
+  });
+
+  it("tells no sign-out to a page that never had a stamp", () => {
+    const { fire } = page();
+    const out = [];
+
+    watchSignIn(() => {}, { onSignOut: () => out.push("out") });
+    for (const type of ["focus", "pageshow"]) fire("window", type);
+    fire("document", "visibilitychange");
+    fire("window", "storage", {});
+    assert.deepEqual(out, []);
   });
 });
