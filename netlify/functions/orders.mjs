@@ -30,6 +30,7 @@ import { perkEffects } from "../../assets/scripts/order/lib/perks.mjs";
 import { lockOn } from "../../assets/scripts/order/lib/totals.mjs";
 import { validateOrder } from "../../assets/scripts/order/lib/validate.mjs";
 import { parts, today } from "../../assets/scripts/order/lib/zoned.mjs";
+import { saveCart } from "./lib/account.mjs";
 import { sessionFrom } from "./lib/auth.mjs";
 import {
   METHODS, announceNew, finishVenmo, nothingDue, ownRecord, payWithCredit,
@@ -137,6 +138,27 @@ const paidResponse = (order) => {
   });
 };
 
+// A signed-in customer's paid cart is cleared on the account too
+// (#149, #521), as the page clears it there a moment after. A tab
+// closed in that moment left the paid cart on the account, and the
+// next sign-in brought it back, under any ?add= on top. Saved at the
+// real time, as a device's copy is, so a clock moved ahead (staging)
+// never outdates the carts saved after. A failure never fails a paid
+// order: the page still clears it.
+const clearCart = async (stores, session, now) => {
+  if (!session) return;
+
+  try {
+    await saveCart(stores, { email: session.email }, {
+      payload: null, savedAt: real(now).getTime(),
+    }, { now });
+  } catch (error) {
+    log.warn({
+      event: "order.cart-clear-failed", error: String(error.message),
+    });
+  }
+};
+
 // Another submission's record turned up (#253), and the farm has been
 // alerted. Not retryable, and no order id: the one at hand is someone
 // else's.
@@ -212,6 +234,7 @@ export const handle = async (req, {
   // The emails wait on the answer, not the other way round (#268); the
   // jobs send any that this does not.
   const announce = async (record) => {
+    await clearCart(stores, session, now);
     await after(announceNew(stores, record, { mail, env, now }));
 
     return record;

@@ -141,7 +141,10 @@ test.describe("signing in partway through an order (#521)", () => {
 
       const order = new OrderPage(page);
 
+      // The account's cart went with the order paid above (#521), so
+      // only these three are in it.
       await order.open({ whole: 3 });
+      await expect(order.qty("whole")).toHaveValue("3");
       await order.delivery();
       await order.firstDate("delivery");
       await expect(page.locator("[data-cart-perks]")).toHaveText(PERK);
