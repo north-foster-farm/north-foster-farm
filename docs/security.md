@@ -138,6 +138,14 @@ Where installing a patched version would pull in young transitive
 packages, adopt an older patched version, or hold the transitive one
 with `overrides` in `package.json`.
 
+Overrides in force:
+
+- `minimatch` 11.0.3 and its new dependency
+  `@isaacs/nonrecursive-glob-match` 1.0.3 (#522, 2026-11-06), for
+  GHSA-g3hv-75wg-m249. ESLint 10.8.0 asks for minimatch 10, which
+  has no patched release. Drop both once ESLint's own range takes a
+  patched minimatch.
+
 ## Remediation runs on events, not deadlines
 
 - A pinned version may run indefinitely while it has no known
