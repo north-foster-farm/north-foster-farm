@@ -66,11 +66,16 @@ test.describe("signing in partway through an order (#521)", () => {
       await page.locator("[data-signin-prompt]")
         .getByRole("link", { name: "sign in" }).click();
       await expect(page).toHaveURL(/\/login\/\?next=(\/|%2F)order(\/|%2F)$/i);
+      // The login script must be wired before the submit, or the form
+      // posts natively and no link is asked for.
+      await page.waitForLoadState("load");
 
       const asked = new Date();
 
       await page.locator("#login-email").fill(email);
       await page.locator("#login-submit").click();
+      // A lost request fails here, not after the mail wait.
+      await expect(page.locator("#login-sent")).toBeVisible();
 
       const mail = await waitForMail({ to: email, subject: SIGN_IN,
         since: asked });

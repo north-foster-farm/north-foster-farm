@@ -104,6 +104,11 @@ const start = () => {
     showSent();
   });
 
+  // The button starts disabled in the markup, so a press before this
+  // script runs can't submit natively and put the address in the URL
+  // (#521).
+  submit.disabled = false;
+
   document.getElementById("login-again").addEventListener("click", () => {
     sent.hidden = true;
     ask.hidden = false;
