@@ -17,8 +17,9 @@ import { testStores } from "../netlify/functions/lib/store.mjs";
 import { handle as stagingApi } from "../netlify/functions/staging.mjs";
 import { handle as stockApi } from "../netlify/functions/stock.mjs";
 
-const EGGS = "NFF-CHK-EGG-LG";
-const EGGS_VARIATION = "S7XJNPQUKY6JSYQOEYSL6FYS";
+// Thighs, a counted product: Large eggs are never counted (#511).
+const THIGHS = "NFF-CHK-THGBN-10-14";
+const THIGHS_VARIATION = "T366DS6FNIHDC5LVUDI46PXN";
 const WINGS = "NFF-CHK-WNG-10-19";
 
 const SCOPE = "run1-desktop-order-abc123";
@@ -71,12 +72,12 @@ describe("pin and unpin", () => {
     async () => {
       const stores = testStores();
       const record = await pin(stores, {
-        scope: SCOPE, counts: { [EGGS]: 3, [WINGS]: 0 },
+        scope: SCOPE, counts: { [THIGHS]: 3, [WINGS]: 0 },
       }, { env: staging, now: at(0) });
 
       assert.equal(record.until, at(TTL_SECONDS / 60).toISOString());
       assert.deepEqual(await pinsFor(stores, SCOPE,
-        { env: staging, now: at(14) }), { [EGGS]: 3, [WINGS]: 0 });
+        { env: staging, now: at(14) }), { [THIGHS]: 3, [WINGS]: 0 });
       assert.deepEqual(await pinsFor(stores, SCOPE,
         { env: staging, now: at(15) }), {});
       assert.deepEqual(await pinsFor(stores, OTHER,
@@ -89,15 +90,18 @@ describe("pin and unpin", () => {
   it("refuses what isn't a pin", async () => {
     const stores = testStores();
     const tries = [
-      { scope: "short", counts: { [EGGS]: 1 } },
+      { scope: "short", counts: { [THIGHS]: 1 } },
       { scope: SCOPE },
       { scope: SCOPE, counts: {} },
       { scope: SCOPE, counts: [1] },
       { scope: SCOPE, counts: { "NFF-NOT-SOLD": 1 } },
-      { scope: SCOPE, counts: { [EGGS]: 1.5 } },
-      { scope: SCOPE, counts: { [EGGS]: "2" } },
-      { scope: SCOPE, counts: { [EGGS]: 1 }, ttlSeconds: 0 },
-      { scope: SCOPE, counts: { [EGGS]: 1 }, ttlSeconds: MAX_TTL_SECONDS + 1 },
+      { scope: SCOPE, counts: { [THIGHS]: 1.5 } },
+      { scope: SCOPE, counts: { [THIGHS]: "2" } },
+      { scope: SCOPE, counts: { [THIGHS]: 1 }, ttlSeconds: 0 },
+      {
+        scope: SCOPE, counts: { [THIGHS]: 1 },
+        ttlSeconds: MAX_TTL_SECONDS + 1,
+      },
     ];
 
     for (const args of tries) {
@@ -111,11 +115,11 @@ describe("pin and unpin", () => {
     async () => {
       const stores = testStores();
 
-      await pin(stores, { scope: SCOPE, counts: { [EGGS]: 0 } },
+      await pin(stores, { scope: SCOPE, counts: { [THIGHS]: 0 } },
         { env: staging });
       for (const env of PRODUCTIONS) {
         await assert.rejects(pin(stores, {
-          scope: SCOPE, counts: { [EGGS]: 1 },
+          scope: SCOPE, counts: { [THIGHS]: 1 },
         }, { env }), /off here/);
         await assert.rejects(unpin(stores, { scope: SCOPE }, { env }),
           /off here/);
@@ -123,10 +127,10 @@ describe("pin and unpin", () => {
         assert.deepEqual(await pinsFor(stores, SCOPE, { env }), {});
 
         const counts = await liveCounts(stores, {
-          env, scope: SCOPE, inventory: sandbox({ [EGGS_VARIATION]: 7 }),
+          env, scope: SCOPE, inventory: sandbox({ [THIGHS_VARIATION]: 7 }),
         });
 
-        assert.equal(counts[EGGS], 7, JSON.stringify(env));
+        assert.equal(counts[THIGHS], 7, JSON.stringify(env));
       }
     });
 });
@@ -135,33 +139,33 @@ describe("liveCounts with a scope", () => {
   it("lays the scope's pins over every source, overrides included",
     async () => {
       const stores = testStores();
-      const env = { ...staging, STOCK_OVERRIDES: `${EGGS}:9,${WINGS}:9` };
+      const env = { ...staging, STOCK_OVERRIDES: `${THIGHS}:9,${WINGS}:9` };
 
       await stores.stock.set("counts", { [WINGS]: 4 });
-      await pin(stores, { scope: SCOPE, counts: { [EGGS]: 2 } }, { env });
+      await pin(stores, { scope: SCOPE, counts: { [THIGHS]: 2 } }, { env });
 
       const pinned = await liveCounts(stores, {
-        env, scope: SCOPE, inventory: sandbox({ [EGGS_VARIATION]: 5 }),
+        env, scope: SCOPE, inventory: sandbox({ [THIGHS_VARIATION]: 5 }),
       });
       const unpinned = await liveCounts(stores, {
-        env, inventory: sandbox({ [EGGS_VARIATION]: 5 }),
+        env, inventory: sandbox({ [THIGHS_VARIATION]: 5 }),
       });
       const other = await liveCounts(stores, {
-        env, scope: OTHER, inventory: sandbox({ [EGGS_VARIATION]: 5 }),
+        env, scope: OTHER, inventory: sandbox({ [THIGHS_VARIATION]: 5 }),
       });
 
-      assert.equal(pinned[EGGS], 2);
+      assert.equal(pinned[THIGHS], 2);
       assert.equal(pinned[WINGS], 9);
-      assert.equal(unpinned[EGGS], 9);
-      assert.equal(other[EGGS], 9);
+      assert.equal(unpinned[THIGHS], 9);
+      assert.equal(other[THIGHS], 9);
     });
 
   it("holds the order check to the scope's pins", async () => {
     const stores = testStores();
-    const lines = [{ sku: EGGS, qty: 2 }];
-    const inventory = sandbox({ [EGGS_VARIATION]: 0 });
+    const lines = [{ sku: THIGHS, qty: 2 }];
+    const inventory = sandbox({ [THIGHS_VARIATION]: 0 });
 
-    await pin(stores, { scope: SCOPE, counts: { [EGGS]: 3 } },
+    await pin(stores, { scope: SCOPE, counts: { [THIGHS]: 3 } },
       { env: staging });
 
     assert.equal((await checkLines(stores, lines,
@@ -176,21 +180,21 @@ describe("liveCounts with a scope", () => {
 describe("/api/stock with the scope cookie", () => {
   const page = async (stores, env, scope) => (await (await stockApi(
     new Request("https://x/api/stock", { headers: headers(scope) }), {
-      stores, env, inventory: sandbox({ [EGGS_VARIATION]: 6 }),
+      stores, env, inventory: sandbox({ [THIGHS_VARIATION]: 6 }),
     })).json()).items;
 
   it("answers a test's browser with its pins, and no one else",
     async () => {
       const stores = testStores();
 
-      await pin(stores, { scope: SCOPE, counts: { [EGGS]: 0 } },
+      await pin(stores, { scope: SCOPE, counts: { [THIGHS]: 0 } },
         { env: staging });
 
-      assert.deepEqual((await page(stores, staging, SCOPE))[EGGS],
+      assert.deepEqual((await page(stores, staging, SCOPE))[THIGHS],
         { inStock: false, available: 0 });
-      assert.deepEqual((await page(stores, staging, null))[EGGS],
+      assert.deepEqual((await page(stores, staging, null))[THIGHS],
         { inStock: true, available: 6 });
-      assert.deepEqual((await page(stores, staging, OTHER))[EGGS],
+      assert.deepEqual((await page(stores, staging, OTHER))[THIGHS],
         { inStock: true, available: 6 });
     });
 
@@ -199,12 +203,12 @@ describe("/api/stock with the scope cookie", () => {
   // other's, on the page and in the order check alike.
   it("keeps two scopes pinning one SKU at once apart", async () => {
     const stores = testStores();
-    const inventory = sandbox({ [EGGS_VARIATION]: 6 });
-    const lines = [{ sku: EGGS, qty: 2 }];
+    const inventory = sandbox({ [THIGHS_VARIATION]: 6 });
+    const lines = [{ sku: THIGHS, qty: 2 }];
 
     await Promise.all([
-      pin(stores, { scope: SCOPE, counts: { [EGGS]: 0 } }, { env: staging }),
-      pin(stores, { scope: OTHER, counts: { [EGGS]: 4 } }, { env: staging }),
+      pin(stores, { scope: SCOPE, counts: { [THIGHS]: 0 } }, { env: staging }),
+      pin(stores, { scope: OTHER, counts: { [THIGHS]: 4 } }, { env: staging }),
     ]);
 
     const [mine, theirs, mineCheck, theirsCheck] = await Promise.all([
@@ -214,8 +218,8 @@ describe("/api/stock with the scope cookie", () => {
       checkLines(stores, lines, { env: staging, inventory, scope: OTHER }),
     ]);
 
-    assert.deepEqual(mine[EGGS], { inStock: false, available: 0 });
-    assert.deepEqual(theirs[EGGS], { inStock: true, available: 4 });
+    assert.deepEqual(mine[THIGHS], { inStock: false, available: 0 });
+    assert.deepEqual(theirs[THIGHS], { inStock: true, available: 4 });
     assert.equal(mineCheck.ok, false);
     assert.equal(theirsCheck.ok, true);
   });
@@ -223,23 +227,23 @@ describe("/api/stock with the scope cookie", () => {
   it("ignores the cookie in production", async () => {
     const stores = testStores();
 
-    await pin(stores, { scope: SCOPE, counts: { [EGGS]: 0 } },
+    await pin(stores, { scope: SCOPE, counts: { [THIGHS]: 0 } },
       { env: staging });
 
     const env = { SITE_CONTEXT: "production", SQUARE_ENV: "production" };
 
-    assert.deepEqual((await page(stores, env, SCOPE))[EGGS],
+    assert.deepEqual((await page(stores, env, SCOPE))[THIGHS],
       { inStock: true, available: 6 });
   });
 
   it("keeps the pins off the counts the farm's notice reads", async () => {
     const stores = testStores();
-    const counts = { [EGGS]: 6 };
+    const counts = { [THIGHS]: 6 };
 
-    await pin(stores, { scope: SCOPE, counts: { [EGGS]: 0 } },
+    await pin(stores, { scope: SCOPE, counts: { [THIGHS]: 0 } },
       { env: staging });
     await page(stores, staging, SCOPE);
-    assert.deepEqual((await availability(stores, { counts }))[EGGS],
+    assert.deepEqual((await availability(stores, { counts }))[THIGHS],
       { inStock: true, available: 6 });
   });
 });
@@ -249,9 +253,9 @@ describe("the sweep of pins", () => {
     async () => {
       const stores = testStores();
 
-      await pin(stores, { scope: SCOPE, counts: { [EGGS]: 1 } },
+      await pin(stores, { scope: SCOPE, counts: { [THIGHS]: 1 } },
         { env: staging, now: at(0) });
-      await pin(stores, { scope: OTHER, counts: { [EGGS]: 1 } },
+      await pin(stores, { scope: OTHER, counts: { [THIGHS]: 1 } },
         { env: staging, now: at(10) });
 
       assert.equal(await sweepPins(stores, { env: staging, now: at(20) }), 1);
@@ -264,13 +268,13 @@ describe("the stock.pin, stock.unpin and stock.sweep ops", () => {
   it("pin, unpin and sweep on staging", async () => {
     const stores = testStores();
     const pinned = await runOp(stores, {
-      op: "stock.pin", scope: SCOPE, counts: { [EGGS]: 1 }, ttlSeconds: 60,
+      op: "stock.pin", scope: SCOPE, counts: { [THIGHS]: 1 }, ttlSeconds: 60,
     }, staging);
 
     assert.equal(pinned.status, 200);
-    assert.deepEqual(pinned.body.pin.counts, { [EGGS]: 1 });
+    assert.deepEqual(pinned.body.pin.counts, { [THIGHS]: 1 });
     assert.deepEqual(await pinsFor(stores, SCOPE, { env: staging }),
-      { [EGGS]: 1 });
+      { [THIGHS]: 1 });
 
     assert.deepEqual(await runOp(stores, { op: "stock.sweep" }, staging),
       { status: 200, body: { removed: 0 } });
@@ -285,7 +289,7 @@ describe("the stock.pin, stock.unpin and stock.sweep ops", () => {
 
     for (const op of ["stock.pin", "stock.unpin", "stock.sweep"]) {
       const done = await runOp(testStores(), {
-        op, scope: SCOPE, counts: { [EGGS]: 1 },
+        op, scope: SCOPE, counts: { [THIGHS]: 1 },
       }, env);
 
       assert.equal(done.status, 400);
@@ -301,7 +305,7 @@ describe("the stock.pin, stock.unpin and stock.sweep ops", () => {
         Authorization: "Bearer e2e", "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        op: "stock.pin", scope: SCOPE, counts: { [EGGS]: 0 },
+        op: "stock.pin", scope: SCOPE, counts: { [THIGHS]: 0 },
       }),
     }), {
       stores,

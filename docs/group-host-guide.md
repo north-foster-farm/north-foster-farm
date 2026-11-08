@@ -28,7 +28,7 @@ prices are there without the code.
 ## Rounds
 
 - Pickup is at the gym every other Sunday, 8:30 to 9:00 AM. The first
-  is Sunday, November 8, 2026.
+  is Sunday, November 15, 2026.
 - Orders for a round close at 11:59 PM the Saturday before. The next
   round opens the moment one closes.
 - Each member pays when they order, and the farm packs the round as

@@ -29,8 +29,9 @@ yet written; it is after-launch work).
    day's live checks pass.
 4. **A change on Netlify needs a deploy.** Functions read their
    environment at deploy time. After `bin/nff env push`, trigger a
-   production deploy (Deploys → Trigger deploy, or `bin/nff netlify
-   api createSiteBuild`) and wait for it to publish before revoking
+   production deploy (`bin/nff redeploy --production`, which waits
+   for it, or Deploys → Trigger deploy) and wait for it to publish
+   before revoking
    the old value. What a key change means for a rollback is in
    `docs/rollback.md`.
 5. **New first, old last.** Create the replacement, set it, deploy,
@@ -208,7 +209,8 @@ The rest of the samples' names are configuration, not secret:
 `RESEND_AUDIENCE_ID`, `RESEND_SENDING_KEY_NAME` (the sending key's
 name in Resend, which the send breaker uses to find it),
 `SITE_CONTEXT`, `SITE_URL`, `SQUARE_ENV`, `VENMO_HIDDEN`, and
-Netlify's own `HUGO_*` and `NODE_VERSION`. `ADMIN_URL`,
+Netlify's own `HUGO_*` (`NODE_VERSION` is gone: `.nvmrc` pins Node,
+#504; 2026-11-01, #494). `ADMIN_URL`,
 `CONTACT_URL`, `SQUARE_VERSION` and `SQUARE_WEBHOOK_URL` are
 overrides in no sample: the code has a default for each.
 

@@ -5,6 +5,7 @@ import {
   draftOccurrence, dropSeriesCode, fulfilmentDate, whereLine,
 } from "./lib/scheduled.mjs";
 import { groupFromQuery, withPlaces } from "./lib/group.mjs";
+import { perkEffects } from "./lib/perks.mjs";
 import { linkedMethod, withoutParam } from "./lib/query.mjs";
 import { sentence } from "./lib/sentence.mjs";
 import { summarize } from "./lib/summary.mjs";
@@ -35,6 +36,7 @@ import {
   SCRUBBED, pullCart, scrubStray,
 } from "../session/cart-sync.js";
 import { forget, me } from "../session/session.js";
+import { watchSignIn } from "../session/watch.js";
 import { api } from "../utils/api.js";
 import { setBusy as spin } from "../utils/busy-button.js";
 import { whileLoading } from "../utils/skeleton.js";
@@ -208,6 +210,9 @@ export class OrderForm {
     // The signed-in customer's discount group, from /api/me. The server
     // applies it again from the session; this only shows it.
     this.group = null;
+    // The signed-in customer's perks (#514), from /api/me: [{ type,
+    // start, end }]. The server reads them again from the record.
+    this.perks = [];
     // Whether /api/me said so: the thank-you card then leaves out the
     // line about the account the order made (#114).
     this.isSignedIn = false;
@@ -276,17 +281,44 @@ export class OrderForm {
       : [];
 
     whileLoading(fields, me, { render: (who) => this.signedIn(who) });
+
+    // Signed in since in another tab, or in this one after Back
+    // (#521): the perks, the group and the credit apply before Pay, or
+    // the server's total would differ from the page's and refuse it.
+    // Signed out in another tab: a page that showed the account's
+    // prices and details reloads once, as a signed-out visitor's, so
+    // its perks and Pay don't linger. The draft keeps the cart.
+    watchSignIn(() => {
+      me().then((who) => this.signedIn(who)).catch(() => {});
+    }, {
+      key: this.draft.name,
+      onSignOut: () => {
+        if (this.isSignedIn) location.reload();
+      },
+    });
   }
 
   signedIn(who) {
     if (!who.signedIn || !who.customer) return;
 
     this.isSignedIn = true;
+    // "Have an account?" (#521) goes by the session alone.
+    this.hideSignInPrompt();
 
     const group = who.customer.discountGroup || null;
 
     if (group && group !== this.group) {
       this.group = group;
+      this.refresh();
+    }
+
+    const perks = Array.isArray(who.customer.perks) ? who.customer.perks : [];
+
+    // A change keeps the perks its order was priced with (startEdit), so
+    // the account's own are not laid over them.
+    if (!this.editing && (perks.length || this.perks.length)) {
+      this.perks = perks;
+      this.cart.setPerks(perks);
       this.refresh();
     }
     // A buying group's member (#471) needs no code: the account's
@@ -302,6 +334,12 @@ export class OrderForm {
       this.refresh();
     }
     this.prefill(who.customer);
+  }
+
+  hideSignInPrompt() {
+    const prompt = qs(this.form, "[data-signin-prompt]");
+
+    if (prompt) prompt.hidden = true;
   }
 
   // /order/?edit=<id>: the page opens one of the customer's paid orders
@@ -350,6 +388,9 @@ export class OrderForm {
     const who = await me().catch(() => ({}));
     const customer = (who && who.customer) || {};
 
+    // The orders answer just named the customer: signed in (#521).
+    this.hideSignInPrompt();
+
     // The orders answer just named the customer, so a cached /api/me
     // that says signed out is stale (the header shows Sign in while
     // the account's own answers come): forgotten, so the next page
@@ -358,6 +399,15 @@ export class OrderForm {
     if (who && who.signedIn === false) forget();
 
     this.group = customer.discountGroup || null;
+    // The perks the order was priced with that the account still holds,
+    // as the server prices the change (lib/edit.mjs). With no answer
+    // from /api/me, those of the order; the server has the last word.
+    const holds = Array.isArray(customer.perks)
+      ? customer.perks.map((p) => p.type) : null;
+
+    this.perks = ((order.totals && order.totals.perks) || [])
+      .filter((type) => !holds || holds.includes(type))
+      .map((type) => ({ type }));
     this.pass = order.pass || null;
     this.passFee = !!(order.pass && order.passWaivesFee);
 
@@ -908,6 +958,7 @@ export class OrderForm {
       zipStatus: this.zipStatus(),
       waiveFee: !!this.pass && this.passFee,
       credit: this.editing ? 0 : this.credit,
+      perks: this.perkTypes(),
     });
   }
 
@@ -1110,10 +1161,17 @@ export class OrderForm {
     if (!note) return;
 
     const used = (totals && totals.credit) || 0;
-    const covered = used > 0 && totals.total === 0;
+    // A family order (#514) has nothing to pay either, and places the
+    // same way.
+    const family = !!totals && totals.discountPerk === "family"
+      && totals.total === 0;
+    const covered = family || (used > 0 && totals.total === 0);
 
-    note.hidden = used === 0;
-    if (used > 0) {
+    note.hidden = used === 0 && !family;
+    if (family) {
+      // Approved by James (#514, 2026-11-02).
+      note.textContent = "There's nothing to pay on this order.";
+    } else if (used > 0) {
       note.textContent = covered
         ? `Your credit covers this order: ${dollars(used)}, nothing to pay.`
         : `${dollars(used)} of your credit comes off; ${
@@ -1198,10 +1256,17 @@ export class OrderForm {
     this.draft.save(this.collect());
   }
 
-  // The money rules the page holds the order to: a pass lifts the
-  // delivery minimum, and nothing else.
+  // The money rules the page holds the order to: a pass or a perk
+  // (#514) lifts the delivery minimum, and nothing else.
   rules() {
-    return this.pass ? { ...this.money, deliveryMinimum: 0 } : this.money;
+    return this.pass || perkEffects(this.perkTypes()).minimum
+      ? { ...this.money, deliveryMinimum: 0 } : this.money;
+  }
+
+  // The signed-in customer's perk types (#514), from /api/me; while
+  // changing an order, the ones it was priced with.
+  perkTypes() {
+    return this.perks.map((p) => p.type);
   }
 
 
@@ -1738,6 +1803,7 @@ export class OrderForm {
       deliverTo: this.groupPlace(),
       credit: this.editing ? 0 : this.credit,
       waive: { minimum: !!this.pass, fee: !!this.pass && this.passFee },
+      perks: this.perkTypes(),
     });
   }
 

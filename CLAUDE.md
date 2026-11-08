@@ -27,31 +27,33 @@ decisions James made on GitHub. The issue numbers point to the source.
   soon as you notice it. Steps only James can take go on #237, his
   checklist, not into issues of their own. #303 is the one ordered
   queue.
-- **Work has landed when it is on `next`.** Approved PRs are squashed
-  onto `next` and closed, so GitHub shows them as "closed", not
-  "merged". Check `next`'s history before calling anything stalled.
+- **Work has landed when it is on `next`.** The coordinator squashes
+  approved lane PRs onto `next` and closes them, so GitHub shows them
+  as "closed", not "merged". Check `next`'s history before calling
+  anything stalled. A PR the `LGTM` label merges
+  (`lgtm-automerge.yml`) is rebase-merged instead and shows as merged
+  (2026-11-01, #494: added, since the repository allows only rebase
+  merges).
 - **e2e:** Claude cloud runs (`.github/workflows/claude.yml`) have no
   browser, so never ask one to run Playwright. The suite runs in GitHub
   Actions through `e2e.yml` and `e2e-run.yml` (a local build with fake
-  payments), or on James's Mac. Specs that need real staging or a real
-  phone are hands-on checks for James (#449).
-- **Promote to staging when green, full e2e on staging** (#502,
-  2026-10-28; the steps are in `docs/cloud-lanes.md`). Once `next` is
-  green, push to `staging` and ping James right away, without batching
-  or waiting to be asked. The full suite runs against `staging` in
-  parallel, after every push to it (`e2e/staging-full`): it gates
-  production, not James's look at staging. On `next`, run by name only
-  the specs the new code touches directly, and name them in the lane
-  or landing comment. A failure on staging is fixed forward through
-  `next`, never reverted, and James hears what failed and why. A newer
-  push to `staging` supersedes an older full run, which stands down at
-  its next safe point while teardown and the sweep still run.
-  Production waits for James's OK on staging and is promoted only from
-  the exact commit the full suite passed on: an earlier green run
-  doesn't count once a later fix lands, and `bin/nff promote main`
-  refuses any other (points 2, 6 and 7 added 2026-10-28).
+  payments), against `staging` through `e2e-staging.yml` (next rule),
+  or on James's Mac. Checks that need a real phone or production are
+  hands-on for James (#449; 2026-11-01, #494: "real staging" dropped,
+  since the full suite now runs there in Actions).
+- **Promote to staging when green, full e2e on staging** (#502). The
+  rule lives in one place, "Promoting to staging and e2e" in
+  `docs/cloud-lanes.md`. In short: `next` green goes to `staging` with
+  a ping to James, the full suite runs there once per release
+  candidate, and `main` takes only the commit it passed on, after
+  James's OK (2026-11-01: the copy that stood here moved there, #494;
+  2026-11-02, #519: once per candidate, not per push, after Netlify's
+  Functions overage).
 - **Customer copy follows the #400 house rules:**
   - no semicolons and no em dashes in prose;
+  - a fragment used as a label, badge, row heading or row value never
+    takes a trailing period or other end punctuation, while full
+    sentences keep theirs (James, 2026-11-02, #514);
   - no internal model names in customer text ("Pickup days", not
     "scheduled pickup");
   - "email address" when it means the address;
@@ -72,37 +74,19 @@ decisions James made on GitHub. The issue numbers point to the source.
   records its requests with `bin/fixtures/record`, swaps them in and
   reruns the tests before landing, without being asked (#496,
   2026-10-27).
-- **New dependencies need James's approval** (#303, 2026-10-27):
-  - They are allowed when they provide clear value, especially where a
-    well-tested package replaces code that could break in subtle ways
-    (encoders, parsers, crypto, date handling and similar).
-  - Lean toward fewer dependencies. If a small amount of simple code
-    does the job, write it.
-  - James has the final say on every new package. Before adding one,
-    post a short proposal: the package, its version and license, how
-    well it's maintained, what it replaces, and why it beats
-    hand-rolling. Don't add it until James approves.
-  - Approved packages are pinned.
+- **New dependencies need James's approval** (#303, 2026-10-27).
+  Lean toward fewer, and post a proposal before adding one. The rule,
+  with what the proposal holds, is point 5 of "Dependency policy" in
+  `docs/security.md` (2026-11-01, #494: the copy here, which left out
+  the size of the dependency tree, moved there).
 - **Confirm dates before production.** Any change to a news post, or to
   a page with a "Last updated" line, has its date confirmed before it
   ships. The right date is often not the commit date.
-- **Log every production change** (#497, 2026-10-27; the full rule is
-  in `docs/security.md`):
-  - **Log:** every change to a production record made by a person or
-    the CLI. Each line records the time, who acted (CLI, farm, host or
-    customer), the action, the target, and the values before and
-    after. Money and membership changes are always logged.
-  - **Don't log:** reads, `--dry-run` and previews, scheduled jobs that
-    changed nothing, and anything on staging or development unless
-    it's needed for debugging.
-  - **Never in a log:** secrets or tokens, payment details, or a full
-    email address, phone number or street address. Mask addresses as
-    in #496, keeping the first three and last three characters of
-    each part.
-  - **Log records are append-only** and follow the retention rules for
-    customer data.
-  - Any new command or action that changes production records ships
-    with its log line and a test, as part of the definition of done.
+- **Log every production change** (#497, 2026-10-27). Each change a
+  person or the CLI makes to a production record is logged, masked
+  and append-only, and a new write path ships with its log line and a
+  test. The rule is "Logging changes to production records" in
+  `docs/security.md` (2026-11-01, #494: the copy here moved there).
 - **This repo and its branches are public.** No customer data, no
   credentials, and no full names of James's family members in code,
   issues, comments or screenshots.
@@ -143,12 +127,39 @@ npm run check
 # Production build. NETLIFY ONLY -- do not run this locally.
 # bin/prod installs Dart Sass into /opt/build/repo, a path that only
 # exists on the Netlify build image, so this fails on a dev machine.
-# Netlify runs it via `bin/prod && hugo --gc`; it runs no tests.
+# Netlify runs it inside its build command (see Netlify Configuration
+# below); it runs no tests.
 bin/prod
 ```
 
 To check a production build locally, run the linters and then
 `hugo --environment production` directly, skipping `bin/prod`.
+
+### Node
+
+Node 24.22.1, pinned in `.nvmrc`, the only pin (#504). GitHub's
+workflows set Node up from it and Netlify reads it.
+`npm run check:node` (`bin/check-node.mjs`) fails on any other Node and
+runs first in `npm run check` and every Netlify build, and
+`package.json`'s `devEngines` makes `npm ci` and `npm install` refuse
+one (EBADDEVENGINES). Bump `.nvmrc` and `devEngines` together.
+
+On James's Mac, Homebrew's Node stays the system's and this repo gets
+its own through mise's shims, with no global mise Node:
+
+- `brew install mise`;
+- `~/.config/mise/config.toml` holds
+  `idiomatic_version_file_enable_tools = ["node"]`, so mise reads
+  `.nvmrc`; there is no `mise.toml` or `.tool-versions` in the repo;
+- `eval "$(mise activate zsh --shims)"` in `~/.zprofile` (shims only,
+  no `mise activate zsh` in `.zshrc`), so git hooks, `bin/nff`, npm
+  scripts and tmux panes get the pinned Node too;
+- `mise install` in the repo after `.nvmrc` changes.
+
+Check it: `node --version` prints `.nvmrc`'s version inside the repo
+and Homebrew's outside it. A command run in a folder outside the repo
+gets Homebrew's Node, so one that runs npm there writes `.nvmrc` beside
+the `package.json` it copies (`bin/promote.mjs`, `auditCommit`).
 
 ### Screenshots in issues and comments
 
@@ -185,47 +196,28 @@ Key Hugo settings:
 
 ### Directory Structure
 
+Top level only; `ls` the folders for the rest (2026-11-01, #494: the
+deeper tree here had fallen years behind, naming `company.yaml` and a
+`ctas/` partials folder that no longer exist).
+
 ```
 assets/
   images/          # Image assets processed by Hugo
-  scripts/         # JavaScript modules (ES6+)
-    main.js        # Entry point (imports Bootstrap, Extensions, Copyright, Touchable)
-    extensions/    # Custom JS extensions
-    copyright/     # Auto-update copyright year
-    touchable/     # Touch event handling
-    utils/         # Utility functions
-  styles/          # SCSS source files
-    main.scss      # Entry point (imports Bootstrap + custom styles)
-    components/    # Component-specific styles
-    mixins/        # SCSS mixins
-    utilities/     # Utility classes
-
+  scripts/         # JS: main.js, one folder per feature (order/,
+                   # map/, session/, search/ ...), report.js
+  styles/          # SCSS: main.scss, components/, mixins/, utilities/
 config/            # Hugo configuration (layered by environment)
-content/           # Markdown content files
-  _index.md        # Homepage content
-  accessibility.md # Accessibility statement
-  privacy.md       # Privacy policy
-  news/            # Past updates, one post each; see layouts/news/
-
-data/              # YAML data files
-  company.yaml     # Company info (name, address, phone, email)
-  socialMedia.yaml # Social media links
-
-layouts/           # Hugo templates
-  _default/        # Base templates (baseof, list, single)
-  partials/        # Reusable template partials
-    home/          # Homepage-specific partials (copy.html, contact.html)
-    footer/        # Footer components
-    head/          # Head tag components
-    header/        # Header/navigation
-    ctas/          # Call-to-action components
-  index.html       # Homepage template
-
-static/            # Static files (copied as-is to output)
-
-bin/
-  dev              # Development server wrapper script
-  prod             # Production build script (installs Dart Sass)
+content/           # Markdown pages; news/ holds one post each
+data/              # JSON data (catalog, company, delivery, groups,
+                   # series ...) and socialMedia.yaml
+layouts/           # Templates: _default/, partials/ (heavily reused),
+                   # shortcodes/, one folder per section
+netlify/           # Functions (functions/, lib/ inside) and edge
+                   # functions
+static/            # Copied as-is to the output
+bin/               # nff (the farm's CLI), dev, prod and the checks
+test/  e2e/        # Unit tests (node --test) and Playwright specs
+docs/              # Runbooks and design notes
 ```
 
 ### Build Process
@@ -255,25 +247,35 @@ Bootstrap 5.3.3 forms the foundation with extensive customization:
 Import order in `main.scss`:
 1. Custom fonts
 2. Bootstrap functions → custom variables → Bootstrap variables/maps/mixins
-3. Utilities (custom → Bootstrap)
-4. Custom mixins
-5. Global styles
-6. Component styles
+3. Utilities (Bootstrap's utility API → custom utilities)
+4. The rest of Bootstrap
+5. Custom mixins
+6. Global styles
+7. Component styles, then `debug`
 
 ### JavaScript Architecture
 
-ES6 modules with explicit imports:
-- Bootstrap components imported individually (`Collapse` in `main.js`)
-- Custom modules: Extensions (prototype methods), Copyright (year updater), Touchable (touch events)
-- No build step - uses native ES modules in browser
+ES modules with explicit imports, bundled and minified by Hugo's
+`js.Build` (esbuild; `layouts/partials/footer/scripts.html`), not
+served as native modules (2026-11-01, #494: this said "no build step"
+and listed a `main.js` of four modules):
+- Bootstrap components imported individually (Dropdown and Offcanvas
+  in `main.js`)
+- `main.js` wires one module per feature folder (cart badge, search,
+  session, video and so on); a page that sets `pageScript` in its front
+  matter also gets `scripts/<name>/main.js`, and the error reporter and
+  staging toolbar are bundled on their own
 
 ## Netlify Configuration
 
 Deployment configured in `netlify.toml`:
-- Build command: `npm run check:env && npm run check:schedule &&
-  npm run check:events && bin/prod && HUGO_BUILD_SHA=$COMMIT_REF
-  hugo --gc && npm run
-  build:orphans && npm run check:grid`. `build:orphans` keeps the
+- Build command: the `command` lines in `netlify.toml`, one per
+  context, are the source (2026-11-01, #494: the copy quoted here had
+  lost `check:node` and the last three checks). In order: the
+  `check:node`, `check:env`, `check:schedule` and `check:events`
+  guards, `bin/prod`, `hugo --gc`, then `build:orphans`,
+  `check:grid`, `check:schema`, `check:fresh` and `check:news`.
+  `build:orphans` keeps the
   last two words of every paragraph, heading and list item on one
   line (see `bin/orphans/wrap.mjs`); `hugo server` skips it.
   `check:grid` holds the built HTML to Bootstrap's grid
@@ -287,15 +289,19 @@ Deployment configured in `netlify.toml`:
   no lint or tests: those run in GitHub Actions (`lint-and-test`,
   `.github/workflows/ci.yml`), which `staging` and `main` require.
   CI's `build` job repeats the Hugo build, `check:grid`, `check:schema`,
-  `check:fresh` and `check:news` on every push, so a template error shows on the commit
-- Hugo version: 0.164.0 (pinned; Node 26 via NODE_VERSION and .nvmrc)
-- Deploy previews build drafts/future/expired content
+  `check:fresh` and `check:news` on every push, so a template error
+  shows on the commit.
+- Hugo version: 0.164.0 (pinned); Node 24.22.1 from `.nvmrc` (see
+  Node above; `NODE_VERSION` is gone from `netlify.toml`)
+- Deploy previews and branch deploys (`staging`) build
+  drafts/future/expired content and run `bin/install-gate.mjs`
 - Custom redirects (e.g., `/venmo` → Venmo profile)
 - Security headers: CSP, HSTS, nosniff, etc.
 
 ## Data Management
 
-Site data stored in YAML files under `data/`:
+Site data stored in JSON files under `data/`, plus
+`socialMedia.yaml` (2026-11-01, #494: this said YAML throughout):
 - Access in templates via `hugo.Data.company` or `hugo.Data.socialMedia`
 - Company info includes phone (display + plain formats), email, address
 - Centralized data avoids hardcoding in templates
@@ -305,6 +311,9 @@ Site data stored in YAML files under `data/`:
 - **Sass**: Production builds require Dart Sass (auto-installed by `bin/prod`)
 - **Images**: Use Hugo's image processing in templates; originals go in `assets/images/`
 - **Content**: Markdown files in `content/` are processed by Hugo
-- **Linting**: Must pass ESLint (JS) and Stylelint (SCSS) before deployment
+- **Linting**: Must pass ESLint (JS) and Stylelint (SCSS) before
+  promotion to `staging` and `main`, which require `lint-and-test`;
+  Netlify itself runs no lint (2026-11-01, #494: this said "before
+  deployment", which a branch deploy never checked)
 - **Bootstrap**: Customizations made via variables, not direct Bootstrap file edits
 - **Templates**: Partials are heavily reused; check `layouts/partials/` before creating new ones

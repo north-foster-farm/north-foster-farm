@@ -2,7 +2,7 @@ name: Staging jobs
 
 # Netlify runs scheduled functions only on the production deploy, so
 # staging's jobs would never run on their own. This asks GitHub to run
-# them every fifteen minutes through /api/staging/jobs/run, which is
+# them once an hour through /api/staging/jobs/run, which is
 # runJobs on Netlify with the staging deploy's own environment (404 in
 # production). GitHub starts scheduled runs only from the default
 # branch and throttles them under load, worst on the quarter hour, so
@@ -16,7 +16,7 @@ name: Staging jobs
 
 on:
   schedule:
-    - cron: "7,22,37,52 * * * *"
+    - cron: "7 * * * *"
   workflow_dispatch:
 
 permissions: {}

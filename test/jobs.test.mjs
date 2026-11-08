@@ -464,6 +464,81 @@ describe("runJobs", () => {
       undefined);
   });
 
+  it("works named orders alone, with no sweep or report (#516)",
+    async () => {
+      const stores = testStores();
+      const { sent, opts } = harness();
+      const listed = [];
+
+      await saveOrder(stores, order("A"), placed);
+      await saveOrder(stores, order("B"), placed);
+      // Every sweep and report starts by listing a store; the named
+      // orders are read by id.
+      for (const [name, store] of Object.entries(stores)) {
+        if (!store || typeof store.list !== "function") continue;
+
+        const list = store.list.bind(store);
+
+        store.list = (prefix, ...rest) => {
+          listed.push(`${name}:${prefix}`);
+
+          return list(prefix, ...rest);
+        };
+      }
+
+      const r = await runJobs(stores, {
+        ...opts, now: at("2026-10-07", 18, 5), orderIds: ["A", "NFF-NONE"],
+      });
+
+      assert.deepEqual(r.deliveryReminded, ["A"]);
+      assert.deepEqual(r.errors, []);
+      assert.deepEqual(sent.map((m) => m.subject),
+        ["Your delivery is tomorrow"]);
+      assert.deepEqual(listed, [], "no store is listed");
+      assert.equal(r.tomorrow, null, "the 18:00 report is not sent");
+      assert.equal(await stores.jobs.get(`run/${r.at}`), null,
+        "no ledger line");
+      assert.equal((await getOrder(stores, "B")).emails.deliveryReminder,
+        undefined, "B is not worked");
+
+      // The scheduled run, by contrast, sweeps and reports.
+      await runJobs(stores, { ...opts, now: at("2026-10-07", 18, 6) });
+      assert.ok(listed.length > 0);
+    });
+
+  it("logs how long each step took, by name (#516)", async (t) => {
+    const stores = testStores();
+    const { opts } = harness();
+    const lines = [];
+
+    t.mock.method(console, "info", (text) => {
+      lines.push(JSON.parse(text));
+    });
+    await saveOrder(stores, order("A"), placed);
+    await runJobs(stores, { ...opts, now: at("2026-10-07", 18, 5) });
+
+    const steps = lines.filter((l) => l.event === "jobs.step");
+
+    for (const s of steps) {
+      assert.ok(Number.isInteger(s.ms) && s.ms >= 0, JSON.stringify(s));
+    }
+    for (const name of [
+      "orders", "checkouts", "auth", "retention", "quietAccounts",
+      "squareSweep", "customers", "morningReport", "tomorrowReport",
+      "packing", "packingEve", "invariants",
+    ]) {
+      assert.equal(steps.filter((s) => s.step === name).length, 1, name);
+    }
+
+    // The e2e run's one step is its orders.
+    lines.length = 0;
+    await runJobs(stores, {
+      ...opts, now: at("2026-10-07", 18, 6), orderIds: ["A"],
+    });
+    assert.deepEqual(lines.filter((l) => l.event === "jobs.step")
+      .map((s) => s.step), ["orders"]);
+  });
+
   it("reminds again before a missed delivery's new day (#193)", async () => {
     const stores = testStores();
     const { sent, opts } = harness();

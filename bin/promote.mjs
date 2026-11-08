@@ -258,11 +258,14 @@ export const approval = ({
 };
 
 // The audit of one commit's own lockfile and workflows, against that
-// commit's exceptions file. -> { failed, counts }.
+// commit's exceptions file. -> { failed, counts }. The commit's .nvmrc
+// goes beside them so npm runs on the Node it pins: outside the repo
+// mise would pick the global Node, and npm refuses package.json's
+// devEngines on any other with EBADDEVENGINES (#504).
 export const auditCommit = async (sha, { show, audit = npmAudit }) => {
   const dir = mkdtempSync(join(tmpdir(), "promote-audit-"));
 
-  for (const file of ["package.json", "package-lock.json"]) {
+  for (const file of [".nvmrc", "package.json", "package-lock.json"]) {
     writeFileSync(join(dir, file), await show(sha, file));
   }
 

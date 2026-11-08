@@ -1,0 +1,241 @@
+{
+  "_source": {
+    "service": "square",
+    "environment": "sandbox",
+    "recorded": "2026-10-29",
+    "squareVersion": "2026-09-16",
+    "by": "bin/fixtures/record, scrubbed by bin/fixtures/scrub"
+  },
+  "status": 200,
+  "request": {
+    "method": "POST",
+    "path": "/v2/orders",
+    "headers": {
+      "Square-Version": "2026-09-16",
+      "Content-Type": "application/json"
+    },
+    "body": {
+      "idempotency_key": "IDEMPOTENCY_KEY_7",
+      "order": {
+        "location_id": "LOCATION_ID_1",
+        "reference_id": "NFF-2610-FIXT",
+        "source": {
+          "name": "northfosterfarm.com v1.0"
+        },
+        "metadata": {
+          "site_version": "1.0.0",
+          "order_flow": "order-page"
+        },
+        "customer_id": "CUSTOMER_ID_1",
+        "line_items": [
+          {
+            "name": "Whole Chicken (per each), 3.5 - 3.9 lbs",
+            "quantity": "2",
+            "base_price_money": {
+              "amount": 3000,
+              "currency": "USD"
+            }
+          }
+        ],
+        "fulfillments": [
+          {
+            "type": "DELIVERY",
+            "state": "PROPOSED",
+            "delivery_details": {
+              "recipient": {
+                "display_name": "Display Name",
+                "email_address": "customer@example.com",
+                "phone_number": "+15555550100",
+                "address": {
+                  "address_line_1": "ADDRESS_LINE_1",
+                  "locality": "LOCALITY",
+                  "administrative_district_level_1": "ST",
+                  "postal_code": "00000",
+                  "country": "US"
+                }
+              },
+              "schedule_type": "SCHEDULED",
+              "deliver_at": "2026-11-05T15:00:00.000Z",
+              "note": "prefers text · cooler: yes · heard via Fixture recorder"
+            }
+          }
+        ],
+        "service_charges": [
+          {
+            "name": "Delivery fee",
+            "amount_money": {
+              "amount": 500,
+              "currency": "USD"
+            },
+            "calculation_phase": "SUBTOTAL_PHASE",
+            "taxable": false
+          }
+        ]
+      }
+    }
+  },
+  "response": {
+    "order": {
+      "id": "ORDER_ID_3",
+      "location_id": "LOCATION_ID_1",
+      "line_items": [
+        {
+          "uid": "LINE_ITEM_UID_2",
+          "quantity": "2",
+          "name": "Whole Chicken (per each), 3.5 - 3.9 lbs",
+          "base_price_money": {
+            "amount": 3000,
+            "currency": "USD"
+          },
+          "gross_sales_money": {
+            "amount": 6000,
+            "currency": "USD"
+          },
+          "total_tax_money": {
+            "amount": 0,
+            "currency": "USD"
+          },
+          "total_discount_money": {
+            "amount": 0,
+            "currency": "USD"
+          },
+          "total_money": {
+            "amount": 6000,
+            "currency": "USD"
+          },
+          "variation_total_price_money": {
+            "amount": 6000,
+            "currency": "USD"
+          },
+          "item_type": "ITEM",
+          "total_service_charge_money": {
+            "amount": 0,
+            "currency": "USD"
+          },
+          "total_card_surcharge_money": {
+            "amount": 0,
+            "currency": "USD"
+          }
+        }
+      ],
+      "fulfillments": [
+        {
+          "uid": "FULFILLMENT_UID_2",
+          "type": "DELIVERY",
+          "state": "PROPOSED",
+          "delivery_details": {
+            "recipient": {
+              "display_name": "Display Name",
+              "email_address": "customer@example.com",
+              "phone_number": "+15555550100",
+              "address": {
+                "address_line_1": "ADDRESS_LINE_1",
+                "locality": "LOCALITY",
+                "administrative_district_level_1": "ST",
+                "postal_code": "00000",
+                "country": "US"
+              }
+            },
+            "schedule_type": "SCHEDULED",
+            "deliver_at": "2026-11-05T15:00:00.000Z",
+            "note": "prefers text · cooler: yes · heard via Fixture recorder",
+            "managed_delivery": false
+          }
+        }
+      ],
+      "metadata": {
+        "order_flow": "order-page",
+        "site_version": "1.0.0"
+      },
+      "created_at": "2026-10-29T23:20:36.932Z",
+      "updated_at": "2026-10-29T23:20:36.932Z",
+      "state": "OPEN",
+      "version": 1,
+      "reference_id": "NFF-2610-FIXT",
+      "total_tax_money": {
+        "amount": 0,
+        "currency": "USD"
+      },
+      "total_discount_money": {
+        "amount": 0,
+        "currency": "USD"
+      },
+      "total_tip_money": {
+        "amount": 0,
+        "currency": "USD"
+      },
+      "total_money": {
+        "amount": 6500,
+        "currency": "USD"
+      },
+      "service_charges": [
+        {
+          "uid": "SERVICE_CHARGE_UID_1",
+          "name": "Delivery fee",
+          "amount_money": {
+            "amount": 500,
+            "currency": "USD"
+          },
+          "applied_money": {
+            "amount": 500,
+            "currency": "USD"
+          },
+          "calculation_phase": "SUBTOTAL_PHASE",
+          "taxable": false,
+          "total_money": {
+            "amount": 500,
+            "currency": "USD"
+          },
+          "total_tax_money": {
+            "amount": 0,
+            "currency": "USD"
+          },
+          "type": "CUSTOM",
+          "treatment_type": "LINE_ITEM_TREATMENT"
+        }
+      ],
+      "total_service_charge_money": {
+        "amount": 500,
+        "currency": "USD"
+      },
+      "net_amounts": {
+        "total_money": {
+          "amount": 6500,
+          "currency": "USD"
+        },
+        "tax_money": {
+          "amount": 0,
+          "currency": "USD"
+        },
+        "discount_money": {
+          "amount": 0,
+          "currency": "USD"
+        },
+        "tip_money": {
+          "amount": 0,
+          "currency": "USD"
+        },
+        "service_charge_money": {
+          "amount": 500,
+          "currency": "USD"
+        },
+        "card_surcharge_money": {
+          "amount": 0,
+          "currency": "USD"
+        }
+      },
+      "source": {
+        "name": "northfosterfarm.com v1.0"
+      },
+      "customer_id": "CUSTOMER_ID_1",
+      "net_amount_due_money": {
+        "amount": 6500,
+        "currency": "USD"
+      },
+      "total_card_surcharge_money": {
+        "amount": 0,
+        "currency": "USD"
+      }
+    }
+  }
+}

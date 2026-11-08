@@ -1,0 +1,29 @@
+{
+  "_source": {
+    "service": "square",
+    "environment": "sandbox",
+    "recorded": "2026-10-29",
+    "squareVersion": "2026-09-16",
+    "by": "bin/fixtures/record, scrubbed by bin/fixtures/scrub"
+  },
+  "status": 200,
+  "request": {
+    "method": "POST",
+    "path": "/v2/customers/search",
+    "headers": {
+      "Square-Version": "2026-09-16",
+      "Content-Type": "application/json"
+    },
+    "body": {
+      "query": {
+        "filter": {
+          "email_address": {
+            "exact": "customer@example.com"
+          }
+        }
+      },
+      "limit": 1
+    }
+  },
+  "response": {}
+}

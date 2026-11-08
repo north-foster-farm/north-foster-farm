@@ -4,15 +4,20 @@
 // same way to sign in as a customer.
 //
 // Store layout (the `auth` store):
-//   token/<sha256(token)>   { email, expires, next, changeFrom? }
-//                           one use, 15 min
+//   token/<sha256(token)>   { email, expires, next, changeFrom?, cart? }
+//                           one use, 15 min; `cart` is a guest's cart
+//                           lines and delivery choice (#521, carryOf)
 //   session/<sha256(id)>    { email, createdAt, expires, via }
 //   rate/<email>            { times: [...] }             link requests
 //   rate/join/<email>       { times: [...] }    join-link requests, kept
 //                           apart so they never stop a sign-in (#495)
+//
+// Links and sessions are written and deleted through lib/auth-records,
+// which keeps each one's index key under its address (#508).
 
 import { createHash, randomBytes } from "node:crypto";
 
+import { deleteAuth, putAuth } from "./auth-records.mjs";
 import { now as clock, real } from "./clock.mjs";
 import { sendMail } from "./mail.mjs";
 import {
@@ -23,6 +28,12 @@ import {
   emailChangeLink, groupJoinLink, magicLink,
 } from "./templates.mjs";
 import accounts from "../../../data/accounts.json" with { type: "json" };
+import terms from "../../../data/delivery.json" with { type: "json" };
+import { carryOf } from "../../../assets/scripts/order/lib/cart-sync.mjs";
+import {
+  activePerks, publicPerk,
+} from "../../../assets/scripts/order/lib/perks.mjs";
+import { today } from "../../../assets/scripts/order/lib/zoned.mjs";
 
 const MINUTE = 60_000;
 
@@ -72,8 +83,9 @@ export const hit = async (stores, key, now, { windowMs, max }) => {
 // Only a same-site path may follow a sign-in, never another site. A
 // control character is out too: browsers drop a tab or newline from a
 // URL, so "/\t/evil.example" would resolve to "//evil.example".
+// Only a string: a JSON body may send anything (#521).
 export const safeNext = (next) => {
-  const s = String(next || "");
+  const s = typeof next === "string" ? next : "";
 
   // eslint-disable-next-line no-control-regex
   const control = /[\x00-\x1f]/.test(s);
@@ -109,7 +121,10 @@ export const ensureCustomer = async (stores, email, now) => {
 // longer (`ttl`). With `changeFrom`, the link confirms a signed-in
 // customer's new address (#240): it goes to that address, and
 // following it moves the account from `changeFrom` (lib/email-change).
-export const requestLink = async (stores, { email, next }, {
+// `cart`, from the sign-in page, is a guest's cart: what carryOf keeps
+// of it rides on the link to the account (#521). Nothing here reads
+// the customer's record, so the answer is the same for any address.
+export const requestLink = async (stores, { email, next, cart }, {
   now = clock(),
   env = process.env,
   mail = sendMail,
@@ -138,8 +153,10 @@ export const requestLink = async (stores, { email, next }, {
   }
 
   const token = secret();
+  // A change of address or a group's sign-up carries no cart.
+  const carried = changeFrom || join ? null : carryOf(cart);
 
-  await stores.auth.set(`token/${hash(token)}`, {
+  await putAuth(stores, `token/${hash(token)}`, {
     email: address,
     next: safeNext(next),
     expires: now.getTime() + ttl,
@@ -148,6 +165,7 @@ export const requestLink = async (stores, { email, next }, {
     // A group's sign-up page (#495): following the link joins the
     // group, by lib/join.mjs. Its `group` is the key, never the token.
     ...(join ? { join: join.record } : {}),
+    ...(carried ? { cart: carried } : {}),
   });
 
   const url = `${siteUrl(env)}/api/auth/verify?token=${token}`;
@@ -196,6 +214,7 @@ const tokenResult = (found) => ({
   next: found.next || "/account/",
   changeFrom: found.changeFrom || null,
   ...(found.join ? { join: found.join } : {}),
+  ...(found.cart ? { cart: found.cart } : {}),
 });
 
 // Reads a token without spending it, so a prefetch or a scanner
@@ -220,7 +239,7 @@ export const verifyToken = async (stores, token, { now = clock() } = {}) => {
 
   if (look.reason) return { ok: false, reason: look.reason };
 
-  await stores.auth.delete(look.key);
+  await deleteAuth(stores, look.key, look.found);
 
   if (now.getTime() > look.found.expires) {
     return expired(look.found);
@@ -247,7 +266,7 @@ export const createSession = async (stores, email, {
   const address = normalizeEmail(email);
 
   await ensureCustomer(stores, address, now);
-  await stores.auth.set(sessionKey(id), {
+  await putAuth(stores, sessionKey(id), {
     email: address,
     createdAt: now.toISOString(),
     expires: now.getTime() + SESSION_TTL,
@@ -302,7 +321,7 @@ export const sessionFrom = async (stores, req, { now = clock() } = {}) => {
 
   if (!session) return null;
   if (now.getTime() > session.expires) {
-    await stores.auth.delete(key);
+    await deleteAuth(stores, key, session);
 
     return null;
   }
@@ -313,7 +332,7 @@ export const sessionFrom = async (stores, req, { now = clock() } = {}) => {
 };
 
 export const endSession = async (stores, id) => {
-  if (id) await stores.auth.delete(sessionKey(id));
+  if (id) await deleteAuth(stores, sessionKey(id));
 };
 
 // A state-changing request with a session must come from this site.
@@ -369,7 +388,7 @@ const nameParts = (customer) => {
   return [first || "", rest.join(" ")];
 };
 
-export const publicCustomer = (customer) => ({
+export const publicCustomer = (customer, now = clock()) => ({
   email: customer.email,
   name: customer.name || "",
   firstName: nameParts(customer)[0],
@@ -377,6 +396,10 @@ export const publicCustomer = (customer) => ({
   phone: customer.phone || "",
   avatar: customer.avatar || null,
   discountGroup: customer.discountGroup || null,
+  // The perks in force today (#514), so the order page prices with
+  // them and the account page names them. The server reads them again
+  // from the record; nothing here is trusted back.
+  perks: activePerks(customer, today(now, terms.timeZone)).map(publicPerk),
   // A buying group's key (#471), so the order page asks /api/group for
   // the group's pickup and prices with no code.
   memberGroup: customer.memberGroup && typeof customer.memberGroup === "object"

@@ -4,17 +4,27 @@ Instructions for AI agents working anywhere under `docs/`.
 
 ## What this directory is
 
-Vendored, **read-only** Hugo reference material: the official Hugo
-documentation source plus three third-party example sites. It exists to
-be read and searched, not built or edited.
+Two things (2026-11-01, #494: this file used to describe only the
+second, and told agents never to edit anything under `docs/`):
 
-It is **not part of the North Foster Farm site**. Hugo ignores `docs/`
-entirely — it is not one of Hugo's content, layout, asset or static
-directories — so nothing here is ever published.
+- **The project's own docs**, tracked: runbooks and design notes such
+  as `cloud-lanes.md`, `order-form.md`, `security.md` and
+  `rollback.md`. They follow `CLAUDE.md`, including "fix stale notes
+  on sight": edit them like any other file.
+- **Vendored, read-only Hugo reference material**, ignored by git:
+  `hugo-docs-source/` (the official Hugo documentation source) and
+  `example-projects/` (three third-party example sites). They exist to
+  be read and searched, not built or edited. The hard rules below are
+  about these two folders.
 
-## Hard rules
+Hugo ignores `docs/` entirely — it is not one of Hugo's content,
+layout, asset or static directories — so nothing here is ever
+published.
 
-1. **Never edit any file under `docs/`.** These are upstream snapshots.
+## Hard rules for the vendored folders
+
+1. **Never edit any file under `docs/hugo-docs-source/` or
+   `docs/example-projects/`.** These are upstream snapshots.
    Edits are silently lost the moment anyone re-clones, and they make
    the reference untrustworthy.
 2. **Never lint, format, or "fix" anything here.** Do not run ESLint,
@@ -131,7 +141,7 @@ implementation instead.
 
 ## What is and is not in git
 
-Only the three markdown files in `docs/` are tracked. The vendored
+The project's docs in `docs/` are tracked. The vendored
 clones are **deliberately excluded** — they are upstream snapshots, not
 our code, and they would sit in history forever.
 

@@ -152,23 +152,20 @@ looking at the page itself; the tab is back on reload.
 
 Work lands on `next`, which does not build. Every push to `next`
 runs the `lint-and-test` check (`.github/workflows/ci.yml`), and
-`staging` is fast-forwarded to a `next` commit that passed it as soon
-as `next` is green, without waiting to batch. James is pinged right
-away and looks at it while the full e2e suite runs against it in
-parallel, and a newer push supersedes an older full run. A failure
-there is fixed forward on `next`, never reverted on `staging`
-(`docs/cloud-lanes.md`, #502, 2026-10-28). `main` takes a `staging`
-commit once James has OKed it here, and only the exact commit the full
-suite passed on: a green run on an earlier commit doesn't count once a
-later fix lands (points 2, 6 and 7 added 2026-10-28). Neither ever
+`staging` is fast-forwarded to a `next` commit that passed it, and
+`main` to a `staging` commit James has OKed here. When each moves,
+and the full e2e suite that gates `main`, is the #502 rule in
+"Promoting to staging and e2e" in `docs/cloud-lanes.md` (2026-11-01:
+the copy here moved there, #494). Neither ever
 takes a merge commit or a rebase-merge, save a release branch's merge
 into `main`, which carries the tested `staging` commit's tree
 (`docs/security.md`): promotion moves a branch to a SHA already
 checked, so the commit that ships is the commit that was tested.
 
 Two rulesets, with no bypass actor, enforce it (`docs/security.md`).
-All three branches take fast-forwards only: linear history, no force
-push, no deletion. `staging` and `main` also require `lint-and-test`,
+All three branches take fast-forwards only, with no force push or
+deletion, and linear history on `next` and `staging` (`main` takes a
+release branch's merge; 2026-11-01, #494). `staging` and `main` also require `lint-and-test`,
 `supply-chain` and `codeql`, so a push to a commit with no passing
 check is refused. `next` requires no check, so the lanes can push to
 it. `bin/nff promote staging|main` makes the two promotions and
@@ -197,9 +194,9 @@ makes the Venmo button show. `docs/qa-fulfilment-a.md` has the steps.
 Netlify runs scheduled functions on the production deploy only. The
 `Staging jobs` workflow (`.github/workflows/staging-jobs.yml`) calls
 `/api/staging/jobs/run` instead, so staging's jobs run on Netlify,
-with its own environment. It asks for every fifteen minutes, off the
-quarter hour, but GitHub schedules it only from `main` and throttles
-it: runs have come two to six hours apart (#164). Those gaps are
+with its own environment. It asks for once an hour, at seven past
+(every fifteen minutes until Netlify's Functions overage, #519), but
+GitHub schedules it only from `main` and throttles it: runs have come two to six hours apart (#164). Those gaps are
 accepted, and the schedule is not a test tool. The jobs are safe to
 run late or twice, but a day with no run between 18:00 and midnight
 gets no delivery reminder and no manifest. A tester who needs a job

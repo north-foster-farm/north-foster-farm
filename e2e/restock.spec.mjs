@@ -27,12 +27,14 @@ const items = catalog.groups.flatMap((g) => g.items);
 // (James's corrections, #274 6330468558). No product is discontinued
 // since #492, which hid the oversized tiers while empty and put the
 // rest back in spring. Since feet went back in stock (9c870287) no
-// "soon" product is out in the catalog; a pin sells out Large eggs.
+// "soon" product is out in the catalog. Large eggs are always in
+// stock (#511): no count sells them out, only the farm turning their
+// flag off, so a stub of /api/stock does (stubStock, below).
 const OUT = {
   soon: "NFF-CHK-EGG-LG", // Large eggs: "Returning soon"
   hiatus: "NFF-CHK-SAUSWT", // Sweet Italian Sausage, out in the catalog
 };
-const SOON_OUT = { [OUT.soon]: 0 };
+const SOON_OUT = { [OUT.soon]: { inStock: false, available: null } };
 // With Large eggs sold out, a row the pins keep in stock stands in
 // for "in stock" beside the labeled ones.
 const IN = SKU.wings;
@@ -76,8 +78,9 @@ const show = (page, name) => choice(page, name).click();
 
 // /api/stock as the server gives it, with `over` laid on top: kept
 // only for an answer the server can never give, which is what those
-// tests are about (stock on a product the catalog has out, or an
-// archived one on hand). Every other count is pinned.
+// tests are about (stock on a product the catalog has out, an
+// archived one on hand, or Large eggs flagged out). Every other count
+// is pinned.
 const stubStock = (page, over) => page.route("**/api/stock",
   async (route) => {
     const res = await route.fetch();
@@ -125,7 +128,8 @@ test.describe("restock types (#267)", () => {
 
   test("Show is a radio group, In stock by default, showing today's " +
     "list", async ({ page, stock }) => {
-    await stock.pin({ ...SAUSAGE_OUT, ...SOON_OUT, ...IN_STOCK });
+    await stock.pin({ ...SAUSAGE_OUT, ...IN_STOCK });
+    await stubStock(page, SOON_OUT);
     await open(page);
 
     const group = page.getByRole("radiogroup", { name: "Show" });
@@ -255,9 +259,8 @@ test.describe("restock types (#267)", () => {
 
   test("Full catalog: out-of-stock rows show their label, with no " +
     "tint on the name, and can't be added", async ({ page, stock }) => {
-    await stock.pin({
-      ...SAUSAGE_OUT, ...SEASONAL_OUT, ...SOON_OUT, ...IN_STOCK,
-    });
+    await stock.pin({ ...SAUSAGE_OUT, ...SEASONAL_OUT, ...IN_STOCK });
+    await stubStock(page, SOON_OUT);
     await open(page);
     await show(page, "Full catalog");
 
@@ -375,9 +378,8 @@ test.describe("restock types (#267)", () => {
   test("every restock label stays on one line at 320 (#324)",
     async ({ page, stock }) => {
       await page.setViewportSize({ width: 320, height: 800 });
-      await stock.pin({
-        ...SAUSAGE_OUT, ...SEASONAL_OUT, ...SOON_OUT,
-      });
+      await stock.pin({ ...SAUSAGE_OUT, ...SEASONAL_OUT });
+      await stubStock(page, SOON_OUT);
       await open(page);
       await show(page, "Full catalog");
 
@@ -403,9 +405,9 @@ test.describe("restock types (#267)", () => {
     });
 
   test("Add and a restock label share one width at 390 (#325)",
-    async ({ page, stock }) => {
+    async ({ page }) => {
       await page.setViewportSize({ width: 390, height: 800 });
-      await stock.pin(SOON_OUT);
+      await stubStock(page, SOON_OUT);
       await open(page);
       await show(page, "Full catalog");
       await expect(row(page, OUT.soon).locator(".order-qty-out"))
@@ -466,13 +468,14 @@ test.describe("restock types (#267)", () => {
       expect(errors.filter((m) => /Blocked/.test(m))).toEqual([]);
     });
 
-  // Large eggs' 3 is pinned. Sweet Italian is out in the catalog, so
-  // the server never counts it in stock; only a stub of /api/stock can
-  // say so, and the page's answer to that is what's under test.
+  // Large eggs are never counted (#511), and Sweet Italian is out in
+  // the catalog, so the server never counts it in stock; only a stub
+  // of /api/stock can say so, and the page's answer to that is what's
+  // under test.
   test("stock wins over soon and hiatus",
-    async ({ page, stock }) => {
-      await stock.pin({ [OUT.soon]: 3 });
+    async ({ page }) => {
       await stubStock(page, {
+        [OUT.soon]: { inStock: true, available: 3 },
         [OUT.hiatus]: { inStock: true, available: 3 },
       });
       await open(page);
@@ -490,6 +493,22 @@ test.describe("restock types (#267)", () => {
       await expect(new OrderPage(page).count).toHaveText("1 item");
     });
 
+  // #511: whatever the count, Large eggs show in stock with no count,
+  // and a cart above it keeps its quantity.
+  test("Large eggs are always in stock, with no count or cap",
+    async ({ page, stock }) => {
+      await stock.pin({ [OUT.soon]: 0 });
+      await open(page, { eggs: 8 });
+
+      const r = row(page, OUT.soon);
+
+      await expect(r).toBeVisible();
+      await expect(r).not.toHaveAttribute("data-stock");
+      await expect(r.locator(".order-item-stock")).toHaveText("");
+      await expect(r.locator(`[data-qty="${OUT.soon}"]`)).toHaveValue("8");
+      await expect(new OrderPage(page).count).toHaveText("8 items");
+    });
+
   test("a product that sells out mid-visit takes its label",
     async ({ page, stock }) => {
       await stock.pin({ [SKU.wings]: 0 });
@@ -502,8 +521,8 @@ test.describe("restock types (#267)", () => {
     });
 
   test("a product with no restock type stays hidden while out",
-    async ({ page, stock }) => {
-      await stock.pin(SOON_OUT);
+    async ({ page }) => {
+      await stubStock(page, SOON_OUT);
       await open(page);
       // No product lacks a type today; take one away in the page.
       await row(page, OUT.soon).evaluate((li) => {
@@ -713,6 +732,8 @@ test.describe("search and restock types (#267)", () => {
   test("lists every non-archived product with its label", async ({
     page, stock,
   }) => {
+    // Large eggs sell at any count (#511), 0 included.
+    await stock.pin({ [OUT.soon]: 0 });
     await page.goto("/about/");
 
     const p = await find(page, "sausage");
@@ -736,8 +757,8 @@ test.describe("search and restock types (#267)", () => {
     await expect(p.rows.and(page.locator(`[data-sku="${SKU.eggs}"]`)))
       .toContainText("$7");
 
-    // Sold out, Large eggs say they are returning soon.
-    await stock.pin(SOON_OUT);
+    // Flagged out, Large eggs say they are returning soon.
+    await stubStock(page, SOON_OUT);
     await page.reload();
 
     const q = await find(page, "eggs");

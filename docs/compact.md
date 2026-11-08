@@ -1,5 +1,10 @@
 # Compacting staging for main
 
+> **A record, not a runbook (2026-11-01, #494).** Nothing links here
+> and nothing below is to be followed: `main` now moves only by a
+> release branch (`docs/security.md`, "Fast-forward only"). Delete
+> this file once James no longer wants the record.
+
 > **Superseded for the launch (James, 2026-10-26).** `main` does not
 > take compacted commits. It takes one merge commit from
 > `release/launch`: its first parent is the old `main`, its second is

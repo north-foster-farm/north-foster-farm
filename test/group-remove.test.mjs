@@ -51,11 +51,11 @@ const gymOrder = () => ({
     unitPrice: 30, lineTotal: 60, squareVariationId: null }],
   totals: { subtotal: 6000, discountTier: 50, discountAmount: 500,
     deliveryFee: 0, total: 5500 },
-  fulfilment: { method: "scheduled", occurrence: "36TS-261108",
-    date: "2026-11-08", onfarm: null, delivery: null, state: "agreed" },
+  fulfilment: { method: "scheduled", occurrence: "36TS-261115",
+    date: "2026-11-15", onfarm: null, delivery: null, state: "agreed" },
   payments: [{ at: "2026-11-01T12:00:05Z", amount: 5500, via: "square" }],
   refunds: [], notes: "", code: null,
-  group: { key: "vff", round: "2026-11-08", viaCode: true },
+  group: { key: "vff", round: "2026-11-15", viaCode: true },
 });
 
 // The same order's customer at the drop site, untagged, for a move.
@@ -155,21 +155,12 @@ describe("the host's Remove", () => {
       assert.equal(memberKeyOf(await getCustomer(stores, PAT)), "vff");
     });
 
-  it("is refused from another site", async () => {
-    const { stores, host } = await setup();
-    const res = await post(stores, "/api/membership/remove",
-      { group: "vff", email: PAT },
-      { ...host, "sec-fetch-site": "cross-site" });
-
-    assert.equal(res.status, 403);
-    assert.equal(memberKeyOf(await getCustomer(stores, PAT)), "vff");
-  });
-
   // The coordinator's security review: same-site is not enough.
-  it("is refused when same-site but not same-origin", async () => {
+  it("is refused cross-site, or same-site but not same-origin", async () => {
     const { stores, host } = await setup();
 
     for (const headers of [
+      { "sec-fetch-site": "cross-site" },
       { "sec-fetch-site": "same-site" },
       { "sec-fetch-site": "", origin: "http://preview.x" },
       { "sec-fetch-site": "" },
@@ -233,7 +224,7 @@ describe("what a removal leaves as it was", () => {
     assert.deepEqual(kept.group, gymOrder().group);
     assert.deepEqual(kept.lines, gymOrder().lines);
     assert.deepEqual(kept.fulfilment, gymOrder().fulfilment);
-    assert.deepEqual((await roundOrders(stores, "vff", "2026-11-08"))
+    assert.deepEqual((await roundOrders(stores, "vff", "2026-11-15"))
       .map((o) => o.id), ["NFF-2611-GYMPAT"]);
   });
 
@@ -252,9 +243,9 @@ describe("what a removal leaves as it was", () => {
     });
 
   it("can't move an order into a round once out", async () => {
-    const to = { method: "scheduled", occurrence: "36TS-261108" };
+    const to = { method: "scheduled", occurrence: "36TS-261115" };
     const tagged = { ...dropOrder(),
-      group: { key: "vff", round: "2026-11-08", viaCode: true } };
+      group: { key: "vff", round: "2026-11-15", viaCode: true } };
 
     // In the group, the customer may move it there.
     assert.equal(planChange(tagged, to, { now, env, member: VFF }).errors,
@@ -271,7 +262,7 @@ describe("what a removal leaves as it was", () => {
 });
 
 describe("credit after leaving", () => {
-  const from = { group: "vff", round: "2026-11-08", kind: "share" };
+  const from = { group: "vff", round: "2026-11-15", kind: "share" };
 
   it("stays theirs, the account's", async () => {
     const { stores, member } = await setup();

@@ -1,0 +1,64 @@
+{
+  "_source": "SHAPED, NOT RECORDED: cloud-510 wrote these on 2026-10-30 after Netlify's open-api (POST /api/v1/sites/{site_id}/builds as createSiteBuild, GET /api/v1/deploys/{deploy_id} as getDeploy), trimmed to the fields bin/redeploy.mjs reads and their neighbors, because a cloud run cannot reach Netlify. Replace each with a recording of `bin/nff netlify api createSiteBuild --data '{\"site_id\": ..., \"body\": {\"branch\": \"staging\"}}'` and `bin/nff netlify api getDeploy --data '{\"deploy_id\": ...}'` on staging, once while building, once ready and once failed, with the ids replaced by these placeholders. Tests rewrite the commit.",
+  "build": {
+    "id": "BUILD_ID_1",
+    "deploy_id": "DEPLOY_ID_1",
+    "sha": null,
+    "done": false,
+    "error": null,
+    "created_at": "2026-10-30T12:00:00.000Z"
+  },
+  "deploys": {
+    "building": {
+      "id": "DEPLOY_ID_1",
+      "site_id": "SITE_ID_1",
+      "build_id": "BUILD_ID_1",
+      "state": "building",
+      "name": "north-foster-farm",
+      "url": "https://staging--north-foster-farm.netlify.app",
+      "deploy_url": "http://DEPLOY_ID_1--north-foster-farm.netlify.app",
+      "deploy_ssl_url": "https://DEPLOY_ID_1--north-foster-farm.netlify.app",
+      "admin_url": "https://app.netlify.com/projects/north-foster-farm",
+      "error_message": null,
+      "branch": "staging",
+      "commit_ref": null,
+      "context": "branch-deploy",
+      "created_at": "2026-10-30T12:00:00.000Z",
+      "published_at": null
+    },
+    "ready": {
+      "id": "DEPLOY_ID_1",
+      "site_id": "SITE_ID_1",
+      "build_id": "BUILD_ID_1",
+      "state": "ready",
+      "name": "north-foster-farm",
+      "url": "https://staging--north-foster-farm.netlify.app",
+      "deploy_url": "http://DEPLOY_ID_1--north-foster-farm.netlify.app",
+      "deploy_ssl_url": "https://DEPLOY_ID_1--north-foster-farm.netlify.app",
+      "admin_url": "https://app.netlify.com/projects/north-foster-farm",
+      "error_message": null,
+      "branch": "staging",
+      "commit_ref": "0000000000000000000000000000000000000000",
+      "context": "branch-deploy",
+      "created_at": "2026-10-30T12:00:00.000Z",
+      "published_at": "2026-10-30T12:04:00.000Z"
+    },
+    "error": {
+      "id": "DEPLOY_ID_1",
+      "site_id": "SITE_ID_1",
+      "build_id": "BUILD_ID_1",
+      "state": "error",
+      "name": "north-foster-farm",
+      "url": "https://staging--north-foster-farm.netlify.app",
+      "deploy_url": "http://DEPLOY_ID_1--north-foster-farm.netlify.app",
+      "deploy_ssl_url": "https://DEPLOY_ID_1--north-foster-farm.netlify.app",
+      "admin_url": "https://app.netlify.com/projects/north-foster-farm",
+      "error_message": "Build script returned non-zero exit code: 2",
+      "branch": "staging",
+      "commit_ref": "0000000000000000000000000000000000000000",
+      "context": "branch-deploy",
+      "created_at": "2026-10-30T12:00:00.000Z",
+      "published_at": null
+    }
+  }
+}

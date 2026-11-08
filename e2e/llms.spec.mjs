@@ -1,6 +1,6 @@
 // The site's llms.txt links the delivery policy as Markdown, in place of a
 // paraphrase (Q21a, #192), and that file is the policy itself.
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./support/counted.mjs";
 
 test.describe("llms.txt and the Markdown policy (Q21a)", () => {
   test("llms.txt links the policy's Markdown", async ({ request }) => {

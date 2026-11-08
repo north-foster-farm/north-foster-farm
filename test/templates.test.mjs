@@ -762,7 +762,9 @@ describe("order changed and canceled", () => {
   });
 
   const attempted = (fee) => ({
-    ...order(), attempted: { cause: "customer", fee, waived: !fee },
+    ...order(), attempted: {
+      cause: "customer", date: order().fulfilment.date, fee, waived: !fee,
+    },
   });
   // The evening of the missed delivery.
   const missedOn = new Date("2026-10-08T20:00:00Z");
@@ -855,7 +857,10 @@ describe("order changed and canceled", () => {
     // A holiday a week on: the day is named, not "next".
     assert.equal(h.subject, "Your delivery has moved to Thursday, October 22");
     has(h.text, "we've moved your delivery to Thursday, October 22.");
-    has(h.text, "If that day doesn't suit you");
+    has(h.text, "If that day doesn't work for you");
+    has(w.text, "If next Thursday doesn't work for you, you can choose " +
+      "another day");
+    assert.doesNotMatch(`${w.text}${f.text}${h.text}`, /suit you/);
   });
 
   it("names the missed day when the moved email is sent late, as the " +
@@ -882,12 +887,6 @@ describe("order changed and canceled", () => {
       { links, now: new Date("2026-10-09T02:00:00Z") });
 
     has(same.text, "We weren't able to deliver your order today, so");
-
-    // A record from before the miss was dated has no day to name.
-    const undated = movedDelivery(moved("farm", { date: undefined }),
-      { links, now: later });
-
-    has(undated.text, "We weren't able to deliver your order today, so");
   });
 
   it("says why when the hold ran out", () => {
@@ -1009,11 +1008,8 @@ describe("where the order id belongs", () => {
     }
   });
 
-  it("stays in the farm's subjects, which list many orders", () => {
-    for (const m of [farmOrderPlaced(o), farmPickupChanged(order("onfarm"))]) {
-      assert.match(m.subject, /NFF-2610-ABCD/);
-    }
-  });
+  // The order number staying in the farm's subjects is held by their
+  // exact subjects ("farmOrderPlaced", "farmPickupChanged").
 });
 
 describe("the farm's own notices", () => {

@@ -15,8 +15,10 @@ and hosted on [Netlify][netlify].
 - **Hugo 0.164.0, extended.** The extended build is the one that can
   compile SCSS; the standard build cannot. Pinned in `netlify.toml`,
   floored in `config/_default/hugo.toml`.
-- **Node 26.** Pinned in `.nvmrc` and as `NODE_VERSION` in
-  `netlify.toml`.
+- **Node 24.22.1.** Pinned in `.nvmrc`, the only pin, which GitHub
+  Actions and Netlify read. `npm install` refuses any other Node. On a
+  Mac whose system Node differs, mise gives the repo its own (see
+  `CLAUDE.md`, Node).
 - **npm.** `package-lock.json` is the lockfile. Netlify picks its
   package manager from whichever lockfile it finds, so do not add a
   `yarn.lock`.
@@ -166,14 +168,14 @@ that has already passed. The run holds no secret: each step runs under
 and makes fetch, sockets and DNS throw for any host but this machine.
 A test that would reach a real service fails.
 
-The Netlify build runs no tests. It checks that the deploy's
-environment has every key (`npm run check:env`) and the pickup
-schedule (`npm run check:schedule`), builds, and holds the built HTML
-to Bootstrap's grid (`npm run check:grid`) and the news posts' titles
-and URLs (`npm run check:news`). CI's `build` check runs the same
-Hugo build, grid and news checks on every push, as production and as
-staging builds, so a template error shows on the commit before a
-deploy fails.
+The Netlify build runs no tests. Its command in `netlify.toml` checks
+the Node version, the deploy's environment keys, the pickup schedule
+and the events, builds, and holds the built site to Bootstrap's grid,
+schema.org, the sitemap and llms.txt, and the news posts' titles and
+URLs (2026-11-01, #494: this listed four of those checks). CI's
+`build` check runs the same Hugo build and built-site checks on every
+push, as production and as staging builds, so a template error shows
+on the commit before a deploy fails.
 
 Every fact the site repeats (prices, fees, hours, addresses, the
 farm's name) has one source in `data/` or site config, and templates
@@ -185,7 +187,8 @@ outside its source; `node bin/facts/check.mjs` lists them.
 
 `/order` is a custom form backed by Netlify Functions and Square.
 `docs/order-form.md` explains the data files, the rules, the recovery
-design and what is still needed before launch. Day to day:
+design and the checklist the launch shipped by (2026-11-01, #494:
+this said "still needed before launch"). Day to day:
 
 ```bash
 bin/stock                 # flip items in and out of stock, no code edit
@@ -234,16 +237,19 @@ SCSS import order, and where the site's data lives.
 
 ## Deployment
 
-Netlify builds `npm run check:env && npm run check:schedule &&
-bin/prod && HUGO_BUILD_SHA=$COMMIT_REF hugo --gc && npm run
-check:grid` and publishes `public/`, after the local build plugin
-`plugins/source-maps` has moved the source maps into Blobs. Branch deploys add
-Hugo's draft, future and expired flags.
+Netlify runs the build command in `netlify.toml` (the checks,
+`bin/prod`, `hugo --gc`, then the orphan and grid passes) and
+publishes `public/`, after the local build plugin
+`plugins/source-maps` has moved the source maps into Blobs. Branch
+deploys add Hugo's draft, future and expired flags. (2026-11-01: the
+command quoted here had fallen behind `netlify.toml`, #494.)
 
 Work lands on `next`, which does not build. Promotion is a
 fast-forward push, never a merge: `staging` moves to a `next` commit
-that passed `lint-and-test`, and `main` to a `staging` commit that has
-been reviewed (`docs/staging.md`). The `LGTM` label merges only pull
+that passed its checks, and `main` to a `staging` commit James has
+OKed, from a release branch since the launch (`docs/staging.md`).
+When each moves is the #502 rule in "Promoting to staging and e2e" in
+`docs/cloud-lanes.md`. The `LGTM` label merges only pull
 requests into `next`: it waits for the check on the labeled head,
 rebase-merges that exact head, then runs `ci.yml` on `next`, since the
 rebased commits are new. A pull request into `staging` or `main` is

@@ -53,7 +53,11 @@ scheduled jobs and webhooks.
   Money and membership changes are always logged.
 - **Don't log:** reads, `--dry-run` and previews, scheduled jobs that
   changed nothing, and anything on staging or development unless it's
-  needed for debugging.
+  needed for debugging. Staging's lines are kept for that debugging:
+  its functions and `bin/nff --staging` (`bin/ship-log.mjs`) ship to
+  their own dataset, `nff-site-staging`, never production's, and
+  development has no Axiom keys, so it ships nothing (2026-11-01,
+  #494: the rule now names what the code does).
 - **Never in a log:** secrets or tokens, payment details, or a full
   email address, phone number or street address. Mask addresses as in
   #496, keeping the first three and last three characters of each
@@ -95,8 +99,8 @@ part updates faster than another.
 
 1. **Exact versions.** No `^` or `~` in any `package.json`; `.npmrc`
    sets `save-exact=true`. Lockfiles are committed and CI installs
-   with `npm ci`. Node (`.nvmrc`, `NODE_VERSION`) and Hugo
-   (`HUGO_VERSION`) are pinned. Actions are pinned to full commit SHAs
+   with `npm ci`. `.nvmrc` alone pins Node 24.22.1 (held by
+   `check:node` and `devEngines`), and `HUGO_VERSION` pins Hugo. Actions are pinned to full commit SHAs
    with the version in a comment.
 2. **Cooldown.** No release is adopted until it has been public for
    7 days. Dependabot's `cooldown` enforces it, and the
@@ -133,6 +137,14 @@ part updates faster than another.
 Where installing a patched version would pull in young transitive
 packages, adopt an older patched version, or hold the transitive one
 with `overrides` in `package.json`.
+
+Overrides in force:
+
+- `minimatch` 11.0.3 and its new dependency
+  `@isaacs/nonrecursive-glob-match` 1.0.3 (#522, 2026-11-06), for
+  GHSA-g3hv-75wg-m249. ESLint 10.8.0 asks for minimatch 10, which
+  has no patched release. Drop both once ESLint's own range takes a
+  patched minimatch.
 
 ## Remediation runs on events, not deadlines
 
@@ -243,8 +255,10 @@ to-do list and prints the line to paste into the pull request.
 `next`, `staging` and `main` take fast-forwards only. Two rulesets on
 `north-foster-farm`, with no bypass actor:
 
-- `fast-forward only: next, staging, main`: linear history, no force
-  push, no deletion.
+- `fast-forward only: next, staging, main`: no force push, no
+  deletion, and linear history on `next` and `staging` only, so that
+  `main` can take a release branch's merge (below; 2026-11-01, #494:
+  this said linear history on all three, against the release rule).
 - `required checks: staging, main`: `lint-and-test`, `supply-chain`
   and `codeql`, each from the GitHub Actions app. James decided the
   next sets on 2026-10-20 (#283): `build` on both, `release-audit` on
@@ -275,14 +289,10 @@ check belongs to its SHA. So:
   `release-audit` runs, and stops. It
   audits the commit's own lockfile first: reported now, blocking once
   `AUDIT_BLOCKS` is set, because a check that passed earlier cannot
-  see an advisory published since. When to promote (#502,
-  2026-10-28): `staging` as soon as `next` is green, with a ping to
-  James right away and the full e2e suite against it in parallel; a
-  newer push supersedes an older full run. A failure there is fixed
-  forward through `next`, never reverted. `main` only after James OKs
-  `staging`, and only from the exact commit the full suite passed on
-  (`docs/cloud-lanes.md`; points 2, 6 and 7 added 2026-10-28).
-  `promote main` checks the last: the commit, or a release's staging
+  see an advisory published since. When to promote is the #502 rule
+  in "Promoting to staging and e2e" in `docs/cloud-lanes.md`
+  (2026-11-01: the copy here moved there, #494). `promote main`
+  checks its point 7: the commit, or a release's staging
   parent, must be the head of a successful E2E staging run on
   `e2e/staging-full` whose `Run` step passed, read from the Actions
   API (`stagingSuite` in `bin/promote.mjs`). A run that stood down for

@@ -13,6 +13,7 @@ import Tooltip from "bootstrap/js/dist/tooltip.js";
 import { celebrate } from "../celebrate.js";
 import { ringsCart } from "../lib/cart-scroll.mjs";
 import { packLabel } from "../lib/catalog.mjs";
+import { perkSentence } from "../lib/perks.mjs";
 import { awayFrom } from "../lib/share-away.mjs";
 import { dollars } from "../lib/totals.mjs";
 import { label } from "../lib/zoned.mjs";
@@ -474,9 +475,11 @@ export class Cart {
     qs(box, "[data-total='paid']").textContent = dollars(held);
     qs(box, "[data-edit-kept]").hidden = !kept;
     qs(box, "[data-total='kept']").textContent = `−${dollars(kept)}`;
-    qs(box, "[data-total='kept-label']").textContent = keptDate
-      ? `Delivery fee for the trip on ${label(keptDate)}`
-      : "Delivery fee for the trip";
+    // A kept fee always has its day: `orders attempted` dates the miss.
+    if (kept) {
+      qs(box, "[data-total='kept-label']").textContent =
+        `Delivery fee for the trip on ${label(keptDate)}`;
+    }
     qs(box, "[data-total='due-label']").textContent = diff < 0
       ? "We refund" : "You pay";
     qs(box, "[data-total='due']").textContent = dollars(Math.abs(diff));
@@ -592,6 +595,24 @@ export class Cart {
   // lapses.
   keepOpen() {
     if (this.teaching) this.teaching.keep();
+  }
+
+  // The signed-in customer's perks (#514), one line each: what the
+  // totals already apply, said so the customer knows why. The lines
+  // are fragments with no end punctuation, so each takes its own line.
+  setPerks(perks) {
+    const note = qs(this.root, "[data-cart-perks]");
+
+    if (!note) return;
+    note.replaceChildren(...perks.map((perk) => {
+      const line = document.createElement("span");
+
+      line.className = "d-block";
+      line.textContent = perkSentence(perk);
+
+      return line;
+    }));
+    note.hidden = !perks.length;
   }
 
   // The outcome of a code the form applied: `text` and `tone` for the

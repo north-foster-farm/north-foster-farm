@@ -24,6 +24,7 @@ const MISSED = {
   question: { kind: "missed", reason: "", until: "2026-10-01",
     openedAt: "2026-09-24T18:00:00.000Z", answeredAt: null },
   keptFee: 500,
+  keptDate: "2026-09-24",
 };
 
 const setUp = async (page, context, baseURL, order = MISSED) => {
@@ -43,7 +44,7 @@ const setUp = async (page, context, baseURL, order = MISSED) => {
 };
 
 test.describe("a missed delivery", () => {
-  test("the account card says it is held, and what to do (draft)",
+  test("the account card says it is held, and what to do",
     async ({ page, context, baseURL }) => {
       await setUp(page, context, baseURL);
       await page.goto("/account/#orders");
@@ -58,15 +59,17 @@ test.describe("a missed delivery", () => {
       );
     });
 
-  test("the cancel panel says the fee stays (draft)",
+  test("the cancel panel says the fee stays",
     async ({ page, context, baseURL }) => {
       await setUp(page, context, baseURL);
       await page.goto("/account/#orders");
       await page.getByRole("button", { name: "Cancel order" }).first()
         .click();
 
-      await expect(page.locator("[data-out='explain']")).toContainText(
-        "The delivery fee of $5 isn't refunded because we made the trip.",
+      await expect(page.locator("[data-out='explain']")).toHaveText(
+        "The delivery fee of $5 isn't refunded because we made the trip. " +
+        "We'll refund the rest the way you paid, usually within a few " +
+        "business days.",
       );
     });
 
@@ -82,12 +85,13 @@ test.describe("a missed delivery", () => {
       );
       await page.getByRole("button", { name: "Cancel order" }).first()
         .click();
-      await expect(page.locator("[data-out='explain']")).not.toContainText(
-        "isn't refunded",
+      await expect(page.locator("[data-out='explain']")).toHaveText(
+        "We'll refund you the way you paid, usually within a few business " +
+        "days.",
       );
     });
 
-  test("the order page counts the kept fee against a change (draft)",
+  test("the order page counts the kept fee against a change",
     async ({ page, context, baseURL }) => {
       await setUp(page, context, baseURL);
       await page.goto(`/order/?edit=${MISSED.id}`);
@@ -97,6 +101,9 @@ test.describe("a missed delivery", () => {
       await expect(money.locator("[data-total='paid']")).toHaveText("$61");
       await expect(money.locator("[data-edit-kept]")).toBeVisible();
       await expect(money.locator("[data-total='kept']")).toHaveText("−$5");
+      await expect(money.locator("[data-total='kept-label']")).toHaveText(
+        "Delivery fee for the trip on Thursday, September 24",
+      );
     });
 
   test("the booked day, now past, is not offered back",

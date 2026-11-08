@@ -102,5 +102,11 @@ export const indexCatalog = (catalog) => {
 // "hidden" (#492) leaves it off the page while it is out: stock wins.
 export const archived = (item) => !!item && item.restock === "archived";
 
+// An item the catalog marks `alwaysInStock` (#511, James, 2026-10-28)
+// sells by its inStock flag alone: no count shows, no quantity is
+// capped and no order is refused for stock, whatever Square counts.
+// Its restock type still labels it when the flag is off.
+export const uncounted = (item) => !!item && item.alwaysInStock === true;
+
 export const inStock = (catalog) => [...indexCatalog(catalog).values()]
   .filter((item) => item.inStock && !archived(item));

@@ -1,5 +1,5 @@
 // Calendar arithmetic in a named time zone without Temporal, which
-// Node 26 does not ship. Calendar days are ISO strings (YYYY-MM-DD) so
+// Node 24 does not ship. Calendar days are ISO strings (YYYY-MM-DD) so
 // day arithmetic never touches an offset; only "now" and a cutoff are
 // converted between a wall-clock time and an instant.
 

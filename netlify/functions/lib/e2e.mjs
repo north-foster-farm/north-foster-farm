@@ -22,6 +22,7 @@ import { links, readState, setState } from "./maintenance.mjs";
 import { OUTBOX_PREFIX } from "./mail.mjs";
 import { requestSubscribe } from "./news.mjs";
 import { issuePass, passKey } from "./passes.mjs";
+import { addPerk, removePerk } from "./perks.mjs";
 import { getCustomer, saveCustomer } from "./records.mjs";
 import { quietAccounts } from "./retention.mjs";
 import * as squareApi from "./square.mjs";
@@ -160,8 +161,8 @@ export const OPS = {
     }),
   }),
   // The scheduled jobs as of `at` (an ISO time within the clock's
-  // reach), working only the named orders. The sweeps and reports keep
-  // the real time, as in the toolbar's run.
+  // reach), working only the named orders and only their own jobs: the
+  // sweeps and reports, which read every record, are not run (#516).
   jobsRun: async (stores, { at, orders }, env) => {
     const when = new Date(need(at, "at"));
 
@@ -238,6 +239,22 @@ export const OPS = {
     await stores.orders.delete(passKey(need(code, "code")));
 
     return { removed: true };
+  },
+  // A perk on a test customer's record (#514, #521), as `bin/nff perks
+  // add` sets one, logged the same way (lib/perks.mjs, #497) with the
+  // suite as who acted. The family perk is James's alone and stays out
+  // of reach here. -> { record (masked), perk }.
+  perksAdd: async (stores, { email, type, start, end }) => {
+    const r = await addPerk(stores, need(email, "email"), need(type, "type"),
+      { start: start || null, end: end || null, by: "e2e" });
+
+    return { record: r.record, perk: r.perk };
+  },
+  perksRemove: async (stores, { email, type }) => {
+    const r = await removePerk(stores, need(email, "email"),
+      need(type, "type"), { by: "e2e" });
+
+    return { record: r.record, perk: r.perk };
   },
   // A buying group's code (#471), for the spec that orders with one.
   // The code in force is returned as it is; one is minted only where

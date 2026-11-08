@@ -101,6 +101,17 @@ export const showChick = (root, avatar) => {
   }
 };
 
+// Sign in comes back to the page it was pressed on (#521): the path
+// only, which the server checks again (lib/auth.mjs safeNext). The
+// sign-in page itself keeps the bare link.
+const returnHere = (link) => {
+  const url = new URL(link.getAttribute("href"), location.href);
+
+  if (url.pathname === location.pathname) return;
+  url.searchParams.set("next", location.pathname);
+  link.setAttribute("href", url.pathname + url.search);
+};
+
 // The Sign out buttons fill() has bound.
 const wired = new WeakSet();
 
@@ -111,6 +122,7 @@ const fill = (slot, who) => {
   const menu = slot.querySelector("[data-account-menu]");
 
   if (!who.signedIn) {
+    returnHere(signin);
     signin.hidden = false;
     menu.hidden = true;
     slot.classList.add("is-ready");

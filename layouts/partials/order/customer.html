@@ -3,6 +3,11 @@
      fields, under skeletons while /api/me answers (#271). */}}
 <fieldset class="order-section order-details mb-5" id="details">
   <legend class="h2" tabindex="-1">Contact information</legend>
+  {{/* The same for every signed-out customer, whatever they type
+       (#521): only order-form.js signedIn() hides it, from the
+       session, never from a field. Approved by James (#521,
+       2026-11-02). */}}
+  <p class="mb-3" data-signin-prompt>Have an account? Don't forget to <a href="{{ relURL "login/" }}?next={{ relURL "order/" }}">sign in</a>.</p>
   <div class="order-hform">
     <div class="row">
       <label class="col-sm-3 col-form-label" for="customer-first-name">First name</label>

@@ -56,12 +56,14 @@ E2E_BASE_URL=http://localhost:8895 npm run e2e -- --retries=0
 A push to `next` runs no e2e (#303, 2026-10-26). A dispatch of
 `e2e.yml` with `specs` runs the named specs; with `specs` empty, `e2e`
 runs the whole suite twice and fails if either pass fails: a flake is
-a failure, never retried away. On `next`, dispatch only the specs the
-new code touches directly; the full suite runs against `staging` after
-every push to it (`docs/cloud-lanes.md`, #502, 2026-10-28, replacing
-the single full run on a frozen commit of #423).
-`e2e-burn-in` runs every spec changed since `staging` ten times on the
-pull request into `staging` (`e2e-burn-in-advisory` on `next`).
+a failure, never retried away. Which specs run where, on `next` and on
+`staging`, is the #502 rule in "Promoting to staging and e2e" in
+`docs/cloud-lanes.md` (2026-11-01: the copy here moved there, #494).
+`e2e-burn-in-advisory` runs every spec changed since `staging` ten
+times in a full dispatch of `e2e.yml` (`specs` empty). The required
+`e2e-burn-in` (`e2e-burn-in.yml`) runs on a pull request into
+`staging`, which `staging`'s fast-forward-only flow never opens
+(2026-11-01, #494: the gap is James's to settle in `.github/`).
 `e2e-soak.yml` runs the whole suite many times over, by hand only.
 `gate.spec.mjs` and anything that needs Square's or PayPal's own
 forms stay with the run against staging.
@@ -2423,7 +2425,9 @@ of five posts per IP in ten minutes is PY-18b.
 
 ### AR-17 Unanswered messages are chased (#140)
 
-Pending: #167 (after launch). `bin/nff messages` does not exist yet.
+`bin/nff messages [--all]` and `messages done <id>` exist now (#167;
+2026-11-01, #494: this said "Pending" and that the command did not
+exist). Whether the daily chase is automated is not checked here.
 
 - **Scenario:** The farm is reminded daily until every message is
   answered.

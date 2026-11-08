@@ -7,7 +7,8 @@ import {
   ORDER_METADATA, SITE_VERSION, SOURCE_NAME, SquareError, buildChangeOrder,
   buildOrder, cancelFulfillment, cancelOrder, clientConfig, completeOrder,
   createOrder, createPayment, customerOrders, dashboardUrl, deleteCustomer,
-  e164, getPayment, inventoryCounts, receiptLink, refundPayment,
+  e164, getPayment, inventoryCounts, paymentRecord, receiptLink,
+  refundPayment,
   searchOpenOrders, settings, updateFulfillment,
 } from "../netlify/functions/lib/square.mjs";
 import {
@@ -15,6 +16,7 @@ import {
 } from "../netlify/functions/lib/square-pause.mjs";
 import { buildModel } from "../assets/scripts/order/lib/events.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
+import { recorded, reply } from "./recorded.mjs";
 
 const env = {
   SQUARE_ACCESS_TOKEN: "tok",
@@ -79,13 +81,12 @@ const fakeFetch = (answers) => {
   return { impl, calls };
 };
 
-const completed = (extra = {}) => ({
-  payment: {
-    id: "PAY-1", status: "COMPLETED", receipt_url: "https://sq/receipt",
-    card_details: { card: { card_brand: "VISA", last_4: "4242" } },
-    ...extra,
-  },
+// A payment Square took, as the sandbox recorded one
+// (test/fixtures/square), with whatever a test changes.
+const completed = (extra = {}, name = "payment-card-ok") => ({
+  payment: { ...recorded("square", name).response.payment, ...extra },
 });
+const card = recorded("square", "payment-card-ok").response.payment;
 
 // #241 and #236: one switch stops every automatic Square cleanup.
 describe("the Square deletion kill switch", () => {
@@ -483,34 +484,9 @@ describe("deleteCustomer", () => {
 });
 
 describe("createOrder", () => {
-  it("searches, creates the customer and the order with derived keys",
-    async () => {
-      const { impl, calls } = fakeFetch({
-        "/v2/customers/search": { customers: [] },
-        "/v2/customers": { customer: { id: "CUST" } },
-        "/v2/orders": { order: { id: "SQO" } },
-      });
-      const out = await createOrder(order(), KEY, { env, fetchImpl: impl });
-
-      assert.deepEqual(out, {
-        squareOrderId: "SQO", customerId: "CUST", customerMade: true,
-      });
-      assert.deepEqual(calls.map((c) => c.path), [
-        "/v2/customers/search", "/v2/customers", "/v2/orders",
-      ]);
-      assert.deepEqual(calls[0].body.query.filter.email_address,
-        { exact: "pat@example.com" });
-      assert.equal(calls[1].body.idempotency_key, `${KEY}-customer`);
-      assert.equal(calls[1].body.reference_id, "NFF-2610-ABCD");
-      assert.equal(calls[1].body.given_name, "Pat");
-      assert.equal(calls[1].body.family_name, "Example");
-      assert.equal(calls[2].body.idempotency_key, `${KEY}-order`);
-      assert.equal(calls[2].body.order.customer_id, "CUST");
-      assert.equal(calls[2].body.order.reference_id, "NFF-2610-ABCD");
-      assert.equal(calls[0].headers["Square-Version"], "2026-09-16");
-      assert.equal(calls[0].headers.Authorization, "Bearer tok");
-    });
-
+  // Searching, making the customer and the order with derived keys,
+  // and a profile a retry finds, are square-replay.test's, on the
+  // sandbox's recorded answers (#494).
   it("reuses an existing customer", async () => {
     const { impl, calls } = fakeFetch({
       "/v2/customers/search": { customers: [{ id: "OLD" }] },
@@ -523,19 +499,6 @@ describe("createOrder", () => {
     assert.ok(!calls.some((c) => c.path === "/v2/customers"));
     assert.equal(calls[1].body.order.customer_id, "OLD");
   });
-
-  it("knows a profile it made for this order when a retry finds it",
-    async () => {
-      const { impl } = fakeFetch({
-        "/v2/customers/search": { customers: [{
-          id: "CUST", reference_id: "NFF-2610-ABCD",
-        }] },
-        "/v2/orders": { order: { id: "SQO" } },
-      });
-      const out = await createOrder(order(), KEY, { env, fetchImpl: impl });
-
-      assert.equal(out.customerMade, true);
-    });
 
   it("marks 5xx and network failures retryable and 4xx not", async () => {
     const boom = fakeFetch({
@@ -581,11 +544,11 @@ describe("createPayment", () => {
       const out = await createPayment(args(), { env, fetchImpl: impl });
 
       assert.deepEqual(out, {
-        squarePaymentId: "PAY-1",
+        squarePaymentId: card.id,
         status: "COMPLETED",
-        receiptUrl: "https://sq/receipt",
-        brand: "VISA",
-        last4: "4242",
+        receiptUrl: card.receipt_url,
+        brand: card.card_details.card.card_brand,
+        last4: card.card_details.card.last_4,
         wallet: null,
       });
       assert.equal(calls.length, 1);
@@ -615,7 +578,7 @@ describe("createPayment", () => {
   it("records money that came another way as an external tender",
     async () => {
       const { impl, calls } = fakeFetch({
-        "/v2/payments": completed({ card_details: undefined }),
+        "/v2/payments": completed({}, "payment-external"),
       });
       const out = await createPayment(args({
         source: { external: { source: "Venmo", sourceId: "CAP-1" } },
@@ -626,14 +589,15 @@ describe("createPayment", () => {
         type: "SOCIAL", source: "Venmo", source_id: "CAP-1",
       });
       assert.equal(calls[0].body.verification_token, undefined);
-      assert.equal(out.brand, null);
-      assert.equal(out.last4, null);
+      assert.deepEqual(out, paymentRecord(
+        recorded("square", "payment-external").response.payment
+      ));
     });
 
   it("records cash the farm took as Square's cash payment, the buyer's " +
     "money being the amount (#181)", async () => {
     const { impl, calls } = fakeFetch({
-      "/v2/payments": completed({ card_details: undefined }),
+      "/v2/payments": completed({}, "payment-cash"),
     });
 
     await createPayment(args({ source: { cash: true }, amount: 2000 }),
@@ -651,7 +615,7 @@ describe("createPayment", () => {
   it("records a check as an external payment of its own type (#181)",
     async () => {
       const { impl, calls } = fakeFetch({
-        "/v2/payments": completed({ card_details: undefined }),
+        "/v2/payments": completed({}, "payment-external"),
       });
 
       await createPayment(args({
@@ -677,19 +641,16 @@ describe("createPayment", () => {
   });
 
   it("says a declined card was declined, with Square's code", async () => {
+    const declined = recorded("square", "payment-card-declined");
     const { impl } = fakeFetch({
-      "/v2/payments": () => new Response(
-        JSON.stringify({ errors: [{
-          category: "PAYMENT_METHOD_ERROR", code: "CARD_DECLINED",
-        }] }), { status: 402 }
-      ),
+      "/v2/payments": () => reply("square", "payment-card-declined"),
     });
 
     await assert.rejects(
       createPayment(args(), { env, fetchImpl: impl }),
       (e) => e instanceof SquareError && e.declined === true
-        && e.code === "CARD_DECLINED" && e.retryable === false
-        && e.status === 402
+        && e.code === declined.response.errors[0].code
+        && e.retryable === false && e.status === declined.status
     );
   });
 
@@ -776,6 +737,28 @@ describe("cancelOrder", () => {
     assert.equal(calls[1].method, "PUT");
     assert.deepEqual(calls[1].body, {
       order: { location_id: "LOC", version: 3, state: "CANCELED" },
+    });
+  });
+
+  it("cancels an open fulfillment first, then the order at the new " +
+    "version", async () => {
+    const open = recorded("square", "order-get-before-cancel").response.order;
+    const { impl, calls } = fakeFetch({
+      [`/v2/orders/${open.id}`]: (n) => new Response(JSON.stringify({
+        order: { ...open, version: open.version + n - 1 },
+      })),
+    });
+    const out = await cancelOrder(open.id, { env, fetchImpl: impl });
+
+    assert.deepEqual(out, { id: open.id, cancelled: true });
+    assert.deepEqual(calls.map((c) => c.method), ["GET", "PUT", "PUT"]);
+    assert.deepEqual(calls[1].body.order.fulfillments,
+      [{ uid: open.fulfillments[0].uid, state: "CANCELED" }]);
+    assert.equal(calls[1].body.order.version, open.version);
+    assert.deepEqual(calls[2].body.order, {
+      location_id: open.location_id || "LOC",
+      version: open.version + 1,
+      state: "CANCELED",
     });
   });
 
@@ -1102,26 +1085,25 @@ describe("refundPayment", () => {
 
 describe("getPayment", () => {
   it("reads one payment back in the record's shape", async () => {
-    const { impl, calls } = fakeFetch({ "/v2/payments/PAY-1": completed() });
+    const { impl, calls } = fakeFetch({
+      "/v2/payments/PAY-1": recorded("square", "payment-get").response,
+    });
     const out = await getPayment("PAY-1", { env, fetchImpl: impl });
+    const got = recorded("square", "payment-get").response.payment;
 
     assert.equal(calls[0].method, "GET");
     assert.equal(calls[0].body, null);
-    assert.equal(out.squarePaymentId, "PAY-1");
-    assert.equal(out.last4, "4242");
+    assert.equal(out.squarePaymentId, got.id);
+    assert.equal(out.last4, got.card_details.card.last_4);
     assert.equal(out.refunded, 0, "nothing back yet");
   });
 
   it("says how much has been refunded", async () => {
-    // As the sandbox answered for a $7 Venmo copy with $2 back.
-    const { impl } = fakeFetch({
-      "/v2/payments/PAY-1": completed({
-        refunded_money: { amount: 200, currency: "USD" },
-      }),
-    });
+    const back = recorded("square", "payment-get-refunded").response;
+    const { impl } = fakeFetch({ "/v2/payments/PAY-1": back });
 
     assert.equal((await getPayment("PAY-1", { env, fetchImpl: impl }))
-      .refunded, 200);
+      .refunded, back.payment.refunded_money.amount);
   });
 });
 

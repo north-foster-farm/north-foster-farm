@@ -8,7 +8,7 @@
 // where SITE_CONTEXT is dev (netlify/functions/lib/fake.mjs).
 
 import {
-  OrderPage, expect, paymentFakes as fakes, test, uniqueEmail,
+  OrderPage, expect, paidCard, paymentFakes as fakes, test, uniqueEmail,
 } from "./support/order.mjs";
 
 test.describe("fake payments", () => {
@@ -30,7 +30,7 @@ test.describe("fake payments", () => {
     expect(status, JSON.stringify(body)).toBe(200);
     await expect(order.result).toBeVisible();
     await expect(order.result.locator("[data-out='how']"))
-      .toHaveText("Visa ending 1111");
+      .toHaveText((await paidCard(request)).how);
   });
 
   test("Venmo pays for an on-farm pickup", async ({ page, request }) => {

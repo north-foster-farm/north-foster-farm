@@ -15,7 +15,7 @@
             <label class="visually-hidden" for="login-email">Email address</label>
             <div class="input-group">
               <input class="form-control" type="email" id="login-email" name="email" placeholder="Email address" autocomplete="email" inputmode="email" enterkeyhint="send" required aria-describedby="err-login-email">
-              {{ partial "busy-button.html" (dict "label" "Send a sign-in link" "busy" "Sending" "class" "btn-primary" "id" "login-submit" "fit" true) }}
+              {{ partial "busy-button.html" (dict "label" "Send a sign-in link" "busy" "Sending" "class" "btn-primary" "id" "login-submit" "fit" true "disabled" true) }}
             </div>
             {{/* Outside the group: the invalid ring (.farm-list-form
                  .input-group:has(> .is-invalid)) wraps the field and

@@ -15,6 +15,7 @@ import { fileURLToPath } from "node:url";
 
 import { MACHINE_COOKIE } from "../../netlify/functions/lib/gate.mjs";
 import { SCOPE_COOKIE } from "../../netlify/functions/lib/stock-pins.mjs";
+import { countCall } from "./calls.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
@@ -95,6 +96,8 @@ export const op = async (name, args = {}, {
   for (let attempt = 1; ; attempt += 1) {
     let res;
 
+    // Every try is a call (#519).
+    countCall(`${BASE_URL}/api/staging/e2e`, BASE_URL);
     try {
       res = await fetch(`${BASE_URL}/api/staging/e2e`, {
         signal: timeoutMs ? AbortSignal.timeout(timeoutMs) : undefined,
@@ -239,6 +242,20 @@ const FORMS = {
     return `Deleted ${email}.`;
   },
   login: async ([, email]) => (await op("login", { email })).url,
+  // `["perks", "add", email, type, "--end=YYYY-MM-DD"]` (#521).
+  "perks add": async ([, , email, type, ...rest]) => {
+    const { perk } = await op("perksAdd", {
+      email, type, start: flag(rest, "start"), end: flag(rest, "end"),
+    });
+
+    return `Added ${type} to ${email} from ${perk.start}${
+      perk.end ? ` through ${perk.end}` : " until removed"}.`;
+  },
+  "perks remove": async ([, , email, type]) => {
+    await op("perksRemove", { email, type });
+
+    return `Removed ${type} from ${email}.`;
+  },
   "maintenance status": async () => `Maintenance is ${
     (await op("maintenanceStatus")).on ? "ON" : "off"}.`,
   "maintenance on": async () => {

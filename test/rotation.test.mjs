@@ -76,12 +76,8 @@ describe("the rotation log", () => {
       ["SQUARE_ACCESS_TOKEN", "2026-10-20"],
     ]);
   });
-
-  it("counts a rotation inside the window as done", () => {
-    const due = stillDue(parseRotationLog(LOG), "2026-12-01");
-
-    assert.ok(!due.some((e) => e.name === "RESEND_API_KEY"));
-  });
+  // The exact list above leaves out RESEND_API_KEY, rotated inside the
+  // window, so it also holds that a rotation there counts as done.
 });
 
 describe("the reminder days", () => {

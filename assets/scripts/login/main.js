@@ -1,6 +1,8 @@
 // The sign-in page: one email field, one request, then "check your
 // email". A ?error= from a bad or used link explains itself here.
 
+import { Draft } from "../order/draft.js";
+import { carryOf } from "../order/lib/cart-sync.mjs";
 import { api } from "../utils/api.js";
 import { isBusy, whileBusy } from "../utils/busy-button.js";
 import { say } from "../utils/contact-link.js";
@@ -77,12 +79,17 @@ const start = () => {
       return;
     }
 
+    // A guest's cart rides on the link, in case it opens in another
+    // browser (#521): its lines and delivery choice only, never the
+    // details typed (carryOf).
+    const cart = carryOf(new Draft().load());
     const { ok, data } = await whileBusy(submit, api("/api/auth/request", {
       method: "POST",
       body: {
         email: value,
         next,
         website: form.querySelector("[name='website']").value,
+        ...(cart ? { cart } : {}),
       },
     }));
 
@@ -96,6 +103,11 @@ const start = () => {
 
     showSent();
   });
+
+  // The button starts disabled in the markup, so a press before this
+  // script runs can't submit natively and put the address in the URL
+  // (#521).
+  submit.disabled = false;
 
   document.getElementById("login-again").addEventListener("click", () => {
     sent.hidden = true;

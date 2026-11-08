@@ -588,7 +588,7 @@ export const orderChanged = (order, {
   return { subject: title, ...render(title, blocks, links) };
 };
 
-// "October 15": the drafts name the weekday themselves.
+// "October 15": the emails name the weekday themselves.
 const dayAfter = (iso, days) => label(addDays(iso, days)).replace(/^\w+, /, "");
 
 // A customer's delivery the farm could not leave (#193), held seven
@@ -596,11 +596,12 @@ const dayAfter = (iso, days) => label(addDays(iso, days)).replace(/^\w+, /, "");
 // wording: kept, the customer is warned before choosing that it stays
 // whatever they choose; waived, everything comes back (James, C3). A
 // farm or weather miss gets movedDelivery instead (C7). James approved
-// the words as they stand on 2026-10-26 (#304). The hold runs to the
+// the words on 2026-10-26 (#304) and again, both versions as written,
+// on 2026-11-02 (#237). The hold runs to the
 // order's `question.until`; an email sent after the day of the miss (a
 // resend, a late mark) names that day instead of "today".
 
-// What we saw, not what the customer did (C6a, James's drafts).
+// What we saw, not what the customer did (C6a, James's words).
 const missedReason = (order) => {
   const a = order.attempted || {};
   const d = order.fulfilment.delivery || {};
@@ -626,20 +627,30 @@ const missedReason = (order) => {
   return "there was no cooler out, and we couldn't reach you";
 };
 
+// The day of a miss as both emails name it: "today" on the day, and
+// "on Thursday, October 8" once the day is past (a resend, a late
+// mark). Every miss is dated: `orders attempted` has written the date
+// since 2026-09-28 (#237).
+const missedOn = (date, now) => {
+  const late = today(now, terms.timeZone) > date;
+
+  return { late, day: late ? `on ${label(date)}` : "today" };
+};
+
 export const missedDelivery = (order, {
   pickUrl, links, now = new Date(),
 } = {}) => {
   const title = "We couldn't deliver your order";
   const fee = keptFee(order);
   const { date } = order.fulfilment;
-  const late = today(now, terms.timeZone) > date;
+  const { late, day } = missedOn(date, now);
   const next = dayAfter(date, 7);
   const hold = label((order.question && order.question.until)
     || addDays(date, HOLD_DAYS));
   const items = dollars(order.totals.total - fee);
   const blocks = [
     p(`Hi ${firstName(order.customer)},`),
-    p(`We came by ${late ? `on ${label(date)}` : "today"} with your order ` +
+    p(`We came by ${day} with your order ` +
       `but couldn't leave it: ${missedReason(order)}. Your order is back ` +
       "at the farm."),
   ];
@@ -683,20 +694,18 @@ export const missedDelivery = (order, {
 // have moved it to the next delivery day; they may pick otherwise.
 // `order` is the moved record, and `attempted.date` the day we missed;
 // a holiday a week on puts the new day further out, and the email
-// names it without "next". James approved the words as they stand on
-// 2026-10-26 (#304); `orders attempted` sends it.
+// names it without "next". James approved the words on 2026-11-02
+// (#237), with "work for you" and the missed day named when the email
+// goes out later; `orders attempted` sends it.
 export const movedDelivery = (order, {
   pickUrl, links, now = new Date(),
 } = {}) => {
   const a = order.attempted || {};
   const date = order.fulfilment.date;
-  const next = !a.date || addDays(a.date, 7) === date;
+  const next = addDays(a.date, 7) === date;
   const when = next ? `next ${DELIVERY_DAY}` : DELIVERY_DAY;
   const title = `Your delivery has moved to ${next ? when : label(date)}`;
-  // An email sent after the day of the miss (a resend, a late mark)
-  // names that day instead of "today", as missedDelivery does.
-  const late = !!a.date && today(now, terms.timeZone) > a.date;
-  const day = late ? `on ${label(a.date)}` : "today";
+  const { day } = missedOn(a.date, now);
   const why = a.cause === "weather"
     ? `The weather kept us from delivering your order ${day}`
     : `We weren't able to deliver your order ${day}`;
@@ -704,10 +713,10 @@ export const movedDelivery = (order, {
     p(`Hi ${firstName(order.customer)},`),
     p(`${why}, so we've moved your delivery to ${when}, ${
       dayAfter(date, 0)}. You don't need to do anything.`),
-    p(`If ${next ? when : "that day"} doesn't suit you, you can choose ` +
-      "another day, switch to on-farm pickup or one of our pickup days, " +
-      "or cancel for a full refund " +
-      `of ${dollars(order.totals.total)}, delivery fee included.`),
+    p(`If ${next ? when : "that day"} doesn't work for you, you can ` +
+      "choose another day, switch to on-farm pickup or one of our pickup " +
+      `days, or cancel for a full refund of ${dollars(order.totals.total)}, ` +
+      "delivery fee included."),
   ];
 
   if (pickUrl) blocks.push(button("Reschedule or cancel", pickUrl));
@@ -1359,6 +1368,12 @@ const onePayment = (p) => {
 // payment: "$42 by Visa ending 1111, then $12 by Venmo".
 export const paymentPhrase = (order) => {
   const payments = paymentsOf(order);
+
+  // A family order (#514) has no payment and nothing due: "$0, nothing
+  // to pay", as James approved (#514, 2026-11-02).
+  if (!payments.length && order.totals.total === 0) {
+    return "$0, nothing to pay";
+  }
 
   return payments.length
     ? payments.map(onePayment).join(", then ")
@@ -2241,41 +2256,71 @@ const packetLine = (e) => {
   return `**${e.order.id}**${who ? `, ${who}` : ""}: ${PACKET_KIND[e.kind]}`;
 };
 
+// The day before's packet (#515) passes `eve`, the time it goes ("3
+// PM") and `next`, the morning packet's ("6 AM"): `day` is the day its
+// slips are for. The morning after one passes its time as `since`.
 export const farmPackingSlips = (entries, {
   day, sunday = false, quiet = false, slips = 0, revised = 0,
-  cancelled = 0, filename = "", links,
+  cancelled = 0, filename = "", links, eve = null, next = null,
+  since = null,
 } = {}) => {
   const when = label(day);
 
   if (quiet) {
-    const title = `Packing slips, ${when}: nothing to print`;
+    const title = eve
+      ? `Packing slips for tomorrow, ${when}: nothing due`
+      : `Packing slips, ${when}: ${since
+        ? `nothing changed since ${since}` : "nothing to print"}`;
+    let body = "No order has come in, changed, or been canceled since " +
+      "the last packet.";
+
+    if (eve) {
+      body = `No order is due ${when}. The ${next} email brings ` +
+        "any that come in after this one.";
+    } else if (since) {
+      body = "No order has come in, changed, or been canceled since " +
+        `yesterday's ${since} packet. Pack from that one.`;
+    }
 
     return {
       subject: title,
-      ...render(title, [
-        p("No order has come in, changed, or been canceled since the " +
-          "last packet."),
-        adminFooter(links),
-      ], links, { tag: "Packing slips" }),
+      ...render(title, [p(body), adminFooter(links)], links,
+        { tag: "Packing slips" }),
     };
   }
 
   const counts = packetCounts({ slips, revised, cancelled });
-  const title = sunday
-    ? `Packing slips for the week of ${when}: ${counts}`
-    : `Packing slips, ${when}: ${counts}`;
+  let title = `Packing slips, ${when}: ${counts}`;
+
+  if (eve) title = `Packing slips for tomorrow, ${when}: ${counts}`;
+  else if (sunday) title = `Packing slips for the week of ${when}: ${counts}`;
+
+  const after = since ? `yesterday's ${since} packet` : "yesterday";
+  let scope = null;
+
+  if (eve) {
+    scope = p(`It has a slip for every order due ${when}, as well as ` +
+      "anything new, changed, or canceled for later days, and replaces " +
+      `every earlier slip for ${when}. The ${next} email brings ` +
+      "only what comes in, changes, or is canceled after this one.");
+  } else if (sunday) {
+    scope = p(`It's Sunday, so it has a slip for every order due ${
+      since ? `from ${label(addDays(day, 1))} to ` : "by "}${
+      label(addDays(day, 6))}, as well as anything new, changed, or ` +
+      `canceled since ${after}, and replaces every earlier slip for ${
+        since ? "those days" : "this week"}.`);
+  } else if (since) {
+    scope = p(`Yesterday's ${since} packet had a slip for every order ` +
+      "due today. This one has only what came in, changed, or was " +
+      "canceled since then.");
+  }
 
   return {
     subject: title,
     ...render(title, [
       p(`Print the attached PDF${filename ? `, ${filename}` : ""}. It ` +
         "opens with the pick list for every slip in it."),
-      sunday
-        ? p(`It's Sunday, so it has a slip for every order due by ${
-          label(addDays(day, 6))}, as well as anything new, changed, or ` +
-          "canceled since yesterday, and replaces every earlier slip for " +
-          "this week.")
-        : null,
+      scope,
       revised || cancelled
         ? p("A **revised** order has a sheet saying what changed, then a " +
           "new slip: throw away its old one. A **CANCELED** order has a " +

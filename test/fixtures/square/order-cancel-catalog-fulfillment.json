@@ -1,0 +1,190 @@
+{
+  "_source": {
+    "service": "square",
+    "environment": "sandbox",
+    "recorded": "2026-10-29",
+    "squareVersion": "2026-09-16",
+    "by": "bin/fixtures/record, scrubbed by bin/fixtures/scrub"
+  },
+  "status": 200,
+  "request": {
+    "method": "PUT",
+    "path": "/v2/orders/ORDER_ID_10",
+    "headers": {
+      "Square-Version": "2026-09-16",
+      "Content-Type": "application/json"
+    },
+    "body": {
+      "order": {
+        "location_id": "LOCATION_ID_1",
+        "version": 1,
+        "fulfillments": [
+          {
+            "uid": "FULFILLMENT_UID_8",
+            "state": "CANCELED"
+          }
+        ]
+      }
+    }
+  },
+  "response": {
+    "order": {
+      "id": "ORDER_ID_10",
+      "location_id": "LOCATION_ID_1",
+      "line_items": [
+        {
+          "uid": "LINE_ITEM_UID_9",
+          "catalog_object_id": "CATALOG_OBJECT_ID_1",
+          "catalog_version": 1793139343477,
+          "quantity": "2",
+          "name": "Test Bird 2",
+          "variation_name": "each",
+          "base_price_money": {
+            "amount": 1000,
+            "currency": "USD"
+          },
+          "gross_sales_money": {
+            "amount": 2000,
+            "currency": "USD"
+          },
+          "total_tax_money": {
+            "amount": 0,
+            "currency": "USD"
+          },
+          "total_discount_money": {
+            "amount": 500,
+            "currency": "USD"
+          },
+          "total_money": {
+            "amount": 1500,
+            "currency": "USD"
+          },
+          "variation_total_price_money": {
+            "amount": 2000,
+            "currency": "USD"
+          },
+          "applied_discounts": [
+            {
+              "uid": "APPLIED_DISCOUNT_UID_13",
+              "discount_uid": "APPLIED_DISCOUNT_UID_14",
+              "applied_money": {
+                "amount": 500,
+                "currency": "USD"
+              }
+            }
+          ],
+          "item_type": "ITEM",
+          "total_service_charge_money": {
+            "amount": 0,
+            "currency": "USD"
+          },
+          "total_card_surcharge_money": {
+            "amount": 0,
+            "currency": "USD"
+          }
+        }
+      ],
+      "discounts": [
+        {
+          "uid": "APPLIED_DISCOUNT_UID_14",
+          "name": "Discount",
+          "amount_money": {
+            "amount": 500,
+            "currency": "USD"
+          },
+          "applied_money": {
+            "amount": 500,
+            "currency": "USD"
+          },
+          "type": "FIXED_AMOUNT",
+          "scope": "ORDER"
+        }
+      ],
+      "fulfillments": [
+        {
+          "uid": "FULFILLMENT_UID_8",
+          "type": "PICKUP",
+          "state": "CANCELED",
+          "pickup_details": {
+            "pickup_at": "2026-11-05T14:00:00.000Z",
+            "note": "On-farm pickup · prefers text · pickup 9 AM – noon · heard via Fixture recorder",
+            "schedule_type": "SCHEDULED",
+            "recipient": {
+              "display_name": "Display Name",
+              "email_address": "customer@example.com",
+              "phone_number": "+15555550100"
+            },
+            "canceled_at": "2026-10-29T23:21:01.479Z"
+          }
+        }
+      ],
+      "metadata": {
+        "order_flow": "order-page",
+        "site_version": "1.0.0"
+      },
+      "created_at": "2026-10-29T23:21:00.307Z",
+      "updated_at": "2026-10-29T23:21:01.472Z",
+      "state": "OPEN",
+      "version": 2,
+      "reference_id": "NFF-2610-FIXT",
+      "total_tax_money": {
+        "amount": 0,
+        "currency": "USD"
+      },
+      "total_discount_money": {
+        "amount": 500,
+        "currency": "USD"
+      },
+      "total_tip_money": {
+        "amount": 0,
+        "currency": "USD"
+      },
+      "total_money": {
+        "amount": 1500,
+        "currency": "USD"
+      },
+      "total_service_charge_money": {
+        "amount": 0,
+        "currency": "USD"
+      },
+      "net_amounts": {
+        "total_money": {
+          "amount": 1500,
+          "currency": "USD"
+        },
+        "tax_money": {
+          "amount": 0,
+          "currency": "USD"
+        },
+        "discount_money": {
+          "amount": 500,
+          "currency": "USD"
+        },
+        "tip_money": {
+          "amount": 0,
+          "currency": "USD"
+        },
+        "service_charge_money": {
+          "amount": 0,
+          "currency": "USD"
+        },
+        "card_surcharge_money": {
+          "amount": 0,
+          "currency": "USD"
+        }
+      },
+      "source": {
+        "name": "northfosterfarm.com v1.0"
+      },
+      "customer_id": "CUSTOMER_ID_1",
+      "net_amount_due_money": {
+        "amount": 1500,
+        "currency": "USD"
+      },
+      "total_card_surcharge_money": {
+        "amount": 0,
+        "currency": "USD"
+      }
+    }
+  }
+}

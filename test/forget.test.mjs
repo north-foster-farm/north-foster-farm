@@ -4,6 +4,9 @@ import { describe, it } from "node:test";
 import { handle } from "../netlify/functions/account.mjs";
 import { createSession } from "../netlify/functions/lib/auth.mjs";
 import {
+  authRecordsFor, indexPrefix, putAuth,
+} from "../netlify/functions/lib/auth-records.mjs";
+import {
   DELETED_HOUSEHOLD, deleteOldMessages, forgetCustomer, scrubOldOrders,
   scrubOrder, scrubPasses,
 } from "../netlify/functions/lib/forget.mjs";
@@ -115,14 +118,54 @@ describe("forgetCustomer", () => {
     await stores.customers.set(`support/${PAT}/s1`, { message: "hi" });
     await stores.customers.set("messages/m1", { email: PAT, text: "hi" });
     await stores.customers.set("messages/m2", { email: "sam@example.com" });
-    await stores.auth.set("unsub/t1", { email: PAT });
+    await putAuth(stores, "unsub/t1", { email: PAT });
+    // Change links to and from Pat's address carry it, so both go.
+    await putAuth(stores, "token/c1", {
+      email: PAT, changeFrom: "sam@example.com", expires: 1,
+    });
+    await putAuth(stores, "token/c2", {
+      email: "new@example.com", changeFrom: PAT, expires: 1,
+    });
     await stores.auth.set(`rate/${PAT}`, { times: [1] });
     await stores.auth.set(`rate/join/${PAT}`, { times: [1] });
     await stores.auth.set(`change-rate/${PAT}`, { times: [1] });
     await createSession(stores, PAT, { now });
+    await createSession(stores, "sam@example.com", { now });
 
     return stores;
   };
+
+  // The auth store's prefixes the call listed.
+  const listed = (stores) => {
+    const prefixes = [];
+    const list = stores.auth.list;
+
+    stores.auth.list = (prefix) => {
+      prefixes.push(prefix);
+
+      return list(prefix);
+    };
+
+    return prefixes;
+  };
+
+  it("reads only the customer's index of sign-in records (#508)",
+    async () => {
+      const stores = await seed();
+      const prefixes = listed(stores);
+      const r = await forgetCustomer(stores, PAT, {
+        apply: true, news: news(), now,
+      });
+
+      // Four sign-in records and three rate limits.
+      assert.equal(r.authRecords, 7);
+      assert.deepEqual(prefixes, [indexPrefix(PAT)]);
+      assert.deepEqual(await authRecordsFor(stores, PAT), []);
+      assert.equal(await stores.auth.get("token/c1"), null);
+      assert.equal(await stores.auth.get("token/c2"), null);
+      assert.deepEqual((await authRecordsFor(stores, "sam@example.com"))
+        .map((a) => a.key.split("/")[0]), ["session"]);
+    });
 
   // One pass of each kind for Pat, and Sam's, which must not change.
   const passes = async (stores) => {
@@ -169,7 +212,8 @@ describe("forgetCustomer", () => {
     assert.equal((await stores.customers.list("support/")).length, 0);
     assert.equal(await stores.customers.get("messages/m1"), null);
     assert.ok(await stores.customers.get("messages/m2"));
-    assert.equal((await stores.auth.list("session/")).length, 0);
+    // Sam's session is the only one left.
+    assert.equal((await stores.auth.list("session/")).length, 1);
     assert.equal(await stores.auth.get("unsub/t1"), null);
     assert.equal(await stores.auth.get(`rate/${PAT}`), null);
     assert.equal(await stores.auth.get(`rate/join/${PAT}`), null);

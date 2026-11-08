@@ -176,6 +176,48 @@ describe("verifyToken", () => {
     assert.equal(safeNext("/\r/evil.example"), "/account/");
     assert.equal(safeNext("/\u0000/evil.example"), "/account/");
   });
+
+  // The order page's prompt and the header's Sign in send ?next= (#521);
+  // whatever the page sends, the link goes back to this site only.
+  it("takes the order page and the header's paths, and nothing that " +
+    "leaves the site", () => {
+    assert.equal(safeNext("/order/"), "/order/");
+    assert.equal(safeNext("/news/some-post/"), "/news/some-post/");
+    for (const bad of [
+      "http://evil.example/", "javascript:alert(1)", "data:text/html,x",
+      "evil.example/order/", "order/", "/\\evil.example", "\\\\evil.example",
+      "///evil.example", " //evil.example", null, undefined, 42, ["/order/"],
+    ]) {
+      assert.equal(safeNext(bad), "/account/", String(bad));
+    }
+  });
+
+  it("lands where ?next= said, or the account when it would leave",
+    async () => {
+      for (const [next, landing] of [
+        ["/order/", "/order/?via=link"],
+        ["https://evil.example/", "/account/?via=link"],
+        ["//evil.example/order/", "/account/?via=link"],
+      ]) {
+        const stores = testStores();
+        const { sent, mail } = mailbox();
+
+        await handle(new Request("https://x/api/auth/request", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "sec-fetch-site": "same-origin",
+          },
+          body: JSON.stringify({ email: "pat@example.com", next }),
+        }), { stores, env, now, mail });
+
+        const token = tokenIn(sent[0].text.match(/https:\S+/)[0]);
+        const res = await handle(new Request(
+          `https://x/api/auth/verify?token=${token}`), { stores, env, now });
+
+        assert.equal(res.headers.get("location"), landing, next);
+      }
+    });
 });
 
 describe("peekToken", () => {

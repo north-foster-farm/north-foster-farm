@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { handle, orderId } from "../netlify/functions/orders.mjs";
+import { getCart, saveCart } from "../netlify/functions/lib/account.mjs";
 import { createSession } from "../netlify/functions/lib/auth.mjs";
 import {
   OrderCollisionError, attemptKey, completeOrder, finishVenmo,
@@ -744,6 +745,52 @@ describe("POST /api/orders with a card", () => {
       assert.match(data.errors.total, /total changed/);
       assert.equal(data.totals.total, 5500);
       assert.deepEqual(calls, []);
+    });
+
+  // A tab closed before the page cleared the account's copy left the
+  // paid cart there, and the next sign-in brought it back: three whole
+  // chickens, then ?add= three more, made six (#521).
+  it("clears a signed-in customer's account cart once paid", async () => {
+    const stores = testStores();
+    const session = await createSession(stores, "pat@example.com", { now });
+    const before = now.getTime() - 60_000;
+
+    await saveCart(stores, { email: "pat@example.com" }, {
+      payload: { lines: [{ sku: SKU, qty: 2 }] }, savedAt: before,
+    }, { now });
+
+    const res = await handle(post(body(), {
+      cookie: `nff_session=${session.id}`,
+    }), { square: fakeSquare().square, stores, now, ...quiet });
+
+    assert.equal(res.status, 200);
+
+    const { cart } = await getCart(stores, { email: "pat@example.com" });
+
+    assert.equal(cart.payload, null);
+    assert.ok(cart.savedAt > before);
+  });
+
+  it("leaves the account cart alone when the order is not paid",
+    async () => {
+      const stores = testStores();
+      const session = await createSession(stores, "pat@example.com", {
+        now,
+      });
+      const saved = { payload: { lines: [{ sku: SKU, qty: 2 }] },
+        savedAt: now.getTime() - 60_000 };
+
+      await saveCart(stores, { email: "pat@example.com" }, saved, { now });
+
+      const res = await handle(post(body({ claimedTotal: 5000 }), {
+        cookie: `nff_session=${session.id}`,
+      }), { square: fakeSquare().square, stores, now, ...quiet });
+
+      assert.equal(res.status, 422);
+
+      const { cart } = await getCart(stores, { email: "pat@example.com" });
+
+      assert.deepEqual(cart.payload.lines, saved.payload.lines);
     });
 
   it("applies a signed-in customer's discount group from the record",

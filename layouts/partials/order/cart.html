@@ -82,9 +82,10 @@
           <dt>Paid</dt>
           <dd data-total="paid">$0</dd>
         </div>
-        {{/* A fee a missed delivery kept (#193). */}}
+        {{/* A fee a missed delivery kept (#193), labeled with the
+             day of the trip by the cart's script. */}}
         <div class="order-cart-row" data-edit-kept hidden>
-          <dt data-total="kept-label">Delivery fee for the trip</dt>
+          <dt data-total="kept-label"></dt>
           <dd data-total="kept">$0</dd>
         </div>
         <div class="order-cart-row">
@@ -131,6 +132,9 @@
         </div>
       </div>
       <p class="order-cart-code-note" id="order-code-note" data-code-note aria-live="polite" hidden></p>
+      {{/* A signed-in customer's perks (#514), one line each, filled
+           from /api/me. Wording approved, lib/perks.mjs. */}}
+      <p class="order-cart-code-note" data-cart-perks hidden></p>
     </div>
 
     {{/* The foot never gives way: Expand or Hide on the left (below

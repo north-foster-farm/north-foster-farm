@@ -37,10 +37,10 @@ const order = (id, email, dollars, { status = "paid" } = {}) => ({
   totals: { total: dollars * 100 },
   payments: [{ amount: dollars * 100, via: "square" }],
   refunds: [],
-  fulfilment: { method: "scheduled", occurrence: "36TS-261108",
-    date: "2026-11-08", onfarm: null, delivery: null, state: "agreed" },
+  fulfilment: { method: "scheduled", occurrence: "36TS-261115",
+    date: "2026-11-15", onfarm: null, delivery: null, state: "agreed" },
   square: { squareOrderId: `SQO-${id}` },
-  group: { key: "vff", round: "2026-11-08", viaCode: true },
+  group: { key: "vff", round: "2026-11-15", viaCode: true },
   notes: "",
 });
 
@@ -73,13 +73,13 @@ describe("a round under the minimum", () => {
     await saveOrder(stores, order("NFF-2611-RL0003", "c@x.com", 40,
       { status: "cancelled" }));
 
-    const r = await closeRound(stores, strict, "2026-11-08", {
-      now: ny("2026-11-08", 0, 1), terms, env, mail: h.mail,
+    const r = await closeRound(stores, strict, "2026-11-15", {
+      now: ny("2026-11-15", 0, 1), terms, env, mail: h.mail,
       square: h.square,
     });
 
     assert.equal(r.closed, true);
-    assert.equal(r.round.rolledTo, "2026-11-22");
+    assert.equal(r.round.rolledTo, "2026-11-29");
     assert.deepEqual([...r.round.moved].sort(),
       ["NFF-2611-RL0001", "NFF-2611-RL0002"]);
     assert.deepEqual(r.round.stuck, []);
@@ -89,19 +89,19 @@ describe("a round under the minimum", () => {
 
     const moved = await getOrder(stores, "NFF-2611-RL0001");
 
-    assert.equal(moved.fulfilment.occurrence, "36TS-261122");
-    assert.equal(moved.fulfilment.date, "2026-11-22");
-    assert.deepEqual(moved.group, { key: "vff", round: "2026-11-22",
+    assert.equal(moved.fulfilment.occurrence, "36TS-261129");
+    assert.equal(moved.fulfilment.date, "2026-11-29");
+    assert.deepEqual(moved.group, { key: "vff", round: "2026-11-29",
       viaCode: true });
     assert.ok(moved.history.some((h) => h.event === "fulfilment.moved"
-      && h.to === "36TS-261122"));
+      && h.to === "36TS-261129"));
     // Square followed, and each member heard.
     assert.deepEqual(h.updated.map((u) => u[1]),
-      ["36TS-261122", "36TS-261122"]);
+      ["36TS-261129", "36TS-261129"]);
     assert.equal(h.sent.filter((m) => m.to === "a@x.com").length, 1);
     // The cancelled order stays where it was.
     assert.equal((await getOrder(stores, "NFF-2611-RL0003")).fulfilment
-      .occurrence, "36TS-261108");
+      .occurrence, "36TS-261115");
   });
 
   it("counts the moved orders in the next round", async () => {
@@ -109,19 +109,19 @@ describe("a round under the minimum", () => {
     const h = harness();
 
     await saveOrder(stores, order("NFF-2611-RL0001", "a@x.com", 100));
-    await closeRound(stores, strict, "2026-11-08", {
-      now: ny("2026-11-08", 0, 1), terms, env, mail: h.mail,
+    await closeRound(stores, strict, "2026-11-15", {
+      now: ny("2026-11-15", 0, 1), terms, env, mail: h.mail,
       square: h.square,
     });
     await saveOrder(stores, {
       ...order("NFF-2611-RL0004", "d@x.com", 250),
-      fulfilment: { method: "scheduled", occurrence: "36TS-261122",
-        date: "2026-11-22", onfarm: null, delivery: null, state: "agreed" },
-      group: { key: "vff", round: "2026-11-22", viaCode: true },
+      fulfilment: { method: "scheduled", occurrence: "36TS-261129",
+        date: "2026-11-29", onfarm: null, delivery: null, state: "agreed" },
+      group: { key: "vff", round: "2026-11-29", viaCode: true },
     });
 
-    const next = await closeRound(stores, strict, "2026-11-22", {
-      now: ny("2026-11-22", 0, 1), terms, env, mail: h.mail,
+    const next = await closeRound(stores, strict, "2026-11-29", {
+      now: ny("2026-11-29", 0, 1), terms, env, mail: h.mail,
       square: h.square,
     });
 
@@ -138,13 +138,13 @@ describe("a round under the minimum", () => {
     await saveOrder(stores, order("NFF-2611-RL0001", "a@x.com", 100));
 
     const r = await workRounds(stores, {
-      now: ny("2026-11-09", 0, 1), terms, env, mail: h.mail,
+      now: ny("2026-11-16", 0, 1), terms, env, mail: h.mail,
       square: h.square,
     });
 
     assert.equal(r.closed[0].rolledTo, undefined);
     assert.equal((await getOrder(stores, "NFF-2611-RL0001")).fulfilment
-      .occurrence, "36TS-261108");
+      .occurrence, "36TS-261115");
     assert.deepEqual(h.updated, []);
   });
 });

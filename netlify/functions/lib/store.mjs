@@ -19,6 +19,8 @@
 
 import { getStore } from "@netlify/blobs";
 
+import { log } from "./log.mjs";
+
 export const STORES = ["orders", "customers", "auth", "stock", "jobs", "gate"];
 
 // Netlify sets CONTEXT at build time only; a function sees nothing of
@@ -132,6 +134,35 @@ export const blobsConfigured = (env = process.env) =>
 
 const memory = new Map();
 
+// Blobs answers that its client retries: a 429, a 5xx, or no answer
+// at all. Without a rate-limit header it sleeps 5 s before each retry
+// (@netlify/blobs 11.1.0, src/retry.ts), which is the 5.5 s of every
+// e2e call on staging (#516). One line per such answer, with the store,
+// method and status, never the key or URL (a key can hold an email).
+export const watchedFetch = (name, fetchImpl = null) =>
+  async (url, options = {}) => {
+    const method = options.method || "get";
+
+    try {
+      const res = await (fetchImpl || globalThis.fetch)(url, options);
+
+      if (res.status === 429 || res.status >= 500) {
+        log.warn({
+          event: "blobs.retryable", store: name, method, status: res.status,
+          rateLimitReset: res.headers.get("X-RateLimit-Reset") !== null,
+        });
+      }
+
+      return res;
+    } catch (error) {
+      log.warn({
+        event: "blobs.retryable", store: name, method, status: null,
+        error: String((error && error.message) || error).slice(0, 200),
+      });
+      throw error;
+    }
+  };
+
 export const stores = (env = process.env) => {
   const out = {};
 
@@ -140,12 +171,16 @@ export const stores = (env = process.env) => {
       const onNetlify = !!(env.NETLIFY_BLOBS_CONTEXT
         || globalThis.netlifyBlobsContext);
       const options = onNetlify
-        ? { name: storeName(name, env), consistency: "strong" }
+        ? {
+          name: storeName(name, env), consistency: "strong",
+          fetch: watchedFetch(name),
+        }
         : {
           name: storeName(name, env),
           consistency: "strong",
           siteID: env.NETLIFY_SITE_ID,
           token: env.NETLIFY_AUTH_TOKEN,
+          fetch: watchedFetch(name),
         };
 
       out[name] = wrap(getStore(options));

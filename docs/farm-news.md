@@ -32,7 +32,10 @@ such a record kept: one that had opted out has lost its opt-in.
 
 ## Fields kept for later
 
-Every customer write fills these, and nothing reads them yet (#267):
+Every customer write fills these. Buying groups read and write
+`memberGroup` and set `memberSince` on joining (`lib/groups.mjs`,
+#471, #495); the rest wait on #267 (2026-11-01, #494: this said
+nothing read them yet):
 
 - `language`: a BCP-47 tag, `en` by default; `es` is the only other
   planned value.
@@ -195,8 +198,9 @@ listing who is `due`).
     after the key's day, a second send would be a second email.
 - **Unsure records, and a crash.** A record left `sending` is one whose
   send began and whose outcome is not known, whether the run crashed
-  or the send failed as above. Look in Resend (or `bin/nff mail list`)
-  for a welcome to that address. If one went, nothing more is owed;
+  or the send failed as above. Look in Resend's Emails page for a
+  welcome to that address (2026-11-01, #494: `bin/nff mail list`,
+  named here, does not exist). If one went, nothing more is owed;
   the record stays `unsure` in every bulk run, which is harmless
   because a run for everyone never sends it. If none went, name the
   address with `--email` to send it: Resend

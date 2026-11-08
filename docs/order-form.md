@@ -162,13 +162,15 @@ cover it, and a past order or receipt holding it names it as any
 other line. Such an item keeps `inStock: true`, so that Square's
 count decides.
 
-Today (James, #274, 6330468558, and #492): large eggs and feet
-`soon`; medium and small eggs and both sausages `hiatus`; whole
+Today (James, #274, 6330468558, and #492): large eggs `soon`; medium
+and small eggs and both sausages `hiatus`; whole
 chickens from 4.5 lbs, boneless breasts of 1.7 lbs and up, bone-in
 thighs of 2.0 lbs and up and wings of 3.0 lbs and up `hidden`;
 Cornish hens and ground chicken `archived` (2026-v9); every other
-item `seasonal` with `restockSeason: "spring"`, since until spring
-nothing but eggs is restocked. Outside the off-season a sold-out
+item `seasonal` with `restockSeason: "spring"`, feet included, since
+until spring nothing but eggs is restocked (2026-11-01, #494: feet
+were listed as `soon`; `data/catalog.json` has them `seasonal`).
+Outside the off-season a sold-out
 whole-bird tier goes back to `soon`, not `discontinued`.
 Switching one is a catalog edit and a deploy. The labels live in
 `layouts/partials/order/restock-label.html`.
@@ -187,6 +189,19 @@ once per count, and marked told only once the alert is sent.
 `bin/nff stock hidden` prints every such tier with its count on
 demand, read only, and exits 1 when one has stock. Fix the count in
 Square, or the entry in `data/catalog.json`.
+
+**Always in stock** (#511, James, 2026-10-28). An entry with
+`alwaysInStock: true`, today Large eggs alone, sells by its `inStock`
+flag and nothing else. Whatever Square or the store counts, 0 or
+below included, `/api/stock` reports it `{ inStock: true, available:
+null }`: the order page and search show no count and cap no quantity,
+the cart is never lowered for it, and checkout and `POST /api/orders`
+never refuse it for stock. Orders still record the sale in Square, so
+its count there may go negative. To sell it out, set `inStock: false`
+(`bin/stock`, then a deploy); its restock type then labels it as
+usual. Square's own "Mark as sold out" is not read: with inventory
+tracked, Square sets that same flag by itself when the count reaches
+0, so it would undo the point of the setting.
 
 The order page's **Show** control (`order/restock.js`, James,
 6303649455) is a radio group (`role="radiogroup"`, named "Show"
@@ -216,7 +231,12 @@ item stock has on hand (a count above 0, or flagged in stock and not
 counted). It emails `FARM_NOTIFICATIONS_EMAIL`, and no one else, once
 a product a day ("Hidden but in stock", `stock/archived/<day>` in the
 jobs store), and the morning report lists each one until the type is
-changed or the count zeroed. `test/restock.test.mjs` holds it.
+changed or the count zeroed. `test/restock.test.mjs` holds it. It
+overlaps the daily `stock.hidden` invariant above, which covers
+archived tiers too, alongside `inStock: false` ones; the two are
+separate alerts until James picks one to retire (2026-11-01, #494).
+`stock.hidden` is not the `hidden` restock type: that type hides a
+tier while it is out, and the invariant flags one hidden with stock.
 
 **Archived in a paid order** (James, 6305650920). An archived item
 stays in the catalog, so a paid order that holds one still names it.
@@ -240,7 +260,9 @@ bulk        = highest tier where subtotal >= threshold   (never stacked)
 group       = customer's discountGroup percent × subtotal (signed in)
 code        = a known discount code's `off`, capped at the subtotal
 lock        = Σ qty × (unitPrice - member price), a buying group member
-discount    = max(bulk, group, code, lock)                (never stacked)
+friends     = Σ qty × the item's Friends and Fam amount (friends perk)
+family      = subtotal                                    (family perk)
+discount    = max(bulk, group, code, lock, friends, family) (never stacked)
 baseFee     = delivery && subtotal < 150.00 ? 5.00 : 0    (pre-discount)
 areaFee     = delivery && ZIP unlisted (other RI) ? 3.00 : 0 (never waived)
 deliveryFee = baseFee + areaFee
@@ -255,6 +277,34 @@ session, never from the payload. `totals.discountLabel` names whichever
 discount applied and is what every surface shows; `discountTier`,
 `discountGroup`, `discountCode` and `discountLock` say which kind it
 was.
+
+A customer's perks (#514) live on their record as `perks` and are set
+with `bin/nff perks add|list|remove`. The order handler reads those in
+force today from the session, never the payload; the farm's own
+command reads the record. `free-delivery` waives the delivery fee and
+the outside-area fee as a fee pass does (`totals.feeWaived`), and
+`minimum-waived` lets a delivery under the minimum through
+(`flags.minimumWaived`). A pass is held and used up only for what the
+perks leave. `totals.perks` names the perks an order was priced with.
+A change to the order keeps only those the customer still holds on
+the day of the change: one removed or ended since stops applying, and
+one granted since is not gained (security review, 2026-10-29). A perk
+past its end day stops applying by itself.
+
+`friends` and `family` also lift the fee and the minimum, and each
+brings a discount that competes with the rest (James, 2026-10-29): the
+largest wins. A tie goes, in order, to family, a code, the member
+price, Friends and Fam, the tier, then the group. Friends
+and Fam is the whole-dollar amount per item in
+`money.friendsAndFam.off`, the amounts of Square's own Friends and Fam
+discounts, and goes to Square as one line-item discount per item under
+Square's name for it. Family is the whole subtotal, sent as one order
+discount, so the order is recorded with nothing charged: it is placed
+like an order credit covers (`nothingDue`, `payWithCredit`), paid in
+Square as a zero order, with no payment on the record.
+`totals.discountPerk` says which perk's discount won, `totals.perkLines`
+holds the Friends and Fam amounts, and the Square order's metadata
+carries `perk`.
 
 A buying group's member price (#471, `priceLock` in `data/groups.json`)
 is not a discount today: the member prices are the retail prices of
@@ -519,7 +569,9 @@ failure is logged once (`stock.production_unread`) and kept in the
 snapshot, so production isn't asked again for 15 s. With the read on,
 an order check's `stock.checked` line says `source: "production"`, or
 `"staging"` when production didn't answer. Neither setting
-applies outside `branch-deploy` and `deploy-preview`, nor where
+applies outside `branch-deploy`, `deploy-preview` and `dev`
+(`SOURCE_CONTEXTS` in `lib/stock-source.mjs`; 2026-11-01, #494: `dev`
+was missing here), nor where
 `SQUARE_ENV` is `production`, and `bin/nff env check` fails a
 production that holds either. A test order on staging moves the
 sandbox's count, not production's, so staging never sells out by its
@@ -753,7 +805,8 @@ skips, and reports as `muted`, one the customer turned off. The
 wording is James's (review of 2026-09-22). Every customer message
 ends on a "Your orders | Contact us" row and the farm's on "Admin";
 `mailLinks(env)` in `lib/site.mjs` supplies those from
-`ACCOUNTS_ENABLED`, `CONTACT_URL` (else the farm's mailbox) and
+`ACCOUNTS_ENABLED`, `CONTACT_URL` (else the site's `/contact/` page;
+2026-11-01, #494: this said the farm's mailbox) and
 `ADMIN_URL` (default admin.northfosterfarm.com; the order and customer
 pages it links to arrive with the dashboard's order views). A resolved
 return sends nothing: James answers those himself. Links point at
@@ -923,7 +976,8 @@ after its date, listed in the packing slips and the evening report
 under its own heading.
 
 A customer who cancels from the account page is refunded and
-cancelled at once (T1d), and the farm is emailed "Cancelled: <id>".
+cancelled at once (T1d), and the farm is emailed "Canceled: <id> by
+<email>" (2026-11-01, #494: this quoted "Cancelled: <id>").
 Only if that refund fails is the order flagged `cancelRequested`,
 its stock released, and the farm emailed "Refund needed" with the
 command; it stays `paid` until the CLI refunds and closes it. A
@@ -1108,8 +1162,11 @@ order (`lib/farm-orders.mjs`, #181; money taken by hand is refunded
 by hand, and the site lets its customer neither cancel nor change
 such an order); fulfill; delete), returns resolve, stock
 (list, set), schedule (check, set), login and masquerade (a
-single-use sign-in link, opened for you), audience (invite, sync),
-jobs (run, history), health.
+single-use sign-in link, opened for you), audience (import, apply,
+remove, sync, welcome), jobs (run, history), health, and more: the usage `bin/nff`
+prints is the full list (2026-11-01, #494: `audience invite`, retired,
+was listed here, and perks, passes, groups, refunds, messages and
+others were not).
 `--staging` and `--preview` act on that deploy context's stores.
 Flags that take a value accept both `--reason "..."` and
 `--reason=...`. `lib/admin.mjs` holds the rules with tests.
@@ -1130,7 +1187,9 @@ Flags that take a value accept both `--reason "..."` and
   farm can't keep is cancelled and refunded.
 - **No Google Sheet.** Square is the system of record; the function log
   is the fallback record.
-- **Catalog version 2026-v8, keyed by SKU.** The spec's 2026-v5 list of
+- **Catalog version 2026-v9 today, keyed by SKU** (2026-11-01, #494:
+  this said 2026-v8; v9 archived the Cornish hens and ground chicken,
+  as under the restock types above). The spec's 2026-v5 list of
   31 keyed by `group.item` is superseded. Its 20 in-stock items are the
   same 20; v6 adds Medium and Pullet eggs, Cornish Hens, Ground Chicken
   and splits the sausage flavors. 2026-v7 (#275, 2026-10-20) changes
@@ -1348,6 +1407,9 @@ is optional: without it the confirmations and the farm's notices go
 to the function log; Square's receipt still reaches the customer.
 
 ## Before it ships
+
+The checklist the launch shipped by on 2026-10-26, kept as the record
+and for setting up a new environment (2026-11-01, #494).
 
 1. **Netlify variables**, one value per context (production, and the
    sandbox values for `deploy-preview`, `branch-deploy` and `dev`):

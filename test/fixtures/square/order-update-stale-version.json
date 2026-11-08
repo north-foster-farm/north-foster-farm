@@ -1,0 +1,40 @@
+{
+  "_source": {
+    "service": "square",
+    "environment": "sandbox",
+    "recorded": "2026-10-29",
+    "squareVersion": "2026-09-16",
+    "by": "bin/fixtures/record, scrubbed by bin/fixtures/scrub"
+  },
+  "status": 400,
+  "request": {
+    "method": "PUT",
+    "path": "/v2/orders/ORDER_ID_5",
+    "headers": {
+      "Square-Version": "2026-09-16",
+      "Content-Type": "application/json"
+    },
+    "body": {
+      "order": {
+        "location_id": "LOCATION_ID_1",
+        "version": 3,
+        "fulfillments": [
+          {
+            "uid": "FULFILLMENT_UID_4",
+            "state": "CANCELED"
+          }
+        ]
+      }
+    }
+  },
+  "response": {
+    "errors": [
+      {
+        "code": "VERSION_MISMATCH",
+        "detail": "Supplied version 3 does not match the current version 4 of order ORDER_ID_5.",
+        "field": "order.version",
+        "category": "INVALID_REQUEST_ERROR"
+      }
+    ]
+  }
+}

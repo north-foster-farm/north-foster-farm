@@ -32,7 +32,7 @@ const env = {
 
 const order = (id, email, lines, {
   paid = null, refunded = 0, status = "paid", group = {
-    key: "vff", round: "2026-11-08", viaCode: true,
+    key: "vff", round: "2026-11-15", viaCode: true,
   }, name = "Pat Example",
 } = {}) => {
   const total = lines.reduce((s, [, qty, price]) => s + qty * price * 100, 0);
@@ -57,21 +57,21 @@ describe("a round's orders", () => {
     await saveOrder(stores, order("NFF-2611-AAAAA1", "a@x.com",
       [[SKU, 2, 30]]));
     await saveOrder(stores, order("NFF-2611-AAAAA2", "b@x.com",
-      [[SKU, 1, 30]], { group: { key: "vff", round: "2026-11-22" } }));
+      [[SKU, 1, 30]], { group: { key: "vff", round: "2026-11-29" } }));
     await saveOrder(stores, order("NFF-2611-AAAAA3", "c@x.com",
       [[SKU, 1, 30]], { group: null }));
 
-    const found = await roundOrders(stores, "vff", "2026-11-08");
+    const found = await roundOrders(stores, "vff", "2026-11-15");
 
     assert.deepEqual(found.map((o) => o.id), ["NFF-2611-AAAAA1"]);
-    assert.deepEqual(await roundOrders(stores, "vff", "2026-12-06"), []);
+    assert.deepEqual(await roundOrders(stores, "vff", "2026-12-13"), []);
   });
 
   it("add up by member, with the pick list and the net", () => {
     const sum = roundSummary([
       order("NFF-2611-AAAAA1", "a@x.com", [[SKU, 2, 30], [EGGS, 1, 7]]),
       order("NFF-2611-AAAAA2", "b@x.com", [[SKU, 1, 30]],
-        { group: { key: "vff", round: "2026-11-08", walkIn: true } }),
+        { group: { key: "vff", round: "2026-11-15", walkIn: true } }),
       order("NFF-2611-AAAAA3", "a@x.com", [[EGGS, 2, 7]], { refunded: 700 }),
       order("NFF-2611-AAAAA4", "d@x.com", [[SKU, 1, 30]],
         { status: "cancelled", refunded: 3000 }),
@@ -102,10 +102,10 @@ describe("a round's orders", () => {
   });
 
   it("is today's or the next, and names its occurrence", () => {
-    assert.equal(nextRound(VFF, terms, ny("2026-10-26")), "2026-11-08");
-    assert.equal(nextRound(VFF, terms, ny("2026-11-08", 7)), "2026-11-08");
-    assert.equal(nextRound(VFF, terms, ny("2026-11-09")), "2026-11-22");
-    assert.equal(roundOccurrence(VFF, "2026-11-08"), "36TS-261108");
+    assert.equal(nextRound(VFF, terms, ny("2026-10-26")), "2026-11-15");
+    assert.equal(nextRound(VFF, terms, ny("2026-11-15", 7)), "2026-11-15");
+    assert.equal(nextRound(VFF, terms, ny("2026-11-16")), "2026-11-29");
+    assert.equal(roundOccurrence(VFF, "2026-11-15"), "36TS-261115");
   });
 });
 
@@ -124,7 +124,7 @@ describe("a walk-in sale at a round", () => {
   const body = async (stores, email = "walk@x.com") => ({
     customer: await walkInCustomer(stores, email, { first: "Lee" }),
     lines: [{ sku: SKU, qty: 2 }],
-    fulfilment: { method: "scheduled", occurrence: "36TS-261108" },
+    fulfilment: { method: "scheduled", occurrence: "36TS-261115" },
   });
 
   it("takes the buyer's details from the record or a placeholder",
@@ -152,7 +152,7 @@ describe("a walk-in sale at a round", () => {
     async () => {
       const stores = testStores();
       // Monday after the round: the occurrence is no longer offered.
-      const now = ny("2026-11-09");
+      const now = ny("2026-11-16");
       const refused = await planFarmOrder(stores, await body(stores), {
         now, env, group: VFF,
       });
@@ -162,16 +162,16 @@ describe("a walk-in sale at a round", () => {
         /no longer available/);
 
       const r = await createFarmOrder(stores, await body(stores), {
-        now, env, mail, square, group: VFF, kept: "36TS-261108",
+        now, env, mail, square, group: VFF, kept: "36TS-261115",
         walkIn: true, paid: { tender: "cash" },
       });
 
       assert.equal(r.ok, true, JSON.stringify(r.errors));
       assert.equal(r.order.status, "paid");
-      assert.equal(r.order.fulfilment.occurrence, "36TS-261108");
-      assert.equal(r.order.fulfilment.date, "2026-11-08");
+      assert.equal(r.order.fulfilment.occurrence, "36TS-261115");
+      assert.equal(r.order.fulfilment.date, "2026-11-15");
       assert.deepEqual(r.order.group,
-        { key: "vff", round: "2026-11-08", viaCode: false, walkIn: true });
+        { key: "vff", round: "2026-11-15", viaCode: false, walkIn: true });
       assert.equal(r.order.totals.total, 5500);
 
       const customer = await getCustomer(stores, "walk@x.com");
@@ -179,7 +179,7 @@ describe("a walk-in sale at a round", () => {
       assert.equal(memberKeyOf(customer), "vff");
       assert.equal(customer.memberGroup.via, "walk-in");
 
-      const found = await roundOrders(stores, "vff", "2026-11-08");
+      const found = await roundOrders(stores, "vff", "2026-11-15");
 
       assert.deepEqual(found.map((o) => o.id), [r.order.id]);
       assert.equal(roundSummary(found).net, 5500);
@@ -205,7 +205,7 @@ describe("a walk-in sale at a round", () => {
 
       assert.equal(planned.ok, true, JSON.stringify(planned.errors));
       assert.deepEqual(planned.order.group,
-        { key: "vff", round: "2026-11-08", viaCode: false });
+        { key: "vff", round: "2026-11-15", viaCode: false });
 
       const other = await planFarmOrder(stores, {
         customer: await walkInCustomer(stores, "new@x.com"),

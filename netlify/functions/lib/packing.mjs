@@ -5,7 +5,7 @@
 //                Saturday, plus the daily set for later weeks
 //   other days   a slip for each order not printed yet, a revision
 //                sheet and a fresh slip for each one changed since it
-//                was printed, a CANCELLED sheet for each printed one
+//                was printed, a CANCELED sheet for each printed one
 //                since cancelled
 //   quiet day    the email still goes, saying there is nothing to print
 //
@@ -20,6 +20,18 @@
 // After the packet, an order due that day that changes anyway (the
 // farm's CLI, a refund from Square or PayPal) is mailed at once as
 // "Changed after printing", from the next 15-minute run.
+//
+// At 3:00 PM the day before (#515), a second packet has every slip for
+// the next day: a new one, a revised one, a reprint of one printed
+// earlier and unchanged, a CANCELED sheet for one printed and since
+// cancelled. It also has what the morning packet would for later days:
+// each new, changed or cancelled order. It records its slips printed
+// like the morning packet, so the next morning carries only what came
+// in or changed after it: the cutoff, kept as `cutoff` in
+// `packing/eve/<day>` (the day the slips are for), is the time of the
+// run that fixed it. The morning after it reprints none of that day's
+// slips for the week, nor says the day is quiet without naming the 3
+// PM packet.
 //
 // Each run that sends pings HEALTHCHECKS_PACKING_URL (production
 // only), or its /fail when the packet could not be built or sent.
@@ -65,6 +77,16 @@ export const PRINTED = "packing/printed/";
 export const SENT = "packing/sent/";
 export const CHANGED = "packing/changed/";
 export const PENDING = "packing/pending/";
+// The packet the day before (#515): from 3 PM, and started no later
+// than 9 PM, so a late start waits for the morning's packet instead.
+export const EVE_HOUR = 15;
+export const EVE_LAST_HOUR = 21;
+export const EVE = "packing/eve/";
+// "3 PM" and "6 AM", as the emails name the two packets.
+const clockOf = (hour) => `${hour % 12 || 12} ${hour < 12 ? "AM" : "PM"}`;
+
+export const EVE_TIME = clockOf(EVE_HOUR);
+export const PACKING_TIME = clockOf(PACKING_HOUR);
 
 const printedKey = (id) => `${PRINTED}${id}`;
 
@@ -233,13 +255,16 @@ export const readPrinted = async (stores) => {
 // (a revision sheet, then a slip), "weekly" (a slip on Sunday for an
 // order already printed and unchanged) or "cancelled" (a sheet, no
 // slip). `order` for a cancelled entry is the record as it stands, or
-// the snapshot when the record is gone.
+// the snapshot when the record is gone. `reprint(date)` says which
+// printed, unchanged orders get a "weekly" slip again: by default, on
+// Sunday, the week's.
 
 export const isSunday = (day) => weekday(day) === 0;
 
-export const choose = ({ open, printed, gone, day }) => {
+export const choose = ({ open, printed, gone, day, reprint }) => {
   const sunday = isSunday(day);
   const weekEnd = addDays(day, 6);
+  const again = reprint || ((date) => sunday && date <= weekEnd);
   const entries = [];
 
   for (const order of open) {
@@ -256,7 +281,7 @@ export const choose = ({ open, printed, gone, day }) => {
       entries.push({
         order, kind: "changed", changes: changesBetween(was.snapshot, now),
       });
-    } else if (sunday && date <= weekEnd) {
+    } else if (again(date)) {
       entries.push({ order, kind: "weekly", changes: [] });
     }
   }
@@ -265,6 +290,25 @@ export const choose = ({ open, printed, gone, day }) => {
   }
 
   return entries.sort(byFulfillment);
+};
+
+// The 3 PM packet for `day` (#515): every slip for that day, a printed
+// and unchanged one as a reprint, and each new, changed or cancelled
+// entry for a later day, as the morning packet has them. It leaves
+// nothing pending, so the next morning carries only what came after it.
+export const chooseEve = ({ open, printed, gone, day }) => choose({
+  open, printed, gone, day, reprint: (date) => date === day,
+});
+
+// The morning's choice once the 3 PM packet had the day's slips: on
+// Sunday the rest of the week is reprinted, never the day itself.
+export const chooseAfterEve = ({ open, printed, gone, day }) => {
+  const weekEnd = addDays(day, 6);
+
+  return choose({
+    open, printed, gone, day,
+    reprint: (date) => isSunday(day) && date > day && date <= weekEnd,
+  });
 };
 
 const startOf = (order) => {
@@ -1002,17 +1046,80 @@ const pingUrl = (env) => (resendAllowed(env) ? env[PING_KEY] : null);
 
 export const missingPingKey = (env) => sendsForReal(env) && !env[PING_KEY];
 
+// --- Sending a packet ---------------------------------------------------
+
+// One packet, the morning's or the 3 PM one, to the farm.
+//
+// The first try fixes the packet in `pendingKey`: its time and each
+// order with what its sheet shows. A retry sends the same orders with
+// the same time, so a send whose answer was lost is not sent twice:
+// Resend answers the same key with the first send. If an order changed
+// in between, the body differs and Resend refuses the key; the first
+// send went out, so the packet counts as sent, as the pending record
+// printed it, and the change is caught later.
+//
+// The fixed time is the packet's cutoff, kept by `sentKey` as `cutoff`:
+// the run's `now`, taken when the 15-minute run starts, a little before
+// the orders are read. What governs is the snapshot each order is
+// printed with, not the time: an order saved in that gap is in the
+// packet though stamped after it, and one saved after the read is the
+// next packet's. -> the summary.
+const sendPacket = async (stores, {
+  day, to, mail, env, now, pending: fixed, pendingKey, sentKey,
+  idempotencyKey, event, entries: chosen, summary: extra, filename, title,
+  mailOf,
+}) => {
+  let entries = chosen;
+  let pending = fixed;
+
+  if (pending) {
+    const ids = new Set(pending.entries.map((e) => e.id));
+
+    entries = entries.filter((e) => ids.has(e.order.id));
+  } else {
+    pending = {
+      at: now.toISOString(),
+      entries: entries.map((e) => ({ ...printedOf(e), kind: e.kind })),
+    };
+    await stores.jobs.set(pendingKey, pending);
+  }
+
+  const stamp = new Date(pending.at);
+  const summary = {
+    day, ...extra, quiet: !entries.length, ...countsOf(entries),
+  };
+  let records = entries.map(printedOf);
+
+  try {
+    await mail({
+      to, idempotencyKey,
+      ...mailOf(entries, summary, filename),
+      attachments: summary.quiet ? [] : [attachment(filename, packetPdf({
+        entries, now: stamp, title, env,
+      }))],
+    }, { env });
+  } catch (error) {
+    if (!alreadySent(error)) throw error;
+    log.warn({ event, day });
+    records = pending.entries.map((r) => ({
+      id: r.id, date: r.date, snapshot: r.snapshot,
+    }));
+  }
+  await remember(stores, records, stamp);
+  await stores.jobs.set(sentKey, {
+    at: now.toISOString(), cutoff: pending.at, ...summary,
+    ids: records.map((r) => r.id),
+  });
+  await stores.jobs.delete(pendingKey);
+
+  return summary;
+};
+
 // --- The morning run ----------------------------------------------------
 
 // From PACKING_HOUR, once a day: the packet, or the quiet-day email.
-//
-// The first try fixes the day's packet in `packing/pending/<day>`:
-// its time and each order with what its sheet shows. A retry sends
-// the same orders with the same time, so a send whose answer was lost
-// is not sent twice: Resend answers the same key with the first send.
-// If an order changed in between, the body differs and Resend refuses
-// the key; the first send went out, so the day counts as sent, as the
-// pending record printed it, and the change is caught later.
+// After a 3 PM packet for the day, only what came in or changed since
+// it, and the quiet-day email says so.
 //
 // -> { day, sunday, quiet, slips, revised, cancelled } or null when
 // nothing was done this run. Throws when the packet could not go (the
@@ -1029,59 +1136,31 @@ export const packingDaily = async (stores, {
   if (await stores.jobs.get(`${SENT}${day}`)) return null;
 
   const pendingKey = `${PENDING}${day}`;
-  let pending = await stores.jobs.get(pendingKey);
+  const pending = await stores.jobs.get(pendingKey);
 
   if (!pending && hour >= PACKING_LAST_HOUR) return null;
 
   let result;
 
   try {
-    let entries = choose({ ...(await gather(stores, day)), day });
+    // The 3 PM packet had the day's slips (#515): this one has what
+    // came after it.
+    const eve = await stores.jobs.get(`${EVE}${day}`);
+    const pick = eve ? chooseAfterEve : choose;
 
-    if (pending) {
-      const ids = new Set(pending.entries.map((e) => e.id));
-
-      entries = entries.filter((e) => ids.has(e.order.id));
-    } else {
-      pending = {
-        at: now.toISOString(),
-        entries: entries.map((e) => ({ ...printedOf(e), kind: e.kind })),
-      };
-      await stores.jobs.set(pendingKey, pending);
-    }
-
-    const stamp = new Date(pending.at);
-    const summary = {
-      day, sunday: isSunday(day), quiet: !entries.length,
-      ...countsOf(entries),
-    };
-    const filename = fileName(day);
-    let records = entries.map(printedOf);
-
-    try {
-      await mail({
-        to, idempotencyKey: `packing-${day}`,
-        ...farmPackingSlips(entries, {
-          ...summary, filename, links: mailLinks(env),
-        }),
-        attachments: summary.quiet ? [] : [attachment(filename, packetPdf({
-          entries, now: stamp, title: packetTitle(day), env,
-        }))],
-      }, { env });
-    } catch (error) {
-      if (!alreadySent(error)) throw error;
-      log.warn({ event: "packing.already_sent", day });
-      records = pending.entries.map((r) => ({
-        id: r.id, date: r.date, snapshot: r.snapshot,
-      }));
-    }
-    await remember(stores, records, stamp);
-    await stores.jobs.set(`${SENT}${day}`, {
-      at: now.toISOString(), ...summary, ids: records.map((r) => r.id),
+    result = await sendPacket(stores, {
+      day, to, mail, env, now, pending, pendingKey,
+      sentKey: `${SENT}${day}`, idempotencyKey: `packing-${day}`,
+      event: "packing.already_sent",
+      entries: pick({ ...(await gather(stores, day)), day }),
+      summary: { sunday: isSunday(day) },
+      filename: fileName(day), title: packetTitle(day),
+      mailOf: (entries, summary, filename) => farmPackingSlips(entries, {
+        ...summary, filename, links: mailLinks(env),
+        ...eve && { since: EVE_TIME },
+      }),
     });
-    await stores.jobs.delete(pendingKey);
     await prune(stores, day);
-    result = summary;
   } catch (error) {
     const message = String((error && error.message) || error);
 
@@ -1100,6 +1179,65 @@ export const packingDaily = async (stores, {
     throw new Error(`${PING_KEY} is not set: the packing slips went out ` +
       "but nothing told Healthchecks. Set it on production.");
   }
+
+  return result;
+};
+
+// --- The 3 PM run -------------------------------------------------------
+
+export const eveTitle = (day) => `Full packing slips, ${label(day)}`;
+
+// From EVE_HOUR, once a day: every slip for tomorrow (#515), so the
+// farm can pack the night before, with what is new, changed or
+// cancelled for later days, or the email saying none is due. A failure
+// pings the packing check's /fail; a success leaves the check to the
+// morning's packet, which its schedule expects, so after a 3 PM
+// failure the check stays down until the morning's packet goes, even
+// if a retry sent the 3 PM one.
+// -> { day, quiet, slips, revised, cancelled } or null when nothing
+// was done this run. Throws when the packet could not go.
+export const packingEve = async (stores, {
+  env = process.env, mail = sendMail, now = clock(),
+  fetchImpl = globalThis.fetch,
+} = {}) => {
+  const day = addDays(today(now, tz), 1);
+  const to = farmEmails(env);
+  const hour = parts(now, tz).hour;
+
+  if (hour < EVE_HOUR || !to.length) return null;
+  if (await stores.jobs.get(`${EVE}${day}`)) return null;
+
+  const pendingKey = `${PENDING}${day}-eve`;
+  const pending = await stores.jobs.get(pendingKey);
+
+  if (!pending && hour >= EVE_LAST_HOUR) return null;
+
+  let result;
+
+  try {
+    result = await sendPacket(stores, {
+      day, to, mail, env, now, pending, pendingKey,
+      sentKey: `${EVE}${day}`, idempotencyKey: `packing-eve-${day}`,
+      event: "packing.eve.already_sent",
+      entries: chooseEve({ ...(await gather(stores, day)), day }),
+      summary: {}, filename: fileName(day, "-full"), title: eveTitle(day),
+      mailOf: (entries, summary, filename) => farmPackingSlips(entries, {
+        ...summary, filename, links: mailLinks(env), eve: EVE_TIME,
+        next: PACKING_TIME,
+      }),
+    });
+  } catch (error) {
+    const message = String((error && error.message) || error);
+
+    log.error({ event: "packing.eve.failed", day, error: message });
+    await ping(pingUrl(env), {
+      ok: false, body: scrub({ failed: "packing.eve", day, error: message }),
+      fetchImpl,
+    });
+    throw error;
+  }
+
+  log.info({ event: "packing.eve.sent", ...result });
 
   return result;
 };

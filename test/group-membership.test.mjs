@@ -103,7 +103,7 @@ describe("who gets what", () => {
       assert.equal(view.member.key, "vff");
       assert.equal(view.member.group.name, "The Village Family Fitness");
       assert.equal(typeof view.member.group.place.street, "string");
-      assert.equal(view.member.rounds.current.date, "2026-11-08");
+      assert.equal(view.member.rounds.current.date, "2026-11-15");
       assert.equal(view.member.members, undefined);
       assert.equal(view.member.qr, undefined);
       assert.deepEqual(view.hosts, []);
@@ -161,19 +161,9 @@ describe("who gets what", () => {
       ]);
     });
 
-  it("refuses a rotation from another site", async () => {
-    const { stores, host } = await setup();
-    const res = await call(stores, "/api/membership/qr", {
-      method: "POST", body: { group: "vff", rotate: true },
-      headers: { ...host, "sec-fetch-site": "cross-site" },
-    });
-
-    assert.equal(res.status, 403);
-  });
-
   // The coordinator's security review: same-site lets a sibling
   // (a deploy preview, a branch subdomain) act as the host.
-  it("refuses a rotation that is same-site but not same-origin",
+  it("refuses a rotation cross-site, or same-site but not same-origin",
     async () => {
       const { stores, host } = await setup();
       const old = await joinTokenOf(stores, "vff", { now });
@@ -183,6 +173,7 @@ describe("who gets what", () => {
       });
 
       for (const headers of [
+        { "sec-fetch-site": "cross-site" },
         { "sec-fetch-site": "same-site" },
         { "sec-fetch-site": "none" },
         { "sec-fetch-site": "", origin: "http://preview.x" },
@@ -351,31 +342,31 @@ describe("the rounds", () => {
 
     assert.equal(r.every, 2);
     assert.deepEqual(r.current, {
-      date: "2026-11-08", closesAt: "2026-11-08T04:59:00.000Z",
+      date: "2026-11-15", closesAt: "2026-11-15T04:59:00.000Z",
     });
     assert.deepEqual(r.next, {
-      date: "2026-11-22", opensAt: "2026-11-08T04:59:00.000Z",
+      date: "2026-11-29", opensAt: "2026-11-15T04:59:00.000Z",
     });
   });
 
   it("move on once a round has closed", () => {
-    const sunday = new Date("2026-11-08T13:00:00Z");
+    const sunday = new Date("2026-11-15T13:00:00Z");
 
     assert.equal(roundsNow({ series: "36TS" }, terms, sunday).current.date,
-      "2026-11-22");
+      "2026-11-29");
   });
 });
 
 describe("the tab's words (drafts)", () => {
   it("say how often, which day and when", () => {
     const r = { every: 2, opens: "08:30", closes: "09:00",
-      current: { date: "2026-11-08" } };
+      current: { date: "2026-11-15" } };
 
     assert.equal(roundsLine(r), "Every 2 weeks, on Sundays, 8:30 to 9:00 AM");
     assert.equal(roundsLine({ ...r, every: 1 }).slice(0, 10), "Every week");
     assert.equal(hours("11:30", "12:30"), "11:30 AM to 12:30 PM");
-    assert.equal(moment("2026-11-08T04:59:00.000Z", "America/New_York"),
-      "Saturday, November 7, 11:59 PM");
+    assert.equal(moment("2026-11-15T04:59:00.000Z", "America/New_York"),
+      "Saturday, November 14, 11:59 PM");
   });
 
   it("say when and how each member joined", () => {

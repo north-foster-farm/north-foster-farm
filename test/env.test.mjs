@@ -135,23 +135,19 @@ describe("the env sample parser", () => {
     assert.ok(!s.keys.includes("NETLIFY_AUTH_TOKEN"));
   });
 
-  it("wants a working value for every development key", () => {
-    const text = FIXTURE.replace("staging.sample", "development.sample");
+  it("wants a working value for every development key, but lets one "
+    + "the sample marks optional be empty", () => {
+    const full = FIXTURE.replace("staging.sample", "development.sample");
+    const optional = full.replace(
+      "# 1 holds the Venmo button back.\nVENMO_HIDDEN=1",
+      "# 1 holds the Venmo button back. Optional: empty shows it.\n" +
+      "VENMO_HIDDEN=");
 
-    assert.deepEqual(readSample(text, "development").errors,
-      ["SQUARE_ACCESS_TOKEN has no value; development needs one."]);
-  });
-
-  it("lets a development key be empty when the sample marks it optional",
-    () => {
-      const text = FIXTURE.replace("staging.sample", "development.sample")
-        .replace("# 1 holds the Venmo button back.\nVENMO_HIDDEN=1",
-          "# 1 holds the Venmo button back. Optional: empty shows it.\n" +
-          "VENMO_HIDDEN=");
-
+    for (const text of [full, optional]) {
       assert.deepEqual(readSample(text, "development").errors,
         ["SQUARE_ACCESS_TOKEN has no value; development needs one."]);
-    });
+    }
+  });
 
   it("names what breaks the layout, never a value", () => {
     const text = [

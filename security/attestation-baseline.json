@@ -13,6 +13,7 @@
   "@humanwhocodes/module-importer",
   "@humanwhocodes/retry",
   "@isaacs/cliui",
+  "@isaacs/nonrecursive-glob-match",
   "@keyv/bigmap",
   "@keyv/serialize",
   "@nodelib/fs.scandir",

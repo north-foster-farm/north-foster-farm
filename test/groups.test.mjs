@@ -248,11 +248,11 @@ describe("the real group data", () => {
     }
   });
 
-  it("runs the first round on Sunday 2026-11-08, then every other", () => {
+  it("runs the first round on Sunday 2026-11-15, then every other", () => {
     const s = terms.model.seriesOf("36TS");
 
-    assert.deepEqual(seriesDates(s, "2026-11-01", "2026-12-07"),
-      ["2026-11-08", "2026-11-22", "2026-12-06"]);
+    assert.deepEqual(seriesDates(s, "2026-11-01", "2026-12-14"),
+      ["2026-11-15", "2026-11-29", "2026-12-13"]);
   });
 });
 

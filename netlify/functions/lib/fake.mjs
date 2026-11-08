@@ -12,6 +12,7 @@
 // orders without money.
 
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 
 import { deployContext } from "./store.mjs";
 
@@ -43,3 +44,20 @@ export const refusal = (name) => `${name}=${FAKE} is for local ` +
 export const fakeId = (prefix, ...parts) => `${prefix}-${createHash("sha256")
   .update(parts.map(String).join("|")).digest("hex").slice(0, 16)
   .toUpperCase()}`;
+
+// A vendor's recorded answer, for the fake to return in place of the
+// vendor's (test/fixtures/README.md, bin/fixtures/record): { _source,
+// status, request, response }. Read when asked for, so a deploy that
+// never fakes never needs the files. A fresh copy each time.
+export const recorded = (service, name) => {
+  const file = new URL(
+    `../../../test/fixtures/${service}/${name}.json`, import.meta.url
+  );
+
+  try {
+    return JSON.parse(readFileSync(file, "utf8"));
+  } catch (error) {
+    throw new Error(`No recorded ${service} answer "${name}" (${
+      error.code}); run bin/fixtures/record`, { cause: error });
+  }
+};

@@ -2,6 +2,9 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { renameCustomer } from "../netlify/functions/lib/admin.mjs";
+import {
+  authRecordsFor, indexPrefix, putAuth,
+} from "../netlify/functions/lib/auth-records.mjs";
 import { moveContact } from "../netlify/functions/lib/news.mjs";
 import { renameCustomerEmail } from "../netlify/functions/lib/square.mjs";
 import {
@@ -58,17 +61,17 @@ const seed = async () => {
   await saveCustomer(stores, { email: OLD, name: "Pat", avatar: "chick" });
   await saveOrder(stores, order("A"), now);
   await saveOrder(stores, order("B"), now);
-  await stores.auth.set("session/s1", { email: OLD, expires: 1 });
-  await stores.auth.set("session/s2", { email: "other@example.com" });
-  await stores.auth.set("token/t1", { email: OLD, expires: 1 });
+  await putAuth(stores, "session/s1", { email: OLD, expires: 1 });
+  await putAuth(stores, "session/s2", { email: "other@example.com" });
+  await putAuth(stores, "token/t1", { email: OLD, expires: 1 });
   // A pending email-change link asked for from OLD, to a third
   // address: its `email` is the destination, not OLD, so only
   // `changeFrom` names OLD (#240).
-  await stores.auth.set("token/t2", {
+  await putAuth(stores, "token/t2", {
     email: "third@example.com", changeFrom: OLD, expires: 1,
   });
-  await stores.auth.set("unsub/u1", { email: OLD });
-  await stores.auth.set("news/n1", { email: OLD });
+  await putAuth(stores, "unsub/u1", { email: OLD });
+  await putAuth(stores, "news/n1", { email: OLD });
   await stores.customers.set(`support/${OLD}/m1`, { message: "Hi" });
   await stores.customers.set(`cart/${OLD}`, { payload: null, savedAt: 1 });
 
@@ -136,6 +139,28 @@ describe("customers rename (#238)", () => {
     assert.deepEqual(calls.filter(([, , , apply]) => apply).map(([s]) => s),
       ["resend", "square"]);
   });
+
+  it("reads only the old address's index of sign-in records (#508)",
+    async () => {
+      const stores = await seed();
+      const { square, news } = outside();
+      const prefixes = [];
+      const list = stores.auth.list;
+
+      stores.auth.list = (prefix) => {
+        prefixes.push(prefix);
+
+        return list(prefix);
+      };
+      await renameCustomer(stores, OLD, NEW, {
+        apply: true, square, news, now,
+      });
+
+      assert.deepEqual(prefixes, [indexPrefix(OLD)]);
+      assert.deepEqual(await authRecordsFor(stores, OLD), []);
+      assert.deepEqual((await authRecordsFor(stores, NEW))
+        .map((a) => a.key).sort(), ["news/n1", "unsub/u1"]);
+    });
 
   it("refuses a taken, invalid or unchanged address", async () => {
     const stores = await seed();

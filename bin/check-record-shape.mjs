@@ -33,6 +33,7 @@ import { pathToFileURL } from "node:url";
 export const SHAPE_PATHS = [
   "netlify/functions/lib/store.mjs",
   "netlify/functions/lib/records.mjs",
+  "netlify/functions/lib/auth-records.mjs",
   "netlify/functions/lib/news.mjs",
   "netlify/functions/lib/checkout.mjs",
   "netlify/functions/lib/edit.mjs",
@@ -44,6 +45,7 @@ export const SHAPE_PATHS = [
   "netlify/functions/lib/stock.mjs",
   "netlify/functions/lib/packing.mjs",
   "netlify/functions/lib/group-log.mjs",
+  "netlify/functions/lib/perks.mjs",
   "netlify/migrations/",
   "bin/migrations/",
 ];

@@ -116,7 +116,7 @@ describe("spending credit on an order", () => {
       phone: "401-555-0100", contact: "call",
     },
     lines: [{ sku: SKU, qty: 2 }],
-    fulfilment: { method: "scheduled", occurrence: "36TS-261108" },
+    fulfilment: { method: "scheduled", occurrence: "36TS-261115" },
     claimedTotal: 5500,
     payment: { method: "card", sourceId: "cnon:tok" },
     ...overrides,
@@ -316,7 +316,7 @@ describe("whose credit, and when", () => {
       phone: "401-555-0100", contact: "call",
     },
     lines: [{ sku: SKU, qty: 2 }],
-    fulfilment: { method: "scheduled", occurrence: "36TS-261108" },
+    fulfilment: { method: "scheduled", occurrence: "36TS-261115" },
     claimedTotal: 3500,
     payment: { method: "card", sourceId: "cnon:tok" },
     ...overrides,
@@ -615,7 +615,7 @@ describe("credit and the delivery fee", () => {
       const { stores, cookie } = await member(10_000);
       const { square, calls } = fakeSquare({ zeroFails: true });
       const res = await send(stores, square, delivery({
-        fulfilment: { method: "scheduled", occurrence: "36TS-261108" },
+        fulfilment: { method: "scheduled", occurrence: "36TS-261115" },
         claimedTotal: 0, payment: { method: "credit" },
       }), cookie);
 
@@ -674,7 +674,7 @@ describe("credit on a retried checkout", () => {
       phone: "401-555-0100", contact: "call",
     },
     lines: [{ sku: SKU, qty: 2 }],
-    fulfilment: { method: "scheduled", occurrence: "36TS-261108" },
+    fulfilment: { method: "scheduled", occurrence: "36TS-261115" },
     claimedTotal: 3500,
     payment: { method: "card", sourceId: "cnon:tok" },
     ...overrides,
