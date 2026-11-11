@@ -245,7 +245,7 @@ test("a line's trash icon keeps its name and takes the line out",
 
     await expect(remove.locator("svg")).toBeVisible();
     // The can's lid, from icons/trash.svg.
-    await expect(remove.locator("path[d^='M9 7V4']")).toHaveCount(1);
+    await expect(remove.locator("path[d*='M9 7V4']")).toHaveCount(1);
     await expect(remove).not.toContainText("×");
     await remove.click();
     await expect(remove).toHaveCount(0);
