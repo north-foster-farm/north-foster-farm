@@ -183,6 +183,12 @@
   // rest. Nothing else shrinks them: the floor is the cap's, not a
   // padding. Settled or a column, the cap is lifted below.
   .order-cart-lines {
+    // Clear cart's room at the right of the first heading row, and
+    // where its right edge sits (the panel's lines are padded).
+    --cart-clear-w: 6.5rem;
+    --cart-clear-end: 0px;
+
+    position: relative;
     display: flex;
     flex: 0 0 auto;
     flex-direction: column;
@@ -245,6 +251,52 @@
     }
   }
 
+  // Clear cart (#531), over the right end of the first group's heading
+  // row, so it adds no height to a pane already short of room (James's
+  // spec). Rows scrolled under it pass behind its background and the
+  // top fade. Asking for the second press, it turns the danger colour.
+  .order-cart-clear {
+    position: absolute;
+    top: 0;
+    right: var(--cart-clear-end);
+    z-index: 3;
+    display: inline-flex;
+    gap: 0.25rem;
+    align-items: center;
+    height: calc(#{$cart-font-size} * #{$cart-line-height});
+    padding: 0 0.375rem;
+    border: 0;
+    border-radius: 999px;
+    background-color: var(--bs-body-bg);
+    font-size: 0.75rem;
+    font-weight: bold;
+    line-height: 1;
+    white-space: nowrap;
+    color: var(--bs-secondary-color);
+    transition: color var(--order-hover) ease;
+
+    &:hover,
+    &[data-armed] {
+      color: var(--bs-danger);
+    }
+
+    // Inside the control, so the body's scroller never clips it.
+    &:focus-visible {
+      color: var(--bs-danger);
+      outline-offset: -2px;
+    }
+
+    &[hidden] {
+      display: none;
+    }
+  }
+
+  .order-cart-clear-icon {
+    flex: none;
+    width: 1rem;
+    height: 1rem;
+  }
+
   // "3 more ↓", at the strip's right; a tap glides the list a screen.
   .order-cart-more {
     position: absolute;
@@ -297,6 +349,11 @@
     font-weight: bold;
   }
 
+  // The first heading wraps short of Clear cart.
+  .order-cart-items > .order-cart-group:first-child > .order-cart-group-name {
+    padding-right: var(--cart-clear-w);
+  }
+
   .order-cart-group-items {
     display: grid;
     gap: $cart-line-gap;
@@ -326,7 +383,6 @@
     border: 0;
     border-radius: 50%;
     background: none;
-    font-size: 1.25rem;
     line-height: 1;
     color: var(--bs-secondary-color);
     transition:
@@ -337,6 +393,12 @@
     &:focus-visible {
       color: var(--bs-danger);
     }
+  }
+
+  // The remove-item icon (#531), which replaced a × glyph.
+  .order-cart-remove-icon {
+    width: 1.125rem;
+    height: 1.125rem;
   }
 
   .order-cart-item-name {
@@ -1032,6 +1094,8 @@
       // The lines run the pane's whole height, the foot's rows too,
       // and add nothing to it: the right column sets the height.
       .order-cart-lines {
+        --cart-clear-end: 1.5rem;
+
         grid-column: 1;
         grid-row: 1 / span 12;
         max-height: none;
@@ -1154,6 +1218,8 @@
       // phone's lines never shrink, and lay out at the new height at
       // once like these.
       .order-cart-lines {
+        --cart-clear-end: 1.5rem;
+
         grid-column: 1;
         grid-row: 1 / span 8;
         min-height: min-content;

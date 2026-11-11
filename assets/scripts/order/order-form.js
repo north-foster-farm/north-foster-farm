@@ -194,6 +194,7 @@ export class OrderForm {
       form,
       bar: document.querySelector(".order-topbar"),
       onRemove: (sku) => this.remove(sku),
+      onClear: () => this.clear(),
       onWay: (method) => this.pickWay(method),
       onCode: () => this.applyCode(),
       onCheckout: () => this.toPickup(),
@@ -471,12 +472,21 @@ export class OrderForm {
       || this.payment.state.dataset.cardOpen !== "true";
   }
 
-  // The × on a cart line takes every unit of that product out.
+  // The remove icon on a cart line takes every unit of that product
+  // out.
   remove(sku) {
     const input = qs(this.form, `[data-qty="${CSS.escape(sku)}"]`);
 
     if (!input) return;
     this.setQty(input, 0);
+    this.changed();
+  }
+
+  // Clear cart, confirmed (#531): every line out, and the draft saved
+  // with none, so the header, another tab and the account's copy empty
+  // too. The way, the details and a code stay.
+  clear() {
+    for (const input of all(this.form, "[data-qty]")) this.setQty(input, 0);
     this.changed();
   }
 

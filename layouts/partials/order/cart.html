@@ -36,6 +36,11 @@
            though the down one shows under them: Tab meets it while
            there is more below (#288). */}}
       <section class="order-cart-lines" data-part="lines" aria-label="Items">
+        {{/* Clear cart (#531), over the right end of the first group's
+             heading row, so it takes no height of its own. The first
+             tap asks, a second within a few seconds empties the cart
+             (cart.js wireClear). */}}
+        <button type="button" class="order-cart-clear" data-cart-clear>{{ partial "svg.html" (dict "src" "icons/cart-clear" "class" "order-cart-clear-icon" "aria-hidden" "true") }}<span data-cart-clear-word>Clear cart</span></button>
         <div class="order-cart-scroll" data-cart-scroll>
           <button type="button" class="order-cart-more order-cart-more-top" data-cart-more-top hidden></button>
           <button type="button" class="order-cart-more" data-cart-more hidden></button>
@@ -48,7 +53,7 @@
           <li class="order-cart-group"><span class="order-cart-group-name" data-group-name></span><ul class="order-cart-group-items list-unstyled" data-group-items></ul></li>
         </template>
         <template data-cart-line>
-          <li class="order-cart-item"><button type="button" class="order-cart-remove" data-remove>×</button><span class="order-cart-item-name" data-line-name></span><span class="order-cart-item-qty" data-line-qty></span><span class="order-cart-item-sub" data-line-sub></span></li>
+          <li class="order-cart-item"><button type="button" class="order-cart-remove" data-remove>{{ partial "svg.html" (dict "src" "icons/remove-item" "class" "order-cart-remove-icon" "aria-hidden" "true") }}</button><span class="order-cart-item-name" data-line-name></span><span class="order-cart-item-qty" data-line-qty></span><span class="order-cart-item-sub" data-line-sub></span></li>
         </template>
       </section>
       <dl class="order-cart-sums" data-part="sums">

@@ -225,13 +225,23 @@ issues. Wording below is today's, approved under #400.
 
 - **Lines.** Every product with a quantity above 0, grouped by category
   in catalog order, each group under its short name, each line with a
-  remove ×, the pack label (capitalized), "qty × $unit" and the line
-  total. "0 items" when empty. Lines are rebuilt only when they change,
-  so a × under the pointer survives a render (#155).
+  remove control, the pack label (capitalized), "qty × $unit" and the
+  line total. "0 items" when empty. Lines are rebuilt only when they
+  change, so a remove control under the pointer survives a render
+  (#155). The remove control shows James's remove-item icon in place
+  of the × it had until 2026-11-11 (#531).
+- **Clear cart** (#531, 2026-11-11). A small button over the right end
+  of the first group's heading row, so it adds no height. The first
+  press turns it into "Clear cart?" for `CONFIRM_WAIT` (4 s,
+  `cart/confirm.mjs`); a second press in that time sets every quantity
+  to 0 and saves the draft with no lines. Waiting, Escape or the
+  focus leaving puts it back. Hidden with the lines when the cart is
+  empty and, like the remove controls, when the lines are fixed.
 - **Quantities** live in the catalog rows' inputs (`[data-qty]`, 0 to
-  99, `data-max` while changing a paid order). The × sets a line's
-  input to 0. Search and the header change the same inputs on the
-  order page and the saved draft elsewhere (`search/cart.js`).
+  99, `data-max` while changing a paid order). A line's remove
+  control sets its input to 0. Search and the header change the same
+  inputs on the order page and the saved draft elsewhere
+  (`search/cart.js`).
 - **Count and total.** "N items" and "Total $X" in the pane; the same
   figures in the phone top bar and the lg to xl total bar once the
   pane has scrolled away, where a tap returns to the cart; the count
@@ -350,8 +360,8 @@ submission. The contract between them:
   `cart.setCodeValue()`, and brings the cart into view with
   `cart.show({ smooth, ring })` for the rail's link, the header's link
   and `#order-cart` in the URL.
-- The cart calls back: `onRemove(sku)`, `onWay(method)`,
-  `onCode(text)`, `onCheckout()`.
+- The cart calls back: `onRemove(sku)`, `onClear()` (#531),
+  `onWay(method)`, `onCode(text)`, `onCheckout()`.
 - The code field, the way picks, the badges, the pill, the joke row
   and the bars' readouts are the cart's.
 - Draft, sync and the header badge stay in `draft.js`, `cart-sync.mjs`,
@@ -421,8 +431,9 @@ div.order-cart-slot[data-cart-slot]             the pane's place in the page
   aside#order-cart.order-cart
       [data-placement][data-fold][data-empty][data-share]
     div.order-cart-body[data-cart-body]         scrolls as a whole when short
-      section.order-cart-lines  [data-part=lines]   the "more" pills, the list,
-                                                    the two line templates
+      section.order-cart-lines  [data-part=lines]   Clear cart, the "more" pills,
+                                                    the list, the two line
+                                                    templates
       dl.order-cart-sums        [data-part=sums]    subtotal, discount, fee
       div.order-cart-total-row  [data-part=total]   "N items" and "Total $X"
       dl.order-cart-sums.order-cart-edit [data-part=edit]  paid, kept, to pay

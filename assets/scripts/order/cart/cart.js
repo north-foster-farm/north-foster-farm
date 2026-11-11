@@ -17,6 +17,7 @@ import { perkSentence } from "../lib/perks.mjs";
 import { awayFrom } from "../lib/share-away.mjs";
 import { dollars } from "../lib/totals.mjs";
 import { label } from "../lib/zoned.mjs";
+import { twoStep } from "./confirm.mjs";
 import * as state from "./state.mjs";
 import {
   animateFold, clearFocusUnder, pulsePill, revealLine, ringCart,
@@ -54,6 +55,20 @@ const pulse = (el, className) => {
 
 const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+// Says `text` in a live region; a repeated line must be heard again,
+// so clear, then set.
+const say = (live, text) => {
+  live.textContent = "";
+  setTimeout(() => { live.textContent = text; }, 60);
+};
+
+// Clear cart's words (#531): at rest, and asking for the second press.
+// Drafts for comms.
+const CLEAR_WORD = "Clear cart";
+const CLEAR_ASK = "Clear cart?";
+const CLEAR_HINT = "Press again to remove every item from your cart.";
+const CLEAR_DONE = "Your cart is empty.";
+
 // Resolves once nothing animates the pane: an ease that another ease
 // cancelled resolves early, while the newer one still runs.
 const stilled = (pane) => Promise.all(
@@ -66,13 +81,13 @@ export class Cart {
   // readouts are the form's [data-total-bar-count], [data-total-bar-total]
   // and [data-to-cart], found from `form`.
   constructor(root, {
-    form, bar = null, onRemove, onWay, onCode, onCheckout,
+    form, bar = null, onRemove, onClear, onWay, onCode, onCheckout,
   }) {
     this.root = root;
     this.form = form;
     this.slot = root.parentElement;
     this.heading = document.getElementById("order-cart-heading");
-    this.on = { onRemove, onWay, onCode, onCheckout };
+    this.on = { onRemove, onClear, onWay, onCode, onCheckout };
     this.state = state.initial();
     this.lastCount = null;
     this.lastTotal = null;
@@ -172,6 +187,13 @@ export class Cart {
     root.addEventListener("keydown", (e) => {
       if (e.key !== "Escape") return;
 
+      if (this.clearing.armed) {
+        e.preventDefault();
+        this.clearing.reset();
+
+        return;
+      }
+
       if (this.state.share) {
         const was = this.state.share;
 
@@ -196,7 +218,8 @@ export class Cart {
       root.addEventListener(type, () => this.keepOpen(), { passive: true });
     }
 
-    // The × on a cart line takes every unit of that product out.
+    // The remove icon on a cart line takes every unit of that product
+    // out.
     root.addEventListener("click", (e) => {
       const button = e.target.closest("[data-remove]");
 
@@ -207,6 +230,7 @@ export class Cart {
       this.on.onCheckout();
     });
 
+    this.wireClear();
     this.wireShare();
     this.wireBadges();
 
@@ -214,6 +238,36 @@ export class Cart {
     for (const button of all(this.form, "[data-to-cart]")) {
       button.addEventListener("click", () => this.show({ smooth: true }));
     }
+  }
+
+  // Clear cart (#531): the first press turns it into "Clear cart?" for
+  // a few seconds (confirm.mjs), and a second press in that time takes
+  // every line out. Waiting, Escape or the focus leaving puts it back.
+  // An emptied cart hides the lines and the button with them, so the
+  // focus goes to the pane.
+  wireClear() {
+    const button = qs(this.root, "[data-cart-clear]");
+    const word = qs(button, "[data-cart-clear-word]");
+    const live = qs(this.root, "[data-cart-live]");
+
+    this.clearing = twoStep({
+      onArm: () => {
+        button.dataset.armed = "";
+        word.textContent = CLEAR_ASK;
+        say(live, CLEAR_HINT);
+      },
+      onDisarm: () => {
+        delete button.dataset.armed;
+        word.textContent = CLEAR_WORD;
+      },
+      onConfirm: () => {
+        this.on.onClear();
+        this.root.focus({ preventScroll: true });
+        say(live, CLEAR_DONE);
+      },
+    });
+    button.addEventListener("click", () => this.clearing.press());
+    button.addEventListener("focusout", () => this.clearing.reset());
   }
 
   // The shared row (#203): the way and Add discount side by side; each
@@ -314,7 +368,7 @@ export class Cart {
   // paid order being changed ({ held, kept, keptDate, total }) or null;
   // `locked`, the stock gate; `adding`, that an Add caused this render;
   // `fixed`, that the lines cannot change (an unpaid order being paid,
-  // #181): no × on a line.
+  // #181): no remove icon on a line and no Clear cart.
   render(s, {
     method, ways = {}, edit = null, locked = false, adding = false,
     fixed = false,
@@ -325,6 +379,8 @@ export class Cart {
     const draw = () => {
       this.renderItems(s);
       for (const button of all(root, "[data-remove]")) button.hidden = fixed;
+      qs(root, "[data-cart-clear]").hidden = fixed;
+      if (fixed || count === 0) this.clearing.reset();
       this.renderSums(s);
       this.renderEdit(edit);
       this.renderWays(method, ways);
@@ -558,9 +614,7 @@ export class Cart {
     const root = this.root;
     const live = qs(root, "[data-cart-live]");
 
-    // A repeated name must be heard again: clear, then set.
-    live.textContent = "";
-    setTimeout(() => { live.textContent = `Added ${name} to cart`; }, 60);
+    say(live, `Added ${name} to cart`);
     pulse(qs(root, "[data-cart-count]"), "is-ticked");
 
     this.keepOpen();

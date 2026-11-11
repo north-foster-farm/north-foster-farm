@@ -101,6 +101,8 @@ const plugins = [
         "data-top",
         "data-card-open",
         "data-cart-passed",
+        // Clear cart asking for its second press (#531).
+        "data-armed",
         "data-busy",
         "data-row-start",
         "data-playing",

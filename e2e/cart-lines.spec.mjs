@@ -1,11 +1,13 @@
 // The cart's lines (#477, docs/cart.md 3): each category under its
-// short name, each line with its remove ×, the pack label, the
+// short name, each line with its remove icon, the pack label, the
 // quantity at the unit price and the line total; the "N more" pills
-// that glide a long list row by row. Adding, removing and typing a
-// quantity are the order page's (order-page.spec.mjs).
+// that glide a long list row by row; Clear cart and its two presses
+// (#531). Adding, removing and typing a quantity are the order page's
+// (order-page.spec.mjs).
 
 import {
-  FULL_CART, OrderPage, SUITE_STOCK, expect, test, unfoldCart as unfold,
+  FULL_CART, OrderPage, SKU, SUITE_STOCK, expect, test,
+  unfoldCart as unfold,
 } from "./support/order.mjs";
 import { PLENTY } from "./support/stock.mjs";
 
@@ -184,3 +186,109 @@ test("in the column a long list scrolls inside the sticky pane",
     await expect(order.cart.locator("[data-cart-more]")).toBeVisible();
     await expect(order.next).toBeInViewport();
   });
+
+// The saved draft's lines, as the header and another tab read them.
+const draftLines = (page) => page.evaluate(() => JSON.parse(
+  localStorage.getItem("nff-order-draft")
+).payload.lines);
+
+// The remove control shows James's remove-item icon in place of the ×,
+// keeps its name and still takes the line out (#531).
+test("a line's remove icon keeps its name and takes the line out",
+  async ({ page }) => {
+    await page.setViewportSize(PHONE);
+
+    const order = new OrderPage(page);
+
+    await order.open({ eggs: 1, [LIVERS]: 1 });
+    await unfold(order);
+
+    const remove = order.cart.getByRole("button", {
+      name: "Remove Livers, 1.0 – 1.4 lbs from your cart",
+    });
+
+    await expect(remove.locator("svg")).toBeVisible();
+    await expect(remove).not.toContainText("×");
+    await remove.click();
+    await expect(remove).toHaveCount(0);
+    await expect(page.locator(`[data-qty='${LIVERS}']`)).toHaveValue("0");
+    await expect(order.count).toHaveText("1 item");
+    expect(await draftLines(page)).toEqual([{ sku: SKU.eggs, qty: 1 }]);
+  });
+
+for (const [width, viewport] of [["a phone", PHONE], ["the column", XL]]) {
+  test.describe(`Clear cart on ${width}`, () => {
+    test.use({ viewport });
+
+    const opened = async (page) => {
+      const order = new OrderPage(page);
+
+      await order.open({ eggs: 2, wings: 1 });
+      // The column has no fold; a floating pane opens by its pill.
+      if (await order.cart.getAttribute("data-placement") === "floating") {
+        await unfold(order);
+      }
+      await expect(order.count).toHaveText("3 items");
+
+      return order;
+    };
+
+    test("sits at the top of the cart, and two presses empty it",
+      async ({ page }) => {
+        const order = await opened(page);
+        const clear = order.cart.getByRole("button", { name: "Clear cart" });
+
+        // At the top of the cart: on the first heading's row, the lines
+        // and the totals all below its top edge.
+        await expect(clear).toBeVisible();
+        await expect(clear.locator("svg")).toBeVisible();
+
+        const at = await clear.boundingBox();
+        const heading = await order.cart.locator(".order-cart-group-name")
+          .first().boundingBox();
+        const firstLine = await order.cart.locator(".order-cart-item")
+          .first().boundingBox();
+
+        expect(Math.abs(at.y - heading.y)).toBeLessThan(4);
+        expect(at.y + at.height).toBeLessThanOrEqual(firstLine.y + 2);
+        // Clear of the heading's words.
+        expect(at.x).toBeGreaterThan(heading.x + 60);
+
+        await clear.click();
+        await expect(clear).toHaveText("Clear cart?");
+        await expect(order.count).toHaveText("3 items");
+
+        await clear.click();
+        await expect(order.count).toHaveText("0 items");
+        await expect(order.total).toHaveText("$0");
+        await expect(order.cart).toHaveAttribute("data-empty", "");
+        await expect(order.cart.locator(".order-cart-item")).toHaveCount(0);
+        await expect(order.next).toBeDisabled();
+        for (const sku of [SKU.eggs, SKU.wings]) {
+          await expect(page.locator(`[data-qty='${sku}']`)).toHaveValue("0");
+        }
+        expect(await draftLines(page)).toEqual([]);
+        await expect(page.locator("[data-cart-live]"))
+          .toHaveText("Your cart is empty.");
+      });
+
+    test("one press, then waiting, leaves the cart as it was",
+      async ({ page }) => {
+        const order = await opened(page);
+        const clear = order.cart.locator("[data-cart-clear]");
+        const before = await draftLines(page);
+
+        await clear.click();
+        await expect(clear).toHaveText("Clear cart?");
+        await expect(clear).toHaveText("Clear cart", { timeout: 8_000 });
+        await expect(clear).not.toHaveAttribute("data-armed");
+        await expect(order.count).toHaveText("3 items");
+        expect(await draftLines(page)).toEqual(before);
+
+        // The next press asks again rather than clearing.
+        await clear.click();
+        await expect(clear).toHaveText("Clear cart?");
+        await expect(order.count).toHaveText("3 items");
+      });
+  });
+}

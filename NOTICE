@@ -62,10 +62,10 @@ SOFTWARE.
 Tabler Icons (https://tabler.io/icons), MIT License
 ---------------------------------------------------
 
-In assets/images/icons/: barn (building-cottage), delivery
-(truck-delivery), search (zoom), search-close (zoom-cancel), x, and
-the ten in leaves/ (leaf-2, leaf, seedling, twig and leaf-maple, each
-also mirrored).
+In assets/images/icons/: barn (building-cottage), cart-clear
+(shopping-cart-x), delivery (truck-delivery), search (zoom),
+search-close (zoom-cancel), x, and the ten in leaves/ (leaf-2, leaf,
+seedling, twig and leaf-maple, each also mirrored).
 
 Copyright (c) 2020-2024 Paweł Kuna
 
