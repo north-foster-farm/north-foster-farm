@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
-  keyboardInset, moreStop, ringsCart, visibleArea,
+  clearBy, keyboardInset, moreStop, ringsCart, visibleArea,
 } from "../assets/scripts/order/lib/cart-scroll.mjs";
 
 // Ten rows of 40px, 100px of view in a 400px list.
@@ -108,5 +108,37 @@ describe("ringsCart", () => {
 
   it("does not ring a cart with no height", () => {
     assert.equal(ringsCart(false, { top: 0, bottom: 0 }, 800), false);
+  });
+});
+
+// A 900px screen under a 48px top bar, as the keyboard walk's at 390
+// (#549).
+describe("clearBy", () => {
+  const band = { floor: 900, ceiling: 48 };
+
+  it("lifts a control below the screen's foot clear of it", () => {
+    // The sign-in link the walk found at 950..969 of 900.
+    assert.equal(clearBy({ top: 950, bottom: 969 }, band), 81);
+  });
+
+  it("lifts a control under the floating pane clear of its top", () => {
+    assert.equal(clearBy({ top: 600, bottom: 640 }, { ...band, floor: 620 }),
+      32);
+  });
+
+  it("never lifts a control under the top bar", () => {
+    // 100px of band for a 40px control: it goes no higher than the
+    // bar's foot and the gap.
+    assert.equal(clearBy({ top: 100, bottom: 140 }, { floor: 150, ceiling: 0 }),
+      2);
+  });
+
+  it("leaves a control already clear", () => {
+    assert.equal(clearBy({ top: 400, bottom: 440 }, band), 0);
+    assert.equal(clearBy({ top: 20, bottom: 40 }, band), 0);
+  });
+
+  it("leaves a control taller than half the band", () => {
+    assert.equal(clearBy({ top: 500, bottom: 1000 }, band), 0);
   });
 });

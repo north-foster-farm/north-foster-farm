@@ -8,7 +8,9 @@
 // decision or the animation alone, at a quiet moment, never written
 // back for the layout to read.
 
-import { keyboardInset, moreStop, visibleArea } from "../lib/cart-scroll.mjs";
+import {
+  clearBy, keyboardInset, moreStop, visibleArea,
+} from "../lib/cart-scroll.mjs";
 import { strayed, touchKind } from "../lib/cart-touch.mjs";
 
 // The width and height classes the state reads. The stylesheet's
@@ -491,34 +493,63 @@ export const teach = (pane, pill, { dwell, onShut }) => {
   return { keep, cancel: keep };
 };
 
+// How long after a focus a change in the page's height may still have
+// pushed the control off the screen: a cart settling and opening, a
+// list landing.
+const SHIFT_MS = 1000;
+
 // A control the Tab key reaches under the floating pane scrolls up
 // clear of it, never under the top bar (#159, WCAG 2.4.11). The pane's
 // own are its own, and a scroller taller than the room is left where
 // it is. The pane may grow once the bar sticks, so it looks again a
 // frame later.
+//
+// A control reached from the keyboard below the screen's foot scrolls
+// up the same way, wherever the cart is (#549). WebKit keeps no scroll
+// anchor, so a page that grows above the focus after the browser
+// scrolled to it (the cart settling into its slot and opening to every
+// line) left the focus below the fold on a phone, where Chromium kept
+// it in place. The page's height is watched for a moment after each
+// focus, and a change in it looks again.
 export const clearFocusUnder = (pane, given) => {
   const bar = given === undefined
     ? document.querySelector(".order-topbar") : given;
+  let since = -Infinity;
   const clear = (el) => {
-    if (pane.dataset.placement !== "floating" || pane.contains(el)
-      || document.activeElement !== el) return;
+    if (!el || pane.contains(el) || document.activeElement !== el) return;
 
-    const r = el.getBoundingClientRect();
-    const floor = pane.getBoundingClientRect().top;
     const ceiling = bar ? Math.max(0, bar.getBoundingClientRect().bottom) : 0;
+    const top = pane.getBoundingClientRect().top;
+    // The floating pane covers the foot only while it rides there; one
+    // the page has scrolled past is above the screen.
+    const over = pane.dataset.placement === "floating" && top > ceiling;
 
-    if (r.height > (floor - ceiling) / 2) return;
+    if (!over && !el.matches(":focus-visible")) return;
 
-    const over = Math.min(r.bottom + 12 - floor, r.top - ceiling - 12);
+    const by = clearBy(el.getBoundingClientRect(), {
+      floor: over ? Math.min(top, window.innerHeight) : window.innerHeight,
+      ceiling,
+    });
 
-    if (over > 0) window.scrollBy({ top: over, behavior: "instant" });
+    if (by > 0) window.scrollBy({ top: by, behavior: "instant" });
   };
   const onFocus = (e) => {
+    since = performance.now();
     clear(e.target);
     requestAnimationFrame(() => requestAnimationFrame(() => clear(e.target)));
   };
+  // A frame later, as watchList's: a scroll inside the observer's
+  // callback is a layout change WebKit warns of as a loop.
+  const sizes = new ResizeObserver(() => {
+    if (performance.now() - since > SHIFT_MS) return;
+    requestAnimationFrame(() => clear(document.activeElement));
+  });
 
   document.addEventListener("focusin", onFocus);
+  sizes.observe(document.documentElement);
 
-  return () => document.removeEventListener("focusin", onFocus);
+  return () => {
+    document.removeEventListener("focusin", onFocus);
+    sizes.disconnect();
+  };
 };

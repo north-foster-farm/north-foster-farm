@@ -53,6 +53,20 @@ export const visibleArea = (layoutHeight, visual, least = 120) => {
   };
 };
 
+// How far the page must scroll down to lift a focused control clear of
+// whatever covers the screen's foot (the floating cart's top, or the
+// screen's own foot) and never under the top bar's foot. `rect` is the
+// control's { top, bottom } in the viewport; `floor` and `ceiling` the
+// band it must sit in. 0 when it is clear already, or when it is too
+// tall for half the band: a scroller like that is left where it is.
+export const clearBy = (rect, { floor, ceiling, gap = 12 }) => {
+  if (rect.bottom - rect.top > (floor - ceiling) / 2) return 0;
+
+  const over = Math.min(rect.bottom + gap - floor, rect.top - ceiling - gap);
+
+  return over > 0 ? over : 0;
+};
+
 // Whether the rail's Cart link rings the cart (#337). From xl the cart
 // is a column beside the catalog, on screen already, so the link rings
 // it every time. Below xl it rings only a cart that was in view when

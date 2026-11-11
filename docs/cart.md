@@ -703,7 +703,11 @@ cart (4.4), not the two thirds; it has not been run in the prototype.
   negative `outline-offset`), at every width, so the body's scroller
   never clips one (#448 round 3 made general).
 - A control focused under the floating pane is scrolled clear of it
-  and of the top bar (`clearFocusUnder`, WCAG 2.4.11).
+  and of the top bar (`clearFocusUnder`, WCAG 2.4.11). One reached
+  from the keyboard below the screen's foot is lifted the same way
+  wherever the cart is, again when the page's height changes within a
+  second of the focus: WebKit keeps no scroll anchor, so a page that
+  grew above the focus left it below the fold (#549, 2026-11-11).
 - Reduced motion: no fold ease, no width ease, no pulse, no glide, no
   chicks, a still ring and a still pill emphasis; `_order.scss`'s
   global rule cuts every other transition to 1ms.
