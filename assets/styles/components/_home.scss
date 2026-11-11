@@ -269,6 +269,21 @@ $hero-text-shadow: 0 1px 3px rgb(0 0 0 / 50%);
     letter-spacing: -0.01em;
   }
 
+  // The update's eyebrow and title (#537): centred above the card on
+  // a phone, and beside it from lg, left-aligned, at the card's top.
+  .home-update-intro .home-title {
+    margin-bottom: 1.5rem;
+  }
+
+  @media (min-width: 992px) {
+    .home-update-intro {
+      .home-eyebrow,
+      .home-title {
+        text-align: start;
+      }
+    }
+  }
+
   .home-icon {
     position: relative;
     display: grid;

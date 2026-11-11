@@ -1,15 +1,52 @@
 {{/*
-  A post's body wherever the post is shown in full (#232), with its
-  footer under it (#483).
+  A post's body (#232), with its footer under it (#483): in full on
+  its own page, or as its excerpt on the home page (#537).
 
   Params:
-    page   The post
-    level  Its title's heading level (optional, default 1). Under an
-           h2 title the post's own h2s step down to h3.
+    page     The post
+    level    Its title's heading level (optional, default 1). The
+             post's own headings step down with it: under an h3 title
+             its h2s are h4s.
+    excerpt  Show only the excerpt (news/excerpt.html), then "Continue
+             reading" to the first block it leaves out (optional)
+
+  In full, every block carries its id, and the block "Continue
+  reading" lands on is marked data-continue. On the home page the
+  blocks carry no ids beyond the headings' own, as before, so none can
+  clash with the page's.
 */}}
-{{ $content := .page.Content }}
-{{ if eq (.level | default 1) 2 }}
-  {{ $content = $content | replaceRE `<(/?)h2([ >])` `<${1}h3${2}` | safeHTML }}
+{{ $page := .page }}
+{{ $cut := partialCached "news/excerpt.html" $page $page.Path }}
+{{ $html := slice }}
+{{ if .excerpt }}
+  {{ range first $cut.keep $cut.blocks }}
+    {{ $html = $html | append .html }}
+  {{ end }}
+{{ else }}
+  {{ range $cut.blocks }}
+    {{ $attrs := "" }}
+    {{ if not (findRE `^\s*<[a-z0-9]+[^>]*\sid="` .html) }}
+      {{ $attrs = printf ` id="%s"` .id }}
+    {{ end }}
+    {{ if and $cut.anchor (eq .id $cut.anchor) }}
+      {{ $attrs = printf `%s data-continue` $attrs }}
+    {{ end }}
+    {{ $html = $html | append (replaceRE `^(\s*<[a-z0-9]+)` (printf `${1}%s` $attrs) .html 1) }}
+  {{ end }}
 {{ end }}
-<div class="prose">{{ $content }}</div>
+{{ $content := delimit $html "\n" }}
+{{ $shift := sub (.level | default 1) 1 }}
+{{ if gt $shift 0 }}
+  {{/* Deepest first, so no heading steps down twice. */}}
+  {{ range seq 5 2 }}
+    {{ $to := printf "h%d" (math.Min 6 (add . $shift) | int) }}
+    {{ $content = $content | replaceRE (printf `<(/?)h%d([ >])` .) (printf `<${1}%s${2}` $to) }}
+  {{ end }}
+{{ end }}
+<div class="prose">{{ $content | safeHTML }}</div>
+{{ if and .excerpt $cut.anchor }}
+  <p class="news-continue">
+    <a href="{{ $page.RelPermalink }}#{{ $cut.anchor }}">Continue reading<span class="visually-hidden"> {{ $page.Title }}</span> <span aria-hidden="true">&rarr;</span></a>
+  </p>
+{{ end }}
 {{ partial "news/footer.html" . }}

@@ -1,0 +1,138 @@
+{{/*
+  How much of a post the home page shows (#537), and where "Continue
+  reading" lands on the post's own page.
+
+  The post is cut into its blocks (news/split.html), and each block
+  gets an id: a heading keeps Goldmark's, and the blocks after it are
+  that id, a hyphen and their place under it (spring-1, spring-2),
+  those before any heading part-1, part-2. Ids follow the post's
+  headings, so an edit to one section moves no other section's.
+
+  The excerpt ends after a block of text: never after a heading, a
+  picture, a rule or the sign-off, and never after text that ends in
+  a colon, whose list would be left behind. A heading therefore keeps
+  the text after it. The rule, by weight (a block's words, a picture
+  counting as 40):
+
+  - a post of up to 260 shows whole;
+  - else the excerpt ends at the first boundary past 120, or at the one
+    before it when that one is past 60 and this one past 260;
+  - and when what it would leave out weighs under 60, the post shows
+    whole.
+
+  The post can override the rule: Hugo's own <!--more--> marker on a
+  line of its own ends the excerpt there, `excerpt: whole` in front
+  matter shows the post whole, and `excerpt: <id>` ends it before the
+  block with that id.
+
+  Takes the post; returns a dict:
+    blocks  Every block: html, kind (text, heading, image, break,
+            sign-off), id, words
+    keep    How many blocks the home page shows
+    anchor  The id of the first block it leaves out, or "" when whole
+*/}}
+{{ $page := . }}
+{{ $min := 120 }}
+{{ $max := 260 }}
+{{ $floor := 60 }}
+{{ $tail := 60 }}
+{{ $image := 40 }}
+
+{{ $blocks := slice }}
+{{ $section := "part" }}
+{{ $n := 0 }}
+{{ range partial "news/split.html" $page.Content }}
+  {{ $html := . }}
+  {{ $kind := "text" }}
+  {{ if findRE `^\s*<h[1-6][\s>]` $html }}
+    {{ $kind = "heading" }}
+  {{ else if findRE `^\s*<(?:figure|iframe|video)[\s>]` $html }}
+    {{ $kind = "image" }}
+  {{ else if findRE `^\s*<p>\s*(?:<a [^>]*>\s*)?<img [^>]*>\s*(?:</a>\s*)?</p>\s*$` $html }}
+    {{ $kind = "image" }}
+  {{ else if findRE `^\s*<hr[\s>/]` $html }}
+    {{ $kind = "break" }}
+  {{ else if findRE `^\s*<p class="sign-off"` $html }}
+    {{ $kind = "sign-off" }}
+  {{ end }}
+
+  {{ $id := "" }}
+  {{ with findRESubmatch `^\s*<[a-z0-9]+[^>]*\sid="([^"]+)"` $html 1 }}
+    {{ $id = index (index . 0) 1 }}
+  {{ end }}
+  {{ if eq $kind "heading" }}
+    {{ with $id }}{{ $section = . }}{{ end }}
+    {{ $n = 0 }}
+  {{ else }}
+    {{ $n = add $n 1 }}
+    {{ if not $id }}{{ $id = printf "%s-%d" $section $n }}{{ end }}
+  {{ end }}
+
+  {{ $text := $html | plainify | htmlUnescape | strings.TrimSpace }}
+  {{ $words := countwords $text }}
+  {{ if eq $kind "image" }}{{ $words = $image }}{{ end }}
+  {{ $blocks = $blocks | append (dict
+    "html" $html
+    "kind" $kind
+    "id" $id
+    "words" $words
+    "ends" (and (eq $kind "text") (not (strings.HasSuffix $text ":"))))
+  }}
+{{ end }}
+
+{{ $count := len $blocks }}
+{{ $total := 0 }}
+{{ range $blocks }}{{ $total = add $total .words }}{{ end }}
+{{ $keep := $count }}
+{{ $set := string ($page.Params.excerpt | default "") }}
+
+{{ if eq $set "whole" }}
+  {{/* Shown whole, by the post's own choice. */}}
+{{ else if $set }}
+  {{ $at := -1 }}
+  {{ range $i, $b := $blocks }}
+    {{ if eq $b.id $set }}{{ $at = $i }}{{ break }}{{ end }}
+  {{ end }}
+  {{ if le $at 0 }}
+    {{ errorf "news: excerpt %q is not the id of a block after the first (%s)" $set $page.File.Path }}
+  {{ end }}
+  {{ $keep = $at }}
+{{ else if findRE `(?m)^<!--more-->\s*$` $page.RawContent }}
+  {{ $keep = len (partial "news/split.html" $page.Summary) }}
+  {{ if eq $keep 0 }}
+    {{ errorf "news: <!--more--> comes before any block (%s)" $page.File.Path }}
+  {{ end }}
+{{ else if gt $total $max }}
+  {{ $cut := 0 }}
+  {{ $w := 0 }}
+  {{ $prev := 0 }}
+  {{ $prevW := 0 }}
+  {{ range $i, $b := $blocks }}
+    {{ $w = add $w $b.words }}
+    {{ if and $b.ends (lt (add $i 1) $count) }}
+      {{ if ge $w $min }}
+        {{ $cut = add $i 1 }}
+        {{ if and (gt $w $max) (ge $prevW $floor) }}
+          {{ $cut = $prev }}
+          {{ $w = $prevW }}
+        {{ end }}
+        {{ break }}
+      {{ end }}
+      {{ $prev = add $i 1 }}
+      {{ $prevW = $w }}
+    {{ end }}
+  {{ end }}
+  {{ if and (eq $cut 0) (ge $prevW $floor) }}
+    {{ $cut = $prev }}
+    {{ $w = $prevW }}
+  {{ end }}
+  {{ if and $cut (ge (sub $total $w) $tail) }}
+    {{ $keep = $cut }}
+  {{ end }}
+{{ end }}
+
+{{ $anchor := "" }}
+{{ if lt $keep $count }}
+  {{ $anchor = (index $blocks $keep).id }}
+{{ end }}
+{{ return (dict "blocks" $blocks "keep" $keep "anchor" $anchor) }}

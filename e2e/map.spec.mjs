@@ -1239,11 +1239,13 @@ test.describe("map (#138, #214)", () => {
     });
 
   // Since #136 the home page's only ZIP check is the map's; the news
-  // post's "our map" link leads to it.
+  // post's "our map" link leads to it. Since #537 the home page shows
+  // the post's excerpt, which stops before the link, so it is followed
+  // from the post's own page.
   test("the news post's ZIP link leads to the map's check",
     async ({ page }) => {
-      await page.goto(HOME.path);
-      await page.locator(".home-update-card")
+      await page.goto("/news/three-quarters-of-the-way/");
+      await page.locator("main .prose")
         .getByRole("link", { name: "our map" }).click();
       await expect(page).toHaveURL(/#map$/);
       await expect(page.locator(HOME.input)).toBeInViewport();

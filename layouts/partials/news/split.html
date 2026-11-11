@@ -1,0 +1,34 @@
+{{/*
+  A post's rendered HTML cut into its top-level blocks (#537): each
+  paragraph, heading, list, figure, quote or rule, whole, in order.
+
+  Goldmark starts every top-level block on a line of its own, and a
+  shortcode's figure starts on one too, so a block runs from a line
+  that opens one at depth 0 to the line where its tags balance. Blank
+  lines between blocks are dropped; inside one (a <pre>) they stay.
+
+  Takes the HTML; returns a slice of strings.
+*/}}
+{{ $tags := `(?:p|h[1-6]|figure|ul|ol|blockquote|div|table|pre|dl|section|aside|details)` }}
+{{ $open := printf `<%s[\s>]` $tags }}
+{{ $close := printf `</%s>` $tags }}
+{{ $blocks := slice }}
+{{ $lines := slice }}
+{{ $depth := 0 }}
+{{ range split (string .) "\n" }}
+  {{ if and (eq $depth 0) (eq (strings.TrimSpace .) "") }}
+    {{ continue }}
+  {{ end }}
+  {{ $lines = $lines | append . }}
+  {{ $depth = add $depth (len (findRE $open .)) }}
+  {{ $depth = sub $depth (len (findRE $close .)) }}
+  {{ if le $depth 0 }}
+    {{ $blocks = $blocks | append (delimit $lines "\n") }}
+    {{ $lines = slice }}
+    {{ $depth = 0 }}
+  {{ end }}
+{{ end }}
+{{ with $lines }}
+  {{ $blocks = $blocks | append (delimit . "\n") }}
+{{ end }}
+{{ return $blocks }}

@@ -74,9 +74,35 @@
   }
 }
 
+// The way on from the home page's excerpt to the rest of the post
+// (#537), a plain link under its last paragraph.
+.news-continue {
+  margin: 1.5rem 0 0;
+  font-weight: $font-weight-bold;
+
+  a {
+    text-decoration: none;
+
+    &:hover,
+    &:focus-visible {
+      text-decoration: underline;
+      text-decoration-thickness: 1px;
+      text-underline-offset: 0.18em;
+    }
+  }
+}
+
 .news {
   .text-column {
     max-width: 700px;
+  }
+
+  // Every block of a post has an id (news/body.html), and "Continue
+  // reading" lands on one: it stops clear of the header's height and
+  // a little more, so the reader sees where the excerpt left off. All
+  // children, not [id], which PurgeCSS would drop (postcss.config.js).
+  .prose > * {
+    scroll-margin-top: calc(var(--header-height) + 1rem);
   }
 
   h2 {

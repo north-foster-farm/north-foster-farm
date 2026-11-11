@@ -1,7 +1,9 @@
 {{/* News and updates: the post marked home: true, or else the newest,
-     published here in full. The post's own page under /news/ stays
-     its canonical home, and the title links to it. The post's footer
-     (sign-up, and the way to more news) closes the card (#483). */}}
+     as its excerpt (#537), with "Continue reading" to the rest on the
+     post's own page, its canonical home, which the title links to too.
+     The post's footer (sign-up, and the way to more news) closes the
+     card (#483). The eyebrow and the section's title stand above the
+     card, and beside it from lg, left-aligned there (#537). */}}
 {{ $news := where site.RegularPages "Section" "news" }}
 {{ $post := index (where $news "Params.home" true).ByDate.Reverse 0 }}
 {{ with $post }}{{ else }}{{ $post = index $news.ByDate.Reverse 0 }}{{ end }}
@@ -9,16 +11,19 @@
 {{ with $post }}
   <div class="home-update border-bottom border-light">
     <div class="container">
-      <div class="row py-3 py-md-5">
-        <div class="col d-flex flex-column align-items-center py-3">
+      <div class="row justify-content-center py-3 py-md-5">
+        <div class="col-12 col-lg-4 col-xl-3 home-update-intro pt-3">
+          <p class="home-eyebrow">Learn more</p>
+          <h2 class="home-title">Farm news and updates</h2>
+        </div>
+        <div class="col-12 col-lg-8 d-flex flex-column align-items-center align-items-lg-start pb-3 pt-lg-3">
           <article class="home-update-card border border-1 border-success border-opacity-50 rounded-4 py-3 py-sm-5">
             <div class="fmw-600 w-100">
-              <p class="home-eyebrow">News and updates</p>
               {{/* The post's header and body, shared with its own
-                   page (#232); the title is an h2 under the hero's
-                   h1. */}}
-              {{ partial "news/header.html" (dict "page" . "level" 2 "link" true) }}
-              {{ partial "news/body.html" (dict "page" . "level" 2) }}
+                   page (#232); the title is an h3 under the section's
+                   h2. */}}
+              {{ partial "news/header.html" (dict "page" . "level" 3 "link" true) }}
+              {{ partial "news/body.html" (dict "page" . "level" 3 "excerpt" true) }}
             </div>
           </article>
         </div>

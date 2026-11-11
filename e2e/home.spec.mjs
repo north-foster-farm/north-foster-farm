@@ -434,18 +434,21 @@ test.describe("home", () => {
       });
   });
 
-  // #136: the newest post lives at /news/<slug>/ and the home
-  // page publishes it in full under a news eyebrow.
-  test.describe("home news section (#136)", () => {
+  // #136: the newest post lives at /news/<slug>/. Since #537 the home
+  // page shows its excerpt, under the band's eyebrow and title, with
+  // "Continue reading" to the rest.
+  test.describe("home news section (#136, #537)", () => {
     const POST = "/news/three-quarters-of-the-way/";
 
-    test("the post in full, linked to its own page", async ({ page }) => {
+    test("the post's excerpt, linked to its own page", async ({ page }) => {
       await page.goto("/");
 
+      const band = page.locator(".home-update");
       const card = page.locator(".home-update-card");
 
-      await expect(card.locator(".home-eyebrow"))
-        .toHaveText("News and updates");
+      await expect(band.locator(".home-eyebrow")).toHaveText("Learn more");
+      await expect(band.getByRole("heading", { level: 2 }))
+        .toHaveText("Farm news and updates");
       await expect(card.locator(".news-header-link"))
         .toHaveText("Three Quarters of the Way");
       await expect(card.locator(".news-header-link"))
@@ -455,10 +458,13 @@ test.describe("home", () => {
       await expect(card.locator(".news-header time"))
         .toHaveText("October 26, 2026");
 
-      // Since #211 the ZIP check is a plain link: "our map" in Winter.
+      // Winter, with "our map", is past the excerpt; the post's own
+      // page carries it (the next test).
       await expect(card.getByRole("link", { name: "our map" }))
-        .toHaveAttribute("href", /\/#map$/);
+        .toHaveCount(0);
       await expect(card.locator("[data-zip-check]")).toHaveCount(0);
+      await expect(card.getByRole("link", { name: /^Continue reading/ }))
+        .toHaveAttribute("href", new RegExp(`${POST}#summer$`));
 
       // The archive button closes the post, below the card in the
       // section (#483): the small outline one, found by its name, since
@@ -501,6 +507,51 @@ test.describe("home", () => {
         await page.goto("/news/");
         await expect(page.locator(`a[href$='${POST}']`).first())
           .toBeAttached();
+      });
+
+    // #537: the reader lands on the first block the excerpt left out,
+    // in the window and clear of the header.
+    test("Continue reading lands where the excerpt left off",
+      async ({ page }) => {
+        await page.goto("/");
+        await page.locator(".home-update-card")
+          .getByRole("link", { name: /^Continue reading/ }).click();
+        await expect(page).toHaveURL(new RegExp(`${POST}#summer$`));
+
+        const target = page.locator("#summer");
+
+        await expect(target).toHaveAttribute("data-continue", "");
+        await expect(target).toBeInViewport();
+
+        const top = await target.evaluate((el) =>
+          el.getBoundingClientRect().top);
+        const header = await page.locator("header").first()
+          .evaluate((el) => el.getBoundingClientRect().bottom);
+
+        expect(top).toBeGreaterThanOrEqual(Math.max(header, 0));
+        expect(top).toBeLessThan(page.viewportSize().height / 2);
+      });
+
+    // #537: the eyebrow and title beside the card from lg, left-aligned,
+    // and above it, centred, below lg.
+    test("the band's title sits beside the card wide, above it narrow",
+      async ({ page }) => {
+        await page.goto("/");
+
+        const title = page.locator(".home-update-intro .home-title");
+        const box = await title.boundingBox();
+        const card = await page.locator(".home-update-card").boundingBox();
+        const align = await title.evaluate((el) =>
+          getComputedStyle(el).textAlign);
+
+        if (page.viewportSize().width >= 992) {
+          expect(box.x + box.width).toBeLessThanOrEqual(card.x);
+          expect(box.y).toBeLessThan(card.y + card.height / 2);
+          expect(align).toBe("start");
+        } else {
+          expect(box.y + box.height).toBeLessThanOrEqual(card.y);
+          expect(align).toBe("center");
+        }
       });
   });
 
