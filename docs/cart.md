@@ -230,11 +230,13 @@ issues. Wording below is today's, approved under #400.
   change, so a remove control under the pointer survives a render
   (#155). The remove control shows James's remove-item icon in place
   of the × it had until 2026-11-11 (#531).
-- **Clear cart** (#531, 2026-11-11). A small button over the right end
+- **Clear cart** (draft, #531). A small button over the right end
   of the first group's heading row, so it adds no height. The first
-  press turns it into "Clear cart?" for `CONFIRM_WAIT` (4 s,
+  press turns it into "Clear cart?" for `CONFIRM_WAIT` (6 s,
   `cart/confirm.mjs`); a second press in that time sets every quantity
-  to 0 and saves the draft with no lines. Waiting, Escape or the
+  to 0, saves the draft with no lines and puts the focus on the pane.
+  A second press within `CONFIRM_GUARD` (400 ms) of the first is
+  ignored, so a double tap is one press. Waiting, Escape or the
   focus leaving puts it back. Hidden with the lines when the cart is
   empty and, like the remove controls, when the lines are fixed.
 - **Quantities** live in the catalog rows' inputs (`[data-qty]`, 0 to

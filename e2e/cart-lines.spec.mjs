@@ -6,6 +6,9 @@
 // (order-page.spec.mjs).
 
 import {
+  CONFIRM_GUARD, CONFIRM_WAIT,
+} from "../assets/scripts/order/cart/confirm.mjs";
+import {
   FULL_CART, OrderPage, SKU, SUITE_STOCK, expect, test,
   unfoldCart as unfold,
 } from "./support/order.mjs";
@@ -254,11 +257,16 @@ for (const [width, viewport] of [["a phone", PHONE], ["the column", XL]]) {
         // Clear of the heading's words.
         expect(at.x).toBeGreaterThan(heading.x + 60);
 
-        await clear.click();
+        // A double tap is one press: the second comes too soon after
+        // the first to count.
+        await clear.dblclick();
         await expect(clear).toHaveText("Clear cart?");
         await expect(order.count).toHaveText("3 items");
 
+        await page.waitForTimeout(CONFIRM_GUARD + 100);
         await clear.click();
+        // The button goes with the lines, so the focus lands on the pane.
+        await expect(order.cart).toBeFocused();
         await expect(order.count).toHaveText("0 items");
         await expect(order.total).toHaveText("$0");
         await expect(order.cart).toHaveAttribute("data-empty", "");
@@ -280,7 +288,9 @@ for (const [width, viewport] of [["a phone", PHONE], ["the column", XL]]) {
 
         await clear.click();
         await expect(clear).toHaveText("Clear cart?");
-        await expect(clear).toHaveText("Clear cart", { timeout: 8_000 });
+        await expect(clear).toHaveText("Clear cart", {
+          timeout: CONFIRM_WAIT + 3_000,
+        });
         await expect(clear).not.toHaveAttribute("data-armed");
         await expect(order.count).toHaveText("3 items");
         expect(await draftLines(page)).toEqual(before);
@@ -290,5 +300,28 @@ for (const [width, viewport] of [["a phone", PHONE], ["the column", XL]]) {
         await expect(clear).toHaveText("Clear cart?");
         await expect(order.count).toHaveText("3 items");
       });
+
+    test("Escape puts an asking Clear cart back", async ({ page }) => {
+      const order = await opened(page);
+      const clear = order.cart.locator("[data-cart-clear]");
+      const before = await draftLines(page);
+
+      // By keyboard, the way Escape is met.
+      await clear.focus();
+      await page.keyboard.press("Enter");
+      await expect(clear).toHaveText("Clear cart?");
+      await page.keyboard.press("Escape");
+      await expect(clear).toHaveText("Clear cart");
+      await expect(clear).not.toHaveAttribute("data-armed");
+      // Escape spent itself on the button: the pane stays open.
+      await expect(clear).toBeVisible();
+
+      // The next press asks again rather than clearing.
+      await page.waitForTimeout(CONFIRM_GUARD + 100);
+      await clear.click();
+      await expect(clear).toHaveText("Clear cart?");
+      await expect(order.count).toHaveText("3 items");
+      expect(await draftLines(page)).toEqual(before);
+    });
   });
 }

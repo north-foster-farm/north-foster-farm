@@ -241,8 +241,9 @@ export class Cart {
   }
 
   // Clear cart (#531): the first press turns it into "Clear cart?" for
-  // a few seconds (confirm.mjs), and a second press in that time takes
-  // every line out. Waiting, Escape or the focus leaving puts it back.
+  // 6 s (confirm.mjs), and a second press in that time, but not within
+  // 400 ms of the first, takes every line out. Waiting, Escape or the
+  // focus leaving puts it back.
   // An emptied cart hides the lines and the button with them, so the
   // focus goes to the pane.
   wireClear() {

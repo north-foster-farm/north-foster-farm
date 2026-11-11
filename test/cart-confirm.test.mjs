@@ -1,11 +1,12 @@
 // Clear cart's two presses (#531): the first asks, a second in time
-// acts, and waiting puts it back.
+// acts, one too soon after the first is ignored, and waiting puts it
+// back.
 
 import assert from "node:assert/strict";
 import { afterEach, beforeEach, describe, it, mock } from "node:test";
 
 import {
-  CONFIRM_WAIT, twoStep,
+  CONFIRM_GUARD, CONFIRM_WAIT, twoStep,
 } from "../assets/scripts/order/cart/confirm.mjs";
 
 // A two-step control that writes down what it was told.
@@ -22,7 +23,7 @@ const recorded = (opts = {}) => {
 };
 
 describe("cart/confirm.mjs twoStep", () => {
-  beforeEach(() => mock.timers.enable({ apis: ["setTimeout"] }));
+  beforeEach(() => mock.timers.enable({ apis: ["setTimeout", "Date"] }));
   afterEach(() => mock.timers.reset());
 
   it("asks on the first press and acts on the second", () => {
@@ -77,7 +78,43 @@ describe("cart/confirm.mjs twoStep", () => {
     assert.deepEqual(log, ["arm", "disarm", "arm"]);
   });
 
-  it("waits a few seconds by default", () => {
-    assert.ok(CONFIRM_WAIT >= 3000 && CONFIRM_WAIT <= 6000);
+  it("ignores a press too soon after arming, then acts on one in time",
+    () => {
+      const { control, log } = recorded();
+
+      control.press();
+      mock.timers.tick(CONFIRM_GUARD - 1);
+      assert.equal(control.press(), false);
+      assert.equal(control.armed, true);
+      assert.deepEqual(log, ["arm"]);
+
+      mock.timers.tick(1);
+      assert.equal(control.press(), true);
+      assert.deepEqual(log, ["arm", "disarm", "confirm"]);
+    });
+
+  it("keeps its full wait after an ignored press", () => {
+    const { control, log } = recorded();
+
+    control.press();
+    control.press();
+    mock.timers.tick(CONFIRM_WAIT - 1);
+    assert.equal(control.armed, true);
+    mock.timers.tick(1);
+    assert.equal(control.armed, false);
+    assert.deepEqual(log, ["arm", "disarm"]);
+  });
+
+  it("takes its own guard", () => {
+    const { control, log } = recorded({ guard: 0 });
+
+    control.press();
+    assert.equal(control.press(), true);
+    assert.deepEqual(log, ["arm", "disarm", "confirm"]);
+  });
+
+  it("waits 6 s and guards about 400 ms by default", () => {
+    assert.equal(CONFIRM_WAIT, 6000);
+    assert.equal(CONFIRM_GUARD, 400);
   });
 });
