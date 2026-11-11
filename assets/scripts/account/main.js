@@ -5,6 +5,9 @@
 
 import { mergeScheduled } from "../order/lib/group.mjs";
 import { perkSentence } from "../order/lib/perks.mjs";
+import { bookedEntry } from "../order/lib/picker.mjs";
+import { scheduledChoices } from "../order/lib/scheduled.mjs";
+import { PickupPicker } from "../order/pickup-picker.js";
 import { pickupTimes, windowLabel } from "../order/lib/schedule.mjs";
 import { dollars } from "../order/lib/totals.mjs";
 import { forgetCustomer } from "../order/draft.js";
@@ -1457,31 +1460,39 @@ class Account {
     const dates = await this.dateList(
       scheduled ? "scheduled" : order.fulfilment.method
     );
-    // A scheduled pickup chooses an occurrence: any open date at any
-    // place. The others choose a date.
-    const keyOf = (d) => (scheduled ? d.occurrence : d.date);
-    const textOf = (d) => (scheduled
-      ? `${d.label}, ${at(d)}` : d.label);
-    const held = scheduled ? order.pickup.occurrence : order.fulfilment.date;
+    // A scheduled pickup chooses an occurrence, any open date at any
+    // place, on the order page's picker (#540), which offers the one
+    // booked "As booked" once it is no longer open. The others choose
+    // a date.
+    const picker = scheduled
+      ? new PickupPicker(qs(form, "[data-picker]")) : null;
 
-    if (scheduled) qs(form, "[data-dates-label]").textContent = "Pickup day";
-    for (const d of dates) {
-      const option = document.createElement("option");
+    qs(form, "[data-day-select]").hidden = scheduled;
+    qs(form, "[data-scheduled-picker]").hidden = !scheduled;
+    if (scheduled) {
+      picker.render(scheduledChoices(dates), {
+        want: order.pickup.occurrence || "", booked: bookedEntry(order),
+        now: new Date((this.dates && this.dates.now) || Date.now()),
+      });
+    } else {
+      const held = order.fulfilment.date;
 
-      option.value = keyOf(d);
-      option.textContent = textOf(d);
-      select.appendChild(option);
+      for (const d of dates) {
+        const option = document.createElement("option");
+
+        option.value = d.date;
+        option.textContent = d.label;
+        select.appendChild(option);
+      }
+      if (!dates.some((d) => d.date === held)) {
+        const option = document.createElement("option");
+
+        option.value = held;
+        option.textContent = `${when(order)} (as booked)`;
+        select.prepend(option);
+      }
+      select.value = held;
     }
-    if (!dates.some((d) => keyOf(d) === held)) {
-      const option = document.createElement("option");
-
-      option.value = held;
-      option.textContent = `${when(order).replace(
-        `${METHOD.scheduled}, `, ""
-      )} (as booked)`;
-      select.prepend(option);
-    }
-    select.value = held;
     qs(form, "[name='notes']").value = order.notes || "";
 
     if (isDelivery) {
@@ -1512,7 +1523,7 @@ class Account {
 
       if (scheduled) {
         body.method = "scheduled";
-        body.occurrence = select.value;
+        body.occurrence = picker.value();
       } else {
         body.date = select.value;
       }
@@ -1544,7 +1555,7 @@ class Account {
     });
 
     this.panel(card).appendChild(node);
-    select.focus();
+    if (!picker || !picker.focus()) select.focus();
   }
 
   // The chosen day's pickup times, from the farm's schedule (W11d).

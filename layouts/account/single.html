@@ -524,11 +524,16 @@
     <form class="account-panel-form" novalidate>
       <p class="account-panel-title">Change this pickup</p>
       <div class="row g-3">
-        <div class="col-md-6">
-          <label class="form-label"><span data-dates-label>Pickup day</span>
+        <div class="col-md-6" data-day-select>
+          <label class="form-label">Pickup day
             <select class="form-select" name="date" data-dates></select>
           </label>
           <div class="invalid-feedback" data-error-for="date"></div>
+        </div>
+        {{/* A scheduled pickup moves on the order page's picker (#540);
+             main.js shows it in place of the day select. */}}
+        <div class="col-12" data-scheduled-picker hidden>
+          {{ partial "order/pickup-picker.html" (dict "name" "occurrence" "stack" true) }}
           <div class="invalid-feedback" data-error-for="occurrence"></div>
         </div>
         <div class="col-md-6" data-onfarm>
