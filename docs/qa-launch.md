@@ -180,22 +180,24 @@ the item" (both projects).
   items".
 - **Teardown:** None.
 
-### OP-05 The cart's × takes every unit out
+### OP-05 The cart's remove icon takes every unit out
 
-Automated: `order-page.spec.mjs`, "the × on a cart line takes every unit
-out" (both projects).
+Automated: `order-page.spec.mjs`, "the remove icon on a cart line takes
+every unit out" (both projects). The × became James's remove-item icon
+on 2026-11-11 (#531); Clear cart, beside it, is `cart-lines.spec.mjs`'s.
 
 - **Scenario:** A customer removes a whole line from the cart.
 - **Setup:** `/order/?add=` 3 eggs and 2 wings.
 - **Test:**
-  1. Press "Remove Wings, 1.0 – 1.9 lbs from the cart".
+  1. Press "Remove Wings, 1.0 – 1.9 lbs from your cart".
 - **Assert:** Wings quantity 0; "3 items"; Subtotal $21.
 - **Teardown:** None.
 
-### OP-06 The × works right after typing
+### OP-06 The remove icon works right after typing
 
-Automated: `order-page.spec.mjs`, "the × works on the first click right
-after typing in a field" (both projects). Finding D1, fixed by #155.
+Automated: `order-page.spec.mjs`, "the remove icon works on the first
+click after typing in a field" (both projects). Finding D1, fixed by
+#155.
 
 - **Scenario:** A customer types a ZIP (or any field), then removes a
   cart line; leaving the field re-renders the cart, and the first click
@@ -203,7 +205,8 @@ after typing in a field" (both projects). Finding D1, fixed by #155.
 - **Setup:** `/order/?add=` 5 wings and 1 egg.
 - **Test:**
   1. Type `02857` in ZIP.
-  2. Without clicking elsewhere, press the × on the Wings line.
+  2. Without clicking elsewhere, press the remove icon on the Wings
+     line.
 - **Assert:** Wings quantity 0 and the cart reads "1 item" after one
   click.
 - **Teardown:** None.

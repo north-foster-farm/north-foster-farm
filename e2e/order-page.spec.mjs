@@ -113,26 +113,27 @@ test.describe("order page", () => {
     await expect(order.count).toHaveText("0 items");
   });
 
-  test("the × on a cart line takes every unit out", async ({ page }) => {
-    const order = new OrderPage(page);
+  test("the remove icon on a cart line takes every unit out",
+    async ({ page }) => {
+      const order = new OrderPage(page);
 
-    await order.open({ eggs: 3, wings: 2 });
-    await expect(order.count).toHaveText("5 items");
-    await order.cart.getByRole("button", {
-      name: "Remove Wings, 1.0 – 1.9 lbs from your cart",
-    }).click();
-    await expect(order.qty("wings")).toHaveValue("0");
-    await expect(order.count).toHaveText("3 items");
-    await expect(order.subtotal).toHaveText("$21");
-  });
+      await order.open({ eggs: 3, wings: 2 });
+      await expect(order.count).toHaveText("5 items");
+      await order.cart.getByRole("button", {
+        name: "Remove Wings, 1.0 – 1.9 lbs from your cart",
+      }).click();
+      await expect(order.qty("wings")).toHaveValue("0");
+      await expect(order.count).toHaveText("3 items");
+      await expect(order.subtotal).toHaveText("$21");
+    });
 
-  test("the × works on the first click right after typing in a field",
+  test("the remove icon works on the first click after typing in a field",
     async ({ page }) => {
       const order = new OrderPage(page);
 
       await order.open({ wings: 5, eggs: 1 });
       // Leaving a changed field re-renders the cart lines; the click
-      // that caused the blur must still land on its ×.
+      // that caused the blur must still land on its remove control.
       await order.zip.fill("02857");
       await order.cart.getByRole("button", {
         name: "Remove Wings, 1.0 – 1.9 lbs from your cart",
