@@ -42,31 +42,49 @@ const hovered = async (page, locator) => {
 };
 
 test.describe("home", () => {
-  // James's wording, 2026-09-24 (#150), and for steps 1 and 2,
-  // 2026-10-24 (#338). Step 4's text is a draft until he settles it.
-  test("How to buy walks four steps without the invoice era",
+  // James's wording and layout, approved in the browser 2026-11-11
+  // (#536): four rows, no step numbers.
+  test("How to buy shows four rows without the invoice era",
     async ({ page }) => {
       await page.goto("/");
 
       const how = page.locator("#how-to-buy");
       const steps = how.locator(".how-step");
 
+      await expect(how.locator(".home-eyebrow")).toHaveText("How to buy");
       await expect(how.locator(".home-title"))
-        .toHaveText("Order our chicken and eggs all year round");
+        .toHaveText("Shop for premium chicken and fresh eggs online");
       await expect(how.locator(".how-step-title")).toHaveText([
-        "Step 1: Build your cart",
-        "Step 2: Pickup or delivery",
-        "Step 3: Change of plans?",
-        "Step 4: Taste the difference",
+        "Our products",
+        "Pickup or delivery?",
+        "Flexible by design",
+        "Quality you can taste",
       ]);
       await expect(steps).toHaveCount(4);
       await expect(how.locator(".how-step-copy")).toHaveText([
-        "Browse what’s in stock, or check out the whole catalog.",
-        "Pick up at our farm, at one of our pickup days, or get it "
+        "Browse what we have in stock, or check out our whole catalog.",
+        "Pick up on our farm, at one of our pickup days, or get it "
           + "delivered to your door.",
-        "Sign in with just your email, no password, and update your order.",
-        "Our customers tell us they can, time and time again.",
+        "Sign in with your email address and update your order, pickup, "
+          + "or delivery.",
+        "Be warned: you’ll never want chicken or eggs from the supermarket "
+          + "again.",
       ]);
+      await expect(how.locator(".how-num")).toHaveCount(0);
+
+      // Phones stack the photo, the rows, the button; wide screens put
+      // the photo left of the rows.
+      const box = (sel) => how.locator(sel).boundingBox();
+      const [photo, rows, cta] = await Promise.all(
+        [".how-photo", ".how-steps", ".how-cta"].map(box)
+      );
+      const wide = (page.viewportSize()?.width ?? 0) >= 992;
+      if (wide) {
+        expect(photo.x + photo.width).toBeLessThanOrEqual(rows.x);
+      } else {
+        expect(photo.y + photo.height).toBeLessThanOrEqual(rows.y);
+      }
+      expect(rows.y + rows.height).toBeLessThanOrEqual(cta.y + 1);
       for (const step of await steps.all()) {
         await expect(step.locator(".home-icon svg")).toBeVisible();
       }

@@ -285,8 +285,8 @@ $hero-text-shadow: 0 1px 3px rgb(0 0 0 / 50%);
     }
   }
 
-  // How to buy: four flat steps. No cards: a faint gradient under the
-  // band and hairlines between the steps give the separation.
+  // How to buy: four flat rows. No cards: a faint gradient under the
+  // band and hairlines between the rows give the separation.
 
   .how {
     padding-block: 3.5rem;
@@ -295,14 +295,14 @@ $hero-text-shadow: 0 1px 3px rgb(0 0 0 / 50%);
     );
   }
 
-  // A column on a phone: the steps, the photo, the button (#230). Its
+  // A column on a phone: the photo, the rows, the button (#536). Its
   // items may shrink below the photo's own width, which is all a photo
   // not yet loaded has to size by.
   .how-grid {
     display: grid;
     grid-template-areas:
-      "steps"
       "photo"
+      "steps"
       "cta";
     max-width: 520px;
     margin-inline: auto;
@@ -320,7 +320,7 @@ $hero-text-shadow: 0 1px 3px rgb(0 0 0 / 50%);
 
   .how-photo {
     grid-area: photo;
-    margin-bottom: 2rem;
+    margin-bottom: 1rem;
   }
 
   .how-step {
@@ -340,24 +340,6 @@ $hero-text-shadow: 0 1px 3px rgb(0 0 0 / 50%);
 
   .how-step .home-icon {
     grid-area: icon;
-  }
-
-  // The step number: a dark circle laid over the icon's corner.
-  .how-num {
-    position: absolute;
-    right: -0.375rem;
-    bottom: -0.25rem;
-    display: grid;
-    place-items: center;
-    width: 1.5rem;
-    height: 1.5rem;
-    border: 2px solid var(--bs-body-bg);
-    border-radius: 50%;
-    background-color: shade-color($green, 35%);
-    color: #fff;
-    font-size: 0.75rem;
-    font-weight: bold;
-    line-height: 1;
   }
 
   .how-step-title {
@@ -645,7 +627,7 @@ $hero-text-shadow: 0 1px 3px rgb(0 0 0 / 50%);
       justify-content: flex-end;
     }
 
-    // The photo on the left, the steps and the button beside it.
+    // The photo on the left, the rows and the button beside it.
     .how-grid {
       grid-template:
         "photo steps" auto
@@ -751,14 +733,6 @@ $hero-text-shadow: 0 1px 3px rgb(0 0 0 / 50%);
 
     .place-fact {
       margin: 0;
-    }
-
-    .how-num {
-      right: -0.25rem;
-      bottom: 0;
-      width: 1.75rem;
-      height: 1.75rem;
-      font-size: 0.8125rem;
     }
 
     .how-step .home-icon {
