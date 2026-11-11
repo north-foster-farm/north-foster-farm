@@ -6,7 +6,7 @@
 // its own sizes, so it runs in the desktop project only.
 
 import {
-  FULL_CART, OrderPage, expect, test, unfoldCart,
+  FULL_CART, OrderPage, expect, paneStill, test, unfoldCart,
 } from "./support/order.mjs";
 import { scopeCookie } from "./support/stock.mjs";
 
@@ -16,6 +16,14 @@ const TABLET = { width: 768, height: 1024 };
 const hidden = (locator) => locator.evaluate((el) => (
   getComputedStyle(el).display === "none"
 ));
+
+// Out of sight and out of the tab order: display: none, or the closed
+// panel's visibility: hidden (#533).
+const gone = (locator) => locator.evaluate((el) => {
+  const style = getComputedStyle(el);
+
+  return style.display === "none" || style.visibility === "hidden";
+});
 
 // ?add= settles the cart in the page; a scroll back up lifts it off
 // closed. Floats it, open, at the catalog's top.
@@ -71,7 +79,12 @@ test.describe("the pill", () => {
     await floatOpen(page, order);
     await pill.click();
     await expect(order.cart).toHaveAttribute("data-fold", "closed");
-    expect(await hidden(order.cart.locator("[data-part='lines']"))).toBe(true);
+    // The lines ease out under the totals and are hidden once the ease
+    // is over (#533), so wait for it, then for them to be out of sight.
+    await paneStill(order.cart);
+    await expect.poll(() => gone(order.cart.locator("[data-part='lines']")), {
+      timeout: 5_000,
+    }).toBe(true);
     // The right column stays whole.
     await expect(order.subtotal).toBeVisible();
     await expect(order.cart.locator("[data-part='badges']")).toBeVisible();

@@ -350,6 +350,68 @@ test.describe("the tablet's panel", () => {
         .toBeLessThanOrEqual(1);
     });
 
+  // The total row and the pane's height hold through a fold (#533):
+  // the closed panel used to drop the row's rule and padding, so the
+  // row jumped on every Hide. Measured open, mid-ease both ways, and
+  // settled closed and open again.
+  test("a fold moves neither the total row nor the pane's height",
+    async ({ page }) => {
+      const order = await floatOpen(page);
+      const row = order.cart.locator("[data-part='total']");
+      const measure = () => order.cart.evaluate((pane) => {
+        const r = pane.querySelector("[data-part='total']")
+          .getBoundingClientRect();
+
+        return {
+          top: r.top,
+          height: r.height,
+          pane: pane.getBoundingClientRect().height,
+        };
+      });
+      // Presses the pill and measures two frames into the ease.
+      const pressAndMeasure = () => order.cart.evaluate(async (pane) => {
+        pane.querySelector("[data-cart-toggle]").click();
+        await new Promise((done) => requestAnimationFrame(
+          () => requestAnimationFrame(done)
+        ));
+
+        const r = pane.querySelector("[data-part='total']")
+          .getBoundingClientRect();
+
+        return {
+          top: r.top,
+          height: r.height,
+          pane: pane.getBoundingClientRect().height,
+          easing: pane.getAnimations()
+            .some((a) => a.transitionProperty === "width"),
+        };
+      });
+      const same = (got, want) => {
+        expect(Math.abs(got.top - want.top)).toBeLessThanOrEqual(1);
+        expect(Math.abs(got.height - want.height)).toBeLessThanOrEqual(1);
+        expect(Math.abs(got.pane - want.pane)).toBeLessThanOrEqual(1);
+      };
+
+      await expect(row).toBeVisible();
+
+      const open = await measure();
+      const hiding = await pressAndMeasure();
+
+      expect(hiding.easing).toBe(true);
+      same(hiding, open);
+      await expect(order.cart).toHaveAttribute("data-fold", "closed");
+      await paneStill(order.cart);
+      same(await measure(), open);
+
+      const showing = await pressAndMeasure();
+
+      expect(showing.easing).toBe(true);
+      same(showing, open);
+      await expect(order.cart).toHaveAttribute("data-fold", "open");
+      await paneStill(order.cart);
+      same(await measure(), open);
+    });
+
   test("under reduced motion Hide and Expand are a swap", async ({
     page,
   }) => {
@@ -442,19 +504,23 @@ test.describe("the column", () => {
   });
 });
 
-// No rule over the subtotal at any width (#533). James saw a hairline
-// there at about 1400px and 122% zoom, which is the panel at about
-// 1147px.
+// No rule over the subtotal on the panel, 576px to xl (#533). James saw
+// a hairline there at about 1400px and 122% zoom, which is the panel
+// at about 1147px. The phone's sheet and xl's column keep theirs,
+// where it divides the lines from the totals.
 test.describe("the subtotal", () => {
-  for (const [name, size] of [
-    ["a phone", PHONE],
-    ["a phone on its side", PHONE_SIDE],
-    ["a small tablet", SMALL_TABLET],
-    ["a tablet", TABLET],
-    ["a zoomed laptop", { width: 1147, height: 760 }],
-    ["xl", XL],
+  for (const [name, size, rule] of [
+    ["a phone", PHONE, "1px"],
+    ["a phone on its side", PHONE_SIDE, "1px"],
+    ["a small tablet", SMALL_TABLET, "0px"],
+    ["a tablet", TABLET, "0px"],
+    ["a zoomed laptop", { width: 1147, height: 760 }, "0px"],
+    ["the last panel width", LAST_PANEL, "0px"],
+    ["xl", XL, "1px"],
   ]) {
-    test(`has no rule above it on ${name}`, async ({ page }) => {
+    const has = rule === "0px" ? "has no rule" : "keeps its rule";
+
+    test(`${has} above it on ${name}`, async ({ page }) => {
       await page.setViewportSize(size);
 
       const order = new OrderPage(page);
@@ -468,7 +534,7 @@ test.describe("the subtotal", () => {
       await expect(sums).toBeVisible();
       expect(await sums.evaluate((el) => (
         getComputedStyle(el).borderTopWidth
-      ))).toBe("0px");
+      ))).toBe(rule);
     });
   }
 });

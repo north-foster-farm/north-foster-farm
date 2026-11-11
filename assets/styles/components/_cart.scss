@@ -430,10 +430,9 @@
   }
 
   // The rules between the parts are the parts' own top borders:
-  // hairlines, and one darker over the badges. None over the subtotal,
-  // at any width (#533): on the panel the sums open the totals column,
-  // and a hairline there read as a stray line under the pane's edge.
-  .order-cart-edit,
+  // hairlines, and one darker over the badges. The panel drops the one
+  // over the subtotal (below).
+  .order-cart-sums,
   .order-cart-total-row,
   .order-cart-foot {
     border-top: 1px solid var(--bs-border-color-translucent);
@@ -1094,6 +1093,15 @@
       // length (below), so it is resolved here against the form and
       // not inside the pane, whose width eases.
       --cart-lines-w: calc(100cqw - var(--panel-w) - 3rem - 1px);
+    }
+
+    // No rule over the subtotal (#533): the sums open the totals
+    // column here, so a hairline over them divides nothing and read as
+    // a stray line under the pane's edge. The phone and xl keep it,
+    // where it divides the lines from the totals; the edit sums keep
+    // theirs.
+    .order-cart-sums:not(.order-cart-edit) {
+      border-top: 0;
     }
 
     .order-form {

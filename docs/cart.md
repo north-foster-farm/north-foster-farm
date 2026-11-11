@@ -469,7 +469,9 @@ from `template[data-cart-group]` (`li.order-cart-group` with
 `button[data-remove]`, `[data-line-name]`, `[data-line-qty]`,
 `[data-line-sub]`), so their classes survive the build. The rules
 between the parts are the parts' own top borders, not `hr` elements,
-and none is over the subtotal at any width (#533, 2026-11-11).
+and the panel (576px to xl) has none over the subtotal, where the
+sums open the totals column; the sheet and xl's column keep it, where
+it divides the lines from the totals (#533, 2026-11-11).
 Every data hook the specs use today is kept.
 
 ### 4.3 State
