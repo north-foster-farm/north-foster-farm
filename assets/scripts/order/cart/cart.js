@@ -17,11 +17,12 @@ import { perkSentence } from "../lib/perks.mjs";
 import { awayFrom } from "../lib/share-away.mjs";
 import { dollars } from "../lib/totals.mjs";
 import { label } from "../lib/zoned.mjs";
+import { codeNote } from "./code-note.mjs";
 import { twoStep } from "./confirm.mjs";
 import * as state from "./state.mjs";
 import {
   animateFold, clearFocusUnder, pulsePill, revealLine, ringCart,
-  showAdded, teach, watchKeyboard, watchList, watchPlacement,
+  showAdded, shutShare, teach, watchKeyboard, watchList, watchPlacement,
 } from "./view.mjs";
 
 // The code that is a joke: the cart shows a discount growing by this
@@ -34,10 +35,6 @@ const JOKE_PER_MINUTE = 4000;
 // new line before it shuts and the pill pulses. 2000 until #274 round
 // 4 added 1.5 s.
 export const TEACH_DWELL = 3500;
-
-// How long an accepted code's note stays before it fades.
-const NOTE_STAY = 15_000;
-const NOTE_FADE = 700;
 
 // How far above the screen's foot the settled cart's bottom edge is
 // before the readouts in the bars take over.
@@ -97,7 +94,6 @@ export class Cart {
     this.lit = null;
     this.joke = null;
     this.teaching = null;
-    this.noteTimer = null;
     this.passed = null;
 
     this.list = qs(root, "[data-cart-items]");
@@ -157,6 +153,24 @@ export class Cart {
     this.apply(state.setShare(this.state, share));
   }
 
+  // Folds the shared row. The code field goes the way it came in, the
+  // opening reversed, and instantly under reduced motion (#532); the
+  // way's switch shuts at once, as before. Resolves once the row's two
+  // buttons are back, so the caller can focus one.
+  shutRow() {
+    const part = qs(this.root, "#order-cart-code");
+
+    if (this.state.share !== "code") {
+      if (this.state.share) this.setShare("");
+
+      return Promise.resolve();
+    }
+
+    return shutShare(part, () => {
+      if (this.state.share === "code") this.setShare("");
+    }, { reduce: reduced() });
+  }
+
   wire(bar) {
     const root = this.root;
 
@@ -198,9 +212,9 @@ export class Cart {
         const was = this.state.share;
 
         e.preventDefault();
-        this.setShare("");
-        qs(root, was === "way" ? "[data-way-toggle]" : "[data-code-toggle]")
-          .focus();
+        this.shutRow().then(() => qs(
+          root, was === "way" ? "[data-way-toggle]" : "[data-code-toggle]"
+        ).focus());
 
         return;
       }
@@ -272,7 +286,7 @@ export class Cart {
   }
 
   // The shared row (#203): the way and Add discount side by side; each
-  // opens over the whole row. A pick, Apply that takes, a tap or a
+  // opens over the whole row. A pick, Apply (#532), a tap or a
   // focus outside the row, or Escape folds it back. Blur alone does
   // not: a tap on Apply blurs the field on iOS before its click lands.
   wireShare() {
@@ -305,22 +319,65 @@ export class Cart {
         { dataset: { share: this.state.share }, contains: (n) =>
           share.contains(n) }, e.target, e.type === "focusin"
       )) {
-        this.setShare("");
+        this.shutRow();
       }
     };
 
     document.addEventListener("pointerdown", away);
     document.addEventListener("focusin", away);
 
-    // The discount code: Apply, or Enter in the field.
-    qs(share, "[data-code-apply]").addEventListener("click", () => {
+    // The discount code: Apply, or Enter in the field (#532). An empty
+    // field takes the code off and closes at once; a code closes the
+    // field once the form has an answer (codeResult), accepted or
+    // refused, the refused one left in the field for the next open. A
+    // group's code asks first, and Cancel there leaves the field open
+    // with the code in it (#495, decision 5).
+    const submit = () => {
+      const empty = !input.value.trim();
+
       this.on.onCode(input.value);
-    });
+      if (empty) this.shutCode();
+    };
+
+    qs(share, "[data-code-apply]").addEventListener("click", submit);
     input.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
         e.preventDefault();
-        this.on.onCode(input.value);
+        submit();
       }
+    });
+
+    this.note = this.wireCodeNote();
+  }
+
+  // Folds the code field after Apply and hands the focus back to Add
+  // discount, unless something else took it meanwhile (a dialog).
+  shutCode() {
+    const share = qs(this.root, "[data-cart-share]");
+
+    return this.shutRow().then(() => {
+      const at = document.activeElement;
+
+      if (!at || at === document.body || share.contains(at)) {
+        qs(share, "[data-code-toggle]").focus();
+      }
+    });
+  }
+
+  // The line under the code (code-note.mjs): drawn here, timed there.
+  wireCodeNote() {
+    const input = qs(this.root, "[data-field='code']");
+    const note = qs(this.root, "[data-code-note]");
+
+    return codeNote({
+      show: ({ text, tone, fading }) => {
+        note.classList.toggle("is-fading", fading);
+        note.textContent = text;
+        note.hidden = !text;
+        if (tone) note.dataset.tone = tone;
+        else delete note.dataset.tone;
+      },
+      clear: () => { input.value = ""; },
     });
   }
 
@@ -671,35 +728,17 @@ export class Cart {
   }
 
   // The outcome of a code the form applied: `text` and `tone` for the
-  // note ("good" for an accepted one); an accepted code also empties
-  // the field, folds the row and moves the focus to Add discount, and
-  // its note fades after a while.
-  codeResult({ text = "", tone = "", accepted = false } = {}) {
-    const root = this.root;
-    const input = qs(root, "[data-field='code']");
-    const note = qs(root, "[data-code-note]");
-
-    clearTimeout(this.noteTimer);
-    note.classList.remove("is-fading");
-    note.textContent = text;
-    note.hidden = !text;
-    if (tone) note.dataset.tone = tone;
-    else delete note.dataset.tone;
-
-    if (!accepted) return;
-    input.value = "";
-    if (this.state.share === "code") {
-      this.setShare("");
-      qs(root, "[data-code-toggle]").focus();
+  // note ("good" for an accepted one). An accepted code also empties
+  // the field; its note, and that of a code `refused` on Apply, fades
+  // after a short while (code-note.mjs), and either folds the field if
+  // it is open (#532).
+  codeResult({
+    text = "", tone = "", accepted = false, refused = false,
+  } = {}) {
+    this.note.result({ text, tone, accepted, refused });
+    if ((accepted || refused) && this.state.share === "code") {
+      this.shutCode();
     }
-    this.noteTimer = setTimeout(() => {
-      note.classList.add("is-fading");
-      this.noteTimer = setTimeout(() => {
-        note.textContent = "";
-        note.hidden = true;
-        note.classList.remove("is-fading");
-      }, NOTE_FADE);
-    }, NOTE_STAY);
   }
 
   startJoke() {

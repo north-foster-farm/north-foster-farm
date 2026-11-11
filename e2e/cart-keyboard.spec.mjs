@@ -8,7 +8,7 @@
 // 300px shorter.
 
 import {
-  FULL_CART, OrderPage, expect, test, unfoldCart,
+  FULL_CART, OrderPage, codeRing, expect, test, unfoldCart,
 } from "./support/order.mjs";
 
 const SIZES = [
@@ -106,10 +106,9 @@ const checks = async ({ order, cart, hide }, size) => {
   }
   await order.codeApply.click({ trial: true });
   await order.next.click({ trial: true });
-  // The field's ring is drawn inside, so the scroller cannot cut it.
-  expect(await order.codeInput.evaluate((el) => (
-    getComputedStyle(el).boxShadow
-  ))).toContain("inset");
+  // The field's ring is drawn inside, round the field and Apply both
+  // (#532), so the scroller cannot cut it.
+  expect(await codeRing(order)).toEqual({ field: "none", inside: true });
   // Still floating: the keyboard never changes the placement.
   await expect(cart).toHaveAttribute("data-placement", "floating");
 };

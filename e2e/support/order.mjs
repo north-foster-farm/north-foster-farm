@@ -39,6 +39,20 @@ export const paneStill = (cart) => expect.poll(
   () => cart.evaluate((el) => el.getAnimations().length), { timeout: 5_000 }
 ).toBe(0);
 
+// The focused code field's ring (#532): the field draws none of its
+// own, and the group round the field and Apply draws it as an outline
+// at least its own width inward, so the body's scroller cannot cut it.
+export const codeRing = (order) => order.codeInput.evaluate((el) => {
+  const group = getComputedStyle(el.parentElement);
+  const width = parseFloat(group.outlineWidth);
+
+  return {
+    field: getComputedStyle(el).boxShadow,
+    inside: group.outlineStyle === "solid" && width > 0
+      && parseFloat(group.outlineOffset) <= -width,
+  };
+});
+
 export const foldCart = (page, cart) => setFold(cart, "closed");
 export const unfoldCart = (order) => setFold(order.cart, "open");
 

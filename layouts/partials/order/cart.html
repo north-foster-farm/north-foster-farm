@@ -129,9 +129,13 @@
         </div>
         {{/* A discount code. Known codes are checked on the server; the
              page carries only their hashes, so it can say "applied" or
-             "unknown" without listing them. */}}
-        <div class="order-cart-code" id="order-cart-code">
-          <label class="visually-hidden" for="order-code">Discount code</label>
+             "unknown" without listing them. The field and Apply are one
+             joined control, an input group as the farm news sign-up and
+             the sign-in have (#532), so the label sits outside it, as
+             theirs does: Bootstrap squares the field's left corners
+             when anything comes before it in the group. */}}
+        <label class="visually-hidden" for="order-code">Discount code</label>
+        <div class="input-group input-group-sm order-cart-code" id="order-cart-code">
           <input class="form-control form-control-sm order-cart-code-input" type="text" id="order-code" name="code" placeholder="Discount code" autocomplete="off" autocapitalize="characters" spellcheck="false" data-field="code" aria-describedby="order-code-note">
           <button type="button" class="btn btn-sm btn-outline-primary order-cart-apply" data-code-apply>Apply</button>
         </div>

@@ -1062,7 +1062,9 @@ export class OrderForm {
     } else if (!quiet) {
       // The code that was on stays on. Every code refused says only
       // this (James, on #182).
-      this.cart.codeResult({ text: pass.message || "That code isn't valid." });
+      this.cart.codeResult({
+        text: pass.message || "That code isn't valid.", refused: true,
+      });
     }
     this.refresh();
   }

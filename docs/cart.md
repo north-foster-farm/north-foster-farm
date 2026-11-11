@@ -273,16 +273,22 @@ issues. Wording below is today's, approved under #400.
   the form's radio without scrolling the page; Pickup days is disabled
   without dates. The cart never picks a default: `?method=` and the
   home page's links win over a remembered way (#203).
-- **Discount code.** "Add discount" opens a field and Apply over the
-  row, with focus in the field; Enter or Apply applies; the code is
-  checked by SHA-256 against hashes the page carries; an accepted code
-  empties the field, folds the row, focuses Add discount and says
-  "Code applied: $10 off." for 15 s; an unknown eight-character code is
-  tried as a farm pass (`/api/pass`): "Applied: this order can be
-  delivered under the $40 minimum." or "Applied."; anything else:
-  "That code isn't valid." Apply with the field empty takes the code
-  and the pass off. A saved pass is asked about again on restore. The
-  code is sent as `code`, the pass as `pass`.
+- **Discount code.** "Add discount" opens a field with Apply joined to
+  it, a small input group like the farm news sign-up's, over the row,
+  with focus in the field and one ring round both (#532); Enter or
+  Apply applies; the code is checked by SHA-256 against hashes the
+  page carries; an accepted code empties the field and says "Code
+  applied: $10 off."; an unknown eight-character code is tried as a
+  farm pass (`/api/pass`): "Applied: this order can be delivered under
+  the $40 minimum." or "Applied."; anything else: "That code isn't
+  valid.", the code kept in the field for the next open. Either line
+  stays 4 s and fades (`code-note.mjs`, `NOTE_STAY`; 15 s, accepted
+  only, until 2026-11-11). Apply with the field empty takes the code
+  and the pass off. Each of the three folds the field, the opening
+  played backwards (`shutShare`), and focuses Add discount; a group's
+  code whose join is cancelled leaves it open (#495). A saved pass is
+  asked about again on restore. The code is sent as `code`, the pass
+  as `pass`.
 - **The joke.** `EGGBOI` adds a row "Discount (EGGBOI, $40/min)"
   growing by $40 a minute while the page is open; nothing else changes
   and the server has never heard of it.
@@ -408,6 +414,10 @@ to CSS. Its surface, which the Cart class imports:
   again and eases between the two with the Web Animations API; a
   floating sheet rests on its foot, so it grows upward. Nothing under
   reduced motion or when nothing moved.
+- `shutShare(part, apply, { reduce })` -> Promise. Adds `is-shutting`
+  to the code field, whose animation is its opening reversed (the
+  `order-share-out` keyframes on `--order-ease-back`), and runs
+  `apply()` when it ends; at once under reduced motion (#532).
 - `watchList(list, wrap, { more, moreTop })` -> `{ sync, dispose }`:
   the "N more" pills, the edge fades and the glide (`moreStop`), on
   the list's scroll and a `ResizeObserver`.
@@ -624,8 +634,9 @@ with the keyboard up the total row scrolls with the body (section 5).
 - "N more ↓" and "N more ↑" over the lines while they overflow, gliding
   to the next row (`moreStop`); fades at the list's edges.
 - The shared row: the way opens into the switch, Add discount into the
-  field and Apply; a pick, an accepted code, a tap or focus outside
-  the row (`awayFrom`, the Safari rule), or Escape folds it.
+  field and Apply; a pick, Apply's answer, a tap or focus outside
+  the row (`awayFrom`, the Safari rule), or Escape folds it, the code
+  field animated (#532).
 - The first Add: open on the line, dwell, close, pulse (`cart-touch`
   judges a touch when it ends); later Adds: one pulse and the "Added:"
   strip when closed; the live region every time.

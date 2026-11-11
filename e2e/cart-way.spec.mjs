@@ -103,6 +103,46 @@ for (const size of SIZES) {
       await expect(order.cart).toHaveAttribute("data-share", "");
     });
 
+    // #532: the field folds the way it came, then hides; under reduced
+    // motion it hides at once. Read in the same task as the Escape, so
+    // the run's speed cannot hide the closing.
+    for (const motion of ["no-preference", "reduce"]) {
+      test(`the code field folds back (${motion} motion)`, async ({
+        page,
+      }) => {
+        const order = new OrderPage(page);
+
+        await page.emulateMedia({ reducedMotion: motion });
+        await order.open(FULL_CART);
+        await unfold(order);
+        await order.codeOpen.click();
+        await expect(order.codeInput).toBeFocused();
+
+        const now = await page.evaluate(() => {
+          const cart = document.getElementById("order-cart");
+          const part = document.getElementById("order-cart-code");
+
+          document.getElementById("order-code").dispatchEvent(
+            new KeyboardEvent("keydown", { key: "Escape", bubbles: true })
+          );
+
+          return {
+            share: cart.dataset.share,
+            shutting: part.classList.contains("is-shutting"),
+            name: getComputedStyle(part).animationName,
+          };
+        });
+
+        expect(now).toEqual(motion === "reduce"
+          ? { share: "", shutting: false, name: "order-share-in" }
+          : { share: "code", shutting: true, name: "order-share-out" });
+        await expect(order.cart).toHaveAttribute("data-share", "");
+        await expect(order.codeOpen).toBeFocused();
+        await expect(order.cart.locator(".order-cart-code.is-shutting"))
+          .toHaveCount(0);
+      });
+    }
+
     test("a code is refused, applied and taken off", async ({ page }) => {
       const order = new OrderPage(page);
 
@@ -112,10 +152,16 @@ for (const size of SIZES) {
       await order.codeInput.fill("nosuchcode");
       await order.codeApply.click();
       await expect(order.codeNote).toHaveText("That code isn't valid.");
-      await expect(order.codeInput).toHaveValue("NOSUCHCODE");
-      await expect(order.cart).toHaveAttribute("data-share", "code");
+      // Refused, the field folds and Add discount takes the focus
+      // (#532); the code waits in the field for the next open, and the
+      // note fades after a short while (code-note.mjs, NOTE_STAY).
+      await expect(order.cart).toHaveAttribute("data-share", "");
+      await expect(order.codeOpen).toBeFocused();
       await expect(order.discountLabel).toHaveText("Bulk discount ($50+)");
       await expect(order.total).toHaveText("$50");
+      await expect(order.codeNote).toBeHidden({ timeout: 8000 });
+      await order.codeOpen.click();
+      await expect(order.codeInput).toHaveValue("NOSUCHCODE");
 
       // The joke is a code like any other to the row: accepted, the
       // field empties, the row folds and Add discount takes the focus.
@@ -127,11 +173,14 @@ for (const size of SIZES) {
       await expect(order.codeOpen).toBeFocused();
       await expect(order.cart.locator(".order-cart-joke")).toBeVisible();
 
-      // Apply with the field empty takes the code off again.
+      // Apply with the field empty takes the code off again and folds
+      // the field (#532).
       await order.codeOpen.click();
       await order.codeApply.click();
       await expect(order.cart.locator(".order-cart-joke")).toHaveCount(0);
       await expect(order.codeNote).toBeHidden();
+      await expect(order.cart).toHaveAttribute("data-share", "");
+      await expect(order.codeOpen).toBeFocused();
     });
 
     test("the row's controls share one height, open or shut",

@@ -668,21 +668,27 @@
     white-space: nowrap;
   }
 
-  // The discount code: a small field and its button on one line, a
-  // note under the row.
+  // The discount code: a small field with Apply joined to it, an input
+  // group as the farm news sign-up has (#532), and a note under the
+  // row. The group lays itself out once it shows.
   .order-cart-code {
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 0.5rem;
+    flex-wrap: nowrap;
     margin: 0;
   }
 
   // Shut, the row shows its two buttons; open, one side takes the
-  // whole row.
+  // whole row. The code field folds back the way it came, the opening
+  // run backwards (cart.js shutCode, view.mjs shutShare).
   .order-cart-ways,
   .order-cart-code {
     display: none;
     grid-column: 1 / -1;
     animation: order-share-in var(--order-fast) var(--order-ease);
+  }
+
+  .order-cart-code.is-shutting {
+    animation: order-share-out var(--order-fast) var(--order-ease-back)
+      forwards;
   }
 
   .order-cart[data-share="way"],
@@ -698,7 +704,7 @@
   }
 
   .order-cart[data-share="code"] .order-cart-code {
-    display: grid;
+    display: flex;
   }
 
   .order-cart-code-input {
@@ -733,9 +739,18 @@
   // its edges: a ring drawn outside the field or a button would be
   // cut there (#448), so inside the body every ring is drawn inside,
   // the same width and colour, and nothing moves.
-  .order-cart-body .order-cart-code-input:focus {
-    box-shadow: inset 0 0 $input-btn-focus-blur $input-btn-focus-width
-      $input-btn-focus-color;
+  // The field and Apply read as one control, so the field's ring goes
+  // round both, as on the farm news sign-up (#226, #532). Inside, as
+  // above: an outline drawn inward, which, unlike an inset shadow on
+  // the group, paints over the field and the button.
+  .order-cart-body .order-cart-code:has(> .form-control:focus) {
+    border-radius: $input-border-radius-sm;
+    outline: $input-btn-focus-width solid $input-btn-focus-color;
+    outline-offset: -$input-btn-focus-width;
+
+    > .form-control:focus {
+      box-shadow: none;
+    }
   }
 
   .order-cart-body .btn {
@@ -1264,11 +1279,24 @@
   }
 }
 
-// The shared row's open part slides in from its button's side.
+// The shared row's open part slides in from its button's side, and
+// the code field slides back out to it (#532): one off frame for both,
+// and --order-ease-back is --order-ease run backwards, so the closing
+// is the opening in reverse.
+@mixin order-share-off {
+  opacity: 0;
+  transform: translateX(-0.5rem);
+}
+
 @keyframes order-share-in {
   from {
-    opacity: 0;
-    transform: translateX(-0.5rem);
+    @include order-share-off;
+  }
+}
+
+@keyframes order-share-out {
+  to {
+    @include order-share-off;
   }
 }
 

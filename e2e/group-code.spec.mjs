@@ -55,6 +55,8 @@ test.describe("a buying group's code (#471)", () => {
       // it unapplied, Join group unlocks its pickup.
       const dialog = page.locator("#group-join");
 
+      // The refusal folded the field (#532).
+      await order.codeOpen.click();
       await order.codeInput.fill(code);
       await order.codeApply.click();
       await expect(dialog).toBeVisible();

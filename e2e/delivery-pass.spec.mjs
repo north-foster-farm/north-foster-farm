@@ -55,6 +55,9 @@ test.describe("a delivery pass (#182)", () => {
         if (!await order.codeInput.isVisible()) await order.codeOpen.click();
         await order.codeInput.fill(value);
         await order.codeApply.click();
+        // Accepted or refused, the field folds once the answer is in
+        // (#532), so the next code opens it again.
+        await expect(order.cart).toHaveAttribute("data-share", "");
       };
 
       await noGroup(page);

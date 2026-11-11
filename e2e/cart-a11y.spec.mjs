@@ -6,7 +6,7 @@
 // and desktop projects, and in WebKit as the iphone project.
 
 import {
-  FULL_CART, OrderPage, expect, foldCart, test, unfoldCart,
+  FULL_CART, OrderPage, codeRing, expect, foldCart, test, unfoldCart,
 } from "./support/order.mjs";
 
 const PHONE = { width: 390, height: 844 };
@@ -103,9 +103,9 @@ test.describe("on a phone", () => {
     await unfoldCart(order);
     await order.codeOpen.click();
     await order.codeInput.focus();
-    expect(await order.codeInput.evaluate((el) => (
-      getComputedStyle(el).boxShadow
-    ))).toContain("inset");
+    // The field and Apply are one control, so the field's ring goes
+    // round both, drawn inward on the group (#532).
+    expect(await codeRing(order)).toEqual({ field: "none", inside: true });
     await page.keyboard.press("Tab");
     await expect(order.codeApply).toBeFocused();
     expect(await order.codeApply.evaluate((el) => (

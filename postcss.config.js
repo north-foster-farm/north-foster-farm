@@ -152,6 +152,8 @@ const plugins = [
         "is-fading",
         "is-new",
         "is-ringed",
+        // The code field folding back (#532, view.mjs shutShare).
+        "is-shutting",
         "is-ticked",
         // Square's card form adds it once the SDK renders (#388).
         "sq-card-message",

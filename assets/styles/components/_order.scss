@@ -13,6 +13,11 @@
   --order-edge-l: var(--order-gutter);
   --order-edge-r: var(--order-gutter);
   --order-ease: cubic-bezier(0.2, 0.8, 0.25, 1);
+
+  // --order-ease played backwards in time, each control point turned
+  // through the curve's middle and the two swapped: a closing on it
+  // retraces an opening on --order-ease (#532).
+  --order-ease-back: cubic-bezier(0.75, 0, 0.8, 0.2);
   --order-hover: 70ms;
   --order-fast: 140ms;
   --order-base: 220ms;
