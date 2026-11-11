@@ -772,7 +772,13 @@ A time that lapses as the customer pays (the farm dropped it, or a
 day closed) answers 409 with the fresh list, and the page raises a
 blocking dialog offering what is open now (`order/lapsed.js`, UX's U1
 to U3); nothing has been charged, and the customer pays again with
-the same button. The page asks `/api/dates` once more before a card,
+the same button. A scheduled pickup is chosen there, on the order
+page and in the account's Change pickup on one component, the
+pickup-day picker (#540: `order/pickup-picker.js`, its logic in
+`order/lib/picker.mjs`, its markup in
+`partials/order/pickup-picker.html`). The lists also refresh at the
+earliest scheduled cutoff, so a pickup leaves the picker as it
+closes (`date-lists.js` `watchClosing`). The page asks `/api/dates` once more before a card,
 wallet or Venmo payment goes out, so the dialog usually comes before
 a wallet opens. A Venmo payment the jobs finish after its time left
 the schedule stands, and alerts the farm (`pickup.lapsed`).

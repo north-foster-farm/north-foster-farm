@@ -1,0 +1,271 @@
+// The pickup-day picker (#540, the design approved on #539): a week
+// strip over the chosen day's pickups, with a details panel for the
+// chosen one, on the order page, in its lapsed dialog and in the
+// account's Change pickup (partials/order/pickup-picker.html). Outside
+// .order, so the account page has it too; the order page's variables
+// are used where they are set. Chosen is the secondary color, as the
+// pickup cards were (#323), so it reads apart from the card's own
+// (primary) radio.
+
+.pickup-picker {
+  --picker-radius: var(--order-radius, var(--bs-border-radius));
+  --picker-hover: var(--order-hover, 70ms);
+
+  container-type: inline-size;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.pickup-picker-strip {
+  min-width: 0;
+}
+
+.pickup-picker-legend {
+  margin: 0 0 0.25rem;
+}
+
+.pickup-picker-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.pickup-picker-title {
+  flex: 1;
+  margin: 0;
+  font-weight: bold;
+  text-align: center;
+}
+
+.pickup-picker-page {
+  flex: none;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+}
+
+// Seven days, Sunday to Saturday, each at least 44px wide at 360px.
+.pickup-picker-week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.25rem;
+}
+
+.pickup-picker-cell {
+  position: relative;
+  min-width: 0;
+}
+
+.pickup-picker-dayl {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.125rem;
+  min-height: 2.75rem;
+  padding: 0.375rem 0.125rem;
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--picker-radius);
+  background-color: var(--bs-white);
+  line-height: 1.2;
+  text-align: center;
+  cursor: pointer;
+  transition:
+    border-color var(--picker-hover) ease,
+    background-color var(--picker-hover) ease;
+
+  .btn-check:checked + & {
+    border-color: var(--bs-secondary);
+    background-color: var(--bs-secondary);
+    color: var(--bs-white);
+  }
+
+  .btn-check:focus-visible + & {
+    box-shadow: 0 0 0 0.25rem rgb(var(--bs-secondary-rgb) / 25%);
+  }
+
+  // A day with no pickup, or one gone by: greyed, and the radio is
+  // disabled, so the arrow keys pass it.
+  .btn-check:disabled + & {
+    background-color: var(--bs-tertiary-bg);
+    color: var(--bs-secondary-color);
+    cursor: default;
+  }
+
+  .btn-check:not(:disabled) + &:hover {
+    border-color: var(--bs-secondary);
+  }
+}
+
+.pickup-picker-wd {
+  font-size: 0.75rem;
+}
+
+.pickup-picker-num {
+  font-size: 1.25rem;
+  font-weight: bold;
+}
+
+.pickup-picker-avail {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.pickup-picker-dot {
+  flex: none;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background-color: var(--bs-success);
+
+  .btn-check:disabled + .pickup-picker-dayl & {
+    display: none;
+  }
+
+  .btn-check:checked + .pickup-picker-dayl & {
+    box-shadow: 0 0 0 1px var(--bs-white);
+  }
+}
+
+// The long words where they fit; on a phone, "Nov 15 – 21", "‹" and
+// "• 2", the long ones still said by the labels.
+.pickup-picker-narrow {
+  display: none;
+}
+
+@container (max-width: 32rem) {
+  .pickup-picker-wide {
+    display: none;
+  }
+
+  .pickup-picker-narrow {
+    display: inline;
+  }
+}
+
+.pickup-picker-day {
+  margin: 0 0 0.5rem;
+  font-weight: bold;
+}
+
+// Beside the pickups from md up (a grid column); under them otherwise.
+.pickup-picker-aside {
+  margin-top: 1rem;
+
+  @media (min-width: 768px) {
+    &.col-md-5 {
+      margin-top: 0;
+    }
+  }
+}
+
+.pickup-picker-details {
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--picker-radius);
+  background-color: var(--bs-tertiary-bg);
+
+  p {
+    margin: 0;
+  }
+}
+
+.pickup-picker-place {
+  font-weight: bold;
+}
+
+.pickup-picker-address > span {
+  display: block;
+}
+
+.pickup-picker-details .pickup-picker-cutoff {
+  margin-top: 0.5rem;
+  color: var(--bs-secondary-color);
+}
+
+// The chosen day's pickups: radio cards, white until chosen, the time
+// in bold and "Town · Name" under it.
+.order-pickups {
+  display: grid;
+  gap: 0.5rem;
+
+  &:focus {
+    outline: 0;
+  }
+
+  &.is-invalid:has(> .order-pickup:not([hidden])) {
+    border-radius: var(--picker-radius);
+    outline: 1px solid var(--bs-form-invalid-border-color);
+    outline-offset: 0.25rem;
+  }
+}
+
+// No day chosen yet: the strip carries the error's mark.
+.pickup-picker:has(.order-pickups.is-invalid:not(:has(> .order-pickup:not([hidden]))))
+  .pickup-picker-week {
+  border-radius: var(--picker-radius);
+  outline: 1px solid var(--bs-form-invalid-border-color);
+  outline-offset: 0.25rem;
+}
+
+.order-pickup {
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  gap: 0.625rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--picker-radius);
+  background-color: var(--bs-white);
+  transition:
+    border-color var(--picker-hover) ease,
+    background-color var(--picker-hover) ease;
+
+  &:hover {
+    border-color: var(--bs-secondary);
+  }
+
+  &:has(> input:checked) {
+    border-color: var(--bs-secondary);
+    background-color: var(--bs-secondary-bg-subtle);
+  }
+
+  > .form-check-input {
+    flex: none;
+    margin: 0;
+    transform: translateY(0.15rem);
+
+    &:checked {
+      border-color: var(--bs-secondary);
+      background-color: var(--bs-secondary);
+    }
+
+    &:focus {
+      border-color: var(--bs-secondary);
+      box-shadow: 0 0 0 0.25rem rgb(var(--bs-secondary-rgb) / 25%);
+    }
+  }
+}
+
+.order-pickup-label {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 0.5rem;
+  cursor: pointer;
+}
+
+.order-pickup-time {
+  font-weight: bold;
+  white-space: nowrap;
+}
+
+// The subtitle, small and secondary as on the Places cards.
+.order-pickup-name {
+  flex-basis: 100%;
+  color: var(--bs-secondary-color);
+  font-size: 0.875em;
+}

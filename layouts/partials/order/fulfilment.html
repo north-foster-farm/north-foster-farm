@@ -106,27 +106,14 @@
       <div class="order-method-reveal" data-method-body="scheduled" inert>
         <div class="order-method-body order-hform">
           <div class="row">
-            {{/* One radio card per pickup: date and time, the pickup's
-                 name, then its address (date-lists.js fillPickups, from
-                 the template below). Nothing is chosen until the customer does. */}}
-            <span class="col-12 col-form-label" id="scheduled-label">Pickup day</span>
+            {{/* The pickup-day picker (#540): the week strip, the chosen
+                 day's pickups and the details panel, drawn by
+                 date-lists.js. Nothing is chosen until the customer
+                 does. */}}
             <div class="col-12 skeleton-slot" data-dates-region>
               {{ partial "skeleton.html" (dict "over" true) }}
               {{ partial "skeleton/status.html" (dict "quiet" true) }}
-              <div class="order-pickups" id="scheduled-pickups" role="radiogroup" aria-labelledby="scheduled-label" aria-describedby="err-scheduled-date" tabindex="-1" data-field="fulfilment.occurrence" data-dates="scheduled">
-                <p class="order-windows-none">Loading pickups&hellip;</p>
-              </div>
-              <template id="tpl-pickup">
-                <div class="order-pickup">
-                  <input class="form-check-input" type="radio" name="scheduled.date">
-                  <label class="order-pickup-label">
-                    <span class="order-pickup-date"></span>
-                    <span class="order-pickup-time"></span>
-                    <span class="order-pickup-name"></span>
-                    <span class="order-pickup-address"></span>
-                  </label>
-                </div>
-              </template>
+              {{ partial "order/pickup-picker.html" (dict "name" "scheduled.date" "id" "scheduled-pickups" "field" "fulfilment.occurrence" "describedby" "err-scheduled-date" "dates" true) }}
               <div class="invalid-feedback" id="err-scheduled-date" data-error-for="fulfilment.occurrence"></div>
               {{ partial "skeleton/status.html" (dict "failed" "We couldn't load the dates.") }}
             </div>

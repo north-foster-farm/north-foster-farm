@@ -7,6 +7,7 @@ import {
 } from "./lib/scheduled.mjs";
 import { groupFromQuery, withPlaces } from "./lib/group.mjs";
 import { perkEffects } from "./lib/perks.mjs";
+import { bookedEntry } from "./lib/picker.mjs";
 import { linkedMethod, withoutParam } from "./lib/query.mjs";
 import { sentence } from "./lib/sentence.mjs";
 import { summarize } from "./lib/summary.mjs";
@@ -176,6 +177,7 @@ export class OrderForm {
     this.lapsed = new Lapsed(document.getElementById("order-lapsed"), {
       onUse: (choice) => this.useLapsed(choice),
       onOther: (method) => this.otherWay(method),
+      locate: (entry) => this.terms.model.location(entry.location),
     });
     this.submitter = new Submitter(this.editId
       ? { url: `/api/account/orders/${this.editId}/edit` }
@@ -381,7 +383,12 @@ export class OrderForm {
       id: order.id, held: sum(order.payments) - sum(order.refunds),
       kept: order.keptFee || 0, keptDate: order.keptDate || null,
       placed: order.submittedAt,
+      // The pickup it holds, which the change may keep though no
+      // longer offered, as the server allows (lib/edit.mjs `kept`).
+      occurrence: (order.pickup && order.pickup.occurrence) || null,
     };
+    // The picker offers that pickup "As booked" once the lists lack it.
+    this.dates.booked = bookedEntry(order);
     for (const line of order.lines) {
       this.stock.held[line.sku] = line.qty;
       this.hold(line);
@@ -1504,7 +1511,7 @@ export class OrderForm {
 
     this.dates.replace(method, dates);
     this.lapsed.open(method, list, this.submitButton.hidden ? null
-      : this.submitButton);
+      : this.submitButton, this.dates.now());
   }
 
   revealMethod() {
@@ -1738,8 +1745,11 @@ export class OrderForm {
     // Kept until the real list arrives; fill() honours it if the date
     // is still valid (#284).
     if (way === "scheduled") {
+      // A draft with a group's code may hold its round, which the lists
+      // gain once the code is checked: no closed note before then.
       this.dates.want(way, draftOccurrence(f, this.dropSeries),
-        f.method === "scituate" ? this.dropSeries : "");
+        f.method === "scituate" ? this.dropSeries : "",
+        { quiet: !!payload.groupCode });
       // A round of a buying group is not in the lists until the group
       // is unlocked (#471); it is chosen then.
       this.wantedOccurrence = f.occurrence || null;
@@ -1791,6 +1801,7 @@ export class OrderForm {
       index: this.index, terms: this.terms, now: this.dates.now(),
       placed: this.editing && this.editing.placed,
       group: this.group, code: this.code, schedule: this.dates.schedule(),
+      kept: (this.editing && this.editing.occurrence) || null,
       lock: this.lock(),
       deliverTo: this.groupPlace(),
       credit: this.editing ? 0 : this.credit,

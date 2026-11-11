@@ -782,121 +782,8 @@
     }
   }
 
-  // The scheduled pickups: a vertical list of radio cards, white until
-  // chosen (#323), in the secondary color so they read apart from the
-  // card's own (primary) radio. Each shows its day and hours, the
-  // pickup's name, and the address, one part to a line on a narrow
-  // card and written out on one line on a wide one.
-  .order-pickups {
-    display: grid;
-    gap: 0.5rem;
-    padding-top: 0.25rem;
-
-    &:focus {
-      outline: 0;
-    }
-
-    &.is-invalid {
-      border-radius: var(--order-radius);
-      outline: 1px solid var(--bs-form-invalid-border-color);
-      outline-offset: 0.25rem;
-    }
-  }
-
-  .order-pickup {
-    position: relative;
-    container-type: inline-size;
-    display: flex;
-    align-items: baseline;
-    gap: 0.625rem;
-    padding: 0.5rem 0.75rem;
-    border: 1px solid var(--bs-border-color);
-    border-radius: var(--order-radius);
-    background-color: var(--bs-white);
-    transition:
-      border-color var(--order-hover) ease,
-      background-color var(--order-hover) ease;
-
-    &:hover {
-      border-color: var(--bs-secondary);
-    }
-
-    &:has(> input:checked) {
-      border-color: var(--bs-secondary);
-      background-color: var(--bs-secondary-bg-subtle);
-    }
-
-    > .form-check-input {
-      flex: none;
-      margin: 0;
-      transform: translateY(0.15rem);
-
-      &:checked {
-        border-color: var(--bs-secondary);
-        background-color: var(--bs-secondary);
-      }
-
-      &:focus {
-        border-color: var(--bs-secondary);
-        box-shadow: 0 0 0 0.25rem rgb(var(--bs-secondary-rgb) / 25%);
-      }
-    }
-  }
-
-  .order-pickup-label {
-    display: flex;
-    flex: 1;
-    flex-wrap: wrap;
-    gap: 0 0.5rem;
-    cursor: pointer;
-
-    // The day's dot ends it, so the hours follow on its line.
-    > .order-pickup-date::after {
-      margin-left: 0.5rem;
-      color: var(--bs-secondary-color);
-      content: "·";
-    }
-
-    // Where the hours drop to their own row, the dot goes.
-    @container (max-width: 30rem) {
-      > .order-pickup-date::after {
-        display: none;
-      }
-    }
-  }
-
-  .order-pickup-date {
-    font-weight: bold;
-  }
-
-  .order-pickup-time {
-    white-space: nowrap;
-  }
-
-  .order-pickup-name,
-  .order-pickup-address {
-    flex-basis: 100%;
-  }
-
-  // The subtitle, small and secondary as on the Places cards.
-  .order-pickup-name {
-    color: var(--bs-secondary-color);
-    font-size: 0.875em;
-  }
-
-  .order-pickup-address {
-    display: flex;
-    flex-wrap: wrap;
-    color: var(--bs-secondary-color);
-
-    // Written out on as few lines as fit, the parts joined by commas.
-    // A part goes to the next line whole, so none breaks mid-phrase
-    // unless it is longer than a line (#439).
-    > span:not(:last-child)::after {
-      margin-right: 0.3em;
-      content: ",";
-    }
-  }
+  // The scheduled pickups' picker is its own component
+  // (_pickup-picker.scss, #540): the account page shows it too.
 
   // Fulfilment cards
 
@@ -1192,6 +1079,11 @@
     &[hidden] {
       display: none;
     }
+  }
+
+  // A scheduled pickup's choices, on the picker (#540).
+  .order-lapsed-picker {
+    margin: 1rem 0 1.25rem;
   }
 
   .order-lapsed-list {
