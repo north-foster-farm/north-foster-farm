@@ -103,7 +103,7 @@ describe("who gets what", () => {
       assert.equal(view.member.key, "vff");
       assert.equal(view.member.group.name, "The Village Family Fitness");
       assert.equal(typeof view.member.group.place.street, "string");
-      assert.equal(view.member.rounds.current.date, "2026-11-15");
+      assert.equal(view.member.rounds.current.date, "2026-11-22");
       assert.equal(view.member.members, undefined);
       assert.equal(view.member.qr, undefined);
       assert.deepEqual(view.hosts, []);
@@ -342,31 +342,31 @@ describe("the rounds", () => {
 
     assert.equal(r.every, 2);
     assert.deepEqual(r.current, {
-      date: "2026-11-15", closesAt: "2026-11-15T04:59:00.000Z",
+      date: "2026-11-22", closesAt: "2026-11-22T04:59:00.000Z",
     });
     assert.deepEqual(r.next, {
-      date: "2026-11-29", opensAt: "2026-11-15T04:59:00.000Z",
+      date: "2026-12-06", opensAt: "2026-11-22T04:59:00.000Z",
     });
   });
 
   it("move on once a round has closed", () => {
-    const sunday = new Date("2026-11-15T13:00:00Z");
+    const sunday = new Date("2026-11-22T13:00:00Z");
 
     assert.equal(roundsNow({ series: "36TS" }, terms, sunday).current.date,
-      "2026-11-29");
+      "2026-12-06");
   });
 });
 
 describe("the tab's words (drafts)", () => {
   it("say how often, which day and when", () => {
     const r = { every: 2, opens: "08:30", closes: "09:00",
-      current: { date: "2026-11-15" } };
+      current: { date: "2026-11-22" } };
 
     assert.equal(roundsLine(r), "Every 2 weeks, on Sundays, 8:30 to 9:00 AM");
     assert.equal(roundsLine({ ...r, every: 1 }).slice(0, 10), "Every week");
     assert.equal(hours("11:30", "12:30"), "11:30 AM to 12:30 PM");
-    assert.equal(moment("2026-11-15T04:59:00.000Z", "America/New_York"),
-      "Saturday, November 14, 11:59 PM");
+    assert.equal(moment("2026-11-22T04:59:00.000Z", "America/New_York"),
+      "Saturday, November 21, 11:59 PM");
   });
 
   it("say when and how each member joined", () => {

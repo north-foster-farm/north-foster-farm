@@ -20,7 +20,7 @@ import { SCHEDULE } from "./schedule-fixture.mjs";
 
 const ny = (iso, h = 9, m = 0) => instant(iso, h, m, "America/New_York");
 // Monday 2026-11-02: Thursday the 5th is the next delivery day, and
-// the round after it is Sunday the 15th.
+// the round after it is Sunday the 22nd.
 const now = ny("2026-11-02");
 const VFF = groupOf("vff");
 const GYM = terms.model.location(VFF.location);
@@ -142,6 +142,6 @@ describe("placed through POST /api/orders", () => {
     const order = await getOrder(stores, data.orderId);
 
     assert.deepEqual(order.group,
-      { key: "vff", round: "2026-11-15", viaCode: true });
+      { key: "vff", round: "2026-11-22", viaCode: true });
   });
 });

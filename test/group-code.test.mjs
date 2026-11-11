@@ -34,7 +34,7 @@ const env = {
   PICKUP_SCHEDULE: SCHEDULE,
 };
 const CODE = "GYM-2026";
-const ROUND = "36TS-261115";
+const ROUND = "36TS-261122";
 const SKU = "NFF-CHK-WHL-35-39";
 const quiet = { sleep: async () => {} };
 
@@ -132,7 +132,7 @@ describe("POST /api/group", () => {
     assert.equal(data.dates[0].name, "The Village Family Fitness");
     assert.equal(data.dates[0].window, "8:30 – 9:00 AM");
     assert.equal(data.dates[0].cutoff,
-      instant("2026-11-14", 23, 59, "America/New_York").toISOString());
+      instant("2026-11-21", 23, 59, "America/New_York").toISOString());
     // Nothing of the code comes back.
     assert.equal(JSON.stringify(data).includes(CODE), false);
   });
@@ -246,7 +246,7 @@ describe("an order at the group's pickup", () => {
 
       assert.equal(res.status, 200, JSON.stringify(data));
       assert.equal(data.fulfilment.occurrence, ROUND);
-      assert.equal(data.fulfilment.date, "2026-11-15");
+      assert.equal(data.fulfilment.date, "2026-11-22");
       // Priced at retail, with the tier as for anyone (the lock holds
       // nothing down today).
       assert.equal(data.totals.total, 5500);
@@ -255,7 +255,7 @@ describe("an order at the group's pickup", () => {
       const order = await getOrder(stores, data.orderId);
 
       assert.deepEqual(order.group,
-        { key: "vff", round: "2026-11-15", viaCode: true });
+        { key: "vff", round: "2026-11-22", viaCode: true });
 
       const customer = await getCustomer(stores, "pat@example.com");
 
@@ -277,7 +277,7 @@ describe("an order at the group's pickup", () => {
 
     assert.equal(res.status, 200, JSON.stringify(data));
     assert.deepEqual((await getOrder(stores, data.orderId)).group,
-      { key: "vff", round: "2026-11-15", viaCode: false });
+      { key: "vff", round: "2026-11-22", viaCode: false });
   });
 
   it("falls in the next round when picked up elsewhere", async () => {
@@ -292,11 +292,11 @@ describe("an order at the group's pickup", () => {
 
     assert.equal(res.status, 200, JSON.stringify(data));
     assert.equal((await getOrder(stores, data.orderId)).group.round,
-      "2026-11-15");
-    assert.equal(roundFor({ series: "36TS" }, terms, "2026-11-16"),
-      "2026-11-29");
-    assert.equal(roundFor({ series: "36TS" }, terms, "2026-11-15"),
-      "2026-11-15");
+      "2026-11-22");
+    assert.equal(roundFor({ series: "36TS" }, terms, "2026-11-23"),
+      "2026-12-06");
+    assert.equal(roundFor({ series: "36TS" }, terms, "2026-11-22"),
+      "2026-11-22");
     assert.equal(roundFor({ series: "36TS" }, terms, null), null);
   });
 
@@ -380,7 +380,7 @@ describe("GET /api/me for a member", () => {
 
     await joinGroup(stores, "pat@example.com", "vff", { now });
     await grantCredit(stores, "pat@example.com", {
-      amount: 4500, from: { group: "vff", round: "2026-11-15", kind: "host" },
+      amount: 4500, from: { group: "vff", round: "2026-11-22", kind: "host" },
       now, timeZone: terms.timeZone,
     });
 

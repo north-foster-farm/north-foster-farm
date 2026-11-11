@@ -85,12 +85,12 @@ describe("the reward on a round", () => {
     // $1,000 net, $900 of it credit: $100 of real money earns nothing
     // (James, 6424212209); $1,000 of real money earns $100.
     await seed(stores, [
-      order("NFF-2611-R1AAAA", "a@x.com", 1000, "2026-11-15", {
+      order("NFF-2611-R1AAAA", "a@x.com", 1000, "2026-11-22", {
         credit: 90_000 }),
     ]);
 
-    const first = await closeRound(stores, VFF, "2026-11-15", {
-      now: ny("2026-11-15", 0, 1), terms,
+    const first = await closeRound(stores, VFF, "2026-11-22", {
+      now: ny("2026-11-22", 0, 1), terms,
     });
 
     assert.equal(first.closed, true);
@@ -99,18 +99,18 @@ describe("the reward on a round", () => {
     assert.equal(first.round.real, 10_000);
     assert.equal(first.round.reward.earned, false);
     assert.equal(first.round.cutoff,
-      ny("2026-11-14", 23, 59).toISOString());
+      ny("2026-11-21", 23, 59).toISOString());
     assert.deepEqual(first.round.members.map((m) => [m.email, m.real]),
       [["a@x.com", 10_000]]);
 
     // A refund after the close changes nothing of it.
     await seed(stores, [
-      order("NFF-2611-R1AAAA", "a@x.com", 1000, "2026-11-15", {
+      order("NFF-2611-R1AAAA", "a@x.com", 1000, "2026-11-22", {
         credit: 90_000, refunded: 5_000 }),
     ]);
 
-    const again = await closeRound(stores, VFF, "2026-11-15", {
-      now: ny("2026-11-16"), terms,
+    const again = await closeRound(stores, VFF, "2026-11-22", {
+      now: ny("2026-11-23"), terms,
     });
 
     assert.equal(again.closed, false);
@@ -125,15 +125,15 @@ describe("the host's choice and the settlement", () => {
   // $900: $10 and $90 of credit each.
   const rounds = async (stores) => {
     await seed(stores, [
-      order("NFF-2611-R1AAAA", "a@x.com", 1000, "2026-11-15"),
-      order("NFF-2611-R2AAAA", "b@x.com", 100, "2026-11-29"),
-      order("NFF-2611-R2BBBB", "c@x.com", 900, "2026-11-29"),
+      order("NFF-2611-R1AAAA", "a@x.com", 1000, "2026-11-22"),
+      order("NFF-2611-R2AAAA", "b@x.com", 100, "2026-12-06"),
+      order("NFF-2611-R2BBBB", "c@x.com", 900, "2026-12-06"),
     ]);
     await enrol(stores, ["a@x.com", "b@x.com", "c@x.com"]);
-    const one = (await closeRound(stores, VFF, "2026-11-15",
-      { now: ny("2026-11-15", 0, 1), terms })).round;
-    const two = (await closeRound(stores, VFF, "2026-11-29",
-      { now: ny("2026-11-29", 0, 1), terms })).round;
+    const one = (await closeRound(stores, VFF, "2026-11-22",
+      { now: ny("2026-11-22", 0, 1), terms })).round;
+    const two = (await closeRound(stores, VFF, "2026-12-06",
+      { now: ny("2026-12-06", 0, 1), terms })).round;
 
     return { one, two };
   };
@@ -144,14 +144,14 @@ describe("the host's choice and the settlement", () => {
 
     assert.equal(one.reward.amount, 10_000);
 
-    const chosen = await chooseReward(stores, VFF, "2026-11-15", "share",
-      { now: ny("2026-11-17") });
+    const chosen = await chooseReward(stores, VFF, "2026-11-22", "share",
+      { now: ny("2026-11-24") });
 
     assert.equal(chosen.choice.kind, "share");
 
-    const two = await getRound(stores, "vff", "2026-11-29");
+    const two = await getRound(stores, "vff", "2026-12-06");
     const settled = await settleReward(stores, VFF, chosen, two, {
-      now: ny("2026-11-29", 0, 2), terms,
+      now: ny("2026-12-06", 0, 2), terms,
     });
 
     assert.equal(settled.settled.kind, "share");
@@ -159,15 +159,15 @@ describe("the host's choice and the settlement", () => {
     assert.deepEqual(settled.settled.shares.map((s) => [s.email, s.amount]),
       [["c@x.com", 9_000], ["b@x.com", 1_000]]);
     assert.equal(settled.settled.leftover, 0);
-    assert.equal(await creditBalance(stores, "b@x.com", ny("2026-11-30")),
+    assert.equal(await creditBalance(stores, "b@x.com", ny("2026-12-07")),
       1_000);
-    assert.equal(await creditBalance(stores, "c@x.com", ny("2026-11-30")),
+    assert.equal(await creditBalance(stores, "c@x.com", ny("2026-12-07")),
       9_000);
     // Settled once: a second pass grants nothing more.
     await settleReward(stores, VFF, settled, two, {
-      now: ny("2026-11-29", 0, 3), terms,
+      now: ny("2026-12-06", 0, 3), terms,
     });
-    assert.equal(await creditBalance(stores, "c@x.com", ny("2026-11-30")),
+    assert.equal(await creditBalance(stores, "c@x.com", ny("2026-12-07")),
       9_000);
   });
 
@@ -178,16 +178,16 @@ describe("the host's choice and the settlement", () => {
       await rounds(stores);
       await removeMember(stores, "vff", "c@x.com", { by: { role: "farm" } });
 
-      const chosen = await chooseReward(stores, VFF, "2026-11-15", "share",
-        { now: ny("2026-11-17") });
-      const two = await getRound(stores, "vff", "2026-11-29");
+      const chosen = await chooseReward(stores, VFF, "2026-11-22", "share",
+        { now: ny("2026-11-24") });
+      const two = await getRound(stores, "vff", "2026-12-06");
       const settled = await settleReward(stores, VFF, chosen, two, {
-        now: ny("2026-11-29", 0, 2), terms,
+        now: ny("2026-12-06", 0, 2), terms,
       });
 
       assert.deepEqual(settled.settled.shares.map((s) => [s.email, s.amount]),
         [["b@x.com", 10_000]]);
-      assert.equal(await creditBalance(stores, "c@x.com", ny("2026-11-30")),
+      assert.equal(await creditBalance(stores, "c@x.com", ny("2026-12-07")),
         0);
     });
 
@@ -211,23 +211,23 @@ describe("the host's choice and the settlement", () => {
       const { one, two } = await rounds(stores);
 
       await assert.rejects(settleReward(stores, VFF, one, two, {
-        now: ny("2026-11-29", 0, 2), terms,
+        now: ny("2026-12-06", 0, 2), terms,
       }), /host of vff has no email address/);
 
       await setGroupHost(stores, "vff", "host@x.com",
-        { now: ny("2026-11-29") });
+        { now: ny("2026-12-06") });
 
       const settled = await settleReward(stores, VFF, one, two, {
-        now: ny("2026-11-29", 0, 2), terms,
+        now: ny("2026-12-06", 0, 2), terms,
       });
 
       assert.equal(settled.settled.kind, "keep");
       assert.equal(settled.settled.chosen, false);
       assert.deepEqual(settled.settled.shares,
         [{ email: "host@x.com", real: null, amount: 10_000 }]);
-      assert.equal(await creditBalance(stores, "host@x.com", ny("2026-11-30")),
+      assert.equal(await creditBalance(stores, "host@x.com", ny("2026-12-07")),
         10_000);
-      await assert.rejects(chooseReward(stores, VFF, "2026-11-15", "share"),
+      await assert.rejects(chooseReward(stores, VFF, "2026-11-22", "share"),
         /already credited/);
     });
 
@@ -236,14 +236,14 @@ describe("the host's choice and the settlement", () => {
       const stores = testStores();
 
       await seed(stores, [order("NFF-2611-R1AAAA", "a@x.com", 100,
-        "2026-11-15")]);
-      await closeRound(stores, VFF, "2026-11-15",
-        { now: ny("2026-11-15", 0, 1), terms });
-      await assert.rejects(chooseReward(stores, VFF, "2026-11-15", "keep"),
+        "2026-11-22")]);
+      await closeRound(stores, VFF, "2026-11-22",
+        { now: ny("2026-11-22", 0, 1), terms });
+      await assert.rejects(chooseReward(stores, VFF, "2026-11-22", "keep"),
         /earned no reward/);
-      await assert.rejects(chooseReward(stores, VFF, "2026-11-29", "keep"),
+      await assert.rejects(chooseReward(stores, VFF, "2026-12-06", "keep"),
         /not closed yet/);
-      await assert.rejects(chooseReward(stores, VFF, "2026-11-15", "burn"),
+      await assert.rejects(chooseReward(stores, VFF, "2026-11-22", "burn"),
         /one of: keep, share/);
     });
 });
@@ -260,28 +260,28 @@ describe("the jobs close rounds and settle rewards", () => {
       const stores = testStores();
 
       await seed(stores, [order("NFF-2611-R1AAAA", "a@x.com", 400,
-        "2026-11-15")]);
+        "2026-11-22")]);
 
       // Ordering closed Saturday night; the books stay open through
       // the pickup day, for the walk-in sales of the morning
       // (security review, 6425904452).
-      for (const early of [ny("2026-11-14", 23, 58), ny("2026-11-15", 0, 1),
-        ny("2026-11-15", 12, 0)]) {
+      for (const early of [ny("2026-11-21", 23, 58), ny("2026-11-22", 0, 1),
+        ny("2026-11-22", 12, 0)]) {
         assert.deepEqual((await workRounds(stores, { now: early, terms }))
           .closed, []);
       }
-      assert.equal(await getRound(stores, "vff", "2026-11-15"), null);
+      assert.equal(await getRound(stores, "vff", "2026-11-22"), null);
 
       // A walk-in recorded on the day counts.
       await seed(stores, [order("NFF-2611-R1WALK", "w@x.com", 50,
-        "2026-11-15")]);
+        "2026-11-22")]);
 
-      const due = await workRounds(stores, { now: ny("2026-11-16", 0, 0),
+      const due = await workRounds(stores, { now: ny("2026-11-23", 0, 0),
         terms });
 
       assert.deepEqual(due.closed.map((c) => [c.round, c.real, c.reward]),
-        [["2026-11-15", 45_000, 4_500]]);
-      assert.deepEqual((await workRounds(stores, { now: ny("2026-11-17"),
+        [["2026-11-22", 45_000, 4_500]]);
+      assert.deepEqual((await workRounds(stores, { now: ny("2026-11-24"),
         terms })).closed, []);
     });
 
@@ -289,11 +289,11 @@ describe("the jobs close rounds and settle rewards", () => {
     const stores = testStores();
 
     await seed(stores, [order("NFF-2611-R1AAAA", "a@x.com", 400,
-      "2026-11-15")]);
+      "2026-11-22")]);
 
     const both = await Promise.all([
-      closeRound(stores, VFF, "2026-11-15", { now: ny("2026-11-16"), terms }),
-      closeRound(stores, VFF, "2026-11-15", { now: ny("2026-11-16", 0, 1),
+      closeRound(stores, VFF, "2026-11-22", { now: ny("2026-11-23"), terms }),
+      closeRound(stores, VFF, "2026-11-22", { now: ny("2026-11-23", 0, 1),
         terms }),
     ]);
 
@@ -305,19 +305,19 @@ describe("the jobs close rounds and settle rewards", () => {
     const stores = testStores();
 
     await seed(stores, [
-      order("NFF-2611-R1AAAA", "a@x.com", 400, "2026-11-15"),
-      order("NFF-2611-R2AAAA", "b@x.com", 50, "2026-11-29"),
+      order("NFF-2611-R1AAAA", "a@x.com", 400, "2026-11-22"),
+      order("NFF-2611-R2AAAA", "b@x.com", 50, "2026-12-06"),
     ]);
 
     const first = await runJobs(stores, {
-      now: ny("2026-11-16", 1), env, mail: async () => ({}),
+      now: ny("2026-11-23", 1), env, mail: async () => ({}),
     });
 
     assert.equal(first.rounds.closed.length, 1);
     assert.deepEqual(first.rounds.settled, []);
 
     const second = await runJobs(stores, {
-      now: ny("2026-11-30", 1), env, mail: async () => ({}),
+      now: ny("2026-12-07", 1), env, mail: async () => ({}),
     });
 
     assert.equal(second.rounds.closed.length, 1);
@@ -328,18 +328,18 @@ describe("the jobs close rounds and settle rewards", () => {
     await setGroupHost(stores, "vff", "host@x.com");
 
     const third = await runJobs(stores, {
-      now: ny("2026-11-30", 2), env, mail: async () => ({}),
+      now: ny("2026-12-07", 2), env, mail: async () => ({}),
     });
 
     assert.deepEqual(third.rounds.settled.map((s) => [s.round, s.kind]),
-      [["2026-11-15", "keep"]]);
-    assert.equal(await creditBalance(stores, "host@x.com", ny("2026-11-30")),
+      [["2026-11-22", "keep"]]);
+    assert.equal(await creditBalance(stores, "host@x.com", ny("2026-12-07")),
       4_000);
   });
 });
 
 describe("credit", () => {
-  const from = { group: "vff", round: "2026-11-15", kind: "host" };
+  const from = { group: "vff", round: "2026-11-22", kind: "host" };
 
   it("is granted once per round and kind", async () => {
     const stores = testStores();
@@ -374,14 +374,14 @@ describe("credit", () => {
 
   it("runs to the end of the next year when granted in December", async () => {
     // James, 2026-10-26: credit granted in December 2026 expires at
-    // the end of 2027. The round of 2026-12-13 settles at the close of
-    // 2026-12-27, in December.
+    // the end of 2027. The round of 2026-12-06 settles at the close of
+    // 2026-12-20, in December.
     const stores = testStores();
-    const december = { ...from, round: "2026-12-13" };
+    const december = { ...from, round: "2026-12-06" };
 
     await grantCredit(stores, "m@x.com", { amount: 1_000, from: december,
-      now: ny("2026-12-27", 23, 59), timeZone: tz });
-    assert.equal(yearEnd(ny("2026-12-27"), tz),
+      now: ny("2026-12-20", 23, 59), timeZone: tz });
+    assert.equal(yearEnd(ny("2026-12-20"), tz),
       ny("2027-12-31", 23, 59).toISOString());
     assert.equal(yearEnd(ny("2026-12-01", 0, 0), tz),
       ny("2027-12-31", 23, 59).toISOString());
@@ -448,16 +448,16 @@ describe("credit", () => {
 describe("two writers on one round", () => {
   const two = async (stores) => {
     await seed(stores, [
-      order("NFF-2611-R1AAAA", "a@x.com", 1000, "2026-11-15"),
-      order("NFF-2611-R2AAAA", "b@x.com", 100, "2026-11-29"),
-      order("NFF-2611-R2BBBB", "c@x.com", 900, "2026-11-29"),
+      order("NFF-2611-R1AAAA", "a@x.com", 1000, "2026-11-22"),
+      order("NFF-2611-R2AAAA", "b@x.com", 100, "2026-12-06"),
+      order("NFF-2611-R2BBBB", "c@x.com", 900, "2026-12-06"),
     ]);
     await setGroupHost(stores, "vff", "host@x.com");
 
-    const one = (await closeRound(stores, VFF, "2026-11-15",
-      { now: ny("2026-11-16"), terms })).round;
-    const next = (await closeRound(stores, VFF, "2026-11-29",
-      { now: ny("2026-11-30"), terms })).round;
+    const one = (await closeRound(stores, VFF, "2026-11-22",
+      { now: ny("2026-11-23"), terms })).round;
+    const next = (await closeRound(stores, VFF, "2026-12-06",
+      { now: ny("2026-12-07"), terms })).round;
 
     return { one, next };
   };
@@ -467,30 +467,30 @@ describe("two writers on one round", () => {
     const { one, next } = await two(stores);
     // One settler read the record before the host chose to share;
     // the other after.
-    const chosen = await chooseReward(stores, VFF, "2026-11-15", "share",
-      { now: ny("2026-11-17") });
+    const chosen = await chooseReward(stores, VFF, "2026-11-22", "share",
+      { now: ny("2026-11-24") });
     const both = await Promise.all([
-      settleReward(stores, VFF, one, next, { now: ny("2026-11-30", 0, 1),
+      settleReward(stores, VFF, one, next, { now: ny("2026-12-07", 0, 1),
         terms }),
-      settleReward(stores, VFF, chosen, next, { now: ny("2026-11-30", 0, 2),
+      settleReward(stores, VFF, chosen, next, { now: ny("2026-12-07", 0, 2),
         terms }),
     ]);
     // Exactly one settlement, and one set of grants: whichever
     // settler won, the record says one kind and the other call
     // answered with the record as it found it.
-    const stored = await getRound(stores, "vff", "2026-11-15");
+    const stored = await getRound(stores, "vff", "2026-11-22");
 
     assert.ok(stored.settled && stored.settled.kind);
     assert.equal(stored.settled.pending, undefined);
     assert.equal(both.length, 2);
 
-    const host = await creditBalance(stores, "host@x.com", ny("2026-12-01"));
-    const b = await creditBalance(stores, "b@x.com", ny("2026-12-01"));
-    const c = await creditBalance(stores, "c@x.com", ny("2026-12-01"));
+    const host = await creditBalance(stores, "host@x.com", ny("2026-12-08"));
+    const b = await creditBalance(stores, "b@x.com", ny("2026-12-08"));
+    const c = await creditBalance(stores, "c@x.com", ny("2026-12-08"));
 
     assert.equal(host + b + c, 10_000);
     assert.equal(host === 10_000 || (b === 1_000 && c === 9_000), true);
-    await assert.rejects(chooseReward(stores, VFF, "2026-11-15", "keep"),
+    await assert.rejects(chooseReward(stores, VFF, "2026-11-22", "keep"),
       /already/);
   });
 
@@ -501,20 +501,20 @@ describe("two writers on one round", () => {
 
       await setGroupHost(stores, "vff", null);
       await assert.rejects(settleReward(stores, VFF, one, next,
-        { now: ny("2026-11-30", 0, 1), terms }), /host of vff/);
+        { now: ny("2026-12-07", 0, 1), terms }), /host of vff/);
 
-      const stored = await getRound(stores, "vff", "2026-11-15");
+      const stored = await getRound(stores, "vff", "2026-11-22");
 
       assert.equal(stored.settled, null);
 
       await setGroupHost(stores, "vff", "host@x.com");
 
       const done = await settleReward(stores, VFF, stored, next,
-        { now: ny("2026-11-30", 0, 2), terms });
+        { now: ny("2026-12-07", 0, 2), terms });
 
       assert.equal(done.settled.kind, "keep");
       assert.equal(await creditBalance(stores, "host@x.com",
-        ny("2026-12-01")), 10_000);
+        ny("2026-12-08")), 10_000);
     });
 });
 
@@ -538,42 +538,42 @@ describe("a settlement that fails partway", () => {
     };
 
     await seed(stores, [
-      order("NFF-2611-R1AAAA", "a@x.com", 1000, "2026-11-15"),
-      order("NFF-2611-R2AAAA", "b@x.com", 100, "2026-11-29"),
+      order("NFF-2611-R1AAAA", "a@x.com", 1000, "2026-11-22"),
+      order("NFF-2611-R2AAAA", "b@x.com", 100, "2026-12-06"),
     ]);
     await setGroupHost(stores, "vff", "host@x.com");
 
-    const one = (await closeRound(stores, VFF, "2026-11-15",
-      { now: ny("2026-11-16"), terms })).round;
-    const next = (await closeRound(stores, VFF, "2026-11-29",
-      { now: ny("2026-11-30"), terms })).round;
+    const one = (await closeRound(stores, VFF, "2026-11-22",
+      { now: ny("2026-11-23"), terms })).round;
+    const next = (await closeRound(stores, VFF, "2026-12-06",
+      { now: ny("2026-12-07"), terms })).round;
 
     await assert.rejects(settleReward(stores, VFF, one, next,
-      { now: ny("2026-11-30", 0, 1), terms }), /Blobs down/);
+      { now: ny("2026-12-07", 0, 1), terms }), /Blobs down/);
 
-    const after = await getRound(stores, "vff", "2026-11-15");
+    const after = await getRound(stores, "vff", "2026-11-22");
 
     // Let go as the kind it failed as, for the next run to finish.
     assert.deepEqual([after.settled.failed, after.settled.kind],
       [true, "keep"]);
-    assert.equal(await creditBalance(stores, "host@x.com", ny("2026-12-01")),
+    assert.equal(await creditBalance(stores, "host@x.com", ny("2026-12-08")),
       0);
 
     const done = await settleReward(stores, VFF, after, next,
-      { now: ny("2026-11-30", 0, 2), terms });
+      { now: ny("2026-12-07", 0, 2), terms });
 
     assert.equal(done.settled.kind, "keep");
-    assert.equal(await creditBalance(stores, "host@x.com", ny("2026-12-01")),
+    assert.equal(await creditBalance(stores, "host@x.com", ny("2026-12-08")),
       10_000);
   });
 });
 
 describe("credit a lost submission spent", () => {
-  const from = { group: "vff", round: "2026-11-15", kind: "host" };
+  const from = { group: "vff", round: "2026-11-22", kind: "host" };
 
   it("goes back after a day, unless its order exists", async () => {
     const stores = testStores();
-    const t0 = ny("2026-11-30", 10);
+    const t0 = ny("2026-12-07", 10);
 
     await grantCredit(stores, "m@x.com", { amount: 3_000, from,
       now: t0, timeZone: tz });
@@ -583,15 +583,15 @@ describe("credit a lost submission spent", () => {
     await spendCredit(stores, "m@x.com", { orderId: "NFF-2611-REAL01",
       amount: 500, now: t0 });
     await seed(stores, [order("NFF-2611-REAL01", "m@x.com", 5,
-      "2026-12-13")]);
+      "2026-12-20")]);
     assert.equal(await creditBalance(stores, "m@x.com", t0), 1_500);
 
-    const soon = ny("2026-11-30", 20);
+    const soon = ny("2026-12-07", 20);
 
     assert.deepEqual(await sweepStrandedCredit(stores, { now: soon }), []);
     assert.equal(await creditBalance(stores, "m@x.com", soon), 1_500);
 
-    const later = ny("2026-12-01", 11);
+    const later = ny("2026-12-08", 11);
     const swept = await sweepStrandedCredit(stores, { now: later });
 
     assert.deepEqual(swept,
@@ -623,25 +623,25 @@ describe("a share that fails partway", () => {
     };
 
     await seed(stores, [
-      order("NFF-2611-R1AAAA", "a@x.com", 1000, "2026-11-15"),
-      order("NFF-2611-R2AAAA", "b@x.com", 100, "2026-11-29"),
-      order("NFF-2611-R2BBBB", "c@x.com", 900, "2026-11-29"),
+      order("NFF-2611-R1AAAA", "a@x.com", 1000, "2026-11-22"),
+      order("NFF-2611-R2AAAA", "b@x.com", 100, "2026-12-06"),
+      order("NFF-2611-R2BBBB", "c@x.com", 900, "2026-12-06"),
     ]);
     await setGroupHost(stores, "vff", "host@x.com");
 
-    await closeRound(stores, VFF, "2026-11-15", { now: ny("2026-11-16"),
+    await closeRound(stores, VFF, "2026-11-22", { now: ny("2026-11-23"),
       terms });
 
-    const next = (await closeRound(stores, VFF, "2026-11-29",
-      { now: ny("2026-11-30"), terms })).round;
-    const chosen = await chooseReward(stores, VFF, "2026-11-15", "share",
-      { now: ny("2026-11-17") });
+    const next = (await closeRound(stores, VFF, "2026-12-06",
+      { now: ny("2026-12-07"), terms })).round;
+    const chosen = await chooseReward(stores, VFF, "2026-11-22", "share",
+      { now: ny("2026-11-24") });
 
     await assert.rejects(settleReward(stores, VFF, chosen, next,
-      { now: ny("2026-11-30", 0, 1), terms }), /Blobs down/);
+      { now: ny("2026-12-07", 0, 1), terms }), /Blobs down/);
 
-    const failed = await getRound(stores, "vff", "2026-11-15");
-    const at = ny("2026-12-01");
+    const failed = await getRound(stores, "vff", "2026-11-22");
+    const at = ny("2026-12-08");
 
     assert.deepEqual([failed.settled.failed, failed.settled.kind],
       [true, "share"]);
@@ -649,24 +649,24 @@ describe("a share that fails partway", () => {
     assert.equal(await creditBalance(stores, "b@x.com", at), 0);
 
     // The farm's natural answer to the error: refused.
-    await assert.rejects(chooseReward(stores, VFF, "2026-11-15", "keep"),
+    await assert.rejects(chooseReward(stores, VFF, "2026-11-22", "keep"),
       /after a failure/);
 
     // The next run finishes the share: only the missing grant.
-    const run = await workRounds(stores, { now: ny("2026-11-30", 1), terms });
+    const run = await workRounds(stores, { now: ny("2026-12-07", 1), terms });
 
     assert.deepEqual(run.settled.map((s) => [s.round, s.kind, s.shares]),
-      [["2026-11-15", "share", 2]]);
+      [["2026-11-22", "share", 2]]);
     assert.equal(await creditBalance(stores, "b@x.com", at), 1_000);
     assert.equal(await creditBalance(stores, "c@x.com", at), 9_000);
     assert.equal(await creditBalance(stores, "host@x.com", at), 0);
 
-    const done = await getRound(stores, "vff", "2026-11-15");
+    const done = await getRound(stores, "vff", "2026-11-22");
 
     assert.equal(done.settled.kind, "share");
     assert.equal(done.settled.failed, undefined);
     assert.equal(done.settled.pending, undefined);
-    await assert.rejects(chooseReward(stores, VFF, "2026-11-15", "keep"),
+    await assert.rejects(chooseReward(stores, VFF, "2026-11-22", "keep"),
       /already shared out/);
   });
 });
@@ -676,7 +676,7 @@ describe("a share that fails partway", () => {
 // check after the GO, 6427420145).
 describe("the words of groups rounds", () => {
   const base = {
-    round: "2026-11-15", count: 3, net: 100_000, real: 100_000,
+    round: "2026-11-22", count: 3, net: 100_000, real: 100_000,
     threshold: 300,
     reward: { earned: true, amount: 10_000, leftover: 5 },
     choice: null, settled: null,
@@ -684,30 +684,30 @@ describe("the words of groups rounds", () => {
 
   it("say where the reward stands, failed included", () => {
     assert.equal(roundLine(base),
-      "2026-11-15  3 orders  net $1000  real $1000  reward $100 (+5¢ kept " +
+      "2026-11-22  3 orders  net $1000  real $1000  reward $100 (+5¢ kept " +
       "back)  awaiting the host's choice");
     assert.equal(settlementWords({ ...base,
       choice: { kind: "share", at: "x", by: "farm" } }),
     "share, not yet settled");
     assert.equal(settlementWords({ ...base,
-      settled: { pending: true, at: "2026-11-30T05:01:00.000Z",
+      settled: { pending: true, at: "2026-12-07T05:01:00.000Z",
         kind: "share" } }),
     "being shared out now");
     assert.equal(settlementWords({ ...base,
-      settled: { failed: true, kind: "share", at: "2026-11-30T05:01:00.000Z" },
-    }), "shared out partway, failed at 2026-11-30 05:01 UTC; the next jobs " +
+      settled: { failed: true, kind: "share", at: "2026-12-07T05:01:00.000Z" },
+    }), "shared out partway, failed at 2026-12-07 05:01 UTC; the next jobs " +
       "run finishes it");
     assert.equal(settlementWords({ ...base,
-      settled: { failed: true, kind: "keep", at: "2026-11-30T05:01:00.000Z" },
-    }), "credited partway, failed at 2026-11-30 05:01 UTC; the next jobs " +
+      settled: { failed: true, kind: "keep", at: "2026-12-07T05:01:00.000Z" },
+    }), "credited partway, failed at 2026-12-07 05:01 UTC; the next jobs " +
       "run finishes it");
     assert.equal(settlementWords({ ...base,
-      settled: { at: "x", kind: "share", by: "2026-11-29", chosen: true,
+      settled: { at: "x", kind: "share", by: "2026-12-06", chosen: true,
         shares: [{ email: "b", amount: 1000 }, { email: "c", amount: 9000 }],
         leftover: 0 } }),
     "shared among 2");
     assert.equal(settlementWords({ ...base,
-      settled: { at: "x", kind: "keep", by: "2026-11-29", chosen: false,
+      settled: { at: "x", kind: "keep", by: "2026-12-06", chosen: false,
         shares: [{ email: "host", amount: 9_900 }], leftover: 100 } }),
     "credited to 1, $1 kept back");
     assert.equal(settlementWords({ ...base,
@@ -718,12 +718,12 @@ describe("the words of groups rounds", () => {
     assert.equal(rewardWords({ ...base,
       reward: { earned: false, amount: 0, leftover: 0 } }),
     "no reward (under $300)");
-    assert.equal(rewardWords({ ...base, rolledTo: "2026-11-29",
+    assert.equal(rewardWords({ ...base, rolledTo: "2026-12-06",
       moved: ["A", "B"], stuck: [], reward: { earned: false, amount: 0,
         leftover: 0, rolled: true } }),
-    "rolled to 2026-11-29 (2 orders moved)");
-    assert.equal(rewardWords({ ...base, rolledTo: "2026-11-29",
+    "rolled to 2026-12-06 (2 orders moved)");
+    assert.equal(rewardWords({ ...base, rolledTo: "2026-12-06",
       moved: ["A"], stuck: [{ id: "B" }] }),
-    "rolled to 2026-11-29 (1 order moved, 1 stuck)");
+    "rolled to 2026-12-06 (1 order moved, 1 stuck)");
   });
 });

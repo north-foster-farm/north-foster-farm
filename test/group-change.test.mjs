@@ -80,13 +80,13 @@ describe("the group a change is offered by", () => {
   });
 
   it("retags with the round after the new day", () => {
-    const tagged = dropOrder({ key: "vff", round: "2026-11-15",
+    const tagged = dropOrder({ key: "vff", round: "2026-11-22",
       viaCode: true });
 
-    assert.deepEqual(retag(tagged, VFF, terms, "2026-11-17"),
-      { key: "vff", round: "2026-11-29", viaCode: true });
+    assert.deepEqual(retag(tagged, VFF, terms, "2026-11-24"),
+      { key: "vff", round: "2026-12-06", viaCode: true });
     assert.deepEqual(retag(dropOrder(), VFF, terms, "2026-11-07"),
-      { key: "vff", round: "2026-11-15", viaCode: false });
+      { key: "vff", round: "2026-11-22", viaCode: false });
     assert.equal(retag(dropOrder(), null, terms, "2026-11-07"), null);
     assert.deepEqual(retag(tagged, null, terms, "2026-11-07"), tagged.group);
   });
@@ -95,7 +95,7 @@ describe("the group a change is offered by", () => {
 describe("moving a pickup to the group's round", () => {
   it("is refused to anyone else, and offered to a member", () => {
     const order = dropOrder();
-    const to = { method: "scheduled", occurrence: "36TS-261115" };
+    const to = { method: "scheduled", occurrence: "36TS-261122" };
     const refused = planChange(order, to, { now, env });
 
     assert.equal(refused.errors.occurrence, "That pickup isn't available.");
@@ -103,28 +103,28 @@ describe("moving a pickup to the group's round", () => {
     const moved = planChange(order, to, { now, env, member: VFF });
 
     assert.equal(moved.errors, undefined);
-    assert.equal(moved.patch.fulfilment.occurrence, "36TS-261115");
-    assert.equal(moved.patch.fulfilment.date, "2026-11-15");
+    assert.equal(moved.patch.fulfilment.occurrence, "36TS-261122");
+    assert.equal(moved.patch.fulfilment.date, "2026-11-22");
     assert.deepEqual(moved.patch.group,
-      { key: "vff", round: "2026-11-15", viaCode: false });
+      { key: "vff", round: "2026-11-22", viaCode: false });
   });
 
   it("keeps a tagged order's tag, its round following the day", () => {
-    const order = { ...dropOrder({ key: "vff", round: "2026-11-15",
+    const order = { ...dropOrder({ key: "vff", round: "2026-11-22",
       viaCode: true }), fulfilment: { method: "scheduled",
-      occurrence: "VFVQ-261114", date: "2026-11-14", onfarm: null,
+      occurrence: "VFVQ-261121", date: "2026-11-21", onfarm: null,
       delivery: null, state: "agreed" } };
-    // On Monday the 9th, the group's order on the 14th moves to the drop
-    // site on the 21st, past the first round: still the group's, in the
+    // On Monday the 16th, the group's order on the 21st moves to the drop
+    // site on the 28th, past the first round: still the group's, in the
     // round after.
-    const later = ny("2026-11-09");
+    const later = ny("2026-11-16");
     const moved = planChange(order, {
-      method: "scheduled", occurrence: "VFVQ-261121",
+      method: "scheduled", occurrence: "VFVQ-261128",
     }, { now: later, env });
 
     assert.equal(moved.errors, undefined);
     assert.deepEqual(moved.patch.group,
-      { key: "vff", round: "2026-11-29", viaCode: true });
+      { key: "vff", round: "2026-12-06", viaCode: true });
 
     // The same day again changes nothing of the tag.
     const notes = planChange(order, { notes: "ring twice" },
@@ -142,7 +142,7 @@ describe("moving a pickup to the group's round", () => {
     // The session's customer is the record, with its membership.
     const r = await changeOrder(stores, await getCustomer(stores,
       customer.email), order.id, {
-      method: "scheduled", occurrence: "36TS-261115",
+      method: "scheduled", occurrence: "36TS-261122",
     }, { now, env, mail: async () => ({}),
       square: { updateFulfillment: async () => ({}) } });
 
@@ -150,9 +150,9 @@ describe("moving a pickup to the group's round", () => {
 
     const saved = await getOrder(stores, order.id);
 
-    assert.equal(saved.fulfilment.occurrence, "36TS-261115");
+    assert.equal(saved.fulfilment.occurrence, "36TS-261122");
     assert.deepEqual(saved.group,
-      { key: "vff", round: "2026-11-15", viaCode: false });
+      { key: "vff", round: "2026-11-22", viaCode: false });
   });
 });
 
@@ -166,15 +166,15 @@ describe("changing a member's items", () => {
     const stores = await member(testStores());
     const order = dropOrder();
     const planned = await plan(stores, order, {
-      fulfilment: { method: "scheduled", occurrence: "36TS-261115" },
+      fulfilment: { method: "scheduled", occurrence: "36TS-261122" },
       lines: [{ sku: SKU, qty: 3 }],
       claimedTotal: 8500,
     });
 
     assert.equal(planned.ok, true, JSON.stringify(planned.errors));
-    assert.equal(planned.next.fulfilment.occurrence, "36TS-261115");
+    assert.equal(planned.next.fulfilment.occurrence, "36TS-261122");
     assert.deepEqual(planned.next.group,
-      { key: "vff", round: "2026-11-15", viaCode: false });
+      { key: "vff", round: "2026-11-22", viaCode: false });
     assert.equal(planned.change.difference, 3000);
   });
 
@@ -183,7 +183,7 @@ describe("changing a member's items", () => {
       const stores = testStores();
       const order = dropOrder();
       const planned = await plan(stores, order, {
-        fulfilment: { method: "scheduled", occurrence: "36TS-261115" },
+        fulfilment: { method: "scheduled", occurrence: "36TS-261122" },
         lines: [{ sku: SKU, qty: 3 }],
         claimedTotal: 8500,
       });
