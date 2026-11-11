@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
-import { checkPosts, urlize, urlOf } from "../bin/check-news.mjs";
+import {
+  checkBuilt, checkPosts, published, urlize, urlOf,
+} from "../bin/check-news.mjs";
 
 const post = (file, front) => ({ file, text: `---\n${front}\n---\n\nBody.\n` });
 
@@ -44,6 +46,53 @@ describe("news post URLs", () => {
     ]);
     assert.equal(errors.length, 1);
     assert.match(errors[0], /share the URL \/news\/fall-update\//);
+  });
+
+  // 2026-11-11 15:00 in New York.
+  const now = new Date("2026-11-11T20:00:00Z");
+  const out = (front) =>
+    published(post("a.md", `title: "A"\n${front}`).text, now);
+
+  it("counts a dated post as published once its day comes", () => {
+    assert.equal(out("date: 2026-11-11"), true);
+    assert.equal(out("date: 2026-11-11T09:00:00"), true);
+    assert.equal(out("slug: a"), true);
+  });
+
+  it("skips a draft, which a production build leaves out", () => {
+    assert.equal(out("date: 2026-11-01\ndraft: true"), false);
+    assert.equal(out("date: 2026-11-01\ndraft: false"), true);
+  });
+
+  it("skips a post dated in the future", () => {
+    assert.equal(out("date: 2026-11-16"), false);
+    assert.equal(out("date: 2026-11-11T18:00:00"), false);
+    assert.equal(out("date: 2026-11-11T21:00:00Z"), false);
+    assert.equal(out("date: 2026-11-01\npublishDate: 2026-11-12"), false);
+  });
+
+  it("skips an expired post", () => {
+    assert.equal(out("date: 2026-11-01\nexpiryDate: 2026-11-10"), false);
+    assert.equal(out("date: 2026-11-01\nexpiryDate: 2026-11-12"), true);
+  });
+
+  it("holds only the posts a production build publishes to it", () => {
+    const posts = [
+      post("live.md", 'title: "Live"\ndate: 2026-11-01'),
+      post("gone.md", 'title: "Gone"\ndate: 2026-11-01'),
+      post("draft.md", 'title: "Draft"\ndate: 2026-11-01\ndraft: true'),
+      post("later.md", 'title: "Later"\ndate: 2026-11-16'),
+    ];
+    assert.deepEqual(checkBuilt(posts, "public",
+      (url) => url === "/news/live/", now), ["/news/gone/ is not in public/"]);
+  });
+
+  it("still holds drafts to their own title and URL", () => {
+    const errors = checkPosts([
+      post("a.md", 'title: "Fall Update"'),
+      post("b.md", 'title: "Fall Update"\ndraft: true'),
+    ]);
+    assert.equal(errors.length, 2);
   });
 
   it("holds the real posts to it", () => {
