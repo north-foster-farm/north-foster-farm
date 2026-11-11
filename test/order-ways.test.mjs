@@ -66,8 +66,13 @@ describe("order page Pickup or delivery cards", { skip: !hasHugo }, () => {
         const dds = [...facts.matchAll(/<dd[^>]*>([\s\S]*?)<\/dd>/g)]
           .map((m) => text(m[1]));
 
+        const title = card.match(
+          /<span ([^>]*order-method-title[^>]*)>([\s\S]*?)<\/span>/);
+
         return {
-          title: text(card.match(/order-method-title"?>([\s\S]*?)<\/span>/)[1]),
+          title: text(title[2]),
+          titleId: (title[1].match(/id="?([^" >]+)/) || [])[1],
+          radio: card.match(/<input [^>]*name="?method"?[^>]*>/)[0],
           facts: Object.fromEntries(dts.map((dt, i) => [dt, dds[i]])),
           links: [...facts.matchAll(/<a [^>]*>/g)].map((m) => m[0]),
           anchors: [...facts.matchAll(/<a [\s\S]*?<\/a>/g)]
@@ -144,6 +149,21 @@ describe("order page Pickup or delivery cards", { skip: !hasHugo }, () => {
       assert.match(svg[0], /aria-hidden="?true"?/);
       for (const path of paths) assert.ok(svg[0].includes(path), c.title);
       assert.doesNotMatch(anchor, /↗/);
+      // Nothing between the icon and what follows it, so no space
+      // shows before the ")" (the file's last newline is trimmed).
+      assert.match(anchor, /<\/svg>(<span|<\/a>)/, c.title);
+    }
+  });
+
+  // Each radio is named by its title alone, not the whole label with
+  // its facts and "map (opens in a new tab)" (#534).
+  it("names each radio by its card's title", () => {
+    for (const c of cards) {
+      const by = c.radio.match(/aria-labelledby="?([^" >]+)/);
+
+      assert.ok(by, c.title);
+      assert.ok(c.titleId, c.title);
+      assert.equal(by[1], c.titleId, c.title);
     }
   });
 });

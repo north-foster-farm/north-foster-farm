@@ -88,8 +88,9 @@ export const locationCount = (choices) => new Set(
 export const locationsLabel = (count) => `${count} location${
   count === 1 ? "" : "s"}`;
 
-// The Where line of the Pickup days card, on the home page and the order
-// page (James, 2026-10-26): with one location, its short address, which
+// The Where line of the home page's Pickup days card (James,
+// 2026-10-26; the order page's card has its own since #534, a count
+// and a "(map)" link): with one location, its short address, which
 // data/locations.json holds; with several, how many, as a link to the
 // map; with none open, `built`, the drop site the page was built with.
 // -> { text, link }, where `link` says the text is the map link.

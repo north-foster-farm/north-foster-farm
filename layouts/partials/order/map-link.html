@@ -3,6 +3,7 @@
      way. The string is the hash, without "#": "map" for the Delivery
      layer, "places" for the Places list, "place-<slug>" for one
      place's card (map.js follow). Tabler's external-link icon follows
-     "map", sized to the text. */ -}}
-(<a class="order-method-map" href="{{ relURL "" }}#{{ . }}" target="_blank" rel="noopener" data-map-link="{{ . }}">map{{ partial "svg.html" (dict "src" "icons/external-link" "class" "order-method-map-icon" "aria-hidden" "true") }}<span class="visually-hidden"> (opens in a new tab)</span></a>)
+     "map", sized to the text, trimmed of the file's last newline so no
+     space falls between it and ")". */ -}}
+(<a class="order-method-map" href="{{ relURL "" }}#{{ . }}" target="_blank" rel="noopener" data-map-link="{{ . }}">map{{ partial "svg.html" (dict "src" "icons/external-link" "class" "order-method-map-icon" "aria-hidden" "true") | strings.TrimSpace | safeHTML }}<span class="visually-hidden"> (opens in a new tab)</span></a>)
 {{- /* No trailing newline. */ -}}

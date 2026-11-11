@@ -103,7 +103,7 @@ const wireWays = async (card) => {
   if (!places.length) return;
 
   // One location keeps the card as it reads, its place and address;
-  // several are one link (whereLine, the order page's rule).
+  // several are one link (whereLine).
   const line = whereLine(scheduled);
 
   if (line.link) {
