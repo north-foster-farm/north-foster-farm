@@ -70,6 +70,18 @@
       "lat": 41.76519,
       "lng": -71.39709,
       "private": true
+    },
+    {
+      "code": "P7KX",
+      "name": "Jordan's Jungle",
+      "street": "545 Pawtucket Ave",
+      "city": "Pawtucket",
+      "state": "RI",
+      "zip": "02860",
+      "town": "Pawtucket",
+      "short": "Jordan's Jungle, Pawtucket",
+      "lat": 41.864,
+      "lng": -71.382
     }
   ]
 }

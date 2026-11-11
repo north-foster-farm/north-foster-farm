@@ -145,6 +145,61 @@
       "opens": "08:30",
       "closes": "09:00",
       "group": "vff"
+    },
+    {
+      "code": "H3TQ",
+      "kind": "market",
+      "name": "Pawtucket Farmers Market",
+      "location": "P7KX",
+      "start": "2026-11-10",
+      "end": "2027-04-27",
+      "opens": "12:00",
+      "closes": "16:00",
+      "instagram": "pawtucketfarmersmarket"
+    },
+    {
+      "code": "W9MF",
+      "kind": "pop-up",
+      "name": "Thanksgiving Prep",
+      "location": "P7KX",
+      "start": "2026-11-21",
+      "end": "2026-11-21",
+      "opens": "12:00",
+      "closes": "17:00",
+      "instagram": "pawtucketfarmersmarket"
+    },
+    {
+      "code": "C4ZR",
+      "kind": "pop-up",
+      "name": "Breaking Out of Hermit Mode",
+      "location": "P7KX",
+      "start": "2027-01-16",
+      "end": "2027-01-16",
+      "opens": "12:00",
+      "closes": "17:00",
+      "instagram": "pawtucketfarmersmarket"
+    },
+    {
+      "code": "E8NJ",
+      "kind": "pop-up",
+      "name": "Easter Market",
+      "location": "P7KX",
+      "start": "2027-03-27",
+      "end": "2027-03-27",
+      "opens": "12:00",
+      "closes": "17:00",
+      "instagram": "pawtucketfarmersmarket"
+    },
+    {
+      "code": "K2VB",
+      "kind": "pop-up",
+      "name": "Earth Day Cleanup & Eco Fair",
+      "location": "P7KX",
+      "start": "2027-04-17",
+      "end": "2027-04-17",
+      "opens": "12:00",
+      "closes": "17:00",
+      "instagram": "pawtucketfarmersmarket"
     }
   ]
 }

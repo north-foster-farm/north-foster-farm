@@ -83,7 +83,7 @@ describe("codes", () => {
     });
 
     assert.deepEqual(errors, []);
-    assert.equal(registry.codes.length, 18);
+    assert.equal(registry.codes.length, 24, "Pawtucket added 6 (#544)");
   });
 });
 

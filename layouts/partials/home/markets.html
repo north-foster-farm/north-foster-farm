@@ -28,7 +28,14 @@
             {{ partial "svg.html" "icons/sign" }}
           </span>
           <h3 class="place-name">
-            <a href="{{ .href }}" target="_blank" rel="noopener" title="{{ .name }} website">{{ .name }}</a>
+            {{- /* A market with no website links its Instagram. */ -}}
+            {{ if .href }}
+              <a href="{{ .href }}" target="_blank" rel="noopener" title="{{ .name }} website">{{ .name }}</a>
+            {{ else if .instagram }}
+              <a href="https://www.instagram.com/{{ .instagram }}/" target="_blank" rel="noopener" title="{{ .name }} on Instagram">{{ .name }}</a>
+            {{ else }}
+              {{ .name }}
+            {{ end }}
           </h3>
           <p class="place-when">{{ .when }}</p>
           <p class="place-where">{{ with .venue }}<span class="place-line">{{ . }}</span>{{ end }}<span class="place-line">{{ .street }}, {{ .city }}, {{ .state }} {{ .zip }}</span></p>
