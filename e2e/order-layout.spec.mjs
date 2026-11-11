@@ -126,7 +126,8 @@ const XL = { width: 1440, height: 900 };
 
 // Walks the catalog down and back up in uneven steps and, at each
 // stop, compares the name in view with the category of the first row
-// showing under the bar (more than 8px of it).
+// showing under the bar: more than half of it, or more than 48px of a
+// tall one, and never 8px or less (lib/sections.mjs, #561).
 const walk = (page) => page.evaluate(async () => {
   const frames = () => new Promise((done) => requestAnimationFrame(
     () => requestAnimationFrame(done)
@@ -154,8 +155,11 @@ const walk = (page) => page.evaluate(async () => {
       .find((el) => el.offsetParent);
     const stuck = bar && bar.getBoundingClientRect().top <= 0.5;
     const edge = stuck ? bar.getBoundingClientRect().bottom : 0;
-    const row = rows.find((el) => el.getBoundingClientRect().bottom
-      > edge + 8);
+    const row = rows.find((el) => {
+      const r = el.getBoundingClientRect();
+
+      return r.bottom - edge > Math.max(8, Math.min(r.height / 2, 48));
+    });
 
     if (!row || row.getBoundingClientRect().top > innerHeight) continue;
     if (bar && !stuck) continue;

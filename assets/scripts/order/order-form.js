@@ -9,6 +9,7 @@ import { groupFromQuery, withPlaces } from "./lib/group.mjs";
 import { perkEffects } from "./lib/perks.mjs";
 import { bookedEntry } from "./lib/picker.mjs";
 import { linkedMethod, withoutParam } from "./lib/query.mjs";
+import { showing } from "./lib/sections.mjs";
 import { sentence } from "./lib/sentence.mjs";
 import { summarize } from "./lib/summary.mjs";
 import {
@@ -723,14 +724,16 @@ export class OrderForm {
       }
 
       // Within the catalog, the category is the one whose rows are
-      // under the bar: the first row still showing below its edge
-      // names it. A section's top crossing the line named it too late,
-      // after the gap above its heading, while the rows under the bar
-      // were already its own (#274).
+      // under the bar: the first row with more than a sliver showing
+      // below its edge names it. A section's top crossing the line
+      // named it too late, after the gap above its heading, while the
+      // rows under the bar were already its own (#274), and the last
+      // few pixels of a row kept its section named over the next
+      // one's heading and rows (#561).
       if (current && (current.hash === `#${catalog.id}`
         || cats.has(document.querySelector(current.hash)))) {
-        const row = rows.find((el) => el.getBoundingClientRect().bottom
-          > edge + 8);
+        const row = rows.find((el) => showing(el.getBoundingClientRect(),
+          edge));
 
         if (row && row.getBoundingClientRect().top < window.innerHeight) {
           current = cats.get(row.closest(".order-cat")) || current;
