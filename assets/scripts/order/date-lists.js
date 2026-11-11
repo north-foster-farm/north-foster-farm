@@ -3,7 +3,7 @@
 // visitor's wrong clock cannot offer a closed date.
 
 import { mergeScheduled } from "./lib/group.mjs";
-import { earliestCutoff } from "./lib/picker.mjs";
+import { earliestCutoff, stillOpen } from "./lib/picker.mjs";
 import { scheduledChoices } from "./lib/scheduled.mjs";
 import { dayName, weekday } from "./lib/zoned.mjs";
 import { PickupPicker } from "./pickup-picker.js";
@@ -135,6 +135,8 @@ export class DateLists {
 
   apply(data) {
     this.offset = Date.parse(data.now) - Date.now();
+    // A round that closed since /api/group gave it goes for good.
+    this.extra = stillOpen(this.extra, this.now().getTime());
     this.lists = {
       ...data,
       scheduled: this.scheduled(mergeScheduled(data.scheduled, this.extra)),
@@ -177,7 +179,7 @@ export class DateLists {
   setExtra(entries) {
     const gone = new Set(this.extra.map((e) => e.occurrence));
 
-    this.extra = entries;
+    this.extra = stillOpen(entries, this.now().getTime());
     if (!this.lists) return;
 
     const base = this.lists.scheduled.filter((d) => !gone.has(d.occurrence));

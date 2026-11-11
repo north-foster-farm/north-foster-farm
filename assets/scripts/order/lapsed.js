@@ -4,6 +4,7 @@
 // now. It pays nothing: "Use this" puts the choice on the form and the
 // customer pays again with the same button. Draft wording.
 
+import { CHOOSE } from "./lib/picker.mjs";
 import { PickupPicker } from "./pickup-picker.js";
 
 // Keyed by the form's way: `scheduled` is scheduled pickup, the drop site
@@ -65,8 +66,11 @@ export class Lapsed {
       if (this.method === "scheduled") {
         const value = this.picker.value();
 
+        // None yet (the first day has two pickups): the note says so,
+        // and the live region speaks it as the focus goes to the strip.
         if (!value) {
-          this.picker.focus();
+          this.picker.setNote(CHOOSE);
+          this.picker.ask(CHOOSE);
 
           return;
         }

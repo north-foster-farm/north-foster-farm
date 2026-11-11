@@ -778,7 +778,10 @@ pickup-day picker (#540: `order/pickup-picker.js`, its logic in
 `order/lib/picker.mjs`, its markup in
 `partials/order/pickup-picker.html`). The lists also refresh at the
 earliest scheduled cutoff, so a pickup leaves the picker as it
-closes (`date-lists.js` `watchClosing`). The page asks `/api/dates` once more before a card,
+closes (`date-lists.js` `watchClosing`). A buying group's round,
+which comes once from `/api/group`, is dropped at its own cutoff
+(`stillOpen`), so a closed round never holds the timer at the past.
+The page asks `/api/dates` once more before a card,
 wallet or Venmo payment goes out, so the dialog usually comes before
 a wallet opens. A Venmo payment the jobs finish after its time left
 the schedule stands, and alerts the farm (`pickup.lapsed`).

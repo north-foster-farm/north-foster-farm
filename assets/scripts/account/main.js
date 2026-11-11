@@ -5,7 +5,7 @@
 
 import { mergeScheduled } from "../order/lib/group.mjs";
 import { perkSentence } from "../order/lib/perks.mjs";
-import { bookedEntry } from "../order/lib/picker.mjs";
+import { CHOOSE, bookedEntry } from "../order/lib/picker.mjs";
 import { scheduledChoices } from "../order/lib/scheduled.mjs";
 import { PickupPicker } from "../order/pickup-picker.js";
 import { pickupTimes, windowLabel } from "../order/lib/schedule.mjs";
@@ -1465,7 +1465,12 @@ class Account {
     // booked "As booked" once it is no longer open. The others choose
     // a date.
     const picker = scheduled
-      ? new PickupPicker(qs(form, "[data-picker]")) : null;
+      ? new PickupPicker(qs(form, "[data-picker]"), {
+        // A choice made clears the "Choose a pickup" error.
+        onChange: () => {
+          if (picker.value()) this.clearErrors(form);
+        },
+      }) : null;
 
     qs(form, "[data-day-select]").hidden = scheduled;
     qs(form, "[data-scheduled-picker]").hidden = !scheduled;
@@ -1524,6 +1529,15 @@ class Account {
       if (scheduled) {
         body.method = "scheduled";
         body.occurrence = picker.value();
+        // A day with two pickups and neither chosen: asked here, as the
+        // order page does, where the server would say the pickup isn't
+        // available.
+        if (!body.occurrence) {
+          this.showErrors(form, { occurrence: CHOOSE }, { focus: false });
+          picker.ask(CHOOSE);
+
+          return;
+        }
       } else {
         body.date = select.value;
       }

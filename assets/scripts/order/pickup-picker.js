@@ -12,8 +12,9 @@
 // body, drafts and the error anchor don't change).
 
 import {
-  NONE, availability, chosenText, dayLabel, detailsOf, onePlace, pagedText,
-  pagerLabel, pickerWeeks, resolveChoice, weekIndex, weekTitle, withBooked,
+  NONE, availability, chosenText, dayLabel, detailsOf, keptNote, onePlace,
+  pagedText, pagerLabel, pickerWeeks, resolveChoice, weekIndex, weekTitle,
+  withBooked,
 } from "./lib/picker.mjs";
 import { label, today } from "./lib/zoned.mjs";
 
@@ -114,8 +115,9 @@ export class PickupPicker {
   render(list, {
     want = "", series = "", booked = null, quiet = false, now = new Date(),
   } = {}) {
+    const before = this.value();
     const pick = resolveChoice({
-      list, current: this.value(), want, series, booked, quiet,
+      list, current: before, want, series, booked, quiet,
     });
 
     this.today = today(now, this.timeZone);
@@ -135,7 +137,9 @@ export class PickupPicker {
     // still has a pickup.
     this.day = chosen ? chosen.date : open(this.day) ? this.day : "";
     this.week = weekIndex(this.weeks, this.day);
-    this.setNote(pick.note);
+    this.setNote(keptNote({
+      pick, before, shown: this.note.textContent, some,
+    }));
     if (some) this.draw();
   }
 
@@ -257,7 +261,11 @@ export class PickupPicker {
     const on = qs(this.group, "input:checked");
     const entries = this.list.filter((d) => d.date === date);
 
-    if (on && this.entry(on.value).date !== date) on.checked = false;
+    if (on && this.entry(on.value).date !== date) {
+      // A note about the pickup let go no longer holds.
+      on.checked = false;
+      this.setNote("");
+    }
     this.day = date;
     if (entries.length === 1) {
       this.check(entries[0].value);
@@ -323,6 +331,7 @@ export class PickupPicker {
   reset() {
     this.group.textContent = "";
     this.day = "";
+    this.setNote("");
   }
 
   // The first day the strip offers, chosen as a customer would: the
@@ -333,6 +342,15 @@ export class PickupPicker {
 
     if (day && !this.day) this.chooseDay(day.date);
     if (this.day) this.draw();
+  }
+
+  // Asked for a pickup while none is chosen (the lapsed dialog's "Use
+  // this", the account's Save changes): the focus goes to the strip and
+  // the live region says why, which the move alone would not.
+  ask(text) {
+    this.say(text);
+
+    return this.focus();
   }
 
   // Where the focus goes when the picker opens in a dialog or panel:

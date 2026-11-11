@@ -35,6 +35,9 @@ const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
 export const CLOSED = "That pickup is no longer available. " +
   "Please choose another.";
 export const NONE = "No pickup days are open right now.";
+// The order page's error for no pickup chosen (lib/validate.mjs), also
+// the account's Change pickup's and the lapsed dialog's.
+export const CHOOSE = "Choose a pickup day and place.";
 
 // The Sunday that starts the week a day is in.
 export const weekStart = (iso) => addDays(iso, -weekday(iso));
@@ -272,6 +275,29 @@ export const earliestCutoff = (list) => {
     .filter(Number.isFinite);
 
   return times.length ? Math.min(...times) : null;
+};
+
+// The entries still open at `now` (epoch milliseconds): those whose
+// cutoff is later, and those with none. A buying group's rounds come
+// once from /api/group and are joined to every list after, so a round
+// that closes with the page open is dropped here; kept, its passed
+// cutoff would stay the earliest and the lists would refresh about
+// once a second (#540).
+export const stillOpen = (list, now) => (list || []).filter((d) => {
+  const at = Date.parse(d.cutoff);
+
+  return !Number.isFinite(at) || at > now;
+});
+
+// The note to show after a list is drawn again. A refresh (the cutoff
+// timer, a retry) brings no draft or link, so the note that said why
+// nothing, or another pickup, is chosen would be lost: it stays while
+// the choice is the one it was about and the list has pickups. `shown`
+// is the note on the picker before, `before` the choice then.
+export const keptNote = ({ pick, before, shown, some }) => {
+  if (pick.note) return pick.note;
+
+  return some && pick.value === before ? shown : "";
 };
 
 // Whether every pickup is at one place, so the cards leave the place

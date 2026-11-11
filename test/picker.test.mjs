@@ -9,9 +9,9 @@ import { afterEach, describe, it, mock } from "node:test";
 import { DateLists } from "../assets/scripts/order/date-lists.js";
 import {
   CLOSED, addressOf, availability, bookedEntry, chosenText, dayLabel,
-  detailsOf, earliestCutoff, movedNote, occurrenceDate, onePlace, orderBy,
-  pagedText, pagerLabel, pickerWeeks, rangeText, resolveChoice, weekIndex,
-  weekName, weekStart, weekTitle, withBooked,
+  detailsOf, earliestCutoff, keptNote, movedNote, occurrenceDate, onePlace,
+  orderBy, pagedText, pagerLabel, pickerWeeks, rangeText, resolveChoice,
+  stillOpen, weekIndex, weekName, weekStart, weekTitle, withBooked,
 } from "../assets/scripts/order/lib/picker.mjs";
 import { scheduledChoices } from "../assets/scripts/order/lib/scheduled.mjs";
 
@@ -331,5 +331,87 @@ describe("the refresh at the earliest cutoff (date-lists.js tick)", () => {
     assert.equal(lists.refresh.mock.callCount(), 0, "not before it closes");
     mock.timers.tick(1000);
     assert.equal(lists.refresh.mock.callCount(), 1);
+  });
+
+  it("keeps the entries still open, and those with no cutoff", () => {
+    const now = Date.parse(drop.cutoff);
+
+    assert.deepEqual(stillOpen(LIST, now).map((d) => d.value),
+      LIST.slice(1).map((d) => d.value), "closes at its cutoff");
+    assert.deepEqual(stillOpen([{ cutoff: "" }], now), [{ cutoff: "" }]);
+    assert.deepEqual(stillOpen(null, now), []);
+  });
+
+  // A group's round that closes with the page open: kept in `extra`,
+  // its passed cutoff stayed the earliest and the lists refreshed
+  // about once a second (#540 review).
+  it("drops a group's round once it closes, so it refreshes once", () => {
+    const at = Date.parse("2026-11-13T12:00:00Z");
+
+    mock.timers.enable({ apis: ["setTimeout", "Date"], now: at });
+
+    const form = { querySelector: () => null, querySelectorAll: () => [] };
+    const lists = new DateLists(form, () => {});
+    const round = { ...popup, occurrence: "R0ND-261113",
+      value: "R0ND-261113", cutoff: "2026-11-13T11:59:00.000Z" };
+    const server = LIST.slice(1);
+
+    lists.extra = [round];
+    lists.refresh = mock.fn(async () => true);
+    lists.apply({ now: new Date(at).toISOString(), scheduled: server,
+      delivery: [] });
+
+    assert.deepEqual(lists.extra, []);
+    assert.ok(!lists.lists.scheduled.some((d) => d.value === round.value));
+
+    mock.timers.tick(60_000);
+    assert.equal(lists.refresh.mock.callCount(), 0,
+      "no refresh for the round that has closed");
+    mock.timers.tick(Date.parse(foster.cutoff) - Date.now() + 1000);
+    assert.equal(lists.refresh.mock.callCount(), 1,
+      "one at the next pickup's cutoff");
+  });
+
+  it("joins only open rounds when a group's code is accepted", () => {
+    const at = Date.parse("2026-11-13T12:00:00Z");
+
+    mock.timers.enable({ apis: ["setTimeout", "Date"], now: at });
+
+    const lists = new DateLists({
+      querySelector: () => null, querySelectorAll: () => [],
+    }, () => {});
+    const closed = { ...popup, occurrence: "R0ND-261113",
+      cutoff: "2026-11-13T11:59:00.000Z" };
+
+    lists.setExtra([closed, popup]);
+    assert.deepEqual(lists.extra, [popup]);
+  });
+});
+
+describe("the note across a refresh", () => {
+  const pick = (value, note = "") => ({ value, note, booked: false });
+
+  it("keeps the closed note while nothing is chosen", () => {
+    assert.equal(keptNote({ pick: pick(""), before: "", shown: CLOSED,
+      some: true }), CLOSED);
+  });
+
+  it("keeps the moved note while its pickup stays chosen", () => {
+    const moved = movedNote("VFVQ-261114", drop21);
+
+    assert.equal(keptNote({ pick: pick(drop21.value), before: drop21.value,
+      shown: moved, some: true }), moved);
+  });
+
+  it("drops it once the choice differs or the list is empty", () => {
+    assert.equal(keptNote({ pick: pick(""), before: drop21.value,
+      shown: CLOSED, some: true }), "");
+    assert.equal(keptNote({ pick: pick(""), before: "", shown: CLOSED,
+      some: false }), "");
+  });
+
+  it("takes a new note over the one shown", () => {
+    assert.equal(keptNote({ pick: pick("", CLOSED), before: drop21.value,
+      shown: "Old", some: true }), CLOSED);
   });
 });
