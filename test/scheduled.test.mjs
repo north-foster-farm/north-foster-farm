@@ -24,11 +24,9 @@ describe("a scheduled choice", () => {
     assert.equal(scheduledChoice(foster).value, "WAC5-261101");
   });
 
-  it("reads date, place, town and the window as the server prints it", () => {
-    assert.equal(
-      scheduledChoice(drop).text,
-      "Saturday, October 24: Drop site, North Scituate, 10:00 – 11:00 AM"
-    );
+  it("keeps the entry's own facts for the picker", () => {
+    assert.equal(scheduledChoice(drop).window, "10:00 – 11:00 AM");
+    assert.equal(scheduledChoice(drop).town, "North Scituate");
   });
 });
 

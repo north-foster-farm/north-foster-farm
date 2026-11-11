@@ -11,6 +11,10 @@
       <legend class="visually-hidden" data-lapsed-legend></legend>
       <div class="order-lapsed-list" data-lapsed-list></div>
     </fieldset>
+    {{/* A scheduled pickup's choices: the order page's picker (#540). */}}
+    <div class="order-lapsed-picker" data-lapsed-picker hidden>
+      {{ partial "order/pickup-picker.html" (dict "name" "lapsed-pickup" "stack" true) }}
+    </div>
     <div class="order-lapsed-actions">
       <button type="button" class="btn btn-primary" data-lapsed-use></button>
       <button type="button" class="btn btn-link order-lapsed-link" data-lapsed-other></button>

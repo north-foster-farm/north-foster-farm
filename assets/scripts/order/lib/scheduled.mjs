@@ -4,15 +4,12 @@
 // `scheduled`; a choice is an occurrence id ("K4Q7-261101"), the
 // series' code and the date, and it is the picker's option value.
 
-// An entry of /api/dates' `scheduled`, ready for a picker: its `value`
-// and its `text`, date then place then window, the window as the
-// server prints it ("Saturday, October 24: Drop site, North Scituate,
-// 10:00 – 11:00 AM").
+// An entry of /api/dates' `scheduled`, ready for the picker
+// (pickup-picker.js): its `value`, the occurrence id. The lapsed
+// dialog's one-line `text` went with its list (#540).
 export const scheduledChoice = (entry) => ({
   ...entry,
   value: entry.occurrence,
-  text: `${entry.label}: ${[entry.name, entry.town, entry.window]
-    .filter(Boolean).join(", ")}`,
 });
 
 export const scheduledChoices = (list) => (list || []).map(scheduledChoice);

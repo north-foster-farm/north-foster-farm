@@ -4,6 +4,8 @@
 // now. It pays nothing: "Use this" puts the choice on the form and the
 // customer pays again with the same button. Draft wording.
 
+import { PickupPicker } from "./pickup-picker.js";
+
 // Keyed by the form's way: `scheduled` is scheduled pickup, the drop site
 // and every market or pop-up in one list.
 const NOUN = {
@@ -31,7 +33,9 @@ const USE = {
 };
 
 export class Lapsed {
-  constructor(dialog, { onUse, onOther }) {
+  // `locate(entry)` gives a pickup's location for the picker's details
+  // panel, as on the form.
+  constructor(dialog, { onUse, onOther, locate = () => null }) {
     this.dialog = dialog;
     this.onUse = onUse;
     this.onOther = onOther;
@@ -50,17 +54,33 @@ export class Lapsed {
     this.use = q("[data-lapsed-use]");
     this.other = q("[data-lapsed-other]");
     this.never = q("[data-lapsed-never]");
+    // A scheduled pickup is chosen on the form's own picker (#540).
+    this.pickerBox = q("[data-lapsed-picker]");
+    this.picker = new PickupPicker(q("[data-picker]"), { locate });
 
     this.use.addEventListener("click", () => {
+      // A scheduled pickup's value is its occurrence id, which the
+      // form's picker takes whole; an on-farm time's is its date and
+      // window.
+      if (this.method === "scheduled") {
+        const value = this.picker.value();
+
+        if (!value) {
+          this.picker.focus();
+
+          return;
+        }
+        this.close();
+        this.onUse({ method: this.method, date: value, window: null });
+
+        return;
+      }
+
       const picked = this.list.querySelector("input:checked");
 
       if (!picked) return;
 
-      // A scheduled pickup's value is its occurrence id, which the
-      // form's picker takes whole; an on-farm time's is its date and
-      // window.
-      const [date, window] = this.method === "scheduled"
-        ? [picked.value] : picked.value.split("|");
+      const [date, window] = picked.value.split("|");
 
       this.close();
       this.onUse({ method: this.method, date, window: window || null });
@@ -79,19 +99,19 @@ export class Lapsed {
 
   // `dates` is the fresh list for `method`, a way of the form, as
   // /api/dates gives it: for on-farm pickup, each day with its windows;
-  // for scheduled pickup, its choices (lib/scheduled.mjs). `returnTo` gets
-  // the focus back on "Never mind".
-  open(method, dates, returnTo) {
+  // for scheduled pickup, its choices (lib/scheduled.mjs), shown on the
+  // picker. `returnTo` gets the focus back on "Never mind"; `now` is the
+  // server's clock, for the picker's week titles.
+  open(method, dates, returnTo, now = new Date()) {
     if (!this.dialog) return;
 
-    const choices = method === "onfarm"
+    const scheduled = method === "scheduled";
+    const choices = scheduled ? [] : method === "onfarm"
       ? dates.flatMap((d) => (d.windows || []).map((w) => ({
         value: `${d.date}|${w.id}`, text: `${d.label}, ${w.label}`,
       })))
-      : dates.map((d) => ({
-        value: d.value || d.date, text: d.text || d.label,
-      }));
-    const some = choices.length > 0;
+      : dates.map((d) => ({ value: d.date, text: d.label }));
+    const some = (scheduled ? dates : choices).length > 0;
 
     this.method = method;
     this.returnTo = returnTo || document.activeElement;
@@ -119,7 +139,15 @@ export class Lapsed {
       label.textContent = choice.text;
       this.list.appendChild(node);
     });
-    this.choices.hidden = !some;
+    this.choices.hidden = !some || scheduled;
+    this.pickerBox.hidden = !some || !scheduled;
+    if (scheduled && some) {
+      // Nothing carried over from the last time it opened: the first
+      // open day, which chooses its pickup when it has one.
+      this.picker.reset();
+      this.picker.render(dates, { now });
+      this.picker.chooseFirst();
+    }
     this.use.hidden = !some;
     this.use.textContent = USE[method];
     // With nothing left of this way, the other ways are the way on.
@@ -129,7 +157,9 @@ export class Lapsed {
     this.other.classList.toggle("btn-link", some);
 
     this.dialog.showModal();
-    (this.list.querySelector("input") || this.other).focus();
+    if (!(scheduled && some && this.picker.focus())) {
+      (this.list.querySelector("input") || this.other).focus();
+    }
   }
 
   close(restore = false) {
