@@ -50,6 +50,9 @@ jobs:
     # code the token reaches is staging's own (security review).
     if: github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/staging'
     runs-on: ubuntu-latest
+    # Every browser's system libraries, so no apt runs (#556). Keep
+    # the tag equal to @playwright/test's version in package.json.
+    container: mcr.microsoft.com/playwright:v1.62.1-noble
     timeout-minutes: 120
     env:
       E2E_BASE_URL: https://staging--north-foster-farm.netlify.app
@@ -58,6 +61,10 @@ jobs:
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
+
+      # The container's user does not own the checkout.
+      - name: Trust the checkout
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:

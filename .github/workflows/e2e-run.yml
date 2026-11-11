@@ -51,6 +51,11 @@ jobs:
   shard:
     name: shard ${{ matrix.shard }}
     runs-on: ubuntu-latest
+    # Microsoft's image carries every browser's system libraries, so
+    # no apt runs (#556). Keep the tag equal to @playwright/test's
+    # version in package.json; on a mismatch setup-playwright
+    # downloads the right browsers into the image's path.
+    container: mcr.microsoft.com/playwright:v1.62.1-noble
     timeout-minutes: ${{ inputs.timeout }}
     strategy:
       fail-fast: false
@@ -58,11 +63,19 @@ jobs:
         shard: ${{ fromJSON(inputs.shards) }}
     env:
       E2E_PORT: 8895
+      # The container's localhost resolves to ::1 first, so the server
+      # listened there while the specs connected to 127.0.0.1.
+      NODE_OPTIONS: --dns-result-order=ipv4first
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           persist-credentials: false
           fetch-depth: 0
+
+      # The container's user does not own the checkout, and Hugo
+      # reads git data for every page.
+      - name: Trust the checkout
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
