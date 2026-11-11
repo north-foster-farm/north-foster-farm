@@ -19,7 +19,6 @@ const data = (name) =>
 
 const text = (html) => html
   .replace(/<span class="visually-hidden">[\s\S]*?<\/span>/g, "")
-  .replace(/<span class="order-method-map-icon"[\s\S]*?<\/span>/g, "")
   .replace(/<[^>]+>/g, " ")
   .replaceAll(String.fromCharCode(0xa0), " ")
   .replaceAll(String.fromCharCode(0x2060), "")
@@ -71,6 +70,8 @@ describe("order page Pickup or delivery cards", { skip: !hasHugo }, () => {
           title: text(card.match(/order-method-title"?>([\s\S]*?)<\/span>/)[1]),
           facts: Object.fromEntries(dts.map((dt, i) => [dt, dds[i]])),
           links: [...facts.matchAll(/<a [^>]*>/g)].map((m) => m[0]),
+          anchors: [...facts.matchAll(/<a [\s\S]*?<\/a>/g)]
+            .map((m) => m[0]),
         };
       });
   });
@@ -125,5 +126,24 @@ describe("order page Pickup or delivery cards", { skip: !hasHugo }, () => {
 
     assert.match(home, /data-map-slug="?place-north-foster-farm[" >]/);
     assert.match(home, /id="?map[" >]/);
+  });
+
+  // Tabler's external-link icon after "map", hidden from screen
+  // readers, where the arrow glyph stood (#534).
+  it("marks each (map) with the external-link icon", () => {
+    const icon = readFileSync(
+      join(root, "assets/images/icons/external-link.svg"), "utf8");
+    const paths = [...icon.matchAll(/<path [^>]*>/g)].map((m) => m[0]);
+
+    for (const c of cards) {
+      const [anchor] = c.anchors;
+      const svg = anchor.match(/<svg[^>]*>[\s\S]*?<\/svg>/);
+
+      assert.ok(svg, c.title);
+      assert.match(svg[0], /class="?order-method-map-icon"?/);
+      assert.match(svg[0], /aria-hidden="?true"?/);
+      for (const path of paths) assert.ok(svg[0].includes(path), c.title);
+      assert.doesNotMatch(anchor, /↗/);
+    }
   });
 });

@@ -1092,9 +1092,13 @@
       margin: 0;
     }
 
-    // The "(map)" link's new-tab arrow (#534).
+    // The "(map)" link's external-link icon (#534), the text's size,
+    // its foot on the baseline.
     .order-method-map-icon {
+      width: 0.875em;
+      height: 0.875em;
       margin-left: 0.125em;
+      vertical-align: -0.0625em;
     }
   }
 

@@ -2,8 +2,7 @@
      page's map in a new tab, at the hash that focuses it on the card's
      way. The string is the hash, without "#": "map" for the Delivery
      layer, "places" for the Places list, "place-<slug>" for one
-     place's card (map.js follow). The arrow stands in for an
-     external-link icon until one is in assets/images/icons; U+FE0E
-     keeps it a text glyph on phones that would draw an emoji. */ -}}
-(<a class="order-method-map" href="{{ relURL "" }}#{{ . }}" target="_blank" rel="noopener" data-map-link="{{ . }}">map<span class="order-method-map-icon" aria-hidden="true">&#x2197;&#xFE0E;</span><span class="visually-hidden"> (opens in a new tab)</span></a>)
+     place's card (map.js follow). Tabler's external-link icon follows
+     "map", sized to the text. */ -}}
+(<a class="order-method-map" href="{{ relURL "" }}#{{ . }}" target="_blank" rel="noopener" data-map-link="{{ . }}">map{{ partial "svg.html" (dict "src" "icons/external-link" "class" "order-method-map-icon" "aria-hidden" "true") }}<span class="visually-hidden"> (opens in a new tab)</span></a>)
 {{- /* No trailing newline. */ -}}
