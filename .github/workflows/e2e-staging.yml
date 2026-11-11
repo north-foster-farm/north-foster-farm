@@ -51,8 +51,9 @@ jobs:
     if: github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/staging'
     runs-on: ubuntu-latest
     # Every browser's system libraries, so no apt runs (#556). Keep
-    # the tag equal to @playwright/test's version in package.json.
-    container: mcr.microsoft.com/playwright:v1.62.1-noble
+    # the tag and digest in step with @playwright/test, as in
+    # e2e-run.yml (test/workflows.test.mjs checks the tag).
+    container: mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e # v1.62.1-noble
     timeout-minutes: 120
     env:
       E2E_BASE_URL: https://staging--north-foster-farm.netlify.app

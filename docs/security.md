@@ -101,7 +101,9 @@ part updates faster than another.
    sets `save-exact=true`. Lockfiles are committed and CI installs
    with `npm ci`. `.nvmrc` alone pins Node 24.22.1 (held by
    `check:node` and `devEngines`), and `HUGO_VERSION` pins Hugo. Actions are pinned to full commit SHAs
-   with the version in a comment.
+   with the version in a comment, and so is the e2e container image,
+   by index digest (#556; Dependabot cannot bump it, and a test holds
+   its tag to `@playwright/test`).
 2. **Cooldown.** No release is adopted until it has been public for
    7 days. Dependabot's `cooldown` enforces it, and the
    `supply-chain` CI job fails when a lockfile resolves a package

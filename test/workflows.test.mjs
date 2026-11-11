@@ -73,6 +73,23 @@ describe("workflows: nothing prints a response or a secret", () => {
     assert.ok(files.includes("staging-jobs.yml"));
   });
 
+  // #556: Dependabot bumps @playwright/test but not the image, and the
+  // image is pinned by digest like an Action.
+  it("the e2e container image matches @playwright/test, by digest", () => {
+    const pkg = JSON.parse(
+      readFileSync(join(here, "../package.json"), "utf8"));
+    const version = pkg.devDependencies["@playwright/test"];
+
+    for (const file of ["e2e-run.yml", "e2e-staging.yml"]) {
+      const text = readFileSync(join(dir, file), "utf8");
+      const image = text.match(/container: (\S+)/)[1];
+
+      assert.match(image,
+        new RegExp(`^mcr\\.microsoft\\.com/playwright:v${version}-noble` +
+          "@sha256:[0-9a-f]{64}$"), file);
+    }
+  });
+
   for (const file of files) {
     it(`${file}: every curl writes its response to a file`, () => {
       const text = readFileSync(join(dir, file), "utf8");

@@ -1,13 +1,14 @@
 name: Set up Playwright browsers
 description: >
-  The named Playwright browsers, built to survive a dead apt mirror
-  (#556). The browsers come from the cache when the Playwright version
-  has not changed. The system libraries come from apt only when a
-  browser will not launch without them, because on 2026-11-11 the
-  runners could not reach any Ubuntu archive (azure.archive.ubuntu.com
-  and archive.ubuntu.com both timed out, 20 s per index) and
-  `install --with-deps` ate the whole job. That apt step has a time
-  limit and one retry.
+  The named Playwright browsers, for a job that runs in Microsoft's
+  Playwright image (#556), which carries the browsers and every system
+  library they need. The runners could not reach any Ubuntu apt mirror
+  on 2026-11-11, so `install --with-deps` hung for the whole job. The
+  install here finds the image's browsers and downloads only on a
+  version mismatch (the image tag and @playwright/test have drifted;
+  test/workflows.test.mjs catches that). A browser that still will not
+  launch gets `install-deps` from apt, under a time limit with one
+  retry. That fallback is for a hosted runner with no image.
 
 inputs:
   browsers:
@@ -17,18 +18,6 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Playwright version
-      id: version
-      shell: bash
-      run: >
-        echo "version=$(npx playwright --version | cut -d' ' -f2)"
-        >> "$GITHUB_OUTPUT"
-
-    - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-      with:
-        path: ~/.cache/ms-playwright
-        key: playwright-${{ runner.os }}-${{ steps.version.outputs.version }}
-
     - name: Browsers
       shell: bash
       env:
@@ -37,8 +26,8 @@ runs:
         # shellcheck disable=SC2086
         timeout --kill-after=15s 5m npx playwright install $BROWSERS
 
-    # Launch each browser. The runner image carries most of the
-    # libraries, so this usually passes and apt is never called.
+    # Launch each browser. In the image this always passes and apt is
+    # never called.
     - name: Check the browsers launch
       id: launch
       shell: bash
@@ -61,9 +50,11 @@ runs:
       env:
         BROWSERS: ${{ inputs.browsers }}
       run: |
+        # The image runs as root and has no sudo.
+        SUDO=; [ "$(id -u)" -eq 0 ] || SUDO=sudo
         printf '%s\n' 'Acquire::http::Timeout "15";' \
           'Acquire::https::Timeout "15";' 'Acquire::Retries "1";' \
-          | sudo tee /etc/apt/apt.conf.d/99-fail-fast > /dev/null
+          | $SUDO tee /etc/apt/apt.conf.d/99-fail-fast > /dev/null
         for attempt in 1 2; do
           # shellcheck disable=SC2086
           if timeout --kill-after=15s 4m \
