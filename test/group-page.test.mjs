@@ -67,9 +67,9 @@ describe("the group's places on the page", () => {
     const schedule = Object.assign([], { lines: [] });
 
     assert.equal(datesFor("scheduled", now, page, schedule)
-      .some((d) => d.occurrence === "36TS-261115"), false);
+      .some((d) => d.occurrence === "36TS-261122"), false);
     assert.equal(datesFor("scheduled", now, unlocked, schedule)
-      .some((d) => d.occurrence === "36TS-261115"), true);
+      .some((d) => d.occurrence === "36TS-261122"), true);
 
     const payload = {
       customer: {
@@ -77,7 +77,7 @@ describe("the group's places on the page", () => {
         phone: "", contact: "call",
       },
       lines: [{ sku: "NFF-CHK-WHL-35-39", qty: 2 }],
-      fulfilment: { method: "scheduled", occurrence: "36TS-261115" },
+      fulfilment: { method: "scheduled", occurrence: "36TS-261122" },
       claimedTotal: 5500,
     };
     const index = indexCatalog(catalog);
@@ -91,7 +91,7 @@ describe("the group's places on the page", () => {
     assert.equal(refused.ok, false);
     assert.equal(refused.status, 409);
     assert.equal(placed.ok, true, JSON.stringify(placed.errors));
-    assert.equal(placed.order.fulfilment.date, "2026-11-15");
+    assert.equal(placed.order.fulfilment.date, "2026-11-22");
     assert.equal(placed.order.totals.total, 5500);
   });
 });
