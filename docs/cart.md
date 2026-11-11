@@ -468,7 +468,8 @@ from `template[data-cart-group]` (`li.order-cart-group` with
 `template[data-cart-line]` (`li.order-cart-item` with
 `button[data-remove]`, `[data-line-name]`, `[data-line-qty]`,
 `[data-line-sub]`), so their classes survive the build. The rules
-between the parts are the parts' own top borders, not `hr` elements.
+between the parts are the parts' own top borders, not `hr` elements,
+and none is over the subtotal at any width (#533, 2026-11-11).
 Every data hook the specs use today is kept.
 
 ### 4.3 State
@@ -577,12 +578,21 @@ Placement is frozen while the keyboard is up.
   so the dissolved wrapper costs nothing here); the lines take column
   1 spanning every row with `contain: size`, so the right column sets
   the height and the lines scroll in theirs; the sums to the foot take
-  column 2. `closed` hides the lines and the pane is the right column
-  alone, `min(100%, max(50%, 22rem))` wide at the column's right.
-  `open` widens leftward to the full column; the right track is the
-  same width shut or open, so nothing on the right moves. The width
-  eases, not under reduced motion. Empty, the pane keeps the right
-  column's width whatever its fold.
+  column 2. `closed` is the right column alone,
+  `min(100%, max(50%, 22rem))` wide at the column's right. `open`
+  widens leftward to the full column; the right track is the same
+  width shut or open, and so is every part in it, so nothing on the
+  right moves. Hide and Expand ease (#533, 2026-11-11: the lines had
+  been `display: none` closed and vanished at once): the grid keeps
+  both tracks, and only the pane's width and left margin ease, which
+  sum to the column, so its right edge stays. The left track narrows
+  to nothing; it clips the lines (`overflow: clip`), which keep their
+  open width (`--cart-lines-w`, an `@property` length so it resolves
+  against the form, not the easing pane) at the rule, so they retract
+  under the totals without reflowing. Closed, they are
+  `visibility: hidden` once the ease is over, and shown at once on
+  Expand. Under reduced motion it is a swap. Empty, the pane keeps the
+  right column's width whatever its fold.
 - `inline`: the same two columns at the page's width, every line
   showing, the foot across both.
 
@@ -657,8 +667,9 @@ with the keyboard up the total row scrolls with the body (section 5).
   `aria-expanded` and `aria-controls="order-cart-body"`, and it keeps
   focus through a press; Escape in the floating pane folds it and
   focuses the pill. Hidden parts are `display: none` (closed sheet,
-  closed panel's lines, empty cart), so they leave the tab order and
-  the accessibility tree without `inert`.
+  empty cart) or, the closed panel's lines, `visibility: hidden`
+  (#533), so they leave the tab order and the accessibility tree
+  without `inert`.
 - The way and Add discount keep `aria-expanded` and `aria-controls`;
   the switch is a `role="group"` of `aria-pressed` buttons; the badges
   are buttons with tooltips.

@@ -8,7 +8,7 @@
 // own sizes, so it runs in the desktop project only.
 
 import {
-  FULL_CART, OrderPage, expect, test, unfoldCart,
+  FULL_CART, OrderPage, expect, paneStill, test, unfoldCart,
 } from "./support/order.mjs";
 
 const PHONE = { width: 390, height: 844 };
@@ -274,6 +274,104 @@ test.describe("the tablet's panel", () => {
       });
   }
 
+  // Hide and Expand ease (#533): mid-ease the pane's left edge is on
+  // its way, the right column has not moved and the lines are still
+  // on screen; closed, they are hidden. Under reduced motion it is a
+  // swap.
+  const floatOpen = async (page) => {
+    const order = new OrderPage(page);
+
+    await page.setViewportSize(TABLET);
+    await order.open(FULL_CART);
+    await order.scrollSettled();
+    await page.evaluate(() => window.scrollTo(0, 300));
+    await order.scrollSettled();
+    await expect(order.cart).toHaveAttribute("data-placement", "floating");
+    await unfoldCart(order);
+
+    return order;
+  };
+
+  // Presses the pill and looks two frames later.
+  const pressAndLook = (order) => order.cart.evaluate(async (pane) => {
+    const sums = pane.querySelector("[data-part='sums']");
+    const lines = pane.querySelector("[data-part='lines']");
+    const was = {
+      left: pane.getBoundingClientRect().left,
+      sums: sums.getBoundingClientRect().left,
+    };
+
+    pane.querySelector("[data-cart-toggle]").click();
+    await new Promise((done) => requestAnimationFrame(
+      () => requestAnimationFrame(done)
+    ));
+
+    return {
+      was,
+      left: pane.getBoundingClientRect().left,
+      sums: sums.getBoundingClientRect().left,
+      easing: pane.getAnimations()
+        .some((a) => a.transitionProperty === "width"),
+      lines: getComputedStyle(lines).visibility,
+    };
+  });
+
+  test("Hide retracts the lines into the totals and Expand reverses it",
+    async ({ page }) => {
+      const order = await floatOpen(page);
+      const lines = order.cart.locator("[data-part='lines']");
+      const open = await box(order.cart);
+
+      const hiding = await pressAndLook(order);
+
+      expect(hiding.easing).toBe(true);
+      expect(hiding.lines).toBe("visible");
+      expect(Math.abs(hiding.sums - hiding.was.sums)).toBeLessThanOrEqual(1);
+      await expect(order.cart).toHaveAttribute("data-fold", "closed");
+      await expect(lines).toBeHidden();
+      await paneStill(order.cart);
+
+      const closed = await box(order.cart);
+
+      expect(hiding.left).toBeGreaterThan(open.left);
+      expect(hiding.left).toBeLessThan(closed.left);
+
+      const showing = await pressAndLook(order);
+
+      expect(showing.easing).toBe(true);
+      expect(showing.lines).toBe("visible");
+      expect(showing.left).toBeLessThan(closed.left);
+      expect(showing.left).toBeGreaterThan(open.left);
+      expect(Math.abs(showing.sums - showing.was.sums))
+        .toBeLessThanOrEqual(1);
+      await expect(order.cart).toHaveAttribute("data-fold", "open");
+      await paneStill(order.cart);
+      expect(Math.abs((await box(order.cart)).left - open.left))
+        .toBeLessThanOrEqual(1);
+    });
+
+  test("under reduced motion Hide and Expand are a swap", async ({
+    page,
+  }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+
+    const order = await floatOpen(page);
+    const lines = order.cart.locator("[data-part='lines']");
+    const hiding = await pressAndLook(order);
+
+    expect(hiding.easing).toBe(false);
+    expect(hiding.lines).toBe("hidden");
+    await paneStill(order.cart);
+    expect(Math.abs((await box(order.cart)).left - hiding.left))
+      .toBeLessThanOrEqual(1);
+
+    const showing = await pressAndLook(order);
+
+    expect(showing.easing).toBe(false);
+    await expect(lines).toBeVisible();
+    expect(Math.abs(showing.left - hiding.was.left)).toBeLessThanOrEqual(1);
+  });
+
   test("a long list scrolls in the left column with its pills", async ({
     page,
   }) => {
@@ -342,4 +440,35 @@ test.describe("the column", () => {
     await expect.poll(() => order.cart.evaluate((el) => el.eases || 0))
       .toBeGreaterThan(before);
   });
+});
+
+// No rule over the subtotal at any width (#533). James saw a hairline
+// there at about 1400px and 122% zoom, which is the panel at about
+// 1147px.
+test.describe("the subtotal", () => {
+  for (const [name, size] of [
+    ["a phone", PHONE],
+    ["a phone on its side", PHONE_SIDE],
+    ["a small tablet", SMALL_TABLET],
+    ["a tablet", TABLET],
+    ["a zoomed laptop", { width: 1147, height: 760 }],
+    ["xl", XL],
+  ]) {
+    test(`has no rule above it on ${name}`, async ({ page }) => {
+      await page.setViewportSize(size);
+
+      const order = new OrderPage(page);
+      const sums = order.cart.locator("[data-part='sums']");
+
+      await order.open(FULL_CART);
+      await order.scrollSettled();
+      if (await order.cart.getAttribute("data-placement") === "floating") {
+        await unfoldCart(order);
+      }
+      await expect(sums).toBeVisible();
+      expect(await sums.evaluate((el) => (
+        getComputedStyle(el).borderTopWidth
+      ))).toBe("0px");
+    });
+  }
 });

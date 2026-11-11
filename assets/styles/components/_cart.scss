@@ -25,6 +25,15 @@
 
 @use "sass:math";
 
+// The panel's open lines width (#533): a length, so the pane resolves
+// it against the form and its lines inherit pixels, not a 100cqw they
+// would read against the pane itself.
+@property --cart-lines-w {
+  syntax: "<length>";
+  inherits: true;
+  initial-value: 0;
+}
+
 .order {
   // Three rows of lines under their group's heading, at their size,
   // with the list's own padding and the strip for the "more" pills.
@@ -421,8 +430,10 @@
   }
 
   // The rules between the parts are the parts' own top borders:
-  // hairlines, and one darker over the badges.
-  .order-cart-sums,
+  // hairlines, and one darker over the badges. None over the subtotal,
+  // at any width (#533): on the panel the sums open the totals column,
+  // and a hairline there read as a stray line under the pane's edge.
+  .order-cart-edit,
   .order-cart-total-row,
   .order-cart-foot {
     border-top: 1px solid var(--bs-border-color-translucent);
@@ -1063,12 +1074,26 @@
   // sit in the pane's own grid; the body is no scroller here, since a
   // tablet has the height, and the lines scroll in their column. The
   // closed height is the right column's.
+
+  // Hide and Expand ease (#533): the grid keeps both columns open and
+  // closed, and only the pane's left edge moves (its width and margin,
+  // which sum to the column's width, so the right edge stays). The
+  // left column narrows with it to nothing; the lines inside keep
+  // their open width against the rule and are cut off from the left,
+  // so they retract under the totals rather than reflow. Under reduced
+  // motion it is a swap.
   @media #{$cart-split} {
     .order-cart {
       // The closed panel is its right column: 321px measured at 768px
       // with a bulk discount, set a little under that (see above).
       --cart-closed-h: 19.5rem;
       --panel-w: min(100cqw, max(50cqw, 22rem));
+
+      // The open lines' width, the column's less the totals, the gap,
+      // the rule and the lines' own room at the rule. Registered as a
+      // length (below), so it is resolved here against the form and
+      // not inside the pane, whose width eases.
+      --cart-lines-w: calc(100cqw - var(--panel-w) - 3rem - 1px);
     }
 
     .order-form {
@@ -1080,7 +1105,6 @@
       grid-template-columns:
         minmax(0, 1fr)
         calc(var(--panel-w) - 2 * var(--order-gutter) - 2px);
-      column-gap: 1.5rem;
       width: 100%;
       max-height: none;
       margin-left: 0;
@@ -1088,7 +1112,6 @@
       transition:
         width var(--order-slow) var(--order-ease),
         margin var(--order-slow) var(--order-ease),
-        column-gap var(--order-slow) var(--order-ease),
         border-color var(--order-slow) ease,
         box-shadow var(--order-slow) ease;
 
@@ -1107,16 +1130,40 @@
       }
 
       // The lines run the pane's whole height, the foot's rows too,
-      // and add nothing to it: the right column sets the height.
+      // and add nothing to it: the right column sets the height. The
+      // column clips them, a little into the pane's padding so a
+      // line's outline shows whole; the gap to the totals, the rule
+      // and the lines' room at it are inside the column, so it can
+      // narrow to nothing. The lines sit at the rule, their open width
+      // wide whatever the column's, and are hidden once it has closed.
       .order-cart-lines {
-        --cart-clear-end: 1.5rem;
+        --cart-clear-end: calc(3rem + 1px);
 
         grid-column: 1;
         grid-row: 1 / span 12;
         max-height: none;
-        padding-right: 1.5rem;
-        border-right: 1px solid var(--bs-border-color-translucent);
+        margin-left: -0.375rem;
+        padding-left: 0.375rem;
+        overflow: clip;
         contain: size;
+        transition: visibility 0s;
+
+        &::after {
+          position: absolute;
+          top: 0;
+          right: 1.5rem;
+          bottom: 0;
+          border-right: 1px solid var(--bs-border-color-translucent);
+          content: "";
+        }
+      }
+
+      .order-cart-scroll {
+        position: absolute;
+        top: 0;
+        right: var(--cart-clear-end);
+        bottom: 0;
+        width: var(--cart-lines-w);
       }
 
       // Where the column leaves the lines too little room for four
@@ -1157,30 +1204,17 @@
       }
     }
 
-    // Closed: the right column alone, at the column's right.
+    // Closed: the right column alone, at the column's right, the same
+    // as open, so nothing in it moves. The left column is there at no
+    // width; the lines in it are hidden once the ease is over, and at
+    // once on Expand.
     .order-cart[data-placement="floating"][data-fold="closed"] {
-      grid-template-columns: calc(var(--panel-w) - 2 * var(--order-gutter) - 2px);
-      column-gap: 0;
       width: var(--panel-w);
       margin-left: calc(100% - var(--panel-w));
 
       .order-cart-lines {
-        display: none;
-      }
-
-      .order-cart-total-row {
-        border-top: 0;
-        padding-top: 0;
-      }
-
-      .order-cart-sums,
-      .order-cart-total-row,
-      .order-cart-badges,
-      .order-cart-share,
-      .order-cart-code-note,
-      .order-cart-foot,
-      .order-cart-added {
-        grid-column: 1;
+        visibility: hidden;
+        transition: visibility 0s linear var(--order-slow);
       }
     }
 
@@ -1249,7 +1283,8 @@
     }
 
     @media (prefers-reduced-motion: reduce) {
-      .order-cart {
+      .order-cart,
+      .order-cart-lines {
         transition: none !important;
       }
     }
