@@ -2,7 +2,8 @@ import { current, indexCatalog } from "./lib/catalog.mjs";
 import { buildModel } from "./lib/events.mjs";
 import { moneyOn } from "./lib/money-on.mjs";
 import {
-  draftOccurrence, dropSeriesCode, fulfilmentDate, whereLine,
+  draftOccurrence, dropSeriesCode, fulfilmentDate, locationCount,
+  locationsLabel,
 } from "./lib/scheduled.mjs";
 import { groupFromQuery, withPlaces } from "./lib/group.mjs";
 import { perkEffects } from "./lib/perks.mjs";
@@ -1377,11 +1378,10 @@ export class OrderForm {
     short.hidden = !s.deliveryShort;
   }
 
-  // The scheduled pickup card from the list: its Where summarizes
-  // every place once the list reaches more than the drop site (as
-  // built, it reads as the drop site does; When is always "During
-  // markets, pop-ups, and drops"); an empty list says so
-  // and the card cannot be chosen; the lists not yet here leave it as
+  // The Pickup days card from the list: its Where counts the locations
+  // the list reaches, "2 locations (map)" (#534), the map link as
+  // built, so a focused one stays focused; an empty list says so and
+  // the card cannot be chosen; the lists not yet here leave it as
   // built.
   renderScheduledCard() {
     const lists = this.dates.lists;
@@ -1392,36 +1392,12 @@ export class OrderForm {
 
     const choices = lists.scheduled;
     const none = !choices.length;
-    const where = qs(facts, "[data-scheduled-where]");
+    const count = qs(facts, "[data-scheduled-count]");
 
-    if (where.dataset.built === undefined) {
-      where.dataset.built = where.textContent;
-    }
-    // One location, Where gives its address. Beyond one, it counts the
-    // locations and links to the map in a new tab, so the order stays
-    // as it is (#places-scheduled opens the plain Places list: the
-    // filter it once set is gone, #214). The link is kept while its
-    // text and href hold, so a focused one stays focused.
-    const line = whereLine(choices, where.dataset.built);
+    if (!none) {
+      const text = locationsLabel(locationCount(choices));
 
-    if (line.link) {
-      const text = line.text;
-      const href = facts.dataset.placesHref;
-      const kept = where.firstElementChild;
-
-      if (!kept || where.children.length !== 1 || kept.textContent !== text
-        || kept.getAttribute("href") !== href) {
-        const link = document.createElement("a");
-
-        link.href = href;
-        link.target = "_blank";
-        link.rel = "noopener";
-        link.textContent = text;
-        where.textContent = "";
-        where.appendChild(link);
-      }
-    } else {
-      where.textContent = line.text;
+      if (count.textContent !== text) count.textContent = text;
     }
     facts.hidden = none;
     qs(this.form, "[data-scheduled-none]").hidden = !none;

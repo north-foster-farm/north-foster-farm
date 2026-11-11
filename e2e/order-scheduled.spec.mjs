@@ -158,24 +158,27 @@ test.describe("scheduled pickup", () => {
       expect((await series(page))[0]).toBe(DROP.series);
     });
 
-  test("one location open: the card gives its address",
-    async ({ page }) => {
-      await cannedScheduled(page, datesWith([
-        { place: DROP, days: [3, 10] },
-      ]));
+  // The card counts the locations and links to the map (#534), for one
+  // location as for several. The count is the lists' own, never a
+  // number typed here.
+  test("one location open: the card counts it", async ({ page }) => {
+    const lists = datesWith([{ place: DROP, days: [3, 10] }]);
 
-      const order = new OrderPage(page);
+    await cannedScheduled(page, lists);
 
-      await order.open({ eggs: 1 });
-      await listed(page);
-      await expect(page.locator("[data-scheduled-facts] dd").first())
-        .toHaveText("At our markets and pickup days");
-      await expect(page.locator("[data-scheduled-where]"))
-        .toHaveText(DROP.short);
-      await expect(page.locator("[data-scheduled-where] a")).toHaveCount(0);
-    });
+    const order = new OrderPage(page);
 
-  test("several places: the card names them", async ({ page }) => {
+    await order.open({ eggs: 1 });
+    await listed(page);
+    await expect(page.locator("[data-scheduled-facts] dd").first())
+      .toHaveText("Select to see current availability");
+    await expect(page.locator("[data-scheduled-count]"))
+      .toHaveText(locationsLabel(locationCount(lists.scheduled)));
+    await expect(page.locator("[data-scheduled-where]"))
+      .toHaveText(/^1 location \(map/);
+  });
+
+  test("several places: the card counts them", async ({ page }) => {
     const lists = datesWith();
 
     await cannedScheduled(page, lists);
@@ -184,10 +187,8 @@ test.describe("scheduled pickup", () => {
 
     await order.open({ eggs: 1 });
     await expect(page.locator("[data-scheduled-facts] dd").first())
-      .toHaveText("At our markets and pickup days");
-    // Beyond one place the card counts the locations and links to the
-    // map (#214). The count is the lists' own, never a number typed here.
-    await expect(page.locator("[data-scheduled-where]"))
+      .toHaveText("Select to see current availability");
+    await expect(page.locator("[data-scheduled-count]"))
       .toHaveText(locationsLabel(locationCount(lists.scheduled)));
     await expect(page.locator("[data-scheduled-where] a"))
       .toHaveAttribute("target", "_blank");

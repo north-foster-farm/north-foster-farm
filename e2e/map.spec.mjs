@@ -552,21 +552,35 @@ test.describe("map (#138, #214)", () => {
       )).not.toBe(await land.evaluate((el) => getComputedStyle(el).fill));
     });
 
-  test("the order page's locations link opens the map",
-    async ({ page }) => {
-      await cannedScheduled(page);
+  // Each Pickup or delivery card's "(map)" opens the home page's map in
+  // a new tab, at its own layer or card (#534).
+  test("the order page's map links open the map", async ({ page }) => {
+    await cannedScheduled(page);
 
-      const order = new OrderPage(page);
+    const order = new OrderPage(page);
 
-      await order.open({ eggs: 1 }, { method: "scheduled" });
+    await order.open({ eggs: 1 }, { method: "scheduled" });
 
-      const link = page.locator("[data-scheduled-facts] a",
-        { hasText: /locations$/ });
+    for (const [card, hash] of [
+      ["#method-onfarm", "place-north-foster-farm"],
+      ["#method-scheduled", "places"],
+      ["#method-delivery", "map"],
+    ]) {
+      const link = page.locator(`${card} + label a`);
 
-      await expect(link).toHaveAttribute("href", /\/#places-scheduled$/);
+      await expect(link).toHaveAttribute("href", new RegExp(`/#${hash}$`));
       await expect(link).toHaveAttribute("target", "_blank");
       await expect(link).toHaveAttribute("rel", "noopener");
-    });
+    }
+
+    const [tab] = await Promise.all([
+      page.context().waitForEvent("page"),
+      page.locator("#method-onfarm + label a").click(),
+    ]);
+
+    await expect(map(tab)).toHaveAttribute("data-layer", "places");
+    await tab.close();
+  });
 
   test("the locations link is kept through a cart change",
     async ({ page }) => {
@@ -576,8 +590,7 @@ test.describe("map (#138, #214)", () => {
 
       await order.open({ eggs: 1 }, { method: "scheduled" });
 
-      const link = page.locator("[data-scheduled-facts] a",
-        { hasText: /locations$/ });
+      const link = page.locator("[data-scheduled-facts] a");
 
       await link.evaluate((node) => { window.__locationsLink = node; });
       await order.qty("eggs").fill("2");

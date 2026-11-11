@@ -1091,6 +1091,11 @@
     dd {
       margin: 0;
     }
+
+    // The "(map)" link's new-tab arrow (#534).
+    .order-method-map-icon {
+      margin-left: 0.125em;
+    }
   }
 
   // The body sits inside a clipped reveal, so it keeps a little room

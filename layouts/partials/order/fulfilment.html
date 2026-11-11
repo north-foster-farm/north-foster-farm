@@ -1,6 +1,20 @@
 {{ $terms := hugo.Data.delivery }}
 {{ $money := partial "money.html" }}
-{{ $policy := relURL "delivery-policy/" }}
+{{/* The pickup cards' When (James, #534): the times come in the card
+     once it is chosen. */}}
+{{ $select := "Select to see current availability" }}
+{{/* The farm's card on the home page's map: map.html names each pin
+     "place-" and its name, urlized. */}}
+{{ $farm := hugo.Data.company.name }}
+{{/* The Pickup days card's count, as the build knows it: the
+     locations of the series that have not ended. order-form.js sets
+     it from the live list (renderScheduledCard). */}}
+{{ $today := now.Format "2006-01-02" }}
+{{ $codes := slice }}
+{{ range (partial "scheduled-places.html" .).series }}
+  {{ if or (not .end) (ge .end $today) }}{{ $codes = $codes | append .locationCode }}{{ end }}
+{{ end }}
+{{ $count := len ($codes | uniq) }}
 <fieldset class="order-section mb-5" id="pickup">
   <legend class="h2" tabindex="-1">Pickup or delivery</legend>
   <div class="invalid-feedback d-block mb-2" data-error-for="fulfilment.method"></div>
@@ -12,9 +26,9 @@
         <span class="order-method-title">On-farm pickup</span>
         <dl class="order-method-facts">
           <dt>When</dt>
-          <dd>{{ $terms.onfarm.when }}</dd>
+          <dd>{{ $select }}</dd>
           <dt>Where</dt>
-          <dd>{{ (partial "address.html" .).full }}</dd>
+          <dd>{{ $farm }} {{ partial "order/map-link.html" (printf "place-%s" ($farm | urlize)) }}</dd>
           <dt>Cost</dt>
           <dd>No minimum, no fee</dd>
         </dl>
@@ -73,14 +87,14 @@
             <span class="badge rounded-pill bg-success-subtle text-success-emphasis" data-hide-from="{{ $dropEnd.Format "2006-01-02T15:04:05-07:00" }}">Starting {{ $dropStart.Format "January 2" }}</span>
           {{ end }}
         </span>
-        {{/* Built as the drop site reads. order-form.js rewrites Where
-             from the list once it holds more than the drop site
+        {{/* Where counts the locations and links to the Places list.
+             order-form.js sets the count from the list
              (renderScheduledCard), and says so when it is empty. */}}
-        <dl class="order-method-facts" data-scheduled-facts data-places-href="{{ relURL "/" }}#places-scheduled">
+        <dl class="order-method-facts" data-scheduled-facts>
           <dt>When</dt>
-          <dd>At our markets and pickup days</dd>
+          <dd>{{ $select }}</dd>
           <dt>Where</dt>
-          <dd data-scheduled-where>{{ $drop.short }}</dd>
+          <dd data-scheduled-where><span data-scheduled-count>{{ $count }} location{{ if ne $count 1 }}s{{ end }}</span> {{ partial "order/map-link.html" "places" }}</dd>
           <dt>Cost</dt>
           <dd>No minimum, no fee</dd>
         </dl>
@@ -126,7 +140,7 @@
           <dt>When</dt>
           <dd>{{ partial "weekday.html" "delivery" }}s, {{ $terms.delivery.window }}</dd>
           <dt>Where</dt>
-          <dd>Check <a href="{{ $policy }}#delivery-area" target="_blank" rel="noopener">our delivery area</a></dd>
+          <dd>Check our delivery area {{ partial "order/map-link.html" "map" }}</dd>
           <dt>Cost</dt>
           <dd>${{ $money.deliveryMinimum }} minimum, ${{ $money.deliveryFee }} delivery fee</dd>
         </dl>
