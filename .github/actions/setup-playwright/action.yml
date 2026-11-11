@@ -1,0 +1,75 @@
+name: Set up Playwright browsers
+description: >
+  The named Playwright browsers, built to survive a dead apt mirror
+  (#556). The browsers come from the cache when the Playwright version
+  has not changed. The system libraries come from apt only when a
+  browser will not launch without them, because on 2026-11-11 the
+  runners could not reach any Ubuntu archive (azure.archive.ubuntu.com
+  and archive.ubuntu.com both timed out, 20 s per index) and
+  `install --with-deps` ate the whole job. That apt step has a time
+  limit and one retry.
+
+inputs:
+  browsers:
+    description: Space-separated browser names
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Playwright version
+      id: version
+      shell: bash
+      run: >
+        echo "version=$(npx playwright --version | cut -d' ' -f2)"
+        >> "$GITHUB_OUTPUT"
+
+    - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/.cache/ms-playwright
+        key: playwright-${{ runner.os }}-${{ steps.version.outputs.version }}
+
+    - name: Browsers
+      shell: bash
+      env:
+        BROWSERS: ${{ inputs.browsers }}
+      run: |
+        # shellcheck disable=SC2086
+        timeout --kill-after=15s 5m npx playwright install $BROWSERS
+
+    # Launch each browser. The runner image carries most of the
+    # libraries, so this usually passes and apt is never called.
+    - name: Check the browsers launch
+      id: launch
+      shell: bash
+      env:
+        BROWSERS: ${{ inputs.browsers }}
+      run: |
+        missing=0
+        for b in $BROWSERS; do
+          js="require('@playwright/test')['$b'].launch()"
+          if node -e "$js.then(x => x.close())" \
+            > "$RUNNER_TEMP/launch-$b.log" 2>&1
+          then echo "$b launches"
+          else echo "$b needs system libraries"; missing=1; fi
+        done
+        echo "missing=$missing" >> "$GITHUB_OUTPUT"
+
+    - name: System libraries
+      if: steps.launch.outputs.missing == '1'
+      shell: bash
+      env:
+        BROWSERS: ${{ inputs.browsers }}
+      run: |
+        printf '%s\n' 'Acquire::http::Timeout "15";' \
+          'Acquire::https::Timeout "15";' 'Acquire::Retries "1";' \
+          | sudo tee /etc/apt/apt.conf.d/99-fail-fast > /dev/null
+        for attempt in 1 2; do
+          # shellcheck disable=SC2086
+          if timeout --kill-after=15s 4m \
+            npx playwright install-deps $BROWSERS
+          then exit 0; fi
+          echo "::warning title=apt::attempt $attempt failed or timed out"
+        done
+        echo "::error title=apt::the system libraries failed twice"
+        exit 1

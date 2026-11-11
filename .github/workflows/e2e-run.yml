@@ -74,21 +74,14 @@ jobs:
 
       - uses: ./.github/actions/setup-hugo
 
-      - name: Playwright version
-        id: playwright
-        run: >
-          echo "version=$(npx playwright --version | cut -d' ' -f2)"
-          >> "$GITHUB_OUTPUT"
-
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
-
       # The browsers come from the cache when it has them; the system
-      # libraries they need are installed either way.
-      - name: Browsers
-        run: npx playwright install --with-deps chromium webkit
+      # libraries are installed either way. A stalled apt mirror hung
+      # this step for the whole job on 2026-11-11 (#556), so the
+      # action swaps a dead mirror, times the install and retries it.
+      - uses: ./.github/actions/setup-playwright
+        timeout-minutes: 15
+        with:
+          browsers: chromium webkit
 
       - name: Back-office token
         run: |

@@ -109,9 +109,11 @@ jobs:
 
       # A leftover the sweep could not remove fails the job but never
       # keeps the specs from running (security review).
-      - name: Browsers
+      - uses: ./.github/actions/setup-playwright
         if: ${{ !cancelled() && env.SUPERSEDED != '1' && !inputs.sweep_only }}
-        run: npx playwright install --with-deps chromium
+        timeout-minutes: 15
+        with:
+          browsers: chromium
 
       - name: Run
         id: run
