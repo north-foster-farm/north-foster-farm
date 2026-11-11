@@ -133,6 +133,14 @@ describe("clearBy", () => {
       2);
   });
 
+  it("stops at the top bar's foot when the foot alone would lift more",
+    () => {
+      // A 40px band: the foot would lift it 3px, the bar's foot and gap
+      // allow 1 (#549 qa).
+      assert.equal(clearBy({ top: 13, bottom: 31 }, { floor: 40, ceiling: 0 }),
+        1);
+    });
+
   it("leaves a control already clear", () => {
     assert.equal(clearBy({ top: 400, bottom: 440 }, band), 0);
     assert.equal(clearBy({ top: 20, bottom: 40 }, band), 0);

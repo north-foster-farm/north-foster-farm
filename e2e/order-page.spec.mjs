@@ -193,6 +193,28 @@ test.describe("order page", () => {
       await expect(page.locator("#pickup legend")).toBeInViewport();
     });
 
+  // From the keyboard at 1280 the cart is a column and Pickup or
+  // delivery far below the foot. The legend's focus matches
+  // :focus-visible, and the keyboard's lift of #549 must not cut the
+  // smooth scroll short and leave it at the foot (#549 qa).
+  test("Enter on Proceed at 1280 brings Pickup or delivery to the top",
+    async ({ page }) => {
+      await page.setViewportSize({ width: 1280, height: 900 });
+
+      const order = new OrderPage(page);
+      const legend = page.locator("#pickup legend");
+
+      await order.open({ wings: 5 });
+      await expect(order.cart).toHaveAttribute("data-placement", "column");
+      await expect(order.next).toBeEnabled();
+      await order.next.focus();
+      await page.keyboard.press("Enter");
+      await expect(legend).toBeFocused();
+      await expect.poll(() => legend.evaluate(
+        (el) => Math.round(el.getBoundingClientRect().top)
+      ), { timeout: 5_000 }).toBeLessThan(300);
+    });
+
   test("the site's own scripts log no errors", async ({ page, baseURL }) => {
     const errors = [];
     const ours = new URL(baseURL).host;

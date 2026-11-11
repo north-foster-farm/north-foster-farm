@@ -498,24 +498,34 @@ export const teach = (pane, pill, { dwell, onShut }) => {
 // list landing.
 const SHIFT_MS = 1000;
 
+// How soon after a Tab keydown a focus counts as one the Tab key moved.
+// The browser moves the focus in the keydown's own task, so this is
+// slack, not a wait.
+const TAB_MS = 100;
+
 // A control the Tab key reaches under the floating pane scrolls up
 // clear of it, never under the top bar (#159, WCAG 2.4.11). The pane's
 // own are its own, and a scroller taller than the room is left where
 // it is. The pane may grow once the bar sticks, so it looks again a
 // frame later.
 //
-// A control reached from the keyboard below the screen's foot scrolls
-// up the same way, wherever the cart is (#549). WebKit keeps no scroll
+// A control the Tab key moved to below the screen's foot scrolls up
+// the same way, wherever the cart is (#549). WebKit keeps no scroll
 // anchor, so a page that grows above the focus after the browser
 // scrolled to it (the cart settling into its slot and opening to every
 // line) left the focus below the fold on a phone, where Chromium kept
 // it in place. The page's height is watched for a moment after each
-// focus, and a change in it looks again.
+// such focus, and a change in it looks again. Only a Tab counts: a
+// script's focus after its own smooth scroll (Proceed to checkout's
+// legend) or a tapped field matches :focus-visible too, and an instant
+// scroll here would cut the smooth one short.
 export const clearFocusUnder = (pane, given) => {
   const bar = given === undefined
     ? document.querySelector(".order-topbar") : given;
+  let tabAt = -Infinity;
   let since = -Infinity;
-  const clear = (el) => {
+  let tabbed = false;
+  const clear = (el, keyed) => {
     if (!el || pane.contains(el) || document.activeElement !== el) return;
 
     const ceiling = bar ? Math.max(0, bar.getBoundingClientRect().bottom) : 0;
@@ -524,7 +534,7 @@ export const clearFocusUnder = (pane, given) => {
     // the page has scrolled past is above the screen.
     const over = pane.dataset.placement === "floating" && top > ceiling;
 
-    if (!over && !el.matches(":focus-visible")) return;
+    if (!over && !keyed) return;
 
     const by = clearBy(el.getBoundingClientRect(), {
       floor: over ? Math.min(top, window.innerHeight) : window.innerHeight,
@@ -533,22 +543,34 @@ export const clearFocusUnder = (pane, given) => {
 
     if (by > 0) window.scrollBy({ top: by, behavior: "instant" });
   };
+  // Captured, so a control that stops the key's propagation still
+  // counts.
+  const onKey = (e) => {
+    if (e.key === "Tab") tabAt = performance.now();
+  };
   const onFocus = (e) => {
     since = performance.now();
-    clear(e.target);
-    requestAnimationFrame(() => requestAnimationFrame(() => clear(e.target)));
+    tabbed = since - tabAt <= TAB_MS;
+    const keyed = tabbed;
+
+    clear(e.target, keyed);
+    requestAnimationFrame(() => requestAnimationFrame(
+      () => clear(e.target, keyed)
+    ));
   };
   // A frame later, as watchList's: a scroll inside the observer's
   // callback is a layout change WebKit warns of as a loop.
   const sizes = new ResizeObserver(() => {
-    if (performance.now() - since > SHIFT_MS) return;
-    requestAnimationFrame(() => clear(document.activeElement));
+    if (!tabbed || performance.now() - since > SHIFT_MS) return;
+    requestAnimationFrame(() => clear(document.activeElement, true));
   });
 
+  document.addEventListener("keydown", onKey, true);
   document.addEventListener("focusin", onFocus);
   sizes.observe(document.documentElement);
 
   return () => {
+    document.removeEventListener("keydown", onKey, true);
     document.removeEventListener("focusin", onFocus);
     sizes.disconnect();
   };
