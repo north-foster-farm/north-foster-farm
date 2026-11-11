@@ -1,4 +1,4 @@
-// Where the cart's "N more" buttons take its list, how much of the
+// Where the cart's "more" arrows take its list, how much of the
 // screen's foot the keyboard covers, and whether the rail's Cart link
 // rings the cart. Pure, so the tests can reach them.
 

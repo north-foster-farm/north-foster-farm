@@ -228,17 +228,21 @@ issues. Wording below is today's, approved under #400.
   remove control, the pack label (capitalized), "qty × $unit" and the
   line total. "0 items" when empty. Lines are rebuilt only when they
   change, so a remove control under the pointer survives a render
-  (#155). The remove control shows James's remove-item icon in place
-  of the × it had until 2026-11-11 (#531).
-- **Clear cart** (draft, #531). A small button over the right end
-  of the first group's heading row, so it adds no height. The first
+  (#155). The remove control shows Tabler's `trash` icon (#560), which
+  replaced James's remove-item icon (#531), itself in place of the ×
+  the line had until 2026-11-11.
+- **Clear cart** (draft, #531, moved by #560). A green outline pill
+  astride the pane's top edge, at its right, where the count badges
+  sit on the mini cart and the order menu item; settled, with no
+  border to sit on, just above the pane. It adds no height. The first
   press turns it into "Clear cart?" for `CONFIRM_WAIT` (6 s,
   `cart/confirm.mjs`); a second press in that time sets every quantity
   to 0, saves the draft with no lines and puts the focus on the pane.
   A second press within `CONFIRM_GUARD` (400 ms) of the first is
   ignored, so a double tap is one press. Waiting, Escape or the
   focus leaving puts it back. Hidden with the lines when the cart is
-  empty and, like the remove controls, when the lines are fixed.
+  empty or a floating pane is closed and, like the remove controls,
+  when the lines are fixed.
 - **Quantities** live in the catalog rows' inputs (`[data-qty]`, 0 to
   99, `data-max` while changing a paid order). A line's remove
   control sets its input to 0. Search and the header change the same
@@ -420,8 +424,10 @@ to CSS. Its surface, which the Cart class imports:
   `order-share-out` keyframes on `--order-ease-back`), and runs
   `apply()` when it ends; at once under reduced motion (#532).
 - `watchList(list, wrap, { more, moreTop })` -> `{ sync, dispose }`:
-  the "N more" pills, the edge fades and the glide (`moreStop`), on
-  the list's scroll and a `ResizeObserver`.
+  the "more" arrows, the edge fades and the glide (`moreStop`), on
+  the list's scroll and a `ResizeObserver`. Which arrows show is
+  `moreShown`: one each way any of the list lies hidden, no count
+  (#560; counting whole rows missed the lines the fades half hide).
 - `teach(pane, pill, { dwell, onShut })` -> `{ keep, cancel }`: the
   first Add's timer, with `cart-touch` judging a touch when it ends;
   a mouse or pen press keeps at once; the class calls `keep()` on
@@ -429,8 +435,8 @@ to CSS. Its surface, which the Cart class imports:
   pill pulses in three pairs.
 - `pulsePill(pill, kind)`, `ringCart(pane)`, `showAdded(box, text)`,
   `revealLine(list, row)`, `clearFocusUnder(pane, bar)` -> dispose.
-- Pure and unit tested: `toPx(value, rootFont)` and `restOf({ margin,
-  gap, kb })`.
+- Pure and unit tested: `toPx(value, rootFont)`, `restOf({ margin,
+  gap, kb })` and `moreShown({ top, height, full })`.
 
 ### 4.2 Structure
 
@@ -443,9 +449,10 @@ h2#order-cart-heading
 div.order-cart-slot[data-cart-slot]             the pane's place in the page
   aside#order-cart.order-cart
       [data-placement][data-fold][data-empty][data-share]
+    button.order-cart-clear[data-cart-clear]    Clear cart, on the top edge
     div.order-cart-body[data-cart-body]         scrolls as a whole when short
-      section.order-cart-lines  [data-part=lines]   Clear cart, the "more" pills,
-                                                    the list, the two line
+      section.order-cart-lines  [data-part=lines]   the "more" arrows, the
+                                                    list, the two line
                                                     templates
       dl.order-cart-sums        [data-part=sums]    subtotal, discount, fee
       div.order-cart-total-row  [data-part=total]   "N items" and "Total $X"
@@ -520,13 +527,15 @@ part is `flex: 0 0 auto`. The browser lays out James's priority
 `data-tight`.
 
 The soft cap is declarative: the lines' `max-height` is
-`max(three rows, calc(var(--cart-vis) * 0.66 - var(--cart-chrome)))`,
-where `--cart-chrome` is a rem constant for the parts other than the
-lines at one line each. A line of badges more or less moves the cap by
-that line; that is the error accepted for a layout that cannot
-oscillate. The hard limits are exact: the pane's `max-height` is the
-visible height less the top bar's foot and the rest, and the body's
-overflow is the fallback.
+`max(three rows, calc(var(--cart-vis) * var(--cart-lines-share) -
+var(--cart-chrome)))`, where `--cart-chrome` is a rem constant for the
+parts other than the lines at one line each, and `--cart-lines-share`
+is 0.8 (#560, "let it grow upward"; it was the sheet's 0.66 until
+2026-11-11). A line of badges more or less moves the cap by that line;
+that is the error accepted for a layout that cannot oscillate. The
+hard limits are exact: the pane's `max-height` is the visible height
+less the top bar's foot, the rest and Clear cart's rise above the
+edge, and the body's overflow is the fallback.
 
 Four raw inputs reach the stylesheet, from one listener and the
 placement tick: `--cart-vis`, `--cart-gap`, `--cart-kb` and
@@ -639,13 +648,18 @@ and Proceed stay inside the pane with the keyboard up, the field and
 Apply are in reach after the one scroll, a body scroll is kept, and
 the pane returns to its height when the keyboard drops. At 320x568
 with the keyboard up the total row scrolls with the body (section 5).
+That was before #560 (2026-11-11) let the lines reach 0.8 of the
+visible height less the chrome, so a long cart's sheet now takes more
+than two thirds; the rest held, unverified since in the prototype.
 
 ### 4.6 Interactions kept
 
 - The pill: Expand and Hide with James's icons, `aria-expanded`, keeps
   focus; Escape in the floating pane folds it and focuses the pill.
-- "N more ↓" and "N more ↑" over the lines while they overflow, gliding
-  to the next row (`moreStop`); fades at the list's edges.
+- A down arrow and an up arrow over the lines wherever any of them lie
+  hidden that way, gliding to the next row (`moreStop`); fades at the
+  list's edges. They carried counts ("N more ↓") until #560
+  (2026-11-11).
 - The shared row: the way opens into the switch, Add discount into the
   field and Apply; a pick, Apply's answer, a tap or focus outside
   the row (`awayFrom`, the Safari rule), or Escape folds it, the code

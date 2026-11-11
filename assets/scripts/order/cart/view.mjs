@@ -267,9 +267,17 @@ export const shutShare = (part, apply, { reduce = reduced() } = {}) => {
   return part.shutting;
 };
 
-// The "N more" pills and the fades at the list's edges, kept in step
+// Which "more" arrows show (#560): one wherever any part of the list
+// lies past that edge, even a line only half under its fade. No count:
+// counting whole rows missed the ones the fades half hide.
+export const moreShown = ({ top, height, full }) => ({
+  up: top > 0,
+  down: top + height < full - 1,
+});
+
+// The "more" arrows and the fades at the list's edges, kept in step
 // with the list's own scrolling and size. `wrap` is the scroller
-// around the list that carries the fades and the pills.
+// around the list that carries the fades and the arrows.
 export const watchList = (list, wrap, { more, moreTop }) => {
   const rows = () => Array.from(list.querySelectorAll(".order-cart-item"))
     .map((li) => ({
@@ -290,19 +298,14 @@ export const watchList = (list, wrap, { more, moreTop }) => {
       "data-scroll", list.scrollHeight > list.clientHeight + strip + 1
     );
 
-    const seen = list.scrollTop + list.clientHeight;
-    const hasMore = seen < list.scrollHeight - 1;
-    const all = rows();
-    const below = all.filter((r) => r.bottom > seen + 1).length;
-    const above = all.filter((r) => r.bottom <= list.scrollTop + 1).length;
+    const shown = moreShown({
+      top: list.scrollTop, height: list.clientHeight, full: list.scrollHeight,
+    });
 
-    wrap.toggleAttribute("data-top", list.scrollTop > 0);
-    wrap.toggleAttribute("data-more", hasMore);
-    // A hidden pill keeps its last count: it never reads "0 more".
-    more.hidden = !hasMore || below === 0;
-    if (!more.hidden) more.textContent = `${below} more ↓`;
-    moreTop.hidden = list.scrollTop <= 0 || above === 0;
-    if (!moreTop.hidden) moreTop.textContent = `${above} more ↑`;
+    wrap.toggleAttribute("data-top", shown.up);
+    wrap.toggleAttribute("data-more", shown.down);
+    more.hidden = !shown.down;
+    moreTop.hidden = !shown.up;
   };
 
   // The list glides to the row that was hidden, landing on it

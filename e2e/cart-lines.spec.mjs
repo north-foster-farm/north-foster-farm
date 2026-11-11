@@ -1,8 +1,9 @@
 // The cart's lines (#477, docs/cart.md 3): each category under its
 // short name, each line with its remove icon, the pack label, the
-// quantity at the unit price and the line total; the "N more" pills
-// that glide a long list row by row; Clear cart and its two presses
-// (#531). Adding, removing and typing a quantity are the order page's
+// quantity at the unit price and the line total; the "more" arrows
+// that glide a long list row by row (#560: an arrow, no count); Clear
+// cart on the pane's edge and its two presses (#531, #560). Adding,
+// removing and typing a quantity are the order page's
 // (order-page.spec.mjs).
 
 import {
@@ -106,8 +107,8 @@ test("another tab's change to the cart arrives here", async ({
 test.describe("a long list on a phone", () => {
   test.use({ viewport: PHONE });
 
-  test("the more pills count the rows beyond the list's edges and never "
-    + "sit over a line", async ({ page }) => {
+  test("an arrow shows each way lines are hidden, with no count, and "
+    + "never sits over a line", async ({ page }) => {
     const order = new OrderPage(page);
 
     await order.open(FULL_CART);
@@ -115,38 +116,69 @@ test.describe("a long list on a phone", () => {
     await unfold(order);
 
     const list = order.cart.locator("[data-cart-items]");
-    const down = order.cart.locator("[data-cart-more]");
-    const up = order.cart.locator("[data-cart-more-top]");
-    // The pill sits on the strip under the list's box, never on a
+    const down = order.cart.getByRole("button", { name: "More lines below" });
+    const up = order.cart.getByRole("button", { name: "More lines above" });
+    // The arrow sits on the strip under the list's box, never on a
     // line: a row half under the list's edge is clipped there.
-    const apart = async (pill) => {
+    const apart = async (arrow) => {
       const l = await list.boundingBox();
-      const p = await pill.boundingBox();
+      const p = await arrow.boundingBox();
 
       expect(p.y).toBeGreaterThanOrEqual(l.y + l.height - 1);
     };
+    // A glyph and nothing else: no count, no words.
+    const bare = async (arrow) => {
+      await expect(arrow.locator("svg")).toBeVisible();
+      await expect(arrow).toHaveText("");
+    };
 
     await expect(down).toBeVisible();
-    await expect(down).toHaveText(/^\d+ more ↓$/);
+    await bare(down);
     await expect(up).toBeHidden();
     await apart(down);
 
-    const rows = await list.locator(".order-cart-item").count();
-    const below = Number((await down.textContent()).match(/\d+/)[0]);
-
-    expect(below).toBeGreaterThan(0);
-    expect(below).toBeLessThan(rows);
-
     await list.evaluate((el) => { el.scrollTop = 140; });
     await expect(up).toBeVisible();
-    await expect(up).toHaveText(/^\d+ more ↑$/);
+    await bare(up);
     await apart(up);
     await apart(down);
+
+    // A line only partly under the foot's fade still counts as hidden.
+    await list.evaluate((el) => {
+      el.scrollTop = el.scrollHeight - el.clientHeight - 6;
+    });
+    await expect(down).toBeVisible();
 
     // At the end, only the way back up.
     await list.evaluate((el) => { el.scrollTop = el.scrollHeight; });
     await expect(down).toBeHidden();
     await expect(up).toBeVisible();
+
+    // Back at the top, only the way down.
+    await list.evaluate((el) => { el.scrollTop = 0; });
+    await expect(up).toBeHidden();
+    await expect(down).toBeVisible();
+  });
+
+  // The list grows upward (#560). Before it, its cap was two thirds of
+  // the visible height less the chrome (20.5rem), never under four
+  // rows' height and the strip (124px): 124px at this size. Now it
+  // shows at least two more rows than that.
+  test("the list is taller than it was", async ({ page }) => {
+    const order = new OrderPage(page);
+
+    await order.open(FULL_CART);
+    await page.evaluate(() => window.scrollTo(0, 400));
+    await unfold(order);
+
+    const lines = order.cart.locator("[data-part='lines']");
+    const before = Math.max(124, 0.66 * PHONE.height - 20.5 * 16);
+    const box = await lines.boundingBox();
+
+    expect(box.height).toBeGreaterThan(before + 48);
+    // Still a scroller, with the foot in reach.
+    await expect(order.cart.locator("[data-cart-more]")).toBeVisible();
+    await expect(order.next).toBeInViewport();
   });
 
   test("a more pill glides the list to the next row, exactly",
@@ -195,9 +227,10 @@ const draftLines = (page) => page.evaluate(() => JSON.parse(
   localStorage.getItem("nff-order-draft")
 ).payload.lines);
 
-// The remove control shows James's remove-item icon in place of the ×,
-// keeps its name and still takes the line out (#531).
-test("a line's remove icon keeps its name and takes the line out",
+// The remove control shows Tabler's trash can (#560), in place of
+// James's remove-item icon (#531) and the × before it, keeps its name
+// and still takes the line out.
+test("a line's trash icon keeps its name and takes the line out",
   async ({ page }) => {
     await page.setViewportSize(PHONE);
 
@@ -211,6 +244,8 @@ test("a line's remove icon keeps its name and takes the line out",
     });
 
     await expect(remove.locator("svg")).toBeVisible();
+    // The can's lid, from icons/trash.svg.
+    await expect(remove.locator("path[d^='M9 7V4']")).toHaveCount(1);
     await expect(remove).not.toContainText("×");
     await remove.click();
     await expect(remove).toHaveCount(0);
@@ -236,49 +271,66 @@ for (const [width, viewport] of [["a phone", PHONE], ["the column", XL]]) {
       return order;
     };
 
-    test("sits at the top of the cart, and two presses empty it",
-      async ({ page }) => {
-        const order = await opened(page);
-        const clear = order.cart.getByRole("button", { name: "Clear cart" });
+    test("sits on the pane's top edge as an outline pill, and two "
+      + "presses empty it", async ({ page }) => {
+      const order = await opened(page);
+      const clear = order.cart.getByRole("button", { name: "Clear cart" });
 
-        // At the top of the cart: on the first heading's row, the lines
-        // and the totals all below its top edge.
-        await expect(clear).toBeVisible();
-        await expect(clear.locator("svg")).toBeVisible();
+      await expect(clear).toBeVisible();
+      await expect(clear.locator("svg")).toBeVisible();
 
-        const at = await clear.boundingBox();
-        const heading = await order.cart.locator(".order-cart-group-name")
-          .first().boundingBox();
-        const firstLine = await order.cart.locator(".order-cart-item")
-          .first().boundingBox();
+      // Astride the pane's top edge (#560), as the count badges sit on
+      // the mini cart and the order menu item: its middle on the edge,
+      // at the pane's right, wider than tall.
+      const at = await clear.boundingBox();
+      const pane = await order.cart.boundingBox();
+      const middle = at.y + at.height / 2;
 
-        expect(Math.abs(at.y - heading.y)).toBeLessThan(4);
-        expect(at.y + at.height).toBeLessThanOrEqual(firstLine.y + 2);
-        // Clear of the heading's words.
-        expect(at.x).toBeGreaterThan(heading.x + 60);
+      expect(Math.abs(middle - pane.y)).toBeLessThan(4);
+      expect(at.x + at.width).toBeLessThanOrEqual(pane.x + pane.width);
+      expect(at.x + at.width).toBeGreaterThan(pane.x + pane.width - 40);
+      expect(at.width).toBeGreaterThan(2 * at.height);
 
-        // A double tap is one press: the second comes too soon after
-        // the first to count.
-        await clear.dblclick();
-        await expect(clear).toHaveText("Clear cart?");
-        await expect(order.count).toHaveText("3 items");
+      // An outline: a green border around the page's own background,
+      // not the badges' solid green.
+      const look = await clear.evaluate((el) => {
+        const s = getComputedStyle(el);
+        const pane = getComputedStyle(el.closest(".order-cart"));
 
-        await page.waitForTimeout(CONFIRM_GUARD + 100);
-        await clear.click();
-        // The button goes with the lines, so the focus lands on the pane.
-        await expect(order.cart).toBeFocused();
-        await expect(order.count).toHaveText("0 items");
-        await expect(order.total).toHaveText("$0");
-        await expect(order.cart).toHaveAttribute("data-empty", "");
-        await expect(order.cart.locator(".order-cart-item")).toHaveCount(0);
-        await expect(order.next).toBeDisabled();
-        for (const sku of [SKU.eggs, SKU.wings]) {
-          await expect(page.locator(`[data-qty='${sku}']`)).toHaveValue("0");
-        }
-        expect(await draftLines(page)).toEqual([]);
-        await expect(page.locator("[data-cart-live]"))
-          .toHaveText("Your cart is empty.");
+        return {
+          border: s.borderTopColor, color: s.color,
+          fill: s.backgroundColor, pane: pane.backgroundColor,
+          pill: parseFloat(s.borderTopLeftRadius) >= el.offsetHeight / 2,
+        };
       });
+
+      expect(look.border).toBe(look.color);
+      expect(look.fill).toBe(look.pane);
+      expect(look.pill).toBe(true);
+
+      // A double tap is one press: the second comes too soon after the
+      // first to count.
+      await clear.dblclick();
+      await expect(clear).toHaveText("Clear cart?");
+      await expect(order.count).toHaveText("3 items");
+
+      await page.waitForTimeout(CONFIRM_GUARD + 100);
+      await clear.click();
+      // The button goes with the lines, so the focus lands on the pane.
+      await expect(order.cart).toBeFocused();
+      await expect(clear).toBeHidden();
+      await expect(order.count).toHaveText("0 items");
+      await expect(order.total).toHaveText("$0");
+      await expect(order.cart).toHaveAttribute("data-empty", "");
+      await expect(order.cart.locator(".order-cart-item")).toHaveCount(0);
+      await expect(order.next).toBeDisabled();
+      for (const sku of [SKU.eggs, SKU.wings]) {
+        await expect(page.locator(`[data-qty='${sku}']`)).toHaveValue("0");
+      }
+      expect(await draftLines(page)).toEqual([]);
+      await expect(page.locator("[data-cart-live]"))
+        .toHaveText("Your cart is empty.");
+    });
 
     test("one press, then waiting, leaves the cart as it was",
       async ({ page }) => {
