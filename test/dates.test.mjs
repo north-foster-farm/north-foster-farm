@@ -234,6 +234,15 @@ describe("delivery Thursdays and the Wednesday-noon cutoff", () => {
     assert.deepEqual(got, ["2026-11-19", "2026-12-03"]);
   });
 
+  it("skips Christmas week: 10 Dec offers 17 Dec then 31 Dec (#554)",
+    () => {
+      assert.ok(terms.holidays.includes("2026-12-24"));
+
+      const got = dates(deliveryDates(ny("2026-12-10"), terms));
+
+      assert.deepEqual(got, ["2026-12-17", "2026-12-31"]);
+    });
+
   it("carries the cutoff instant for the countdown", () => {
     const [first] = deliveryDates(ny("2026-10-05"), terms);
 
