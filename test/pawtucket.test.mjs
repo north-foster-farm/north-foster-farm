@@ -26,6 +26,9 @@ import {
 const ZONE = "America/New_York";
 const ny = (iso, hour = 9) => instant(iso, hour, 0, ZONE);
 const { model } = terms;
+// The markets that make a market season on the home page (#544).
+const seasonMarkets = model.series
+  .filter((s) => s.kind === "market" && !s.winter);
 const MARKET = "H3TQ";
 const POPUPS = {
   W9MF: ["2026-11-21", "Thanksgiving Prep"],
@@ -201,15 +204,26 @@ describe("Pawtucket on built pages (#544)", {
       "Jordan's Jungle 545 Pawtucket Ave, Pawtucket, RI 02860"));
   });
 
-  it("lists the market in the home page's band, linked to Instagram",
-    () => {
-      const page = html("");
+  // Option (c) on #548: a winter market alone is no market season, so
+  // the home page keeps the ways band, shown, with no market band. Its
+  // Pickup days card fills the places open from /api/dates.
+  it("keeps the home page's ways band while only it runs", {
+    skip: today(new Date(), ZONE) < "2026-11-10"
+      || seasonMarkets.some((m) => m.start <= today(new Date(), ZONE)
+        && m.end >= today(new Date(), ZONE)),
+  }, () => {
+    const page = html("");
 
-      assert.match(text(""), new RegExp("Pawtucket Farmers Market " +
-        "Tuesdays, 12:00 – 4:00 PM Jordan's Jungle " +
-        "545 Pawtucket Ave, Pawtucket, RI 02860"));
-      assert.match(page, new RegExp('<a href="https://www\\.instagram\\.com/' +
-        'pawtucketfarmersmarket/"[^>]*>Pawtucket Farmers Market</a>'));
+    assert.doesNotMatch(page, /class="places home-band[^"]*"[^>]*data-built/);
+    assert.match(page, /<div class="places ways home-band[^"]*">/);
+    assert.match(page, /data-scheduled-ways/);
+  });
+
+  it("is a winter market, so the season's last market stays Foster's",
+    () => {
+      assert.equal(model.seriesOf(MARKET).winter, true);
+      assert.match(text("news/three-quarters-of-the-way"),
+        /wrapped up in Foster on October 25/);
     });
 
   it("pins it on the map, with its card and directions", () => {

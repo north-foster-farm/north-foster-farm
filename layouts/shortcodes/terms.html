@@ -24,7 +24,8 @@
     {{< terms "cutoff-hour" >}}          noon
     {{< terms "last-market" >}}          Foster Farmers Market, the
                                          market in the market series of data/series.json
-                                         that closes last
+                                         that closes last, winter
+                                         markets aside
     {{< terms "last-market-day" >}}      October 25, the day it closes
   A place drops its state and ZIP code. The key "drop" reads the drop
   site series of data/series.json (layouts/partials/scheduled-places.html).
@@ -79,8 +80,10 @@
   {{ (time.AsTime $of.start $terms.timeZone).Format "January 2" }}
 {{- else if or (eq $fact "last-market") (eq $fact "last-market-day") -}}
   {{- $last := dict "closes" "" -}}
+  {{- /* The season's last market: a winter market, Pawtucket's
+       (#544), runs past it and is not the end of a season. */ -}}
   {{- range (partial "lib/pickup-lists.html" .).markets -}}
-    {{- if gt .closes $last.closes }}{{ $last = . }}{{ end -}}
+    {{- if and (not .winter) (gt .closes $last.closes) }}{{ $last = . }}{{ end -}}
   {{- end -}}
   {{- if eq $fact "last-market" -}}
     {{ $last.name }}

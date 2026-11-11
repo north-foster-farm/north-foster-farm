@@ -7,11 +7,13 @@
          ways to buy while none is. A page built in market season
          also carries the ways band, hidden, and swaps the two on the
          day after the last market closes (expiry.js), since the
-         build may be weeks old by then. */}}
+         build may be weeks old by then. A winter market running on
+         past the season's last close goes with the band
+         (market-season.html, #544). */}}
     {{ with partial "market-season.html" . }}
       {{ $last := "" }}
       {{ range . }}
-        {{ if gt .closes $last }}{{ $last = .closes }}{{ end }}
+        {{ if and (not .winter) (gt .closes $last) }}{{ $last = .closes }}{{ end }}
       {{ end }}
       {{ $ends := partial "market/ends.html" $last }}
       {{ partial "home/markets.html" (dict "markets" . "ends" $ends) }}

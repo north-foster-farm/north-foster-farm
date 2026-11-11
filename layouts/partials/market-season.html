@@ -1,11 +1,21 @@
 {{/* The markets running today, each from its own "opens" to its
      "closes" date in the market series of data/series.json. The home page shows the market
-     band while any runs. It is decided at build time. */}}
+     band while any runs. It is decided at build time.
+
+     A winter market (`"winter": true`, Pawtucket's) does not make a
+     market season by itself: while it is the only one running, this
+     returns none and the home page keeps the ways band, whose Pickup
+     days card lists it from /api/dates (#544, option c on #548).
+     While a season market runs too, the band lists the winter one
+     beside it. */}}
 {{ $today := now.Format "2006-01-02" }}
 {{ $running := slice }}
+{{ $season := false }}
 {{ range (partial "lib/pickup-lists.html" .).markets }}
   {{ if and (le .opens $today) (ge .closes $today) }}
     {{ $running = $running | append . }}
+    {{ if not .winter }}{{ $season = true }}{{ end }}
   {{ end }}
 {{ end }}
+{{ if not $season }}{{ $running = slice }}{{ end }}
 {{ return $running }}

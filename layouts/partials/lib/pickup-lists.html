@@ -37,6 +37,7 @@
       "lng" $loc.lng
     -}}
     {{- with $s.nudge }}{{ $m = merge $m (dict "nudge" .) }}{{ end -}}
+    {{- if $s.winter }}{{ $m = merge $m (dict "winter" true) }}{{ end -}}
     {{- $markets = $markets | append $m -}}
   {{- else if eq $s.kind "pop-up" -}}
     {{- $e := dict
