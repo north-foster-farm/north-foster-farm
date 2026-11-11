@@ -133,9 +133,15 @@ test.describe("a market order, moved to the drop site", () => {
         to: email, subject: "Your order is updated", since,
       });
 
+      // The customer's email names the drop site by its place, as
+      // every email does since #490, and the market only in its
+      // "Before:" line (#544: the first run with a market open).
+      const before = (updated.text.match(/Before:[^\n]*/) || [""])[0];
+
       expect(updated.text).toContain(orderId);
-      expect(updated.text).toMatch(/drop site/i);
-      expect(updated.text).not.toContain(market.name);
+      expect(updated.text).toContain(`Where: ${drop.place}`);
+      expect(before).toContain(market.name);
+      expect(updated.text.replace(before, "")).not.toContain(market.name);
 
       const farm = await waitForMail({
         subject: `Pickup moved: ${orderId}`, since,

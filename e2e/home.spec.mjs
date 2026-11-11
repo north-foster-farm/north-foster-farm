@@ -600,7 +600,12 @@ test.describe("home", () => {
 
       test.skip(await band.count() === 0, "built with no market running");
       const { markets } = await import("./support/series.mjs");
-      const last = markets.map((m) => m.closes).sort().at(-1);
+      const built = await band.getAttribute("data-built");
+      // A winter market running on past the season goes with the band
+      // (#544).
+      const last = markets
+        .filter((m) => !m.winter && m.opens <= built && m.closes >= built)
+        .map((m) => m.closes).sort().at(-1);
       const ends = await band.getAttribute("data-hide-from");
 
       const next = new Date(Date.parse(`${last}T12:00:00Z`) + 864e5)
@@ -622,12 +627,15 @@ test.describe("home", () => {
     });
 
   // #385: on staging, the toolbar's set time moves the date-bound
-  // blocks too. Written, not run.
+  // blocks too, both ways. The moment is the build's own, the day
+  // after the season's last close: a fixed date read as off-season
+  // until Pawtucket's winter market ran through it (#544). A page
+  // built with no market band can't grow one, so that build skips.
   test("the staging clock swaps the market and off-season bands",
     async ({ page }) => {
-      await page.route("**/api/staging/info", async (route) => {
-        const at = Date.parse("2027-01-15T12:00:00-05:00");
+      let at = Date.now();
 
+      await page.route("**/api/staging/info", async (route) => {
         await route.fulfill({
           json: {
             can: ["clock"], session: "x",
@@ -638,10 +646,60 @@ test.describe("home", () => {
       await page.goto("/");
       test.skip(await page.locator("#staging").count() === 0,
         "not a staging build");
-      await expect(page.locator(".ways")).toBeVisible();
-      await expect(page.locator(".places.home-band:not(.ways)"))
-        .toBeHidden();
+
+      const band = page.locator(".places.home-band:not(.ways)");
+      const ways = page.locator(".ways");
+
+      test.skip(await band.count() === 0, "built with no market season");
+
+      const ends = Date.parse(await band.getAttribute("data-hide-from"));
+
+      at = ends + 12 * 3600e3;
+      await page.reload();
+      await expect(ways).toBeVisible();
+      await expect(band).toBeHidden();
+
+      at = ends - 12 * 3600e3;
+      await page.reload();
+      await expect(band).toBeVisible();
+      await expect(ways).toBeHidden();
     });
+
+  // #544, option (c) on #548: while only a winter market runs, the
+  // home page keeps the ways band. Its Pickup days card takes the
+  // places open from /api/dates: the winter market by name when it is
+  // the one place open, else how many places, linked to the map's
+  // Places (the card's rule, James, 2026-10-26), which lists it.
+  test("a winter market alone keeps the ways band", async ({ page }) => {
+    const { markets } = await import("./support/series.mjs");
+
+    await page.goto("/");
+
+    const band = page.locator(".places.home-band:not(.ways)");
+
+    test.skip(await band.count() > 0, "built in a market season");
+
+    const built = await page.evaluate(() => new Intl.DateTimeFormat("en-CA",
+      { timeZone: "America/New_York" }).format(new Date()));
+    const winter = markets.find((m) => m.winter && m.opens <= built
+      && m.closes >= built);
+
+    test.skip(!winter, "no winter market running");
+    await expect(page.locator(".ways")).toBeVisible();
+
+    const card = page.locator("[data-scheduled-ways]");
+    const several = card.locator("a[href='#places']");
+
+    await expect(card.locator(".place-open-name").or(several).first())
+      .toBeVisible();
+    if (await several.count()) {
+      await expect(several).toHaveText(/^\d+ locations$/);
+      await expect(page.locator("#home-map .map-places"))
+        .toContainText(winter.name);
+    } else {
+      await expect(card).toContainText(winter.name);
+    }
+  });
 
   // #137: while no market runs, the market band gives way to the three
   // ways to buy, every fact from data/delivery.json.

@@ -7,10 +7,13 @@ import seriesData from "../../data/series.json" with { type: "json" };
 
 const place = (code) => locationData.locations.find((l) => l.code === code);
 
-// { name, opens, closes }, the season of each market.
+// { name, opens, closes, winter }, the season of each market. A winter
+// market alone keeps the home page's ways band (#544).
 export const markets = seriesData.series
   .filter((s) => s.kind === "market")
-  .map((s) => ({ name: s.name, opens: s.start, closes: s.end }));
+  .map((s) => ({
+    name: s.name, opens: s.start, closes: s.end, winter: Boolean(s.winter),
+  }));
 
 // One entry per pop-up, as data/events.json once listed them.
 export const events = seriesData.series
@@ -22,6 +25,7 @@ export const events = seriesData.series
       id: s.code,
       kind: "pop-up",
       name: s.name,
+      location: s.location,
       place: loc.name,
       date: s.start,
       start: s.opens,

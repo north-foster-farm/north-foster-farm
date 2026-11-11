@@ -2,6 +2,7 @@
 // from data/series.json. The build picks the event; the page drops a
 // bar whose end has passed. docs/qa-launch.md, "The autumn refresh".
 
+import seriesData from "../data/series.json" with { type: "json" };
 import { events } from "./support/series.mjs";
 import { expect, test } from "./support/order.mjs";
 
@@ -41,10 +42,15 @@ const next = [...events]
   .find((e) => new Date(e.ends) > new Date());
 
 // A pop-up's link opens its card on the home page's map (M9 on #214),
-// in the same tab; the card has no Instagram link.
+// in the same tab; the card has no Instagram link but that of a
+// market at the same place whose season has not ended.
+const marketAt = (e) => seriesData.series.find((s) => s.kind === "market"
+  && s.location === e.location && s.instagram && (!s.end || s.end >= e.date));
+
 const EVENT = next && {
   ...next,
   popUp: next.kind === "pop-up",
+  marketInstagram: (marketAt(next) || {}).instagram || "",
   short: `${next.name}, ${day(next.date, "short")}`,
   long: `${next.name} in ${next.address.city}, ${day(next.date, "long")}${
     next.start ? `, ${clock(next.start)} – ${clock(next.end || "23:59")}` : ""
@@ -119,8 +125,16 @@ test.describe("top bar (#139)", () => {
     await expect(map).toHaveAttribute("data-layer", "places");
     await expect(card).toContainText(EVENT.name);
     await expect(card).toContainText(EVENT.place);
+    // The pop-up adds no Instagram link (#214). A market at the same
+    // place keeps its own on the place's card, as Pawtucket's does
+    // (#544).
     await expect(card.getByRole("link", { name: "Instagram" }))
-      .toHaveCount(0);
+      .toHaveCount(EVENT.marketInstagram ? 1 : 0);
+    if (EVENT.marketInstagram) {
+      await expect(card.getByRole("link", { name: "Market Instagram" }))
+        .toHaveAttribute("href",
+          `https://www.instagram.com/${EVENT.marketInstagram}/`);
+    }
   });
 
   test("every page carries it", async ({ page }) => {
