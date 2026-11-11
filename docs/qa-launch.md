@@ -2667,20 +2667,24 @@ Pending.
   guest cart becomes the account's.
 - **Teardown:** Delete the customer.
 
-### AR-28 How to buy (#150)
+### AR-28 How to buy (#150, #536)
 
-Automated: `home.spec.mjs`, "How to buy walks four steps without the
-invoice era" (both projects). The step titles are #173's draft,
-pending James (8855002); the test pins them so a change shows.
+Automated: `home.spec.mjs`, "How to buy shows four rows without the
+invoice era" (both projects). The wording and layout are James's,
+approved in the browser on 2026-11-11 (#536), replacing #173's
+numbered steps; the test pins them so a change shows (2026-11-11,
+#536: this entry still named the old title and "Step N:" steps).
 
 - **Scenario:** James's wording for paying on the page replaces the
   emailed payment link.
-- **Setup:** Home page.
+- **Setup:** Home page, at a phone width and from lg.
 - **Test:**
   1. Read `#how-to-buy`; press Shop all products.
-- **Assert:** "From our pasture to your table"; steps "Step 1: Shop
-  what’s fresh", "Step 2: Pick your day", "Step 3: Change of plans?",
-  "Step 4: Taste the difference", each with its icon; no "invoice",
+- **Assert:** eyebrow "How to buy" and title "Shop for premium chicken
+  and fresh eggs online"; rows "Our products", "Pickup or delivery?",
+  "Flexible by design" and "Quality you can taste", each with its icon
+  and line and no step number; on a phone the photo, the rows, then
+  the button, and from lg the photo left of the rows; no "invoice",
   "payment link" or "Pay to confirm"; the button lands on `/order/`.
 - **Teardown:** None.
 
