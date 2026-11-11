@@ -121,8 +121,8 @@ the drop site, a market or a pop-up. There is no minimum or fee.
 
 **The drop site** in {{< terms "town" "drop" >}} runs on
 {{< terms "days" "drop" >}} from
-{{< terms "window" "drop" >}}, {{< terms "starting" "drop" >}}on
-the {{< terms "place" "drop" >}}: the same corner of the lot where
+{{< terms "window" "drop" >}}, {{< terms "starting" "drop" >}}at
+{{< terms "street" "drop" >}}: the same corner of the lot where
 our tent sits on market days.
 
 **Markets and pop-ups** are opened one event at a time. When we open

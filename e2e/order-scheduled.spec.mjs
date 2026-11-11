@@ -73,10 +73,10 @@ test.describe("scheduled pickup", () => {
       await expect(part(page, DROP.series, "time"))
         .toHaveText("10:00 – 11:00 AM");
       await expect(part(page, DROP.series, "name"))
-        .toHaveText("Scituate · Drop site");
+        .toHaveText("North Scituate · Drop site");
       await expect(part(page, DROP.series, "address").locator("span"))
         .toHaveText([
-          "The Village Green", "46 Institute Lane", "North Scituate, RI 02857",
+          "46 Institute Lane", "North Scituate, RI 02857",
         ]);
     });
 

@@ -34,7 +34,7 @@ months. We’ll be at the site of the Scituate Rotary Farmers Market, 46
 Institute Lane, Saturday mornings from 10 to 11.
 
 We’ll email with as much advanced notice if something comes up that
-will prevent us from being in Scituate on any given Saturday.
+will prevent us from being in North Scituate on any given Saturday.
 
 We hope you are continuing to enjoy our eggs and will spread the word
 to family and friends who may also be interested in shopping with us

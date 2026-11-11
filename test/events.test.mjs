@@ -366,7 +366,7 @@ describe("the drop site", () => {
     assert.equal(got.scituate, undefined);
     assert.deepEqual(got.scheduled.map((d) => d.date), ["2026-10-24"]);
     assert.equal(got.scheduled[0].name, "Drop site");
-    assert.equal(got.scheduled[0].town, "Scituate");
+    assert.equal(got.scheduled[0].town, "North Scituate");
   });
 });
 

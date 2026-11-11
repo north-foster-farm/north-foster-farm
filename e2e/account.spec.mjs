@@ -321,7 +321,7 @@ test.describe("a scheduled pickup on the account page", () => {
         ...order,
         fulfilment: { ...order.fulfilment, occurrence: drop.occurrence,
           date: drop.date },
-        pickup: { name: "Drop site", place: "Village Green",
+        pickup: { name: "Drop site", place: "46 Institute Lane",
           window: "10 AM – 12 PM", occurrence: drop.occurrence,
           series: "VFVQ", gone: false },
       } } });

@@ -10,7 +10,7 @@ import {
 const drop = {
   occurrence: "VFVQ-261024", date: "2026-10-24",
   label: "Saturday, October 24", series: "VFVQ", name: "Drop site",
-  town: "Scituate", window: "10:00 – 11:00 AM",
+  town: "North Scituate", window: "10:00 – 11:00 AM",
 };
 const foster = {
   occurrence: "WAC5-261101", date: "2026-11-01",
@@ -27,7 +27,7 @@ describe("a scheduled choice", () => {
   it("reads date, place, town and the window as the server prints it", () => {
     assert.equal(
       scheduledChoice(drop).text,
-      "Saturday, October 24: Drop site, Scituate, 10:00 – 11:00 AM"
+      "Saturday, October 24: Drop site, North Scituate, 10:00 – 11:00 AM"
     );
   });
 });
@@ -214,7 +214,7 @@ describe("the link's words for a count", () => {
 
 describe("a pickup as its card's parts", () => {
   const green = {
-    name: "The Village Green", street: "46 Institute Lane",
+    name: "46 Institute Lane", street: "46 Institute Lane",
     city: "North Scituate", state: "RI", zip: "02857",
   };
 
@@ -222,9 +222,9 @@ describe("a pickup as its card's parts", () => {
     assert.deepEqual(pickupParts(drop, green), {
       date: "Saturday, October 24",
       time: "10:00 – 11:00 AM",
-      name: "Scituate · Drop site",
+      name: "North Scituate · Drop site",
       address: [
-        "The Village Green", "46 Institute Lane", "North Scituate, RI 02857",
+        "46 Institute Lane", "North Scituate, RI 02857",
       ],
     });
   });
@@ -236,7 +236,8 @@ describe("a pickup as its card's parts", () => {
       "Warwick Night Market");
     assert.equal(pickupName("Foster", "Fosterville Market"),
       "Foster · Fosterville Market");
-    assert.equal(pickupName("Scituate", "Drop site"), "Scituate · Drop site");
+    assert.equal(pickupName("North Scituate", "Drop site"),
+      "North Scituate · Drop site");
     assert.equal(pickupName("", "Drop site"), "Drop site");
   });
 

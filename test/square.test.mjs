@@ -317,7 +317,8 @@ describe("buildOrder", () => {
         date: "2026-10-17", onfarm: null },
     }), "CUST", cfg).fulfillments[0].pickup_details.note;
 
-    assert.match(note, /^Pickup at Drop site, Village Green, 46 Institute/);
+    assert.match(note,
+      /^Pickup at Drop site, 46 Institute Lane, North Scituate/);
   });
 
   it("reads a Stage 1 drop site order the same way", () => {
@@ -325,7 +326,8 @@ describe("buildOrder", () => {
       fulfilment: { method: "scituate", date: "2026-10-17", onfarm: null },
     }), "CUST", cfg).fulfillments[0].pickup_details.note;
 
-    assert.match(note, /^Pickup at Drop site, Village Green, 46 Institute/);
+    assert.match(note,
+      /^Pickup at Drop site, 46 Institute Lane, North Scituate/);
   });
 
   it("does not call a market gone from the data on-farm", () => {

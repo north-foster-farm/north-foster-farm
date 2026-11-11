@@ -75,7 +75,8 @@ export const knownFacts = () => {
 
       return {
         name: s.name, when: whenOf(s),
-        where: [loc.name, loc.street, loc.city].join(", "),
+        where: [loc.name !== loc.street && loc.name, loc.street, loc.city]
+          .filter(Boolean).join(", "),
       };
     });
   const facts = [];

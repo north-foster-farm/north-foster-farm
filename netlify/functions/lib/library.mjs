@@ -378,7 +378,7 @@ export const SAMPLE_TEXT = [
   "Whole Chicken, 3.5 – 3.9 lbs", "Eggs, Grade A · Large",
   "Green cooler by the garage", "Dog is friendly",
   "Please leave the eggs on top.", "On the front porch",
-  "morning", "afternoon", "Village Green",
+  "morning", "afternoon", "46 Institute Lane",
   "Could I switch Thursday's delivery to the following week? " +
     "We'll be away.",
   "Two of the eggs were cracked.", "The rest were fine.",

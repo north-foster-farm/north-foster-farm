@@ -701,7 +701,7 @@ describe("scheduled pickups in a packet", () => {
     const { text } = h.sent[0];
 
     assert.match(text, /\nDelivery, Thursday, October 8\n- C/);
-    assert.match(text, /\nDrop site, Saturday, October 17, Village Green/);
+    assert.match(text, /\nDrop site, Saturday, October 17, 46 Institute Lane/);
     assert.match(text, /\nFoster Farmers Market, Sunday, October 25, Shady/);
     assert.match(text, /9 AM – 1 PM\n- B\b/);
     assert.doesNotMatch(text, /Market pickup/);

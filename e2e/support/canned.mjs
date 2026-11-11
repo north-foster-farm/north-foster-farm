@@ -63,7 +63,7 @@ export const ORDER_SCHEDULED = {
   },
   pickup: {
     name: "Drop site",
-    place: "Village Green, 46 Institute Lane, North Scituate, RI 02857",
+    place: "46 Institute Lane, North Scituate, RI 02857",
     window: "10 – 11 AM", gone: false,
   },
 };

@@ -6,7 +6,7 @@
 
 // An entry of /api/dates' `scheduled`, ready for a picker: its `value`
 // and its `text`, date then place then window, the window as the
-// server prints it ("Saturday, October 24: Drop site, Scituate,
+// server prints it ("Saturday, October 24: Drop site, North Scituate,
 // 10:00 – 11:00 AM").
 export const scheduledChoice = (entry) => ({
   ...entry,
@@ -112,14 +112,14 @@ export const addressLines = (loc) => {
   const state = [loc.state, loc.zip].filter(Boolean).join(" ");
 
   return [
-    loc.name, loc.street, loc.street2,
+    loc.name !== loc.street && loc.name, loc.street, loc.street2,
     [loc.city, state].filter(Boolean).join(", "),
   ].filter(Boolean);
 };
 
 // A pickup's subtitle: the town, then the pickup's own name,
-// "Scituate · Drop site", as on the Places cards. A name that already
-// says its town says it alone: "Foster Farmers Market" (#439).
+// "North Scituate · Drop site", as on the Places cards. A name that
+// already says its town says it alone: "Foster Farmers Market" (#439).
 export const pickupName = (town, name) => {
   if (town && name && ` ${name} `.includes(` ${town} `)) return name;
 

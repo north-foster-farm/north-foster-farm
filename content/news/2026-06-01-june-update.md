@@ -43,7 +43,7 @@ to stop by, say hello, and see what we’ve got.
 - **[Scituate Rotary Farmers Market][scituate]:**
   - Saturdays
   - 9:00 AM - 12:00 PM
-  - The Village Green, 46 Institute Lane, North Scituate, RI
+  - 46 Institute Lane, North Scituate, RI
 - **[Foster Farmers Market][foster]:**
   - Sundays
   - 9:00 AM - 1:00 PM

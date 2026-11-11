@@ -13,7 +13,7 @@ find us on the weekends:
 - **[Scituate Rotary Farmers Market][scituate]**\
   **When:** every Saturday\
   **Time:** 9:00 AM to 12:00 PM\
-  **Where:** 46 Institute Lane, Scituate, RI 02857
+  **Where:** 46 Institute Lane, North Scituate, RI 02857
 - **[Foster Farmers' Market][foster]**\
   **When:** every Sunday\
   **Time:** 9:00 AM to 12:30 PM\

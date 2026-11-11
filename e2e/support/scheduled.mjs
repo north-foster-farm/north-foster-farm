@@ -17,9 +17,9 @@ import { addDays, today } from "../../assets/scripts/order/lib/zoned.mjs";
 const ZONE = "America/New_York";
 
 export const DROP = {
-  series: "VFVQ", name: "Drop site", location: "G4C6", town: "Scituate",
-  place: "Drop site, Village Green, North Scituate",
-  short: "Village Green, North Scituate", window: "10:00 – 11:00 AM",
+  series: "VFVQ", name: "Drop site", location: "G4C6", town: "North Scituate",
+  place: "Drop site, 46 Institute Lane, North Scituate",
+  short: "46 Institute Lane, North Scituate", window: "10:00 – 11:00 AM",
 };
 
 export const FOSTER = {

@@ -63,7 +63,7 @@ and next spring was a gap we hadn't figured out how to cross.
 
 Whatever the answer was, it had to start with our customers. For most
 of them, the tent on Saturday morning was the only place they knew to
-find us. With four Saturdays left at Scituate, we had to give them
+find us. With four Saturdays left at the Scituate market, we had to give them
 another way.
 
 By the time our weekly markets wrapped up in Foster on

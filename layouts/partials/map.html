@@ -14,7 +14,7 @@
   farm, then each location where a series of data/series.json meets:
   the drop site, the markets in their season and the pop-ups to come.
   One list, numbered as the pins are, the farm first. A location's card
-  lists its series, so the drop site and a market at the Village Green
+  lists its series, so the drop site and a market at the same address
   share one card with no special case. The build carries the locations
   and the seasons; scripts/map/ reads /api/events at view time for the
   dates the farm attends and the ones open for pickup orders, and puts
@@ -138,7 +138,7 @@
           "names" (delimit $names ", ")
           "blocks" $blocks
           "where" $where
-          "directions" (dict "to" (printf "%s, %s" $loc.name $where))
+          "directions" (dict "to" (cond (eq $loc.name $loc.street) $where (printf "%s, %s" $loc.name $where)))
           "links" $links)) }}
       {{ end }}
     {{ end }}

@@ -12,9 +12,10 @@
     {{< terms "farm-name" >}}            North Foster Farm
     {{< terms "farm-address" >}}        99 East Killingly Road, in
                                          Foster, RI
-    {{< terms "place" "drop" >}}     Village Green, 46 Institute
-                                         Lane, North Scituate
-    {{< terms "town" "drop" >}}      Scituate
+    {{< terms "place" "drop" >}}     46 Institute Lane, North
+                                         Scituate
+    {{< terms "street" "drop" >}}    46 Institute Lane
+    {{< terms "town" "drop" >}}      North Scituate
     {{< terms "starting" "drop" >}}  "starting October 17, " while
                                          that date is ahead, else ""
     {{< terms "start" "drop" >}}     October 17, always (for a dated
@@ -67,6 +68,8 @@
   {{ hugo.Data.company.name }}
 {{- else if eq $fact "farm-address" -}}
   {{ hugo.Data.company.address.street }}, in {{ hugo.Data.company.address.city }}, {{ hugo.Data.company.address.state }}
+{{- else if eq $fact "street" -}}
+  {{ partial "drop-site.html" "street" }}
 {{- else if eq $fact "town" -}}
   {{ $of.town }}
 {{- else if eq $fact "starting" -}}

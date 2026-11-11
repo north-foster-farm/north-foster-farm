@@ -11,7 +11,7 @@ import {
 const before = new Date("2026-10-17T03:59:59Z");
 const opened = new Date("2026-10-17T04:00:00Z");
 const drop = "At one of our drop sites: every Saturday morning, "
-  + "10:00 to 11:00 AM, at Village Green, 46 Institute Lane, North Scituate";
+  + "10:00 to 11:00 AM, at 46 Institute Lane, North Scituate";
 
 describe("launch email", () => {
   it("fills every fact from data/", () => {

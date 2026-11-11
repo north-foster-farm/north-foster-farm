@@ -4,7 +4,7 @@ slug: "december-update"
 date: 2025-12-08
 description: >-
   Holiday demand is up, so we skip the December 14 pop-up to fill orders;
-  Saturday egg drops at the Scituate site continue all winter.
+  Saturday egg drops at the North Scituate site continue all winter.
 ---
 
 With the arrival of the holiday season, we’ve seen an increase in

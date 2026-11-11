@@ -620,8 +620,8 @@ const payBadge = (doc, state, x, top, w, h) => {
 
 // An address as lines that never wrap or leave a ZIP alone: split at
 // the commas, the state and ZIP kept with their town.
-// "Village Green, 46 Institute Lane, North Scituate, RI 02857" ->
-// ["Village Green", "46 Institute Lane", "North Scituate, RI 02857"]
+// "46 Institute Lane, North Scituate, RI 02857" ->
+// ["46 Institute Lane", "North Scituate, RI 02857"]
 export const addressLines = (place) => {
   const parts = String(place || "").split(/,\s*/).filter(Boolean);
   const last = parts.length > 2 && /^[A-Z]{2}(?: \d{5})?$/.test(parts.at(-1))

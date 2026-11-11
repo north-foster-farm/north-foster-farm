@@ -55,7 +55,7 @@ We’d love for you to stop by, say hello, and see what we’ve got.
 - **[Scituate Rotary Farmers Market][scituate]:**
   - Saturdays
   - 9:00 AM - 12:00 PM
-  - The Village Green, 46 Institute Lane, North Scituate, RI
+  - 46 Institute Lane, North Scituate, RI
 - **[Foster Farmers Market][foster]:**
   - Sundays
   - 9:00 AM - 1:00 PM
@@ -67,8 +67,8 @@ and we’ll get you more information. We’ll publish full details on the
 website soon.
 
 {{< figure src="images/scituate-market.jpg"
-  alt="Vendor tents lining the Village Green in North Scituate"
-  caption="Saturday morning on the Village Green in North Scituate" />}}
+  alt="Vendor tents at the Scituate Rotary Farmers Market in North Scituate"
+  caption="Saturday morning at the Scituate Rotary Farmers Market" />}}
 
 This was our first year selling our own chicken, and honestly, we
 weren’t sure what to expect. What means the most is how many of you

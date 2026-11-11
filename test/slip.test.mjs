@@ -153,8 +153,8 @@ describe("the slip's round 2 (James, 2026-10-24)", () => {
 describe("the slip's round 5 (James, 2026-10-24)", () => {
   it("stacks an address so no ZIP stands alone", () => {
     assert.deepEqual(addressLines(
-      "Village Green, 46 Institute Lane, North Scituate, RI 02857"),
-    ["Village Green", "46 Institute Lane", "North Scituate, RI 02857"]);
+      "46 Institute Lane, North Scituate, RI 02857"),
+    ["46 Institute Lane", "North Scituate, RI 02857"]);
     assert.deepEqual(addressLines("99 E Killingly Rd, Foster, RI 02825"),
       ["99 E Killingly Rd", "Foster, RI 02825"]);
     assert.deepEqual(addressLines("Pickup, WAC5-261025"),

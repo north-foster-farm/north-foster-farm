@@ -2,12 +2,12 @@
   "locations": [
     {
       "code": "G4C6",
-      "name": "The Village Green",
+      "name": "46 Institute Lane",
       "street": "46 Institute Lane",
       "city": "North Scituate",
       "state": "RI",
       "zip": "02857",
-      "town": "Scituate",
+      "town": "North Scituate",
       "short": "46 Institute Ln, N Scituate, RI",
       "lat": 41.8339,
       "lng": -71.58346

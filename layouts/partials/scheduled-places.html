@@ -21,6 +21,8 @@
   {{- $loc := index (where $locations "code" $s.location) 0 -}}
   {{- /* A buying group's series is never listed (#471). */ -}}
   {{- if not (or $s.archived $loc.archived $s.group) -}}
+    {{- $where := printf "%s, %s" $loc.street $loc.city -}}
+    {{- if ne $loc.name $loc.street }}{{ $where = printf "%s, %s" $loc.name $where }}{{ end -}}
     {{- $from := time.AsTime (print "2006-01-02T" $s.opens ":00Z") -}}
     {{- $to := time.AsTime (print "2006-01-02T" $s.closes ":00Z") -}}
     {{- $window := print ($from.Format "3:04") " " ($from.Format "PM") " – " ($to.Format "3:04") " " ($to.Format "PM") -}}
@@ -35,8 +37,8 @@
       "location" $loc.name
       "locationCode" $s.location
       "town" ($s.town | default $loc.town)
-      "place" ($s.place | default (printf "%s, %s, %s" $loc.name $loc.street $loc.city))
-      "short" ($s.short | default $loc.short | default (printf "%s, %s, %s" $loc.name $loc.street $loc.city))
+      "place" ($s.place | default $where)
+      "short" ($s.short | default $loc.short | default $where)
       "weekday" $weekday
       "day" (partial "weekday.html" $weekday)
       "window" $window

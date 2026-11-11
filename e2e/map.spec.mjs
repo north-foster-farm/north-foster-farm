@@ -36,7 +36,7 @@ const map = (page) => page.locator("[data-map]").first();
 // #309), canned so a spec needs no particular schedule: a date `n`
 // days from today for a series at a location, open for pickup orders
 // or only attended. The real codes: VFVQ the drop site at G4C6 (the
-// Village Green), WAC5 the Foster Farmers Market at D8RW.
+// 46 Institute Lane), WAC5 the Foster Farmers Market at D8RW.
 const LABEL = new Intl.DateTimeFormat("en-US", {
   weekday: "long", month: "long", day: "numeric", timeZone: "UTC",
 });
@@ -339,15 +339,15 @@ test.describe("map (#138, #214)", () => {
       const all = await names(page);
 
       if (!(all.includes("Shady Acres Diner")
-        && all.includes("The Village Green"))) {
+        && all.includes("46 Institute Lane"))) {
         skipped("Foster market not showing");
         return;
       }
       // Foster's date is first in the canned schedule.
       await expect.poll(() => names(page)).toEqual([
-        "Our farm", "Shady Acres Diner", "The Village Green",
+        "Our farm", "Shady Acres Diner", "46 Institute Lane",
         ...all.filter((n) => ![
-          "Our farm", "Shady Acres Diner", "The Village Green",
+          "Our farm", "Shady Acres Diner", "46 Institute Lane",
         ].includes(n)),
       ]);
       // And the other way round, with the drop site's first.
@@ -356,7 +356,7 @@ test.describe("map (#138, #214)", () => {
       await page.reload();
       await places(page);
       await expect.poll(() => names(page).then((n) => n.slice(0, 3)))
-        .toEqual(["Our farm", "The Village Green", "Shady Acres Diner"]);
+        .toEqual(["Our farm", "46 Institute Lane", "Shady Acres Diner"]);
     });
 
   // The farm and the Foster market meet at the whole map: each stands
@@ -430,15 +430,15 @@ test.describe("map (#138, #214)", () => {
       }
     });
 
-  // The drop site and a market at the Village Green are two series at
+  // The drop site and a market at the 46 Institute Lane are two series at
   // one location: one pin, one card, no special case (#314).
-  test("one location, one card: the Village Green's series and dates",
+  test("one location, one card: the 46 Institute Lane's series and dates",
     async ({ page }) => {
       await events(page);
       await page.goto(HOME.path);
       await places(page);
       await map(page).locator("[data-map-show]", {
-        hasText: "The Village Green",
+        hasText: "46 Institute Lane",
       }).click();
 
       const card = map(page).locator("[data-map-card]:not([hidden])");
@@ -473,7 +473,7 @@ test.describe("map (#138, #214)", () => {
       await page.goto(HOME.path);
       await places(page);
       await map(page).locator("[data-map-show]", {
-        hasText: "The Village Green",
+        hasText: "46 Institute Lane",
       }).click();
 
       const drop = map(page).locator("[data-series='VFVQ']");
@@ -501,7 +501,7 @@ test.describe("map (#138, #214)", () => {
       await expect(map(page).locator("[data-series] a[href*='/order/']"))
         .toHaveCount(0);
       await expect(map(page).locator("[data-map-show]", {
-        hasText: "The Village Green",
+        hasText: "46 Institute Lane",
       })).toBeVisible();
     });
 

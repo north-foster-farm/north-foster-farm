@@ -25,8 +25,8 @@
       "href" $s.href
       "instagram" $s.instagram
       "when" (print (printf "%ss" (time.AsTime $s.start).Weekday) ", " $window)
-      "where" (print $loc.name ", " $loc.street ", " $loc.city)
-      "venue" $loc.name
+      "where" (cond (eq $loc.name $loc.street) (print $loc.street ", " $loc.city) (print $loc.name ", " $loc.street ", " $loc.city))
+      "venue" (cond (eq $loc.name $loc.street) "" $loc.name)
       "street" $loc.street
       "city" $loc.city
       "state" $loc.state

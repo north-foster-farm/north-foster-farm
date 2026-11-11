@@ -84,8 +84,9 @@ const hours = (opens, closes) => {
 };
 
 // The place line a location gives under a series' name.
-const placeOf = (loc, name) => [name, loc.name, loc.street, loc.city]
-  .filter(Boolean).join(", ");
+const placeOf = (loc, name) => [
+  name, loc.name !== loc.street && loc.name, loc.street, loc.city,
+].filter(Boolean).join(", ");
 
 // The series with their location's facts folded in, and lookups.
 // -> { locations, series, location(code), seriesOf(code) }
@@ -99,8 +100,9 @@ export const buildModel = (locations = [], series = []) => {
       town: s.town || (here && here.town) || "",
       place: s.place || (here ? placeOf(here, s.name) : ""),
       short: s.short || (here
-        ? here.short || [here.name, here.street, here.city].filter(Boolean)
-          .join(", ")
+        ? here.short || [
+          here.name !== here.street && here.name, here.street, here.city,
+        ].filter(Boolean).join(", ")
         : ""),
       lat: here && here.lat,
       lng: here && here.lng,

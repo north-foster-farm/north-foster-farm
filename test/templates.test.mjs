@@ -91,7 +91,7 @@ describe("the order details block", () => {
     assert.match(drop.text, /Order type: Pickup days\n/);
     assert.match(drop.text,
       /- When: Saturday, October 17, between 10 and 11 AM/);
-    assert.match(drop.text, /- Where: Village Green/);
+    assert.match(drop.text, /- Where: 46 Institute Lane/);
   });
 });
 
@@ -300,7 +300,7 @@ describe("scheduled pickup emails", () => {
       const { dropSite } = await library;
       const m = farmOrderPlaced(dropSite(), { links });
 
-      assert.match(m.subject, /, pickup at The Village Green$/);
+      assert.match(m.subject, /, pickup at 46 Institute Lane$/);
       assert.doesNotMatch(m.subject, /Drop site/);
 
       // One that no longer resolves keeps the name it is stored under.
@@ -319,7 +319,7 @@ describe("scheduled pickup emails", () => {
       links,
     });
 
-    has(m.text, "Before: Village Green, 46 Institute Lane");
+    has(m.text, "Before: 46 Institute Lane");
     has(m.text, "Saturday, October 17, between 10 and 11 AM");
     has(m.text, "- Where: Foster Farmers Market, Shady Acres Diner");
   });
@@ -330,7 +330,7 @@ describe("scheduled pickup emails", () => {
       before: dropSite().fulfilment, links,
     });
 
-    has(m.text, "Was: Drop site, Village Green, 46 Institute Lane");
+    has(m.text, "Was: Drop site, 46 Institute Lane");
     has(m.text, "Now: Foster Farmers Market, Shady Acres Diner");
   });
 
@@ -341,7 +341,7 @@ describe("scheduled pickup emails", () => {
       { order: market(), kind: "new", changes: [] },
     ], { day: "2026-10-06", slips: 2, links });
 
-    has(m.text, "\nDrop site, Saturday, October 17, Village Green");
+    has(m.text, "\nDrop site, Saturday, October 17, 46 Institute Lane");
     has(m.text, "\nFoster Farmers Market, Sunday, October 25, Shady Acres");
     assert.doesNotMatch(m.text, /Market pickup/);
   });
@@ -521,8 +521,8 @@ describe("the monitoring emails", () => {
       "(per dozen), Large", "the pack list is nested");
     assert.match(m.html,
       /<li>Pack:<ul style="[^"]*padding-left:1.25em"><li>2 × Whole Chicken/);
-    has(m.text, "\nDrop site, Saturday, October 17, Village Green, 46 " +
-      "Institute Lane, North Scituate, RI 02857, 10 – 11 AM (1)\n");
+    has(m.text, "\nDrop site, Saturday, October 17, 46 Institute Lane, " +
+      "North Scituate, RI 02857, 10 – 11 AM (1)\n");
     has(m.text, "\nNFF-2610-DROP, Pat Example, paid");
     has(m.text, "\nOn-farm pickups (1)\n");
     has(m.text, "\nNFF-2610-FARM, Pat Example, 9 AM – noon, paid");
