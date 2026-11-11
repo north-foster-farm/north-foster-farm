@@ -124,7 +124,11 @@ test.describe("top bar (#139)", () => {
     await expect(page).toHaveURL(EVENT.href);
     await expect(map).toHaveAttribute("data-layer", "places");
     await expect(card).toContainText(EVENT.name);
-    await expect(card).toContainText(EVENT.place);
+    // Every place's card, the drop site's too, is named by its row:
+    // the place's name is there, and the card's Where is the street
+    // address alone (#544).
+    await expect(card).toHaveAccessibleName(new RegExp(`^${EVENT.place
+      .replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s+")}\\b`));
     // The pop-up adds no Instagram link (#214). A market at the same
     // place keeps its own on the place's card, as Pawtucket's does
     // (#544).
