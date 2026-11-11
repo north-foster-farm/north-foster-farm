@@ -23,7 +23,12 @@
   The post can override the rule: Hugo's own <!--more--> marker on a
   line of its own ends the excerpt there, `excerpt: whole` in front
   matter shows the post whole, and `excerpt: <id>` ends it before the
-  block with that id.
+  block with that id. A cut the post sets still ends there when it
+  falls after a heading, a picture or text ending in a colon, but the
+  build warns.
+
+  A picture is a figure, a frame, a video, a paragraph holding only an
+  image, an embed in Bootstrap's ratio box, or any div with no text.
 
   Takes the post; returns a dict:
     blocks  Every block: html, kind (text, heading, image, break,
@@ -43,12 +48,19 @@
 {{ $n := 0 }}
 {{ range partial "news/split.html" $page.Content }}
   {{ $html := . }}
+  {{ $text := $html | plainify | htmlUnescape | strings.TrimSpace }}
   {{ $kind := "text" }}
   {{ if findRE `^\s*<h[1-6][\s>]` $html }}
     {{ $kind = "heading" }}
   {{ else if findRE `^\s*<(?:figure|iframe|video)[\s>]` $html }}
     {{ $kind = "image" }}
   {{ else if findRE `^\s*<p>\s*(?:<a [^>]*>\s*)?<img [^>]*>\s*(?:</a>\s*)?</p>\s*$` $html }}
+    {{ $kind = "image" }}
+  {{ else if findRE `^\s*<div[^>]*\sclass="(?:[^"]*\s)?ratio(?:[\s"])` $html }}
+    {{/* An embed in Bootstrap's ratio box (the youtube shortcode). */}}
+    {{ $kind = "image" }}
+  {{ else if and (findRE `^\s*<div[\s>]` $html) (not $text) }}
+    {{/* A div with no text of its own holds a picture of some kind. */}}
     {{ $kind = "image" }}
   {{ else if findRE `^\s*<hr[\s>/]` $html }}
     {{ $kind = "break" }}
@@ -68,7 +80,6 @@
     {{ if not $id }}{{ $id = printf "%s-%d" $section $n }}{{ end }}
   {{ end }}
 
-  {{ $text := $html | plainify | htmlUnescape | strings.TrimSpace }}
   {{ $words := countwords $text }}
   {{ if eq $kind "image" }}{{ $words = $image }}{{ end }}
   {{ $blocks = $blocks | append (dict
@@ -76,6 +87,7 @@
     "kind" $kind
     "id" $id
     "words" $words
+    "colon" (and (eq $kind "text") (strings.HasSuffix $text ":"))
     "ends" (and (eq $kind "text") (not (strings.HasSuffix $text ":"))))
   }}
 {{ end }}
@@ -85,6 +97,7 @@
 {{ range $blocks }}{{ $total = add $total .words }}{{ end }}
 {{ $keep := $count }}
 {{ $set := string ($page.Params.excerpt | default "") }}
+{{ $by := "" }}
 
 {{ if eq $set "whole" }}
   {{/* Shown whole, by the post's own choice. */}}
@@ -97,11 +110,13 @@
     {{ errorf "news: excerpt %q is not the id of a block after the first (%s)" $set $page.File.Path }}
   {{ end }}
   {{ $keep = $at }}
+  {{ $by = printf "excerpt: %s" $set }}
 {{ else if findRE `(?m)^<!--more-->\s*$` $page.RawContent }}
   {{ $keep = len (partial "news/split.html" $page.Summary) }}
   {{ if eq $keep 0 }}
     {{ errorf "news: <!--more--> comes before any block (%s)" $page.File.Path }}
   {{ end }}
+  {{ $by = "<!--more-->" }}
 {{ else if gt $total $max }}
   {{ $cut := 0 }}
   {{ $w := 0 }}
@@ -134,5 +149,21 @@
 {{ $anchor := "" }}
 {{ if lt $keep $count }}
   {{ $anchor = (index $blocks $keep).id }}
+  {{/* The post's own cut is kept, but one the rule would never make
+       is likely a slip. */}}
+  {{ if $by }}
+    {{ $last := index $blocks (sub $keep 1) }}
+    {{ $after := "" }}
+    {{ if eq $last.kind "heading" }}
+      {{ $after = "a heading" }}
+    {{ else if eq $last.kind "image" }}
+      {{ $after = "a picture" }}
+    {{ else if $last.colon }}
+      {{ $after = "text ending in a colon" }}
+    {{ end }}
+    {{ with $after }}
+      {{ warnf "news: %s ends the excerpt after %s (%s)" $by . $page.File.Path }}
+    {{ end }}
+  {{ end }}
 {{ end }}
 {{ return (dict "blocks" $blocks "keep" $keep "anchor" $anchor) }}

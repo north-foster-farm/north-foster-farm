@@ -10,14 +10,14 @@ $hero-text-shadow: 0 1px 3px rgb(0 0 0 / 50%);
     background-color: var(--bs-success-bg-subtle);
   }
 
-  // The post, its header shared with its own page (news/header.html)
-  // under an eyebrow. A little more side padding on large screens. A
-  // band photo in the post bleeds by the same padding, out to the
-  // frame.
+  // The post, its header shared with its own page (news/header.html),
+  // beside or under the band's eyebrow and title (#537). A little more
+  // side padding on large screens. A band photo in the post bleeds by
+  // the same padding, out to the frame.
   .home-update-card {
     --figure-band-bleed: 1rem;
 
-    // Centred in a flex column, it is as wide as its content; a photo
+    // Centered in a flex column, it is as wide as its content; a photo
     // not yet loaded must not make it wider than the column.
     max-width: 100%;
     padding-inline: var(--figure-band-bleed);
@@ -29,6 +29,23 @@ $hero-text-shadow: 0 1px 3px rgb(0 0 0 / 50%);
 
     @media (min-width: 992px) {
       --figure-band-bleed: 3.25rem;
+    }
+
+    // Under the band's h2 the post's own headings step down two levels
+    // (news/body.html: its h2s are h4s), but keep the sizes they had a
+    // level higher before #537, so a post's h2 still reads as an h3.
+    .prose {
+      h4 {
+        font-size: $h3-font-size;
+      }
+
+      h5 {
+        font-size: $h4-font-size;
+      }
+
+      h6 {
+        font-size: $h5-font-size;
+      }
     }
   }
 
@@ -269,7 +286,7 @@ $hero-text-shadow: 0 1px 3px rgb(0 0 0 / 50%);
     letter-spacing: -0.01em;
   }
 
-  // The update's eyebrow and title (#537): centred above the card on
+  // The update's eyebrow and title (#537): centered above the card on
   // a phone, and beside it from lg, left-aligned, at the card's top.
   .home-update-intro .home-title {
     margin-bottom: 1.5rem;

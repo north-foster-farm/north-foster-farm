@@ -466,6 +466,15 @@ test.describe("home", () => {
       await expect(card.getByRole("link", { name: /^Continue reading/ }))
         .toHaveAttribute("href", new RegExp(`${POST}#summer$`));
 
+      // #537: the title is an h3 and the post's h2s are h4s, at the
+      // sizes they had a level up: the title as the post's own h1
+      // (2.125rem, scaled down by RFS), "Spring" at 1.2rem.
+      const title = await card.locator(".news-header-title")
+        .evaluate((el) => getComputedStyle(el).fontSize);
+
+      await expect(card.getByRole("heading", { level: 4, name: "Spring" }))
+        .toHaveCSS("font-size", "19.2px");
+
       // The archive button closes the post, below the card in the
       // section (#483): the small outline one, found by its name, since
       // the sign-up above it has "news" in its own.
@@ -487,6 +496,10 @@ test.describe("home", () => {
       if (page.viewportSize().width >= 992) {
         expect(pad).toEqual(["52px", "52px"]);
       }
+
+      await page.goto(POST);
+      await expect(page.locator("h1.news-header-title"))
+        .toHaveCSS("font-size", title);
     });
 
     test("the post's page is canonical, and the home page is its own",
@@ -533,7 +546,7 @@ test.describe("home", () => {
       });
 
     // #537: the eyebrow and title beside the card from lg, left-aligned,
-    // and above it, centred, below lg.
+    // and above it, centered, below lg.
     test("the band's title sits beside the card wide, above it narrow",
       async ({ page }) => {
         await page.goto("/");

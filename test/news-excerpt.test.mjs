@@ -18,11 +18,16 @@ import { after, before, describe, it } from "node:test";
 const root = join(import.meta.dirname, "..");
 const hasHugo = spawnSync("hugo", ["version"]).status === 0;
 
+// Builds the site into out; returns what Hugo logged, its warnings
+// among it.
 const build = (out, args = []) => {
-  const run = spawnSync("hugo", ["--gc", "--quiet", "--environment",
-    "production", "-d", out, ...args], { cwd: root, encoding: "utf8" });
+  const run = spawnSync("hugo", ["--gc", "--logLevel", "warn",
+    "--environment", "production", "-d", out, ...args],
+  { cwd: root, encoding: "utf8" });
 
   assert.equal(run.status, 0, run.stderr);
+
+  return `${run.stdout}${run.stderr}`;
 };
 
 const read = (out, path) => readFileSync(join(out, path, "index.html"),
@@ -208,6 +213,7 @@ const post = (title, front, body) =>
 describe("news excerpt, at the rule's edges", { skip: !hasHugo }, () => {
   let out;
   let content;
+  let warnings;
 
   before(() => {
     const dir = mkdtempSync(join(tmpdir(), "nff-excerpt-fx-"));
@@ -241,13 +247,26 @@ describe("news excerpt, at the rule's edges", { skip: !hasHugo }, () => {
         [para(130, ":"), "- one\n- two\n- three", para(200), para(200)]),
       "fixture-heading": post("Fixture Heading", "date: 2020-01-05\n",
         [para(100), "## Next", para(100), "## After", para(200)]),
+      // Counted as text, the empty embed would be the boundary nearest
+      // 120 words, and the excerpt would end on it.
+      "fixture-video": post("Fixture Video", "date: 2020-01-06\n",
+        [para(100), "{{< youtube abc123 >}}", para(200)]),
+      // Cuts the post sets in the wrong places: kept, with a warning.
+      "fixture-set-heading": post("Fixture Set Heading",
+        "date: 2020-01-07\nexcerpt: later-1\n",
+        [para(150), "## Later", para(150), para(150)]),
+      "fixture-set-picture": post("Fixture Set Picture", "date: 2020-01-08\n",
+        [para(150), "{{< youtube abc123 >}}", "<!--more-->", para(200)]),
+      "fixture-set-colon": post("Fixture Set Colon",
+        "date: 2020-01-09\nexcerpt: later-2\n",
+        [para(150), "## Later", para(150, ":"), para(150)]),
     };
 
     for (const [slug, text] of Object.entries(fixtures)) {
       writeFileSync(join(news, `${slug}.md`), text);
     }
 
-    build(out, ["--contentDir", content]);
+    warnings = build(out, ["--contentDir", content]);
   });
 
   after(() => rmSync(join(out, ".."), { recursive: true, force: true }));
@@ -299,4 +318,27 @@ describe("news excerpt, at the rule's edges", { skip: !hasHugo }, () => {
     assert.deepEqual(blocks.map(id),
       ["part-1", "next", "next-1", "after", "after-1"]);
   });
+
+  it("never ends on an embed, which counts as a picture", () => {
+    const blocks = blocksOf("fixture-video");
+    const { at } = cut(blocks);
+
+    assert.equal(at, 1);
+    assert.match(blocks[at], /^\s*<div[^>]*class="ratio /);
+  });
+
+  it("warns when a cut the post sets ends on a heading, picture or colon",
+    () => {
+      for (const [slug, by, after] of [
+        ["fixture-set-heading", "excerpt: later-1", "a heading"],
+        ["fixture-set-picture", "<!--more-->", "a picture"],
+        ["fixture-set-colon", "excerpt: later-2", "text ending in a colon"],
+      ]) {
+        assert.ok(cut(blocksOf(slug)).at > 0, `${slug}: the cut is kept`);
+        assert.ok(warnings.includes(`news: ${by} ends the excerpt after ` +
+          `${after} (news/${slug}.md)`), `${slug}: warned\n${warnings}`);
+      }
+      assert.doesNotMatch(warnings,
+        /news: \S+ ends the excerpt after .*fixture-(?:front|marker)/);
+    });
 });
