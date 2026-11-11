@@ -164,6 +164,62 @@ describe("the nightly run", () => {
     });
 });
 
+// Code scanning alert 15 (#564): the answer is a fixed message and
+// status, and the error's detail goes only to the log, scrubbed.
+describe("the nightly answer", () => {
+  it("answers only the named fields when the copy lands", async () => {
+    const { recipient } = await keys();
+    const { fetchImpl } = fakeFetch();
+    const res = await handle({
+      s: await seeded(), env: envFor(recipient), fetchImpl, now,
+    });
+    const body = await res.json();
+
+    assert.deepEqual(Object.keys(body).sort(), ["bytes", "counts", "key"]);
+    assert.equal(body.key,
+      "production/2026-10-16T07-00-00Z-nightly.json.age");
+  });
+
+  it("answers skipped where nothing is configured", async () => {
+    const res = await handle({ s: testStores(), env: {} });
+
+    assert.equal(res.status, 200);
+    assert.deepEqual(await res.json(), { skipped: true });
+  });
+
+  it("keeps a thrown error's message and stack out of the answer",
+    async (t) => {
+      const { recipient } = await keys();
+      const logged = [];
+
+      t.mock.method(console, "error", (line) => logged.push(line));
+      const fetchImpl = async (url) => {
+        if (/r2\./.test(url)) {
+          throw new Error("socket closed for owner@example.com");
+        }
+
+        return { ok: true, status: 200, text: async () => "" };
+      };
+      const res = await handle({
+        s: await seeded(), env: envFor(recipient), fetchImpl,
+        mail: mailbox().mail, now,
+      });
+      const text = await res.text();
+
+      assert.equal(res.status, 500);
+      assert.equal(text, JSON.stringify({ error: "The backup failed." }));
+      assert.doesNotMatch(text, /socket|owner@|\n\s+at /);
+
+      const failed = logged.map((l) => JSON.parse(l))
+        .find((r) => r.event === "backup.failed");
+
+      assert.ok(failed, "the failure is logged");
+      assert.match(failed.error, /socket closed/);
+      assert.doesNotMatch(failed.error, /owner@example\.com/,
+        "the log line is scrubbed");
+    });
+});
+
 describe("the restore", () => {
   it("writes every record into empty stores and counts them back",
     async () => {

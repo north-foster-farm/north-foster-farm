@@ -14,11 +14,20 @@ export const handle = async ({
 } = {}) => {
   const result = await nightly(s, { env, fetchImpl, mail, now });
 
-  // A failure's detail is in the log and the alert, not in the answer.
-  const body = result.error ? { error: "The backup failed." } : result;
+  // A failure's detail is in the log (scrubbed there) and the alert,
+  // never in the answer. The answer is built from named fields only,
+  // so nothing nightly adds to its result later can reach it (#564).
+  const failed = Boolean(result.error);
+  let body = { error: "The backup failed." };
+
+  if (!failed) {
+    body = result.skipped ? { skipped: true } : {
+      key: result.key, bytes: result.bytes, counts: result.counts,
+    };
+  }
 
   return new Response(JSON.stringify(body), {
-    status: result.error ? 500 : 200,
+    status: failed ? 500 : 200,
     headers: { "Content-Type": "application/json" },
   });
 };
