@@ -4,9 +4,9 @@ slug: "pawtucket-farmers-market"
 date: 2026-11-16
 draft: true
 description: >-
-  Find us at the Pawtucket Farmers Market every Tuesday this winter,
-  inside Jordan's Jungle, and at four Saturday pop-ups, starting with
-  Thanksgiving Prep on November 21.
+  Find us at the Pawtucket Farmers Market, inside Jordan's Jungle,
+  every Tuesday through April, and at four Saturday pop-ups, starting
+  with Thanksgiving Prep on November 21.
 ---
 
 The outdoor markets are done for the year, but you don't have to wait
@@ -18,13 +18,14 @@ Tuesday, November 17.
 
 {{< figure src="images/egg-basket.jpg"
   alt="A blue wire basket full of brown and pink eggs"
-  caption="Eggs from our hens, coming to Pawtucket every Tuesday." />}}
+  caption="Eggs from our hens." />}}
 
 ## Pick up your order there
 
-You can order online and pick up at the market. Under Pickup days on
-[the order page](/order/), choose a Tuesday in Pawtucket, and your
-order will be packed and waiting for you at our table.
+You can order online and pick up at the market, any Tuesday or at any
+of the pop-ups below. Under Pickup days on [the order page](/order/),
+choose the day, and your order will be packed and waiting for you at
+our table.
 
 ## Four Saturday pop-ups
 
@@ -33,7 +34,7 @@ in the same spot, and we'll be at each one. The first is Thanksgiving
 Prep on Saturday, November 21, just in time to stock up for the
 holiday. After that come Breaking Out of Hermit Mode on January 16, the
 Easter Market on March 27, and the Earth Day Cleanup & Eco Fair on
-April 17. You can pick up an order at the pop-ups too.
+April 17.
 
 For news from the market and the other vendors, follow
 [the Pawtucket Farmers Market on Instagram](https://www.instagram.com/pawtucketfarmersmarket).
