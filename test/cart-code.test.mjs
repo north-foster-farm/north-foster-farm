@@ -58,6 +58,27 @@ describe("cart/code-note.mjs codeNote", () => {
     assert.ok(!log.includes("clear"));
   });
 
+  it("keeps a refusal that stays, the rate limit's, until the next line",
+    () => {
+      const { note, log } = recorded();
+      const wait = "There have been too many tries to apply a discount " +
+        "code. Wait a few minutes and try again.";
+      const bad = "That code isn't valid.";
+
+      note.result({ text: wait, refused: true, stays: true });
+      mock.timers.tick((NOTE_STAY + NOTE_FADE) * 10);
+      assert.deepEqual(log, [line(wait)]);
+      assert.ok(!log.includes("clear"));
+
+      // The next Apply replaces it, and a plain refusal fades again.
+      note.result({ text: bad, refused: true });
+      assert.deepEqual(log.at(-1), line(bad));
+      mock.timers.tick(NOTE_STAY);
+      assert.deepEqual(log.at(-1), line(bad, "", true));
+      mock.timers.tick(NOTE_FADE);
+      assert.deepEqual(log.at(-1), line(""));
+    });
+
   it("stays a short while: a few seconds, not the old 15", () => {
     assert.ok(NOTE_STAY >= 2000 && NOTE_STAY <= 6000, String(NOTE_STAY));
   });

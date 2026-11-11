@@ -731,11 +731,12 @@ export class Cart {
   // note ("good" for an accepted one). An accepted code also empties
   // the field; its note, and that of a code `refused` on Apply, fades
   // after a short while (code-note.mjs), and either folds the field if
-  // it is open (#532).
+  // it is open (#532). A note that `stays` (the rate limit's) folds the
+  // field too but stays until the next one.
   codeResult({
-    text = "", tone = "", accepted = false, refused = false,
+    text = "", tone = "", accepted = false, refused = false, stays = false,
   } = {}) {
-    this.note.result({ text, tone, accepted, refused });
+    this.note.result({ text, tone, accepted, refused, stays });
     if ((accepted || refused) && this.state.share === "code") {
       this.shutCode();
     }

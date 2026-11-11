@@ -283,7 +283,8 @@ issues. Wording below is today's, approved under #400.
   the $40 minimum." or "Applied."; anything else: "That code isn't
   valid.", the code kept in the field for the next open. Either line
   stays 4 s and fades (`code-note.mjs`, `NOTE_STAY`; 15 s, accepted
-  only, until 2026-11-11). Apply with the field empty takes the code
+  only, until 2026-11-11), except `/api/pass`'s rate-limit line,
+  which stays until the next (`stays`). Apply with the field empty takes the code
   and the pass off. Each of the three folds the field, the opening
   played backwards (`shutShare`), and focuses Add discount; a group's
   code whose join is cancelled leaves it open (#495). A saved pass is

@@ -1,7 +1,8 @@
 // The line under the discount code (#532): what the form made of the
 // code Apply sent. An accepted code's line and a refused one's each
-// stay NOTE_STAY, then fade over NOTE_FADE and go; any other line
-// stays until the next one. No DOM: `show` draws the line, with
+// stay NOTE_STAY, then fade over NOTE_FADE and go; any other line,
+// and a refusal that `stays` (the /api/pass rate limit), stays until
+// the next one. No DOM: `show` draws the line, with
 // `fading` once it starts to go, and `clear` empties the field, which
 // only an accepted code does. A refused code stays in the field for
 // the next open.
@@ -28,12 +29,16 @@ export const codeNote = ({
 
   return {
     // `text` and `tone` for the line ("good" for an accepted code);
-    // `accepted` or `refused` for an outcome of Apply, whose line goes.
-    result({ text = "", tone = "", accepted = false, refused = false } = {}) {
+    // `accepted` or `refused` for an outcome of Apply, whose line goes,
+    // unless it `stays`: the rate limit's "wait a few minutes" is read
+    // at leisure and stays until the next line.
+    result({
+      text = "", tone = "", accepted = false, refused = false, stays = false,
+    } = {}) {
       stop();
       show({ text, tone, fading: false });
       if (accepted) clear();
-      if (!text || !(accepted || refused)) return;
+      if (!text || stays || !(accepted || refused)) return;
 
       timer = setTimer(() => {
         show({ text, tone, fading: true });

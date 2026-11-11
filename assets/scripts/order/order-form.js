@@ -1061,9 +1061,12 @@ export class OrderForm {
           `$${this.money.deliveryMinimum} minimum.`);
     } else if (!quiet) {
       // The code that was on stays on. Every code refused says only
-      // this (James, on #182).
+      // this (James, on #182). The rate limit's "wait a few minutes"
+      // stays until the next Apply instead of fading, though the field
+      // still folds (#532).
       this.cart.codeResult({
         text: pass.message || "That code isn't valid.", refused: true,
+        stays: !!pass.limited,
       });
     }
     this.refresh();
@@ -1081,7 +1084,7 @@ export class OrderForm {
     // The submission's key: a pass it holds, after a declined card and
     // a reload, is still its own.
     const holder = encodeURIComponent(this.draft.key());
-    const { ok, data } = await api(
+    const { ok, status, data } = await api(
       `/api/pass?code=${encodeURIComponent(code)}&holder=${holder}`
     ).catch(() => ({ ok: false, data: null }));
 
@@ -1090,7 +1093,8 @@ export class OrderForm {
       this.passFee = !!(data && data.waivesFee);
     }
 
-    return { ok, message: data && data.message };
+    // `limited`: the server's rate limit answered, not the pass.
+    return { ok, limited: status === 429, message: data && data.message };
   }
 
   // Takes a pass the server refused off the order and says why by the
