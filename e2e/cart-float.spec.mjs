@@ -434,7 +434,7 @@ test.describe("the tablet's panel", () => {
     expect(Math.abs(showing.left - hiding.was.left)).toBeLessThanOrEqual(1);
   });
 
-  test("a long list scrolls in the left column with its pills", async ({
+  test("a long list scrolls in the left column with its arrows", async ({
     page,
   }) => {
     await page.setViewportSize(TABLET);

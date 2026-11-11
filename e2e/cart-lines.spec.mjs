@@ -160,28 +160,41 @@ test.describe("a long list on a phone", () => {
     await expect(down).toBeVisible();
   });
 
-  // The list grows upward (#560). Before it, its cap was two thirds of
-  // the visible height less the chrome (20.5rem), never under four
-  // rows' height and the strip (124px): 124px at this size. Now it
-  // shows at least two more rows than that.
+  // The list takes what the two thirds leave (#560), within James's
+  // rule for the open sheet (#267, #475; cart-float.spec.mjs holds the
+  // pane to it). Before, its cap was 0.66 of the visible height less
+  // the chrome as measured with a nudge (20.5rem), never under the
+  // floor (124px): 229px here, whether the cart had a nudge or not. A
+  // cart past the top tier has none, so its lines now take that line
+  // too: at least one more row.
   test("the list is taller than it was", async ({ page }) => {
+    const size = { width: 390, height: 844 };
+
+    await page.setViewportSize(size);
+
     const order = new OrderPage(page);
 
-    await order.open(FULL_CART);
+    // $206, past the top tier: no next discount to nudge toward.
+    await order.open({ ...FULL_CART, eggs: FULL_CART.eggs + 1 });
     await page.evaluate(() => window.scrollTo(0, 400));
     await unfold(order);
+    await expect(order.cart.locator("[data-nudge]")).toBeHidden();
 
     const lines = order.cart.locator("[data-part='lines']");
-    const before = Math.max(124, 0.66 * PHONE.height - 20.5 * 16);
+    const before = Math.max(124, 0.66 * size.height - 20.5 * 16);
+    const row = 0.875 * 16 * 1.5 + 0.25 * 16;
     const box = await lines.boundingBox();
+    const pane = await order.cart.boundingBox();
 
-    expect(box.height).toBeGreaterThan(before + 48);
+    expect(box.height).toBeGreaterThanOrEqual(before + row);
+    // The pane keeps to about two thirds, as cart-float's spec has it.
+    expect(pane.height).toBeLessThanOrEqual(size.height * 0.7);
     // Still a scroller, with the foot in reach.
     await expect(order.cart.locator("[data-cart-more]")).toBeVisible();
     await expect(order.next).toBeInViewport();
   });
 
-  test("a more pill glides the list to the next row, exactly",
+  test("a more arrow glides the list to the next row, exactly",
     async ({ page }) => {
       const order = new OrderPage(page);
 

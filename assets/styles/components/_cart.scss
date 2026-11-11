@@ -25,6 +25,15 @@
 
 @use "sass:math";
 
+// A row of the sums with the gap above it, and the nudge with its
+// margin, at the body's line height: what each moves the chrome by
+// when a cart has it or lacks it (#560).
+$cart-sums-gap: 0.375rem;
+$cart-sums-row: $cart-font-size * $cart-line-height + $cart-sums-gap;
+$cart-nudge-size: 0.8125rem;
+$cart-nudge-gap: 0.5rem;
+$cart-nudge-line: $cart-nudge-gap + $cart-nudge-size * $cart-line-height;
+
 // The panel's open lines width (#533): a length, so the pane resolves
 // it against the form and its lines inherit pixels, not a 100cqw they
 // would read against the pane itself.
@@ -44,7 +53,10 @@
   // The sheet's parts other than the lines, at one line each: the
   // sums, the total row, the badges, the way and the code, the foot
   // and the nudge, the pane's padding and rules. Measured once on the
-  // built page at 390px (330px with a bulk discount and the fee row).
+  // built page at 390px, with the e2e suite's full cart: a bulk
+  // discount and a nudge, no delivery fee (the open sheet was 66% of
+  // 844px, af236e2). The pane corrects it for the cart it holds (#560,
+  // below).
   --cart-chrome: 20.5rem;
 
   // The closed sheet: its padding, the total row, the foot and one
@@ -55,14 +67,10 @@
   --cart-closed-h: 11rem;
 
   // The share of the visible height the open sheet may take on a
-  // phone (James, #267 and #475).
-  --cart-share: 0.66;
-
-  // The lines may reach higher than that (#560: "let it grow upward so
-  // more lines show at once"): their cap is this share less the chrome.
-  // The pane's own room still bounds the whole, and past it the body
-  // scrolls with the foot in reach.
-  --cart-lines-share: 0.8;
+  // phone (James, #267 and #475): two thirds. The lines' cap is this
+  // share less the chrome, so they take all of it the other parts
+  // leave (#560, "a taller items list"). It was 0.66 until 2026-11-11.
+  --cart-share: 0.6667;
 
   // How far Clear cart stands above the pane's top edge (#560), kept
   // clear of the top bar by the floating pane's room.
@@ -114,6 +122,23 @@
   // The pane.
 
   .order-cart {
+    // What the chrome was measured with, set right for the cart this
+    // pane holds (#560): a bulk discount or a nudge it lacks gives its
+    // line to the lines, and a delivery fee it has takes one from
+    // them, so the open sheet keeps to two thirds while the lines take
+    // the rest. Still nothing measured: the rows' own hidden
+    // attributes, which cart.js already writes. A code's note, the
+    // perks and a paid order's sums are left out, as before.
+    --cart-less-discount: 0px;
+    --cart-less-nudge: 0px;
+    --cart-more-fee: 0px;
+    --cart-chrome-gone: calc(
+      var(--cart-less-discount) + var(--cart-less-nudge)
+    );
+    --cart-chrome-here: calc(
+      var(--cart-chrome) + var(--cart-more-fee) - var(--cart-chrome-gone)
+    );
+
     container: cart / inline-size;
     position: relative;
     z-index: 30;
@@ -139,6 +164,19 @@
     // for it.
     &:focus {
       outline: 0;
+    }
+
+    // The chrome set right for this cart (see the top of this rule).
+    &:has([data-total-row="discount"][hidden]) {
+      --cart-less-discount: #{$cart-sums-row};
+    }
+
+    &:has([data-nudge][hidden]) {
+      --cart-less-nudge: #{$cart-nudge-line};
+    }
+
+    &:has([data-total-row="fee"]:not([hidden])) {
+      --cart-more-fee: #{$cart-sums-row};
     }
 
     // The rail's Cart link rings the whole pane (#337): the pill's
@@ -210,7 +248,7 @@
     max-height: max(
       var(--cart-lines-min),
       calc(
-        var(--cart-vis, 100svh) * var(--cart-lines-share) - var(--cart-chrome)
+        var(--cart-vis, 100svh) * var(--cart-share) - var(--cart-chrome-here)
       )
     );
   }
@@ -462,7 +500,7 @@
   .order-cart-sums {
     display: grid;
     grid-template-columns: 1fr auto;
-    row-gap: 0.375rem;
+    row-gap: $cart-sums-gap;
     margin: 0;
     padding: 0.5rem 0;
     font-size: $cart-font-size;
@@ -824,8 +862,8 @@
 
   .order-cart-nudge {
     flex: 1 0 100%;
-    margin: 0.5rem 0 0;
-    font-size: 0.8125rem;
+    margin: $cart-nudge-gap 0 0;
+    font-size: $cart-nudge-size;
     text-align: right;
     color: var(--bs-secondary-color);
 
@@ -1032,7 +1070,7 @@
   // length of the page, never settling and never folding. The lines
   // take their own height up to what the column leaves them beside
   // the chrome, never under three rows, and scroll inside with the
-  // pills, as the old column did; a short list leaves no gap. The
+  // arrows, as the old column did; a short list leaves no gap. The
   // heading and the pill are gone.
   .order-cart[data-placement="column"] {
     position: sticky;

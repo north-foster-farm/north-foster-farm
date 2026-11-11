@@ -520,22 +520,30 @@ layout code.
 flex column: the body, then the foot. The body is `flex: 1 1 auto;
 min-height: 0; overflow-y: auto; overscroll-behavior: contain`: when
 the room is short it scrolls as a whole and the foot stays in reach.
-Inside it the lines are the one part that shrinks (`flex: 0 1 auto;
-min-height: three rows`), and they scroll on their own; every other
-part is `flex: 0 0 auto`. The browser lays out James's priority
-(lines give way first, the foot never) with no measured floor and no
-`data-tight`.
+Inside it every part is `flex: 0 0 auto`, the lines too: they give
+way first through their cap, which follows the visible height down to
+the floor of three rows, and they scroll on their own. The browser
+lays out James's priority (lines give way first, the foot never) with
+no measured floor and no `data-tight`. (2026-11-11, #560: this said
+the lines were `flex: 0 1 auto` with a three-row `min-height`, which
+the stylesheet no longer has.)
 
 The soft cap is declarative: the lines' `max-height` is
-`max(three rows, calc(var(--cart-vis) * var(--cart-lines-share) -
-var(--cart-chrome)))`, where `--cart-chrome` is a rem constant for the
-parts other than the lines at one line each, and `--cart-lines-share`
-is 0.8 (#560, "let it grow upward"; it was the sheet's 0.66 until
-2026-11-11). A line of badges more or less moves the cap by that line;
-that is the error accepted for a layout that cannot oscillate. The
-hard limits are exact: the pane's `max-height` is the visible height
-less the top bar's foot, the rest and Clear cart's rise above the
-edge, and the body's overflow is the fallback.
+`max(three rows, calc(var(--cart-vis) * var(--cart-share) -
+var(--cart-chrome-here)))`. `--cart-share` is James's two thirds
+(0.6667; 0.66 until 2026-11-11). `--cart-chrome` is a rem constant for
+the parts other than the lines at one line each, measured with the
+suite's full cart: a bulk discount and a nudge, no delivery fee.
+`--cart-chrome-here`, on the pane, is that constant set right for the
+cart the pane holds (#560, "a taller items list"): `:has()` on the rows' own
+`hidden` gives a missing discount row or nudge to the lines and takes
+a delivery fee row from them, so the lines take all of the two thirds
+the other parts leave. A code's note, the perks, a paid order's sums
+and a second line of badges are not counted; each moves the cap by its
+line, the error accepted for a layout that cannot oscillate. The hard
+limits are exact: the pane's `max-height` is the visible height less
+the top bar's foot, the rest and Clear cart's rise above the edge, and
+the body's overflow is the fallback.
 
 Four raw inputs reach the stylesheet, from one listener and the
 placement tick: `--cart-vis`, `--cart-gap`, `--cart-kb` and
@@ -612,7 +620,7 @@ Placement is frozen while the keyboard is up.
 - `column`: `.order-cart-slot` is the grid area beside the catalog,
   stretched to the area's height; the pane is `position: sticky; top:
   1rem; max-height: calc(100svh - 2rem)`; one column, everything
-  showing, the lines scrolling inside with the pills; the heading and
+  showing, the lines scrolling inside with the arrows; the heading and
   the pill hidden; Continue as wide as its words at the right; the
   height eases as lines come and go (`animateFold`).
 
@@ -648,9 +656,8 @@ and Proceed stay inside the pane with the keyboard up, the field and
 Apply are in reach after the one scroll, a body scroll is kept, and
 the pane returns to its height when the keyboard drops. At 320x568
 with the keyboard up the total row scrolls with the body (section 5).
-That was before #560 (2026-11-11) let the lines reach 0.8 of the
-visible height less the chrome, so a long cart's sheet now takes more
-than two thirds; the rest held, unverified since in the prototype.
+#560 (2026-11-11) changed only how the chrome is counted for a given
+cart (4.4), not the two thirds; it has not been run in the prototype.
 
 ### 4.6 Interactions kept
 
@@ -739,7 +746,7 @@ End to end (`e2e/`), replacing the eleven old `cart-*` specs, named by
 behavior and run in the desktop, phone and iphone projects:
 
 - `cart-lines.spec.mjs`: lines, groups, the pack labels, the catalog
-  order, another tab's change (#356), the pills and the glide, the
+  order, another tab's change (#356), the arrows and the glide, the
   column's list. Adding, removing and typing a quantity, and the first
   click after typing (#155), stay `order-page.spec.mjs`'s.
 - `cart-money.spec.mjs`: badges whatever the way, the delivery badges,

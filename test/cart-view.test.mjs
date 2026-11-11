@@ -40,6 +40,15 @@ describe("moreShown", () => {
         { up: false, down: false }
       );
     });
+
+  // Safari on iOS can rest a list at a fractional scrollTop with
+  // nothing above it.
+  it("shows no up arrow for a list resting a fraction of a pixel down",
+    () => {
+      assert.equal(moreShown({ top: 0.5, height: 200, full: 500 }).up, false);
+      assert.equal(moreShown({ top: 1, height: 200, full: 500 }).up, false);
+      assert.equal(moreShown({ top: 2, height: 200, full: 500 }).up, true);
+    });
 });
 
 describe("toPx", () => {

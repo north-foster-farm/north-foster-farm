@@ -269,9 +269,10 @@ export const shutShare = (part, apply, { reduce = reduced() } = {}) => {
 
 // Which "more" arrows show (#560): one wherever any part of the list
 // lies past that edge, even a line only half under its fade. No count:
-// counting whole rows missed the ones the fades half hide.
+// counting whole rows missed the ones the fades half hide. A pixel's
+// allowance at each end: iOS can rest a list at a fractional scrollTop.
 export const moreShown = ({ top, height, full }) => ({
-  up: top > 0,
+  up: top > 1,
   down: top + height < full - 1,
 });
 
@@ -287,7 +288,7 @@ export const watchList = (list, wrap, { more, moreTop }) => {
   let glide = null;
 
   const sync = () => {
-    // Room for the pills above and below the rows, only while the
+    // Room for the arrows above and below the rows, only while the
     // rows overflow. The strip is counted back first: taken from the
     // rows, it kept them overflowing once a pane in mid-opening had
     // let them (#278).

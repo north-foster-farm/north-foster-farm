@@ -141,7 +141,7 @@ for (const size of SIZES) {
         await page.waitForTimeout(300);
         const after = await rect(state.cart);
 
-        // Its usual shape again, give or take the pills' strip.
+        // Its usual shape again, give or take the arrows' strip.
         expect(Math.abs((after.bottom - after.top)
           - (state.before.bottom - state.before.top))).toBeLessThanOrEqual(10);
       });

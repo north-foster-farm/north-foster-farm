@@ -573,15 +573,15 @@ Superseded by the cart rebuild (#477): the count and the total are a
 readout at every width, not tabs, and the sheet has one scroller.
 The sheet's height and floor are `cart-float.spec.mjs`'s, the
 keyboard `cart-keyboard.spec.mjs`'s, the row's controls
-`cart-way.spec.mjs`'s, the pills `cart-lines.spec.mjs`'s. The notch,
+`cart-way.spec.mjs`'s, the arrows `cart-lines.spec.mjs`'s. The notch,
 Safari's toolbar and the feel of the glide stay manual (OP-29). The
 scenario below is the old cart's.
 
 - **Scenario:** On a phone the count and the total are one segmented
   control. The lines and the sums take turns, one side always showing;
-  neither pane passes 66% of the visible height, unless the floor (three
-  rows, the total row and Continue) needs more, and then the pane grows
-  up to the visible area. The shared row's controls are one height, so
+  neither pane passes two thirds of the visible height (66% until
+  #560, 2026-11-11), unless the floor (three rows, the total row and
+  Continue) needs more, and then the pane grows up to the visible area. The shared row's controls are one height, so
   nothing moves when the discount field opens.
 - **Setup:** `FULL_CART`, a phone-sized window: 390 by 664, 390 by 844,
   375 by 667 and 667 by 375.
@@ -595,8 +595,8 @@ scenario below is the old cart's.
   5. Manual, on an iPhone: tap the discount field; turn the phone
      sideways; tap the "more" arrow on a long cart.
 - **Assert:** The fill slides to the side showing, and the tab under it
-  is `aria-selected`; a second tap changes nothing. Each pane is 66% of
-  the visible height or less, or the floor's height. The delivery
+  is `aria-selected`; a second tap changes nothing. Each pane is two
+  thirds of the visible height or less, or the floor's height. The delivery
   badges go first when the cap has no room for them. Three rows, the
   total row and Continue are whole and on screen at every size. Every
   control is 36px tall. By hand: the cart rides above the keyboard with
@@ -622,12 +622,13 @@ Manual, on an iPhone: a spec cannot see Safari's chrome (#267).
   2. Scroll a little to collapse the toolbar, then back to expand it.
   3. Turn the phone sideways and repeat.
   4. In each state, tap every control in the pane: the tabs, each
-     row's trash can, the "more" arrows, Clear cart, the way, Add discount, Hide and Continue.
+     row's trash can, the "more" arrows, Clear cart, the way, Add
+     discount, Hide and Continue.
 - **Assert:** The pane's foot is a small, even margin above the
   toolbar's top edge in every state: no gap of a row's height, and no
-  overlap. The pane is at most 66% of the visible height, or taller only
-  when three rows, the total row and Continue need it, and then no
-  taller than the visible area. Every control is tappable.
+  overlap. The pane is at most two thirds of the visible height, or
+  taller only when three rows, the total row and Continue need it, and
+  then no taller than the visible area. Every control is tappable.
 - **Teardown:** Clear the draft.
 
 ### OP-30 The cart's word for an Add
