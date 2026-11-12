@@ -348,19 +348,135 @@ const floating = async (page, cart) => {
 
 const press = (locator) => locator.evaluate((el) => el.click());
 
+// A trace of the pane for a failure's report (#559, the Expand that
+// never opened): every write of data-fold, with the stack that made
+// it; every change of data-fold, data-placement and data-kept; every
+// pointer, touch, mouse, click, focus, wheel, key and page scroll, with
+// its target. Lands in window.cartTrace; installed once a page.
+const trace = (page) => page.evaluate(() => {
+  if (window.cartTrace) return;
+
+  const pane = document.getElementById("order-cart");
+  const log = [];
+  const t0 = performance.now();
+  const at = () => Math.round(performance.now() - t0);
+  const name = (el) => {
+    if (!(el instanceof Element)) return el === window ? "window" : "doc";
+
+    const data = Array.from(el.attributes)
+      .filter((a) => a.name.startsWith("data-") && a.name !== "data-tip")
+      .map((a) => a.name).slice(0, 2).join(",");
+
+    return `${el.tagName.toLowerCase()}${el.id ? `#${el.id}` : ""}`
+      + `${el.classList[0] ? `.${el.classList[0]}` : ""}`
+      + `${data ? `[${data}]` : ""}`;
+  };
+  // WebKit's stack has no "Error" line: the frames only, this one first.
+  const stack = () => (new Error().stack || "").split("\n")
+    .map((s) => s.trim()).filter((s) => s && !s.startsWith("Error"))
+    .slice(1, 8).join(" < ");
+
+  window.cartTrace = log;
+  for (const write of ["setAttribute", "removeAttribute",
+    "toggleAttribute"]) {
+    const native = Element.prototype[write];
+
+    pane[write] = function written(attr, ...rest) {
+      if (attr === "data-fold") {
+        log.push(`${at()} ${write}(data-fold, ${rest[0]}) y=${
+          Math.round(scrollY)} from ${stack()}`);
+      }
+
+      return native.call(this, attr, ...rest);
+    };
+  }
+  new MutationObserver((changes) => {
+    for (const c of changes) {
+      log.push(`${at()} changed ${c.attributeName}: ${c.oldValue} -> ${
+        pane.getAttribute(c.attributeName)}`);
+    }
+  }).observe(pane, {
+    attributes: true, attributeOldValue: true,
+    attributeFilter: ["data-fold", "data-placement", "data-kept"],
+  });
+  const events = [
+    "pointerdown", "pointerup", "pointercancel", "mousedown", "mouseup",
+    "click", "touchstart", "touchend", "touchcancel", "focusin", "wheel",
+    "keydown",
+  ];
+
+  for (const type of events) {
+    document.addEventListener(type, (e) => {
+      log.push(`${at()} ${type}${e.pointerType ? `(${e.pointerType})` : ""}`
+        + `${e.isTrusted ? "" : " untrusted"} on ${name(e.target)}`
+        + `${e.clientX !== undefined
+          ? ` at ${Math.round(e.clientX)},${Math.round(e.clientY)}` : ""}`
+        + ` fold=${pane.dataset.fold}`);
+    }, { capture: true, passive: true });
+  }
+  window.addEventListener("scroll", () => {
+    log.push(`${at()} scroll y=${Math.round(scrollY)}`
+      + ` fold=${pane.dataset.fold}`);
+  }, { passive: true });
+});
+
+// The pane as it stands, and what is under a locator's middle: for the
+// trace.
+const snap = (page, locator) => locator.evaluate((el) => {
+  const pane = document.getElementById("order-cart");
+  const r = el.getBoundingClientRect();
+  const x = r.left + r.width / 2;
+  const y = r.top + r.height / 2;
+  const hit = document.elementFromPoint(x, y);
+  const name = (n) => (n ? `${n.tagName.toLowerCase()}${
+    n.id ? `#${n.id}` : ""}${n.classList[0] ? `.${n.classList[0]}` : ""}`
+    : "none");
+
+  return `fold=${pane.dataset.fold} placement=${pane.dataset.placement}`
+    + ` kept=${pane.hasAttribute("data-kept")} y=${Math.round(scrollY)}`
+    + ` focus=${name(document.activeElement)}`
+    + ` middle=${Math.round(x)},${Math.round(y)} hits=${name(hit)}`
+    + ` (${el.contains(hit) ? "the pill" : "not the pill"})`
+    + ` moving=${pane.getAnimations({ subtree: true }).length}`;
+});
+
+// Clicks the pill as the tests always have, and expects `fold`; on a
+// miss, fails with the trace and the pane before and after the click.
+// `first` runs just before the click, as record() did when the Expand
+// first failed.
+const pillTo = async (page, order, fold, first = async () => {}) => {
+  const pill = order.cart.locator("[data-cart-toggle]");
+
+  await trace(page);
+  const before = await snap(page, pill);
+
+  await page.evaluate(() => window.cartTrace.push("-- the pill click"));
+  await first();
+  await pill.click();
+  const after = await snap(page, pill);
+
+  try {
+    await expect(order.cart).toHaveAttribute("data-fold", fold,
+      { timeout: 5_000 });
+  } catch (error) {
+    const log = await page.evaluate(() => window.cartTrace);
+
+    throw new Error(`the pill click did not make the pane ${fold}\n`
+      + `before: ${before}\nafter: ${after}\n`
+      + `now: ${await snap(page, pill)}\n`
+      + `trace (ms since installed):\n${log.join("\n")}\n\n${error.message}`,
+    { cause: error });
+  }
+};
+
 test.describe("each change moves the pane and its parts together", () => {
   test("Expand and Hide", async ({ page }) => {
     const order = await floating(page, SMALL);
-    const pill = order.cart.locator("[data-cart-toggle]");
 
-    await record(page);
-    await pill.click();
-    await expect(order.cart).toHaveAttribute("data-fold", "open");
+    await pillTo(page, order, "open", () => record(page));
     transition("Expand", await recorded(page, order));
 
-    await record(page);
-    await pill.click();
-    await expect(order.cart).toHaveAttribute("data-fold", "closed");
+    await pillTo(page, order, "closed", () => record(page));
     transition("Hide", await recorded(page, order));
   });
 
@@ -368,6 +484,18 @@ test.describe("each change moves the pane and its parts together", () => {
     const order = await floating(page, SMALL);
 
     await unfoldCart(order);
+    // A tap on Expand leaves no focus on a phone, but a click may (it
+    // did in WebKit here): the focus starts nowhere, so the check below
+    // sees only what the Add did.
+    const focused = () => page.evaluate(() => {
+      const el = document.activeElement;
+
+      return el ? `${el.tagName.toLowerCase()}${el.id ? `#${el.id}` : ""}${
+        el.classList[0] ? `.${el.classList[0]}` : ""}` : "none";
+    });
+    const wasFocused = await focused();
+
+    await page.evaluate(() => document.activeElement?.blur());
     await record(page);
     // A JS click: the open sheet covers the row, as on the phone, and a
     // customer reaches it by scrolling, which would minimize the pane.
@@ -376,7 +504,9 @@ test.describe("each change moves the pane and its parts together", () => {
       .toHaveCount(1);
     transition("add", await recorded(page, order));
     // An Add moves no focus to Hide (#559).
-    await expect(order.cart.locator("[data-cart-toggle]")).not.toBeFocused();
+    await expect(order.cart.locator("[data-cart-toggle]"),
+      `the focus before the Expand's blur was ${wasFocused}, now ${
+        await focused()}`).not.toBeFocused();
     await expect(order.cart.locator("[data-cart-toggle]"))
       .not.toHaveAttribute("data-pulse", /./);
 
@@ -400,6 +530,10 @@ test.describe("each change moves the pane and its parts together", () => {
     transition("clear", frames);
     // The pane eased to its minimized size, and never stood empty.
     expect(frames[frames.length - 1].fold).toBe("closed");
+    // The lines and Clear cart went, so the focus is the pane's (#531),
+    // and never the pill's.
+    await expect(order.cart).toBeFocused();
+    await expect(order.cart.locator("[data-cart-toggle]")).not.toBeFocused();
   });
 });
 
