@@ -10,8 +10,8 @@ import {
   CONFIRM_GUARD, CONFIRM_WAIT,
 } from "../assets/scripts/order/cart/confirm.mjs";
 import {
-  FULL_CART, OrderPage, SKU, SUITE_STOCK, expect, test,
-  unfoldCart as unfold,
+  FULL_CART, OrderPage, SKU, SUITE_STOCK, expect, settleCart as settle,
+  test, unfoldCart as unfold,
 } from "./support/order.mjs";
 import { PLENTY } from "./support/stock.mjs";
 
@@ -274,8 +274,16 @@ for (const [width, viewport] of [["a phone", PHONE], ["the column", XL]]) {
       const order = new OrderPage(page);
 
       await order.open({ eggs: 2, wings: 1 });
-      // The column has no fold; a floating pane opens by its pill.
-      if (await order.cart.getAttribute("data-placement") === "floating") {
+      // ?add= scrolls the cart's heading to the top, which can settle
+      // a phone's pane inline (it did in the desktop project), where
+      // Clear cart stands above the pane and not on its edge. Back up
+      // the catalog it floats, and opens by its pill. The column has
+      // no fold.
+      if (viewport === PHONE) {
+        await page.evaluate(() => window.scrollTo(0, 400));
+        await order.scrollSettled();
+        await expect(order.cart)
+          .toHaveAttribute("data-placement", "floating");
         await unfold(order);
       }
       await expect(order.count).toHaveText("3 items");
@@ -445,3 +453,29 @@ for (const [width, viewport] of [["a phone", PHONE], ["the column", XL]]) {
     });
   });
 }
+
+// Settled in the page's flow the pane has no border to sit on, so Clear
+// cart stands just above it, at its right, clear of the first line
+// (#560).
+test("settled on a phone, Clear cart stands just above the pane",
+  async ({ page }) => {
+    await page.setViewportSize(PHONE);
+
+    const order = new OrderPage(page);
+
+    await order.open({ eggs: 2, wings: 1 });
+    await settle(order);
+    await expect(order.cart).toHaveAttribute("data-placement", "inline");
+
+    const clear = order.cart.getByRole("button", { name: "Clear cart" });
+
+    await expect(clear).toBeVisible();
+
+    const at = await clear.boundingBox();
+    const pane = await order.cart.boundingBox();
+
+    expect(at.y + at.height).toBeLessThanOrEqual(pane.y);
+    expect(at.y + at.height).toBeGreaterThan(pane.y - 8);
+    expect(at.x + at.width).toBeLessThanOrEqual(pane.x + pane.width);
+    expect(at.x + at.width).toBeGreaterThan(pane.x + pane.width - 4);
+  });
