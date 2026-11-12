@@ -172,6 +172,7 @@ export class OrderForm {
       : {});
     this.dates = new DateLists(form, () => this.refresh());
     this.dates.place = (code) => this.terms.model.location(code);
+    this.dates.onPicker = () => this.renderPickupFacts();
     // A pickup time to select once its day's windows are drawn: a
     // restored draft's, or the dialog's.
     this.wantedWindow = null;
@@ -1414,6 +1415,38 @@ export class OrderForm {
     radio.disabled = none;
     if (none && radio.checked) qs(this.form, "#method-onfarm").checked = true;
     this.chooseSeries();
+    this.renderPickupFacts();
+  }
+
+  // The Pickup days card's facts as the picker's receipt (#574): with a
+  // pickup chosen, When, Where and Order by say it, open or settled, so
+  // the customer always sees what they have; with none, When asks for
+  // a day while the card is chosen, and Where counts the locations as
+  // built. The map link stays as built, so a focused one stays focused.
+  renderPickupFacts() {
+    const facts = qs(this.form, "[data-scheduled-facts]");
+    const picker = this.dates.pickupPicker;
+
+    if (!facts) return;
+
+    const when = qs(facts, "[data-scheduled-when]");
+    const place = qs(facts, "[data-scheduled-place]");
+    const count = qs(facts, "[data-scheduled-count]");
+    const cutoff = all(facts, "[data-scheduled-cutoff]");
+    const entry = picker && picker.chosen();
+    const r = entry ? picker.receiptFor(entry) : null;
+
+    if (!when.dataset.select) when.dataset.select = when.textContent;
+
+    const text = r ? r.when : this.method() === "scheduled"
+      ? when.dataset.choose : when.dataset.select;
+
+    if (when.textContent !== text) when.textContent = text;
+    place.textContent = r ? r.where : "";
+    place.hidden = !r;
+    count.hidden = !!r;
+    for (const node of cutoff) node.hidden = !(r && r.orderBy);
+    cutoff[1].textContent = r ? r.orderBy : "";
   }
 
   // The chosen pickup day's windows, one radio each, from the farm's
@@ -1508,13 +1541,17 @@ export class OrderForm {
 
   // A 409: what was chosen lapsed. The fresh list goes on the form and
   // the dialog offers it (U1, U3).
+  // For a scheduled pickup, the one that lapsed goes with it, so the
+  // dialog can preset the same place's next date (#574).
   lapse(stored, dates) {
     const method = stored;
     const list = method === "scheduled" ? this.dates.scheduled(dates) : dates;
+    const gone = method === "scheduled"
+      ? this.dates.occurrence(this.dates.scheduledValue()) : null;
 
     this.dates.replace(method, dates);
     this.lapsed.open(method, list, this.submitButton.hidden ? null
-      : this.submitButton, this.dates.now());
+      : this.submitButton, this.dates.now(), gone);
   }
 
   revealMethod() {

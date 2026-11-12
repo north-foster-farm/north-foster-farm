@@ -5,7 +5,7 @@
 
 import { mergeScheduled } from "../order/lib/group.mjs";
 import { perkSentence } from "../order/lib/perks.mjs";
-import { CHOOSE, bookedEntry } from "../order/lib/picker.mjs";
+import { CHOOSE, bookedEntry, moveText } from "../order/lib/picker.mjs";
 import { scheduledChoices } from "../order/lib/scheduled.mjs";
 import { PickupPicker } from "../order/pickup-picker.js";
 import { pickupTimes, windowLabel } from "../order/lib/schedule.mjs";
@@ -1480,11 +1480,22 @@ class Account {
     // place, on the order page's picker (#540), which offers the one
     // booked "As booked" once it is no longer open. The others choose
     // a date.
+    const booked = scheduled ? bookedEntry(order) : null;
+    const move = qs(form, "[data-move-line]");
     const picker = scheduled
       ? new PickupPicker(qs(form, "[data-picker]"), {
         // A choice made clears the "Choose a pickup" error.
         onChange: () => {
           if (picker.value()) this.clearErrors(form);
+        },
+        // From the pickup booked to the one chosen, once they differ
+        // (#574).
+        onState: () => {
+          const from = (booked && picker.entry(booked.value)) || booked;
+          const text = moveText(from, picker.chosen());
+
+          if (move.textContent !== text) move.textContent = text;
+          move.hidden = !text;
         },
       }) : null;
 
@@ -1492,7 +1503,7 @@ class Account {
     qs(form, "[data-scheduled-picker]").hidden = !scheduled;
     if (scheduled) {
       picker.render(scheduledChoices(dates), {
-        want: order.pickup.occurrence || "", booked: bookedEntry(order),
+        want: order.pickup.occurrence || "", booked,
         now: new Date((this.dates && this.dates.now) || Date.now()),
       });
     } else {

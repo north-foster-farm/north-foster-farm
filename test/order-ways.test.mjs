@@ -61,10 +61,14 @@ describe("order page Pickup or delivery cards", { skip: !hasHugo }, () => {
     cards = set[0].split(/<div class="?order-method"?>/).slice(1)
       .map((card) => {
         const facts = card.match(/<dl[\s\S]*?<\/dl>/)[0];
-        const dts = [...facts.matchAll(/<dt>([\s\S]*?)<\/dt>/g)]
-          .map((m) => text(m[1]));
-        const dds = [...facts.matchAll(/<dd[^>]*>([\s\S]*?)<\/dd>/g)]
-          .map((m) => text(m[1]));
+        // The facts as built: a pair built hidden (the Pickup days
+        // card's Order by, shown once a pickup is chosen, #574) is not
+        // read.
+        const pairs = [...facts.matchAll(
+          /<dt([^>]*)>([\s\S]*?)<\/dt>\s*<dd[^>]*>([\s\S]*?)<\/dd>/g
+        )].filter((m) => !/\bhidden\b/.test(m[1]));
+        const dts = pairs.map((m) => text(m[2]));
+        const dds = pairs.map((m) => text(m[3]));
 
         const title = card.match(
           /<span ([^>]*order-method-title[^>]*)>([\s\S]*?)<\/span>/);

@@ -1,8 +1,11 @@
-{{/* The pickup-day picker (#540, the design approved on #539): a week
-     strip, Sunday to Saturday, the chosen day's pickups as radio cards,
-     and a details panel for the chosen pickup. One component on the
-     order page, in the lapsed dialog and in the account's Change
-     pickup; order/pickup-picker.js draws it from a scheduled list.
+{{/* The pickup-day picker (#540; the Flow-first layout of #574): every
+     week with a pickup as its own row of seven days, Sunday to
+     Saturday, then the chosen day's pickups as radio cards, the chosen
+     one unfolding its address and order-by line. Once a pickup is
+     chosen it can settle: the rows and cards fold away and a receipt
+     says what was chosen. One component on the order page, in the
+     lapsed dialog and in the account's Change pickup;
+     order/pickup-picker.js draws it from a scheduled list.
 
      Takes a dict:
      - name: the pickup radios' name; the day radios take it with
@@ -11,46 +14,69 @@
        aria-describedby (the order page's error anchor)
      - dates: true on the order page, where date-lists.js finds the
        group by its data-dates
-     - stack: true in a narrow box (the dialog, the account's panel),
-       where the details go under the pickups at every width; without
-       it they sit beside the pickups from md up
+     - settle: "card" on the order page, where the Pickup days card's
+       own facts are the receipt and the button reads Change pickup,
+       then Done while open; "receipt" in the lapsed dialog, where the
+       receipt is the picker's own and the button reads Choose another
+       day; left out in the account's Change pickup, which never
+       settles
 
      Every pickup has its radio in the group, the other days' cards
      hidden, so the value chosen is the group's checked radio as
-     before. Draft wording. */}}
+     before; a settled picker is inert and folded, and its checked
+     radio still goes with the form. Draft wording. */}}
 {{ $name := .name }}
-{{ $stack := .stack }}
-<div class="pickup-picker" data-picker data-time-zone="{{ hugo.Data.delivery.timeZone }}">
+{{ $settle := .settle | default "" }}
+<div class="pickup-picker" data-picker data-time-zone="{{ hugo.Data.delivery.timeZone }}"{{ with $settle }} data-picker-settle="{{ . }}"{{ end }}>
   <p class="order-windows-none" data-picker-empty>Loading pickups&hellip;</p>
-  {{/* A group, not a fieldset: on the order page it sits inside the
-       Pickup or delivery fieldset. pickup-picker.js ties the label to
-       the days. */}}
-  <div class="pickup-picker-strip" data-picker-strip hidden>
-    <p class="pickup-picker-legend" data-picker-legend>Pickup day</p>
-    <div class="pickup-picker-head">
-      <button type="button" class="btn btn-outline-secondary btn-sm pickup-picker-page" data-picker-page="-1"><span aria-hidden="true">&lsaquo;</span><span class="pickup-picker-wide" aria-hidden="true"> Previous week</span></button>
-      <p class="pickup-picker-title" data-picker-title></p>
-      <button type="button" class="btn btn-outline-secondary btn-sm pickup-picker-page" data-picker-page="1"><span class="pickup-picker-wide" aria-hidden="true">Next week </span><span aria-hidden="true">&rsaquo;</span></button>
+  {{ if eq $settle "receipt" }}
+    <div class="pickup-picker-receipt" data-picker-receipt hidden>
+      <p class="pickup-picker-receipt-title" data-picker-receipt-title></p>
+      <dl class="pickup-picker-facts">
+        <dt>When</dt>
+        <dd data-picker-when></dd>
+        <dt>Where</dt>
+        <dd data-picker-where></dd>
+        <dt data-picker-cutoff-row>Order by</dt>
+        <dd data-picker-cutoff-row data-picker-cutoff></dd>
+      </dl>
     </div>
-    <div class="pickup-picker-week" role="radiogroup" data-picker-week></div>
+  {{ end }}
+  {{/* The closed and moved notes stay out of the fold, so a settled
+       picker still says why its pickup is the one it is. */}}
+  <div class="alert alert-warning py-2 mb-0 pickup-picker-note" data-picker-note role="status" hidden>
+    <span data-picker-note-text></span>
+    <button type="button" class="btn btn-outline-secondary btn-sm pickup-picker-instead" data-picker-instead hidden></button>
   </div>
-  <p class="alert alert-warning py-2 mb-0 pickup-picker-note" data-picker-note role="status" hidden></p>
-  {{/* Beside the pickups from md up, as grid columns; stacked, plain
-       blocks, so a narrow box holds no row outside a column. */}}
-  <div class="{{ if not $stack }}row {{ end }}pickup-picker-body" data-picker-body hidden>
-    <div{{ if not $stack }} class="col-md-7"{{ end }}>
-      <p class="pickup-picker-day" data-picker-day hidden></p>
-      <div class="order-pickups" role="radiogroup" tabindex="-1" data-picker-pickups{{ with .id }} id="{{ . }}"{{ end }}{{ with .field }} data-field="{{ . }}"{{ end }}{{ with .describedby }} aria-describedby="{{ . }}"{{ end }}{{ if .dates }} data-dates="scheduled"{{ end }}></div>
-    </div>
-    <div class="{{ if not $stack }}col-md-5 {{ end }}pickup-picker-aside" data-picker-details hidden>
-      <div class="pickup-picker-details">
-        <p class="pickup-picker-place" data-picker-place></p>
-        <p class="pickup-picker-address" data-picker-address></p>
-        <p class="pickup-picker-cutoff" data-picker-cutoff></p>
+  <div class="pickup-picker-fold" data-picker-fold>
+    <div class="pickup-picker-folded">
+      {{/* A group, not a fieldset: on the order page it sits inside the
+           Pickup or delivery fieldset. pickup-picker.js ties the label
+           to the days, one radio group across every row. */}}
+      <div class="pickup-picker-strip" data-picker-strip hidden>
+        <p class="pickup-picker-legend" data-picker-legend>Pickup day</p>
+        <div class="pickup-picker-rows" role="radiogroup" data-picker-rows></div>
+      </div>
+      <div class="pickup-picker-body" data-picker-body hidden>
+        <p class="pickup-picker-day" data-picker-day hidden></p>
+        <div class="order-pickups" role="radiogroup" tabindex="-1" data-picker-pickups{{ with .id }} id="{{ . }}"{{ end }}{{ with .field }} data-field="{{ . }}"{{ end }}{{ with .describedby }} aria-describedby="{{ . }}"{{ end }}{{ if .dates }} data-dates="scheduled"{{ end }}></div>
       </div>
     </div>
   </div>
+  {{ with $settle }}
+    {{/* Reads its first label while settled; while open, its second,
+         or it hides when there is none. */}}
+    {{ $labels := cond (eq . "card") (slice "Change pickup" "Done") (slice "Choose another day" "") }}
+    <button type="button" class="btn btn-outline-secondary btn-sm pickup-picker-toggle" data-picker-toggle data-settled-label="{{ index $labels 0 }}" data-open-label="{{ index $labels 1 }}" aria-expanded="true" hidden></button>
+    <span data-picker-said hidden></span>
+  {{ end }}
   <p class="visually-hidden" aria-live="polite" data-picker-live></p>
+  <template data-picker-tpl="row">
+    <div class="pickup-picker-row">
+      <p class="pickup-picker-title" aria-hidden="true"><span class="pickup-picker-wide"></span><span class="pickup-picker-narrow"></span></p>
+      <div class="pickup-picker-week"></div>
+    </div>
+  </template>
   <template data-picker-tpl="day">
     <div class="pickup-picker-cell">
       <input class="btn-check" type="radio" name="{{ $name }}-day" autocomplete="off">
@@ -69,6 +95,14 @@
         <span class="order-pickup-time"></span>
         <span class="badge rounded-pill bg-secondary-subtle text-secondary-emphasis order-pickup-booked" hidden>As booked</span>
         <span class="order-pickup-name"></span>
+        {{/* Unfolds once chosen (0fr to 1fr), hidden from a screen
+             reader till then, so an unchosen card's name stays short. */}}
+        <span class="order-pickup-more">
+          <span class="order-pickup-more-in">
+            <span class="order-pickup-address"></span>
+            <span class="order-pickup-cutoff"></span>
+          </span>
+        </span>
       </label>
     </div>
   </template>

@@ -4,7 +4,7 @@
 // now. It pays nothing: "Use this" puts the choice on the form and the
 // customer pays again with the same button. Draft wording.
 
-import { CHOOSE } from "./lib/picker.mjs";
+import { CHOOSE, nextAtSame, nextTitle } from "./lib/picker.mjs";
 import { PickupPicker } from "./pickup-picker.js";
 
 // Keyed by the form's way: `scheduled` is scheduled pickup, the drop site
@@ -105,8 +105,10 @@ export class Lapsed {
   // /api/dates gives it: for on-farm pickup, each day with its windows;
   // for scheduled pickup, its choices (lib/scheduled.mjs), shown on the
   // picker. `returnTo` gets the focus back on "Never mind"; `now` is the
-  // server's clock, for the picker's week titles.
-  open(method, dates, returnTo, now = new Date()) {
+  // server's clock, for the picker's week titles; `gone` is the
+  // scheduled pickup that lapsed, whose place's next date the picker
+  // opens on, settled into a receipt (#574).
+  open(method, dates, returnTo, now = new Date(), gone = null) {
     if (!this.dialog) return;
 
     const scheduled = method === "scheduled";
@@ -145,12 +147,24 @@ export class Lapsed {
     });
     this.choices.hidden = !some || scheduled;
     this.pickerBox.hidden = !some || !scheduled;
+    // The same place's next date, preset as the receipt so "Use this
+    // pickup" is right the first time; the customer still presses it.
+    const next = scheduled && some ? nextAtSame(dates, gone) : null;
+
     if (scheduled && some) {
-      // Nothing carried over from the last time it opened: the first
-      // open day, which chooses its pickup when it has one.
+      // Nothing carried over from the last time it opened. With no
+      // next date at that place (a pop-up's one day), the first open
+      // day, which chooses its pickup when it has one.
       this.picker.reset();
-      this.picker.render(dates, { now });
-      this.picker.chooseFirst();
+      if (next) {
+        this.picker.render(dates, {
+          now, want: next.value,
+          heading: nextTitle(this.picker.receiptFor(next).name),
+        });
+      } else {
+        this.picker.render(dates, { now });
+        this.picker.chooseFirst();
+      }
     }
     this.use.hidden = !some;
     this.use.textContent = USE[method];
@@ -161,7 +175,11 @@ export class Lapsed {
     this.other.classList.toggle("btn-link", some);
 
     this.dialog.showModal();
-    if (!(scheduled && some && this.picker.focus())) {
+    // Preset, the focus waits on "Use this pickup"; otherwise on the
+    // picker's day.
+    if (next) {
+      this.use.focus();
+    } else if (!(scheduled && some && this.picker.focus())) {
       (this.list.querySelector("input") || this.other).focus();
     }
   }

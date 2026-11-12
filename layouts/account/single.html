@@ -549,10 +549,14 @@
           <div class="invalid-feedback" data-error-for="date"></div>
         </div>
         {{/* A scheduled pickup moves on the order page's picker (#540);
-             main.js shows it in place of the day select. */}}
+             main.js shows it in place of the day select. It never
+             settles: the order's Pickup row above is the receipt. Once
+             another pickup is chosen, the line under it says from what
+             to what (#574). */}}
         <div class="col-12" data-scheduled-picker hidden>
-          {{ partial "order/pickup-picker.html" (dict "name" "occurrence" "stack" true) }}
+          {{ partial "order/pickup-picker.html" (dict "name" "occurrence") }}
           <div class="invalid-feedback" data-error-for="occurrence"></div>
+          <p class="form-text mb-0 mt-2" data-move-line role="status" hidden></p>
         </div>
         <div class="col-md-6" data-onfarm>
           {{/* The chosen day's times from the farm's schedule (W11d),

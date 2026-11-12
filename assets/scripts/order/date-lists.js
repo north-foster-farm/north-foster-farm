@@ -53,8 +53,11 @@ export class DateLists {
     // A location by its code, for a pickup's address; the form sets it
     // from the model (data/locations.json).
     this.place = () => null;
-    // The pickup-day picker, made with the first scheduled list.
+    // The pickup-day picker, made with the first scheduled list, and
+    // what hears it settle, open or change its choice: the form, for
+    // the Pickup days card's facts, which are its receipt (#574).
     this.pickupPicker = null;
+    this.onPicker = () => {};
     // A paid order's pickup being changed (?edit=), offered "As
     // booked" once the lists no longer have it (lib/picker.mjs).
     this.booked = null;
@@ -215,18 +218,23 @@ export class DateLists {
     return on ? on.value : "";
   }
 
-  // Chooses a pickup in the list, if it is there, and shows its day.
+  // Chooses a pickup in the list, if it is there, and shows its day,
+  // settled: a link's or the lapsed dialog's choice arrives as the
+  // card's receipt.
   choose(value) {
     const box = this.form.querySelector("[data-dates='scheduled']");
 
     return Boolean(box) && this.picker(box).choose(value);
   }
 
-  // The one picker (pickup-picker.js) round the pickups group.
+  // The one picker (pickup-picker.js) round the pickups group. Leaving
+  // its card settles it.
   picker(box) {
     if (!this.pickupPicker) {
       this.pickupPicker = new PickupPicker(box.closest("[data-picker]"), {
         locate: (entry) => this.place(entry.location),
+        onState: () => this.onPicker(),
+        within: box.closest(".order-method"),
       });
     }
 

@@ -91,12 +91,19 @@
         </span>
         {{/* Where counts the locations and links to the Places list.
              order-form.js sets the count from the list
-             (renderScheduledCard), and says so when it is empty. */}}
+             (renderScheduledCard), and says so when it is empty. Once a
+             pickup is chosen these facts are its receipt (#574): When,
+             Where and Order by say the chosen pickup
+             (renderPickupFacts), and the picker below can fold away.
+             data-choose is When's words while the card is chosen and
+             no pickup is. Draft wording. */}}
         <dl class="order-method-facts" data-scheduled-facts>
           <dt>When</dt>
-          <dd>{{ $select }}</dd>
+          <dd data-scheduled-when data-choose="Choose a day below">{{ $select }}</dd>
           <dt>Where</dt>
-          <dd data-scheduled-where><span data-scheduled-count>{{ $count }} location{{ if ne $count 1 }}s{{ end }}</span> {{ partial "order/map-link.html" "places" }}</dd>
+          <dd data-scheduled-where><span data-scheduled-place hidden></span><span data-scheduled-count>{{ $count }} location{{ if ne $count 1 }}s{{ end }}</span> {{ partial "order/map-link.html" "places" }}</dd>
+          <dt data-scheduled-cutoff hidden>Order by</dt>
+          <dd data-scheduled-cutoff hidden></dd>
           <dt>Cost</dt>
           <dd>No minimum, no fee</dd>
         </dl>
@@ -105,14 +112,15 @@
       <div class="order-method-reveal" data-method-body="scheduled" inert>
         <div class="order-method-body order-hform">
           <div class="row">
-            {{/* The pickup-day picker (#540): the week strip, the chosen
-                 day's pickups and the details panel, drawn by
-                 date-lists.js. Nothing is chosen until the customer
-                 does. */}}
+            {{/* The pickup-day picker (#540, #574): the week rows and the
+                 chosen day's pickups, drawn by date-lists.js, folding
+                 to the facts above once the customer leaves the card
+                 with a pickup chosen. Nothing is chosen until the
+                 customer does. */}}
             <div class="col-12 skeleton-slot" data-dates-region>
               {{ partial "skeleton.html" (dict "over" true) }}
               {{ partial "skeleton/status.html" (dict "quiet" true) }}
-              {{ partial "order/pickup-picker.html" (dict "name" "scheduled.date" "id" "scheduled-pickups" "field" "fulfilment.occurrence" "describedby" "err-scheduled-date" "dates" true) }}
+              {{ partial "order/pickup-picker.html" (dict "name" "scheduled.date" "id" "scheduled-pickups" "field" "fulfilment.occurrence" "describedby" "err-scheduled-date" "dates" true "settle" "card") }}
               <div class="invalid-feedback" id="err-scheduled-date" data-error-for="fulfilment.occurrence"></div>
               {{ partial "skeleton/status.html" (dict "failed" "We couldn't load the dates.") }}
             </div>

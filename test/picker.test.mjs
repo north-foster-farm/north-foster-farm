@@ -9,9 +9,10 @@ import { afterEach, describe, it, mock } from "node:test";
 import { DateLists } from "../assets/scripts/order/date-lists.js";
 import {
   CLOSED, addressOf, availability, bookedEntry, chosenText, dayLabel,
-  detailsOf, earliestCutoff, keptNote, movedNote, occurrenceDate, onePlace,
-  orderBy, pagedText, pagerLabel, pickerWeeks, rangeText, resolveChoice,
-  stillOpen, weekIndex, weekName, weekStart, weekTitle, withBooked,
+  detailsOf, earliestCutoff, insteadText, keptNote, moveText, movedNote,
+  nextAtSame, nextTitle, occurrenceDate, onePlace, orderBy, orderByTime,
+  pickerWeeks, rangeText, receiptOf, resolveChoice, stillOpen, weekName,
+  weekStart, weekTitle, whenText, withBooked,
 } from "../assets/scripts/order/lib/picker.mjs";
 import { scheduledChoices } from "../assets/scripts/order/lib/scheduled.mjs";
 
@@ -73,9 +74,24 @@ describe("the picker's weeks", () => {
     assert.equal(weeks[0].end, "2026-11-14");
   });
 
-  it("are only those with a pickup, so ‹ › skip an empty week", () => {
+  it("are only those with a pickup, one row each", () => {
     assert.deepEqual(weeks.map((w) => w.start),
       ["2026-11-08", "2026-11-15", "2026-11-29"]);
+  });
+
+  it("mark a week that skips one, as a group's round, as a gap", () => {
+    assert.deepEqual(weeks.map((w) => w.gap), [false, false, true]);
+    assert.deepEqual(pickerWeeks([drop, drop21]).map((w) => w.gap),
+      [false, false]);
+  });
+
+  it("reach a group's round up to 60 days out, with one gap", () => {
+    const far = { ...drop, value: "G7RD-270109", date: "2027-01-09" };
+    const rows = pickerWeeks([drop, drop21, far]);
+
+    assert.deepEqual(rows.map((w) => w.start),
+      ["2026-11-08", "2026-11-15", "2027-01-03"]);
+    assert.deepEqual(rows.map((w) => w.gap), [false, false, true]);
   });
 
   it("open only the days that have a pickup; past days are greyed", () => {
@@ -97,13 +113,6 @@ describe("the picker's weeks", () => {
   it("are none for an empty list", () => {
     assert.deepEqual(pickerWeeks([]), []);
   });
-
-  it("open on the chosen pickup's week, or else the first", () => {
-    assert.equal(weekIndex(weeks, "2026-11-21"), 1);
-    assert.equal(weekIndex(weeks, "2026-12-05"), 2);
-    assert.equal(weekIndex(weeks, ""), 0);
-    assert.equal(weekIndex(weeks, "2027-01-02"), 0);
-  });
 });
 
 describe("the strip's words", () => {
@@ -122,21 +131,6 @@ describe("the strip's words", () => {
   it("say the dash as \"to\"", () => {
     assert.equal(rangeText("2026-11-22", { spoken: true }),
       "November 22 to 28");
-  });
-
-  it("name the week buttons in full", () => {
-    assert.equal(pagerLabel(1, "2026-11-22"), "Next week, November 22 to 28");
-    assert.equal(pagerLabel(-1, "2026-11-08"),
-      "Previous week, November 8 to 14");
-  });
-
-  it("say how many pickup days a week has after paging", () => {
-    const weeks = pickerWeeks(LIST);
-
-    assert.equal(pagedText(weeks[1], TODAY),
-      "Next week, November 15 to 21, 3 pickup days");
-    assert.equal(pagedText(weeks[2], TODAY),
-      "November 29 to December 5, 1 pickup day");
   });
 
   it("count a day's pickups, or show a dash", () => {
@@ -162,18 +156,20 @@ describe("the strip's words", () => {
 
   it("have no semicolons or em dashes (#400)", () => {
     const weeks = pickerWeeks(LIST);
+    const r = receiptOf(popup, null, ZONE);
     const lines = [
-      weekTitle(weeks[2].start, TODAY), pagedText(weeks[1], TODAY),
-      pagerLabel(1, weeks[1].start), dayLabel(weeks[1].days[0]),
+      weekTitle(weeks[2].start, TODAY), dayLabel(weeks[1].days[0]),
       chosenText(popup), CLOSED, movedNote("VFVQ-261114", drop21),
-      orderBy(drop.cutoff, ZONE),
+      orderBy(drop.cutoff, ZONE), r.when, r.spoken, r.where, r.orderBy,
+      insteadText(drop21), nextTitle(r.name), moveText(drop, drop21),
+      moveText(drop21, popup),
     ];
 
     for (const line of lines) assert.doesNotMatch(line, /[;—]/, line);
   });
 });
 
-describe("the details panel", () => {
+describe("the chosen card's details", () => {
   it("names the place and gives the order-by time in the farm's zone", () => {
     assert.equal(orderBy(drop.cutoff, ZONE),
       "Order by Friday, November 13, 11:59 PM");
@@ -208,6 +204,77 @@ describe("the details panel", () => {
   it("leaves the place off the cards when there is only one", () => {
     assert.equal(onePlace([drop, drop21]), true);
     assert.equal(onePlace(LIST), false);
+  });
+});
+
+describe("the settled receipt (#574)", () => {
+  const loc = {
+    name: "Jordan's Jungle", street: "545 Pawtucket Ave", city: "Pawtucket",
+    state: "RI", zip: "02860", town: "Pawtucket",
+  };
+
+  it("says the chosen pickup's day, hours, place and order-by time", () => {
+    assert.deepEqual(receiptOf(popup, loc, ZONE), {
+      when: "Saturday, November 21, 12:00 – 5:00 PM",
+      spoken: "Saturday, November 21, 12:00 to 5:00 PM",
+      name: "Pawtucket · Thanksgiving Prep",
+      where: "Pawtucket · Thanksgiving Prep, Jordan's Jungle, " +
+        "545 Pawtucket Ave, Pawtucket, RI 02860",
+      orderBy: "Friday, November 20, 11:59 PM",
+    });
+  });
+
+  it("gives the order-by time without its words, or none", () => {
+    assert.equal(orderByTime(drop.cutoff, ZONE),
+      "Friday, November 13, 11:59 PM");
+    assert.equal(orderByTime("", ZONE), "");
+    assert.equal(receiptOf({ ...drop, cutoff: "" }, null, ZONE).orderBy, "");
+  });
+
+  it("says an As booked pickup with no hours left by its day alone", () => {
+    assert.equal(whenText({ date: "2026-11-17", label: "", window: "" }),
+      "Tuesday, November 17");
+  });
+});
+
+describe("the same place's next date (#574)", () => {
+  it("is the next of the gone pickup's series the list still has", () => {
+    const fresh = LIST.filter((d) => d.value !== drop.value);
+
+    assert.equal(nextAtSame(fresh, drop), drop21);
+    assert.equal(insteadText(drop21), "Choose Saturday, November 21 instead");
+    assert.equal(nextTitle("Pawtucket Farmers Market"),
+      "Next at Pawtucket Farmers Market");
+  });
+
+  it("is none for a place with no other date, or no pickup", () => {
+    assert.equal(nextAtSame(LIST, popup), null);
+    assert.equal(nextAtSame(LIST, null), null);
+    assert.equal(nextAtSame(LIST, { value: "X", date: "2026-11-14" }), null);
+  });
+
+  it("never offers the pickup that lapsed itself", () => {
+    assert.equal(nextAtSame([drop, drop21], drop), drop21);
+    assert.equal(nextAtSame([drop], drop), null);
+  });
+});
+
+describe("the account's from-to line (#574)", () => {
+  it("names both days once the choice differs from the booking", () => {
+    assert.equal(moveText(drop, drop21), "Moves your pickup from " +
+      "Saturday, November 14 to Saturday, November 21.");
+  });
+
+  it("names both places on one day", () => {
+    assert.equal(moveText(drop21, popup), "Moves your pickup on Saturday, " +
+      "November 21 from North Scituate · Drop site to Pawtucket · " +
+      "Thanksgiving Prep.");
+  });
+
+  it("says nothing while the booking stands, or nothing is chosen", () => {
+    assert.equal(moveText(drop, drop), "");
+    assert.equal(moveText(drop, null), "");
+    assert.equal(moveText(null, drop), "");
   });
 });
 

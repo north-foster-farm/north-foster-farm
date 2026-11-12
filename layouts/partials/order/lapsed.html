@@ -11,9 +11,11 @@
       <legend class="visually-hidden" data-lapsed-legend></legend>
       <div class="order-lapsed-list" data-lapsed-list></div>
     </fieldset>
-    {{/* A scheduled pickup's choices: the order page's picker (#540). */}}
+    {{/* A scheduled pickup's choices: the order page's picker (#540),
+         opened settled on the same place's next date when it has one,
+         as a receipt with Choose another day (#574). */}}
     <div class="order-lapsed-picker" data-lapsed-picker hidden>
-      {{ partial "order/pickup-picker.html" (dict "name" "lapsed-pickup" "stack" true) }}
+      {{ partial "order/pickup-picker.html" (dict "name" "lapsed-pickup" "settle" "receipt") }}
     </div>
     <div class="order-lapsed-actions">
       <button type="button" class="btn btn-primary" data-lapsed-use></button>
