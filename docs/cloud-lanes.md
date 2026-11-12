@@ -62,6 +62,14 @@ without the answer gets done first.
    `staging` or `main`, and never open or merge a pull request: the
    coordinator reviews your branch and lands it.
 
+The push step sends the branch only when the run added work. It
+compares `HEAD` with the lane branch on origin (or with `origin/next`
+when the lane is new) and pushes when `HEAD` holds a change the lane
+lacks and keeps every change the lane has. A run that committed
+nothing, such as a review or a question, leaves the lane where it was.
+A run whose `HEAD` would drop commits already on the lane fails
+instead of pushing (#552).
+
 ## Checks
 
 Run these before you report, bare, so the exit code is the verdict:

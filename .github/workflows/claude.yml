@@ -100,10 +100,24 @@ jobs:
 
       # The only push of the run. The model has no push rule, and this
       # step names the one ref it may update. It runs even when the
-      # action fails, so work already committed is not lost; with
-      # nothing committed past origin/next it does nothing. Hooks are
-      # off so nothing the run wrote under .git/ executes here. A rerun
-      # fetches the branch first so --force-with-lease has a lease.
+      # action fails, so work already committed is not lost. Hooks are
+      # off so nothing the run wrote under .git/ executes here.
+      #
+      # It pushes only when the run added work. The reference point is
+      # the lane branch as it stands on origin (the tip), or origin/next
+      # when the lane does not exist yet. `git cherry A B` marks with +
+      # each commit of B whose change is not in A, so:
+      #   - new work:  cherry tip HEAD shows a +  (HEAD has something
+      #     the lane lacks);
+      #   - nothing lost:  cherry HEAD tip shows no +  (every change
+      #     already on the lane is still in HEAD, which a rebase onto
+      #     next keeps true).
+      # A run that committed nothing, or checked out next for a review,
+      # has no new work and leaves the lane alone (#533: a review run
+      # replaced a lane's work). A run whose HEAD would drop commits
+      # already on the lane fails loudly instead of pushing. The lease
+      # on the fetched tip stops a push over a lane that moved during
+      # the run.
       - name: Push the lane branch
         if: always()
         env:
@@ -119,16 +133,32 @@ jobs:
             git -c core.hooksPath=/dev/null \
               -c "http.extraheader=AUTHORIZATION: basic $auth" "$@"
           }
-          if [ "$(git rev-parse HEAD)" = "$(git rev-parse origin/next)" ]; then
-            echo "Nothing committed; no push."
+          # Count the commits of $1's cherry output marked +. The output
+          # is captured by plain assignment before this runs, so a
+          # failed `git cherry` stops the step under `set -e` instead
+          # of reading as a count of 0 (there is no pipefail).
+          pluses() {
+            printf '%s\n' "$1" | grep -c '^+' || true
+          }
+          url="https://github.com/$REPO"
+          tipref="refs/remotes/lane/$branch"
+          if git_push fetch "$url" "+refs/heads/$branch:$tipref"; then
+            tip="$tipref"
+            lease="--force-with-lease=refs/heads/$branch:$tipref"
+          else
+            tip="origin/next"
+            lease=""
+          fi
+          added="$(git cherry "$tip" HEAD origin/next)"
+          if [ "$(pluses "$added")" = "0" ]; then
+            echo "No new commits past $tip; no push."
             exit 0
           fi
-          url="https://github.com/$REPO"
-          if git_push fetch "$url" "+refs/heads/$branch:refs/remotes/lane/$branch"
-          then
-            git_push push --no-verify \
-              --force-with-lease="refs/heads/$branch:refs/remotes/lane/$branch" \
-              "$url" "HEAD:refs/heads/$branch"
-          else
-            git_push push --no-verify "$url" "HEAD:refs/heads/$branch"
+          if [ "$tip" != "origin/next" ]; then
+            dropped="$(git cherry HEAD "$tip" origin/next)"
+            if [ "$(pluses "$dropped")" != "0" ]; then
+              echo "HEAD drops commits already on $branch; not pushing."
+              exit 1
+            fi
           fi
+          git_push push --no-verify $lease "$url" "HEAD:refs/heads/$branch"
