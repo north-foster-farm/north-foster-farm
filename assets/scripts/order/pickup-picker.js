@@ -1,39 +1,38 @@
-// The pickup-day picker (#540, the design approved on #539), drawn in
-// partials/order/pickup-picker.html: a week strip, Sunday to Saturday,
-// the chosen day's pickups as radio cards, and a details panel for the
-// chosen pickup. One component on the order page (date-lists.js), in
-// the lapsed dialog (lapsed.js) and in the account's Change pickup
-// (account/main.js). lib/picker.mjs works out what it draws.
+// The pickup picker as a timetable (#573, Round 2 of the picker
+// bracket on #540), drawn in partials/order/pickup-picker.html: one
+// row per place and routine, one column per week, and every open
+// pickup a chip, one tap. A summary of the chosen pickup sits under
+// the board. One component on the order page (date-lists.js), in the
+// lapsed dialog (lapsed.js) and in the account's Change pickup
+// (account/main.js). lib/timetable.mjs lays the board out, and
+// lib/picker.mjs decides which pickup a list lands on.
 //
-// The days are native radios, so the arrow keys move between them and
-// skip the disabled ones. Every pickup of the list has its radio in the
-// pickups group, the other days' cards hidden, so the value chosen is
-// the group's checked radio, as it was before the strip (the submitted
-// body, drafts and the error anchor don't change).
+// The chips are native radios of one group across the board, so the
+// arrow keys move chip to chip, place by place, and an empty cell is a
+// dash, never a stop. The value chosen is the group's checked radio,
+// as it was before the timetable (the submitted body, drafts and the
+// error anchor don't change).
 
 import {
-  NONE, availability, chosenText, dayLabel, detailsOf, keptNote, onePlace,
-  pagedText, pagerLabel, pickerWeeks, resolveChoice, weekIndex, weekTitle,
-  withBooked,
+  chosenText, closedEntry, keptNote, NONE, resolveChoice, withBooked,
 } from "./lib/picker.mjs";
-import { label, today } from "./lib/zoned.mjs";
+import {
+  board, chipCutoff, chipName, chipText, summary,
+} from "./lib/timetable.mjs";
+import { today } from "./lib/zoned.mjs";
 
 let seq = 0;
 
 const qs = (root, selector) => root.querySelector(selector);
 
-const span = (text, className = "") => {
-  const node = document.createElement("span");
-
+const fill = (node, text) => {
   node.textContent = text;
-  if (className) node.className = className;
-
-  return node;
+  node.hidden = !text;
 };
 
 export class PickupPicker {
   // `locate(entry)` gives the entry's location (data/locations.json)
-  // for the details panel's address, or null to use the entry's own;
+  // for the row heads' addresses, or null to use the entry's own;
   // `onChange` hears a choice the customer made.
   constructor(root, { locate = () => null, onChange = () => {} } = {}) {
     this.root = root;
@@ -42,56 +41,43 @@ export class PickupPicker {
     this.prefix = `picker-${++seq}`;
     this.timeZone = root.dataset.timeZone || "America/New_York";
     this.list = [];
-    this.weeks = [];
-    this.week = 0;
-    this.day = "";
+    this.shown = [];
+    this.booked = "";
     this.today = "";
 
     const q = (s) => qs(root, s);
 
     this.empty = q("[data-picker-empty]");
-    this.strip = q("[data-picker-strip]");
-    this.title = q("[data-picker-title]");
-    this.days = q("[data-picker-week]");
-    this.pagers = Array.from(root.querySelectorAll("[data-picker-page]"));
     this.note = q("[data-picker-note]");
-    this.body = q("[data-picker-body]");
-    this.heading = q("[data-picker-day]");
+    this.board = q("[data-picker-board]");
+    this.heads = q("[data-picker-heads]");
     this.group = q("[data-picker-pickups]");
-    this.details = q("[data-picker-details]");
+    this.summary = q("[data-picker-summary]");
     this.live = q("[data-picker-live]");
-    this.tpl = {
-      day: q("template[data-picker-tpl='day']"),
-      pickup: q("template[data-picker-tpl='pickup']"),
-    };
+    this.tpl = Object.fromEntries(
+      ["head", "place", "routine", "cell", "none", "chip", "closed"]
+        .map((name) => [name, q(`template[data-picker-tpl='${name}']`)]),
+    );
 
-    this.heading.id = `${this.prefix}-day`;
-    // The days are one radio group named "Pickup day".
+    // The board is one radio group named "Choose a pickup".
     q("[data-picker-legend]").id = `${this.prefix}-legend`;
-    this.days.setAttribute("aria-labelledby", `${this.prefix}-legend`);
+    this.group.setAttribute("aria-labelledby", `${this.prefix}-legend`);
 
-    this.days.addEventListener("change", (e) => {
-      if (e.target.matches("input")) this.chooseDay(e.target.value);
-    });
-    for (const button of this.pagers) {
-      button.addEventListener("click", () => this.page(
-        Number(button.dataset.pickerPage), button
-      ));
-    }
-    this.group.addEventListener("change", () => {
+    this.group.addEventListener("change", (e) => {
+      if (!e.target.matches("input")) return;
+
+      const entry = this.entry(e.target.value);
+
       this.setNote("");
-      this.showDetails();
+      this.unflag();
+      this.showSummary();
+      if (entry) this.say(chosenText(entry, this.locate(entry)));
       this.onChange();
     });
-    // An error's focus (errors.js) lands on the group, the field: it
-    // goes on to the strip's chosen day, or else its first open one.
+    // An error's focus (errors.js) lands on the board, the field: it
+    // goes on to the chosen chip, or else the first open one.
     this.group.addEventListener("focus", (e) => {
-      if (e.target !== this.group) return;
-
-      const day = qs(this.days, "input:checked")
-        || qs(this.days, "input:not(:disabled)");
-
-      if (day) day.focus({ preventScroll: true });
+      if (e.target === this.group) this.focus({ preventScroll: true });
     });
   }
 
@@ -108,215 +94,206 @@ export class PickupPicker {
 
   // Draws a list of scheduled choices (lib/scheduled.mjs). `want` is a
   // draft's or a link's pickup to choose, `series` the old drop site
-  // draft's, `booked` the pickup an order being changed holds (shown
-  // "As booked" when the list lacks it), `quiet` keeps the closed note
-  // back, and `now` is the server's clock. The pickup chosen stays
-  // chosen while the list has it; one that has gone says so.
+  // draft's, `booked` the pickup an order being changed holds (tagged
+  // "As booked", and kept on the board when the list lacks it),
+  // `closed` a pickup to show struck (the one that lapsed, in the
+  // dialog), `quiet` keeps the closed note back, and `now` is the
+  // server's clock. The pickup chosen stays chosen while the list has
+  // it; one that has gone says so, and stays struck in its cell until
+  // the next list.
   render(list, {
-    want = "", series = "", booked = null, quiet = false, now = new Date(),
+    want = "", series = "", booked = null, closed = null, quiet = false,
+    now = new Date(),
   } = {}) {
     const before = this.value();
+    const known = this.entry(before);
     const pick = resolveChoice({
       list, current: before, want, series, booked, quiet,
     });
 
     this.today = today(now, this.timeZone);
-    this.list = pick.booked ? withBooked(list, booked) : list;
-    this.weeks = pickerWeeks(this.list);
-    this.drawPickups(pick.value);
+    this.booked = booked ? booked.value : "";
+    this.list = pick.booked ? withBooked(list, booked)
+      : list.map((d) => (booked && d.value === booked.value
+        ? { ...d, booked: true } : d));
+
+    const gone = closed ? { ...closed, closed: true, booked: false }
+      : closedEntry({ pick, before, known });
+
+    this.shown = gone && !this.entry(gone.value)
+      ? withBooked(this.list, gone) : this.list;
 
     const some = this.list.length > 0;
-    const chosen = this.entry(pick.value);
-    const open = (date) => this.list.some((d) => d.date === date);
 
     this.empty.textContent = NONE;
     this.empty.hidden = some;
-    this.strip.hidden = !some;
-    this.body.hidden = !some;
-    // The chosen pickup's day, or the day the customer was on if it
-    // still has a pickup.
-    this.day = chosen ? chosen.date : open(this.day) ? this.day : "";
-    this.week = weekIndex(this.weeks, this.day);
+    this.board.hidden = !some;
     this.setNote(keptNote({
       pick, before, shown: this.note.textContent, some,
     }));
-    if (some) this.draw();
+    this.draw(pick.value);
+    // A draft moved to another date: its chip is ringed once, so the
+    // eye lands on it (no motion, so nothing for reduced motion).
+    if (pick.note && pick.value) this.flag(pick.value);
+    this.showSummary();
   }
 
-  drawPickups(value) {
-    const one = onePlace(this.list);
+  // The board: the weeks' names, then each place with its routines,
+  // each routine a row of cells, one per week.
+  draw(value) {
+    const { columns, places } = board(this.shown, {
+      today: this.today, locate: this.locate,
+    });
+
+    this.root.dataset.columns = String(columns.length);
+    this.heads.textContent = "";
+    for (const column of columns) {
+      const node = this.tpl.head.content.cloneNode(true);
+
+      qs(node, ".pickup-picker-head-name").textContent = column.name;
+      fill(qs(node, ".pickup-picker-head-range"), column.range);
+      this.heads.appendChild(node);
+    }
 
     this.group.textContent = "";
-    for (const entry of this.list) {
-      const node = this.tpl.pickup.content.cloneNode(true);
-      const card = qs(node, ".order-pickup");
-      const input = qs(node, "input");
-      const text = qs(node, "label");
-      const name = qs(text, ".order-pickup-name");
+    for (const place of places) {
+      const node = this.tpl.place.content.cloneNode(true);
+      const set = qs(node, "fieldset");
+      const head = qs(set, ".pickup-picker-place-head");
 
-      card.dataset.date = entry.date;
-      input.id = `${this.prefix}-${entry.value.toLowerCase()}`;
-      input.value = entry.value;
-      input.checked = entry.value === value;
-      text.htmlFor = input.id;
-      qs(text, ".order-pickup-time").textContent = entry.window || entry.label;
-      qs(text, ".order-pickup-booked").hidden = !entry.booked;
-      // With one place, the details panel names it once.
-      name.textContent = this.detailsFor(entry).name;
-      name.hidden = one && !entry.booked;
+      qs(set, "legend").textContent = place.spoken;
+      head.hidden = !place.several;
+      if (place.several) {
+        qs(head, ".pickup-picker-title").textContent = place.title;
+        fill(qs(head, ".pickup-picker-address"), place.address);
+      }
+      for (const routine of place.routines) {
+        set.appendChild(this.routineRow(place, routine, columns, value));
+      }
       this.group.appendChild(node);
     }
   }
 
-  detailsFor(entry) {
-    return detailsOf(entry, this.locate(entry), this.timeZone);
+  routineRow(place, routine, columns, value) {
+    const node = this.tpl.routine.content.cloneNode(true);
+    const row = qs(node, ".pickup-picker-routine");
+    const head = qs(row, ".pickup-picker-rowhead");
+    const cells = qs(row, ".pickup-picker-cells");
+
+    // With several routines at a place, each row is a group named for
+    // its routine; with one, the place's legend names it all.
+    if (routine.spoken) {
+      row.setAttribute("role", "group");
+      row.setAttribute("aria-label", routine.spoken);
+    }
+    qs(head, ".pickup-picker-title").textContent = place.several
+      ? routine.name : place.title;
+    fill(qs(head, ".pickup-picker-address"),
+      place.several ? "" : place.address);
+    fill(qs(head, ".pickup-picker-when"), routine.when);
+    qs(head, ".pickup-picker-round").hidden = !routine.round;
+
+    routine.cells.forEach((entries, i) => {
+      const cell = this.tpl.cell.content.cloneNode(true);
+      const box = qs(cell, ".pickup-picker-cell");
+
+      if (!entries.length) {
+        box.appendChild(this.tpl.none.content.cloneNode(true));
+      }
+      for (const entry of entries) {
+        box.appendChild(this.chip(entry, columns[i].key, value));
+      }
+      cells.appendChild(cell);
+    });
+
+    return node;
   }
 
-  // The week shown, its title and buttons, then the chosen day.
-  draw() {
-    const week = this.weeks[this.week];
+  chip(entry, column, value) {
+    if (entry.closed) {
+      const node = this.tpl.closed.content.cloneNode(true);
 
-    if (!week) return;
+      qs(node, ".pickup-picker-date").textContent = chipText(entry.date,
+        column);
+      qs(node, ".visually-hidden").textContent = chipName(entry, column);
 
-    this.days.textContent = "";
-    for (const day of week.days) {
-      const node = this.tpl.day.content.cloneNode(true);
-      const input = qs(node, "input");
-      const text = qs(node, "label");
-      const [wide, narrow] = text.querySelectorAll(
-        ".pickup-picker-avail > span:not(.pickup-picker-dot)"
-      );
-      const n = day.entries.length;
-
-      input.id = `${this.prefix}-day-${day.date}`;
-      input.value = day.date;
-      input.disabled = !day.open;
-      input.checked = day.date === this.day;
-      text.htmlFor = input.id;
-      qs(text, ".pickup-picker-wd").textContent = day.weekday;
-      qs(text, ".pickup-picker-num").textContent = day.number;
-      wide.textContent = availability(n);
-      narrow.textContent = n ? String(n) : "–";
-      qs(text, ".visually-hidden").textContent = dayLabel(day);
-      this.days.appendChild(node);
+      return node;
     }
 
-    this.title.textContent = "";
-    this.title.append(
-      span(weekTitle(week.start, this.today), "pickup-picker-wide"),
-      span(weekTitle(week.start, this.today, { short: true }),
-        "pickup-picker-narrow"),
-    );
+    const node = this.tpl.chip.content.cloneNode(true);
+    const input = qs(node, "input");
+    const text = qs(node, "label");
 
-    for (const button of this.pagers) {
-      const step = Number(button.dataset.pickerPage);
-      const to = this.weeks[this.week + step];
+    input.id = `${this.prefix}-${entry.value.toLowerCase()}`;
+    input.value = entry.value;
+    input.checked = entry.value === value;
+    text.htmlFor = input.id;
+    qs(text, ".pickup-picker-date").textContent = chipText(entry.date,
+      column);
+    fill(qs(text, ".pickup-picker-by"), chipCutoff(entry.cutoff,
+      this.timeZone));
+    qs(text, ".visually-hidden").textContent = chipName(entry, column);
+    qs(node, ".pickup-picker-tag").hidden = !entry.booked;
 
-      // At an end the button is disabled and named for its way alone.
-      button.disabled = !to;
-      button.setAttribute("aria-label", to ? pagerLabel(step, to.start)
-        : `${step > 0 ? "Next" : "Previous"} week`);
-    }
-
-    this.showDay();
+    return node;
   }
 
-  // The chosen day's cards, its heading, and the details of the pickup
+  radio(value) {
+    return Array.from(this.group.querySelectorAll("input"))
+      .find((input) => input.value === value) || null;
+  }
+
+  flag(value) {
+    const radio = this.radio(value);
+
+    if (radio) radio.closest(".pickup-picker-chip").classList.add("is-ringed");
+  }
+
+  unflag() {
+    for (const chip of this.group.querySelectorAll(".is-ringed")) {
+      chip.classList.remove("is-ringed");
+    }
+  }
+
+  // The chosen pickup in words, under the board; hidden while none is
   // chosen.
-  showDay() {
-    for (const card of this.group.querySelectorAll(".order-pickup")) {
-      card.hidden = card.dataset.date !== this.day;
-    }
-    this.heading.hidden = !this.day;
-    this.heading.textContent = this.day ? label(this.day) : "";
-    if (this.day) {
-      this.group.setAttribute("aria-label", `Pickups on ${label(this.day)}`);
-    } else {
-      this.group.setAttribute("aria-label", "Pickups");
-    }
-    this.showDetails();
-  }
-
-  showDetails() {
+  showSummary() {
     const entry = this.entry(this.value());
 
-    this.details.hidden = !entry;
+    this.summary.hidden = !entry;
     if (!entry) return;
 
-    const facts = this.detailsFor(entry);
-    const address = qs(this.details, "[data-picker-address]");
-    const cutoff = qs(this.details, "[data-picker-cutoff]");
+    const words = summary(entry, this.locate(entry), {
+      timeZone: this.timeZone, booked: this.booked,
+    });
+    const q = (s) => qs(this.summary, s);
 
-    qs(this.details, "[data-picker-place]").textContent = facts.name;
-    address.textContent = "";
-    for (const line of facts.address) address.appendChild(span(line));
-    address.hidden = !facts.address.length;
-    cutoff.textContent = facts.orderBy;
-    cutoff.hidden = !facts.orderBy;
-  }
-
-  // A day chosen on the strip. A pickup chosen on another day is let
-  // go; a day with one pickup chooses it, and the live region says so.
-  chooseDay(date) {
-    const on = qs(this.group, "input:checked");
-    const entries = this.list.filter((d) => d.date === date);
-
-    if (on && this.entry(on.value).date !== date) {
-      // A note about the pickup let go no longer holds.
-      on.checked = false;
-      this.setNote("");
-    }
-    this.day = date;
-    if (entries.length === 1) {
-      this.check(entries[0].value);
-      this.setNote("");
-      this.say(chosenText(entries[0]));
-    }
-    this.showDay();
-    this.onChange();
+    q("[data-picker-summary-title]").textContent = words.title;
+    q("[data-picker-when]").textContent = words.when;
+    fill(q("[data-picker-place]"), words.name);
+    fill(q("[data-picker-cutoff]"), words.orderBy);
   }
 
   check(value) {
-    const radio = Array.from(this.group.querySelectorAll("input"))
-      .find((input) => input.value === value);
+    const radio = this.radio(value);
 
     if (radio) radio.checked = true;
 
-    return radio || null;
+    return radio;
   }
 
-  // Chooses a pickup, if the list has it, and shows its day and week.
+  // Chooses a pickup, if the list has it.
   choose(value) {
-    const entry = this.entry(value);
-
-    if (!entry) return false;
-    this.check(value);
-    this.day = entry.date;
-    this.week = weekIndex(this.weeks, entry.date);
+    if (!this.entry(value) || !this.check(value)) return false;
     this.setNote("");
-    this.draw();
+    this.unflag();
+    this.showSummary();
 
     return true;
   }
 
-  // ‹ or ›: the next week with a pickup either way. The focus stays on
-  // the button, or moves to the other one when this end is reached.
-  page(step, button) {
-    if (!this.weeks[this.week + step]) return;
-
-    this.week += step;
-    this.draw();
-    this.say(pagedText(this.weeks[this.week], this.today));
-    if (button.disabled) {
-      const other = this.pagers.find((b) => b !== button && !b.disabled);
-
-      if (other) other.focus();
-    }
-  }
-
   setNote(text) {
-    this.note.textContent = text;
-    this.note.hidden = !text;
+    fill(this.note, text);
   }
 
   // The live region, emptied first so the same words are said again.
@@ -327,40 +304,31 @@ export class PickupPicker {
     });
   }
 
-  // Forgets the pickup and day chosen, for a picker opened afresh.
+  // Forgets the pickup chosen, for a picker opened afresh.
   reset() {
     this.group.textContent = "";
-    this.day = "";
     this.setNote("");
-  }
-
-  // The first day the strip offers, chosen as a customer would: the
-  // lapsed dialog opens on it.
-  chooseFirst() {
-    const week = this.weeks[this.week];
-    const day = week && week.days.find((d) => d.open);
-
-    if (day && !this.day) this.chooseDay(day.date);
-    if (this.day) this.draw();
+    this.summary.hidden = true;
   }
 
   // Asked for a pickup while none is chosen (the lapsed dialog's "Use
-  // this", the account's Save changes): the focus goes to the strip and
-  // the live region says why, which the move alone would not.
+  // this", the account's Save changes): the focus goes to the board
+  // and the live region says why, which the move alone would not.
   ask(text) {
     this.say(text);
 
     return this.focus();
   }
 
-  // Where the focus goes when the picker opens in a dialog or panel:
-  // the chosen day, or the first open one.
-  focus() {
-    const day = qs(this.days, "input:checked")
-      || qs(this.days, "input:not(:disabled)");
+  // Where the focus goes when the picker opens in a dialog or panel,
+  // or an error points at it: the chosen chip, or the first open one.
+  // Focus on a radio of a group with none checked chooses nothing.
+  focus(options = {}) {
+    const chip = qs(this.group, "input:checked")
+      || qs(this.group, "input:not(:disabled)");
 
-    if (day) day.focus();
+    if (chip) chip.focus(options);
 
-    return Boolean(day);
+    return Boolean(chip);
   }
 }

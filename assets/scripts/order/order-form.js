@@ -1511,10 +1511,14 @@ export class OrderForm {
   lapse(stored, dates) {
     const method = stored;
     const list = method === "scheduled" ? this.dates.scheduled(dates) : dates;
+    // The scheduled pickup that lapsed, struck on the dialog's board
+    // (#573), read before the fresh list replaces it.
+    const closed = method === "scheduled"
+      ? this.dates.occurrence(this.dates.scheduledValue()) : null;
 
     this.dates.replace(method, dates);
     this.lapsed.open(method, list, this.submitButton.hidden ? null
-      : this.submitButton, this.dates.now());
+      : this.submitButton, this.dates.now(), { closed });
   }
 
   revealMethod() {

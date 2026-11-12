@@ -548,10 +548,11 @@
           </label>
           <div class="invalid-feedback" data-error-for="date"></div>
         </div>
-        {{/* A scheduled pickup moves on the order page's picker (#540);
-             main.js shows it in place of the day select. */}}
+        {{/* A scheduled pickup moves on the order page's picker, the
+             timetable (#573); main.js shows it in place of the day
+             select. */}}
         <div class="col-12" data-scheduled-picker hidden>
-          {{ partial "order/pickup-picker.html" (dict "name" "occurrence" "stack" true) }}
+          {{ partial "order/pickup-picker.html" (dict "name" "occurrence") }}
           <div class="invalid-feedback" data-error-for="occurrence"></div>
         </div>
         <div class="col-md-6" data-onfarm>

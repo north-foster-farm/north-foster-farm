@@ -3,7 +3,7 @@
 // customer typed can become markup. Sections are tabs keyed by the
 // URL hash.
 
-import { mergeScheduled } from "../order/lib/group.mjs";
+import { asRounds, mergeScheduled } from "../order/lib/group.mjs";
 import { perkSentence } from "../order/lib/perks.mjs";
 import { CHOOSE, bookedEntry } from "../order/lib/picker.mjs";
 import { scheduledChoices } from "../order/lib/scheduled.mjs";
@@ -1457,7 +1457,7 @@ class Account {
 
         if (mine.ok && mine.data && mine.data.dates) {
           this.dates.scheduled = mergeScheduled(this.dates.scheduled,
-            mine.data.dates);
+            asRounds(mine.data.dates));
         }
       }
     }
@@ -1477,9 +1477,9 @@ class Account {
       scheduled ? "scheduled" : order.fulfilment.method
     );
     // A scheduled pickup chooses an occurrence, any open date at any
-    // place, on the order page's picker (#540), which offers the one
-    // booked "As booked" once it is no longer open. The others choose
-    // a date.
+    // place, on the order page's picker (the timetable, #573), which
+    // tags the one booked "As booked" and keeps it once it is no
+    // longer open. The others choose a date.
     const picker = scheduled
       ? new PickupPicker(qs(form, "[data-picker]"), {
         // A choice made clears the "Choose a pickup" error.

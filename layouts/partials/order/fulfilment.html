@@ -105,16 +105,16 @@
       <div class="order-method-reveal" data-method-body="scheduled" inert>
         <div class="order-method-body order-hform">
           <div class="row">
-            {{/* The pickup-day picker (#540): the week strip, the chosen
-                 day's pickups and the details panel, drawn by
-                 date-lists.js. Nothing is chosen until the customer
-                 does. */}}
-            <div class="col-12 skeleton-slot" data-dates-region>
-              {{ partial "skeleton.html" (dict "over" true) }}
-              {{ partial "skeleton/status.html" (dict "quiet" true) }}
+            {{/* The pickup picker, a timetable (#573): places as rows,
+                 weeks as columns, drawn by date-lists.js. Nothing is
+                 chosen until the customer does. While the lists load,
+                 a skeleton in the board's shape holds its place; a
+                 failed load says so with Try again. */}}
+            <div class="col-12" data-dates-region data-load="wait" aria-busy="true">
+              {{ partial "skeleton.html" (dict "shape" "timetable") }}
+              {{ partial "skeleton/status.html" (dict "failed" "We couldn't load the dates.") }}
               {{ partial "order/pickup-picker.html" (dict "name" "scheduled.date" "id" "scheduled-pickups" "field" "fulfilment.occurrence" "describedby" "err-scheduled-date" "dates" true) }}
               <div class="invalid-feedback" id="err-scheduled-date" data-error-for="fulfilment.occurrence"></div>
-              {{ partial "skeleton/status.html" (dict "failed" "We couldn't load the dates.") }}
             </div>
           </div>
         </div>

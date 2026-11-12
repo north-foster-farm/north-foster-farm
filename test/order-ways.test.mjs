@@ -54,7 +54,10 @@ describe("order page Pickup or delivery cards", { skip: !hasHugo }, () => {
 
     assert.equal(run.status, 0, run.stderr);
 
-    const html = readFileSync(join(out, "order", "index.html"), "utf8");
+    // A <template> renders nothing, and the pickup picker's holds a
+    // fieldset of its own (#573), which would end the match early.
+    const html = readFileSync(join(out, "order", "index.html"), "utf8")
+      .replace(/<template[\s\S]*?<\/template>/g, "");
     const set = html.match(/<fieldset[^>]*id=pickup[\s\S]*?<\/fieldset>/)
       || html.match(/<fieldset[^>]*id="pickup"[\s\S]*?<\/fieldset>/);
 

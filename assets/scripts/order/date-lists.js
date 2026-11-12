@@ -2,7 +2,7 @@
 // server on load, and the clock is anchored to the server's, so a
 // visitor's wrong clock cannot offer a closed date.
 
-import { mergeScheduled } from "./lib/group.mjs";
+import { asRounds, mergeScheduled } from "./lib/group.mjs";
 import { earliestCutoff, stillOpen } from "./lib/picker.mjs";
 import { scheduledChoices } from "./lib/scheduled.mjs";
 import { dayName, weekday } from "./lib/zoned.mjs";
@@ -53,7 +53,8 @@ export class DateLists {
     // A location by its code, for a pickup's address; the form sets it
     // from the model (data/locations.json).
     this.place = () => null;
-    // The pickup-day picker, made with the first scheduled list.
+    // The pickup picker (the timetable, #573), made with the first
+    // scheduled list.
     this.pickupPicker = null;
     // A paid order's pickup being changed (?edit=), offered "As
     // booked" once the lists no longer have it (lib/picker.mjs).
@@ -139,7 +140,8 @@ export class DateLists {
     this.extra = stillOpen(this.extra, this.now().getTime());
     this.lists = {
       ...data,
-      scheduled: this.scheduled(mergeScheduled(data.scheduled, this.extra)),
+      scheduled: this.scheduled(mergeScheduled(data.scheduled,
+        asRounds(this.extra))),
     };
 
     for (const select of this.form.querySelectorAll("[data-dates]")) {
@@ -184,7 +186,8 @@ export class DateLists {
 
     const base = this.lists.scheduled.filter((d) => !gone.has(d.occurrence));
 
-    this.lists.scheduled = this.scheduled(mergeScheduled(base, this.extra));
+    this.lists.scheduled = this.scheduled(mergeScheduled(base,
+      asRounds(this.extra)));
     this.fill(this.form.querySelector("[data-dates='scheduled']"),
       this.lists.scheduled);
     this.watchClosing();

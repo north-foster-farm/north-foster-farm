@@ -1067,6 +1067,12 @@
     &::backdrop {
       background: rgb(10 16 13 / 55%);
     }
+
+    // The pickup picker's timetable (#573) wants room for its row
+    // heads beside two or three weeks of chips.
+    &:has(.order-lapsed-picker:not([hidden])) {
+      width: min(36rem, calc(100vw - 2rem));
+    }
   }
 
   .order-lapsed-panel {
@@ -1081,7 +1087,7 @@
     }
   }
 
-  // A scheduled pickup's choices, on the picker (#540).
+  // A scheduled pickup's choices, on the picker (the timetable, #573).
   .order-lapsed-picker {
     margin: 1rem 0 1.25rem;
   }

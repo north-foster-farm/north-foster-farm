@@ -39,6 +39,12 @@ export const withPlaces = (terms, raw, group = null) => {
   };
 };
 
+// A buying group's rounds, from /api/group, marked as rounds, so the
+// picker's row for them carries the "Your group" badge (#573). The
+// mark is the page's own: nothing sent or saved reads it.
+export const asRounds = (entries) => (entries || [])
+  .map((d) => ({ ...d, round: true }));
+
 // The scheduled list with the group's rounds in it, by date, each
 // occurrence once. The list's own order is kept within a date.
 export const mergeScheduled = (list, extra = []) => {

@@ -5,15 +5,18 @@
      order/lapsed.js fills and runs it. Draft wording. */}}
 <dialog class="order-lapsed" id="order-lapsed" aria-labelledby="order-lapsed-title" aria-describedby="order-lapsed-lead">
   <div class="order-lapsed-panel">
-    <h2 class="h4 order-lapsed-title" id="order-lapsed-title"></h2>
-    <p class="order-lapsed-lead" id="order-lapsed-lead"></p>
+    <h2 class="h4 order-lapsed-title" id="order-lapsed-title" data-lapsed-title></h2>
+    <p class="order-lapsed-lead" id="order-lapsed-lead" data-lapsed-lead></p>
     <fieldset class="order-lapsed-choices" data-lapsed-choices>
       <legend class="visually-hidden" data-lapsed-legend></legend>
       <div class="order-lapsed-list" data-lapsed-list></div>
     </fieldset>
-    {{/* A scheduled pickup's choices: the order page's picker (#540). */}}
-    <div class="order-lapsed-picker" data-lapsed-picker hidden>
-      {{ partial "order/pickup-picker.html" (dict "name" "lapsed-pickup" "stack" true) }}
+    {{/* A scheduled pickup's choices: the order page's picker, the
+         timetable (#573), with the pickup that lapsed struck in its
+         cell. A fluid container without padding holds its grid rows,
+         so they line up with the panel's edges. */}}
+    <div class="order-lapsed-picker container-fluid px-0" data-lapsed-picker hidden>
+      {{ partial "order/pickup-picker.html" (dict "name" "lapsed-pickup") }}
     </div>
     <div class="order-lapsed-actions">
       <button type="button" class="btn btn-primary" data-lapsed-use></button>

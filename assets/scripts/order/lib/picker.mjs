@@ -1,34 +1,15 @@
-// The pickup-day picker's logic (#540, the design approved on #539):
-// the week strip, its words, and which pickup a list lands on. The
-// picker itself (order/pickup-picker.js) draws what this works out,
-// on the order page, in the lapsed dialog and in the account's Change
-// pickup. Weeks run Sunday to Saturday. Every entry is a scheduled
-// choice (lib/scheduled.mjs): an /api/dates `scheduled` entry with its
+// The pickup picker's choosing logic (#540, kept by the timetable of
+// #573): which pickup a list lands on, the notes about it, the booked
+// pickup of an order being changed, and the words the live region and
+// the summary say. lib/timetable.mjs lays the board out, and the
+// picker itself (order/pickup-picker.js) draws both, on the order
+// page, in the lapsed dialog and in the account's Change pickup. Weeks
+// run Sunday to Saturday. Every entry is a scheduled choice
+// (lib/scheduled.mjs): an /api/dates `scheduled` entry with its
 // `value`, the occurrence id.
 
-import {
-  addressLines, fallbackChoice, locationCount, pickupName,
-} from "./scheduled.mjs";
+import { addressLines, fallbackChoice, pickupName } from "./scheduled.mjs";
 import { addDays, label, today, weekday } from "./zoned.mjs";
-
-const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-
-const month = {
-  long: new Intl.DateTimeFormat("en-US", { timeZone: "UTC", month: "long" }),
-  short: new Intl.DateTimeFormat("en-US", {
-    timeZone: "UTC", month: "short",
-  }),
-};
-
-const utc = (iso) => {
-  const [y, m, d] = iso.split("-").map(Number);
-
-  return Date.UTC(y, m - 1, d);
-};
-
-const dayOf = (iso) => Number(iso.slice(8, 10));
-
-const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
 // The words comms approved on #539 (comment 6793394356). Drafts until
 // James signs off on the built picker.
@@ -42,107 +23,19 @@ export const CHOOSE = "Choose a pickup day and place.";
 // The Sunday that starts the week a day is in.
 export const weekStart = (iso) => addDays(iso, -weekday(iso));
 
-// The weeks a list reaches, Sunday to Saturday, each with its seven
-// days and the entries on each, in the list's order. Only weeks with
-// a pickup are there, so paging skips an empty week between this one
-// and a buying group's round further out. A day is `open` when it has
-// a pickup; a day before today never has one.
-export const pickerWeeks = (list) => {
-  const days = new Map();
-
-  for (const entry of list || []) {
-    if (!days.has(entry.date)) days.set(entry.date, []);
-    days.get(entry.date).push(entry);
-  }
-
-  const starts = [...new Set([...days.keys()].map(weekStart))].sort();
-
-  return starts.map((start) => ({
-    start,
-    end: addDays(start, 6),
-    days: WEEKDAYS.map((_, i) => {
-      const date = addDays(start, i);
-      const entries = days.get(date) || [];
-
-      return {
-        date, weekday: WEEKDAYS[i], number: dayOf(date), entries,
-        open: entries.length > 0,
-      };
-    }),
-  }));
-};
-
-// The week a day falls in, as an index into `weeks`; the first week
-// when the day is not in any, or none is given.
-export const weekIndex = (weeks, date) => {
-  if (!date) return 0;
-
-  const i = weeks.findIndex((w) => w.start === weekStart(date));
-
-  return i < 0 ? 0 : i;
-};
-
-// A week's dates: "November 15 – 21", "November 29 – December 5", or
-// on a phone "Nov 29 – Dec 5". Spoken, the dash is "to".
-export const rangeText = (start, { short = false, spoken = false } = {}) => {
-  const end = addDays(start, 6);
-  const names = short ? month.short : month.long;
-  const from = names.format(utc(start));
-  const to = names.format(utc(end));
-  const tail = from === to ? dayOf(end) : `${to} ${dayOf(end)}`;
-
-  return `${from} ${dayOf(start)}${spoken ? " to " : " – "}${tail}`;
-};
-
-// "This week" or "Next week" by the week today is in; "" for a week
-// after next, which is titled by its dates alone.
-export const weekName = (start, todayIso) => {
-  const now = weekStart(todayIso);
-
-  if (start === now) return "This week";
-  if (start === addDays(now, 7)) return "Next week";
-
-  return "";
-};
-
-// The title between the arrows: "This week, November 15 – 21",
-// "November 29 – December 5".
-export const weekTitle = (start, todayIso, options = {}) => {
-  const name = weekName(start, todayIso);
-  const range = rangeText(start, options);
-
-  return name ? `${name}, ${range}` : range;
-};
-
-// A week button's name in full: "Next week, November 22 to 28".
-export const pagerLabel = (direction, start) => `${
-  direction > 0 ? "Next" : "Previous"} week, ${
-  rangeText(start, { spoken: true })}`;
-
-// What the live region says after paging: "Next week, November 22 to
-// 28, 3 pickup days".
-export const pagedText = (week, todayIso) => `${
-  weekTitle(week.start, todayIso, { spoken: true })}, ${
-  plural(week.days.filter((d) => d.open).length, "pickup day")}`;
-
-// A day's availability line: "1 pickup", "2 pickups", or "–".
-export const availability = (n) => (n ? plural(n, "pickup") : "–");
-
-// A day's name for a screen reader: "Saturday, November 21, 2
-// pickups", or "Sunday, November 15, no pickups" for a greyed day.
-export const dayLabel = (day) => `${label(day.date)}, ${
-  day.entries.length ? availability(day.entries.length) : "no pickups"}`;
-
 // A window as it is said, "10:00 to 11:00 AM".
 export const spokenWindow = (window) => String(window || "")
   .replaceAll(" – ", " to ");
 
-// The live region's line when choosing a day chooses its one pickup:
-// "Pickup chosen: 10:00 to 11:00 AM, North Scituate, Drop site". A
-// screen reader says "·" differently or not at all, so a comma.
-export const chosenText = (entry) => `Pickup chosen: ${[
+// The live region's line when a pickup is chosen: "Pickup chosen:
+// Saturday, November 21, 10:00 to 11:00 AM, North Scituate, Drop
+// site". A screen reader says "·" differently or not at all, so a
+// comma. `loc` is the entry's location, for its town.
+export const chosenText = (entry, loc = null) => `Pickup chosen: ${[
+  entry.label,
   spokenWindow(entry.window),
-  pickupName(entry.town, entry.name).replaceAll(" · ", ", "),
+  pickupName(entry.town || (loc || {}).town, entry.name)
+    .replaceAll(" · ", ", "),
 ].filter(Boolean).join(", ")}`;
 
 const timeFormatters = new Map();
@@ -158,8 +51,8 @@ const clock = (date, timeZone) => {
   return timeFormatters.get(timeZone).format(date).replace(/\s/g, " ");
 };
 
-// The details panel's last line: "Order by Friday, November 20, 11:59
-// PM", from the entry's `cutoff` in the farm's zone. "" without one.
+// The summary's last line: "Order by Friday, November 20, 11:59 PM",
+// from the entry's `cutoff` in the farm's zone. "" without one.
 export const orderBy = (cutoff, timeZone) => {
   if (!cutoff) return "";
 
@@ -247,9 +140,10 @@ export const bookedEntry = (order) => {
   };
 };
 
-// The address the details panel shows: the location's lines when the
-// page has its location (data/locations.json), else the entry's own
-// short address, a line to each part.
+// A place's address, as the timetable's row head shows it: the
+// location's lines when the page has its location
+// (data/locations.json), else the entry's own short address, a part
+// to each line.
 export const addressOf = (entry, loc) => {
   if (loc) return addressLines(loc);
   if (entry.short) return entry.short.split(", ");
@@ -258,14 +152,6 @@ export const addressOf = (entry, loc) => {
 
   return parts[0] === entry.name ? parts.slice(1) : parts;
 };
-
-// The details panel for a pickup: its name, the address and the
-// order-by line.
-export const detailsOf = (entry, loc, timeZone) => ({
-  name: pickupName(entry.town || (loc || {}).town, entry.name),
-  address: addressOf(entry, loc),
-  orderBy: orderBy(entry.cutoff, timeZone),
-});
 
 // The earliest cutoff in a list, as epoch milliseconds, for the timer
 // that refreshes the lists when that pickup closes; null when none has
@@ -300,6 +186,13 @@ export const keptNote = ({ pick, before, shown, some }) => {
   return some && pick.value === before ? shown : "";
 };
 
-// Whether every pickup is at one place, so the cards leave the place
-// to the details panel.
-export const onePlace = (list) => locationCount(list) <= 1;
+// The pickup to show struck on the board as "Closed" after a list is
+// drawn again: the one chosen before, when it is the pickup the closed
+// note is about and the page still knows it. null otherwise. It is
+// never a radio, so it can't be chosen or sent; the next list drops it
+// (#573, the timetable's moment 4).
+export const closedEntry = ({ pick, before, known }) => {
+  if (pick.note !== CLOSED || !before || !known) return null;
+
+  return { ...known, value: before, closed: true, booked: false };
+};

@@ -1,17 +1,17 @@
-// The pickup-day picker's logic (#540, the design approved on #539):
-// lib/picker.mjs, which order/pickup-picker.js draws on the order
-// page, in the lapsed dialog and in the account's Change pickup, and
-// the refresh date-lists.js sets for the earliest cutoff.
+// The pickup picker's choosing logic (#540, kept by the timetable of
+// #573): lib/picker.mjs, which order/pickup-picker.js draws on the
+// order page, in the lapsed dialog and in the account's Change pickup,
+// and the refresh date-lists.js sets for the earliest cutoff. The
+// board's layout is test/timetable.test.mjs.
 
 import assert from "node:assert/strict";
 import { afterEach, describe, it, mock } from "node:test";
 
 import { DateLists } from "../assets/scripts/order/date-lists.js";
 import {
-  CLOSED, addressOf, availability, bookedEntry, chosenText, dayLabel,
-  detailsOf, earliestCutoff, keptNote, movedNote, occurrenceDate, onePlace,
-  orderBy, pagedText, pagerLabel, pickerWeeks, rangeText, resolveChoice,
-  stillOpen, weekIndex, weekName, weekStart, weekTitle, withBooked,
+  CLOSED, addressOf, bookedEntry, chosenText, closedEntry, earliestCutoff,
+  keptNote, movedNote, occurrenceDate, orderBy, resolveChoice, stillOpen,
+  weekStart, withBooked,
 } from "../assets/scripts/order/lib/picker.mjs";
 import { scheduledChoices } from "../assets/scripts/order/lib/scheduled.mjs";
 
@@ -62,109 +62,29 @@ const LIST = scheduledChoices([
 const [drop, foster, , drop21, popup] = LIST;
 
 describe("the picker's weeks", () => {
-  const weeks = pickerWeeks(LIST);
-
   it("run Sunday to Saturday", () => {
     assert.equal(weekStart(TODAY), "2026-11-08");
     assert.equal(weekStart("2026-11-08"), "2026-11-08");
     assert.equal(weekStart("2026-11-14"), "2026-11-08");
-    assert.deepEqual(weeks[0].days.map((d) => d.weekday),
-      ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]);
-    assert.equal(weeks[0].end, "2026-11-14");
-  });
-
-  it("are only those with a pickup, so ‹ › skip an empty week", () => {
-    assert.deepEqual(weeks.map((w) => w.start),
-      ["2026-11-08", "2026-11-15", "2026-11-29"]);
-  });
-
-  it("open only the days that have a pickup; past days are greyed", () => {
-    const [now] = weeks;
-
-    assert.deepEqual(now.days.map((d) => d.open),
-      [false, false, false, false, false, false, true]);
-    assert.equal(now.days[3].date, TODAY);
-    assert.equal(now.days[6].number, 14);
-  });
-
-  it("keep a day's several pickups in the list's order", () => {
-    const sat = weeks[1].days[6];
-
-    assert.deepEqual(sat.entries.map((d) => d.value),
-      ["VFVQ-261121", "W9MF-261121"]);
-  });
-
-  it("are none for an empty list", () => {
-    assert.deepEqual(pickerWeeks([]), []);
-  });
-
-  it("open on the chosen pickup's week, or else the first", () => {
-    assert.equal(weekIndex(weeks, "2026-11-21"), 1);
-    assert.equal(weekIndex(weeks, "2026-12-05"), 2);
-    assert.equal(weekIndex(weeks, ""), 0);
-    assert.equal(weekIndex(weeks, "2027-01-02"), 0);
   });
 });
 
-describe("the strip's words", () => {
-  it("title a week this week, next week, or by its dates", () => {
-    assert.equal(weekName("2026-11-08", TODAY), "This week");
-    assert.equal(weekName("2026-11-15", TODAY), "Next week");
-    assert.equal(weekName("2026-11-29", TODAY), "");
-    assert.equal(weekTitle("2026-11-15", TODAY), "Next week, November 15 – 21");
-    assert.equal(weekTitle("2026-11-08", TODAY, { short: true }),
-      "This week, Nov 8 – 14");
-    assert.equal(weekTitle("2026-11-29", TODAY), "November 29 – December 5");
-    assert.equal(weekTitle("2026-11-29", TODAY, { short: true }),
-      "Nov 29 – Dec 5");
+describe("the picker's words", () => {
+  it("announce a pickup chosen, with its day", () => {
+    assert.equal(chosenText(drop), "Pickup chosen: Saturday, November " +
+      "14, 10:00 to 11:00 AM, North Scituate, Drop site");
+    assert.equal(chosenText(foster), "Pickup chosen: Sunday, November " +
+      "15, 9:00 AM to 1:00 PM, Foster Farmers Market");
   });
 
-  it("say the dash as \"to\"", () => {
-    assert.equal(rangeText("2026-11-22", { spoken: true }),
-      "November 22 to 28");
-  });
-
-  it("name the week buttons in full", () => {
-    assert.equal(pagerLabel(1, "2026-11-22"), "Next week, November 22 to 28");
-    assert.equal(pagerLabel(-1, "2026-11-08"),
-      "Previous week, November 8 to 14");
-  });
-
-  it("say how many pickup days a week has after paging", () => {
-    const weeks = pickerWeeks(LIST);
-
-    assert.equal(pagedText(weeks[1], TODAY),
-      "Next week, November 15 to 21, 3 pickup days");
-    assert.equal(pagedText(weeks[2], TODAY),
-      "November 29 to December 5, 1 pickup day");
-  });
-
-  it("count a day's pickups, or show a dash", () => {
-    assert.equal(availability(1), "1 pickup");
-    assert.equal(availability(2), "2 pickups");
-    assert.equal(availability(0), "–");
-  });
-
-  it("name each day in full for a screen reader, greyed ones too", () => {
-    const [now, next] = pickerWeeks(LIST);
-
-    assert.equal(dayLabel(next.days[6]), "Saturday, November 21, 2 pickups");
-    assert.equal(dayLabel(now.days[6]), "Saturday, November 14, 1 pickup");
-    assert.equal(dayLabel(next.days[1]), "Monday, November 16, no pickups");
-  });
-
-  it("announce a pickup a one-pickup day chose", () => {
-    assert.equal(chosenText(drop),
-      "Pickup chosen: 10:00 to 11:00 AM, North Scituate, Drop site");
-    assert.equal(chosenText(foster),
-      "Pickup chosen: 9:00 AM to 1:00 PM, Foster Farmers Market");
+  it("take the town from the location when the entry has none", () => {
+    assert.equal(chosenText({ ...drop, town: "" }, { town: "Scituate" }),
+      "Pickup chosen: Saturday, November 14, 10:00 to 11:00 AM, " +
+      "Scituate, Drop site");
   });
 
   it("have no semicolons or em dashes (#400)", () => {
-    const weeks = pickerWeeks(LIST);
     const lines = [
-      weekTitle(weeks[2].start, TODAY), pagedText(weeks[1], TODAY),
-      pagerLabel(1, weeks[1].start), dayLabel(weeks[1].days[0]),
       chosenText(popup), CLOSED, movedNote("VFVQ-261114", drop21),
       orderBy(drop.cutoff, ZONE),
     ];
@@ -173,41 +93,51 @@ describe("the strip's words", () => {
   });
 });
 
-describe("the details panel", () => {
-  it("names the place and gives the order-by time in the farm's zone", () => {
+describe("the row heads' and summary's facts", () => {
+  it("give the order-by time in the farm's zone", () => {
     assert.equal(orderBy(drop.cutoff, ZONE),
       "Order by Friday, November 13, 11:59 PM");
     assert.equal(orderBy("", ZONE), "");
   });
 
-  it("takes the address from the location when the page has it", () => {
+  it("take the address from the location when the page has it", () => {
     const loc = {
       name: "North Scituate Community House", street: "46 Institute Lane",
       city: "North Scituate", state: "RI", zip: "02857",
       town: "North Scituate",
     };
 
-    assert.deepEqual(detailsOf(drop, loc, ZONE), {
-      name: "North Scituate · Drop site",
-      address: [
-        "North Scituate Community House", "46 Institute Lane",
-        "North Scituate, RI 02857",
-      ],
-      orderBy: "Order by Friday, November 13, 11:59 PM",
-    });
+    assert.deepEqual(addressOf(drop, loc), [
+      "North Scituate Community House", "46 Institute Lane",
+      "North Scituate, RI 02857",
+    ]);
   });
 
-  it("falls back to the entry's own short address, then its place", () => {
+  it("fall back to the entry's own short address, then its place", () => {
     assert.deepEqual(addressOf(drop, null),
       ["46 Institute Lane", "North Scituate"]);
     assert.deepEqual(addressOf({
       name: "Drop site", place: "Drop site, 46 Institute Lane, North Scituate",
     }, null), ["46 Institute Lane", "North Scituate"]);
   });
+});
 
-  it("leaves the place off the cards when there is only one", () => {
-    assert.equal(onePlace([drop, drop21]), true);
-    assert.equal(onePlace(LIST), false);
+describe("the pickup that just closed", () => {
+  const pick = (note) => ({ value: "", note, booked: false });
+
+  it("stays on the board struck, never as a radio", () => {
+    assert.deepEqual(closedEntry({
+      pick: pick(CLOSED), before: popup.value, known: popup,
+    }), { ...popup, closed: true, booked: false });
+  });
+
+  it("is none without the closed note, a choice before, or its facts", () => {
+    assert.equal(closedEntry({ pick: pick(""), before: popup.value,
+      known: popup }), null);
+    assert.equal(closedEntry({ pick: pick(CLOSED), before: "",
+      known: popup }), null);
+    assert.equal(closedEntry({ pick: pick(CLOSED), before: popup.value,
+      known: null }), null);
   });
 });
 

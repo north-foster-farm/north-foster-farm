@@ -47,15 +47,16 @@ export class Lapsed {
 
     const q = (s) => dialog.querySelector(s);
 
-    this.title = q("#order-lapsed-title");
-    this.lead = q("#order-lapsed-lead");
+    this.title = q("[data-lapsed-title]");
+    this.lead = q("[data-lapsed-lead]");
     this.choices = q("[data-lapsed-choices]");
     this.legend = q("[data-lapsed-legend]");
     this.list = q("[data-lapsed-list]");
     this.use = q("[data-lapsed-use]");
     this.other = q("[data-lapsed-other]");
     this.never = q("[data-lapsed-never]");
-    // A scheduled pickup is chosen on the form's own picker (#540).
+    // A scheduled pickup is chosen on the form's own picker, the
+    // timetable (#573).
     this.pickerBox = q("[data-lapsed-picker]");
     this.picker = new PickupPicker(q("[data-picker]"), { locate });
 
@@ -66,8 +67,8 @@ export class Lapsed {
       if (this.method === "scheduled") {
         const value = this.picker.value();
 
-        // None yet (the first day has two pickups): the note says so,
-        // and the live region speaks it as the focus goes to the strip.
+        // None yet: the note says so, and the live region speaks it as
+        // the focus goes to the board.
         if (!value) {
           this.picker.setNote(CHOOSE);
           this.picker.ask(CHOOSE);
@@ -105,8 +106,10 @@ export class Lapsed {
   // /api/dates gives it: for on-farm pickup, each day with its windows;
   // for scheduled pickup, its choices (lib/scheduled.mjs), shown on the
   // picker. `returnTo` gets the focus back on "Never mind"; `now` is the
-  // server's clock, for the picker's week titles.
-  open(method, dates, returnTo, now = new Date()) {
+  // server's clock, for the picker's weeks; `closed` is the scheduled
+  // pickup that lapsed, if the page knows it, shown struck in its cell
+  // so the customer sees what went.
+  open(method, dates, returnTo, now = new Date(), { closed = null } = {}) {
     if (!this.dialog) return;
 
     const scheduled = method === "scheduled";
@@ -146,11 +149,10 @@ export class Lapsed {
     this.choices.hidden = !some || scheduled;
     this.pickerBox.hidden = !some || !scheduled;
     if (scheduled && some) {
-      // Nothing carried over from the last time it opened: the first
-      // open day, which chooses its pickup when it has one.
+      // Nothing carried over from the last time it opened, and nothing
+      // chosen until the customer chooses: every pickup is one tap.
       this.picker.reset();
-      this.picker.render(dates, { now });
-      this.picker.chooseFirst();
+      this.picker.render(dates, { now, closed });
     }
     this.use.hidden = !some;
     this.use.textContent = USE[method];

@@ -103,12 +103,12 @@ describe("Pawtucket on the order page's pickup days (#544)", () => {
 
     const [market, popup] = got.map(scheduledChoice);
 
-    // The picker's words for them (#540).
+    // The picker's words for them (#540, with the day since #573).
     assert.equal(market.window, "12:00 – 4:00 PM");
-    assert.equal(chosenText(market),
-      "Pickup chosen: 12:00 to 4:00 PM, Pawtucket Farmers Market");
-    assert.equal(chosenText(popup),
-      "Pickup chosen: 12:00 to 5:00 PM, Pawtucket, Thanksgiving Prep");
+    assert.equal(chosenText(market), "Pickup chosen: Tuesday, November " +
+      "17, 12:00 to 4:00 PM, Pawtucket Farmers Market");
+    assert.equal(chosenText(popup), "Pickup chosen: Saturday, November " +
+      "21, 12:00 to 5:00 PM, Pawtucket, Thanksgiving Prep");
     assert.equal(pickupName(market.town, market.name),
       "Pawtucket Farmers Market", "the name says its town");
     assert.equal(pickupName(popup.town, popup.name),
