@@ -5,23 +5,32 @@
 // runs it after each of its two builds; test/staging-build.test.mjs
 // builds both and runs it too.
 //
-//   node bin/check-staging.mjs <dir> production|staging
+//   node bin/check-staging.mjs <dir> production|staging|preview
 
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
-// What staging's pages carry and production's never may.
+// What staging's pages carry and production's never may. The last
+// three are the pickup picker's state switcher (#574,
+// partials/staging/picker-states.html): its box, its data and its
+// script's storage key.
 export const TRACES = [
   /data-staging-card-dialog/, /data-staging-clock/, /id="staging"/,
   /staging\.card-seen/, /\/api\/staging\/clock/, /4111 1111 1111 1111/,
   /Simulate an order in staging/, /data-staging-slips/,
   /\/api\/staging\/slips/,
+  /data-picker-states/, /picker-states-data/, /nff\.picker-state/,
 ];
+
+// The picker's state switcher, on staging's and a preview's order
+// page (#574).
+export const PICKER_STATES = [/data-picker-states/, /picker-states-data/];
 
 // What the staging order page must carry.
 export const ORDER_PAGE = [
   /data-staging-card-dialog/, /data-staging-clock/,
   /Simulate an order in staging/, /4111 1111 1111 1111/,
+  ...PICKER_STATES,
 ];
 
 const texts = (dir) => readdirSync(dir, { recursive: true })
@@ -58,8 +67,19 @@ export const check = (dir, kind) => {
 
     return found;
   }
+  if (kind === "preview") {
+    // A deploy preview has the picker's switcher but not the toolbar.
+    const order = readFileSync(join(dir, "order", "index.html"), "utf8");
 
-  return [`Say production or staging, not ${kind}.`];
+    return [
+      ...PICKER_STATES.filter((t) => !t.test(order))
+        .map((t) => `order/index.html lacks ${t}`),
+      ...(/id="?staging"?[ >]/.test(order)
+        ? ["order/index.html has the staging toolbar"] : []),
+    ];
+  }
+
+  return [`Say production, staging or preview, not ${kind}.`];
 };
 
 if (import.meta.url === `file://${process.argv[1]}`) {

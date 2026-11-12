@@ -343,10 +343,15 @@ test.describe("a lapsed scheduled pickup", () => {
         name: "Choose on-farm pickup or delivery instead",
       })).toBeVisible();
 
-      // Take the other Saturday, not the first offered.
+      // The same place's next date comes preset as a receipt (#574):
+      // the drop site's other Saturday, Use this pickup's at once.
       const market = lists.scheduled.at(-1);
 
-      await dialog.getByLabel(new RegExp(market.label)).check();
+      await expect(dialog.locator("[data-picker-receipt]")).toContainText(
+        market.label
+      );
+      await expect(dialog.getByRole("button", { name: "Use this pickup" }))
+        .toBeFocused();
       await dialog.getByRole("button", { name: "Use this pickup" }).click();
       await expect(pickupChosen(page)).toHaveValue(market.occurrence);
       await expect(page.locator("[data-lapsed-status]")).toHaveText(

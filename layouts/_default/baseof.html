@@ -3,6 +3,7 @@
   <head>
     {{ block "head-extra" . }}{{ end }}
     {{ partial "head.html" . }}
+    {{ partial "staging/picker-states.html" (dict "part" "head") }}
   </head>
   <body>
     <a class="visually-hidden-focusable btn btn-primary skip-link" href="#main">Skip to main content</a>
@@ -14,6 +15,7 @@
     </main>
     {{ partial "footer.html" . }}
     {{ partial "staging-toolbar.html" . }}
+    {{ partial "staging/picker-states.html" (dict "part" "body") }}
     {{ partial "fake-sdks.html" . }}
   </body>
 </html>

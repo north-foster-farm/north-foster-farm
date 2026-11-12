@@ -34,15 +34,22 @@ describe("the staging build and production's", {
 }, () => {
   let production;
   let staging;
+  let preview;
 
   before(() => {
     production = build("production");
     staging = build("branch-deploy");
+    preview = build("deploy-preview");
   });
   after(() => {
-    for (const dir of [production, staging]) {
+    for (const dir of [production, staging, preview]) {
       if (dir) rmSync(dir, { recursive: true, force: true });
     }
+  });
+
+  it("puts the picker's state switcher on a preview's order page, and " +
+    "not the toolbar (#574)", () => {
+    assert.deepEqual(check(preview, "preview"), []);
   });
 
   it("puts the overlay, the card and the clock on staging's order page",

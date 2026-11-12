@@ -776,7 +776,16 @@ the same button. A scheduled pickup is chosen there, on the order
 page and in the account's Change pickup on one component, the
 pickup-day picker (#540: `order/pickup-picker.js`, its logic in
 `order/lib/picker.mjs`, its markup in
-`partials/order/pickup-picker.html`). The lists also refresh at the
+`partials/order/pickup-picker.html`). Since #574 (the Flow-first
+layout, on its lane until James picks it) every week with a pickup is
+its own row, the chosen card unfolds its address, and on the order
+page the picker settles once the customer leaves the Pickup days card:
+the rows fold away behind Change pickup and the card's own facts are
+the receipt. The lapsed dialog presets the same place's next date. On
+staging and deploy previews a "Picker states" box
+(`partials/staging/picker-states.html`, `scripts/picker-states/`)
+puts the picker in each hard state; a production build carries none
+of it (`bin/check-staging.mjs`). The lists also refresh at the
 earliest scheduled cutoff, so a pickup leaves the picker as it
 closes (`date-lists.js` `watchClosing`). A buying group's round,
 which comes once from `/api/group`, is dropped at its own cutoff

@@ -1,0 +1,45 @@
+{{/*
+  The pickup picker's state switcher (#574): a small box that puts the
+  picker in each of its hard states (one place, a closing pickup, a
+  failed load, As booked ...) so James can judge them at any width.
+  Rendered only when Netlify's build-time CONTEXT is "branch-deploy"
+  (staging) or "deploy-preview", never on a local build or production,
+  so their HTML, CSS and JS carry no trace of it: the script below is
+  built by Hugo only when this partial renders, as the staging
+  toolbar's is (staging-toolbar.html), and test/staging-build.test.mjs
+  builds both kinds to prove it (bin/check-staging.mjs). Not customer
+  copy.
+
+  Called twice from baseof.html: "head" for the script, which wraps
+  fetch before the page's own scripts run, and "body" for the box and
+  the farm's places the states are made from.
+*/}}
+{{ $context := getenv "CONTEXT" }}
+{{ if in (slice "branch-deploy" "deploy-preview") $context }}
+  {{ if eq .part "head" }}
+    {{ $script := resources.Get "scripts/picker-states/main.js" | js.Build (dict "minify" true) | fingerprint "sha512" }}
+    <script src="{{ $script.RelPermalink }}" integrity="{{ $script.Data.Integrity }}"></script>
+  {{ else }}
+    {{ $sku := "" }}
+    {{ range hugo.Data.catalog.groups }}
+      {{ range .items }}
+        {{ if and (not $sku) .alwaysInStock }}{{ $sku = .sku }}{{ end }}
+      {{ end }}
+    {{ end }}
+    <script type="application/json" id="picker-states-data">{{ dict "series" hugo.Data.series.series "locations" hugo.Data.locations.locations "sku" $sku "timeZone" hugo.Data.delivery.timeZone | jsonify | safeJS }}</script>
+    <details class="card shadow position-fixed top-50 start-0 translate-middle-y z-3 small" data-picker-states>
+      <summary class="btn btn-light btn-sm">Picker states</summary>
+      <div class="card-body p-2 d-grid gap-2">
+        <label class="form-label mb-0" for="picker-states-select">Show the pickup picker</label>
+        {{/* The states are picker-states/states.mjs's; main.js adds them. */}}
+        <select class="form-select form-select-sm" id="picker-states-select">
+          <option value="">Off (the deploy's own)</option>
+        </select>
+        {{/* It loads another page at once, so nothing to wait on. */}}
+        <button type="button" class="btn btn-secondary btn-sm" data-picker-states-show>Show</button>
+        <p class="mb-0 text-body-secondary" data-picker-states-now hidden></p>
+        <p class="mb-0 text-body-secondary">Replaces this browser's cart draft. Staging and previews only.</p>
+      </div>
+    </details>
+  {{ end }}
+{{ end }}
