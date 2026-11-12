@@ -109,13 +109,21 @@ jobs:
       # each commit of B whose change is not in A, so:
       #   - new work:  cherry tip HEAD shows a +  (HEAD has something
       #     the lane lacks);
-      #   - nothing lost:  cherry HEAD tip shows no +  (every change
-      #     already on the lane is still in HEAD, which a rebase onto
-      #     next keeps true).
+      #   - nothing lost:  every commit on the lane that HEAD lacks by
+      #     patch (cherry HEAD tip shows a +) is still kept, in one of
+      #     two ways. A commit whose subject is in origin/next..HEAD was
+      #     rebased, amended or conflict-resolved, which changes its
+      #     patch-id (context lines count) but not its subject. Failing
+      #     that, merging the lane into HEAD must change nothing
+      #     (git merge-tree gives HEAD's own tree), which holds when the
+      #     lane landed on next by squash. A review run, or a run that
+      #     branched from next and never saw the lane, keeps neither,
+      #     so it is refused.
       # A run that committed nothing, or checked out next for a review,
       # has no new work and leaves the lane alone (#533: a review run
       # replaced a lane's work). A run whose HEAD would drop commits
-      # already on the lane fails loudly instead of pushing. The lease
+      # already on the lane fails loudly instead of pushing, and saves
+      # the run's commits as a bundle that the next step uploads. The lease
       # on the fetched tip stops a push over a lane that moved during
       # the run.
       - name: Push the lane branch
@@ -157,8 +165,36 @@ jobs:
           if [ "$tip" != "origin/next" ]; then
             dropped="$(git cherry HEAD "$tip" origin/next)"
             if [ "$(pluses "$dropped")" != "0" ]; then
-              echo "HEAD drops commits already on $branch; not pushing."
-              exit 1
+              kept="$(git log --format=%s origin/next..HEAD)"
+              lost=0
+              for sha in $(printf '%s\n' "$dropped" | sed -n 's/^+ //p'); do
+                subject="$(git log -1 --format=%s "$sha")"
+                if ! printf '%s\n' "$kept" | grep -qxF -- "$subject"; then
+                  lost=1
+                fi
+              done
+              if [ "$lost" = "1" ]; then
+                merged="$(git merge-tree --write-tree HEAD "$tip" || true)"
+                if [ "$(printf '%s\n' "$merged" | sed -n 1p)" \
+                  != "$(git rev-parse HEAD^{tree})" ]; then
+                  echo "HEAD drops commits already on $branch; not pushing."
+                  git bundle create "$RUNNER_TEMP/lane-work.bundle" \
+                    origin/next..HEAD
+                  exit 1
+                fi
+              fi
             fi
           fi
           git_push push --no-verify $lease "$url" "HEAD:refs/heads/$branch"
+
+      # A run the push step refused: its commits exist only on this
+      # runner, so keep them. `git fetch lane-work.bundle HEAD` brings
+      # them back.
+      - name: Keep the refused work
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: lane-work
+          path: ${{ runner.temp }}/lane-work.bundle
+          if-no-files-found: ignore
+          retention-days: 14

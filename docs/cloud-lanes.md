@@ -49,10 +49,13 @@ without the answer gets done first.
 
 ## The branch
 
-1. `git fetch origin`, then branch from `origin/next` as
-   `lane/cloud-<issue>`, where `<issue>` is the issue number. The
-   action may have made that branch for you; check that it descends
-   from `origin/next` and that you are on it.
+1. `git fetch origin`. If `origin/lane/cloud-<issue>` exists, where
+   `<issue>` is the issue number, start from it with
+   `git checkout -B lane/cloud-<issue> origin/lane/cloud-<issue>`, so
+   your push is a fast-forward and the lane's work stays. The action
+   branches from `origin/next` whether or not the lane exists, so do
+   this even when it put you there. If the lane does not exist, branch
+   from `origin/next` as `lane/cloud-<issue>`.
 2. Commit as you go, then `git rebase origin/next` before the end,
    keeping both sides' intent in a conflict. Never drop someone else's
    change.
@@ -65,10 +68,14 @@ without the answer gets done first.
 The push step sends the branch only when the run added work. It
 compares `HEAD` with the lane branch on origin (or with `origin/next`
 when the lane is new) and pushes when `HEAD` holds a change the lane
-lacks and keeps every change the lane has. A run that committed
-nothing, such as a review or a question, leaves the lane where it was.
-A run whose `HEAD` would drop commits already on the lane fails
-instead of pushing (#552).
+lacks and keeps every change the lane has. A rebase, an amend or a
+resolved conflict keeps a change: the step matches it by commit
+subject, or by the lane's content already being in `HEAD`, as after a
+squash landing. A run that committed nothing, such as a review or a
+question, leaves the lane where it was. A run whose `HEAD` would drop
+the lane's commits (it branched from `next` and never saw the lane)
+fails instead of pushing, and uploads its commits as the `lane-work`
+artifact: `git fetch lane-work.bundle HEAD` brings them back (#552).
 
 ## Checks
 

@@ -4,14 +4,20 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 const yml = readFileSync(".github/workflows/claude.yml", "utf8");
 const marker = "- name: Push the lane branch";
 const block = yml.slice(yml.indexOf(marker));
-const body = block.slice(block.indexOf("        run: |\n") + 16);
+const run = block.slice(block.indexOf("        run: |\n") + 16);
+const body = run.slice(0, run.indexOf("\n\n"));
 const script = body
   .split("\n")
   .map((l) => l.replace(/^ {10}/, ""))
@@ -44,7 +50,13 @@ function setup() {
     spawnSync("bash", [stepFile], {
       cwd: work,
       encoding: "utf8",
-      env: { ...process.env, ISSUE: "7", REPO: "o/r", GH_TOKEN: "x" },
+      env: {
+        ...process.env,
+        ISSUE: "7",
+        REPO: "o/r",
+        GH_TOKEN: "x",
+        RUNNER_TEMP: dir,
+      },
     });
   const lane = () => {
     try {
@@ -53,7 +65,8 @@ function setup() {
       return null;
     }
   };
-  return { g, commit, run, lane };
+  const bundle = join(dir, "lane-work.bundle");
+  return { g, commit, run, lane, bundle, work };
 }
 
 test("a review run on next leaves the lane alone", () => {
@@ -104,4 +117,96 @@ test("a run that would drop lane commits fails and pushes nothing", () => {
   commit("other", "x");
   assert.notEqual(run().status, 0);
   assert.equal(lane(), before);
+});
+
+// The reviewer's table (#552): each case adds work to a lane that
+// already exists, in a way git cherry's patch-id calls a different change.
+const ten = Array.from({ length: 10 }, (_, i) => `line${ i }\n`).join("");
+
+function laneWithFile() {
+  const c = setup();
+  c.commit("f", ten);
+  c.g("push", "-q", "origin", "next");
+  c.g("fetch", "-q", "origin");
+  c.g("checkout", "-q", "-b", "work");
+  writeFileSync(join(c.work, "f"), ten.replace("line5", "LANE"));
+  c.g("commit", "-qam", "lane change");
+  assert.equal(c.run().status, 0);
+  return c;
+}
+
+function moveNext(c, edit) {
+  c.g("checkout", "-q", "next");
+  writeFileSync(join(c.work, "f"), edit(ten));
+  c.g("commit", "-qam", "next edit");
+  c.g("push", "-q", "origin", "next");
+  c.g("fetch", "-q", "origin");
+  c.g("checkout", "-q", "work");
+}
+
+test("a rebase onto a next that edited a nearby line is pushed", () => {
+  const c = laneWithFile();
+  moveNext(c, (t) => t.replace("line3", "NEAR"));
+  c.g("rebase", "-q", "origin/next");
+  c.commit("b", "2");
+  assert.equal(c.run().status, 0);
+  assert.equal(c.lane(), c.g("rev-parse", "HEAD"));
+});
+
+test("a rebase with a resolved conflict is pushed", () => {
+  const c = laneWithFile();
+  moveNext(c, (t) => t.replace("line5", "THEIRS"));
+  assert.throws(() => c.g("rebase", "-q", "origin/next"));
+  writeFileSync(join(c.work, "f"), ten.replace("line5", "BOTH"));
+  c.g("add", "f");
+  execFileSync("git", ["rebase", "--continue"], {
+    cwd: c.work,
+    env: { ...process.env, GIT_EDITOR: "true" },
+  });
+  c.commit("b", "2");
+  assert.equal(c.run().status, 0);
+  assert.equal(c.lane(), c.g("rev-parse", "HEAD"));
+});
+
+test("an amended lane commit is pushed", () => {
+  const c = laneWithFile();
+  c.commit("b", "2");
+  c.g("commit", "-q", "--amend", "-m", "b");
+  assert.equal(c.run().status, 0);
+  assert.equal(c.lane(), c.g("rev-parse", "HEAD"));
+});
+
+test("a squash-landed lane plus new work is pushed", () => {
+  const c = laneWithFile();
+  c.g("checkout", "-q", "next");
+  c.g("merge", "-q", "--squash", "work");
+  c.g("commit", "-qm", "Squashed lane");
+  c.g("push", "-q", "origin", "next");
+  c.g("fetch", "-q", "origin");
+  c.g("checkout", "-q", "-b", "again", "origin/next");
+  c.commit("b", "2");
+  assert.equal(c.run().status, 0);
+  assert.equal(c.lane(), c.g("rev-parse", "HEAD"));
+});
+
+test("a follow-up from next that ignored the lane is refused, kept", () => {
+  const c = laneWithFile();
+  const before = c.lane();
+  c.g("checkout", "-q", "-b", "fresh", "origin/next");
+  c.commit("b", "2");
+  assert.notEqual(c.run().status, 0);
+  assert.equal(c.lane(), before);
+  assert.ok(existsSync(c.bundle));
+  const refs = execFileSync("git", ["bundle", "list-heads", c.bundle], {
+    encoding: "utf8",
+  });
+  assert.match(refs, /HEAD/);
+});
+
+test("a follow-up on top of the lane is a fast-forward", () => {
+  const c = laneWithFile();
+  c.g("checkout", "-q", "-B", "next2", "origin/lane/cloud-7");
+  c.commit("b", "2");
+  assert.equal(c.run().status, 0);
+  assert.equal(c.lane(), c.g("rev-parse", "HEAD"));
 });
