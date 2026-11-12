@@ -184,8 +184,9 @@ the item" (both projects).
 
 Automated: `order-page.spec.mjs`, "the remove icon on a cart line takes
 every unit out" (both projects). The × became James's remove-item icon
-on 2026-11-11 (#531), then Tabler's trash can the same day (#560);
-Clear cart, on the pane's top edge since #560, is
+on 2026-11-11 (#531), then Tabler's trash can the same day (#560),
+and went back to the × on 2026-11-12 (James, #560) until he picks an
+icon. Clear cart, on the pane's top edge since #560, is
 `cart-lines.spec.mjs`'s.
 
 - **Scenario:** A customer removes a whole line from the cart.
@@ -622,7 +623,7 @@ Manual, on an iPhone: a spec cannot see Safari's chrome (#267).
   2. Scroll a little to collapse the toolbar, then back to expand it.
   3. Turn the phone sideways and repeat.
   4. In each state, tap every control in the pane: the tabs, each
-     row's trash can, the "more" arrows, Clear cart, the way, Add
+     row's ×, the "more" arrows, Clear cart, the way, Add
      discount, Hide and Continue.
 - **Assert:** The pane's foot is a small, even margin above the
   toolbar's top edge in every state: no gap of a row's height, and no

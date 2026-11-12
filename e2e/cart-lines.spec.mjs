@@ -240,10 +240,10 @@ const draftLines = (page) => page.evaluate(() => JSON.parse(
   localStorage.getItem("nff-order-draft")
 ).payload.lines);
 
-// The remove control shows Tabler's trash can (#560), in place of
-// James's remove-item icon (#531) and the × before it, keeps its name
-// and still takes the line out.
-test("a line's trash icon keeps its name and takes the line out",
+// The remove control is the × again (James, 2026-11-12, #560), after
+// James's remove-item icon (#531) and Tabler's trash can (#560), until
+// he picks an icon. It keeps its name and still takes the line out.
+test("a line's × keeps its name and takes the line out",
   async ({ page }) => {
     await page.setViewportSize(PHONE);
 
@@ -256,10 +256,9 @@ test("a line's trash icon keeps its name and takes the line out",
       name: "Remove Livers, 1.0 – 1.4 lbs from your cart",
     });
 
-    await expect(remove.locator("svg")).toBeVisible();
-    // The can's lid, from icons/trash.svg.
-    await expect(remove.locator("path[d*='M9 7V4']")).toHaveCount(1);
-    await expect(remove).not.toContainText("×");
+    await expect(remove).toBeVisible();
+    await expect(remove).toHaveText("×");
+    await expect(remove.locator("svg")).toHaveCount(0);
     await remove.click();
     await expect(remove).toHaveCount(0);
     await expect(page.locator(`[data-qty='${LIVERS}']`)).toHaveValue("0");
@@ -344,6 +343,62 @@ for (const [width, viewport] of [["a phone", PHONE], ["the column", XL]]) {
       await expect(page.locator("[data-cart-live]"))
         .toHaveText("Your cart is empty.");
     });
+
+    // Arming eases from green to red and fades the words up, quick and
+    // with no overshoot, and is instant under reduced motion (James,
+    // 2026-11-12, #560). Read in the same task as the press, so the
+    // run's speed cannot hide the motion.
+    for (const motion of ["no-preference", "reduce"]) {
+      test(`arming is quick and subtle (${motion} motion)`, async ({
+        page,
+      }) => {
+        await page.emulateMedia({ reducedMotion: motion });
+
+        const order = await opened(page);
+        const clear = order.cart.locator("[data-cart-clear]");
+
+        const now = await clear.evaluate((el) => {
+          el.click();
+
+          const s = getComputedStyle(el);
+          const w = getComputedStyle(el.querySelector(
+            "[data-cart-clear-word]"
+          ));
+          const ms = (list) => list.split(",").map((t) => parseFloat(t)
+            * (t.trim().endsWith("ms") ? 1 : 1000));
+
+          return {
+            armed: el.hasAttribute("data-armed"),
+            property: s.transitionProperty,
+            transition: ms(s.transitionDuration),
+            easing: s.transitionTimingFunction,
+            name: w.animationName,
+            animation: ms(w.animationDuration),
+            wordEasing: w.animationTimingFunction,
+          };
+        });
+
+        expect(now.armed).toBe(true);
+        if (motion === "reduce") {
+          expect(now.transition.every((t) => t === 0)).toBe(true);
+          expect(now.name).toBe("none");
+        } else {
+          const at = now.property.split(", ");
+          const colour = now.transition[at.indexOf("color")];
+
+          expect(colour).toBeGreaterThan(0);
+          expect(colour).toBeLessThan(200);
+          expect(now.transition[at.indexOf("border-color")]).toBe(colour);
+          expect(now.easing.split(", ")[at.indexOf("color")])
+            .toBe("ease-out");
+          expect(now.name).toBe("order-cart-clear-arm");
+          expect(now.animation).toEqual([colour]);
+          expect(now.wordEasing).toBe("ease-out");
+        }
+        await expect(clear).toHaveText("Clear cart?");
+        await expect(order.count).toHaveText("3 items");
+      });
+    }
 
     test("one press, then waiting, leaves the cart as it was",
       async ({ page }) => {

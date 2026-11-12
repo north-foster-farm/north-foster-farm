@@ -228,14 +228,17 @@ issues. Wording below is today's, approved under #400.
   remove control, the pack label (capitalized), "qty × $unit" and the
   line total. "0 items" when empty. Lines are rebuilt only when they
   change, so a remove control under the pointer survives a render
-  (#155). The remove control shows Tabler's `trash` icon (#560), which
-  replaced James's remove-item icon (#531), itself in place of the ×
-  the line had until 2026-11-11.
+  (#155). The remove control is a × glyph again (James, 2026-11-12,
+  #560), after James's remove-item icon (#531) and Tabler's trash can
+  (#560) were each tried and dropped on staging. Its icon is open
+  until James picks one.
 - **Clear cart** (draft, #531, moved by #560). A green outline pill
   astride the pane's top edge, at its right, where the count badges
   sit on the mini cart and the order menu item; settled, with no
   border to sit on, just above the pane. It adds no height. The first
-  press turns it into "Clear cart?" for `CONFIRM_WAIT` (6 s,
+  press turns it into a red "Clear cart?", the colours easing over and
+  the words fading up in 120 ms (`--cart-clear-arm`; at once under
+  reduced motion, #560), for `CONFIRM_WAIT` (6 s,
   `cart/confirm.mjs`); a second press in that time sets every quantity
   to 0, saves the draft with no lines and puts the focus on the pane.
   A second press within `CONFIRM_GUARD` (400 ms) of the first is

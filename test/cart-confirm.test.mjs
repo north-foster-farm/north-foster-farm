@@ -3,6 +3,7 @@
 // back.
 
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, describe, it, mock } from "node:test";
 
 import {
@@ -116,5 +117,49 @@ describe("cart/confirm.mjs twoStep", () => {
   it("waits 6 s and guards about 400 ms by default", () => {
     assert.equal(CONFIRM_WAIT, 6000);
     assert.equal(CONFIRM_GUARD, 400);
+  });
+});
+
+// Arming's motion (James, 2026-11-12, #560): very subtle, very quick,
+// no bounce, instant under reduced motion. The browser half is
+// cart-lines.spec.mjs's "arming is quick and subtle".
+describe("Clear cart's arming (_cart.scss)", () => {
+  const cart = readFileSync("assets/styles/components/_cart.scss", "utf8");
+  const block = cart.slice(cart.indexOf("  .order-cart-clear {"),
+    cart.indexOf("  .order-cart-clear-icon {"));
+
+  it("runs well under 200 ms", () => {
+    const ms = Number(block.match(/--cart-clear-arm: (\d+)ms;/)[1]);
+
+    assert.ok(ms > 0 && ms <= 150, `${ms} ms`);
+  });
+
+  it("eases the colours and fades the words, with no overshoot", () => {
+    for (const part of ["border-color", "color"]) {
+      assert.ok(block.includes(`${part} var(--cart-clear-arm) ease-out`),
+        part);
+    }
+    assert.match(block, new RegExp([
+      String.raw`\[data-armed\] \{[^}]*\.order-cart-clear-word \{\s*`,
+      String.raw`animation: order-cart-clear-arm var\(--cart-clear-arm\) `,
+      String.raw`ease-out;`,
+    ].join("")));
+
+    const frames = cart.match(
+      /@keyframes order-cart-clear-arm \{\s*from \{\s*([^}]*)\}\s*\}/
+    );
+
+    assert.ok(frames, "the keyframes");
+    // Only the words' opacity moves: no transform, so nothing bounces.
+    assert.match(frames[1].trim(), /^opacity: 0\.\d+;$/);
+  });
+
+  it("is instant under reduced motion", () => {
+    assert.match(block, new RegExp([
+      String.raw`@media \(prefers-reduced-motion: reduce\) \{\s*`,
+      String.raw`&,\s*\.order-cart-clear-word \{\s*`,
+      String.raw`transition: none !important;\s*`,
+      String.raw`animation: none !important;`,
+    ].join("")));
   });
 });

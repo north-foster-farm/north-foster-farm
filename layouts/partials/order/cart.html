@@ -36,7 +36,7 @@
          never clips it; first in the pane, so Tab meets it first. The
          first tap asks, a second within a few seconds empties the
          cart (cart.js wireClear). */}}
-    <button type="button" class="order-cart-clear" data-cart-clear>{{ partial "svg.html" (dict "src" "icons/cart-clear" "class" "order-cart-clear-icon" "aria-hidden" "true") }}<span data-cart-clear-word>Clear cart</span></button>
+    <button type="button" class="order-cart-clear" data-cart-clear>{{ partial "svg.html" (dict "src" "icons/cart-clear" "class" "order-cart-clear-icon" "aria-hidden" "true") }}<span class="order-cart-clear-word" data-cart-clear-word>Clear cart</span></button>
     <div class="order-cart-body" id="order-cart-body" data-cart-body>
       {{/* The lines, grouped under their category (cart.js renders
            them into the list). Both "more" arrows come before the rows,
@@ -56,7 +56,7 @@
           <li class="order-cart-group"><span class="order-cart-group-name" data-group-name></span><ul class="order-cart-group-items list-unstyled" data-group-items></ul></li>
         </template>
         <template data-cart-line>
-          <li class="order-cart-item"><button type="button" class="order-cart-remove" data-remove>{{ partial "svg.html" (dict "src" "icons/trash" "class" "order-cart-remove-icon" "aria-hidden" "true") }}</button><span class="order-cart-item-name" data-line-name></span><span class="order-cart-item-qty" data-line-qty></span><span class="order-cart-item-sub" data-line-sub></span></li>
+          <li class="order-cart-item"><button type="button" class="order-cart-remove" data-remove>×</button><span class="order-cart-item-name" data-line-name></span><span class="order-cart-item-qty" data-line-qty></span><span class="order-cart-item-sub" data-line-sub></span></li>
         </template>
       </section>
       <dl class="order-cart-sums" data-part="sums">

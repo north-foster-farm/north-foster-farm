@@ -312,7 +312,12 @@ $cart-nudge-line: $cart-nudge-gap + $cart-nudge-size * $cart-line-height;
   // middle sits on the middle of the pane's top border, whose width
   // --cart-edge is. Asking for the second press, it turns the danger
   // colour. It goes with the lines (after the placements, below).
+  // Arming (James, 2026-11-12, #560): the colours ease over and the
+  // words fade up from faint, both in --cart-clear-arm, well under
+  // 200 ms with no overshoot, and at once under reduced motion.
   .order-cart-clear {
+    --cart-clear-arm: 120ms;
+
     position: absolute;
     top: calc(var(--cart-edge, 1px) / -2);
     right: var(--order-gutter);
@@ -333,8 +338,8 @@ $cart-nudge-line: $cart-nudge-gap + $cart-nudge-size * $cart-line-height;
     transform: translateY(-50%);
     transition:
       background-color var(--order-hover) ease,
-      border-color var(--order-hover) ease,
-      color var(--order-hover) ease;
+      border-color var(--cart-clear-arm) ease-out,
+      color var(--cart-clear-arm) ease-out;
 
     &:hover,
     &:focus-visible {
@@ -345,10 +350,23 @@ $cart-nudge-line: $cart-nudge-gap + $cart-nudge-size * $cart-line-height;
       border-color: var(--bs-danger);
       background-color: var(--bs-body-bg);
       color: var(--bs-danger);
+
+      .order-cart-clear-word {
+        animation: order-cart-clear-arm var(--cart-clear-arm) ease-out;
+      }
     }
 
     &[hidden] {
       display: none;
+    }
+
+    // More specific than the global rule, which would leave 1 ms.
+    @media (prefers-reduced-motion: reduce) {
+      &,
+      .order-cart-clear-word {
+        transition: none !important;
+        animation: none !important;
+      }
     }
   }
 
@@ -448,6 +466,7 @@ $cart-nudge-line: $cart-nudge-gap + $cart-nudge-size * $cart-line-height;
     border: 0;
     border-radius: 50%;
     background: none;
+    font-size: 1.25rem;
     line-height: 1;
     color: var(--bs-secondary-color);
     transition:
@@ -458,13 +477,6 @@ $cart-nudge-line: $cart-nudge-gap + $cart-nudge-size * $cart-line-height;
     &:focus-visible {
       color: var(--bs-danger);
     }
-  }
-
-  // Tabler's trash can (#560), which replaced James's remove-item icon
-  // (#531), itself in place of a × glyph.
-  .order-cart-remove-icon {
-    width: 1.125rem;
-    height: 1.125rem;
   }
 
   .order-cart-item-name {
@@ -1416,6 +1428,14 @@ $cart-nudge-line: $cart-nudge-gap + $cart-nudge-size * $cart-line-height;
 @keyframes order-share-out {
   to {
     @include order-share-off;
+  }
+}
+
+// Clear cart's words as it arms (#560): from faint to full, no
+// movement.
+@keyframes order-cart-clear-arm {
+  from {
+    opacity: 0.35;
   }
 }
 
