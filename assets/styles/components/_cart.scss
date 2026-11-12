@@ -1037,6 +1037,38 @@ $cart-nudge-line: $cart-nudge-gap + $cart-nudge-size * $cart-line-height;
     );
   }
 
+  // On the sheet the pane's padding and borders ease with its parts,
+  // on their clock (cart/view.mjs moveParts, #559 round 3), so they
+  // are not eased here. Where the floating sheet rests eases instead: a
+  // change in the safe area or the toolbar's gap while the page
+  // scrolled moved a minimized pane 23px in one frame (James's phone,
+  // 2026-11-12). The keyboard still moves it at once (data-keyboard,
+  // view.mjs watchKeyboard). Disabled, Proceed to checkout fades
+  // rather than turning pale in one frame (the clear).
+  @media #{$cart-sheet} {
+    .order-cart {
+      transition:
+        border-color var(--order-slow) ease,
+        box-shadow var(--order-slow) ease;
+    }
+
+    .order-cart[data-placement="floating"]:not([data-keyboard]) {
+      transition:
+        border-color var(--order-slow) ease,
+        box-shadow var(--order-slow) ease,
+        bottom var(--order-slow) var(--order-ease);
+    }
+
+    .order-cart-next {
+      transition:
+        color 0.15s ease-in-out,
+        background-color 0.15s ease-in-out,
+        border-color 0.15s ease-in-out,
+        box-shadow 0.15s ease-in-out,
+        opacity var(--order-slow) var(--order-ease);
+    }
+  }
+
   // Closed, a phone's sheet keeps the total row and the foot: the body
   // loses every other part, and the total row is the body's first
   // thing, so it needs no rule above it. The rule is hidden, not taken

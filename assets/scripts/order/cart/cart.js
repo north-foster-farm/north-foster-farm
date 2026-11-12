@@ -21,9 +21,9 @@ import { codeNote } from "./code-note.mjs";
 import { twoStep } from "./confirm.mjs";
 import * as state from "./state.mjs";
 import {
-  SHEET, animateFold, clearFocusUnder, moveParts, moving, pulsePill,
-  revealLine, ringCart, showAdded, shutShare, teach, toPx, watchKeyboard,
-  watchList, watchPlacement, watchScroll,
+  SHEET, animateFold, clearFocusUnder, fadeInWords, moveParts, moving,
+  pulsePill, revealLine, ringCart, showAdded, shutShare, teach, toPx,
+  watchKeyboard, watchList, watchPlacement, watchScroll,
 } from "./view.mjs";
 
 // The code that is a joke: the cart shows a discount growing by this
@@ -145,10 +145,23 @@ export class Cart {
       else this.root.setAttribute(name, value);
     }
 
-    const open = next.placement !== "floating" || next.fold === "open";
+    // The pill is the floating pane's alone, so only a floating pane
+    // writes it: settling, it leaves as it was, with no "Hide" written
+    // into it on its way out (#559, round 3). New words fade in with
+    // the move on the sheet.
+    if (next.placement === "floating") {
+      const open = next.fold === "open";
+      const word = qs(this.root, "[data-cart-word]");
+      const text = open ? "Hide" : "Expand";
 
-    this.pill.setAttribute("aria-expanded", String(open));
-    qs(this.root, "[data-cart-word]").textContent = open ? "Hide" : "Expand";
+      this.pill.setAttribute("aria-expanded", String(open));
+      if (word.textContent !== text) {
+        word.textContent = text;
+        if (this.sheet.matches && was !== next) {
+          fadeInWords(word, { reduce: reduced() });
+        }
+      }
+    }
     qs(this.root, "[data-way-toggle]").setAttribute(
       "aria-expanded", String(next.share === "way")
     );
@@ -392,9 +405,29 @@ export class Cart {
         word.textContent = CLEAR_ASK;
         say(live, CLEAR_HINT);
       },
+      // A pill fading out with the clear keeps its "Clear cart?" until
+      // it is gone (#559, round 3): the disarm lands inside the change,
+      // before its eases start, so it looks a frame later.
       onDisarm: () => {
-        delete button.dataset.armed;
-        word.textContent = CLEAR_WORD;
+        const put = () => {
+          if (this.clearing.armed) return;
+          delete button.dataset.armed;
+          word.textContent = CLEAR_WORD;
+        };
+
+        requestAnimationFrame(() => {
+          const fading = moving(this.root).filter((a) => (
+            a.effect && a.effect.target === button
+          ));
+
+          if (!fading.length) {
+            put();
+
+            return;
+          }
+          Promise.all(fading.map((a) => a.finished.catch(() => {})))
+            .then(put);
+        });
       },
       onConfirm: () => {
         this.on.onClear();

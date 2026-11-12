@@ -103,6 +103,8 @@ const plugins = [
         "data-cart-passed",
         // Clear cart asking for its second press (#531).
         "data-armed",
+        // The keyboard moving the floating cart, with no ease (#559).
+        "data-keyboard",
         "data-busy",
         "data-row-start",
         "data-playing",

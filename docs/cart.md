@@ -438,7 +438,18 @@ to CSS. Its surface, which the Cart class imports:
   its parts, moves with them every frame. A part that comes or goes
   takes its padding, borders and margins (and a foot button the foot's
   gap) with its size, so nothing snaps in the last frame. A part that
-  goes stays drawn until it has shrunk and faded; an emptied cart keeps
+  goes stays drawn until it has shrunk, faded out by `FADE_OUT` of the
+  way; one that comes fades in from `FADE_IN`, so old and new contents
+  never show together (`fadeFrames`; 2026-11-12, #559 round 3: the
+  clear's lines faded over the new total row, and Expand's rows looked
+  squeezed). The pane's own padding, borders and side margins ease on
+  the same clock (`paneFrames`), not a CSS transition, so the foot and
+  its buttons narrow together. On a lift-off the floating pane starts
+  as far below its rest as keeps its top where the settled cart's was
+  (`liftShift`), with its cap lifted while it eases: it rested on its
+  foot and jumped up over the catalog, two carts on screen. Clear cart
+  fades out where it stood, still asking, and moves with a settle; new
+  words in the pill fade in (`fadeInWords`). An emptied cart keeps
   its lines drawn for it. The items list keeps the larger of its two
   sizes while the lines ease, so the edge uncovers or covers it and
   never squeezes it, and its arrows and fades are set inside the change
@@ -653,7 +664,11 @@ Placement is frozen while the keyboard is up.
   Continue as wide as its words. Short screens tighten the paddings
   and put the nudge at the left of the foot's one row.
 - Only the chrome eases between floating and inline (padding, border
-  color, shadow); never a height, a width or a position.
+  color, shadow); never a height, a width or a position. On the phone
+  sheet the padding and borders ease in `moveParts`, with the parts
+  (2026-11-12, #559 round 3). Where the floating sheet rests (`bottom`)
+  eases too, so a change in the safe area mid-scroll is not a step,
+  except for the keyboard (`data-keyboard`, set by `watchKeyboard`).
 
 **576 to 1199px, taller than 500px**
 

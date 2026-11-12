@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
-  OWN_MS, moreShown, moveFrames, moves, ownScroll, restOf, toPx,
+  FADE_IN, FADE_OUT, OWN_MS, fadeFrames, liftShift, moreShown, moveFrames,
+  moves, ownScroll, paneFrames, restOf, toPx,
 } from "../assets/scripts/order/cart/view.mjs";
 
 // Whose scroll it is (#559): a finger down, or one within OWN_MS of
@@ -75,13 +76,14 @@ describe("moveFrames", () => {
     ]);
   });
 
-  it("fades a part that goes as it shrinks to nothing", () => {
-    const [from, to] = moveFrames(false, shown(60), gone);
+  it("shrinks a part that goes to nothing, its fade left to fadeFrames",
+    () => {
+      const [from, to] = moveFrames(false, shown(60), gone);
 
-    assert.equal(from.opacity, 1);
-    assert.equal(to.opacity, 0);
-    assert.equal(to.height, "0px");
-  });
+      assert.equal(from.height, "60px");
+      assert.equal(to.height, "0px");
+      assert.equal("opacity" in to, false);
+    });
 
   // #559: the padding of the parts that went dropped in the last frame
   // of a minimize, about 40px at once.
@@ -109,7 +111,6 @@ describe("moveFrames", () => {
 
     assert.equal(from.flexBasis, "0px");
     assert.equal(from.paddingLeft, "0px");
-    assert.equal(from.opacity, 0);
     assert.equal(to.flexBasis, "100px");
     assert.equal(to.paddingRight, "14px");
     assert.equal(to.flexGrow, 0);
@@ -130,6 +131,85 @@ describe("moveFrames", () => {
     assert.equal(to.flexBasis, "260px");
     assert.equal("opacity" in to, false);
     assert.equal("paddingLeft" in to, false);
+  });
+});
+
+// #559, round 3: what goes is gone before what comes shows, so old and
+// new contents are never on screen together.
+describe("fadeFrames", () => {
+  const shown = { shown: true };
+  const gone = { shown: false };
+
+  it("leaves a part that stays", () => {
+    assert.equal(fadeFrames(shown, shown), null);
+    assert.equal(fadeFrames(gone, gone), null);
+  });
+
+  it("fades a part that goes out early, and holds it out", () => {
+    assert.deepEqual(fadeFrames(shown, gone), [
+      { opacity: 1, offset: 0 },
+      { opacity: 0, offset: FADE_OUT },
+      { opacity: 0, offset: 1 },
+    ]);
+  });
+
+  it("holds a part that comes out until late, then fades it in", () => {
+    assert.deepEqual(fadeFrames(gone, shown), [
+      { opacity: 0, offset: 0 },
+      { opacity: 0, offset: FADE_IN },
+      { opacity: 1, offset: 1 },
+    ]);
+  });
+
+  it("never shows the two together", () => {
+    assert.ok(FADE_OUT < FADE_IN);
+  });
+});
+
+describe("paneFrames", () => {
+  const room = (pad) => ({
+    paddingTop: `${pad}px`, paddingRight: "16px", borderTopWidth: "3px",
+  });
+
+  it("eases only the room that changed", () => {
+    assert.deepEqual(paneFrames(room(12), room(0)), [
+      { paddingTop: "12px" }, { paddingTop: "0px" },
+    ]);
+  });
+
+  it("is nothing when nothing changed", () => {
+    assert.equal(paneFrames(room(12), room(12)), null);
+    assert.equal(paneFrames(room(12), room(12), 0.2), null);
+  });
+
+  it("starts a lifted pane below its rest and eases it up", () => {
+    assert.deepEqual(paneFrames(room(12), room(12), 300), [
+      { translate: "0 300px" }, { translate: "0 0" },
+    ]);
+  });
+});
+
+// The lift-off (#559, round 3): the floating pane rests on its foot,
+// so it starts as far below its rest as keeps its top where it was.
+describe("liftShift", () => {
+  it("holds the top of a settled cart that lifts off", () => {
+    // Settled: top at 650, 600 tall. Floating and closed it rests with
+    // its foot at 830, where the pane 600 tall would stand at 230.
+    assert.equal(liftShift({
+      wasTop: 650, wasHeight: 600, nowBottom: 830, floating: true,
+    }), 420);
+  });
+
+  it("is nothing for a floating pane that folds on its own foot", () => {
+    assert.equal(liftShift({
+      wasTop: 400, wasHeight: 430, nowBottom: 830, floating: true,
+    }), 0);
+  });
+
+  it("is nothing for a pane that settles: its top stays in the flow", () => {
+    assert.equal(liftShift({
+      wasTop: 650, wasHeight: 180, nowBottom: 1250, floating: false,
+    }), 0);
   });
 });
 

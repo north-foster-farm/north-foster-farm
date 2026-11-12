@@ -14,7 +14,10 @@
 // - every part starts moving within one frame of the others and keeps
 //   the same share of its way as the others on every frame;
 // - the list does not change while the page scrolls and the cart does
-//   not.
+//   not;
+// - on every consecutive frame pair, no part's edge jumps further than
+//   the shared ease allows, or 8px at rest, and no two parts that
+//   carry words overlap (round 3, James's second phone read).
 //
 // A person's scroll is a touch on the catalog and the page moving
 // under it a frame at a time: Playwright's WebKit has no touch drag,
@@ -66,6 +69,57 @@ const record = (page) => page.evaluate(() => {
       height: r.height,
     };
   };
+  // How much of a part shows: its opacity times its ancestors' up to the
+  // pane, and its box cut by every ancestor that clips, up to the pane,
+  // and by the screen. Null where nothing of it shows.
+  const opacity = (el) => {
+    let o = 1;
+
+    for (let n = el; n; n = n.parentElement) {
+      o *= parseFloat(getComputedStyle(n).opacity);
+      if (n === pane) break;
+    }
+
+    return o;
+  };
+  const seen = (el) => {
+    const b = box(el);
+
+    if (!b) return null;
+
+    let { top, bottom, left, right } = b;
+
+    for (let n = el.parentElement; n && n !== pane; n = n.parentElement) {
+      const s = getComputedStyle(n);
+
+      if (s.overflowX !== "visible" || s.overflowY !== "visible") {
+        const c = n.getBoundingClientRect();
+
+        top = Math.max(top, c.top);
+        bottom = Math.min(bottom, c.bottom);
+        left = Math.max(left, c.left);
+        right = Math.min(right, c.right);
+      }
+    }
+    top = Math.max(top, 0);
+    bottom = Math.min(bottom, innerHeight);
+
+    return bottom - top > 0.5 && right - left > 0.5
+      ? { top, bottom, left, right } : null;
+  };
+  // Every part that carries words, for the overlap rule.
+  const TEXTS = {
+    lines: "[data-part='lines']",
+    sums: "[data-part='sums']",
+    total: "[data-part='total']",
+    edit: "[data-part='edit']",
+    badges: "[data-part='badges']",
+    share: "[data-part='share']",
+    toggle: "[data-cart-toggle]",
+    next: "[data-checkout]",
+    nudge: "[data-nudge]",
+    clear: "[data-cart-clear]",
+  };
   const frames = [];
   const tick = () => {
     const s = getComputedStyle(pane);
@@ -74,13 +128,40 @@ const record = (page) => page.evaluate(() => {
     const body = q("[data-cart-body]");
     const badge = q("[data-badge='delivery']");
     const tip = document.querySelector(".tooltip");
+    const word = q("[data-cart-word]");
+    const clear = q("[data-cart-clear]");
 
     frames.push({
+      t: performance.now(),
+      vh: innerHeight,
+      moving: pane.getAnimations().length + pane.getAnimations({
+        subtree: true,
+      }).filter((a) => a.id === "cart-move").length,
       fold: pane.dataset.fold,
       placement: pane.dataset.placement,
       kept: pane.hasAttribute("data-kept"),
       y: scrollY,
       pane: box(pane),
+      texts: Object.entries(TEXTS).map(([name, sel]) => {
+        const el = q(sel);
+        const shows = seen(el);
+
+        return shows && { name, box: shows, op: opacity(el) };
+      }).filter(Boolean),
+      ops: Object.fromEntries(Object.entries(TEXTS).map(([name, sel]) => [
+        name, q(sel) && box(q(sel)) ? opacity(q(sel)) : 0,
+      ])),
+      toggle: box(q("[data-cart-toggle]")),
+      next: box(q("[data-checkout]")),
+      clear: box(clear),
+      clearText: q("[data-cart-clear-word]").textContent.trim(),
+      word: word.textContent,
+      wordOp: opacity(word),
+      share: box(q("[data-part='share']")),
+      sums: box(q("[data-part='sums']")),
+      badges: box(q("[data-part='badges']")),
+      seenParts: Object.fromEntries(["sums", "share", "badges"]
+        .map((n) => [n, seen(q(TEXTS[n]))])),
       pad: {
         top: parseFloat(s.paddingTop) + parseFloat(s.borderTopWidth),
         bottom: parseFloat(s.paddingBottom) + parseFloat(s.borderBottomWidth),
@@ -192,10 +273,14 @@ const glide = (page, by, step) => page.evaluate(
 
 // A frame as a line of the timeline: whole pixels.
 const r = (b) => (b ? `${Math.round(b.top)}..${Math.round(b.bottom)}` : "-");
+const op = (v) => (v === undefined ? "-" : v.toFixed(2));
 const line = (f, i) => `#${i} ${f.placement}/${f.fold} y=${Math.round(f.y)}`
-  + ` pane ${r(f.pane)} lines ${r(f.lines)} total ${r(f.total)}`
-  + ` foot ${r(f.foot)} list ${r(f.list)}@${Math.round(f.listTop)}`
-  + ` fades ${f.fades}`;
+  + ` +${f.t === undefined ? "-" : Math.round(f.t)}ms`
+  + ` pane ${r(f.pane)} lines ${r(f.lines)}@${op(f.ops?.lines)}`
+  + ` total ${r(f.total)} foot ${r(f.foot)}`
+  + ` next ${r(f.next)} pill "${f.word}"@${op(f.wordOp)}`
+  + ` clear ${r(f.clear)}@${op(f.ops?.clear)}`
+  + ` list ${r(f.list)}@${Math.round(f.listTop)} fades ${f.fades}`;
 const timeline = (frames, at) => frames
   .slice(Math.max(0, at - 3), at + 4)
   .map((f, k) => line(f, Math.max(0, at - 3) + k)).join("\n");
@@ -316,10 +401,127 @@ const movesTogether = (name, frames) => {
   });
 };
 
+// Every consecutive frame pair, not samples (James, 2026-11-12, round
+// 3: the strips missed jank that lasted a frame or two). No part's edge
+// moves further in one frame than the shared ease would take it: at
+// most STEP px while nothing of the pane moves (the minimized pane that
+// dropped 23px mid-scroll), and while it moves, STEP more than the
+// curve's steepest step for the way that edge goes in the whole run
+// (the curve starts at 4 times its mean speed; a quarter more for the
+// clock). A settled pane's parts are measured against the page, a
+// floating one's against the screen, and the frame it lifts off or
+// settles against whichever is nearer. An edge off the screen in both
+// frames, or a part that does not show in either, is not measured.
+const STEP = 8;
+const MOVE_MS = 420;
+const STEEPEST = 4 * 1.25;
+const EDGES = {
+  pane: ["top", "bottom"],
+  total: ["top", "bottom"],
+  foot: ["top", "bottom"],
+  lines: ["top"],
+  clear: ["top", "bottom"],
+  toggle: ["top", "bottom", "left", "right"],
+  next: ["top", "bottom", "left", "right"],
+};
+const DOWN = new Set(["top", "bottom"]);
+
+const stepsHold = (name, frames) => {
+  const shows = (f, part) => f[part]
+    && (part === "pane" || part === "foot" || (f.ops[part] ?? 1) > 0.05);
+
+  for (const [part, edges] of Object.entries(EDGES)) {
+    for (const edge of edges) {
+      const steps = frames.map((f, i) => {
+        const g = frames[i + 1];
+
+        if (!g || !shows(f, part) || !shows(g, part)) return null;
+
+        const a = f[part][edge];
+        const b = g[part][edge];
+
+        if (DOWN.has(edge) && Math.max(a, b) < 0) return null;
+        if (DOWN.has(edge) && Math.min(a, b) > f.vh) return null;
+
+        const d = b - a;
+
+        if (!DOWN.has(edge)) return d;
+
+        // The page moved by s: its contents by -s on the screen.
+        const page = d + (g.y - f.y);
+
+        if (f.placement === "inline" && g.placement === "inline") return page;
+        if (f.placement !== "inline" && g.placement !== "inline") return d;
+
+        return Math.abs(page) < Math.abs(d) ? page : d;
+      });
+      let at = 0;
+      let way = 0;
+
+      for (const s of steps) {
+        at += s || 0;
+        way = Math.max(way, Math.abs(at));
+      }
+      steps.forEach((s, i) => {
+        if (s === null) return;
+
+        const f = frames[i];
+        const g = frames[i + 1];
+        const dt = Math.max(1, g.t - f.t);
+        const allowed = f.moving || g.moving
+          ? STEP + STEEPEST * way * dt / MOVE_MS : STEP;
+
+        if (Math.abs(s) > allowed + PX) {
+          fail(name, frames, i + 1, `the ${part}'s ${edge} jumped `
+            + `${s.toFixed(1)}px in one frame (at most ${allowed.toFixed(1)})`);
+        }
+      });
+    }
+  }
+};
+
+// No two parts that carry words overlap on any frame, as much of each
+// as shows (cut by what clips it and by the screen, and not faded to
+// nothing): the clear's old lines faded over the new total row.
+const textsApart = (name, frames) => {
+  frames.forEach((f, i) => {
+    const shown = f.texts.filter((p) => p.op > 0.05);
+
+    shown.forEach((p, k) => {
+      for (const o of shown.slice(k + 1)) {
+        const high = Math.min(p.box.bottom, o.box.bottom)
+          - Math.max(p.box.top, o.box.top);
+        const wide = Math.min(p.box.right, o.box.right)
+          - Math.max(p.box.left, o.box.left);
+
+        if (high > PX && wide > PX) {
+          fail(name, frames, i, `${p.name} (${p.op.toFixed(2)}) and `
+            + `${o.name} (${o.op.toFixed(2)}) overlap by ${
+              Math.round(high)}px`);
+        }
+      }
+    });
+  });
+};
+
 const transition = (name, frames) => {
   holdsEveryFrame(name, frames);
   movesTogether(name, frames);
+  stepsHold(name, frames);
+  textsApart(name, frames);
 };
+
+// The rules for a scroll that settles or lifts off the pane, whose
+// parts move with the page while it is settled: every frame, every
+// frame pair, and words apart.
+const scrollPasses = (name, frames) => {
+  holdsEveryFrame(name, frames);
+  stepsHold(name, frames);
+  textsApart(name, frames);
+};
+
+// A slow page scroll, `by` px at `step` px a frame, the page's own.
+const slowly = (page, by, step = 6) => glide(page, by, step);
 
 // The cart floating over the catalog: ?add= settles it in the page,
 // and the scroll back up, to halfway, lifts it off. It may lift off
@@ -482,7 +684,29 @@ test.describe("each change moves the pane and its parts together", () => {
     await foldCart(page, order.cart);
 
     await pillTo(page, order, "open", () => record(page));
-    transition("Expand", await recorded(page, order));
+    const expand = await recorded(page, order);
+
+    transition("Expand", expand);
+    // Round 3: the Subtotal, Pickup days and Add discount rows were
+    // squeezed under Hide for a few frames. A row that shows at all
+    // shows most of its height, and the body never scrolls under them.
+    const end = expand[expand.length - 1];
+
+    expand.forEach((f, i) => {
+      if (f.bodyOver && !end.bodyOver) {
+        fail("Expand", expand, i, "the body overflowed");
+      }
+      for (const part of ["sums", "share", "badges"]) {
+        const shows = f.seenParts[part];
+        const full = end[part] ? end[part].height : 0;
+
+        if (shows && full && f.ops[part] >= 0.25
+          && shows.bottom - shows.top < 0.75 * full) {
+          fail("Expand", expand, i, `the ${part} showed squeezed (${
+            Math.round(shows.bottom - shows.top)} of ${Math.round(full)}px)`);
+        }
+      }
+    });
 
     await pillTo(page, order, "closed", () => record(page));
     transition("Hide", await recorded(page, order));
@@ -538,6 +762,21 @@ test.describe("each change moves the pane and its parts together", () => {
     transition("clear", frames);
     // The pane eased to its minimized size, and never stood empty.
     expect(frames[frames.length - 1].fold).toBe("closed");
+    // One motion (round 3): Clear cart fades out, still asking, rather
+    // than going in one frame, and Expand fades in, so nothing swaps in
+    // the frame before the ease.
+    const pill = frames.filter((f) => f.clear && f.ops.clear > 0.05);
+
+    expect(pill.some((f) => f.ops.clear < 0.95),
+      "Clear cart faded out").toBe(true);
+    pill.forEach((f) => {
+      if (f.clearText !== "Clear cart?") {
+        fail("clear", frames, frames.indexOf(f),
+          `Clear cart said "${f.clearText}" as it went`);
+      }
+    });
+    expect(frames.some((f) => f.word === "Expand" && f.wordOp > 0.05
+      && f.wordOp < 0.95), "Expand faded in").toBe(true);
     // The lines and Clear cart went, so the focus is the pane's (#531),
     // and never the pill's.
     await expect(order.cart).toBeFocused();
@@ -719,6 +958,128 @@ test.describe("the settle and the lift-off (#559)", () => {
           fail("lift-off", lift, lifted + i, "the minimizing pane grew");
         }
       });
+    });
+});
+
+// Round 3 (James's second phone read, 2026-11-12): the cases the spec
+// passed while his phone still showed them, every frame pair.
+test.describe("every frame pair (#559, round 3)", () => {
+  // Settles the cart in the page, open, by a slow scroll down.
+  const settle = async (page, order) => {
+    const top = await page.evaluate(() => document
+      .getElementById("order-cart-heading").getBoundingClientRect().top);
+
+    await glide(page, top - 80, 24);
+    await order.scrollSettled();
+    await expect(order.cart).toHaveAttribute("data-placement", "inline");
+    await paneStill(order.cart);
+  };
+
+  test("lift-off from an open settled cart: one cart, no ghost lines",
+    async ({ page }) => {
+      const order = await floating(page, SMALL);
+
+      await settle(page, order);
+      await expect(order.cart).toHaveAttribute("data-fold", "open");
+
+      await record(page);
+      await slowly(page, -700);
+      await order.scrollSettled();
+      await expect(order.cart).toHaveAttribute("data-placement", "floating");
+      await expect(order.cart).toHaveAttribute("data-fold", "closed");
+      const frames = await recorded(page, order);
+
+      scrollPasses("lift-off", frames);
+
+      const lifted = frames.findIndex((f) => f.placement === "floating");
+      const before = frames[lifted - 1];
+      const end = frames[frames.length - 1];
+      const from = frames[lifted].pane.height;
+      const to = end.pane.height;
+
+      expect(lifted, "the cart lifted off while recorded").toBeGreaterThan(0);
+      frames.slice(lifted).forEach((f, k) => {
+        const i = lifted + k;
+
+        // One cart: the floating pane never stands over the settled
+        // cart's place, above where it began or where it rests.
+        if (f.pane.top < Math.min(before.pane.top, end.pane.top) - STEP) {
+          fail("lift-off", frames, i, "the pane rose over the catalog");
+        }
+        // No ghost lines: they are gone well before the pane is
+        // minimized.
+        const way = from - to > 1 ? (from - f.pane.height) / (from - to) : 1;
+
+        if (way >= 0.7 && f.lines && f.ops.lines > 0.05) {
+          fail("lift-off", frames, i,
+            `the lines still show (${f.ops.lines.toFixed(2)}) with the pane `
+            + `${Math.round(way * 100)}% minimized`);
+        }
+      });
+    });
+
+  test("settling an empty minimized cart: no swap, no ghost Hide",
+    async ({ page }) => {
+      const order = new OrderPage(page);
+
+      await order.open();
+      // The slot just under the screen's foot, the pane floating and
+      // minimized over the catalog.
+      await page.evaluate(() => {
+        const slot = document.getElementById("order-cart-heading");
+
+        window.scrollBy(0, slot.getBoundingClientRect().top - innerHeight);
+      });
+      await order.scrollSettled();
+      await expect(order.cart).toHaveAttribute("data-placement", "floating");
+      await expect(order.cart).toHaveAttribute("data-fold", "closed");
+      await expect(order.cart).toHaveAttribute("data-empty", "");
+      await paneStill(order.cart);
+
+      await record(page);
+      await slowly(page, 500, 4);
+      await order.scrollSettled();
+      await expect(order.cart).toHaveAttribute("data-placement", "inline");
+      const frames = await recorded(page, order);
+
+      scrollPasses("empty settle", frames);
+      const first = frames[0];
+
+      frames.forEach((f, i) => {
+        // The pill leaves as it was: no "Hide" on its way out.
+        if (f.toggle && f.ops.toggle > 0.05 && f.word !== first.word) {
+          fail("empty settle", frames, i, `the pill said "${f.word}"`);
+        }
+        // Proceed to checkout keeps the foot's first row: it never
+        // wraps onto a row of its own.
+        if (Math.abs((f.next.top - f.foot.top)
+          - (first.next.top - first.foot.top)) > 2 * PX) {
+          fail("empty settle", frames, i,
+            "Proceed to checkout left the foot's first row");
+        }
+      });
+    });
+
+  test("a slow scroll never moves the minimized pane in a step",
+    async ({ page }) => {
+      const order = await floating(page, SMALL);
+
+      await foldCart(page, order.cart);
+      await record(page);
+      // A finger's slow drag, with Safari's toolbar coming and going.
+      await swipe(page, 240, { step: 2, toolbar: true });
+      await swipe(page, -240, { step: 3, toolbar: true });
+      await order.scrollSettled();
+      const frames = await recorded(page, order);
+
+      frames.forEach((f, i) => {
+        if (f.fold !== "closed" || f.placement !== "floating") {
+          fail("slow scroll", frames, i, "the pane did not stay minimized");
+        }
+      });
+      holdsEveryFrame("slow scroll", frames);
+      stepsHold("slow scroll", frames);
+      textsApart("slow scroll", frames);
     });
 });
 

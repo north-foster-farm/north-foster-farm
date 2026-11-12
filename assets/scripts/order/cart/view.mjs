@@ -83,10 +83,24 @@ export const watchKeyboard = (pane, { onInset } = {}) => {
     const inset = keyboardInset(window.innerHeight, visual);
     const area = visibleArea(window.innerHeight, visual);
 
+    // The keyboard moves the pane at once: data-keyboard, while it is
+    // up and for a frame after, sets aside the ease the floating sheet
+    // gives any other change of where it rests (_cart.scss, #559).
+    if (inset > 0 || before > 0) {
+      cancelAnimationFrame(pane.keyboardTick);
+      pane.setAttribute("data-keyboard", "");
+    }
     setProp(pane, "--cart-kb", inset);
     setProp(pane, "--cart-gap", area.gap);
     if (inset > 0) setProp(pane, "--cart-vis", area.height);
     else pane.style.removeProperty("--cart-vis");
+    if (inset === 0 && pane.hasAttribute("data-keyboard")) {
+      pane.keyboardTick = requestAnimationFrame(() => {
+        pane.keyboardTick = requestAnimationFrame(() => {
+          pane.removeAttribute("data-keyboard");
+        });
+      });
+    }
     if (inset === before) return;
 
     const was = before;
@@ -353,11 +367,14 @@ export const animateFold = (pane, apply, { reduce = reduced() } = {}) => {
 // two sizes, every part on one curve and one clock from the same
 // frame, so the pane, which is only as tall as its parts, moves with
 // them on every frame. A part that goes stays drawn as it was until it
-// has shrunk to nothing, and fades as it does; one that comes grows
-// from nothing and fades in. The body's parts ease their height; the
-// foot's two buttons ease their width, Expand or Hide coming and going
-// on a settle or a lift-off while Proceed to checkout takes or gives
-// its room, so the settled foot becomes the floating one and back.
+// has shrunk to nothing, and is faded out early on; one that comes
+// grows from nothing and fades in late (fadeFrames). The pane's own
+// padding and borders, Clear cart, and on a lift-off the pane's place
+// (paneFrames) ease on the same clock. The body's parts ease their
+// height; the foot's two buttons ease their width, Expand or Hide
+// coming and going on a settle or a lift-off while Proceed to checkout
+// takes or gives its room, so the settled foot becomes the floating
+// one and back.
 // While the parts ease the body is held at its end, should it ever be
 // taller than the room: the total row stays on the foot. Add, remove,
 // clear, Expand, Hide, the minimize on scroll, the settle and the
@@ -366,7 +383,7 @@ export const animateFold = (pane, apply, { reduce = reduced() } = {}) => {
 // the change and nothing moves.
 export const MOVE_MS = 420;
 const MOVE_EASE = "cubic-bezier(0.2, 0.8, 0.25, 1)";
-const MOVE_ID = "cart-move";
+export const MOVE_ID = "cart-move";
 const SIDEWAYS = ".order-cart-toggle, .order-cart-next";
 
 const movers = (pane) => [
@@ -426,8 +443,9 @@ const sizeOf = (el) => {
 // button) its flex basis with its growth held, since a flex item's
 // width is its basis. Coming or going, the room it takes besides its
 // size (ROOM: padding, borders, margins, a foot button's gap) eases
-// from or to nothing with it and it fades, so the pane's edge, the
-// part and everything under it move on the same curve to the end.
+// from or to nothing with it, so the pane's edge, the part and
+// everything under it move on the same curve to the end. Its fade is
+// fadeFrames', on its own timing.
 export const moveFrames = (sideways, was, now) => {
   const fade = !was.shown || !now.shown;
   const seen = was.shown ? was : now;
@@ -447,12 +465,102 @@ export const moveFrames = (sideways, was, now) => {
       f.marginRight = `${(parseFloat(seen.room?.marginRight) || 0)
         - (seen.gap || 0)}px`;
     }
-    f.opacity = gone ? 0 : 1;
 
     return f;
   };
 
   return [frame(was.size, !was.shown), frame(now.size, !now.shown)];
+};
+
+// Where on the shared curve a fade ends or begins (#559, round 3): what
+// goes is gone by FADE_OUT of the way, and what comes shows from
+// FADE_IN, so old and new contents are never on screen together (the
+// clear's lines faded over the new total row) and a part that comes is
+// most of its height before it shows (Expand's rows looked squeezed
+// under Hide). Offsets on the eased progress: the curve starts fast,
+// so FADE_OUT is about the first 85 ms and FADE_IN about the first
+// 150 ms of MOVE_MS.
+export const FADE_OUT = 0.6;
+export const FADE_IN = 0.75;
+
+// The opacity keyframes for a part that comes or goes (pure, for the
+// unit tests); null for one that stays.
+export const fadeFrames = (was, now) => {
+  if (was.shown === now.shown) return null;
+  if (now.shown) {
+    return [
+      { opacity: 0, offset: 0 },
+      { opacity: 0, offset: FADE_IN },
+      { opacity: 1, offset: 1 },
+    ];
+  }
+
+  return [
+    { opacity: 1, offset: 0 },
+    { opacity: 0, offset: FADE_OUT },
+    { opacity: 0, offset: 1 },
+  ];
+};
+
+// The pane's own room, which a settle or a lift-off changes (the
+// settled pane has no padding, and its border is thinner): eased with
+// the parts on their clock, so the foot's width and the parts' widths
+// move as one (#559, round 3: on a CSS clock of its own, the foot
+// narrowed a frame ahead of its buttons, and Proceed to checkout
+// wrapped onto a row of its own).
+const CHROME = [
+  "paddingTop", "paddingRight", "paddingBottom", "paddingLeft",
+  "borderTopWidth", "borderRightWidth", "borderBottomWidth",
+  "borderLeftWidth", "marginLeft", "marginRight",
+];
+
+const chromeOf = (pane) => {
+  const style = getComputedStyle(pane);
+
+  return Object.fromEntries(CHROME.map((name) => [name, style[name]]));
+};
+
+// The keyframes for the pane itself (pure, for the unit tests): its
+// room where it changed, and `shift`, how far below its resting place
+// the pane starts, eased away. Null when nothing changes.
+//
+// The shift is the lift-off's (#559, round 3). A floating pane rests
+// on its foot (sticky), so on the frame an open settled cart lifted
+// off, the pane, still as tall as the settled cart, jumped up over the
+// catalog by all the height it had yet to lose, and shrank back down:
+// two carts on screen for a third of a second. Started that far down
+// and eased up as it shrinks, its top stays where the settled cart's
+// was while the lines go and the total row and the foot rise into
+// view, the settle run backwards.
+export const paneFrames = (was, now, shift = 0) => {
+  const from = {};
+  const to = {};
+
+  for (const name of CHROME) {
+    if (was[name] !== undefined && was[name] !== now[name]) {
+      from[name] = was[name];
+      to[name] = now[name];
+    }
+  }
+  if (Math.abs(shift) >= 0.5) {
+    from.translate = `0 ${shift}px`;
+    to.translate = "0 0";
+  }
+
+  return Object.keys(to).length ? [from, to] : null;
+};
+
+// How far below its resting place a floating pane must start so that
+// its top stays where it was (see paneFrames), from its box before the
+// change and after it. 0 when the pane is not floating after it (the
+// settled pane keeps its top in the flow) or the shift is under half a
+// pixel.
+export const liftShift = ({ wasTop, wasHeight, nowBottom, floating }) => {
+  if (!floating) return 0;
+
+  const shift = wasTop - (nowBottom - wasHeight);
+
+  return Math.abs(shift) < 0.5 ? 0 : shift;
 };
 
 // Whether a part moves, from its two sizes: half a pixel is rounding.
@@ -463,10 +571,78 @@ export const moves = (was, now) => (was.shown || now.shown)
 export const moving = (pane) => pane.getAnimations({ subtree: true })
   .filter((a) => a.id === MOVE_ID);
 
+// Clear cart, which stands astride the pane's edge and takes no room:
+// where it stands and whether it shows.
+const CLEAR = "[data-cart-clear]";
+
+const pillOf = (el) => {
+  if (!el || !el.getClientRects().length) return { shown: false };
+
+  const style = getComputedStyle(el);
+
+  return {
+    shown: true, display: style.display, transform: style.transform,
+    right: style.right,
+  };
+};
+
+// Clear cart through a change (#559, round 3): one that goes stays
+// where it stood, over the stylesheet's display: none and its new
+// place, and fades by FADE_OUT (the clear's pill vanished in one frame
+// with everything else); one that comes fades in at its new place; one
+// that stays moves to its new place on the parts' curve. -> its
+// animations, and what to undo at the end.
+const movePill = (el, was, now, timing) => {
+  if (!el || (!was.shown && !now.shown)) return { eases: [], undo: () => {} };
+  if (was.shown && now.shown) {
+    if (was.transform === now.transform && was.right === now.right) {
+      return { eases: [], undo: () => {} };
+    }
+
+    return {
+      eases: [el.animate([
+        { transform: was.transform, right: was.right },
+        { transform: now.transform, right: now.right },
+      ], timing)],
+      undo: () => {},
+    };
+  }
+  if (!now.shown) {
+    el.style.setProperty("display", was.display, "important");
+    el.style.setProperty("transform", was.transform, "important");
+    el.style.setProperty("right", was.right, "important");
+  }
+
+  return {
+    eases: [el.animate(fadeFrames(was, now), timing)],
+    undo: () => {
+      for (const name of ["display", "transform", "right"]) {
+        el.style.removeProperty(name);
+      }
+    },
+  };
+};
+
+// Fades in words that changed with a move, Hide's or Expand's, as a
+// part that comes fades in (#559, round 3: on the clear, Hide became
+// Expand in the frame before anything eased). Nothing under reduced
+// motion.
+export const fadeInWords = (el, { reduce = reduced() } = {}) => {
+  if (reduce || typeof el.animate !== "function") return;
+  el.animate(fadeFrames({ shown: false }, { shown: true }), {
+    duration: MOVE_MS, easing: MOVE_EASE, id: MOVE_ID,
+  });
+};
+
 export const moveParts = (pane, apply, { reduce = reduced() } = {}) => {
   const parts = movers(pane);
   const was = parts.map(sizeOf);
   const heldWas = parts.map((el) => outerHeight(el.querySelector(HELD)));
+  const clear = pane.querySelector(CLEAR);
+  const pillWas = pillOf(clear);
+  const box = pane.getBoundingClientRect();
+  const chromeWas = chromeOf(pane);
+  const floatingWas = pane.dataset.placement === "floating";
 
   // A newer change takes over from where the parts are now: their
   // sizes were read mid-ease, above, before the old eases go.
@@ -476,7 +652,19 @@ export const moveParts = (pane, apply, { reduce = reduced() } = {}) => {
 
   if (reduce || typeof pane.animate !== "function") return Promise.resolve();
 
+  const floating = pane.dataset.placement === "floating";
+  // A lift-off: the floating pane's cap is lifted while it eases, so
+  // the pane is as tall as its parts on every frame and the shift that
+  // holds its top is exact (the settled cart is uncapped, and capped
+  // on the first frame its body scrolled and its height jumped).
+  const lifting = floating && !floatingWas;
+
+  if (lifting) pane.style.setProperty("max-height", "none");
+
   const now = parts.map(sizeOf);
+  const pillNow = pillOf(clear);
+  const chromeNow = chromeOf(pane);
+  const paneNow = pane.getBoundingClientRect();
   const plan = parts
     .map((el, i) => ({
       el,
@@ -486,8 +674,22 @@ export const moveParts = (pane, apply, { reduce = reduced() } = {}) => {
       heldAt: Math.max(heldWas[i], outerHeight(el.querySelector(HELD))),
     }))
     .filter((p) => p.el.isConnected && moves(p.was, p.now));
+  const shift = liftShift({
+    wasTop: box.top,
+    wasHeight: box.height,
+    nowBottom: paneNow.bottom,
+    floating,
+  });
+  const chrome = paneFrames(chromeWas, chromeNow, shift);
+  const pillMoves = pillWas.shown !== pillNow.shown
+    || (pillWas.shown && (pillWas.transform !== pillNow.transform
+      || pillWas.right !== pillNow.right));
 
-  if (!plan.length) return Promise.resolve();
+  if (!plan.length && !chrome && !pillMoves) {
+    pane.style.removeProperty("max-height");
+
+    return Promise.resolve();
+  }
 
   const body = pane.querySelector("[data-cart-body]");
   let hold = null;
@@ -514,10 +716,24 @@ export const moveParts = (pane, apply, { reduce = reduced() } = {}) => {
     }
   }
 
-  const eases = plan.map(({ el, was: w, now: n }) => el.animate(
-    moveFrames(el.matches(SIDEWAYS), w, n),
-    { duration: MOVE_MS, easing: MOVE_EASE, id: MOVE_ID }
-  ));
+  // Every ease on one clock and one curve, started in this frame: the
+  // parts' sizes, their fades, the pane's own room and shift, and Clear
+  // cart.
+  const timing = { duration: MOVE_MS, easing: MOVE_EASE, id: MOVE_ID };
+  const eases = plan.flatMap(({ el, was: w, now: n }) => {
+    const fade = fadeFrames(w, n);
+
+    return [
+      el.animate(moveFrames(el.matches(SIDEWAYS), w, n), timing),
+      ...(fade ? [el.animate(fade, timing)] : []),
+    ];
+  });
+
+  if (chrome) eases.push(pane.animate(chrome, timing));
+
+  const pill = movePill(clear, pillWas, pillNow, timing);
+
+  eases.push(...pill.eases);
 
   // How many eases have started, for the specs: an ease is over
   // before they can see it run.
@@ -535,6 +751,8 @@ export const moveParts = (pane, apply, { reduce = reduced() } = {}) => {
         held?.style.removeProperty("flex");
         held?.style.removeProperty("height");
       }
+      pill.undo();
+      pane.style.removeProperty("max-height");
       resolve();
     };
 
