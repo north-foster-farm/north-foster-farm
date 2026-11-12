@@ -25,7 +25,7 @@
 import {
   CLOSED, NONE, availability, chosenText, dayLabel, detailsOf, insteadText,
   keptNote, nextAtSame, onePlace, pickerWeeks, receiptOf, resolveChoice,
-  weekTitle, withBooked,
+  wantedGone, weekTitle, withBooked,
 } from "./lib/picker.mjs";
 import { label, today } from "./lib/zoned.mjs";
 
@@ -191,7 +191,7 @@ export class PickupPicker {
   } = {}) {
     const before = this.value();
     const gone = before && !list.some((d) => d.value === before)
-      ? this.entry(before) : null;
+      ? this.entry(before) : wantedGone(want, list);
     const pick = resolveChoice({
       list, current: before, want, series, booked, quiet,
     });

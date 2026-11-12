@@ -12,7 +12,7 @@ import {
   detailsOf, earliestCutoff, insteadText, keptNote, moveText, movedNote,
   nextAtSame, nextTitle, occurrenceDate, onePlace, orderBy, orderByTime,
   pickerWeeks, rangeText, receiptOf, resolveChoice, stillOpen, weekName,
-  weekStart, weekTitle, whenText, withBooked,
+  wantedGone, weekStart, weekTitle, whenText, withBooked,
 } from "../assets/scripts/order/lib/picker.mjs";
 import { scheduledChoices } from "../assets/scripts/order/lib/scheduled.mjs";
 
@@ -252,6 +252,19 @@ describe("the same place's next date (#574)", () => {
     assert.equal(nextAtSame(LIST, null), null);
     assert.equal(nextAtSame(LIST, { value: "X", date: "2026-11-14" }), null);
   });
+
+  it("is offered for a draft's or link's pickup the picker never held",
+    () => {
+      const fresh = LIST.filter((d) => d.value !== drop.value);
+      const gone = wantedGone("VFVQ-261114", fresh);
+
+      assert.deepEqual(gone, {
+        value: "VFVQ-261114", series: "VFVQ", date: "2026-11-14",
+      });
+      assert.equal(nextAtSame(fresh, gone), drop21);
+      assert.equal(wantedGone("VFVQ-261114", LIST), null);
+      assert.equal(wantedGone("", LIST), null);
+    });
 
   it("never offers the pickup that lapsed itself", () => {
     assert.equal(nextAtSame([drop, drop21], drop), drop21);

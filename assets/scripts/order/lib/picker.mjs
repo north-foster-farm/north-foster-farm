@@ -291,6 +291,18 @@ export const nextAtSame = (list, gone) => {
     && d.value !== gone.value && d.date >= gone.date) || null;
 };
 
+// A draft's or a link's pickup the list no longer has, as much of an
+// entry as its id gives (its series and date), so the closed note can
+// offer the same place's next date; null when the list has it.
+export const wantedGone = (want, list) => {
+  if (!want || (list || []).some((d) => d.value === want)) return null;
+
+  return {
+    value: want, series: String(want).split("-")[0],
+    date: occurrenceDate(want),
+  };
+};
+
 // The button in the closed note: "Choose Tuesday, November 24 instead".
 export const insteadText = (entry) => `Choose ${
   entry.label || label(entry.date)} instead`;
