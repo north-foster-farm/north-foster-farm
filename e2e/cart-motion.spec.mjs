@@ -23,7 +23,7 @@
 // Runs in the iphone project only.
 
 import {
-  OrderPage, SKU, expect, paneStill, test, unfoldCart,
+  OrderPage, SKU, expect, foldCart, paneStill, test, unfoldCart,
 } from "./support/order.mjs";
 
 test.skip(({ browserName }) => browserName !== "webkit",
@@ -322,9 +322,11 @@ const transition = (name, frames) => {
 };
 
 // The cart floating over the catalog: ?add= settles it in the page,
-// and the scroll back up, to halfway, lifts it off closed. The tests
-// scroll a few hundred pixels either way from there and come back, so
-// the cart never reaches its place or the page's top.
+// and the scroll back up, to halfway, lifts it off. It may lift off
+// open (the fill from empty opens it), so a test that needs it closed
+// folds it first. The tests scroll a few hundred pixels either way
+// from there and come back, so the cart never reaches its place or the
+// page's top.
 const floating = async (page, cart) => {
   const order = new OrderPage(page);
 
@@ -472,6 +474,12 @@ const pillTo = async (page, order, fold, first = async () => {}) => {
 test.describe("each change moves the pane and its parts together", () => {
   test("Expand and Hide", async ({ page }) => {
     const order = await floating(page, SMALL);
+
+    // Filling the cart from empty opens the pane by design, and it was
+    // open here when the trace ran (run 43163475875), so the first pill
+    // click was a Hide. A Hide first, unrecorded and only if it is open,
+    // gives the Expand a closed pane at rest to start from.
+    await foldCart(page, order.cart);
 
     await pillTo(page, order, "open", () => record(page));
     transition("Expand", await recorded(page, order));
