@@ -160,12 +160,22 @@ export class Cart {
   // Every change of the pane's size goes through here: the phone
   // sheet's parts move with the pane (view.mjs moveParts, #559), and
   // the tablet's panel and the column ease the pane's height as before.
+  //
+  // On the sheet the list's arrows and fades are set inside the change,
+  // before the parts' end sizes are read, so a list that ends with no
+  // strip under it is measured without one: nothing jumps once the ease
+  // is over (#559), and a settled list shows every line from the start.
   motion(apply) {
-    const run = this.sheet.matches ? moveParts : animateFold;
+    const sheet = this.sheet.matches;
+    const run = sheet ? moveParts : animateFold;
+    const change = sheet ? () => {
+      apply();
+      if (this.list.getClientRects().length) this.lines.sync();
+    } : apply;
 
     this.easing += 1;
 
-    return run(this.root, apply, { reduce: reduced() }).finally(() => {
+    return run(this.root, change, { reduce: reduced() }).finally(() => {
       this.easing -= 1;
     });
   }
@@ -563,6 +573,15 @@ export class Cart {
       this.renderEdit(edit);
       this.renderWays(method, ways);
       root.toggleAttribute("data-empty", count === 0);
+
+      // The nudge under the foot's buttons, with the rest of the change
+      // (#559): set after the motion had read the sizes, its line came
+      // or went in one frame while the other parts eased.
+      const nudge = qs(root, "[data-nudge]");
+
+      if (nudge.textContent !== s.nudge) nudge.textContent = s.nudge;
+      nudge.hidden = !s.nudge;
+      nudge.dataset.tone = s.nudgeTone || "";
     };
 
     // The readouts, in the pane and in the bars.
@@ -596,7 +615,8 @@ export class Cart {
 
     const moved = next.fold !== this.state.fold
       || next.empty !== this.state.empty
-      || JSON.stringify(s.groups) !== this.itemsKey;
+      || JSON.stringify(s.groups) !== this.itemsKey
+      || !s.nudge !== qs(root, "[data-nudge]").hidden;
 
     if (moved) {
       next.empty = count === 0;
@@ -624,12 +644,6 @@ export class Cart {
       this.lines.sync();
       this.renderBadges(s);
     }
-
-    const nudge = qs(root, "[data-nudge]");
-
-    if (nudge.textContent !== s.nudge) nudge.textContent = s.nudge;
-    nudge.hidden = !s.nudge;
-    nudge.dataset.tone = s.nudgeTone || "";
   }
 
   // The cart's lines: each category, with its tiers indented beneath,

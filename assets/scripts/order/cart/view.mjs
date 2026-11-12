@@ -374,6 +374,31 @@ const movers = (pane) => [
   ...(pane.querySelector("[data-part='foot']")?.children || []),
 ];
 
+// What a part that comes or goes takes up besides its size: its
+// padding, its borders and its margins, which display: none takes away
+// in one frame. A body part's are above and below it, a foot button's
+// beside it, where the foot's gap after it goes too (its right margin
+// takes the gap back). Eased with the size, so nothing is left to snap
+// when the ease ends (#559: the sums', the badges' and the shared
+// row's padding, about 40px, dropped in the last frame of a minimize).
+const ROOM = {
+  down: [
+    "paddingTop", "paddingBottom", "borderTopWidth", "borderBottomWidth",
+    "marginTop", "marginBottom",
+  ],
+  across: [
+    "paddingLeft", "paddingRight", "borderLeftWidth", "borderRightWidth",
+    "marginRight",
+  ],
+};
+
+// The scroller inside a part, which keeps one size while its part
+// eases: see moveParts.
+const HELD = "[data-cart-scroll]";
+
+const outerHeight = (el) => (el && el.getClientRects().length
+  ? el.getBoundingClientRect().height : 0);
+
 const sizeOf = (el) => {
   const rects = el.getClientRects();
 
@@ -381,23 +406,32 @@ const sizeOf = (el) => {
 
   const r = el.getBoundingClientRect();
   const style = getComputedStyle(el);
+  const sideways = el.matches(SIDEWAYS);
+  const room = Object.fromEntries(
+    ROOM[sideways ? "across" : "down"].map((name) => [name, style[name]])
+  );
 
   return {
     shown: true,
-    size: el.matches(SIDEWAYS) ? r.width : r.height,
+    size: sideways ? r.width : r.height,
     display: style.display,
-    padStart: style.paddingLeft,
-    padEnd: style.paddingRight,
+    room,
+    gap: sideways && el.nextElementSibling?.getClientRects().length
+      ? parseFloat(getComputedStyle(el.parentElement).columnGap) || 0 : 0,
   };
 };
 
 // The keyframes for one part, from its two sizes (pure, for the unit
-// tests). A sideways part (a foot button) eases its flex basis with
-// its growth held, since a flex item's width is its basis; coming or
-// going, its padding and floor go to nothing with it.
+// tests). A body part eases its height; a sideways part (a foot
+// button) its flex basis with its growth held, since a flex item's
+// width is its basis. Coming or going, the room it takes besides its
+// size (ROOM: padding, borders, margins, a foot button's gap) eases
+// from or to nothing with it and it fades, so the pane's edge, the
+// part and everything under it move on the same curve to the end.
 export const moveFrames = (sideways, was, now) => {
   const fade = !was.shown || !now.shown;
-  const frame = (size, look, gone) => {
+  const seen = was.shown ? was : now;
+  const frame = (size, gone) => {
     const f = sideways
       ? {
         flexGrow: 0, flexShrink: 0, flexBasis: `${size}px`, minWidth: "0px",
@@ -405,22 +439,20 @@ export const moveFrames = (sideways, was, now) => {
       }
       : { height: `${size}px`, minHeight: "0px", maxHeight: "none" };
 
-    if (sideways && gone) {
-      f.paddingLeft = "0px";
-      f.paddingRight = "0px";
-    } else if (sideways && fade) {
-      f.paddingLeft = look.padStart;
-      f.paddingRight = look.padEnd;
+    if (!fade) return f;
+    for (const [name, value] of Object.entries(seen.room || {})) {
+      f[name] = gone ? "0px" : value;
     }
-    if (fade) f.opacity = gone ? 0 : 1;
+    if (sideways && gone) {
+      f.marginRight = `${(parseFloat(seen.room?.marginRight) || 0)
+        - (seen.gap || 0)}px`;
+    }
+    f.opacity = gone ? 0 : 1;
 
     return f;
   };
 
-  return [
-    frame(was.size, was, !was.shown),
-    frame(now.size, now, !now.shown),
-  ];
+  return [frame(was.size, !was.shown), frame(now.size, !now.shown)];
 };
 
 // Whether a part moves, from its two sizes: half a pixel is rounding.
@@ -434,6 +466,7 @@ export const moving = (pane) => pane.getAnimations({ subtree: true })
 export const moveParts = (pane, apply, { reduce = reduced() } = {}) => {
   const parts = movers(pane);
   const was = parts.map(sizeOf);
+  const heldWas = parts.map((el) => outerHeight(el.querySelector(HELD)));
 
   // A newer change takes over from where the parts are now: their
   // sizes were read mid-ease, above, before the old eases go.
@@ -445,7 +478,13 @@ export const moveParts = (pane, apply, { reduce = reduced() } = {}) => {
 
   const now = parts.map(sizeOf);
   const plan = parts
-    .map((el, i) => ({ el, was: was[i], now: now[i] }))
+    .map((el, i) => ({
+      el,
+      was: was[i],
+      now: now[i],
+      held: el.querySelector(HELD),
+      heldAt: Math.max(heldWas[i], outerHeight(el.querySelector(HELD))),
+    }))
     .filter((p) => p.el.isConnected && moves(p.was, p.now));
 
   if (!plan.length) return Promise.resolve();
@@ -461,10 +500,18 @@ export const moveParts = (pane, apply, { reduce = reduced() } = {}) => {
 
   // A part that goes is drawn as it was, over the stylesheet's
   // display: none, until its ease is over; every part clips what is
-  // past its easing edge.
-  for (const { el, was: w, now: n } of plan) {
+  // past its easing edge. The items list inside the lines keeps the
+  // larger of its two sizes while they ease, so the edge uncovers or
+  // covers it and never squeezes it: its height, its scroll and its
+  // fades are the ones it ends with (or had, going) on every frame, and
+  // a settled list shows every line from the first frame.
+  for (const { el, was: w, now: n, held, heldAt } of plan) {
     if (!n.shown) el.style.setProperty("display", w.display, "important");
     el.style.setProperty("overflow", "clip");
+    if (held && heldAt > 0) {
+      held.style.setProperty("flex", "none");
+      held.style.setProperty("height", `${heldAt}px`);
+    }
   }
 
   const eases = plan.map(({ el, was: w, now: n }) => el.animate(
@@ -482,9 +529,11 @@ export const moveParts = (pane, apply, { reduce = reduced() } = {}) => {
       if (pane.moveDone !== done) return;
       pane.moveDone = null;
       cancelAnimationFrame(hold);
-      for (const { el } of plan) {
+      for (const { el, held } of plan) {
         el.style.removeProperty("display");
         el.style.removeProperty("overflow");
+        held?.style.removeProperty("flex");
+        held?.style.removeProperty("height");
       }
       resolve();
     };

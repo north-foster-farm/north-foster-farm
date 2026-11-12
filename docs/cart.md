@@ -435,11 +435,19 @@ to CSS. Its surface, which the Cart class imports:
   goes or changes size eases its own height, and the foot's two
   buttons their width, on one curve and one clock from the same frame
   (420ms, `--order-ease`, the chrome's own), so the pane, as tall as
-  its parts, moves with them every frame. A part that goes stays drawn
-  until it has shrunk and faded; an emptied cart keeps its lines drawn
-  for it. The body is held at its end while it overflows, so the total
-  row stays on the foot. Add, remove, clear, Expand, Hide, the minimize
-  on scroll, the settle and the lift-off all go through it. It replaced
+  its parts, moves with them every frame. A part that comes or goes
+  takes its padding, borders and margins (and a foot button the foot's
+  gap) with its size, so nothing snaps in the last frame. A part that
+  goes stays drawn until it has shrunk and faded; an emptied cart keeps
+  its lines drawn for it. The items list keeps the larger of its two
+  sizes while the lines ease, so the edge uncovers or covers it and
+  never squeezes it, and its arrows and fades are set inside the change
+  (`Cart.motion`). Everything that changes a part's size is set inside
+  `apply`, the nudge among them (2026-11-12, #559: it was set after the
+  sizes were read, and its line snapped). The body is held at its end
+  while it overflows, so the total row stays on the foot. Add, remove,
+  clear, Expand, Hide, the minimize on scroll, the settle and the
+  lift-off all go through it. It replaced
   `animateFold` there, which held the pane at a height its contents
   did not fill: the empty box on a clear, the clipped rows on an add
   and Expand, and the sink on the lift-off, where the target height

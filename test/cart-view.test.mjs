@@ -48,9 +48,24 @@ describe("moves", () => {
 });
 
 describe("moveFrames", () => {
-  const shown = (size) => ({
-    shown: true, size, padStart: "14px", padEnd: "14px",
+  const part = (size) => ({
+    shown: true,
+    size,
+    room: {
+      paddingTop: "8px", paddingBottom: "8px", borderTopWidth: "1px",
+      borderBottomWidth: "0px", marginTop: "4px", marginBottom: "0px",
+    },
   });
+  const button = (size) => ({
+    shown: true,
+    size,
+    gap: 12,
+    room: {
+      paddingLeft: "14px", paddingRight: "14px", borderLeftWidth: "1px",
+      borderRightWidth: "1px", marginRight: "0px",
+    },
+  });
+  const shown = part;
   const gone = { shown: false, size: 0 };
 
   it("eases a body part's height, with no floor or cap in the way", () => {
@@ -68,8 +83,29 @@ describe("moveFrames", () => {
     assert.equal(to.height, "0px");
   });
 
+  // #559: the padding of the parts that went dropped in the last frame
+  // of a minimize, about 40px at once.
+  it("takes a part's padding, borders and margins with it", () => {
+    const [from, to] = moveFrames(false, part(60), gone);
+
+    assert.equal(from.paddingTop, "8px");
+    assert.equal(from.borderTopWidth, "1px");
+    assert.equal(from.marginTop, "4px");
+    for (const name of Object.keys(part(0).room)) {
+      assert.equal(to[name], "0px", name);
+    }
+  });
+
+  it("brings them in with a part that comes", () => {
+    const [from, to] = moveFrames(false, gone, part(60));
+
+    assert.equal(from.paddingBottom, "0px");
+    assert.equal(to.paddingBottom, "8px");
+    assert.equal(to.marginTop, "4px");
+  });
+
   it("grows a foot button in from no width and no padding", () => {
-    const [from, to] = moveFrames(true, gone, shown(100));
+    const [from, to] = moveFrames(true, gone, button(100));
 
     assert.equal(from.flexBasis, "0px");
     assert.equal(from.paddingLeft, "0px");
@@ -77,6 +113,14 @@ describe("moveFrames", () => {
     assert.equal(to.flexBasis, "100px");
     assert.equal(to.paddingRight, "14px");
     assert.equal(to.flexGrow, 0);
+  });
+
+  it("takes the foot's gap beside a button that goes", () => {
+    const [from, to] = moveFrames(true, button(100), gone);
+
+    assert.equal(from.marginRight, "0px");
+    assert.equal(to.marginRight, "-12px");
+    assert.equal(to.borderLeftWidth, "0px");
   });
 
   it("moves Proceed to checkout's width alone when it stays", () => {
