@@ -118,8 +118,9 @@ Without `specs`, the run is the full suite twice plus the burn-in,
 about 18 jobs.
 
 A spec that needs to show a picture on an issue saves it under
-`test-results/` (`page.screenshot({ path: ... })` with a path there).
-A passing named-specs run uploads every `test-results/**/*.png` as the
+`test-results/` (`page.screenshot({ path: ... })` with a path there). A
+passing named-specs run uploads every `test-results/**/*.png` except the
+built site's own images in `test-results/e2e-site/` as the
 `e2e-pictures-<shard>` artifact, kept 3 days, and nothing else from a
 passing run (a failing run keeps the whole report as before; full runs
 upload no pictures). The lane names the spec in its report; the
