@@ -33,10 +33,14 @@ const setFold = async (cart, fold) => {
   await paneStill(cart);
 };
 
-// Waits for the pane's height ease to end, so a measurement after a
-// fold, a render or a settle sees the pane at rest.
+// Waits for the pane's height ease to end, and on a phone for its
+// parts' own eases (cart/view.mjs moveParts, #559), so a measurement
+// after a fold, a render or a settle sees the pane at rest.
 export const paneStill = (cart) => expect.poll(
-  () => cart.evaluate((el) => el.getAnimations().length), { timeout: 5_000 }
+  () => cart.evaluate((el) => el.getAnimations().length
+    + el.getAnimations({ subtree: true })
+      .filter((a) => a.id === "cart-move").length),
+  { timeout: 5_000 }
 ).toBe(0);
 
 // The focused code field's ring (#532): the field draws none of its

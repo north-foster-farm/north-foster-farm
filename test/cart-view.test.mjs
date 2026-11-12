@@ -2,8 +2,92 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
-  moreShown, restOf, toPx,
+  OWN_MS, moreShown, moveFrames, moves, ownScroll, restOf, toPx,
 } from "../assets/scripts/order/cart/view.mjs";
+
+// Whose scroll it is (#559): a finger down, or one within OWN_MS of
+// the person's last input or of the last scroll that was theirs.
+describe("ownScroll", () => {
+  const at = { input: -Infinity, last: -Infinity, touching: false };
+
+  it("counts a scroll under a finger", () => {
+    assert.equal(ownScroll({ ...at, now: 5000, touching: true }), true);
+  });
+
+  it("counts one just after a wheel or a key", () => {
+    assert.equal(ownScroll({ ...at, now: 1100, input: 1000 }), true);
+    assert.equal(ownScroll({ ...at, now: 1000 + OWN_MS, input: 1000 }), false);
+  });
+
+  it("counts the momentum that follows, frame after frame", () => {
+    assert.equal(ownScroll({ ...at, now: 3000, input: 0, last: 2984 }), true);
+  });
+
+  it("does not count a scroll the page makes on its own", () => {
+    assert.equal(ownScroll({ ...at, now: 9000, input: 0, last: 100 }), false);
+  });
+});
+
+// The sheet's parts ease between their two sizes (#559).
+describe("moves", () => {
+  it("moves a part that changes size, comes or goes", () => {
+    const shown = (size) => ({ shown: true, size });
+    const gone = { shown: false, size: 0 };
+
+    assert.equal(moves(shown(40), shown(80)), true);
+    assert.equal(moves(gone, shown(80)), true);
+    assert.equal(moves(shown(80), gone), true);
+  });
+
+  it("leaves a part that keeps its size, or half a pixel of rounding", () => {
+    assert.equal(moves({ shown: true, size: 40 }, { shown: true, size: 40.3 }),
+      false);
+    assert.equal(moves({ shown: false, size: 0 }, { shown: false, size: 0 }),
+      false);
+  });
+});
+
+describe("moveFrames", () => {
+  const shown = (size) => ({
+    shown: true, size, padStart: "14px", padEnd: "14px",
+  });
+  const gone = { shown: false, size: 0 };
+
+  it("eases a body part's height, with no floor or cap in the way", () => {
+    assert.deepEqual(moveFrames(false, shown(40), shown(90)), [
+      { height: "40px", minHeight: "0px", maxHeight: "none" },
+      { height: "90px", minHeight: "0px", maxHeight: "none" },
+    ]);
+  });
+
+  it("fades a part that goes as it shrinks to nothing", () => {
+    const [from, to] = moveFrames(false, shown(60), gone);
+
+    assert.equal(from.opacity, 1);
+    assert.equal(to.opacity, 0);
+    assert.equal(to.height, "0px");
+  });
+
+  it("grows a foot button in from no width and no padding", () => {
+    const [from, to] = moveFrames(true, gone, shown(100));
+
+    assert.equal(from.flexBasis, "0px");
+    assert.equal(from.paddingLeft, "0px");
+    assert.equal(from.opacity, 0);
+    assert.equal(to.flexBasis, "100px");
+    assert.equal(to.paddingRight, "14px");
+    assert.equal(to.flexGrow, 0);
+  });
+
+  it("moves Proceed to checkout's width alone when it stays", () => {
+    const [from, to] = moveFrames(true, shown(150), shown(260));
+
+    assert.equal(from.flexBasis, "150px");
+    assert.equal(to.flexBasis, "260px");
+    assert.equal("opacity" in to, false);
+    assert.equal("paddingLeft" in to, false);
+  });
+});
 
 // The arrows show wherever any of the list lies past an edge, a line
 // half under the fade included, and never carry a count (#560).

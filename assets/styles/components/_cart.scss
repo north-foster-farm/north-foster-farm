@@ -60,7 +60,8 @@ $cart-nudge-line: $cart-nudge-gap + $cart-nudge-size * $cart-line-height;
   --cart-chrome: 20.5rem;
 
   // The closed sheet: its padding, the total row, the foot and one
-  // nudge line (182px measured at 390px), set a little under that.
+  // nudge line (182px measured at 390px, about 8px more since the
+  // closed total row kept its padding, #559), set a little under that.
   // cart/view.mjs reads it for the lift-off threshold until it has
   // measured the closed pane itself, and it must never exceed the
   // real closed height, or the settle and lift-off thresholds overlap.
@@ -1010,6 +1011,15 @@ $cart-nudge-line: $cart-nudge-gap + $cart-nudge-size * $cart-line-height;
     }
   }
 
+  // On the sheet its rule goes, but not its room: a row that changed
+  // height as the cart emptied moved under the ease (#559).
+  @media #{$cart-sheet} {
+    .order-cart[data-empty] .order-cart-total-row {
+      border-top: 1px solid transparent;
+      padding-top: 0.5rem;
+    }
+  }
+
   // Floating: the pane sticks to the foot of the screen while its slot
   // is below, on the page's gutters, over the page. It rests a margin
   // above the browser's toolbar and never behind it (James, #267),
@@ -1029,8 +1039,11 @@ $cart-nudge-line: $cart-nudge-gap + $cart-nudge-size * $cart-line-height;
 
   // Closed, a phone's sheet keeps the total row and the foot: the body
   // loses every other part, and the total row is the body's first
-  // thing, so it needs no rule above it. The panel (below) closes
-  // differently, so this is the sheet's alone.
+  // thing, so it needs no rule above it. The rule is hidden, not taken
+  // away, so the row keeps its height open and closed and moves as one
+  // piece with the pane (#559: it dropped below the buttons on the
+  // lift-off). The panel (below) closes differently, so this is the
+  // sheet's alone.
   @media #{$cart-sheet} {
     .order-cart[data-placement="floating"][data-fold="closed"] {
       .order-cart-body > :not(.order-cart-total-row) {
@@ -1038,8 +1051,7 @@ $cart-nudge-line: $cart-nudge-gap + $cart-nudge-size * $cart-line-height;
       }
 
       .order-cart-total-row {
-        border-top: 0;
-        padding-top: 0;
+        border-top-color: transparent;
       }
     }
   }

@@ -400,8 +400,11 @@ the clock and the pane's own motion. It writes no height, floor or cap
 to CSS. Its surface, which the Cart class imports:
 
 - `watchKeyboard(pane, { onInset })` -> dispose. One `visualViewport`
-  resize listener writes `--cart-vis`, `--cart-gap` and `--cart-kb` on
-  the pane as raw pixels and calls `onInset(inset, before)` when the
+  resize listener writes `--cart-gap` and `--cart-kb` on the pane as
+  raw pixels, and `--cart-vis` only while the keyboard is up (#559,
+  2026-11-12: it had followed Safari's toolbar, so the list's cap, its
+  scroll and its fades moved on a 10px page scroll; the caps read
+  `100svh` otherwise), and calls `onInset(inset, before)` when the
   keyboard's inset changes. The one scroll it makes: when the inset
   grows while the code field has focus, the field is brought into its
   scroller's view once (`scrollIntoView({ block: "nearest" })`), since
@@ -424,7 +427,30 @@ to CSS. Its surface, which the Cart class imports:
   height, runs `apply()` (the class's attribute writes), reads it
   again and eases between the two with the Web Animations API; a
   floating sheet rests on its foot, so it grows upward. Nothing under
-  reduced motion or when nothing moved.
+  reduced motion or when nothing moved. The tablet's panel and the
+  column only, since #559 (2026-11-12).
+- `moveParts(pane, apply, { reduce })` -> Promise. The phone sheet's
+  one rule for motion (#559): contents and container move together.
+  The pane is never given a height. Each part of the body that comes,
+  goes or changes size eases its own height, and the foot's two
+  buttons their width, on one curve and one clock from the same frame
+  (420ms, `--order-ease`, the chrome's own), so the pane, as tall as
+  its parts, moves with them every frame. A part that goes stays drawn
+  until it has shrunk and faded; an emptied cart keeps its lines drawn
+  for it. The body is held at its end while it overflows, so the total
+  row stays on the foot. Add, remove, clear, Expand, Hide, the minimize
+  on scroll, the settle and the lift-off all go through it. It replaced
+  `animateFold` there, which held the pane at a height its contents
+  did not fill: the empty box on a clear, the clipped rows on an add
+  and Expand, and the sink on the lift-off, where the target height
+  was read before the floating padding had grown.
+- `watchScroll(pane, { look, onMove })` -> dispose. Calls `look({ y,
+  counts })` once a frame while the page scrolls, `counts` true for
+  the person's own scroll: one within `OWN_MS` (150ms) of a finger, a
+  wheel or a scrolling key outside the pane, or of the last such
+  scroll (the momentum). `onMove` runs at once on any sign of a
+  scroll, the page's or a scroller's, and shuts a badge's tooltip
+  (#569).
 - `shutShare(part, apply, { reduce })` -> Promise. Adds `is-shutting`
   to the code field, whose animation is its opening reversed (the
   `order-share-out` keyframes on `--order-ease-back`), and runs
@@ -514,6 +540,31 @@ The rules live here and nowhere else:
 - Placement never changes while the keyboard is up.
 - What `closed` hides is the stylesheet's, by width (4.4). The script
   has one fold, not three.
+
+**The phone sheet on a page scroll** (#559, James agreed the proposal
+and its defaults, 2026-11-12). The state has two more fields,
+`shutByScroll` and `kept`, and `scrolled()` decides:
+
+1. The open floating sheet minimizes once the person has scrolled the
+   page `MINIMIZE_AT` (48px) either way from where it finished
+   opening. Phones only: the tablet's panel is unchanged.
+2. Only the person's own scroll counts (`watchScroll`): not a scroll
+   inside the cart, the toolbar or the keyboard, a scroll the page
+   makes, or one during an ease of the pane.
+3. Never while the pane is in use: the keyboard up, the focus on a
+   field in it or on a control the keys moved to, the shared row
+   open, Clear cart asking, a finger on the pane.
+4. Expand after a scroll minimized it keeps it open while the page
+   scrolls (`expand()`, `kept`). Nothing shows the mode.
+5. Only Expand, the first Add's lesson and a fill from empty open it;
+   the automatic two never set `kept`.
+6. `forget()` resets it: Hide or Escape (`hide()`), the cart emptying,
+   a settle or a lift-off, the pane changing form. An Add keeps it. A
+   reload starts over; nothing is stored.
+7. The settled cart is not floating, so none of this applies to it.
+
+A fold or a change of placement shuts an open badge tooltip, and so
+does any scroll, Escape or a tap elsewhere (#569).
 
 The DOM reflects the state: `data-placement`, `data-fold`,
 `data-empty`, `data-share`, `aria-expanded` on the pill and the two
@@ -643,7 +694,8 @@ The pane is positioned against the layout viewport, which iOS does not
 shrink for the keyboard. One `visualViewport` resize listener writes
 three raw facts on the pane: `--cart-kb` (the keyboard's height when
 120px or more is covered, `keyboardInset`), `--cart-vis` (the visible
-height) and `--cart-gap` (the toolbar's share, `visibleArea`). The
+height, while the keyboard is up only, #559) and `--cart-gap` (the
+toolbar's share, `visibleArea`). The
 stylesheet derives the floating pane's `bottom` and `max-height` from
 them and nothing else; the script never reads them back for a layout
 decision. With the keyboard up the pane's cap shrinks to the visible
@@ -679,7 +731,8 @@ cart (4.4), not the two thirds; it has not been run in the prototype.
   field animated (#532).
 - The first Add: open on the line, dwell, close, pulse (`cart-touch`
   judges a touch when it ends); later Adds: one pulse and the "Added:"
-  strip when closed; the live region every time.
+  strip when closed, and no pulse on an open pane, where it read as a
+  focus ring on Hide (#559); the live region every time.
 - Badges with tooltips; chicks from the badge that lights.
 - The ring from the rail's Cart link; the top bar's and total bar's
   count and total once the settled cart is passed, and their tap back.

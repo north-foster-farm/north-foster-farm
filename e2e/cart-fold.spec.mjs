@@ -55,7 +55,8 @@ test.describe("the pill", () => {
     await expect(pill).toHaveText(/Expand/);
     await expect(pill).toBeFocused();
     // The total row and Proceed stay; the lines, the sums, the badges
-    // and the shared row go.
+    // and the shared row go, once they have eased out (#559).
+    await paneStill(order.cart);
     await expect(order.count).toBeVisible();
     await expect(order.total).toBeVisible();
     await expect(order.next).toBeVisible();

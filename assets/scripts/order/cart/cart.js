@@ -21,8 +21,9 @@ import { codeNote } from "./code-note.mjs";
 import { twoStep } from "./confirm.mjs";
 import * as state from "./state.mjs";
 import {
-  animateFold, clearFocusUnder, pulsePill, revealLine, ringCart,
-  showAdded, shutShare, teach, watchKeyboard, watchList, watchPlacement,
+  SHEET, animateFold, clearFocusUnder, moveParts, moving, pulsePill,
+  revealLine, ringCart, showAdded, shutShare, teach, toPx, watchKeyboard,
+  watchList, watchPlacement, watchScroll,
 } from "./view.mjs";
 
 // The code that is a joke: the cart shows a discount growing by this
@@ -66,11 +67,28 @@ const CLEAR_ASK = "Clear cart?";
 const CLEAR_HINT = "Press again to remove every item from your cart.";
 const CLEAR_DONE = "Your cart is empty.";
 
-// Resolves once nothing animates the pane: an ease that another ease
-// cancelled resolves early, while the newer one still runs.
+// Resolves once nothing animates the pane or moves its parts: an ease
+// that another ease cancelled resolves early, while the newer one
+// still runs.
 const stilled = (pane) => Promise.all(
-  pane.getAnimations().map((a) => a.finished.catch(() => {}))
+  [...pane.getAnimations(), ...moving(pane)]
+    .map((a) => a.finished.catch(() => {}))
 );
+
+// A badge's tooltip, shut at once, with no fade (#569): one that faded
+// while the page moved was drawn away from its badge. Bootstrap has no
+// option for one hide alone, so its animation flag is set aside for
+// this one.
+const shutTip = (tip) => {
+  if (!tip.tip) return;
+
+  const animated = tip._config.animation;
+
+  tip._config.animation = false;
+  tip.tip.classList.remove("fade");
+  tip.hide();
+  tip._config.animation = animated;
+};
 
 export class Cart {
   // `root` is #order-cart; its parent is the slot and the heading sits
@@ -95,6 +113,14 @@ export class Cart {
     this.joke = null;
     this.teaching = null;
     this.passed = null;
+    // The phone sheet's scroll rule (#559): where the page's travel is
+    // counted from, how many eases of the pane run, and whether a
+    // finger is down on the pane.
+    this.scrollFrom = null;
+    this.easing = 0;
+    this.fingerDown = false;
+    this.sheet = matchMedia(SHEET);
+    this.tips = [];
 
     this.list = qs(root, "[data-cart-items]");
     this.pill = qs(root, "[data-cart-toggle]");
@@ -103,9 +129,15 @@ export class Cart {
     this.wire(bar);
   }
 
-  // Writes the state to the DOM: the four attributes on the aside, the
-  // pill's aria-expanded and the shared row's.
+  // Writes the state to the DOM: the attributes on the aside, the
+  // pill's aria-expanded and the shared row's. A fold or a change of
+  // placement shuts an open badge tooltip first (#569).
   apply(next) {
+    const was = this.state;
+
+    if (next.fold !== was.fold || next.placement !== was.placement) {
+      this.shutTips();
+    }
     this.state = next;
 
     for (const [name, value] of Object.entries(state.attributes(next))) {
@@ -125,15 +157,65 @@ export class Cart {
     );
   }
 
-  // A fold change: applied inside the view's animation, which measures
+  // Every change of the pane's size goes through here: the phone
+  // sheet's parts move with the pane (view.mjs moveParts, #559), and
+  // the tablet's panel and the column ease the pane's height as before.
+  motion(apply) {
+    const run = this.sheet.matches ? moveParts : animateFold;
+
+    this.easing += 1;
+
+    return run(this.root, apply, { reduce: reduced() }).finally(() => {
+      this.easing -= 1;
+    });
+  }
+
+  // A fold change: applied inside the view's motion, which measures
   // the pane before and after, then the placement tick learns the new
-  // height.
+  // height. An open sheet counts the page's travel from where it ended.
   fold(next) {
     if (next === this.state) return Promise.resolve();
 
-    return animateFold(this.root, () => this.apply(next), {
-      reduce: reduced(),
-    }).then(() => this.placement.refresh());
+    return this.motion(() => this.apply(next)).then(() => {
+      this.placement.refresh();
+      if (!this.easing) this.lines.sync();
+      this.scrollFrom = this.easing ? null : window.scrollY;
+    });
+  }
+
+  // The pane is in use, so a page scroll never minimizes it (#559): the
+  // keyboard is up, the focus is on a field in it or on a control the
+  // keys moved to, the shared row is open, Clear cart is asking, or a
+  // finger is down on it.
+  busy() {
+    const at = document.activeElement;
+    const focused = at && at !== this.root && this.root.contains(at)
+      && (at.matches("input, select, textarea")
+        || at.matches(":focus-visible"));
+
+    return toPx(this.root.style.getPropertyValue("--cart-kb")) > 0
+      || Boolean(focused) || Boolean(this.state.share)
+      || this.clearing.armed || this.fingerDown;
+  }
+
+  // A page scroll's look, from the view (#559): state.mjs scrolled
+  // decides; a scroll during an ease of the pane does not count.
+  scrolled({ y, counts }) {
+    const { state: next, from } = state.scrolled(this.state, {
+      y,
+      from: this.scrollFrom,
+      sheet: this.sheet.matches,
+      counts: counts && this.easing === 0,
+      busy: this.busy(),
+    });
+
+    this.scrollFrom = from;
+    if (next !== this.state) this.fold(next);
+  }
+
+  // Shuts every open badge tooltip at once (#569).
+  shutTips() {
+    for (const tip of this.tips) shutTip(tip);
   }
 
   open() {
@@ -191,8 +273,29 @@ export class Cart {
     this.lines = watchList(this.list, this.list.parentElement, {
       more: qs(root, "[data-cart-more]"),
       moreTop: qs(root, "[data-cart-more-top]"),
+      paused: () => this.easing > 0 && this.sheet.matches,
     });
     this.focusClear = clearFocusUnder(root, bar);
+
+    // The open sheet minimizes when the person scrolls the page (#559),
+    // and any scroll shuts a badge's tooltip before it moves (#569).
+    this.scrolls = watchScroll(root, {
+      look: (seen) => this.scrolled(seen),
+      onMove: () => this.shutTips(),
+    });
+    // The pane changes form: the stay-open choice goes with the old
+    // one.
+    this.sheet.addEventListener("change", () => {
+      this.apply(state.forget(this.state));
+    });
+    root.addEventListener("pointerdown", (e) => {
+      if (e.pointerType === "touch") this.fingerDown = true;
+    }, { passive: true });
+    for (const type of ["pointerup", "pointercancel"]) {
+      document.addEventListener(type, (e) => {
+        if (e.pointerType === "touch") this.fingerDown = false;
+      }, { passive: true });
+    }
 
     // The pill folds a floating cart; Escape folds it too and leaves
     // the focus on the pill (#159). Escape in the shared row folds the
@@ -200,6 +303,14 @@ export class Cart {
     this.pill.addEventListener("click", () => this.toggle());
     root.addEventListener("keydown", (e) => {
       if (e.key !== "Escape") return;
+
+      // An open badge tooltip goes first (#569).
+      if (this.tips.some((tip) => tip.tip)) {
+        e.preventDefault();
+        this.shutTips();
+
+        return;
+      }
 
       if (this.clearing.armed) {
         e.preventDefault();
@@ -381,13 +492,15 @@ export class Cart {
     });
   }
 
-  // A tap on a badge explains it; the next tap, or a tap elsewhere,
-  // closes it.
+  // A tap on a badge explains it; the next tap, a tap elsewhere or
+  // Escape closes it, and so does any scroll, the pane folding or the
+  // pane settling (#569, wire and apply).
   wireBadges() {
     const tips = all(this.root, "[data-tip]").map((badge) => new Tooltip(
       badge, { title: badge.dataset.tip, trigger: "click", placement: "top" }
     ));
 
+    this.tips = tips;
     this.root.addEventListener("show.bs.tooltip", (e) => {
       for (const tip of tips) {
         if (tip._element !== e.target) tip.hide();
@@ -396,6 +509,13 @@ export class Cart {
     document.addEventListener("click", (e) => {
       if (!e.target.closest("[data-tip]")) {
         for (const tip of tips) tip.hide();
+      }
+    });
+    // Escape with the focus outside the pane (the pane's own keydown
+    // takes it inside).
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && !this.root.contains(e.target)) {
+        this.shutTips();
       }
     });
   }
@@ -487,11 +607,12 @@ export class Cart {
       // the latest render's end counts.
       const seq = this.renders = (this.renders || 0) + 1;
 
-      animateFold(root, () => {
+      this.motion(() => {
         this.apply(next);
         draw();
-      }, { reduce: reduced() }).then(() => stilled(root)).then(() => {
+      }).then(() => stilled(root)).then(() => {
         if (seq !== this.renders) return;
+        this.dropRows();
         this.placement.refresh();
         this.lines.sync();
         this.renderBadges(s);
@@ -517,11 +638,16 @@ export class Cart {
   // follows a field's change event would otherwise replace the ×
   // under the pointer between press and release, and the click would
   // be lost (#155).
+  //
+  // A cart that empties keeps its old lines drawn while they ease out
+  // with the pane (#559: the clear left an empty box), and drops them
+  // once the ease is over (dropRows).
   renderItems(s) {
     const key = JSON.stringify(s.groups);
 
     if (key === this.itemsKey) return;
     this.itemsKey = key;
+    if (!s.groups.length) return;
 
     const groupTpl = qs(this.root, "template[data-cart-group]");
     const lineTpl = qs(this.root, "template[data-cart-line]");
@@ -548,6 +674,12 @@ export class Cart {
       }
       this.list.appendChild(g);
     }
+  }
+
+  // The lines an emptied cart kept for its ease (renderItems), gone.
+  dropRows() {
+    if (this.itemsKey !== "[]") return;
+    for (const row of all(this.list, ":scope > *")) row.remove();
   }
 
   renderSums(s) {
@@ -664,10 +796,10 @@ export class Cart {
   // The feedback for an Add (#267). The first of a browser session
   // opens the floating pane on the lines, scrolled to the new line,
   // shuts it after TEACH_DWELL and pulses the pill in three pairs
-  // (#278). Every later Add leaves the pane as it is: the strip says
-  // what was added while it is shut, the count ticks, the pill pulses
-  // once. Whatever the pane is doing, a screen reader hears it, and the
-  // focus stays where it is.
+  // (#278). Every later Add leaves the pane as it is: the count ticks,
+  // and while the pane is shut the strip says what was added and the
+  // pill pulses once. Whatever the pane is doing, a screen reader hears
+  // it, and the focus stays where it is.
   added(sku, name) {
     const root = this.root;
     const live = qs(root, "[data-cart-live]");
@@ -696,8 +828,11 @@ export class Cart {
       return;
     }
 
-    pulsePill(this.pill, "once");
+    // The pill pulses only to say where a closed cart went (#559): on
+    // an open pane its ring read as a focus ring on Hide that nobody
+    // had moved there.
     if (floating && this.state.fold === "closed") {
+      pulsePill(this.pill, "once");
       showAdded(qs(root, "[data-cart-added-box]"), `Added: ${name}`);
     }
   }

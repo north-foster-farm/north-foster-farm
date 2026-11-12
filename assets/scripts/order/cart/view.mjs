@@ -17,6 +17,11 @@ import { strayed, touchKind } from "../lib/cart-touch.mjs";
 // $cart-short and the xl breakpoint are the same queries.
 export const COLUMN = "(min-width: 1200px)";
 export const SHORT = "(max-height: 500px)";
+// The one-column sheet: the stylesheet's $cart-sheet. The rules for a
+// scroll (#559) and the motion of its parts are the sheet's alone; the
+// tablet's panel keeps its own.
+export const SHEET = "(max-width: 575.98px), "
+  + "(max-width: 1199.98px) and (max-height: 500px)";
 
 const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -58,10 +63,16 @@ const setProp = (el, name, px) => {
 // a gap under a toolbar's worth is the toolbar, which the pane must
 // rest above (James, #267), and one over it is the keyboard, which
 // the pane rides up by. Writes the three raw facts to the pane and
-// tells the caller when the keyboard's inset changes. The one scroll
-// it ever makes: when the keyboard rises with the code field focused,
-// the field is brought into its scroller's view once, since Chromium
-// does not do that for a scroller that shrinks after the focus.
+// tells the caller when the keyboard's inset changes. The visible
+// height (--cart-vis) is written only while the keyboard is up (#559):
+// Safari's toolbar grows and shrinks on a 10px scroll, and a cap that
+// followed it moved the list's height, its scroll and its fades while
+// the page scrolled. Without it the caps read 100svh, the height with
+// the toolbar showing, which never changes as the page scrolls. The
+// one scroll it ever makes: when the keyboard rises with the code
+// field focused, the field is brought into its scroller's view once,
+// since Chromium does not do that for a scroller that shrinks after
+// the focus.
 export const watchKeyboard = (pane, { onInset } = {}) => {
   const visual = window.visualViewport;
 
@@ -74,7 +85,8 @@ export const watchKeyboard = (pane, { onInset } = {}) => {
 
     setProp(pane, "--cart-kb", inset);
     setProp(pane, "--cart-gap", area.gap);
-    setProp(pane, "--cart-vis", area.height);
+    if (inset > 0) setProp(pane, "--cart-vis", area.height);
+    else pane.style.removeProperty("--cart-vis");
     if (inset === before) return;
 
     const was = before;
@@ -204,6 +216,98 @@ export const watchPlacement = (pane, slot, { bar: given, look }) => {
   };
 };
 
+// Whether a page scroll is the person's own (#559): one that follows
+// a finger, a wheel or a scrolling key outside the pane, or the
+// momentum that carries on from one. A scroll the page makes (Proceed
+// to checkout, the bar's total going back to the cart, Tab moving a
+// field clear of the pane, the code field coming into view) has none
+// of those before it. Inside the pane a touch or a wheel scrolls the
+// pane, never the page (overscroll-behavior: contain).
+const SCROLL_KEYS = new Set([
+  "ArrowDown", "ArrowUp", "PageDown", "PageUp", "Home", "End", " ",
+]);
+
+// How long after the person's last input, or the last scroll that was
+// theirs, a scroll still counts: momentum sends one a frame.
+export const OWN_MS = 150;
+
+export const ownScroll = ({ now, input, last, touching }) => touching
+  || now - input < OWN_MS || now - last < OWN_MS;
+
+// Calls `look({ y, counts })` once a frame while the page scrolls, and
+// `onMove` at once on the first sign of a scroll (a finger moving, a
+// wheel, a scrolling key, any scroll at all, the page's or a
+// scroller's), before the frame that draws it.
+export const watchScroll = (pane, { look, onMove = () => {} }) => {
+  let input = -Infinity;
+  let last = -Infinity;
+  let touching = false;
+  let tick = null;
+  const outside = (e) => !(e.target instanceof Node && pane.contains(e.target));
+  const editable = (el) => el instanceof Element
+    && el.matches("input, textarea, select, [contenteditable]");
+
+  const touchStart = (e) => {
+    if (!outside(e)) return;
+    touching = true;
+    input = performance.now();
+  };
+  const touchEnd = () => {
+    if (!touching) return;
+    touching = false;
+    input = performance.now();
+  };
+  const moved = (e) => {
+    if (outside(e)) input = performance.now();
+    onMove();
+  };
+  // Space on a button presses it, and scrolls nothing.
+  const key = (e) => {
+    if (!SCROLL_KEYS.has(e.key) || editable(e.target)) return;
+    if (e.key === " " && e.target instanceof Element
+      && e.target.closest("button, a, [role='button']")) return;
+    if (outside(e)) input = performance.now();
+    onMove();
+  };
+  const run = () => {
+    tick = null;
+
+    const now = performance.now();
+    const counts = ownScroll({ now, input, last, touching });
+
+    if (counts) last = now;
+    look({ y: window.scrollY, counts });
+  };
+  const scrolled = () => {
+    onMove();
+    if (tick === null) tick = requestAnimationFrame(run);
+  };
+  const any = () => onMove();
+  const opts = { capture: true, passive: true };
+
+  document.addEventListener("touchstart", touchStart, opts);
+  document.addEventListener("touchmove", moved, opts);
+  document.addEventListener("touchend", touchEnd, opts);
+  document.addEventListener("touchcancel", touchEnd, opts);
+  document.addEventListener("wheel", moved, opts);
+  document.addEventListener("keydown", key, opts);
+  // Captured, a scroller's scroll as well as the page's.
+  document.addEventListener("scroll", any, opts);
+  window.addEventListener("scroll", scrolled, { passive: true });
+
+  return () => {
+    cancelAnimationFrame(tick);
+    document.removeEventListener("touchstart", touchStart, opts);
+    document.removeEventListener("touchmove", moved, opts);
+    document.removeEventListener("touchend", touchEnd, opts);
+    document.removeEventListener("touchcancel", touchEnd, opts);
+    document.removeEventListener("wheel", moved, opts);
+    document.removeEventListener("keydown", key, opts);
+    document.removeEventListener("scroll", any, opts);
+    window.removeEventListener("scroll", scrolled);
+  };
+};
+
 // Eases the pane's height across a change the caller applies: a fold,
 // lines coming or going, a fill or an emptying. The content is laid
 // out at the new height at once; the pane's own edge follows. A
@@ -240,6 +344,153 @@ export const animateFold = (pane, apply, { reduce = reduced() } = {}) => {
 
     ease.onfinish = done;
     ease.oncancel = done;
+  });
+};
+
+// The sheet's one rule for motion (#559): the contents and the
+// container move together. The pane is never given a height. Each
+// part that comes, goes or changes size eases its own box between its
+// two sizes, every part on one curve and one clock from the same
+// frame, so the pane, which is only as tall as its parts, moves with
+// them on every frame. A part that goes stays drawn as it was until it
+// has shrunk to nothing, and fades as it does; one that comes grows
+// from nothing and fades in. The body's parts ease their height; the
+// foot's two buttons ease their width, Expand or Hide coming and going
+// on a settle or a lift-off while Proceed to checkout takes or gives
+// its room, so the settled foot becomes the floating one and back.
+// While the parts ease the body is held at its end, should it ever be
+// taller than the room: the total row stays on the foot. Add, remove,
+// clear, Expand, Hide, the minimize on scroll, the settle and the
+// lift-off all go through here; nothing patches one of them alone.
+// Resolves when every part is still. Under reduced motion it applies
+// the change and nothing moves.
+export const MOVE_MS = 420;
+const MOVE_EASE = "cubic-bezier(0.2, 0.8, 0.25, 1)";
+const MOVE_ID = "cart-move";
+const SIDEWAYS = ".order-cart-toggle, .order-cart-next";
+
+const movers = (pane) => [
+  ...(pane.querySelector("[data-cart-body]")?.children || []),
+  ...(pane.querySelector("[data-part='foot']")?.children || []),
+];
+
+const sizeOf = (el) => {
+  const rects = el.getClientRects();
+
+  if (!rects.length) return { shown: false, size: 0 };
+
+  const r = el.getBoundingClientRect();
+  const style = getComputedStyle(el);
+
+  return {
+    shown: true,
+    size: el.matches(SIDEWAYS) ? r.width : r.height,
+    display: style.display,
+    padStart: style.paddingLeft,
+    padEnd: style.paddingRight,
+  };
+};
+
+// The keyframes for one part, from its two sizes (pure, for the unit
+// tests). A sideways part (a foot button) eases its flex basis with
+// its growth held, since a flex item's width is its basis; coming or
+// going, its padding and floor go to nothing with it.
+export const moveFrames = (sideways, was, now) => {
+  const fade = !was.shown || !now.shown;
+  const frame = (size, look, gone) => {
+    const f = sideways
+      ? {
+        flexGrow: 0, flexShrink: 0, flexBasis: `${size}px`, minWidth: "0px",
+        maxWidth: "none",
+      }
+      : { height: `${size}px`, minHeight: "0px", maxHeight: "none" };
+
+    if (sideways && gone) {
+      f.paddingLeft = "0px";
+      f.paddingRight = "0px";
+    } else if (sideways && fade) {
+      f.paddingLeft = look.padStart;
+      f.paddingRight = look.padEnd;
+    }
+    if (fade) f.opacity = gone ? 0 : 1;
+
+    return f;
+  };
+
+  return [
+    frame(was.size, was, !was.shown),
+    frame(now.size, now, !now.shown),
+  ];
+};
+
+// Whether a part moves, from its two sizes: half a pixel is rounding.
+export const moves = (was, now) => (was.shown || now.shown)
+  && Math.abs(was.size - now.size) >= 0.5;
+
+// The part eases running on the pane, for stilled() and the specs.
+export const moving = (pane) => pane.getAnimations({ subtree: true })
+  .filter((a) => a.id === MOVE_ID);
+
+export const moveParts = (pane, apply, { reduce = reduced() } = {}) => {
+  const parts = movers(pane);
+  const was = parts.map(sizeOf);
+
+  // A newer change takes over from where the parts are now: their
+  // sizes were read mid-ease, above, before the old eases go.
+  for (const a of moving(pane)) a.cancel();
+  if (pane.moveDone) pane.moveDone();
+  apply();
+
+  if (reduce || typeof pane.animate !== "function") return Promise.resolve();
+
+  const now = parts.map(sizeOf);
+  const plan = parts
+    .map((el, i) => ({ el, was: was[i], now: now[i] }))
+    .filter((p) => p.el.isConnected && moves(p.was, p.now));
+
+  if (!plan.length) return Promise.resolve();
+
+  const body = pane.querySelector("[data-cart-body]");
+  let hold = null;
+  const atEnd = () => {
+    if (body && body.scrollHeight > body.clientHeight + 1) {
+      body.scrollTop = body.scrollHeight;
+    }
+    hold = requestAnimationFrame(atEnd);
+  };
+
+  // A part that goes is drawn as it was, over the stylesheet's
+  // display: none, until its ease is over; every part clips what is
+  // past its easing edge.
+  for (const { el, was: w, now: n } of plan) {
+    if (!n.shown) el.style.setProperty("display", w.display, "important");
+    el.style.setProperty("overflow", "clip");
+  }
+
+  const eases = plan.map(({ el, was: w, now: n }) => el.animate(
+    moveFrames(el.matches(SIDEWAYS), w, n),
+    { duration: MOVE_MS, easing: MOVE_EASE, id: MOVE_ID }
+  ));
+
+  // How many eases have started, for the specs: an ease is over
+  // before they can see it run.
+  pane.eases = (pane.eases || 0) + 1;
+  atEnd();
+
+  return new Promise((resolve) => {
+    const done = () => {
+      if (pane.moveDone !== done) return;
+      pane.moveDone = null;
+      cancelAnimationFrame(hold);
+      for (const { el } of plan) {
+        el.style.removeProperty("display");
+        el.style.removeProperty("overflow");
+      }
+      resolve();
+    };
+
+    pane.moveDone = done;
+    Promise.all(eases.map((e) => e.finished.catch(() => {}))).then(done);
   });
 };
 
@@ -280,8 +531,13 @@ export const moreShown = ({ top, height, full }) => ({
 
 // The "more" arrows and the fades at the list's edges, kept in step
 // with the list's own scrolling and size. `wrap` is the scroller
-// around the list that carries the fades and the arrows.
-export const watchList = (list, wrap, { more, moreTop }) => {
+// around the list that carries the fades and the arrows. While
+// `paused()` says the pane is moving, a change of size waits for the
+// caller's sync at the end (#559): the list grows and shrinks with the
+// pane, and the arrows and fades flickered on and off under it.
+export const watchList = (list, wrap, {
+  more, moreTop, paused = () => false,
+}) => {
   const rows = () => Array.from(list.querySelectorAll(".order-cart-item"))
     .map((li) => ({
       top: li.offsetTop - list.offsetTop,
@@ -347,7 +603,9 @@ export const watchList = (list, wrap, { more, moreTop }) => {
   const up = () => scrollMore(-1);
   // A frame later: sync moves the strip, which resizes the list, and
   // WebKit warns of a loop when that happens inside the observer.
-  const sizes = new ResizeObserver(() => requestAnimationFrame(sync));
+  const sizes = new ResizeObserver(() => requestAnimationFrame(() => {
+    if (!paused()) sync();
+  }));
 
   list.addEventListener("scroll", sync, { passive: true });
   more.addEventListener("click", down);

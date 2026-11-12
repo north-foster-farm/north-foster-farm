@@ -23,8 +23,9 @@ $cart-more-strip:  1.75rem; // Under the lines: the "more" arrows' own.
 // tabs: a phone upright, or on its side, tablet-wide but too short for
 // the floating panel (#278). Below xl, the rest of the range, 576 up
 // (#274, round 6), is $cart-split: two columns settled, a panel at the
-// foot of the content column floating. order-form.js's SHEET and PANEL
-// are the same queries.
+// foot of the content column floating. cart/view.mjs's SHEET is the
+// first query (2026-11-12, #559: this named an order-form.js SHEET
+// and PANEL that no longer exist).
 $cart-sheet: "(max-width: 575.98px), "
   + "(max-width: 1199.98px) and (max-height: 500px)";
 $cart-split: "(min-width: 576px) and (max-width: 1199.98px) "
