@@ -8,8 +8,11 @@ import { api } from "../utils/api.js";
 
 export const NOT_MEMBER = "Your account isn't in a buying group, so it " +
   "has no member code to print.";
-export const NO_CODE = "Your member code isn't ready yet. Open the " +
-  "Membership tab on your account page, then come back.";
+// Only while the site is closed for maintenance, when no code can be
+// minted: /api/membership mints one on a member's first look, this
+// page's included.
+export const NO_CODE = "Your member code isn't ready yet. Try again in " +
+  "a little while.";
 export const FAILED = "We couldn't load your member code just now. " +
   "Check your connection and reload the page.";
 

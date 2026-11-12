@@ -15,9 +15,11 @@ import { forgetFake } from "../netlify/functions/lib/fake-square.mjs";
 import { auditLog } from "../netlify/functions/lib/group-log.mjs";
 import { joinGroup, leaveGroup } from "../netlify/functions/lib/groups.mjs";
 import { maskEmail } from "../netlify/functions/lib/mask.mjs";
+import { membersCommand } from "../bin/members.mjs";
+import { runJobs } from "../netlify/functions/lib/jobs.mjs";
 import {
-  ensureMemberId, findMember, memberIdOf, newMemberId, syncMembers,
-  syncSquareReference,
+  RETRY_ALERT, drainSquareQueue, ensureMemberId, findMember, memberIdOf,
+  newMemberId, retryAfter, squareQueue, syncMembers, syncSquareReference,
 } from "../netlify/functions/lib/member-id.mjs";
 import {
   customerByMemberId, deleteCustomer, getCustomer, memberIdKey, saveCustomer,
@@ -380,6 +382,384 @@ describe("the Membership tab's code", () => {
     assert.equal(view.member.code, null);
     assert.equal((await getCustomer(stores, PAT)).memberId, null);
   });
+});
+
+describe("two first looks at once", () => {
+  const claims = async (stores) => stores.customers.list("member-id/");
+
+  it("mint one code: no leftover claim, one audit entry", async () => {
+    const stores = await setup();
+    const [a, b] = await Promise.all([
+      ensureMemberId(stores, PAT, { by: { role: "member", email: PAT }, now }),
+      ensureMemberId(stores, PAT, { by: { role: "member", email: PAT }, now }),
+    ]);
+
+    assert.equal(a.memberId, b.memberId);
+    assert.deepEqual([a.minted, b.minted].sort(), [false, true]);
+    assert.equal((await getCustomer(stores, PAT)).memberId, a.memberId);
+    assert.deepEqual((await claims(stores)).map((k) => k.key),
+      [memberIdKey(a.memberId)]);
+    assert.equal((await acts(stores, "member-id.mint")).length, 1);
+    assert.equal((await squareQueue(stores)).length, 1);
+  });
+
+  it("through two tabs of the Membership tab", async () => {
+    const stores = await setup();
+    const [one, two] = await Promise.all([
+      call(stores, "/api/membership", await cookie(stores, PAT)),
+      call(stores, "/api/membership", await cookie(stores, PAT)),
+    ].map(async (r) => (await r).json()));
+
+    assert.equal(one.member.code.id, two.member.code.id);
+    assert.equal((await claims(stores)).length, 1);
+    assert.equal((await acts(stores, "member-id.mint")).length, 1);
+  });
+
+  it("keeps a change to the record made meanwhile, and mints after it",
+    async () => {
+      const stores = await setup();
+      const swap = stores.customers.swap;
+      let raced = false;
+
+      // Another write lands between this mint's read and its swap.
+      stores.customers.swap = async (key, value, etag) => {
+        if (!raced) {
+          raced = true;
+          await stores.customers.set(key, {
+            ...(await stores.customers.get(key)), phone: "401-555-0100",
+          });
+        }
+
+        return swap(key, value, etag);
+      };
+
+      const r = await ensureMemberId(stores, PAT, { by: FARM, now });
+      const record = await getCustomer(stores, PAT);
+
+      assert.equal(r.minted, true);
+      assert.equal(record.memberId, r.memberId);
+      assert.equal(record.phone, "401-555-0100", "the other write stands");
+      assert.equal((await claims(stores)).length, 1, "the lost claim went");
+      assert.equal((await acts(stores, "member-id.mint")).length, 1);
+    });
+});
+
+describe("a code minted on the site reaches Square", () => {
+  const down = async () => new Response(JSON.stringify({
+    errors: [{ category: "API_ERROR", code: "SERVICE_UNAVAILABLE" }],
+  }), { status: 503 });
+
+  it("is queued by the tab's first look, which calls no one", async () => {
+    const stores = await setup();
+    const { member } = await (await call(stores, "/api/membership",
+      await cookie(stores, PAT))).json();
+    const queue = await squareQueue(stores);
+
+    assert.equal(queue.length, 1);
+    assert.equal(queue[0].id, member.code.id);
+    assert.equal(queue[0].email, PAT);
+    assert.deepEqual(queue[0].by, { role: "member" });
+    assert.equal(queue[0].tries, 0);
+    assert.equal(queue[0].nextAt, now.toISOString());
+  });
+
+  it("is set by the jobs run through syncSquareReference, logged as the "
+    + "member's, and leaves the queue", async () => {
+    const stores = await setup();
+    const own = await ensureMemberId(stores, PAT, {
+      by: { role: "member", email: PAT }, now,
+    });
+    const net = square();
+    const done = await drainSquareQueue(stores, {
+      env: LIVE, fetchImpl: net.impl, now,
+    });
+
+    assert.deepEqual(done, [{ id: own.memberId, outcome: "updated",
+      tries: 1 }]);
+    assert.deepEqual(net.sent[1].body, { reference_id: own.memberId });
+    assert.deepEqual(await squareQueue(stores), []);
+
+    const logged = await acts(stores, "member-id.square");
+
+    assert.equal(logged.length, 1);
+    assert.equal(logged[0].by.role, "member");
+    assert.equal(logged[0].target, maskEmail(PAT));
+  });
+
+  it("waits longer after each failure, alerts from the fourth, and is "
+    + "set once Square is back", async () => {
+    const stores = await setup();
+    const own = await ensureMemberId(stores, PAT, { by: FARM, now });
+    let at = now;
+
+    for (let tries = 1; tries <= RETRY_ALERT; tries++) {
+      const [d] = await drainSquareQueue(stores, {
+        env: LIVE, fetchImpl: down, now: at,
+      });
+      const [entry] = await squareQueue(stores);
+
+      assert.equal(d.outcome, "retry");
+      assert.equal(d.tries, tries);
+      assert.equal(d.alert, tries >= RETRY_ALERT);
+      assert.equal(entry.tries, tries);
+      assert.equal(Date.parse(entry.nextAt), at.getTime() + retryAfter(tries));
+      assert.ok(entry.lastError);
+      assert.equal(entry.id, own.memberId);
+
+      // Not due again before its time.
+      assert.deepEqual(await drainSquareQueue(stores, {
+        env: LIVE, fetchImpl: down, now: new Date(at.getTime() + 1000),
+      }), []);
+      at = new Date(entry.nextAt);
+    }
+
+    const [back] = await drainSquareQueue(stores, {
+      env: LIVE, fetchImpl: square().impl, now: at,
+    });
+
+    assert.equal(back.outcome, "updated");
+    assert.deepEqual(await squareQueue(stores), []);
+    assert.equal((await getCustomer(stores, PAT)).memberId, own.memberId,
+      "the code stood all along");
+  });
+
+  it("waits at most a day between tries", () => {
+    assert.equal(retryAfter(1), 15 * 60_000);
+    assert.equal(retryAfter(2), 30 * 60_000);
+    assert.equal(retryAfter(20), 24 * 60 * 60_000);
+  });
+
+  it("is dropped when the code is no longer the record's, and on a "
+    + "conflict", async () => {
+    const stores = await setup();
+    const own = await ensureMemberId(stores, PAT, { by: FARM, now });
+
+    await deleteCustomer(stores, PAT);
+    assert.deepEqual(await drainSquareQueue(stores, {
+      env: LIVE, fetchImpl: down, now,
+    }), [{ id: own.memberId, outcome: "dropped", tries: 1 }]);
+
+    const again = await setup();
+    const mine = await ensureMemberId(again, PAT, { by: FARM, now });
+
+    assert.deepEqual(await drainSquareQueue(again, {
+      env: LIVE, fetchImpl: square({ reference: "LOYALTY-0042" }).impl, now,
+    }), [{ id: mine.memberId, outcome: "conflict", tries: 1 }]);
+    assert.deepEqual(await squareQueue(again), []);
+  });
+
+  it("is off the queue once the CLI sets it, and stays on when the CLI "
+    + "can't", async () => {
+    const stores = await setup();
+
+    await syncMembers(stores, [PAT], { by: FARM, env: LIVE, now,
+      fetchImpl: down });
+    assert.equal((await squareQueue(stores)).length, 1, "the jobs retry it");
+
+    await syncMembers(stores, [PAT], { by: FARM, env: LIVE, now,
+      fetchImpl: square().impl });
+    assert.deepEqual(await squareQueue(stores), []);
+  });
+
+  it("is a step of every jobs run, which alerts when it keeps failing",
+    async () => {
+      const stores = await setup();
+      const own = await ensureMemberId(stores, PAT, { by: FARM, now });
+      const key = `member-square/${own.memberId}`;
+
+      await stores.jobs.set(key, {
+        ...(await stores.jobs.get(key)), tries: RETRY_ALERT - 1,
+      });
+
+      const report = await runJobs(stores, {
+        now, realNow: now, env: LIVE, fetchImpl: down,
+        mail: async () => ({ id: "m" }),
+      });
+
+      assert.deepEqual(report.memberCodes.map((d) => d.outcome), ["retry"]);
+      assert.ok(report.errors.some((e) => e.step === "memberSquare"
+        && e.id === own.memberId));
+    });
+});
+
+// The commands of bin/nff members, as gate-cli.test.mjs drives
+// bin/gate.mjs.
+const members = async (stores, args, { flags = {}, env = DEV,
+  fetchImpl } = {}) => {
+  const lines = [];
+  const written = [];
+  const [action, ...rest] = args;
+
+  await membersCommand(action, rest, {
+    stores, flags, env, fetchImpl, now, out: (line) => lines.push(line),
+    writeFile: (path, text) => written.push({ path, text }),
+  });
+
+  return { lines, written };
+};
+
+describe("bin/nff members", () => {
+  it("show: a member with no code yet, then with one, by address or code",
+    async () => {
+      forgetFake();
+
+      const stores = await setup();
+
+      assert.deepEqual((await members(stores, ["show", PAT])).lines,
+        [`${PAT}  no code yet  vff`]);
+
+      const { memberId } = await ensureMemberId(stores, PAT, {
+        by: FARM, now,
+      });
+
+      assert.deepEqual((await members(stores, ["show", PAT])).lines, [
+        `${PAT}  ${memberId}  vff`,
+        "Square: no profile under this address; members mint makes one",
+      ]);
+      assert.deepEqual((await members(stores, ["show",
+        memberId.toLowerCase()])).lines[0], `${PAT}  ${memberId}  vff`);
+      assert.deepEqual((await members(stores, ["show", SAM])).lines,
+        [`${SAM}  no code yet  in no group`]);
+    });
+
+  it("show: what the Square profile says, and only reads it", async () => {
+    const stores = await setup();
+    const { memberId } = await ensureMemberId(stores, PAT, { by: FARM, now });
+
+    for (const [reference, said] of [
+      [memberId, "the profile's reference_id is the code"],
+      ["NFF-2610-FIXT", "reference_id is NFF-2610-FIXT; members mint sets it"],
+      ["LOYALTY-0042", "reference_id is LOYALTY-0042, which the site "
+        + "didn't write; change it in the Square Dashboard"],
+    ]) {
+      const net = square({ reference });
+      const { lines } = await members(stores, ["show", PAT], {
+        env: LIVE, fetchImpl: net.impl,
+      });
+
+      assert.equal(lines[1], `Square: ${said}`);
+      assert.deepEqual(net.sent.map((s) => s.method), ["POST"], "a search");
+    }
+    assert.deepEqual(await acts(stores, "member-id.square"), []);
+  });
+
+  it("show --out: the code's QR as an SVG, once there is a code",
+    async () => {
+      forgetFake();
+
+      const stores = await setup();
+
+      await assert.rejects(members(stores, ["show", PAT],
+        { flags: { out: "tag.svg" } }), /members mint first/);
+
+      const { memberId } = await ensureMemberId(stores, PAT, {
+        by: FARM, now,
+      });
+      const { lines, written } = await members(stores, ["show", PAT],
+        { flags: { out: "tag.svg" } });
+
+      assert.equal(lines.at(-1), "Wrote tag.svg.");
+      assert.equal(written[0].path, "tag.svg");
+      assert.match(written[0].text, /^<svg/);
+      assert.match(written[0].text,
+        new RegExp(`aria-label="Member code ${memberId}"`));
+    });
+
+  it("show: refuses someone with no record", async () => {
+    await assert.rejects(members(await setup(), ["show", "x@example.com"]),
+      /No customer for "x@example\.com"/);
+  });
+
+  it("mint --dry-run: says what it would do and writes nothing",
+    async () => {
+      const stores = await setup();
+      const net = square();
+      const { lines } = await members(stores, ["mint", PAT], {
+        flags: { "dry-run": true }, env: LIVE, fetchImpl: net.impl,
+      });
+
+      assert.deepEqual(lines, [
+        `${PAT}  (new code)  would be minted  would be minted, then set in `
+          + "Square",
+        "--dry-run: nothing was written.",
+      ]);
+      assert.equal((await getCustomer(stores, PAT)).memberId, null);
+      assert.deepEqual(net.sent, [], "Square not even read");
+      assert.deepEqual(await squareQueue(stores), []);
+    });
+
+  it("mint: mints and sets it, then a second run changes nothing",
+    async () => {
+      const stores = await setup();
+      const first = await members(stores, ["mint", PAT], {
+        env: LIVE, fetchImpl: square().impl,
+      });
+      const { memberId } = await getCustomer(stores, PAT);
+
+      assert.deepEqual(first.lines, [`${PAT}  ${memberId}  minted  set in `
+        + "Square"]);
+      assert.deepEqual(await squareQueue(stores), []);
+
+      const second = await members(stores, ["mint", PAT], {
+        env: LIVE, fetchImpl: square({ reference: memberId }).impl,
+      });
+
+      assert.deepEqual(second.lines,
+        [`${PAT}  ${memberId}  Square already has it`]);
+      assert.equal((await acts(stores, "member-id.mint")).length, 1);
+      assert.equal((await acts(stores, "member-id.square")).length, 1);
+    });
+
+  it("mint: names a conflict, someone in no group, and an error",
+    async () => {
+      const stores = await setup();
+      const conflict = await members(stores, ["mint", PAT], {
+        env: LIVE, fetchImpl: square({ reference: "LOYALTY-0042" }).impl,
+      });
+      const { memberId } = await getCustomer(stores, PAT);
+
+      assert.deepEqual(conflict.lines, [`${PAT}  ${memberId}  minted  NOT `
+        + "set: the Square profile's reference_id is LOYALTY-0042"]);
+      assert.deepEqual((await members(stores, ["mint", SAM])).lines,
+        [`${SAM}  not in a group: nothing done`]);
+
+      const failed = await members(stores, ["mint", PAT], {
+        env: LIVE, fetchImpl: async () => {
+          throw new Error("Square is down");
+        },
+      });
+
+      assert.match(failed.lines[0], new RegExp(`^${PAT}  error: `));
+      await assert.rejects(members(stores, ["mint"]), /members mint <email>/);
+    });
+
+  it("sync: every member of the group, through the fake", async () => {
+    forgetFake();
+
+    const stores = await setup();
+    const { lines } = await members(stores, ["sync", "vff"]);
+    const { memberId } = await getCustomer(stores, PAT);
+
+    assert.deepEqual(lines, [`${PAT}  ${memberId}  minted  a Square profile `
+      + "made with it"]);
+    assert.deepEqual((await members(stores, ["sync", "vff"],
+      { flags: { "dry-run": true } })).lines, [
+      `${PAT}  ${memberId}  Square already has it`,
+      "--dry-run: nothing was written.",
+    ]);
+  });
+
+  it("sync: a group with no members, an unknown group, a bad command",
+    async () => {
+      const stores = testStores();
+
+      assert.deepEqual((await members(stores, ["sync", "vff"])).lines,
+        ["No members."]);
+      await assert.rejects(members(stores, ["sync", "nope"]),
+        /Unknown group "nope"/);
+      await assert.rejects(members(stores, ["retire", PAT]),
+        /Unknown command "members retire"/);
+    });
 });
 
 describe("the pages", () => {

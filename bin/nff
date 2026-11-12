@@ -627,8 +627,7 @@ const [
   { describeError },
   groupLog,
   membership,
-  memberIds,
-  { qrSvg },
+  { membersCommand },
 ] = await Promise.all([
   import("../netlify/functions/lib/terms.mjs"),
   import("../netlify/functions/lib/admin.mjs"),
@@ -661,8 +660,7 @@ const [
   import("../netlify/functions/lib/paypal.mjs"),
   import("../netlify/functions/lib/group-log.mjs"),
   import("../netlify/functions/lib/membership.mjs"),
-  import("../netlify/functions/lib/member-id.mjs"),
-  import("../netlify/functions/lib/qr.mjs"),
+  import("./members.mjs"),
 ]);
 
 // Who acts in a group's audit log when it is this CLI (#495).
@@ -2246,91 +2244,11 @@ const run = async () => {
   }
   // A member's code (#131). The output names the member: keep it off
   // GitHub. Square is only read here.
-  case "members show": {
-    const c = await memberIds.findMember(stores, rest[0] || "");
-
-    if (!c) throw new Error(`No customer for "${rest[0] || ""}".`);
-
-    const group = groups.groupOf(groups.memberKeyOf(c));
-    const r = c.memberId && group
-      ? await memberIds.syncSquareReference(stores, c, {
-        by: FARM, apply: false,
-      })
-      : null;
-
-    out(`${c.email}  ${c.memberId || "no code yet"}  ${
-      group ? group.key : "in no group"}`);
-    if (r) {
-      out(`Square: ${{
-        unchanged: "the profile's reference_id is the code",
-        "would-update": `reference_id is ${r.was || "empty"}; members mint `
-          + "sets it",
-        "would-create": "no profile under this address; members mint "
-          + "makes one",
-        conflict: `reference_id is ${r.was}, which the site didn't write; `
-          + "change it in the Square Dashboard",
-      }[r.action]}`);
-    }
-    if (typeof flags.out === "string") {
-      if (!c.memberId) throw new Error("No code to draw: members mint first.");
-
-      const { writeFileSync } = await import("node:fs");
-
-      writeFileSync(flags.out, qrSvg(c.memberId, {
-        title: `Member code ${c.memberId}`,
-      }));
-      out(`Wrote ${flags.out}.`);
-    }
-
-    return undefined;
-  }
+  // bin/members.mjs, where the tests reach it.
+  case "members show":
   case "members mint":
-  case "members sync": {
-    const dry = !!flags["dry-run"];
-    let emails;
-
-    if (action === "mint") {
-      if (!rest[0]) throw new Error("members mint <email>");
-      emails = [rest[0]];
-    } else {
-      const g = groups.groupOf(rest[0]);
-
-      if (!g) throw new Error(`Unknown group "${rest[0]}".`);
-      emails = (await groupLog.groupMembers(stores, g.key)).map((m) => m.email);
-    }
-
-    const done = await memberIds.syncMembers(stores, emails, {
-      by: FARM, apply: !dry,
-    });
-    const said = {
-      unchanged: "Square already has it",
-      updated: "set in Square",
-      created: "a Square profile made with it",
-      conflict: "NOT set: the Square profile's reference_id is",
-      "would-update": "would be set in Square",
-      "would-create": "a Square profile would be made with it",
-      "would-mint-first": "would be minted, then set in Square",
-    };
-
-    for (const d of done) {
-      if (d.error) {
-        out(`${d.email}  error: ${d.error}`);
-      } else if (!d.memberId && !d.square) {
-        out(`${d.email}  not in a group: nothing done`);
-      } else {
-        const s = d.square;
-
-        out(`${d.email}  ${d.memberId || "(new code)"}${
-          d.minted ? (dry ? "  would be minted" : "  minted") : ""}  ${
-          s ? `${said[s.action]}${s.action === "conflict" ? ` ${s.was}` : ""}`
-            : "in no group, so not set in Square"}`);
-      }
-    }
-    if (!done.length) out("No members.");
-    if (dry) out("--dry-run: nothing was written.");
-
-    return undefined;
-  }
+  case "members sync":
+    return membersCommand(action, rest, { stores, flags, out });
   case "jobs run":
     return out(await runJobs(stores));
   case "jobs square": {

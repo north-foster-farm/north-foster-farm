@@ -25,7 +25,7 @@ import { memberKeyOf } from "./groups.mjs";
 import { log } from "./log.mjs";
 import { newPassCode } from "./passes.mjs";
 import {
-  customerByMemberId, getCustomer, memberIdKey, saveCustomer,
+  customerByMemberId, customerKey, getCustomer, memberIdKey, swapCustomer,
 } from "./records.mjs";
 import * as square from "./square.mjs";
 
@@ -62,48 +62,51 @@ export const findMember = async (stores, value) => {
 // false nothing is written. -> { memberId, minted, customer }, memberId
 // null with `apply` false when one would be minted; or null when the
 // address has no record or is in no group and has no code.
+//
+// Two first looks at once (two tabs) mint one code between them: the
+// code is claimed create-only, then written onto the record only if
+// the record is unchanged since it was read (an etag swap). The one
+// that loses the swap gives its claim back and reads again, finding the
+// winner's code, so there is one code, no leftover claim and one audit
+// entry (#131). A code minted here is queued for Square
+// (queueSquareReference), which the jobs run sets.
 export const ensureMemberId = async (stores, email, {
   by, now = new Date(), pick = randomInt, apply = true,
 }) => {
-  const customer = await getCustomer(stores, email);
-
-  if (!customer) return null;
-  if (customer.memberId) {
-    return { memberId: customer.memberId, minted: false, customer };
-  }
-
-  const group = memberKeyOf(customer);
-
-  if (!group) return null;
-  if (!apply) return { memberId: null, minted: true, customer };
-
   for (let n = 0; n < MAX_DRAWS; n++) {
-    const id = newMemberId(pick);
+    const found = await stores.customers.getTagged(customerKey(email));
+    const customer = found && found.value;
 
-    await stores.customers.create(memberIdKey(id), { email: customer.email });
-
-    // The read is the verdict, as with order ids (lib/records.mjs).
-    const holder = await stores.customers.get(memberIdKey(id));
-
-    if (!holder) throw new Error(`The claim on ${id} did not stick.`);
-    if (holder.email !== customer.email) continue;
-
-    // Another request minted one while this one drew: theirs stands,
-    // and the claim made here goes.
-    const fresh = await getCustomer(stores, customer.email);
-
-    if (fresh && fresh.memberId) {
-      if (fresh.memberId !== id) await stores.customers.delete(memberIdKey(id));
-
-      return { memberId: fresh.memberId, minted: false, customer: fresh };
+    if (!customer) return null;
+    if (customer.memberId) {
+      return { memberId: customer.memberId, minted: false, customer };
     }
 
-    const saved = await saveCustomer(stores, {
-      ...(fresh || customer),
+    const group = memberKeyOf(customer);
+
+    if (!group) return null;
+    if (!apply) return { memberId: null, minted: true, customer };
+
+    const id = newMemberId(pick);
+
+    // Another member holds this one: draw again.
+    if (!(await stores.customers.create(memberIdKey(id), {
+      email: customer.email,
+    }))) continue;
+
+    const saved = await swapCustomer(stores, {
+      ...customer,
       memberId: id,
       memberIdStatus: "active",
       memberIdSetAt: now.toISOString(),
-    });
+    }, found.etag);
+
+    // The record changed since it was read, perhaps by another first
+    // look minting its own: give the claim back and look again.
+    if (!saved) {
+      await stores.customers.delete(memberIdKey(id));
+      continue;
+    }
 
     await audit(stores, {
       group, by, action: "member-id.mint", target: customer.email,
@@ -111,11 +114,104 @@ export const ensureMemberId = async (stores, email, {
     });
     log.info({ event: "member_id.minted", by: by.role, group,
       outcome: "minted" });
+    await queueSquareReference(stores, saved, { by, now });
 
     return { memberId: id, minted: true, customer: saved };
   }
 
-  throw new Error(`No free member ID in ${MAX_DRAWS} draws.`);
+  throw new Error(`No member ID could be set in ${MAX_DRAWS} tries.`);
+};
+
+// --- Setting a minted code in Square, off the page's path -------------
+//
+// A code minted from the Membership tab or the key tag page must reach
+// Square too, without the page waiting on Square or failing when it is
+// down. Minting queues it, `member-square/<id>` in the jobs store ->
+// { email, by, queuedAt, tries, nextAt }, and each jobs run (every 15
+// minutes) sets the codes due through syncSquareReference. A try that
+// throws is logged and tried again later, waiting twice as long each
+// time up to a day, and from the RETRY_ALERT-th try on it is a jobs
+// error, so the farm is alerted. A decided answer (set, already set, a
+// conflict, or nothing to set) ends the entry; so does the CLI's sync.
+export const squareQueueKey = (id) => `member-square/${id}`;
+
+export const RETRY_FIRST = 15 * 60_000;
+export const RETRY_MAX = 24 * 60 * 60_000;
+export const RETRY_ALERT = 4;
+
+export const retryAfter = (tries) =>
+  Math.min(RETRY_FIRST * 2 ** Math.max(tries - 1, 0), RETRY_MAX);
+
+export const queueSquareReference = async (stores, customer, {
+  by, now = new Date(),
+}) => {
+  await stores.jobs.set(squareQueueKey(customer.memberId), {
+    email: customer.email,
+    by: { role: by.role },
+    queuedAt: now.toISOString(),
+    tries: 0,
+    nextAt: now.toISOString(),
+  });
+};
+
+// Every code waiting for Square, due now or not. -> [{ id, ...entry }]
+export const squareQueue = async (stores) => {
+  const keys = await stores.jobs.list("member-square/");
+
+  return (await Promise.all(keys.map(async ({ key }) => {
+    const entry = await stores.jobs.get(key);
+
+    return entry && { id: key.slice("member-square/".length), ...entry };
+  }))).filter(Boolean);
+};
+
+// The jobs run's step: each code due set in Square, one at a time.
+// -> [{ id, outcome, tries, alert? }], outcome the action Square's
+// answer took, "dropped" when there was nothing to set, or "retry"
+// with the error.
+export const drainSquareQueue = async (stores, {
+  env = process.env, fetchImpl, now = new Date(),
+} = {}) => {
+  const done = [];
+
+  for (const entry of await squareQueue(stores)) {
+    if (Date.parse(entry.nextAt) > now.getTime()) continue;
+
+    const key = squareQueueKey(entry.id);
+    const by = entry.by && entry.by.role ? entry.by : { role: "member" };
+
+    try {
+      const customer = await getCustomer(stores, entry.email);
+      // A code no longer the record's (renamed away, deleted, replaced)
+      // has nothing to set.
+      const r = customer && customer.memberId === entry.id
+        ? await syncSquareReference(stores, customer, {
+          by: by.role === "member" ? { role: "member",
+            email: customer.email } : by,
+          env, fetchImpl, now,
+        })
+        : null;
+
+      await stores.jobs.delete(key);
+      done.push({ id: entry.id, outcome: r ? r.action : "dropped",
+        tries: entry.tries + 1 });
+    } catch (error) {
+      const tries = entry.tries + 1;
+      const message = String((error && error.message) || error);
+
+      await stores.jobs.set(key, {
+        email: entry.email, by: entry.by, queuedAt: entry.queuedAt,
+        tries, lastError: message,
+        nextAt: new Date(now.getTime() + retryAfter(tries)).toISOString(),
+      });
+      log.warn({ event: "member_id.square", by: by.role, outcome: "retry",
+        tries });
+      done.push({ id: entry.id, outcome: "retry", tries, error: message,
+        alert: tries >= RETRY_ALERT });
+    }
+  }
+
+  return done;
 };
 
 // The code on the member's Square profile as its reference_id, found by
@@ -150,6 +246,9 @@ export const syncSquareReference = async (stores, customer, {
   } else if (r.action === "conflict") {
     log.warn({ event: "member_id.square", by: by.role, outcome: "conflict" });
   }
+  // Decided: nothing left for the jobs run to try (a dry run decides
+  // nothing).
+  if (apply) await stores.jobs.delete(squareQueueKey(id));
 
   return r;
 };

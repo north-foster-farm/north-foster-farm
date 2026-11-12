@@ -730,7 +730,7 @@ export const SCHEMA_DEFAULTS = {
 // Every write fills the schema-only fields and keeps the log. A
 // change to the consent state that came without an event gets one
 // from `marketingSource`; `consent` gives the event its detail.
-export const saveCustomer = async (stores, customer, { consent } = {}) => {
+const customerRecord = async (stores, customer, { consent } = {}) => {
   // A record without a log is new, or from before the log: its log is
   // seeded from what is stored, not from the state being written.
   const stored = Array.isArray(customer.consent) ? null
@@ -741,14 +741,34 @@ export const saveCustomer = async (stores, customer, { consent } = {}) => {
   const changed = !!customer.marketingAt && !(last
     && last.recordedAt === customer.marketingAt
     && last.action === (customer.marketing === true ? "in" : "out"));
-  const record = {
+  return {
     ...SCHEMA_DEFAULTS,
     ...customer,
     email: emailKey(customer.email),
     consent: changed ? [...log, consentEvent(customer, consent)] : log,
   };
+};
+
+export const saveCustomer = async (stores, customer, { consent } = {}) => {
+  const record = await customerRecord(stores, customer, { consent });
 
   await stores.customers.set(customerKey(record.email), record);
+  await indexMemberId(stores, record);
+
+  return record;
+};
+
+// As saveCustomer, but only if the record still has the etag it was
+// read with (`stores.customers.getTagged(customerKey(email))`), so of two
+// racing changes exactly one lands (#131). -> the record, or null when
+// another write came first and nothing was written.
+export const swapCustomer = async (stores, customer, etag, {
+  consent,
+} = {}) => {
+  const record = await customerRecord(stores, customer, { consent });
+  const key = customerKey(record.email);
+
+  if (!(await stores.customers.swap(key, record, etag))) return null;
   await indexMemberId(stores, record);
 
   return record;

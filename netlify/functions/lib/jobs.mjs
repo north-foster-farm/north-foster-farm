@@ -55,6 +55,8 @@
 //               sell (archived or `inStock: false`) that Square counts
 //               above 0 is an invariant, told once per SKU and count
 //               (#499)
+//   members     a member code minted on the site is set on the member's
+//               Square profile, retried until Square answers (#131)
 //   health      each run ends with invariant checks, a ledger line,
 //               alerts for what went wrong, and a heartbeat ping
 
@@ -92,6 +94,7 @@ import {
 } from "./packing.mjs";
 import { confirmationSent, sendForOrder } from "./payments.mjs";
 import { sweepStrandedCredit } from "./credit.mjs";
+import { drainSquareQueue } from "./member-id.mjs";
 import { workRounds } from "./rounds.mjs";
 import { checkRefunds } from "./settle.mjs";
 import * as paypalApi from "./paypal.mjs";
@@ -458,6 +461,20 @@ export const runJobs = async (stores, {
 
     return { closed: r.closed, settled: r.settled };
   });
+
+  // A member code minted from the Membership tab or the key tag page,
+  // set on the member's Square profile (lib/member-id.mjs, #131). Every
+  // run; a try that fails waits longer each time, and alerts from its
+  // RETRY_ALERT-th try on.
+  report.memberCodes = (await step("memberSquare", async () => {
+    const done = await drainSquareQueue(stores, { env, fetchImpl, now });
+
+    for (const d of done) {
+      if (d.alert) fail(d.id, "memberSquare", d.error);
+    }
+
+    return done;
+  })) || [];
 
   // Credit a submission spent a day ago and never settled goes back
   // to its member (lib/credit.mjs). Every run; nothing twice.
@@ -974,6 +991,7 @@ export const summarize = (report) => ({
   drift: report.drift || null,
   rounds: report.rounds || null,
   creditSwept: (report.creditSwept || []).length,
+  memberCodes: (report.memberCodes || []).length,
   errors: report.errors,
   invariants: report.invariants,
 });
