@@ -69,6 +69,55 @@
         transform: translateX(-100%);
       }
     }
+
+    // #562, lane/cloud-562 only. The list's links, a finger's height
+    // apart, in either option.
+    .order-side-nav .order-side-sub .nav-link {
+      padding-block: 0.5rem;
+      font-size: 1rem;
+    }
+
+    // Option A: the list drops from under the phone bar over a shaded
+    // page. The panel is the body, so the shade (the aside's ::after,
+    // under it) dims the page and not the list; a tap on the shade
+    // lands on the aside and shuts the list (order-form.js).
+    .order-side.offcanvas-lg[data-open] {
+      top: var(--order-topbar-h);
+      right: 0;
+      bottom: auto;
+      display: flex;
+      width: auto;
+      border: 0;
+      background: none;
+      visibility: visible;
+      transform: none;
+      transition: none;
+
+      .offcanvas-header {
+        display: none;
+      }
+
+      .offcanvas-body {
+        max-height: calc(100dvh - var(--order-topbar-h) - 4rem);
+        padding: 0.5rem var(--order-edge-r) 0.75rem var(--order-edge-l);
+        border-radius: 0 0 var(--order-radius) var(--order-radius);
+        background-color: var(--bs-body-bg);
+        box-shadow: var(--bs-box-shadow);
+        overscroll-behavior: contain;
+        animation: order-drop var(--order-base) var(--order-ease);
+      }
+
+      &::after {
+        content: "";
+        position: fixed;
+        inset: var(--order-topbar-h) 0 0;
+        z-index: -1;
+
+        // Bootstrap's offcanvas shade, so both options dim alike.
+        background-color: rgba(var(--bs-black-rgb), 0.5);
+        animation: order-shade var(--order-base) ease;
+      }
+    }
   }
 
   .order-side-title {
@@ -178,8 +227,14 @@
   // The page title rides in the bar below lg, so it stays in view
   // while the bar is stuck; the heading above the list is then read
   // by screen readers only.
+  // A plain button since #562 (lane/cloud-562 only).
   .order-topbar-title {
     min-width: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    text-align: left;
     overflow: hidden;
     font-size: 1.25rem;
     font-weight: bold;
@@ -284,6 +339,7 @@
     transition:
       width var(--order-base) var(--order-ease),
       translate var(--order-base) var(--order-ease),
+      rotate var(--order-base) var(--order-ease),
       opacity var(--order-base) ease;
 
     svg {
@@ -297,6 +353,11 @@
     width: 1.5rem;
     opacity: 1;
     translate: 0 0;
+  }
+
+  // #562: the double chevron turns down while the list is open.
+  .order-bar-title[aria-expanded="true"] .order-bar-chev {
+    rotate: 90deg;
   }
 
   .order-items {
@@ -1615,6 +1676,23 @@
   position: fixed;
   z-index: 1080;
   pointer-events: none;
+}
+
+// #562 option A: the list drops down the screen; the shade fades in.
+@keyframes order-drop {
+  from {
+    clip-path: inset(0 0 100%);
+  }
+
+  to {
+    clip-path: inset(0 0 -2rem);
+  }
+}
+
+@keyframes order-shade {
+  from {
+    opacity: 0;
+  }
 }
 
 @keyframes order-spin {

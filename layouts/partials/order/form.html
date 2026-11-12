@@ -30,11 +30,14 @@
        spans the whole form, so it stays to the end; once the cart has
        scrolled away the total joins it on the right, and a tap on it
        goes back to the cart (#203). */}}
+  {{/* #562, an exploration on lane/cloud-562 only: the name is a
+       button that lists the page's sections (order-form.js
+       wireSectionList). */}}
   <div class="order-topbar d-lg-none">
-    <span class="order-topbar-title order-bar-title" aria-hidden="true">
-      <span class="order-bar-chev">{{ partial "svg.html" "icons/chevrons-right" }}</span>
+    <button type="button" class="order-topbar-title order-bar-title" data-sections aria-controls="order-side" aria-expanded="false">
+      <span class="order-bar-chev" aria-hidden="true">{{ partial "svg.html" "icons/chevrons-right" }}</span>
       <span class="order-bar-name" data-topbar-title></span>
-    </span>
+    </button>
     <button type="button" class="order-topbar-total" data-to-cart inert>
       <span data-total-bar-count>0 items</span>
       <span class="order-cart-sum-label">Total</span>

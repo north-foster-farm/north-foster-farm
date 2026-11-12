@@ -632,6 +632,98 @@ export class OrderForm {
     if (location.hash === "#order-cart") this.cart.show();
 
     this.watchSections();
+    this.wireSectionList();
+  }
+
+  // #562, an exploration on lane/cloud-562 only. A tap on the phone
+  // bar's name lists the page's sections: the sidebar's own list, so
+  // watchSections already marks the current one. ?sections=drawer
+  // opens it as the left drawer (option B); otherwise it drops from
+  // under the bar (option A). Either way the focus goes to the current
+  // section's link, Escape shuts the list and puts the focus back on
+  // the bar, and the cart is left as it was, under the list's shade.
+  wireSectionList() {
+    const button = document.querySelector("[data-sections]");
+    const side = document.getElementById("order-side");
+    const nav = document.getElementById("order-nav");
+
+    if (!button || !side || !nav) return;
+
+    const drawer = new URLSearchParams(location.search)
+      .get("sections") === "drawer";
+    const expanded = (on) => button.setAttribute("aria-expanded", String(on));
+    // The deepest marked link: a category over the Catalog above it.
+    const current = () => all(nav, ".nav-link.active").at(-1)
+      || qs(nav, ".nav-link");
+
+    button.dataset.sections = drawer ? "drawer" : "drop";
+
+    if (drawer) {
+      // Bootstrap's offcanvas does the rest: the shade, the focus trap,
+      // Escape, and the focus back on the bar once it is shut.
+      button.dataset.bsToggle = "offcanvas";
+      button.dataset.bsTarget = "#order-side";
+      side.addEventListener("show.bs.offcanvas", () => expanded(true));
+      side.addEventListener("shown.bs.offcanvas", () => current().focus());
+      side.addEventListener("hide.bs.offcanvas", () => expanded(false));
+      // A link chosen in the drawer: shut it first, then follow the
+      // link once the page scrolls again (the cart link's own handler
+      // among them).
+      nav.addEventListener("click", (e) => {
+        const link = e.target.closest("a");
+
+        if (!link || !side.classList.contains("show")) return;
+        e.preventDefault();
+        e.stopPropagation();
+        side.addEventListener("hidden.bs.offcanvas", () => link.click(),
+          { once: true });
+        qs(side, "[data-bs-dismiss]").click();
+      }, true);
+
+      return;
+    }
+
+    let openedAt = 0;
+    const isOpen = () => side.hasAttribute("data-open");
+    const shut = (refocus) => {
+      if (!isOpen()) return;
+      side.removeAttribute("data-open");
+      expanded(false);
+      if (refocus) button.focus({ preventScroll: true });
+    };
+    const open = () => {
+      side.setAttribute("data-open", "");
+      expanded(true);
+      openedAt = window.scrollY;
+      current().focus({ preventScroll: true });
+    };
+
+    button.addEventListener("click", () => (isOpen() ? shut(false) : open()));
+    // The shade is the list's own ::after: a tap on it shuts the list
+    // and presses nothing under it.
+    side.addEventListener("click", (e) => {
+      if (e.target === side) shut(true);
+    });
+    // A link shuts the list and goes on as it would.
+    nav.addEventListener("click", (e) => {
+      if (e.target.closest("a")) shut(false);
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key !== "Escape" || !isOpen()) return;
+      e.preventDefault();
+      shut(true);
+    });
+    // Tabbing out of the list shuts it. A tap elsewhere moves the
+    // focus nowhere (relatedTarget null) and is the shade's.
+    side.addEventListener("focusout", (e) => {
+      const to = e.relatedTarget;
+
+      if (to && to !== button && !side.contains(to)) shut(false);
+    });
+    // A scroll of the page shuts it: the bar may come unstuck.
+    window.addEventListener("scroll", () => {
+      if (Math.abs(window.scrollY - openedAt) > 24) shut(false);
+    }, { passive: true });
   }
 
   // The section on screen, named in three places: the sidebar's
