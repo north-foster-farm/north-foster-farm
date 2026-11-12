@@ -15,9 +15,11 @@
 //   the same share of its way as the others on every frame;
 // - the list does not change while the page scrolls and the cart does
 //   not;
-// - on every consecutive frame pair, no part's edge jumps further than
-//   the shared ease allows, or 8px at rest, and no two parts that
-//   carry words overlap (round 3, James's second phone read).
+// - on every frame of a move, every part's edge sits where the page's
+//   own ease record puts it at that moment, within 8px; between moves,
+//   with the cart unchanged, no edge moves more than 8px a frame; and
+//   no two parts that carry words overlap (round 3, James's second
+//   phone read; the curve check, fix round on fb5908d7).
 //
 // A person's scroll is a touch on the catalog and the page moving
 // under it a frame at a time: Playwright's WebKit has no touch drag,
@@ -25,6 +27,7 @@
 // watchScroll). Safari's toolbar is a visual viewport made shorter.
 // Runs in the iphone project only.
 
+import { offCurve, offRest, progressOf } from "./support/curve.mjs";
 import {
   OrderPage, SKU, expect, foldCart, paneStill, test, unfoldCart,
 } from "./support/order.mjs";
@@ -165,6 +168,28 @@ const record = (page) => page.evaluate(() => {
       });
     }
   };
+  // The move this frame is in, from the page's own record of it, read
+  // in the same frame as the boxes: its number (pane.eases, one a
+  // moveParts), how far into it the clock is, its length and its curve
+  // (e2e/support/curve.mjs). Every part's ease shares one clock; the
+  // pill's words fade on a clock of their own.
+  const moveOf = () => {
+    const ease = pane.getAnimations({ subtree: true }).find((a) => (
+      a.id === "cart-move" && a.effect && a.playState !== "idle"
+      && !a.effect.target.matches("[data-cart-word]")
+    ));
+
+    if (!ease) return null;
+
+    const timing = ease.effect.getTiming();
+
+    return {
+      no: pane.eases || 0,
+      at: Number(ease.currentTime) || 0,
+      duration: Number(timing.duration),
+      easing: timing.easing,
+    };
+  };
   const tick = () => {
     const s = getComputedStyle(pane);
     const now = performance.now();
@@ -186,6 +211,12 @@ const record = (page) => page.evaluate(() => {
       moving: pane.getAnimations().length + pane.getAnimations({
         subtree: true,
       }).filter((a) => a.id === "cart-move").length,
+      move: moveOf(),
+      // Where the floating pane rests over the screen's foot, and
+      // whether that eases now (_cart.scss, the sheet's bottom).
+      bottom: parseFloat(s.bottom) || 0,
+      resting: pane.getAnimations()
+        .some((a) => a.transitionProperty === "bottom"),
       fold: pane.dataset.fold,
       placement: pane.dataset.placement,
       kept: pane.hasAttribute("data-kept"),
@@ -332,10 +363,15 @@ const glide = (page, by, step) => page.evaluate(
 // A frame as a line of the timeline: whole pixels.
 const r = (b) => (b ? `${Math.round(b.top)}..${Math.round(b.bottom)}` : "-");
 const op = (v) => (v === undefined ? "-" : v.toFixed(2));
+// Where the frame is in its move, from the page's record: the move's
+// number, its clock and its share of the way.
+const along = (m) => (m ? `move ${m.no} ${Math.round(m.at)}ms=${
+  Math.round(progressOf(m) * 100)}%` : "still");
 const line = (f, i) => `#${i} ${f.placement}/${f.fold} y=${Math.round(f.y)}`
   + ` +${f.t === undefined ? "-" : Math.round(f.t)}ms`
   + ` (${f.beats ?? "-"} beats, longest turn ${
     f.turn === undefined ? "-" : Math.round(f.turn)}ms)`
+  + ` ${along(f.move)}`
   + ` pane ${r(f.pane)} lines ${r(f.lines)}@${op(f.ops?.lines)}`
   + ` total ${r(f.total)} foot ${r(f.foot)}`
   + ` next ${r(f.next)} pill "${f.word}"@${op(f.wordOp)}`
@@ -461,83 +497,27 @@ const movesTogether = (name, frames) => {
   });
 };
 
-// Every consecutive frame pair, not samples (James, 2026-11-12, round
-// 3: the strips missed jank that lasted a frame or two). No part's edge
-// moves further in one frame than the shared ease would take it: at
-// most STEP px while nothing of the pane moves (the minimized pane that
-// dropped 23px mid-scroll), and while it moves, STEP more than the
-// curve's steepest step for the way that edge goes in the whole run
-// (the curve starts at 4 times its mean speed; a quarter more for the
-// clock). A settled pane's parts are measured against the page, a
-// floating one's against the screen, and the frame it lifts off or
-// settles against whichever is nearer. An edge off the screen in both
-// frames, or a part that does not show in either, is not measured.
+// Every frame, not samples (James, 2026-11-12, round 3: the strips
+// missed jank that lasted a frame or two), held to the page's own ease
+// record (fix round on fb5908d7; e2e/support/curve.mjs). While the pane
+// moves, every part's edge sits where the move's curve puts it at that
+// frame's moment, within STEP px: a frame WebKit on CI draws late (48
+// ms, then 322 ms between two) can't fail a smooth move, and a part off
+// its curve still fails. Between moves, with the cart unchanged, no
+// edge moves more than STEP px from one frame to the next (the
+// minimized pane that dropped 23px mid-scroll), and the floating pane's
+// resting place moves only on its own ease. A settled pane's parts are
+// measured against the page, a floating one's against the screen's
+// foot. A part that does not show, or that comes or goes in the move,
+// is not measured; the overlap rule (textsApart) holds it.
 const STEP = 8;
 const MOVE_MS = 420;
-const STEEPEST = 4 * 1.25;
-const EDGES = {
-  pane: ["top", "bottom"],
-  total: ["top", "bottom"],
-  foot: ["top", "bottom"],
-  lines: ["top"],
-  clear: ["top", "bottom"],
-  toggle: ["top", "bottom", "left", "right"],
-  next: ["top", "bottom", "left", "right"],
-};
-const DOWN = new Set(["top", "bottom"]);
 
 const stepsHold = (name, frames) => {
-  const shows = (f, part) => f[part]
-    && (part === "pane" || part === "foot" || (f.ops[part] ?? 1) > 0.05);
+  const off = offCurve(frames, { step: STEP, px: PX })
+    || offRest(frames, { step: STEP, px: PX });
 
-  for (const [part, edges] of Object.entries(EDGES)) {
-    for (const edge of edges) {
-      const steps = frames.map((f, i) => {
-        const g = frames[i + 1];
-
-        if (!g || !shows(f, part) || !shows(g, part)) return null;
-
-        const a = f[part][edge];
-        const b = g[part][edge];
-
-        if (DOWN.has(edge) && Math.max(a, b) < 0) return null;
-        if (DOWN.has(edge) && Math.min(a, b) > f.vh) return null;
-
-        const d = b - a;
-
-        if (!DOWN.has(edge)) return d;
-
-        // The page moved by s: its contents by -s on the screen.
-        const page = d + (g.y - f.y);
-
-        if (f.placement === "inline" && g.placement === "inline") return page;
-        if (f.placement !== "inline" && g.placement !== "inline") return d;
-
-        return Math.abs(page) < Math.abs(d) ? page : d;
-      });
-      let at = 0;
-      let way = 0;
-
-      for (const s of steps) {
-        at += s || 0;
-        way = Math.max(way, Math.abs(at));
-      }
-      steps.forEach((s, i) => {
-        if (s === null) return;
-
-        const f = frames[i];
-        const g = frames[i + 1];
-        const dt = Math.max(1, g.t - f.t);
-        const allowed = f.moving || g.moving
-          ? STEP + STEEPEST * way * dt / MOVE_MS : STEP;
-
-        if (Math.abs(s) > allowed + PX) {
-          fail(name, frames, i + 1, `the ${part}'s ${edge} jumped `
-            + `${s.toFixed(1)}px in one frame (at most ${allowed.toFixed(1)})`);
-        }
-      });
-    }
-  }
+  if (off) fail(name, frames, off.at, off.why);
 };
 
 // No two parts that carry words overlap on any frame, as much of each
