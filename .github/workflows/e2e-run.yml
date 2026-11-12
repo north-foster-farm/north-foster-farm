@@ -155,3 +155,15 @@ jobs:
           name: playwright-report-${{ matrix.shard }}
           path: playwright-report/
           retention-days: 7
+
+      # A spec that saves a picture (a screenshot spec, for an issue)
+      # keeps it from a passing named-spec run too (args set), the PNGs
+      # alone, for 3 days. Full runs call this twice, which would clash.
+      - name: Pictures
+        if: success() && inputs.args != ''
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: e2e-pictures-${{ matrix.shard }}
+          path: test-results/**/*.png
+          if-no-files-found: ignore
+          retention-days: 3

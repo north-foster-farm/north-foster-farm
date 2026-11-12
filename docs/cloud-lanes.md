@@ -117,6 +117,17 @@ and the run reports as `e2e-named`, never as the required `e2e`.
 Without `specs`, the run is the full suite twice plus the burn-in,
 about 18 jobs.
 
+A spec that needs to show a picture on an issue saves it under
+`test-results/` (`page.screenshot({ path: ... })` with a path there).
+A passing named-specs run uploads every `test-results/**/*.png` as the
+`e2e-pictures-<shard>` artifact, kept 3 days, and nothing else from a
+passing run (a failing run keeps the whole report as before; full runs
+upload no pictures). The lane names the spec in its report; the
+coordinator runs it as above, downloads the artifact
+(`gh run download <run> -n e2e-pictures-<n>`) and posts the pictures
+with `bin/gh-shot --issue <n>`. Mockups and staging screens only,
+never customer data.
+
 `/api/orders` and `/api/contact` are rate limited and shared; send no
 test orders or messages.
 
