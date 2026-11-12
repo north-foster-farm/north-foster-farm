@@ -52,14 +52,45 @@ const watch = (page) => page.addInitScript(() => {
   requestAnimationFrame(look);
 });
 
-// -> the CLS of nodes in the header since the first paint.
-const headerShifts = (page) => page.evaluate(() => {
+// -> every layout shift since the first paint, each source named with
+// its box before and after, and whether it is in the header. An
+// entry's value is the whole page's for that frame, so a header link
+// among its sources is no measure of the header's own share: a font
+// swap once reflowed the body and the header's links in one entry.
+const shifts = (page) => page.evaluate(() => {
   const header = document.querySelector("header");
+  const box = (r) => [r.x, r.y, r.width, r.height].map(Math.round);
+  const name = (node) => {
+    if (!node) return "(gone)";
+    if (node.nodeType !== Node.ELEMENT_NODE) {
+      return `text "${node.textContent.trim().slice(0, 20)}"`;
+    }
+    const classes = Array.from(node.classList, (c) => `.${c}`).join("");
 
-  return window.qaShifts
-    .filter((e) => e.sources.some((s) => s.node && header.contains(s.node)))
-    .reduce((sum, e) => sum + e.value, 0);
+    return `${node.localName}${classes}`;
+  };
+
+  return window.qaShifts.map((entry) => ({
+    at: Math.round(entry.startTime),
+    value: entry.value,
+    sources: entry.sources.map((s) => ({
+      node: name(s.node),
+      header: Boolean(s.node && header.contains(s.node)),
+      from: box(s.previousRect),
+      to: box(s.currentRect),
+    })),
+  }));
 });
+
+// Fails, listing every shift, when a node in the header moved or
+// changed size since the first paint.
+const expectNoHeaderShift = async (page) => {
+  const all = await shifts(page);
+  const moved = all.flatMap((e) => e.sources).filter((s) => s.header);
+
+  expect(moved, `layout shifts: ${JSON.stringify(all, null, 1)}`)
+    .toEqual([]);
+};
 
 const slot = (page) => page.locator("header [data-account]:visible");
 
@@ -88,7 +119,7 @@ test.describe("the header's account slot (#565)", () => {
     release();
     await expect(signin).toBeVisible();
     await expect(slot(page).locator("[data-account-menu]")).toBeHidden();
-    expect(await headerShifts(page)).toBeLessThan(0.01);
+    await expectNoHeaderShift(page);
   });
 
   test("signed in: no Sign in, and the button keeps its place",
@@ -127,7 +158,7 @@ test.describe("the header's account slot (#565)", () => {
 
       expect(after.x).toBeCloseTo(before.x, 0);
       expect(after.width).toBeCloseTo(before.width, 0);
-      expect(await headerShifts(page)).toBeLessThan(0.01);
+      await expectNoHeaderShift(page);
     });
 
   test("a stamp with no session behind it falls back to Sign in",

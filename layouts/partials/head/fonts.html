@@ -1,0 +1,12 @@
+{{/*
+  Fetches Aller with the stylesheet, not after it (#565). The faces
+  in styles/_fonts.scss swap in when they arrive, and found only once
+  the page is laid out they arrived after the first paint: every word
+  reflowed and the header's right-aligned links moved. Regular is the
+  body's, bold the header's and the headings' (the row's 600 takes
+  bold). The paths are the woff2 URLs in _fonts.scss, exactly, so the
+  face uses the preloaded file; test/font-preload.test.mjs keeps them
+  matched.
+*/}}
+<link rel="preload" href="/fonts/aller-regular.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/aller-bold.woff2" as="font" type="font/woff2" crossorigin>
