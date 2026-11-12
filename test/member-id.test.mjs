@@ -5,6 +5,7 @@
 // and as a QR code of it; and the key tag page that prints it.
 
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { describe, it } from "node:test";
 
 import { handle } from "../netlify/functions/membership.mjs";
@@ -378,5 +379,28 @@ describe("the Membership tab's code", () => {
 
     assert.equal(view.member.code, null);
     assert.equal((await getCustomer(stores, PAT)).memberId, null);
+  });
+});
+
+describe("the pages", () => {
+  const read = (path) => readFile(new URL(`../${path}`, import.meta.url),
+    "utf8");
+
+  it("put the code on the tab, with the key tag's link", async () => {
+    const html = await read("layouts/account/single.html");
+
+    assert.match(html, /data-mem-code hidden/);
+    assert.match(html, /id="mem-code-id"/);
+    assert.match(html, /href="\{\{ "\/account\/member-tag\/" \| relURL \}\}"/);
+  });
+
+  it("print the tag at 1.25 x 2.5 in, kept out of search", async () => {
+    const scss = await read("assets/styles/components/_member-tag.scss");
+    const page = await read("content/member-tag.md");
+
+    assert.match(scss, /\$member-tag-width: 2\.5in;/);
+    assert.match(scss, /\$member-tag-height: 1\.25in;/);
+    assert.match(page, /url: "\/account\/member-tag\/"/);
+    assert.match(page, /sitemap:\n {2}disable: true/);
   });
 });

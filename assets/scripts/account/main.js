@@ -304,7 +304,23 @@ class Account {
     document.getElementById("mem-groups").replaceChildren(
       ...blocks.map(([g, hosted]) => this.renderGroup(g, hosted))
     );
+    this.renderCode(own && own.code);
     this.renderLeave(view);
+  }
+
+  // The member's own code (#131): the ID in text and its QR code, with
+  // the key tag's link. None yet (the site in maintenance): no block.
+  renderCode(code) {
+    const box = qs(document, "[data-mem-code]");
+
+    box.hidden = !code;
+    if (!code) return;
+
+    const img = document.getElementById("mem-code-qr");
+
+    document.getElementById("mem-code-id").textContent = code.id;
+    img.src = `/api/membership/code?v=${encodeURIComponent(code.id)}`;
+    img.hidden = false;
   }
 
   // One group's block: its facts, and the host's part when `hosted`.

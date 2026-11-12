@@ -723,6 +723,16 @@
     gap: 0.5rem;
   }
 
+  // The member's code (#131) under its QR code, big and spaced so it
+  // reads out over the counter.
+  .account-member-code-id {
+    margin-bottom: 0.25rem;
+    font-family: $font-family-monospace;
+    font-size: 1.5rem;
+    font-weight: bold;
+    letter-spacing: 0.08em;
+  }
+
   .account-membership-list {
     margin: 0;
     padding: 0;

@@ -86,6 +86,24 @@
                  hosts (James, 6458200999). */}}
             <div id="mem-groups"></div>
 
+            {{/* The member's own code (#131): the ID as text and as a
+                 QR code of it, which the stand scans, drawn by our own
+                 code on the server (/api/membership/code), and the key
+                 tag to print. Every line is a draft for James. */}}
+            <section class="account-group account-member-code" aria-labelledby="mem-code-h" data-mem-code hidden>
+              <div class="account-group-head">
+                <h2 class="h4 account-group-title" id="mem-code-h">Your member code</h2>
+              </div>
+              <p>Show this code when you pay at the farm stand, and we'll scan it to find your account.</p>
+              <img class="account-membership-qr account-member-code-qr" id="mem-code-qr" alt="QR code for your member code" width="296" height="296" hidden>
+              <p class="account-member-code-id" id="mem-code-id"></p>
+              <p class="form-text">If the code won't scan, read us the letters and numbers instead.</p>
+              <div class="account-membership-actions">
+                <a class="btn btn-primary" href="{{ "/account/member-tag/" | relURL }}">Print a key tag</a>
+                <a class="btn btn-outline-primary" id="mem-code-download" href="/api/membership/code?download=1" download>Download QR code</a>
+              </div>
+            </section>
+
             {{/* A member leaves on their own (James, 6452533356), with
                  the same rules as a removal. */}}
             <section class="account-group" aria-labelledby="mem-leave-h" data-mem-leave hidden>

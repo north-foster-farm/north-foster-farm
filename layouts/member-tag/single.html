@@ -1,0 +1,40 @@
+{{ define "main" }}
+  {{/* A member's key tag (#131): their code as a QR code and in text,
+       on one side of a 1.25 x 2.5 in tag, printed at its true size
+       and cut out along the dashed line. member-tag/main.js fills it
+       from /api/membership and /api/membership/code. The shape and
+       size are James's to settle; every line here is a draft. */}}
+  <section class="member-tag-page">
+    <div class="page container py-5">
+      <div class="account-wide mb-5">
+        <div class="member-tag-screen">
+          {{ partial "page-heading.html" . }}
+        </div>
+
+        <div class="alert alert-warning member-tag-screen" role="alert" id="tag-notice" hidden></div>
+
+        <div id="tag-ready" hidden>
+          <div class="member-tag-screen">
+            <p>Print this page at actual size, with scaling off or set to 100%. Cut along the dashed line, then laminate the tag or put it in a key tag sleeve.</p>
+          </div>
+
+          <div class="member-tag-sheet">
+            <div class="member-tag" id="member-tag">
+              <img class="member-tag-qr" id="tag-qr" alt="QR code for your member code" width="296" height="296">
+              <div class="member-tag-text">
+                <p class="member-tag-farm">{{ hugo.Data.company.name }}</p>
+                <p class="member-tag-label">Member</p>
+                <p class="member-tag-id" id="tag-id"></p>
+              </div>
+            </div>
+          </div>
+
+          <div class="member-tag-screen mt-4 d-flex flex-wrap gap-2">
+            <button class="btn btn-primary" type="button" id="tag-print">Print</button>
+            <a class="btn btn-outline-primary" href="{{ "/account/#membership" | relURL }}">Back to your account</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+{{ end }}
