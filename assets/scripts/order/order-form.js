@@ -1507,14 +1507,17 @@ export class OrderForm {
   }
 
   // A 409: what was chosen lapsed. The fresh list goes on the form and
-  // the dialog offers it (U1, U3).
-  lapse(stored, dates) {
-    const method = stored;
+  // the dialog offers it (U1, U3). `fulfilment` is the payload's, what
+  // the customer paid for.
+  lapse(fulfilment, dates) {
+    const { method } = fulfilment;
     const list = method === "scheduled" ? this.dates.scheduled(dates) : dates;
     // The scheduled pickup that lapsed, struck on the dialog's board
-    // (#573), read before the fresh list replaces it.
+    // (#573). It is the payload's, not the form's: the refresh before
+    // paying has already dropped it from the form's picker, which
+    // clears the choice.
     const closed = method === "scheduled"
-      ? this.dates.occurrence(this.dates.scheduledValue()) : null;
+      ? this.dates.occurrence(fulfilment.occurrence) : null;
 
     this.dates.replace(method, dates);
     this.lapsed.open(method, list, this.submitButton.hidden ? null
@@ -1854,7 +1857,7 @@ export class OrderForm {
       // Only the day or time lapsed: the dialog. Before the lists have
       // come there is nothing to offer, so the errors say it.
       if (check.status === 409 && this.dates.lists) {
-        this.lapse(payload.fulfilment.method, check.dates);
+        this.lapse(payload.fulfilment, check.dates);
 
         return null;
       }
@@ -1905,7 +1908,7 @@ export class OrderForm {
       const again = this.check(payload);
 
       if (!again.ok && again.status === 409) {
-        this.lapse(payload.fulfilment.method, again.dates);
+        this.lapse(payload.fulfilment, again.dates);
 
         return null;
       }
@@ -2089,7 +2092,7 @@ export class OrderForm {
       }
       break;
     case "stale":
-      this.lapse(payload.fulfilment.method, outcome.dates);
+      this.lapse(payload.fulfilment, outcome.dates);
       break;
     case "declined":
       // The next try is a new attempt: fresh keys for the processor.
