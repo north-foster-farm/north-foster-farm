@@ -242,8 +242,8 @@ const draftLines = (page) => page.evaluate(() => JSON.parse(
 
 // The remove control is Tabler's circle-x (James, 2026-11-12, #560),
 // after James's remove-item icon (#531), Tabler's trash can and the ×
-// glyph. It keeps its name and still takes the line out; its tints and
-// their contrast are remove-icon-tints.spec.mjs's.
+// glyph. It keeps its name and still takes the line out; its colour,
+// contrast and picture are remove-icon.spec.mjs's.
 test("a line's circled X keeps its name and takes the line out",
   async ({ page }) => {
     await page.setViewportSize(PHONE);

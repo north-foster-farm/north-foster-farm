@@ -1,8 +1,8 @@
 // WCAG 2's contrast ratio between two sRGB colours (#560): 3:1 is the
 // floor for a control's graphic (1.4.11), 4.5:1 for body text. Takes
 // "#rgb", "#rrggbb" or a computed "rgb(r, g, b)"; alpha is not
-// handled, so pass solid colours. Used by test/remove-tint.test.mjs and
-// e2e/remove-icon-tints.spec.mjs.
+// handled, so pass solid colours. Used by test/remove-icon.test.mjs and
+// e2e/remove-icon.spec.mjs.
 
 const channels = (colour) => {
   const hex = colour.trim().match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);

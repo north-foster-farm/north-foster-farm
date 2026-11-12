@@ -106,6 +106,13 @@ export const OVERRIDES = {
         "(assets/styles/components/_busy-button.scss)",
     },
   },
+  "assets/images/icons/circle-x.svg": {
+    off: {
+      removeOffCanvasPaths: "it drops the X, wholly inside the canvas, " +
+        "once the X is a path of its own, apart from the paler ring " +
+        "(James, #560); SVGO 4 mistakes it for off canvas",
+    },
+  },
   "assets/images/avatars.svg": {
     off: {
       cleanupIds: AVATAR_IDS,

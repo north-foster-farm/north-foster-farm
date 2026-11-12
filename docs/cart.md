@@ -230,12 +230,11 @@ issues. Wording below is today's, approved under #400.
   change, so a remove control under the pointer survives a render
   (#155). The remove control is Tabler's `circle-x` (James,
   2026-11-12, #560), after James's remove-item icon (#531), Tabler's
-  trash can and a × glyph. Its ring and X take a soft tint from the
-  palette, at least 3:1 against the pane at rest and on hover: a muted
-  brick by default, or a muted farm green on staging with `?tint=green`
-  (`scripts/staging/tint.js`), until James picks one from
-  `remove-icon-tints.spec.mjs`'s pictures (`$cart-remove-*` in
-  `_variables.scss`).
+  trash can and a × glyph. It is a muted brick (`$cart-remove` in
+  `_variables.scss`; James chose it over a farm green on 2026-11-12):
+  the X in a light 1.5 stroke, at least 3:1 against the pane at rest
+  and on hover, and the ring at half its opacity, so the X leads and
+  the ring only frames it. `remove-icon.spec.mjs` saves a picture.
 - **Clear cart** (draft, #531, moved by #560). A green outline pill
   astride the pane's top edge, at its right, where the count badges
   sit on the mini cart and the order menu item; settled, with no

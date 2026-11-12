@@ -26,7 +26,6 @@ import { forgetEverything, unfinished } from "./reset.js";
 import { SEEN_MAIL, unseen } from "./seen.js";
 import { mountSignatures } from "./signatures.js";
 import { mountSlips } from "./slips.js";
-import { applyTint } from "./tint.js";
 
 const root = document.getElementById("staging");
 const qs = (sel) => root.querySelector(sel);
@@ -237,10 +236,6 @@ const slips = mountSlips({
   api,
   onOpen: () => { root.hidden = false; },
 });
-
-// ?tint=green shows the cart's remove control in the other candidate
-// tint (#560), for any visitor to staging, session or not.
-applyTint(document.documentElement, window.location.search);
 
 // The site's bundle has already moved the date-bound blocks to the
 // kept offset, before the first paint (clock/now.js reads it where

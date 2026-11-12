@@ -457,9 +457,10 @@ $cart-nudge-line: $cart-nudge-gap + $cart-nudge-size * $cart-line-height;
 
   // Takes every unit of the line out of the cart in one tap. Tabler's
   // circle-x (James, 2026-11-12, #560), after a × glyph, James's
-  // remove-item icon (#531) and Tabler's trash can. Ring and X take
-  // the tint, the brick unless staging's ?tint= picked the other
-  // (_variables.scss, $cart-remove-*), and deepen on hover.
+  // remove-item icon (#531) and Tabler's trash can. Muted brick
+  // ($cart-remove in _variables.scss), deepening on hover. The X leads:
+  // a light 1.5 stroke in the full brick, and the ring at half its
+  // opacity only frames it (stroke-opacity in icons/circle-x.svg).
   .order-cart-remove {
     display: grid;
     place-items: center;
@@ -471,14 +472,14 @@ $cart-nudge-line: $cart-nudge-gap + $cart-nudge-size * $cart-line-height;
     border-radius: 50%;
     background: none;
     line-height: 1;
-    color: var(--cart-remove-tint, #{$cart-remove-brick});
+    color: $cart-remove;
     transition:
       background-color var(--order-hover) ease,
       color var(--order-hover) ease;
 
     &:hover,
     &:focus-visible {
-      color: var(--cart-remove-tint-hover, #{$cart-remove-brick-hover});
+      color: $cart-remove-hover;
     }
 
     svg {
@@ -1437,14 +1438,6 @@ $cart-nudge-line: $cart-nudge-gap + $cart-nudge-size * $cart-line-height;
   to {
     @include order-share-off;
   }
-}
-
-// The remove control's other candidate tint (#560), for James to
-// compare: set on <html> only by staging's ?tint=green
-// (scripts/staging/tint.js), so production never shows it.
-:root[data-remove-tint="green"] {
-  --cart-remove-tint: #{$cart-remove-green};
-  --cart-remove-tint-hover: #{$cart-remove-green-hover};
 }
 
 // Clear cart's words as it arms (#560): from faint to full, no
