@@ -45,6 +45,19 @@ $pill-bg: #ededed;
 $pill-ring:
   0 0 0 0.375rem color-mix(in srgb, var(--bs-primary) 40%, transparent);
 
+// A cart line's remove control, Tabler's circle-x (James, 2026-11-12,
+// #560): ring and X in a soft tint from the palette, neither the body's
+// gray nor a loud red, at least 3:1 against the pane at rest and on
+// hover (WCAG 1.4.11). Two candidates until James picks: the brick, the
+// site's $red muted toward its grays, and the farm green, the brand
+// $green muted the same way. The brick is the default; staging shows
+// the green with ?tint=green (scripts/staging/tint.js).
+// test/remove-tint.test.mjs holds all four to 3:1 against $white.
+$cart-remove-brick:       #a65a4c;
+$cart-remove-brick-hover: #8a4438;
+$cart-remove-green:       #5a8670;
+$cart-remove-green-hover: #436b57;
+
 // Bootstrap variables
 
 // Color system

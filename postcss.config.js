@@ -103,6 +103,9 @@ const plugins = [
         "data-cart-passed",
         // Clear cart asking for its second press (#531).
         "data-armed",
+        // The remove control's other tint, staging only (#560).
+        "data-remove-tint",
+        "green",
         "data-busy",
         "data-row-start",
         "data-playing",

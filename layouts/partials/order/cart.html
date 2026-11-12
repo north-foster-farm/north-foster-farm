@@ -56,7 +56,7 @@
           <li class="order-cart-group"><span class="order-cart-group-name" data-group-name></span><ul class="order-cart-group-items list-unstyled" data-group-items></ul></li>
         </template>
         <template data-cart-line>
-          <li class="order-cart-item"><button type="button" class="order-cart-remove" data-remove>×</button><span class="order-cart-item-name" data-line-name></span><span class="order-cart-item-qty" data-line-qty></span><span class="order-cart-item-sub" data-line-sub></span></li>
+          <li class="order-cart-item"><button type="button" class="order-cart-remove" data-remove>{{ partial "svg.html" (dict "src" "icons/circle-x" "aria-hidden" "true") }}</button><span class="order-cart-item-name" data-line-name></span><span class="order-cart-item-qty" data-line-qty></span><span class="order-cart-item-sub" data-line-sub></span></li>
         </template>
       </section>
       <dl class="order-cart-sums" data-part="sums">

@@ -185,9 +185,10 @@ the item" (both projects).
 Automated: `order-page.spec.mjs`, "the remove icon on a cart line takes
 every unit out" (both projects). The × became James's remove-item icon
 on 2026-11-11 (#531), then Tabler's trash can the same day (#560),
-and went back to the × on 2026-11-12 (James, #560) until he picks an
-icon. Clear cart, on the pane's top edge since #560, is
-`cart-lines.spec.mjs`'s.
+went back to the × on 2026-11-12 (James, #560) and became Tabler's
+circled X the same day (James, #560), in a tint he picks from two
+(`remove-icon-tints.spec.mjs`). Clear cart, on the pane's top edge
+since #560, is `cart-lines.spec.mjs`'s.
 
 - **Scenario:** A customer removes a whole line from the cart.
 - **Setup:** `/order/?add=` 3 eggs and 2 wings.

@@ -228,10 +228,14 @@ issues. Wording below is today's, approved under #400.
   remove control, the pack label (capitalized), "qty × $unit" and the
   line total. "0 items" when empty. Lines are rebuilt only when they
   change, so a remove control under the pointer survives a render
-  (#155). The remove control is a × glyph again (James, 2026-11-12,
-  #560), after James's remove-item icon (#531) and Tabler's trash can
-  (#560) were each tried and dropped on staging. Its icon is open
-  until James picks one.
+  (#155). The remove control is Tabler's `circle-x` (James,
+  2026-11-12, #560), after James's remove-item icon (#531), Tabler's
+  trash can and a × glyph. Its ring and X take a soft tint from the
+  palette, at least 3:1 against the pane at rest and on hover: a muted
+  brick by default, or a muted farm green on staging with `?tint=green`
+  (`scripts/staging/tint.js`), until James picks one from
+  `remove-icon-tints.spec.mjs`'s pictures (`$cart-remove-*` in
+  `_variables.scss`).
 - **Clear cart** (draft, #531, moved by #560). A green outline pill
   astride the pane's top edge, at its right, where the count badges
   sit on the mini cart and the order menu item; settled, with no

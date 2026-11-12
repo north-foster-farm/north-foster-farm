@@ -240,10 +240,11 @@ const draftLines = (page) => page.evaluate(() => JSON.parse(
   localStorage.getItem("nff-order-draft")
 ).payload.lines);
 
-// The remove control is the × again (James, 2026-11-12, #560), after
-// James's remove-item icon (#531) and Tabler's trash can (#560), until
-// he picks an icon. It keeps its name and still takes the line out.
-test("a line's × keeps its name and takes the line out",
+// The remove control is Tabler's circle-x (James, 2026-11-12, #560),
+// after James's remove-item icon (#531), Tabler's trash can and the ×
+// glyph. It keeps its name and still takes the line out; its tints and
+// their contrast are remove-icon-tints.spec.mjs's.
+test("a line's circled X keeps its name and takes the line out",
   async ({ page }) => {
     await page.setViewportSize(PHONE);
 
@@ -257,8 +258,9 @@ test("a line's × keeps its name and takes the line out",
     });
 
     await expect(remove).toBeVisible();
-    await expect(remove).toHaveText("×");
-    await expect(remove.locator("svg")).toHaveCount(0);
+    await expect(remove).toHaveText("");
+    await expect(remove.locator("svg")).toBeVisible();
+    await expect(remove.locator("svg")).toHaveAttribute("aria-hidden", "true");
     await remove.click();
     await expect(remove).toHaveCount(0);
     await expect(page.locator(`[data-qty='${LIVERS}']`)).toHaveValue("0");
