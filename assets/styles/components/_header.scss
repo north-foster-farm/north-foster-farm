@@ -529,11 +529,13 @@ $nav-link-transition:
 
 // Account slot: a Sign in link, or the Account button with its menu.
 
-// The slot holds the Sign in link from the first paint, transparent,
-// so the menu never shifts; session.js fades it in, or swaps in the
-// Account menu, once it knows who is here.
-// While /api/me is slow, a bar holds the link's place (#271): the
-// slot's own fade leaves the skeleton out.
+// The page draws the Sign in link, and it shows from the first paint
+// (#565). A page with the stamp cookie is signed in as far as it can
+// tell (scripts/session/hint.js marks <html> before the paint): there
+// the Account button holds its place instead, unseen, with the brown
+// hen sizing it, until session.js knows who is here and fades it in.
+// So neither the slot nor the row moves while /api/me answers. While
+// it is slow, a bar holds the button's place (#271).
 .site-account {
   --skeleton-cover: transparent;
 
@@ -544,12 +546,7 @@ $nav-link-transition:
   // it, and Sign in and the Account button would lift with a jump
   // (#303).
   > :not(.skeleton) {
-    opacity: 0;
     transition: opacity 0.3s ease, $nav-link-transition;
-  }
-
-  &.is-ready > :not(.skeleton) {
-    opacity: 1;
   }
 
   // No fade; the links keep their color easing, and their lift goes
@@ -607,6 +604,30 @@ $nav-link-transition:
       width: 2.25rem;
       height: 2.25rem;
     }
+  }
+}
+
+// Signed in by the stamp, not yet settled (#565). The button and its
+// hen carry `hidden` until session.js clears it, and Bootstrap's
+// [hidden] is !important. The phone's bar stands in the button's
+// place instead, so the button gives way to it there.
+[data-session="in"] .site-account:not(.is-ready, .is-compact[data-load="shown"]) {
+  > .site-signin {
+    display: none;
+  }
+
+  > .site-account-btn {
+    display: inline-flex !important;
+    visibility: hidden;
+    opacity: 0;
+  }
+
+  .site-account-chick {
+    display: block !important;
+  }
+
+  .site-account-icon {
+    display: none;
   }
 }
 

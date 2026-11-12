@@ -1,7 +1,7 @@
 // Who is signed in, for every page. Asks /api/me once per five
 // minutes, or at once after signing in or out (cached in
 // sessionStorage; see cache.js), and settles the header slot: the
-// Sign in link fades in, or the Account menu takes its place. A build
+// Sign in link stays, or the Account menu takes its place. A build
 // without accounts has no slot.
 
 import { api } from "../utils/api.js";
@@ -115,8 +115,10 @@ const returnHere = (link) => {
 // The Sign out buttons fill() has bound.
 const wired = new WeakSet();
 
-// The Sign in link is in the markup from the start, transparent; the
-// slot fades in once the answer is known, so the header never jumps.
+// The Sign in link shows from the first paint, or on a page with the
+// stamp the Account button holds its place unseen (hint.js, #565);
+// the answer settles the slot, and a signed-in one fades the button
+// in, so the header never jumps.
 const fill = (slot, who) => {
   const signin = slot.querySelector("[data-account-signin]");
   const menu = slot.querySelector("[data-account-menu]");
@@ -157,6 +159,25 @@ export const Session = {
     const slots = document.querySelectorAll("[data-account]");
 
     if (!slots.length) return null;
+
+    // No stamp, no session: lib/auth.mjs sets both at sign-in. The
+    // Sign in link the page drew stands, and no bar covers it while
+    // /api/me confirms (#565). A session without its stamp, which
+    // only a script clearing cookies leaves, still lands.
+    if (!stampFrom(document.cookie)) {
+      for (const slot of slots) fill(slot, { signedIn: false });
+
+      let who;
+
+      try {
+        who = await me();
+      } catch {
+        return null;
+      }
+      if (who.signedIn) for (const slot of slots) fill(slot, who);
+
+      return who;
+    }
 
     // A slow answer shows a bar in the slot (#271); none at all, or an
     // error, leaves the Sign in link, and a late answer still lands.

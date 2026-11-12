@@ -1,0 +1,15 @@
+{{/*
+  Marks a signed-in page before the first paint (#565,
+  assets/scripts/session/hint.js): its own small bundle, not deferred,
+  so the header's account slot is right from the start. The site's CSP
+  allows no inline script, so it is a file. A build without accounts
+  has no slot and loads none.
+*/}}
+{{ if .Site.Params.features.accounts }}
+  {{ $hint :=
+    resources.Get "scripts/session/hint.js"
+    | js.Build (dict "minify" hugo.IsProduction)
+    | fingerprint "sha512"
+  }}
+  <script src="{{ $hint.RelPermalink }}" integrity="{{ $hint.Data.Integrity }}"></script>
+{{ end }}

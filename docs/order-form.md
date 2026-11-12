@@ -1136,9 +1136,14 @@ Settings, Help) rendered from `GET /api/me` and
 The order card shows a pickup note while a booked pickup time the farm
 gave up waits on the customer. Avatars are the six SVG symbols in
 `layouts/partials/avatars.html`, keyed by `data/avatars.json`, shown
-on the account page only. The header (`session.js` in the site
-bundle) asks `/api/me` once per five minutes, cached in
-`sessionStorage`, and shows a Sign in link or an Account menu.
+on the account page and as the header's Account button (#347;
+2026-11-12, #565: this said the account page only). The header
+(`session.js` in the site bundle) asks `/api/me` once per five
+minutes, cached in `sessionStorage`, and shows a Sign in link or an
+Account menu. The page draws Sign in, showing from the first paint;
+a page with the `nff_signed_in` stamp is marked before the paint by
+`session/hint.js`, a small script in `<head>`, and keeps the Account
+button's place, unseen, until the answer comes (#565).
 
 ## CLI
 

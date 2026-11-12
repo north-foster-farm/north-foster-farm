@@ -150,34 +150,45 @@ test.describe("loading skeletons (#271)", () => {
     }
   });
 
-  test("the top bar holds the Sign in link's place", async ({ page }) => {
-    const release = await hold(page, "**/api/me", json({
-      signedIn: true, customer: CUSTOMER,
-    }));
+  // Only a page with the session stamp waits under a bar: without it
+  // the Sign in link stands from the first paint (#565,
+  // header-account.spec.mjs).
+  test("the top bar holds the Account button's place",
+    async ({ page, context, baseURL }) => {
+      await context.addCookies([{
+        name: "nff_signed_in", value: "qa", url: baseURL,
+      }]);
 
-    await page.goto("/about/");
+      const release = await hold(page, "**/api/me", json({
+        signedIn: true, customer: CUSTOMER,
+      }));
 
-    // The header row's slot: with the links from md up, with the
-    // actions below md (#303).
-    const slot = page.locator("header [data-account]:visible");
+      await page.goto("/about/");
 
-    await page.waitForTimeout(SHOW_AFTER_MS + 100);
-    await loading(slot);
+      // The header row's slot: with the links from md up, with the
+      // actions below md (#303).
+      const slot = page.locator("header [data-account]:visible");
 
-    const from = await now(page);
+      await page.waitForTimeout(SHOW_AFTER_MS + 100);
+      await loading(slot);
 
-    release();
-    await settled(slot);
-    await expect(slot.locator("[data-account-menu]")).not.toHaveAttribute(
-      "hidden", /.*/,
-    );
-    expect((await shiftsSince(page, from, "header")).region).toBeLessThan(
-      0.01,
-    );
-  });
+      const from = await now(page);
+
+      release();
+      await settled(slot);
+      await expect(slot.locator("[data-account-menu]")).not.toHaveAttribute(
+        "hidden", /.*/,
+      );
+      expect((await shiftsSince(page, from, "header")).region)
+        .toBeLessThan(0.01);
+    });
 
   test("the top bar covers only the account slot (#322)",
-    async ({ page }) => {
+    async ({ page, context, baseURL }) => {
+      await context.addCookies([{
+        name: "nff_signed_in", value: "qa", url: baseURL,
+      }]);
+
       const release = await hold(page, "**/api/me", json({
         signedIn: false,
       }));

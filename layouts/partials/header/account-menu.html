@@ -1,12 +1,14 @@
-{{/* The account slot: a Sign in link, or the Account menu, settled
-     by session.js once /api/me answers. Used twice in the header row:
+{{/* The account slot: a Sign in link, showing from the first paint,
+     or the Account menu, settled by session.js once /api/me answers.
+     A page with the session stamp keeps the menu's place instead
+     (scripts/session/hint.js, #565). Used twice in the header row:
      with the links from md up, and with the actions below md
      (#303), where `compact` makes both an icon among the icons:
      the words stay for screen readers. */}}
 {{ $ctx := .ctx }}
 {{ $compact := .compact }}
 <div class="site-account skeleton-slot dropdown{{ if $compact }} is-compact{{ end }}" data-account>
-  {{/* The Sign in link's place while /api/me is slow (#271). */}}
+  {{/* The Account button's place while /api/me is slow (#271). */}}
   {{ partial "skeleton.html" (dict "over" true) }}
   {{ partial "skeleton/status.html" (dict "quiet" true) }}
   <a class="site-nav-link site-signin" href="{{ relURL "login/" }}" data-account-signin {{- if $ctx.onLogin }} aria-current="page" {{ end }}>

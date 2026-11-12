@@ -125,6 +125,10 @@ const plugins = [
         "wait",
         "shown",
         "aria-busy",
+        // A signed-in page before the first paint (#565), set on
+        // <html> by scripts/session/hint.js.
+        "data-session",
+        "in",
         // Added to the built HTML after Hugo, by bin/orphans/wrap.mjs
         // (#303), so Hugo's stats may never see it.
         "text-nowrap",
@@ -165,7 +169,7 @@ const plugins = [
         // Its result rows, built by the script (#267).
         "search-palette-row-name",
         "search-palette-row-price",
-        // Applied by session.js: the header's account slot fades in.
+        // Applied by session.js: the header's account slot settles.
         "is-ready",
         "order-busy",
         "order-cart-free",
