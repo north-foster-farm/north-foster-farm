@@ -14,6 +14,13 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+// A git hook (pre-commit runs this suite) exports GIT_DIR and
+// GIT_INDEX_FILE. Left in place, the scratch repos below would be this
+// repository's own: git init --bare would flip its core.bare.
+for (const key of Object.keys(process.env)) {
+  if (key.startsWith("GIT_")) delete process.env[key];
+}
+
 const yml = readFileSync(".github/workflows/claude.yml", "utf8");
 const marker = "- name: Push the lane branch";
 const block = yml.slice(yml.indexOf(marker));
