@@ -148,6 +148,25 @@ Collapse folds the panel back to the tab and is remembered per
 browser. Hide removes the toolbar until the next page load, for
 looking at the page itself; the tab is back on reload.
 
+### The pickup picker's states (#573)
+
+On the order and account pages, staging and deploy previews also
+carry a small "Picker" panel, bottom left, apart from the toolbar
+(previews have no toolbar). Each link reloads the page with the pickup
+picker in one of its hard states: several places, one place, a day
+with two places, a group round 60 days out, a chosen pickup that
+closes half a minute on, a draft whose date moved, `?edit=` "As
+booked" on a sample order, the lapsed dialog, nothing available,
+loading and a failed load. The state stays for the tab
+(sessionStorage) until "Live data". It answers the page's own
+`/api/dates` (and, for the sample order, `/api/account/orders`) in the
+browser, with lists built from the page's public series and places at
+the browser's time, so the clock above doesn't move them, and a state
+that needs a draft writes the cart draft's way of getting the order.
+`partials/staging/picker-states.html` builds it only when `CONTEXT` is
+`branch-deploy` or `deploy-preview`; `bin/check-staging.mjs` and
+`test/staging-build.test.mjs` hold production free of it.
+
 ## The staging branch
 
 Work lands on `next`, which does not build. Every push to `next`

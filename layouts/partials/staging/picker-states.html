@@ -1,0 +1,21 @@
+{{/*
+  The pickup picker's state switcher (#573): a small panel on the order
+  and account pages that puts the picker into each of its hard states,
+  for James to judge the timetable at every width. Rendered only when
+  Netlify's build-time CONTEXT is "branch-deploy" (staging) or
+  "deploy-preview", never on a local build or production, so their
+  HTML, CSS and JS carry no trace of it: the script and stylesheet are
+  built by Hugo only when this partial renders, and nothing else
+  imports them. bin/check-staging.mjs holds production to that, and
+  test/staging-build.test.mjs builds all three contexts.
+
+  A classic script at the end of <body>, not deferred, so it runs
+  before the page's own modules (scripts/staging/picker-states.js).
+*/}}
+{{ $context := getenv "CONTEXT" }}
+{{ if and (in (slice "branch-deploy" "deploy-preview") $context) (in (slice "order" "account") .Params.pageScript) }}
+  {{ $style := resources.Get "styles/picker-states.css" | fingerprint "sha512" }}
+  {{ $script := resources.Get "scripts/staging/picker-states.js" | js.Build (dict "minify" true "format" "iife") | fingerprint "sha512" }}
+  <link rel="stylesheet" href="{{ $style.RelPermalink }}" integrity="{{ $style.Data.Integrity }}" data-picker-states-style>
+  <script src="{{ $script.RelPermalink }}" integrity="{{ $script.Data.Integrity }}" data-picker-states-script></script>
+{{ end }}

@@ -355,18 +355,21 @@ export class OrderPage {
 
   // Chooses scheduled pickup and the first occurrence of a series
   // (the drop site's, `VFVQ`, by default); returns the occurrence id
-  // chosen. The pickups are a list of radios whose values are
-  // occurrence ids, "<code>-<YYMMDD>"; none is chosen until one is.
+  // chosen. The pickups are radios whose values are occurrence ids,
+  // "<code>-<YYMMDD>"; none is chosen until one is. On the timetable
+  // (#573) each radio is a Bootstrap .btn-check under its chip, its
+  // label, which is what a customer taps.
   async scheduled(code = "VFVQ") {
     await this.method("scheduled");
-    await expect(pickupRadios(this.page).first()).toBeVisible();
+    await expect(pickupRadios(this.page).first()).toBeAttached();
 
     const value = (await pickupValues(this.page))
       .find((v) => v.startsWith(`${code}-`));
+    const radio = `#scheduled-pickups input[value='${value}']`;
 
     expect(value, `a ${code} occurrence on offer`).toBeTruthy();
-    await this.page.locator(`#scheduled-pickups input[value='${value}']`)
-      .check();
+    await this.page.locator(`${radio} + label`).click();
+    await expect(this.page.locator(radio)).toBeChecked();
 
     return value;
   }

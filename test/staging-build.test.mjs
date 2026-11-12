@@ -1,17 +1,20 @@
 // #294: the toolbar, its clock and the order page's sandbox card
 // overlay are built into staging's pages and never into production's.
-// Builds the site both ways with Hugo, as Netlify's contexts do, and
-// holds each to bin/check-staging.mjs. Where Hugo is not installed
+// The pickup picker's state switcher (#573) is on staging and deploy
+// previews and never in production. Builds the site each way with
+// Hugo, as Netlify's contexts do, and holds each to
+// bin/check-staging.mjs. Where Hugo is not installed
 // (CI's test job), CI's build job runs the same check on its builds.
 
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, before, describe, it } from "node:test";
 
 import { check } from "../bin/check-staging.mjs";
+import { checkHtml } from "../bin/grid/check.mjs";
 
 const root = join(import.meta.dirname, "..");
 const hasHugo = spawnSync("hugo", ["version"]).status === 0;
@@ -30,18 +33,38 @@ const build = (context) => {
 };
 
 describe("the staging build and production's", {
-  timeout: 120_000, skip: !hasHugo && "Hugo is not installed here",
+  timeout: 180_000, skip: !hasHugo && "Hugo is not installed here",
 }, () => {
   let production;
   let staging;
+  let preview;
 
   before(() => {
     production = build("production");
     staging = build("branch-deploy");
+    preview = build("deploy-preview");
   });
   after(() => {
-    for (const dir of [production, staging]) {
+    for (const dir of [production, staging, preview]) {
       if (dir) rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  // The pickup picker's state switcher (#573): on staging and deploy
+  // previews, and in production nowhere (the TRACES of the next test).
+  it("puts the picker's state switcher on a deploy preview, alone", () => {
+    assert.deepEqual(check(preview, "preview"), []);
+  });
+
+  // The picker's three homes hold to Bootstrap's grid rules, as
+  // check:grid holds every page in CI's build job (#573).
+  it("keeps the picker's pages to the grid rules", () => {
+    for (const page of ["order", "account"]) {
+      const html = readFileSync(join(production, page, "index.html"),
+        "utf8");
+      const errors = checkHtml(html).filter((f) => f.level === "error");
+
+      assert.deepEqual(errors, [], page);
     }
   });
 

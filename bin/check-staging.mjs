@@ -5,23 +5,37 @@
 // runs it after each of its two builds; test/staging-build.test.mjs
 // builds both and runs it too.
 //
-//   node bin/check-staging.mjs <dir> production|staging
+//   node bin/check-staging.mjs <dir> production|staging|preview
+//
+// A deploy preview carries the pickup picker's state switcher (#573)
+// and nothing of the toolbar, which is staging's alone.
 
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
-// What staging's pages carry and production's never may.
+// What staging's pages carry and production's never may. The pickup
+// picker's state switcher (#573) is among them: its script tag, its
+// storage key and its sample order.
 export const TRACES = [
   /data-staging-card-dialog/, /data-staging-clock/, /id="staging"/,
   /staging\.card-seen/, /\/api\/staging\/clock/, /4111 1111 1111 1111/,
   /Simulate an order in staging/, /data-staging-slips/,
-  /\/api\/staging\/slips/,
+  /\/api\/staging\/slips/, /data-picker-states/, /nff-picker-state/,
+  /PICKER-SAMPLE/,
 ];
 
 // What the staging order page must carry.
 export const ORDER_PAGE = [
   /data-staging-card-dialog/, /data-staging-clock/,
   /Simulate an order in staging/, /4111 1111 1111 1111/,
+  /data-picker-states-script/,
+];
+
+// What a deploy preview's order page carries: the picker's state
+// switcher (#573), and none of the staging toolbar.
+export const PREVIEW_ORDER_PAGE = [/data-picker-states-script/];
+export const PREVIEW_NEVER = [
+  /data-staging-card-dialog/, /data-staging-clock/, /id="staging"/,
 ];
 
 const texts = (dir) => readdirSync(dir, { recursive: true })
@@ -58,8 +72,18 @@ export const check = (dir, kind) => {
 
     return found;
   }
+  if (kind === "preview") {
+    const order = readFileSync(join(dir, "order", "index.html"), "utf8");
 
-  return [`Say production or staging, not ${kind}.`];
+    return [
+      ...PREVIEW_ORDER_PAGE.filter((t) => !t.test(order))
+        .map((t) => `order/index.html lacks ${t}`),
+      ...PREVIEW_NEVER.filter((t) => t.test(order))
+        .map((t) => `order/index.html has ${t}`),
+    ];
+  }
+
+  return [`Say production, staging or preview, not ${kind}.`];
 };
 
 if (import.meta.url === `file://${process.argv[1]}`) {

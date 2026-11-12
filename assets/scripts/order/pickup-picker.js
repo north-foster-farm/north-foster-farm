@@ -145,7 +145,6 @@ export class PickupPicker {
       today: this.today, locate: this.locate,
     });
 
-    this.root.dataset.columns = String(columns.length);
     this.heads.textContent = "";
     for (const column of columns) {
       const node = this.tpl.head.content.cloneNode(true);

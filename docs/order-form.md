@@ -773,10 +773,20 @@ day closed) answers 409 with the fresh list, and the page raises a
 blocking dialog offering what is open now (`order/lapsed.js`, UX's U1
 to U3); nothing has been charged, and the customer pays again with
 the same button. A scheduled pickup is chosen there, on the order
-page and in the account's Change pickup on one component, the
-pickup-day picker (#540: `order/pickup-picker.js`, its logic in
-`order/lib/picker.mjs`, its markup in
-`partials/order/pickup-picker.html`). The lists also refresh at the
+page and in the account's Change pickup on one component, the pickup
+picker (`order/pickup-picker.js`, its markup in
+`partials/order/pickup-picker.html`). Since #573 it is a timetable:
+places as rows, This week, Next week and Later as columns, every
+open pickup a chip of one radio group, and a summary of the chosen
+pickup under the board. `order/lib/timetable.mjs` lays the board out
+and `order/lib/picker.mjs` decides which pickup a list lands on and
+the notes about it, as it did for #540's week strip. The pickup that
+just closed, or lapsed in the dialog, stays struck in its cell until
+the next list. On staging and deploy previews a small "Picker" panel
+puts the picker into each of its hard states
+(`staging/picker-states.js`, `partials/staging/picker-states.html`;
+`bin/check-staging.mjs` holds production free of it). The lists also
+refresh at the
 earliest scheduled cutoff, so a pickup leaves the picker as it
 closes (`date-lists.js` `watchClosing`). A buying group's round,
 which comes once from `/api/group`, is dropped at its own cutoff
