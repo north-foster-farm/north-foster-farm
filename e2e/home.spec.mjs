@@ -523,7 +523,11 @@ test.describe("home", () => {
       });
 
     // #537: the reader lands on the first block the excerpt left out,
-    // in the window and clear of the header.
+    // in the window and clear of the header. #557: measured against
+    // the block's own scroll-margin-top, the header's height and 1rem
+    // (_news.scss), once the scroll has settled. Bootstrap's reboot
+    // makes the jump smooth, so a read during it lands anywhere: 506
+    // and 608px on two runners, against half the window.
     test("Continue reading lands where the excerpt left off",
       async ({ page }) => {
         await page.goto("/");
@@ -534,15 +538,31 @@ test.describe("home", () => {
         const target = page.locator("#summer");
 
         await expect(target).toHaveAttribute("data-continue", "");
+
+        const landing = () => target.evaluate((el) => ({
+          top: el.getBoundingClientRect().top,
+          margin: parseFloat(getComputedStyle(el).scrollMarginTop),
+        }));
+
+        await expect.poll(async () => {
+          const { top, margin } = await landing();
+
+          return Math.abs(top - margin);
+        }, { message: "#summer settles at its scroll margin" })
+          .toBeLessThanOrEqual(1);
+
+        // The margin clears the whole header, row and stripe, whether
+        // or not the header is still in the window.
+        const { top, margin } = await landing();
+        const header = await page.locator("body > header").first()
+          .evaluate((el) => ({
+            height: el.getBoundingClientRect().height,
+            bottom: el.getBoundingClientRect().bottom,
+          }));
+
+        expect(margin).toBeGreaterThanOrEqual(header.height);
+        expect(top).toBeGreaterThanOrEqual(Math.max(header.bottom, 0));
         await expect(target).toBeInViewport();
-
-        const top = await target.evaluate((el) =>
-          el.getBoundingClientRect().top);
-        const header = await page.locator("header").first()
-          .evaluate((el) => el.getBoundingClientRect().bottom);
-
-        expect(top).toBeGreaterThanOrEqual(Math.max(header, 0));
-        expect(top).toBeLessThan(page.viewportSize().height / 2);
       });
 
     // #537: the eyebrow and title beside the card from lg, left-aligned,
