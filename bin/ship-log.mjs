@@ -4,7 +4,9 @@
 // line that names a customer carries the address masked (lib/mask.mjs).
 // A dry run changed nothing, so it ships nothing and its lines are
 // dropped. Without AXIOM_TOKEN and AXIOM_DATASET (development) nothing
-// is shipped either. -> how many lines were sent.
+// is shipped either. flush shapes them as a function's: the fixed
+// top-level fields, the rest in the `data` map field (#571). -> how
+// many lines were sent.
 
 import { flush } from "../netlify/functions/lib/log.mjs";
 

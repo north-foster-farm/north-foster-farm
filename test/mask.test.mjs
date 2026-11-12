@@ -169,9 +169,9 @@ describe("bin/nff ships its log lines", () => {
       const removed = shipped.find((l) => l.event === "news.removed");
       const deleted = shipped.find((l) => l.event === "customer.deleted");
 
-      assert.equal(removed.record, "abc**fgh@exa*****com");
+      assert.equal(removed.data.record, "abc**fgh@exa*****com");
       assert.equal(removed.source, "cli");
-      assert.equal(deleted.record, "*@****");
+      assert.equal(deleted.data.record, "*@****");
       assert.ok(!bodies[0].includes(email));
       assert.ok(!bodies[0].includes("abcdefgh"));
       // The domain in clear, anywhere in the body (a leak check, not a

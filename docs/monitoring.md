@@ -59,7 +59,9 @@ sees, so a dead page and a silent failure both reach the phone.
   on staging or production, marked `source: cli`; a `--dry-run` ships
   none (`bin/ship-log.mjs`, 2026-10-27). The alert pings to Healthchecks are scrubbed the same way.
   `test/log-privacy.test.mjs` fails when a failed order logs any of
-  it. A name typed into free text cannot be found by pattern.
+  it. A name typed into free text cannot be found by pattern. Shipped
+  lines keep a fixed set of fields and put the rest in one map field,
+  `data` (see "The log in Axiom").
 - **Run ledger.** Each jobs run's report in the jobs store, two days
   kept; `bin/nff jobs history`. Needs nothing.
 - **Morning report.** 8:00 daily, always: the last day in numbers,
@@ -147,9 +149,22 @@ sees, so a dead page and a silent failure both reach the phone.
    Attach a push integration (Pushover, ntfy, Telegram or Signal) to
    production's four checks only, besides email. Staging's checks get
    email at most, never a phone.
-3. **Axiom**, free plan. Create a dataset `nff-site` and an API token
-   with ingest rights on it. On Netlify: `AXIOM_DATASET=nff-site`,
-   `AXIOM_TOKEN=xaat-...`. Retention on the free plan is 30 days.
+3. **Axiom**, free plan, one dataset per environment, each with its
+   own ingest token: `nff-site` for production and `nff-site-staging`
+   for staging (the `AXIOM_DATASET` line in `.env.production.sample`
+   and `.env.staging.sample`); development has no Axiom keys and ships
+   nothing. Then `bin/nff env push` for each. Retention on the free
+   plan is 30 days. Give each dataset its `data` map field (see "The
+   log in Axiom" below) before its first line arrives.
+
+   Axiom's 2026-11-12 field-limit warning named a dataset
+   `dev-northfosterfarm.com`, which no sample, doc or code here names
+   (checked 2026-11-12, #571: this step said `nff-site` alone, and
+   named no staging dataset). Until #251, staging, previews and `dev`
+   on Netlify share one set of Axiom values (`docs/secrets.md`), so
+   `netlify env:get AXIOM_DATASET --context <c>` for each context
+   shows which one points there. The dataset name is configuration,
+   not a secret.
 4. **Netlify**: Site configuration → Notifications → Deploy
    notifications → *Email notification*, event "Deploy failed", to the
    farm's address. Check one arrives on the Starter plan.
@@ -786,14 +801,75 @@ with a 1.5-second cap; a failure to ship is swallowed. Query by
 `webhook.rejected`, `jobs.run`, `alert`, `health.checked`, ...), by
 `id` for one order, or by `level: error`. The jobs run's full report
 is one `jobs.run` line every 15 minutes, so "when did it start" is a
-query for the first run whose `errors` is not empty. Before it, each
-step of the run logs one `jobs.step` line with its `step` name and
-`ms`, so a sweep growing toward the function's 30 s limit shows by
-name (#516). Deploy id and
+query for the first run whose `data.errors` is not empty. Before it,
+each step of the run logs one `jobs.step` line with its `step` name
+and `ms` (in `data`), so a sweep growing toward the function's 30 s
+limit shows by name (#516). Deploy id and
 context ride on every line. Every function is wrapped in
 `withLog(name, handler)`, so an exception no handler caught is one
 `function.crashed` line with the function's name and the top of its
 stack, and an alert, before Netlify answers 500 as it always did.
+
+### The log in Axiom
+
+Axiom makes a field of every key path a dataset is sent, nested keys
+included, keeps it until the dataset is vacuumed, and the free plan
+stops at 256 fields per dataset. Past that it rejects any line that
+would add one, which drops exactly the new errors and events. So a
+shipped line has a fixed set of top-level fields and one **map
+field**, `data`, that Axiom stores as a single field whatever keys sit
+inside it (#571, 2026-11-12). `shape()` in `lib/log.mjs` splits each
+line inside `flush`, after the scrub, so every call site follows,
+`bin/nff`'s too; the console keeps the flat line.
+`test/log-fields.test.mjs` holds the shape for any record.
+
+The fixed fields, each a plain value (string, number, true or false,
+or null):
+
+| Field | Holds |
+|---|---|
+| `_time` | when the line was written |
+| `level` | `info`, `warn` or `error` |
+| `event` | what happened, such as `order.paid` |
+| `message` | the text of a line logged as plain text |
+| `error` | the error's text, when it is one |
+| `id` | the order's id, on a line about one order |
+| `function` | the function, on `withLog`'s own lines |
+| `test` | the e2e test a request came from (staging) |
+| `source` | `site` for a function, `cli` for `bin/nff` |
+| `deploy` | the deploy id, or the context |
+
+Everything else goes in `data`, nesting kept. A fixed key holding an
+object or a list (an `error` that is an Error, say) goes in `data`
+too, so the top level never grows. A new top-level field is a change
+to `FIXED` and to this table.
+
+The map field has to exist on the dataset before a line arrives:
+Axiom makes `data` a map field only when told to, and until then
+flattens it into fields as before. Create it on each dataset, named
+`data`, from the dataset's field list in Axiom's UI or through its
+API, then vacuum the dataset's fields to drop the ones no line uses
+any more (Axiom's "Map fields" and "Vacuum fields" docs give the
+current labels; written from memory on 2026-11-12, #571, since the
+cloud run that wrote this could not reach them: correct this line
+once checked).
+
+In APL, read a key in the map with a dot or brackets:
+
+```
+['nff-site']
+| where event == "jobs.run" and array_length(data.errors) > 0
+| project _time, deploy, data.errors
+
+['nff-site']
+| where event == "function.slow"
+| project _time, function, ms = toint(data["ms"]), path = data.path
+```
+
+A key with a dot or a space in its name needs the brackets:
+`data["a.b"]`. Values in a map come back as dynamic, so cast them
+(`toint`, `tostring`) to compare or sum. For staging, query
+`['nff-site-staging']`.
 
 ## Browser error reports
 

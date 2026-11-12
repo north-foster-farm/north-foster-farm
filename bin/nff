@@ -1100,6 +1100,10 @@ const errorsShow = async (file) => {
   } catch {
     report = { stack: raw };
   }
+  // From Axiom, the details sit in the `data` map field (#571).
+  if (report && report.data && typeof report.data === "object") {
+    report = { ...report.data, ...report };
+  }
 
   const sha = flags.sha || report.build;
   const siteID = process.env.NETLIFY_SITE_ID;

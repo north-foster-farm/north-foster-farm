@@ -89,6 +89,36 @@ export const log = {
 
 export const pending = () => buffer.length;
 
+// The store makes a field of every key path it is sent, nested ones
+// included, and the free plan stops at 256 per dataset (#571). So a
+// shipped line holds these top-level fields only, each a plain value,
+// and everything else goes in one map field, `data`, which the dataset
+// keeps as a single field whatever is inside it. The line is scrubbed
+// before it is split (line() above), so the split changes no value.
+// The console keeps the flat line.
+export const FIXED = Object.freeze([
+  "_time", "level", "event", "message", "error", "id", "function",
+  "test", "source", "deploy",
+]);
+export const MAP = "data";
+
+const plain = (v) => v === null || ["string", "number", "boolean"]
+  .includes(typeof v);
+
+// -> the record as the store receives it.
+export const shape = (record, { source, deploy }) => {
+  const top = {};
+  const data = {};
+
+  for (const [key, value] of Object.entries(record)) {
+    if (key === "source" || key === "deploy") continue;
+    if (FIXED.includes(key) && plain(value)) top[key] = value;
+    else data[key] = value;
+  }
+
+  return { ...top, source, deploy, [MAP]: data };
+};
+
 export const configured = (env = process.env) =>
   !!(env.AXIOM_TOKEN && env.AXIOM_DATASET);
 
@@ -117,8 +147,8 @@ export const flush = async ({
           Authorization: `Bearer ${env.AXIOM_TOKEN}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(lines.map((l) => ({
-          ...l, source, deploy: env.DEPLOY_ID || env.CONTEXT || null,
+        body: JSON.stringify(lines.map((l) => shape(l, {
+          source, deploy: env.DEPLOY_ID || env.CONTEXT || null,
         }))),
         signal: controller.signal,
       }

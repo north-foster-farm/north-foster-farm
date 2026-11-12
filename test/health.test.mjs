@@ -588,7 +588,7 @@ describe("an exception no handler caught", () => {
       assert.equal(line.level, "error");
       assert.equal(line.function, "orders");
       assert.equal(line.error, "kaboom");
-      assert.match(line.stack, /kaboom\n\s+at /);
+      assert.match(line.data.stack, /kaboom\n\s+at /);
     });
 
   it("leaves an answer alone, and reports nothing", async () => {
