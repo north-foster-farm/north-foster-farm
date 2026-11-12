@@ -3,7 +3,7 @@ import { describe, it } from "node:test";
 
 import {
   FADE_IN, FADE_OUT, OWN_MS, fadeFrames, liftShift, moreShown, moveFrames,
-  moves, ownScroll, paneFrames, restOf, toPx,
+  moves, ownScroll, paneFrames, pillFadeFrames, restOf, toPx,
 } from "../assets/scripts/order/cart/view.mjs";
 
 // Whose scroll it is (#559): a finger down, or one within OWN_MS of
@@ -163,6 +163,25 @@ describe("fadeFrames", () => {
 
   it("never shows the two together", () => {
     assert.ok(FADE_OUT < FADE_IN);
+  });
+});
+
+// #559, round 3: Clear cart, astride the pane's edge, shares no room
+// with what comes, so it fades over the whole move and is seen going.
+describe("pillFadeFrames", () => {
+  const shown = { shown: true };
+  const gone = { shown: false };
+
+  it("fades a pill that goes over the whole move", () => {
+    assert.deepEqual(pillFadeFrames(shown, gone), [
+      { opacity: 1, offset: 0 },
+      { opacity: 0, offset: 1 },
+    ]);
+  });
+
+  it("brings one in, or leaves one, as fadeFrames does", () => {
+    assert.deepEqual(pillFadeFrames(gone, shown), fadeFrames(gone, shown));
+    assert.equal(pillFadeFrames(shown, shown), null);
   });
 });
 

@@ -765,10 +765,14 @@ test.describe("each change moves the pane and its parts together", () => {
     // One motion (round 3): Clear cart fades out, still asking, rather
     // than going in one frame, and Expand fades in, so nothing swaps in
     // the frame before the ease.
+    // A failure prints the timeline from the press, so a cut and a
+    // fade too quick for the frames read apart (run 43312689748).
     const pill = frames.filter((f) => f.clear && f.ops.clear > 0.05);
 
-    expect(pill.some((f) => f.ops.clear < 0.95),
-      "Clear cart faded out").toBe(true);
+    if (!pill.some((f) => f.ops.clear < 0.95)) {
+      fail("clear", frames, Math.max(0, frames.findIndex((f) => (
+        f.word === "Expand")) - 1), "Clear cart never showed faded");
+    }
     pill.forEach((f) => {
       if (f.clearText !== "Clear cart?") {
         fail("clear", frames, frames.indexOf(f),

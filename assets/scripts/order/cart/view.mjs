@@ -563,6 +563,16 @@ export const liftShift = ({ wasTop, wasHeight, nowBottom, floating }) => {
   return Math.abs(shift) < 0.5 ? 0 : shift;
 };
 
+// The opacity keyframes for Clear cart (pure, for the unit tests): one
+// that goes fades over the whole move, and one that comes as a part
+// does. It stands astride the pane's top edge, over the padding, so it
+// shares no room with what comes and needs no early fade. By FADE_OUT
+// it was gone in about 73 ms, less than one frame gap of WebKit on CI,
+// so the per-frame spec saw a cut, and on a phone it was 4 frames.
+export const pillFadeFrames = (was, now) => (was.shown && !now.shown
+  ? [{ opacity: 1, offset: 0 }, { opacity: 0, offset: 1 }]
+  : fadeFrames(was, now));
+
 // Whether a part moves, from its two sizes: half a pixel is rounding.
 export const moves = (was, now) => (was.shown || now.shown)
   && Math.abs(was.size - now.size) >= 0.5;
@@ -588,8 +598,9 @@ const pillOf = (el) => {
 
 // Clear cart through a change (#559, round 3): one that goes stays
 // where it stood, over the stylesheet's display: none and its new
-// place, and fades by FADE_OUT (the clear's pill vanished in one frame
-// with everything else); one that comes fades in at its new place; one
+// place, and fades through the move (pillFadeFrames; the clear's pill
+// vanished in one frame with everything else); one that comes fades in
+// at its new place; one
 // that stays moves to its new place on the parts' curve. -> its
 // animations, and what to undo at the end.
 const movePill = (el, was, now, timing) => {
@@ -614,7 +625,7 @@ const movePill = (el, was, now, timing) => {
   }
 
   return {
-    eases: [el.animate(fadeFrames(was, now), timing)],
+    eases: [el.animate(pillFadeFrames(was, now), timing)],
     undo: () => {
       for (const name of ["display", "transform", "right"]) {
         el.style.removeProperty(name);
