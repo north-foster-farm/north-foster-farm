@@ -167,8 +167,9 @@ its own. Previews and `dev` hold none of them (see the next section).
 *Env file* is the environment's own `.env.production` or `.env.staging`.
 
 Temporary, until #251 is done: staging, previews and `dev` still
-share one set of Square, PayPal and Axiom values. Delete this note with
-#251.
+share one set of Square and PayPal values. Delete this note with #251.
+(2026-11-12, #571: Axiom left this list, since Netlify shows no Axiom
+keys on previews or `dev`.)
 
 `SQUARE_APPLICATION_ID`, `SQUARE_LOCATION_ID` and `PAYPAL_CLIENT_ID`
 are public: the order page receives them. The sandbox PayPal logins

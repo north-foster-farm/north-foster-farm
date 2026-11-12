@@ -162,12 +162,18 @@ describe("docs/monitoring.md", () => {
     "utf8");
 
   it("names each environment's dataset, from the samples", () => {
+    const security = readFileSync(new URL("../docs/security.md",
+      import.meta.url), "utf8");
+
     for (const env of ["production", "staging"]) {
       const sample = readFileSync(new URL(`../.env.${env}.sample`,
         import.meta.url), "utf8");
       const [, dataset] = sample.match(/^AXIOM_DATASET=(\S+)$/m);
 
       assert.ok(doc.includes(`\`${dataset}\``), `${env}: ${dataset}`);
+      assert.ok(doc.includes(`['${dataset}']`), `APL: ${dataset}`);
+      assert.ok(security.includes(`\`${dataset}\``),
+        `security.md, ${env}: ${dataset}`);
     }
   });
 

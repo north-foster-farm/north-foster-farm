@@ -150,21 +150,19 @@ sees, so a dead page and a silent failure both reach the phone.
    production's four checks only, besides email. Staging's checks get
    email at most, never a phone.
 3. **Axiom**, free plan, one dataset per environment, each with its
-   own ingest token: `nff-site` for production and `nff-site-staging`
-   for staging (the `AXIOM_DATASET` line in `.env.production.sample`
-   and `.env.staging.sample`); development has no Axiom keys and ships
-   nothing. Then `bin/nff env push` for each. Retention on the free
-   plan is 30 days. Give each dataset its `data` map field (see "The
-   log in Axiom" below) before its first line arrives.
+   own ingest token: `northfosterfarm.com` for production and
+   `dev-northfosterfarm.com` for staging (the `AXIOM_DATASET` line in
+   `.env.production.sample` and `.env.staging.sample`). Deploy
+   previews, Netlify's `dev` context and development have no Axiom
+   keys and ship nothing. Then `bin/nff env push` for each. Retention
+   on the free plan is 30 days. Give each dataset its `data` map field
+   (see "The log in Axiom" below) before its first line arrives.
 
-   Axiom's 2026-11-12 field-limit warning named a dataset
-   `dev-northfosterfarm.com`, which no sample, doc or code here names
-   (checked 2026-11-12, #571: this step said `nff-site` alone, and
-   named no staging dataset). Until #251, staging, previews and `dev`
-   on Netlify share one set of Axiom values (`docs/secrets.md`), so
-   `netlify env:get AXIOM_DATASET --context <c>` for each context
-   shows which one points there. The dataset name is configuration,
-   not a secret.
+   Axiom's 2026-11-12 field-limit warning was for staging's
+   `dev-northfosterfarm.com` (2026-11-12, #571: the names here are the
+   ones Netlify holds; this step had said `nff-site`, a name no
+   environment used). The dataset name is configuration, not a
+   secret.
 4. **Netlify**: Site configuration → Notifications → Deploy
    notifications → *Email notification*, event "Deploy failed", to the
    farm's address. Check one arrives on the Starter plan.
@@ -857,11 +855,11 @@ once checked).
 In APL, read a key in the map with a dot or brackets:
 
 ```
-['nff-site']
+['northfosterfarm.com']
 | where event == "jobs.run" and array_length(data.errors) > 0
 | project _time, deploy, data.errors
 
-['nff-site']
+['northfosterfarm.com']
 | where event == "function.slow"
 | project _time, function, ms = toint(data["ms"]), path = data.path
 ```
@@ -869,7 +867,7 @@ In APL, read a key in the map with a dot or brackets:
 A key with a dot or a space in its name needs the brackets:
 `data["a.b"]`. Values in a map come back as dynamic, so cast them
 (`toint`, `tostring`) to compare or sum. For staging, query
-`['nff-site-staging']`.
+`['dev-northfosterfarm.com']`.
 
 ## Browser error reports
 

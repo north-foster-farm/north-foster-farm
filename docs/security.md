@@ -55,9 +55,11 @@ scheduled jobs and webhooks.
   changed nothing, and anything on staging or development unless it's
   needed for debugging. Staging's lines are kept for that debugging:
   its functions and `bin/nff --staging` (`bin/ship-log.mjs`) ship to
-  their own dataset, `nff-site-staging`, never production's, and
-  development has no Axiom keys, so it ships nothing (2026-11-01,
-  #494: the rule now names what the code does).
+  their own dataset, `dev-northfosterfarm.com`, never production's
+  (`northfosterfarm.com`), and previews and development have no Axiom
+  keys, so they ship nothing (2026-11-01, #494: the rule now names
+  what the code does; 2026-11-12, #571: the dataset names are the
+  ones Netlify holds, where this said `nff-site-staging`).
 - **Never in a log:** secrets or tokens, payment details, or a full
   email address, phone number or street address. Mask addresses as in
   #496, keeping the first three and last three characters of each
