@@ -111,10 +111,11 @@ jobs:
       #     the lane lacks);
       #   - nothing lost:  every commit on the lane that HEAD lacks by
       #     patch (cherry HEAD tip shows a +) is still kept, in one of
-      #     two ways. A commit whose subject is in origin/next..HEAD was
-      #     rebased, amended or conflict-resolved, which changes its
-      #     patch-id (context lines count) but not its subject. Failing
-      #     that, merging the lane into HEAD must change nothing
+      #     two ways. A commit in origin/next..HEAD with the same author
+      #     name, email, date and subject, used for at most one lane
+      #     commit, was rebased, amended or conflict-resolved, which
+      #     changes its patch-id (context lines count) but not those.
+      #     Failing that, merging the lane into HEAD must change nothing
       #     (git merge-tree gives HEAD's own tree), which holds when the
       #     lane landed on next by squash. A review run, or a run that
       #     branched from next and never saw the lane, keeps neither,
@@ -136,6 +137,11 @@ jobs:
           set -eu
           case "$ISSUE" in ''|*[!0-9]*) echo "bad issue number"; exit 1;; esac
           branch="lane/cloud-$ISSUE"
+          # A directory this step makes, so the upload below can only
+          # see files this step wrote, never a path the run planted.
+          out="$RUNNER_TEMP/lane-bundles"
+          rm -rf "$out"
+          mkdir "$out"
           auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
           git_push() {
             git -c core.hooksPath=/dev/null \
@@ -165,12 +171,16 @@ jobs:
           if [ "$tip" != "origin/next" ]; then
             dropped="$(git cherry HEAD "$tip" origin/next)"
             if [ "$(pluses "$dropped")" != "0" ]; then
-              kept="$(git log --format=%s origin/next..HEAD)"
+              fmt="%an%x01%ae%x01%at%x01%s"
+              kept="$(git log --format="$fmt" origin/next..HEAD)"
               lost=0
               for sha in $(printf '%s\n' "$dropped" | sed -n 's/^+ //p'); do
-                subject="$(git log -1 --format=%s "$sha")"
-                if ! printf '%s\n' "$kept" | grep -qxF -- "$subject"; then
+                key="$(git log -1 --format="$fmt" "$sha")"
+                hit="$(printf '%s\n' "$kept" | grep -nxF -m1 -- "$key" || true)"
+                if [ -z "$hit" ]; then
                   lost=1
+                else
+                  kept="$(printf '%s\n' "$kept" | sed "${hit%%:*}d")"
                 fi
               done
               if [ "$lost" = "1" ]; then
@@ -178,23 +188,33 @@ jobs:
                 if [ "$(printf '%s\n' "$merged" | sed -n 1p)" \
                   != "$(git rev-parse HEAD^{tree})" ]; then
                   echo "HEAD drops commits already on $branch; not pushing."
-                  git bundle create "$RUNNER_TEMP/lane-work.bundle" \
+                  git bundle create "$out/lane-work.bundle" \
                     origin/next..HEAD
                   exit 1
                 fi
               fi
             fi
           fi
+          # A push that replaces a tip HEAD does not contain would leave
+          # the lane's commits on no ref. Keep them, and say where the
+          # lane was, whatever check let the push through.
+          if [ "$tip" != "origin/next" ] \
+            && ! git merge-base --is-ancestor "$tip" HEAD; then
+            echo "Replacing $branch, which was at $(git rev-parse "$tip")."
+            git bundle create "$out/lane-replaced.bundle" origin/next.."$tip"
+          fi
           git_push push --no-verify $lease "$url" "HEAD:refs/heads/$branch"
 
-      # A run the push step refused: its commits exist only on this
-      # runner, so keep them. `git fetch lane-work.bundle HEAD` brings
-      # them back.
-      - name: Keep the refused work
-        if: failure()
+      # What the push step set aside: lane-work.bundle holds a refused
+      # run's commits, lane-replaced.bundle the lane as it stood before
+      # a push replaced it. `git fetch <bundle> HEAD` (lane-work) or
+      # `git fetch <bundle> refs/remotes/lane/lane/cloud-<issue>`
+      # (lane-replaced) brings them back.
+      - name: Keep the set-aside work
+        if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: lane-work
-          path: ${{ runner.temp }}/lane-work.bundle
+          path: ${{ runner.temp }}/lane-bundles
           if-no-files-found: ignore
           retention-days: 14

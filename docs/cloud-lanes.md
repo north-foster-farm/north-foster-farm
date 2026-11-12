@@ -69,13 +69,18 @@ The push step sends the branch only when the run added work. It
 compares `HEAD` with the lane branch on origin (or with `origin/next`
 when the lane is new) and pushes when `HEAD` holds a change the lane
 lacks and keeps every change the lane has. A rebase, an amend or a
-resolved conflict keeps a change: the step matches it by commit
-subject, or by the lane's content already being in `HEAD`, as after a
-squash landing. A run that committed nothing, such as a review or a
-question, leaves the lane where it was. A run whose `HEAD` would drop
-the lane's commits (it branched from `next` and never saw the lane)
-fails instead of pushing, and uploads its commits as the `lane-work`
-artifact: `git fetch lane-work.bundle HEAD` brings them back (#552).
+resolved conflict keeps a change: the step matches it to a commit of
+the run with the same author, author date and subject (each run commit
+standing for one lane commit at most), or sees the lane's content
+already in `HEAD`, as after a squash landing. A run that committed
+nothing, such as a review or a question, leaves the lane where it was.
+A run whose `HEAD` would drop the lane's commits (it branched from
+`next` and never saw the lane) fails instead of pushing. Whatever the
+step sets aside, it uploads as the `lane-work` artifact: a refused
+run's commits as `lane-work.bundle`, and the lane as it stood before a
+push replaced it as `lane-replaced.bundle`, with the old tip's SHA in
+the step's log (#552). `git fetch lane-work.bundle HEAD` brings the
+first back.
 
 ## Checks
 

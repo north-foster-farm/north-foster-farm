@@ -6,6 +6,7 @@ import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
 import {
   existsSync,
+  mkdirSync,
   mkdtempSync,
   readFileSync,
   writeFileSync,
@@ -18,6 +19,7 @@ const marker = "- name: Push the lane branch";
 const block = yml.slice(yml.indexOf(marker));
 const run = block.slice(block.indexOf("        run: |\n") + 16);
 const body = run.slice(0, run.indexOf("\n\n"));
+assert.match(body.trimEnd(), /git_push push --no-verify .*$/);
 const script = body
   .split("\n")
   .map((l) => l.replace(/^ {10}/, ""))
@@ -36,10 +38,10 @@ function setup() {
   g("config", "user.name", "a");
   g("config", `url.${bare}.insteadOf`, "https://github.com/o/r");
   g("remote", "add", "origin", bare);
-  const commit = (file, text) => {
+  const commit = (file, text, msg = file, date = "") => {
     writeFileSync(join(work, file), text);
     g("add", file);
-    g("commit", "-qm", file);
+    g("commit", "-qm", msg, ...(date ? ["--date", date] : []));
   };
   commit("base", "0");
   g("push", "-q", "origin", "next");
@@ -65,8 +67,9 @@ function setup() {
       return null;
     }
   };
-  const bundle = join(dir, "lane-work.bundle");
-  return { g, commit, run, lane, bundle, work };
+  const bundle = join(dir, "lane-bundles", "lane-work.bundle");
+  const replaced = join(dir, "lane-bundles", "lane-replaced.bundle");
+  return { g, commit, run, lane, bundle, replaced, work, dir };
 }
 
 test("a review run on next leaves the lane alone", () => {
@@ -168,16 +171,20 @@ test("a rebase with a resolved conflict is pushed", () => {
   assert.equal(c.lane(), c.g("rev-parse", "HEAD"));
 });
 
-test("an amended lane commit is pushed", () => {
+test("an amended lane commit, with new content, is pushed", () => {
   const c = laneWithFile();
+  writeFileSync(join(c.work, "f"), ten.replace("line5", "AMENDED"));
+  c.g("commit", "-q", "--amend", "-a", "-m", "lane change");
   c.commit("b", "2");
-  c.g("commit", "-q", "--amend", "-m", "b");
   assert.equal(c.run().status, 0);
   assert.equal(c.lane(), c.g("rev-parse", "HEAD"));
+  assert.ok(existsSync(c.replaced), "the replaced lane is backed up");
 });
 
-test("a squash-landed lane plus new work is pushed", () => {
+test("a two-commit lane squash-landed on next, plus new work", () => {
   const c = laneWithFile();
+  c.commit("g", "second");
+  assert.equal(c.run().status, 0);
   c.g("checkout", "-q", "next");
   c.g("merge", "-q", "--squash", "work");
   c.g("commit", "-qm", "Squashed lane");
@@ -187,6 +194,52 @@ test("a squash-landed lane plus new work is pushed", () => {
   c.commit("b", "2");
   assert.equal(c.run().status, 0);
   assert.equal(c.lane(), c.g("rev-parse", "HEAD"));
+});
+
+test("a next that conflicts with the lane, plus new work, is refused", () => {
+  const c = laneWithFile();
+  const before = c.lane();
+  moveNext(c, (t) => t.replace("line5", "THEIRS"));
+  c.g("checkout", "-q", "-b", "other", "origin/next");
+  c.commit("b", "2");
+  assert.notEqual(c.run().status, 0);
+  assert.equal(c.lane(), before);
+  assert.ok(existsSync(c.bundle));
+});
+
+test("a reused subject by another author date is refused", () => {
+  const c = laneWithFile();
+  const before = c.lane();
+  c.g("checkout", "-q", "-b", "other", "origin/next");
+  c.commit("x", "1", "lane change", "2001-01-01T00:00:00Z");
+  assert.notEqual(c.run().status, 0);
+  assert.equal(c.lane(), before);
+  assert.ok(existsSync(c.bundle));
+});
+
+test("one run commit stands for one lane commit, not two", () => {
+  const c = setup();
+  c.g("checkout", "-q", "-b", "work");
+  c.commit("a", "1", "wip", "2001-01-01T00:00:00Z");
+  c.commit("b", "2", "wip", "2001-01-01T00:00:00Z");
+  assert.equal(c.run().status, 0);
+  const before = c.lane();
+  c.g("checkout", "-q", "-b", "other", "origin/next");
+  c.commit("z", "9", "wip", "2001-01-01T00:00:00Z");
+  c.commit("n", "3", "new");
+  assert.notEqual(c.run().status, 0);
+  assert.equal(c.lane(), before);
+});
+
+test("a file the run planted is never in the uploaded directory", () => {
+  const c = setup();
+  c.g("checkout", "-q", "-b", "work");
+  c.commit("a", "1");
+  const planted = join(tmpdir(), "x");
+  mkdirSync(join(c.dir, "lane-bundles"));
+  writeFileSync(join(c.dir, "lane-bundles", "lane-work.bundle"), planted);
+  assert.equal(c.run().status, 0);
+  assert.equal(existsSync(c.bundle), false);
 });
 
 test("a follow-up from next that ignored the lane is refused, kept", () => {
