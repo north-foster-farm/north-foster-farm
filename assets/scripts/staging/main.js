@@ -14,13 +14,14 @@
 // The email library (library.js) opens from the panel or from a
 // #email=<id> link, even when the toolbar is hidden.
 
-import { hideExpired } from "../expiry/expiry.js";
+import { followClock } from "../expiry/expiry.js";
+import { retireTopBar } from "../top-bar/top-bar.js";
 import { onPress, setBusy } from "../utils/busy-button.js";
 import { maybeShowOverlay, wireCopy } from "./card.js";
 import { mountClock } from "./clock.js";
 import { mountLibrary } from "./library.js";
 import { mountNav } from "./nav.js";
-import { keepOffset, OFFSET_KEY, savedOffset } from "./offset.js";
+import { keepOffset, OFFSET_KEY } from "./offset.js";
 import { forgetEverything, unfinished } from "./reset.js";
 import { SEEN_MAIL, unseen } from "./seen.js";
 import { mountSignatures } from "./signatures.js";
@@ -236,12 +237,10 @@ const slips = mountSlips({
   onOpen: () => { root.hidden = false; },
 });
 
-// This bundle runs right after the site's, in the same deferred pass and
-// before the first paint: move the date-bound blocks to the kept offset
-// now, not after the info fetch, so the wrong block never shows (#385).
-const offset = savedOffset(store("localStorage", OFFSET_KEY));
-
-if (offset !== 0) hideExpired(document, Date.now() + offset);
+// The site's bundle has already moved the date-bound blocks to the
+// kept offset, before the first paint (clock/now.js reads it where
+// this toolbar is in the page; #385, #568). The info fetch below
+// moves them again to the server's time, in case the two differ.
 
 const boot = async () => {
   store("sessionStorage", HIDDEN, null);
@@ -260,7 +259,11 @@ const boot = async () => {
     // them follow the toolbar's (#385). Keep the offset for the next
     // load's first pass (below); at 0 it is cleared, back to now.
     store("localStorage", OFFSET_KEY, keepOffset(info.data.clock.offset));
-    hideExpired(document, new Date(info.data.clock.now).getTime());
+
+    const at = new Date(info.data.clock.now).getTime();
+
+    followClock(document, at);
+    retireTopBar(document, at);
   } else {
     can = can.filter((a) => a !== "clock");
   }

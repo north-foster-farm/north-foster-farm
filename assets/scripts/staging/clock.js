@@ -35,12 +35,14 @@ export const mountClock = ({ root, api, timeZone, reload }) => {
   const form = qs("[data-staging-clock]");
   const field = qs("[data-staging-clock-at]");
   const now = qs("[data-staging-clock-now]");
+  const misses = qs("[data-staging-clock-misses]");
   const badge = qs("[data-staging-badge-time]");
   const tabClock = qs("[data-staging-tab-clock]");
   const out = qs("[data-staging-out]");
 
   // While a time is set, the sidebar's Current time carries a badge
-  // and the collapsed tab shows the time (#303).
+  // and the collapsed tab shows the time (#303), and a line names
+  // what the time can't move (#568), so nothing fails silently.
   const draw = (clock) => {
     const at = new Date(clock.now);
     const on = clock.offset !== 0;
@@ -48,6 +50,7 @@ export const mountClock = ({ root, api, timeZone, reload }) => {
 
     field.value = fieldValue(at, timeZone);
     now.textContent = `Currently: ${when}`;
+    if (misses) misses.hidden = !on;
     badge.hidden = !on;
     tabClock.hidden = !on;
     tabClock.textContent = on ? ` · ${when}` : "";

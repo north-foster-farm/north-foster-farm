@@ -3,24 +3,18 @@
     {{ partial "home/hero.html" . }}
     {{ partial "home/how.html" . }}
     {{ partial "home/copy.html" . }}
-    {{/* The markets running now, each in its own season; the three
-         ways to buy while none is. A page built in market season
-         also carries the ways band, hidden, and swaps the two on the
-         day after the last market closes (expiry.js), since the
-         build may be weeks old by then. A winter market running on
-         past the season's last close goes with the band
-         (market-season.html, #544). */}}
-    {{ with partial "market-season.html" . }}
-      {{ $last := "" }}
-      {{ range . }}
-        {{ if and (not .winter) (gt .closes $last) }}{{ $last = .closes }}{{ end }}
-      {{ end }}
-      {{ $ends := partial "market/ends.html" $last }}
-      {{ partial "home/markets.html" (dict "markets" . "ends" $ends) }}
-      {{ partial "home/ways.html" (dict "from" $ends) }}
-    {{ else }}
-      {{ partial "home/ways.html" (dict "from" "") }}
-    {{ end }}
+    {{/* The markets in their seasons; the three ways to buy while
+         none runs. Both bands are built whatever the date, every
+         market with its season, so the browser picks the band at
+         view time (expiry.js, pickSeason): the build may be weeks
+         old by then, and on staging the toolbar's clock moves it
+         (#568). The build hides what its own date rules out, so a
+         fresh page paints right before any script runs. A winter
+         market alone is no market season (market-season.html,
+         #544). */}}
+    {{ $season := gt (len (partial "market-season.html" .)) 0 }}
+    {{ partial "home/markets.html" (dict "markets" (partial "lib/pickup-lists.html" .).markets "season" $season) }}
+    {{ partial "home/ways.html" (dict "hidden" $season) }}
     {{ partial "home/map.html" . }}
     {{ partial "home/contact.html" . }}
   </section>

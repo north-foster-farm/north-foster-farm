@@ -7,7 +7,7 @@ import { Extensions } from "./extensions/extensions.js";
 import { wireCartBadge } from "./cart-badge/cart-badge.js";
 import { Copyright } from "./copyright/copyright.js";
 import { wireDotLists } from "./dot-list/dot-list.js";
-import { hideExpired } from "./expiry/expiry.js";
+import { followClock } from "./expiry/expiry.js";
 import { wireHeroVideo } from "./hero/hero.js";
 import { wireFarmList } from "./news/farm-list.js";
 import { wireSchedule } from "./schedule/schedule.js";
@@ -21,8 +21,10 @@ import { Touchable } from "./touchable/touchable.js";
 
 Extensions.apply();
 Copyright.setYear();
+// The date rules, at the site's clock (clock/now.js, #568): the real
+// time, or on staging the toolbar's.
 retireTopBar();
-hideExpired();
+followClock();
 wireSchedule();
 // Now, not on DOMContentLoaded: the order page's own bundle runs after
 // this one and announces its first count before that event.

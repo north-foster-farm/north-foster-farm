@@ -36,6 +36,7 @@
 //
 // Wording is a draft for James (#138, #214).
 
+import { siteNow } from "../clock/now.js";
 import { clearance, fit } from "./fit.mjs";
 
 const MAX_ZOOM = 5;
@@ -75,10 +76,11 @@ const toneOf = (area) => {
 
 const easeOut = (t) => 1 - (1 - t) ** 3;
 
-// Today on the visitor's clock, to compare with the dates in the
-// markup.
+// Today on the visitor's clock, moved by the staging toolbar's
+// (clock/now.js), to compare with the dates in the markup. Only
+// forward: what the build left out, or this removed, stays gone.
 const today = () => {
-  const d = new Date();
+  const d = new Date(siteNow());
   const pad = (n) => String(n).padStart(2, "0");
 
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;

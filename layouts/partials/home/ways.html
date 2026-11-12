@@ -18,13 +18,15 @@
      (#212). The addresses are short: this only says where; the
      footer and contact page carry the full one. The drop site's
      first day is a badge by its name, not part of its line, so the
-     badge can go once the day is over: the build leaves it out after
-     then, and expiry.js hides it in a page built before.
+     badge can go once the day is over: expiry.js hides it from then,
+     and a page built after carries it hidden, so the staging clock
+     can bring it back (#568).
 
-     Built in market season, the band is hidden and carries `from`,
-     the moment the markets end (index.html); expiry.js shows it
-     then. Built after, `from` is empty and the band just shows. */}}
-{{ $from := .from }}
+     Built whatever the date, beside the market band (index.html):
+     built in market season it is `hidden`, marked data-expiry="hid",
+     and the browser shows it while no market but a winter one runs
+     (expiry.js, pickSeason; #568). */}}
+{{ $hidden := .hidden }}
 {{ $terms := hugo.Data.delivery }}
 {{ $money := partial "money.html" }}
 {{ $address := hugo.Data.company.address }}
@@ -36,10 +38,8 @@
   {{ $starts = merge $starts (dict .code .start) }}
 {{ end }}
 {{ $dropEnd := $dropStart.AddDate 0 0 1 }}
-{{ $dropBadge := "" }}
-{{ if gt $dropEnd.Unix now.Unix }}
-  {{ $dropBadge = printf "Starting %s" ($dropStart.Format "January 2") }}
-{{ end }}
+{{ $dropBadge := printf "Starting %s" ($dropStart.Format "January 2") }}
+{{ $dropPast := le $dropEnd.Unix now.Unix }}
 {{ $ways := slice
   (dict
     "method" "onfarm"
@@ -82,7 +82,7 @@
   {{ $srcset = $srcset | append (printf "%s %dw" $img.RelPermalink .) }}
 {{ end }}
 {{ $fallback := $tunnel.Resize "1600x jpg q82" }}
-<div class="places ways home-band border-bottom border-light"{{ with $from }} hidden data-show-from="{{ . }}"{{ end }}>
+<div class="places ways home-band border-bottom border-light" data-season-ways{{ if $hidden }} hidden data-expiry="hid"{{ end }}>
   <img class="home-band-img" src="{{ $fallback.RelPermalink }}" srcset="{{ delimit $srcset ", " }}" sizes="100vw" width="{{ $fallback.Width }}" height="{{ $fallback.Height }}" alt="" loading="lazy">
   <div class="home-band-overlay"></div>
   <div class="home-band-body container">
@@ -97,7 +97,7 @@
           <div class="place-head">
             <h3 class="place-name">{{ $way.name }}</h3>
             {{ with $way.badge }}
-              <span class="place-badge badge rounded-pill" data-hide-from="{{ $dropEnd.Format "2006-01-02T15:04:05-07:00" }}">{{ . }}</span>
+              <span class="place-badge badge rounded-pill" data-hide-from="{{ $dropEnd.Format "2006-01-02T15:04:05-07:00" }}"{{ if $dropPast }} hidden data-expiry="hid"{{ end }}>{{ . }}</span>
             {{ end }}
           </div>
           <p class="place-tagline">{{ $way.line }}</p>

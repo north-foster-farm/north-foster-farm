@@ -207,7 +207,8 @@ describe("Pawtucket on built pages (#544)", {
   });
 
   // Option (c) on #548: a winter market alone is no market season, so
-  // the home page keeps the ways band, shown, with no market band. Its
+  // the home page keeps the ways band, shown, with the market band
+  // built hidden for the browser to pick at view time (#568). Its
   // Pickup days card fills the places open from /api/dates.
   it("keeps the home page's ways band while only it runs", {
     skip: today(new Date(), ZONE) < "2026-11-10"
@@ -216,8 +217,10 @@ describe("Pawtucket on built pages (#544)", {
   }, () => {
     const page = html("");
 
-    assert.doesNotMatch(page, /class="places home-band[^"]*"[^>]*data-built/);
-    assert.match(page, /<div class="places ways home-band[^"]*">/);
+    assert.match(page, new RegExp('class="places home-band[^"]*" '
+      + 'data-season-band[^>]* hidden data-expiry="hid">'));
+    assert.match(page,
+      /<div class="places ways home-band[^"]*" data-season-ways>/);
     assert.match(page, /data-scheduled-ways/);
   });
 

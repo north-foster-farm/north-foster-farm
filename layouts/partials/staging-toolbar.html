@@ -55,6 +55,9 @@
                 <h3>Change time</h3>
                 <p>Browse the website on a specific day and time.</p>
                 <p class="staging-muted" data-staging-clock-now></p>
+                {{/* What a set time can't move (#568; docs/staging.md,
+                     "The clock"), shown only while one is set. */}}
+                <p class="staging-muted" data-staging-clock-misses hidden>Still as built on {{ now.Format "Jan 2" }}, whatever the time: prices and fees outside the order page, news posts, and what ended before the build (the top bar's event, the map's places).</p>
                 <form class="staging-clock" data-staging-clock>
                   <input type="datetime-local" id="staging-clock-at" data-staging-clock-at aria-label="Date and time, farm time" required>
                   <span>

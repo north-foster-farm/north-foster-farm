@@ -54,7 +54,8 @@ test.describe("walkthrough of 2026-10-24", () => {
       test.skip(!(await band.isVisible()), "no market is running");
       await expect(band.locator(".places-note")).toHaveCount(0);
       await expect(band).not.toContainText("Between seasons");
-      for (const place of await band.locator(".place").all()) {
+      // Every market is in the page, each shown in its season (#568).
+      for (const place of await band.locator(".place:not([hidden])").all()) {
         const lines = place.locator(".place-where .place-line");
 
         await expect(lines).toHaveCount(2);

@@ -588,23 +588,46 @@ test.describe("home", () => {
       });
   });
 
-  // #214: while any market runs (from its own opens to its closes in
-  // data/series.json, decided at build time) the band lists the
-  // markets running, and only those.
+  // #214, #568: the build prints both bands and every market in
+  // data/series.json with its season, and the browser picks at view
+  // time: each market through its season, the band while one that
+  // isn't a winter market runs. So these hold on a build of any date.
+  const SEASON = {
+    // A Saturday in September of the season in the data, and the
+    // moment after the season's last close, midnight farm time.
+    september: async () => {
+      const { markets } = await import("./support/series.mjs");
+      const last = markets.filter((m) => !m.winter).map((m) => m.closes)
+        .sort().at(-1);
+      let d = new Date(`${last.slice(0, 4)}-09-01T14:00:00Z`);
+
+      while (d.getUTCDay() !== 6) d = new Date(d.getTime() + 864e5);
+
+      return d;
+    },
+    ends: async (page) => Math.max(...await page
+      .locator("[data-season-band] li[data-season-until]:not([data-winter])")
+      .evaluateAll((els) => els.map((el) => Date.parse(
+        el.dataset.seasonUntil)))),
+  };
+
   test("the market band lists only the markets running", async ({ page }) => {
-    await page.goto("/");
-
-    const band = page.locator(".places.home-band:not(.ways)");
-
-    test.skip(await band.count() === 0, "built with no market running");
     const { markets } = await import("./support/series.mjs");
-    const built = await band.getAttribute("data-built");
+    const at = await SEASON.september();
+    const day = at.toISOString().slice(0, 10);
     const running = markets
-      .filter((m) => m.opens <= built && m.closes >= built)
+      .filter((m) => m.opens <= day && m.closes >= day)
       .map((m) => m.name);
 
-    await expect(band.locator(".place-name")).toHaveText(running);
-    // The off-season band waits in the page, hidden, for the swap.
+    await page.clock.setFixedTime(at);
+    await page.goto("/");
+
+    const band = page.locator("[data-season-band]");
+
+    await expect(band).toBeVisible();
+    await expect(band.locator(".place:not([hidden]) .place-name"))
+      .toHaveText(running);
+    // The off-season band waits in the page, hidden.
     await expect(page.locator(".ways")).toBeHidden();
   });
 
@@ -615,42 +638,35 @@ test.describe("home", () => {
     async ({ page }) => {
       await page.goto("/");
 
-      const band = page.locator(".places.home-band:not(.ways)");
+      const band = page.locator("[data-season-band]");
       const ways = page.locator(".ways");
-
-      test.skip(await band.count() === 0, "built with no market running");
       const { markets } = await import("./support/series.mjs");
-      const built = await band.getAttribute("data-built");
       // A winter market running on past the season goes with the band
       // (#544).
-      const last = markets
-        .filter((m) => !m.winter && m.opens <= built && m.closes >= built)
-        .map((m) => m.closes).sort().at(-1);
-      const ends = await band.getAttribute("data-hide-from");
-
+      const last = markets.filter((m) => !m.winter).map((m) => m.closes)
+        .sort().at(-1);
+      const ends = await SEASON.ends(page);
       const next = new Date(Date.parse(`${last}T12:00:00Z`) + 864e5)
         .toISOString().slice(0, 10);
 
-      expect(ends).toMatch(new RegExp(`^${next}T00:00:00-0[45]:00$`));
-      expect(await ways.getAttribute("data-show-from")).toBe(ends);
+      expect(new Date(ends).toLocaleDateString("en-CA",
+        { timeZone: "America/New_York" })).toBe(next);
 
-      await page.clock.setFixedTime(Date.parse(ends) - 1000);
+      await page.clock.setFixedTime(ends - 1000);
       await page.reload();
       await expect(band).toBeVisible();
       await expect(ways).toBeHidden();
 
-      await page.clock.setFixedTime(Date.parse(ends));
+      await page.clock.setFixedTime(ends);
       await page.reload();
       await expect(band).toBeHidden();
       await expect(ways).toBeVisible();
       await expect(ways.locator(".place")).toHaveCount(3);
     });
 
-  // #385: on staging, the toolbar's set time moves the date-bound
-  // blocks too, both ways. The moment is the build's own, the day
-  // after the season's last close: a fixed date read as off-season
-  // until Pawtucket's winter market ran through it (#544). A page
-  // built with no market band can't grow one, so that build skips.
+  // #385, #568: on staging, the toolbar's set time moves the bands
+  // both ways, on a build of any date, with no rebuild. While a time
+  // is set, the toolbar names what the clock can't move.
   test("the staging clock swaps the market and off-season bands",
     async ({ page }) => {
       let at = Date.now();
@@ -667,12 +683,17 @@ test.describe("home", () => {
       test.skip(await page.locator("#staging").count() === 0,
         "not a staging build");
 
-      const band = page.locator(".places.home-band:not(.ways)");
+      const band = page.locator("[data-season-band]");
       const ways = page.locator(".ways");
+      const misses = page.locator("[data-staging-clock-misses]");
+      const ends = await SEASON.ends(page);
 
-      test.skip(await band.count() === 0, "built with no market season");
-
-      const ends = Date.parse(await band.getAttribute("data-hide-from"));
+      at = (await SEASON.september()).getTime();
+      await page.reload();
+      await expect(band).toBeVisible();
+      await expect(ways).toBeHidden();
+      await expect(misses).toBeAttached();
+      expect(await misses.evaluate((el) => el.hidden)).toBe(false);
 
       at = ends + 12 * 3600e3;
       await page.reload();
@@ -695,9 +716,9 @@ test.describe("home", () => {
 
     await page.goto("/");
 
-    const band = page.locator(".places.home-band:not(.ways)");
+    const band = page.locator("[data-season-band]");
 
-    test.skip(await band.count() > 0, "built in a market season");
+    test.skip(await band.isVisible(), "in a market season");
 
     const built = await page.evaluate(() => new Intl.DateTimeFormat("en-CA",
       { timeZone: "America/New_York" }).format(new Date()));

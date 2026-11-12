@@ -5,8 +5,8 @@ import { expired, hideExpired } from "../assets/scripts/expiry/expiry.js";
 
 const end = "2026-10-18T00:00:00-04:00";
 
-// A page with the market band, due out at `ends`, and the off-season
-// band, built hidden and due in at the same moment.
+// A page with a block due out at `ends`, and one built hidden and due
+// in at the same moment.
 const page = (ends) => {
   const band = { dataset: { hideFrom: ends }, hidden: false };
   const ways = { dataset: { showFrom: ends }, hidden: true };
@@ -43,7 +43,10 @@ describe("expiry", () => {
   });
 });
 
-describe("the market band giving way to the off-season band", () => {
+// The home bands swap by their seasons now (pickSeason, #568, in
+// season.test.mjs); these hold the pair of rules for any blocks that
+// trade places at one moment.
+describe("a block due out giving way to one due in", () => {
   const ends = "2026-10-26T00:00:00-04:00";
 
   it("shows the market band alone through the last day", () => {

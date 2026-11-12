@@ -1,7 +1,7 @@
 // The toolbar's clock offset, kept in this browser (localStorage) when
 // the clock is drawn, so the next page load can move the date-bound
-// blocks (expiry.js) at once, not after the info fetch (#385). Cleared
-// at offset 0.
+// blocks at once, not after the info fetch (#385): the site's bundle
+// reads it through clock/now.js (#568). Cleared at offset 0.
 
 export const OFFSET_KEY = "staging.clock-offset";
 

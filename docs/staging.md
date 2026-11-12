@@ -387,6 +387,57 @@ the run's, so no clock and no "as of" can scrub or sweep shared
 records early. A jobs run "as of" a time must be within three years of
 now, as the clock must.
 
+#### What the clock moves in the page, and what it doesn't
+
+The pages are built once, so the clock reaches them only through
+their scripts (2026-11-12, #568). `assets/scripts/clock/now.js`
+`siteNow()` is the scripts' clock: the real time, plus the offset the
+toolbar keeps in this browser (`staging.clock-offset` in
+localStorage), read only where the toolbar is in the page. Production
+markup never carries the toolbar, so there `siteNow()` is always
+`Date.now()`. The site's bundle runs every date rule at `siteNow()`
+before the first paint, and the toolbar runs them again at the
+server's time once `/api/staging/info` answers.
+
+It moves, both ways, with no rebuild:
+
+- the home page's seasonal bands. Both are built whatever the date,
+  every market in `data/series.json` with its season
+  (`data-season-from`, `data-season-until`), and `pickSeason` in
+  `expiry.js` shows each market through its season, the market band
+  while one that isn't a winter market runs, and the three ways
+  otherwise. The build hides what its own day rules out, so production
+  paints the right band before any script runs;
+- every `data-hide-from` and `data-show-from` block (`expiry.js`),
+  among them the drop site's "Starting" badges on the home and order
+  pages, which a page built after their day now carries hidden;
+- the copyright year;
+- everything from a function: the order page's date lists and
+  cutoffs, the Pickup days card, the skipped markets and pop-ups
+  (`/api/dates`, `/api/events`).
+
+It moves forward only, since the build leaves out what had ended
+before its day: the top bar's event (`top-bar.js` retires it once
+past, but an earlier time can't bring back one the build dropped), and
+the map's places and series (`map.js`).
+
+It doesn't move at all:
+
+- prices and fees outside the order page, and the coming price
+  changes on the delivery policy (`money.html`, `coming-changes`): the
+  build's day applies the changes, and the order page and functions
+  follow the clock themselves;
+- news posts: staging builds future and expired posts, so all of them
+  show whatever the time;
+- the home page's JSON-LD events (`head/schema.html`), which no one
+  sees on the page.
+
+While a time is set, the toolbar's Current time section names these
+in one line (`data-staging-clock-misses`), with the build's date, so
+none of them fails silently. A date rule added later reads
+`siteNow()`, not `Date.now()`; a duration (a cache's age, a spinner's
+hold) keeps `Date.now()`.
+
 One edge stays: a record keeps the time it was made on. An order or
 checkout made under a clock two years ahead outlives retention by two
 years, and a checkout made under a clock set back looks old to the

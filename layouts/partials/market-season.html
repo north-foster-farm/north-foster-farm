@@ -1,6 +1,8 @@
 {{/* The markets running today, each from its own "opens" to its
      "closes" date in the market series of data/series.json. The home page shows the market
-     band while any runs. It is decided at build time.
+     band while any runs. This is the build's pick, for the page's
+     first paint; the browser picks again at view time by the same
+     rule (expiry.js, pickSeason; #568), so keep the two in step.
 
      A winter market (`"winter": true`, Pawtucket's) does not make a
      market season by itself: while it is the only one running, this

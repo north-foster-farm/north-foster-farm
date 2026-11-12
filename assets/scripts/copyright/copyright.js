@@ -1,3 +1,4 @@
+import { siteNow } from "../clock/now.js";
 import { DOM } from "../utils/dom.js";
 
 export class Copyright {
@@ -13,7 +14,7 @@ export class Copyright {
 
   constructor() {
     this.span = DOM.find(Copyright.copyrightSpanID);
-    this.currentYear = (new Date()).getFullYear();
+    this.currentYear = new Date(siteNow()).getFullYear();
   }
 
   setYear() {

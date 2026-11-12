@@ -1,0 +1,5 @@
+{{/* The moment a market's season begins, for data-season-from (see
+     expiry.js, pickSeason): midnight, farm time, opening the date
+     given (an "opens" in the market series of data/series.json). */}}
+{{ $day := time.AsTime . hugo.Data.delivery.timeZone }}
+{{ return $day.Format "2006-01-02T15:04:05-07:00" }}
