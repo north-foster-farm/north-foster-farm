@@ -440,6 +440,12 @@ send orders-search-open square "$(pick search-open "$(margs)" 0)"
 send orders-search-customer square "$(pick customer-orders \
   "$(margs --arg customerId "$CUSTOMER_ID")" 1)"
 
+# ---- The member code on the profile (#131): reference_id alone ---------
+ARGS="$(margs --argjson found true)"
+send customer-update-reference square "$(pick set-member-reference \
+  "$ARGS" 1 \
+  | jq -c --arg c "$CUSTOMER_ID" '.path |= sub("__CUSTOMER_ID__"; $c)')"
+
 # ---- The customer: renamed, deleted, deleted again ----------------------
 ARGS="$(margs --arg from "$EMAIL" --arg to "renamed-$EMAIL" \
   --argjson found true)"

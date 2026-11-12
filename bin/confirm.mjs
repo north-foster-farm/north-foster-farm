@@ -58,6 +58,11 @@ const DESTRUCTIVE = {
     whole: true },
   "groups close": { does: "close rounds and grant credit, running",
     whole: true },
+  // A member's code on their record and their Square profile (#131).
+  "members mint": { does: "mint the member code and set it in Square for",
+    unless: "dry-run" },
+  "members sync": { does: "mint member codes and set them in Square for "
+    + "the group", unless: "dry-run" },
   "customers rename": { does: "move the account of", apply: true },
   "customers forget": { does: "erase the details of", apply: true },
   "auth backfill-index": {

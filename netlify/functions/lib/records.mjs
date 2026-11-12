@@ -704,17 +704,21 @@ export const currentOptIn = (customer) => {
     ? log[log.length - 1] : null;
 };
 
-// Schema only, for the membership program and Spanish mail after
-// launch (#267). Nothing reads these yet.
+// Fields every record carries, for the membership program and Spanish
+// mail (#267). `memberGroup` is read since #471 and `memberId` since
+// #131 (2026-11-12: this said nothing read them).
 //
 //   language        a BCP-47 tag; "en", and later "es"
-//   memberId        an opaque random code, unique, or null
-//   memberIdStatus  "active" or "retired", so a code can be retired
-//                   and a new one issued; null while there is none
+//   memberId        the member's code (lib/member-id.mjs), NFM-XXXX-XXXX,
+//                   unique, or null; indexed under member-id/<id>
+//   memberIdStatus  "active" while it is in use; "retired" is reserved
+//                   for a code replaced by a new one, which nothing
+//                   does yet; null while there is none
+//   memberIdSetAt   when the code was minted (written with it)
 //   memberSince     when they joined, or null; joining is also a
 //                   `membership` event in the consent log
-//   memberGroup     { id, joinedAt }, a link to a group record that
-//                   does not exist yet (docs/email-list.md), or null
+//   memberGroup     { id, joinedAt, via }, the customer's buying group
+//                   (lib/groups.mjs), or null
 export const SCHEMA_DEFAULTS = {
   language: "en",
   memberId: null,
@@ -745,8 +749,39 @@ export const saveCustomer = async (stores, customer, { consent } = {}) => {
   };
 
   await stores.customers.set(customerKey(record.email), record);
+  await indexMemberId(stores, record);
 
   return record;
+};
+
+// --- Member codes (#131) ----------------------------------------------
+//
+// `member-id/<id>` -> { email }: whose record holds the code, so the CLI
+// finds a member by the code on their tag. lib/member-id.mjs claims the
+// key, create-only, before the code goes on the record; every save of
+// the record after that points it at the record's address, so an
+// address change (`customers rename`) carries it, and deleting the
+// record takes it away unless it already points elsewhere.
+export const memberIdKey = (id) => `member-id/${id}`;
+
+const indexMemberId = async (stores, record) => {
+  if (!record.memberId) return;
+
+  const held = await stores.customers.get(memberIdKey(record.memberId));
+
+  if (!held || held.email !== record.email) {
+    await stores.customers.set(memberIdKey(record.memberId), {
+      email: record.email,
+    });
+  }
+};
+
+// The customer whose record holds this code, or null.
+export const customerByMemberId = async (stores, id) => {
+  const held = id && await stores.customers.get(memberIdKey(id));
+  const customer = held && await getCustomer(stores, held.email);
+
+  return customer && customer.memberId === id ? customer : null;
 };
 
 // `marketing` true on an order opts the customer in to farm news and
@@ -802,6 +837,13 @@ export const allCustomers = async (stores) => {
 };
 
 export const deleteCustomer = async (stores, email) => {
+  const customer = await getCustomer(stores, email);
+  const held = customer && customer.memberId
+    && await stores.customers.get(memberIdKey(customer.memberId));
+
+  if (held && held.email === emailKey(email)) {
+    await stores.customers.delete(memberIdKey(customer.memberId));
+  }
   await stores.customers.delete(customerKey(email));
   await stores.customers.delete(cartKey(email));
 };

@@ -412,9 +412,10 @@ export const memberKeyOf = (customer) => (customer && customer.memberGroup
 // mark (the order's touch comes first, so there always is).
 //
 // The member record is the customer's `memberGroup`: { id, joinedAt,
-// via }, where `id` is the group's key. A membership ID and its QR code
-// (James, 6452408603: later) go beside them as `memberId`, so nothing
-// that reads the record today changes; leaving clears the whole of it.
+// via }, where `id` is the group's key; leaving clears the whole of it.
+// The member's code sits beside it as `memberId` (lib/member-id.mjs,
+// #131), and stays when they leave, so a printed tag still works if
+// they join again (2026-11-12: this said the code was for later).
 //
 // A customer is in one group at a time (#495, edge 2). Another
 // group's code prices and places that one order, and never moves the

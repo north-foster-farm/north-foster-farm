@@ -163,6 +163,10 @@ const SQUARE_CALLS = {
   renameCustomerEmail: (o) => square.renameCustomerEmail(
     "a@example.com", "b@example.com", o
   ),
+  setCustomerReference: (o) => square.setCustomerReference({
+    email: "customer@example.com", firstName: "Pat", lastName: "Fixture",
+    phone: "",
+  }, "NFM-ABCD-EFGH", o),
 };
 
 const PAYPAL_CALLS = {

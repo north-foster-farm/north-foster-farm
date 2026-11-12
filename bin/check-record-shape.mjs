@@ -46,6 +46,7 @@ export const SHAPE_PATHS = [
   "netlify/functions/lib/packing.mjs",
   "netlify/functions/lib/group-log.mjs",
   "netlify/functions/lib/perks.mjs",
+  "netlify/functions/lib/member-id.mjs",
   "netlify/migrations/",
   "bin/migrations/",
 ];

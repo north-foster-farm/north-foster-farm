@@ -26,8 +26,8 @@
 
 import { fakeId, recorded } from "./fake.mjs";
 import {
-  DECLINE_MESSAGES, SquareError, buildChangeOrder, buildOrder, failure,
-  paymentRecord, paymentView, refundRecord,
+  DECLINE_MESSAGES, SquareError, buildChangeOrder, buildOrder, customerView,
+  failure, paymentRecord, paymentView, refundRecord, replaceableReference,
 } from "./square.mjs";
 
 const cfg = (env) => ({
@@ -41,10 +41,11 @@ const answer = (name) => recorded("square", name);
 // What this process has been told. Orders: { total, paid, state, built }
 // by Square order id; payments: { record, amount, refunded } by payment
 // id; refunds: { paymentId, amount } by refund id; keys: the body each
-// idempotency key first came with.
+// idempotency key first came with; references: the reference_id set on
+// each address's profile (#131).
 const memory = {
   keys: new Map(), orders: new Map(), payments: new Map(),
-  refunds: new Map(),
+  refunds: new Map(), references: new Map(),
 };
 
 export const forgetFake = () => {
@@ -442,3 +443,48 @@ export const inventoryCounts = async () => null;
 
 // No customers here to rename.
 export const renameCustomerEmail = async () => [];
+
+// A member's code on their profile (#131). The fake keeps no profiles
+// but the references it has been told, by address, in this process: an
+// address it has not seen has no profile yet, so the first call makes
+// one and a second finds it unchanged. Each answer is a recording (a
+// made profile, or an updated one) with the request's values put in,
+// read by square.mjs's own customerView.
+//
+// FINDING to record: `customer-update` is the recording of a PUT that
+// changed the email address (`renameCustomerEmail`). The PUT here sends
+// `reference_id` alone; until bin/fixtures/record keeps that one as
+// `customer-update-reference`, the answer is the rename's, whose
+// response has the same shape.
+const UPDATE = "customer-update";
+
+export const setCustomerReference = async (customer, referenceId, {
+  apply = true,
+} = {}) => {
+  const email = String(customer.email || "").trim().toLowerCase();
+  const id = fakeId("FAKE-CUSTOMER", email);
+  const known = memory.references.has(email);
+  const was = known ? memory.references.get(email) : null;
+
+  if (known && was === referenceId) {
+    return { customerId: id, action: "unchanged", was };
+  }
+  if (known && !replaceableReference(was)) {
+    return { customerId: id, action: "conflict", was };
+  }
+  if (!apply) {
+    return known
+      ? { customerId: id, action: "would-update", was }
+      : { customerId: null, action: "would-create", was: null };
+  }
+
+  const shape = answer(known ? UPDATE : "customer-create").response.customer;
+
+  memory.references.set(email, referenceId);
+
+  return {
+    ...customerView({ ...shape, id, reference_id: referenceId }),
+    action: known ? "updated" : "created",
+    was,
+  };
+};

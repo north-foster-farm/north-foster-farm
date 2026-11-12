@@ -18,7 +18,8 @@ import {
   buildChangeOrder, cancelFulfillment, cancelOrder, completeOrder,
   createChangeOrder, createOrder, createPayment, customerOrders,
   deleteCustomer, findPaid, inventoryCounts, payZeroOrder, refundPayment,
-  renameCustomerEmail, searchOpenOrders, updateFulfillment,
+  renameCustomerEmail, searchOpenOrders, setCustomerReference,
+  updateFulfillment,
 } from "../../netlify/functions/lib/square.mjs";
 import { sendMail } from "../../netlify/functions/lib/mail.mjs";
 import { testStores } from "../../netlify/functions/lib/store.mjs";
@@ -175,6 +176,12 @@ const CALLS = {
   "rename-customer": (a, o) => renameCustomerEmail(
     a.from, a.to, { ...o, apply: true }
   ),
+  // A member's code on their profile (#131): the search, then the PUT
+  // of reference_id alone (with `found`), or the create.
+  "set-member-reference": (a, o) => setCustomerReference({
+    email: a.email, firstName: "Pat", lastName: "Fixture",
+    phone: "401-555-0100",
+  }, a.memberId || "NFM-FXTR-2345", o),
 };
 
 // The change order's own body, which createChangeOrder wraps; exported

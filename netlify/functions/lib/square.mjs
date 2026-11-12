@@ -504,23 +504,25 @@ export const buildOrder = (order, customerId, cfg) => {
 // A profile the site makes carries the order id it was made for as its
 // reference, so "made for this order" survives a retry that finds it
 // instead (#236). -> { id, made }
-const findOrCreateCustomer = async (cfg, customer, key, fetchImpl, ref) => {
+// The first profile under the address, as checkout finds it, or null.
+const searchCustomer = async (cfg, email, fetchImpl) => {
   const found = await call(cfg, "/v2/customers/search", {
-    query: { filter: { email_address: { exact: customer.email } } },
+    query: { filter: { email_address: { exact: email } } },
     limit: 1,
   }, fetchImpl);
 
-  if (found.customers && found.customers.length) {
-    const c = found.customers[0];
+  return (found.customers && found.customers[0]) || null;
+};
 
-    return { id: c.id, made: !!ref && c.reference_id === ref };
-  }
-
+// A new profile with the customer's names, address and phone, and `ref`
+// as its reference. -> Square's customer
+const createCustomer = async (cfg, customer, idempotencyKey, ref,
+  fetchImpl) => {
   const [given, ...rest] = customer.firstName
     ? [customer.firstName, customer.lastName || ""]
-    : customer.name.split(/\s+/);
+    : String(customer.name || "").split(/\s+/);
   const created = await call(cfg, "/v2/customers", {
-    idempotency_key: `${key}-customer`,
+    idempotency_key: idempotencyKey,
     given_name: given,
     family_name: rest.join(" ") || undefined,
     email_address: customer.email,
@@ -528,7 +530,81 @@ const findOrCreateCustomer = async (cfg, customer, key, fetchImpl, ref) => {
     reference_id: ref,
   }, fetchImpl);
 
-  return { id: created.customer.id, made: !!ref };
+  return created.customer;
+};
+
+const findOrCreateCustomer = async (cfg, customer, key, fetchImpl, ref) => {
+  const c = await searchCustomer(cfg, customer.email, fetchImpl);
+
+  if (c) return { id: c.id, made: !!ref && c.reference_id === ref };
+
+  const created = await createCustomer(cfg, customer, `${key}-customer`, ref,
+    fetchImpl);
+
+  return { id: created.id, made: !!ref };
+};
+
+// --- A member's code on their Square profile (#131) -------------------
+//
+// The member ID (lib/member-id.mjs) goes on the member's Square profile
+// as its `reference_id`, so a scan at the stand finds them. The profile
+// is the one checkout finds by email, or one made for them.
+//
+// A reference already there is replaced only when the site wrote it:
+// the order id a checkout marks the profile it made with (#236; the
+// mark only matters during that checkout's own retries), or an older
+// member ID. Anything else someone typed in the Square Dashboard, so it
+// is reported as a conflict and left alone.
+const SITE_REFERENCE = /^NF[FM]-[A-Z0-9]{4}-[A-Z0-9]{4}$/;
+
+export const replaceableReference = (value) =>
+  !value || SITE_REFERENCE.test(String(value));
+
+// What the code reads of a profile Square answers with.
+export const customerView = (c) => ({
+  customerId: c.id, referenceId: c.reference_id || null,
+});
+
+// `customer` is the member's record ({ email, firstName, lastName,
+// name, phone }). With `apply` false, only reads and says what it
+// would do. -> { customerId, action, was }, where action is one of
+// "unchanged", "updated", "created", "conflict", or with `apply` false
+// "would-update" or "would-create"; customerId is null for a profile
+// not made yet.
+export const setCustomerReference = async (customer, referenceId, {
+  env = process.env,
+  fetchImpl = globalThis.fetch,
+  apply = true,
+} = {}) => {
+  if (isFake(env)) {
+    return fake.setCustomerReference(customer, referenceId, { apply });
+  }
+
+  const cfg = settings(env);
+  const found = await searchCustomer(cfg, customer.email, fetchImpl);
+
+  if (!found) {
+    if (!apply) return { customerId: null, action: "would-create", was: null };
+
+    // Keyed by the ID, so a retry finds the profile the first try made.
+    const made = await createCustomer(cfg, customer, `member-${referenceId}`,
+      referenceId, fetchImpl);
+
+    return { ...customerView(made), action: "created", was: null };
+  }
+
+  const { customerId, referenceId: was } = customerView(found);
+
+  if (was === referenceId) return { customerId, action: "unchanged", was };
+  if (!replaceableReference(was)) {
+    return { customerId, action: "conflict", was };
+  }
+  if (!apply) return { customerId, action: "would-update", was };
+
+  const data = await call(cfg, `/v2/customers/${encodeURIComponent(
+    customerId)}`, { reference_id: referenceId }, fetchImpl, "PUT");
+
+  return { ...customerView(data.customer || found), action: "updated", was };
 };
 
 // The customer and the order with its fulfillment, before any money.
