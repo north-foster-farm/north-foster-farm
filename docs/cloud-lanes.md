@@ -49,10 +49,13 @@ without the answer gets done first.
 
 ## The branch
 
-1. `git fetch origin`, then branch from `origin/next` as
-   `lane/cloud-<issue>`, where `<issue>` is the issue number. The
-   action may have made that branch for you; check that it descends
-   from `origin/next` and that you are on it.
+1. `git fetch origin`. If `origin/lane/cloud-<issue>` exists, where
+   `<issue>` is the issue number, start from it with
+   `git checkout -B lane/cloud-<issue> origin/lane/cloud-<issue>`, so
+   your push is a fast-forward and the lane's work stays. The action
+   branches from `origin/next` whether or not the lane exists, so do
+   this even when it put you there. If the lane does not exist, branch
+   from `origin/next` as `lane/cloud-<issue>`.
 2. Commit as you go, then `git rebase origin/next` before the end,
    keeping both sides' intent in a conflict. Never drop someone else's
    change.
@@ -61,6 +64,32 @@ without the answer gets done first.
    everything you want kept. Never merge into or deploy `next`,
    `staging` or `main`, and never open or merge a pull request: the
    coordinator reviews your branch and lands it.
+
+The push step sends the branch only when the run added work. It
+compares `HEAD` with the lane branch on origin (or with `origin/next`
+when the lane is new) and pushes when `HEAD` holds a change the lane
+lacks and keeps every change the lane has. A rebase, an amend or a
+resolved conflict keeps a change: the step matches it to a commit of
+the run with the same author, author date and subject (each run commit
+standing for one lane commit at most), or sees the lane's content
+already in `HEAD`, as after a squash landing. A run that committed
+nothing, such as a review or a question, leaves the lane where it was.
+A run whose `HEAD` would drop the lane's commits (it branched from
+`next` and never saw the lane) fails instead of pushing. Whatever the
+step sets aside, it uploads as the `lane-work` artifact: a refused
+run's commits as `lane-work.bundle`, and the lane as it stood before a
+push replaced it as `lane-replaced.bundle`, with the old tip's SHA in
+the step's log (#552). `git fetch lane-work.bundle refs/lane/run` brings
+the first back.
+
+The step runs in a bare repository it creates, with no template, and
+ignores user, system and environment git config. The token is an
+argument to the fetch and push that need it, not part of the step's
+environment. That keeps what a run writes under `.git/` or in its
+environment away from the token. It does not make the step safe from
+a run that executes code on the runner, which any run can do through
+`npm test` or `hugo`: the run and the push share one runner. The
+structural fix is a separate push job on a fresh runner (#570).
 
 ## Checks
 
