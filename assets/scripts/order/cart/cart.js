@@ -21,9 +21,9 @@ import { codeNote } from "./code-note.mjs";
 import { twoStep } from "./confirm.mjs";
 import * as state from "./state.mjs";
 import {
-  SHEET, animateFold, clearFocusUnder, fadeInWords, moveParts, moving,
-  pulsePill, revealLine, ringCart, showAdded, shutShare, teach, toPx,
-  watchKeyboard, watchList, watchPlacement, watchScroll,
+  SHEET, animateFold, clearFocusUnder, moveParts, moving, pulsePill,
+  revealLine, ringCart, showAdded, shutShare, swapWords, teach, toPx,
+  watchKeyboard, watchList, watchPlacement, watchScroll, wordsOf,
 } from "./view.mjs";
 
 // The code that is a joke: the cart shows a discount growing by this
@@ -148,18 +148,18 @@ export class Cart {
     // The pill is the floating pane's alone, so only a floating pane
     // writes it: settling, it leaves as it was, with no "Hide" written
     // into it on its way out (#559, round 3). New words fade in with
-    // the move on the sheet.
+    // the move on the sheet, the old ones fading out first: the word
+    // never changes in a frame of its own (swapWords).
     if (next.placement === "floating") {
       const open = next.fold === "open";
       const word = qs(this.root, "[data-cart-word]");
       const text = open ? "Hide" : "Expand";
 
       this.pill.setAttribute("aria-expanded", String(open));
-      if (word.textContent !== text) {
-        word.textContent = text;
-        if (this.sheet.matches && was !== next) {
-          fadeInWords(word, { reduce: reduced() });
-        }
+      if (wordsOf(word) !== text) {
+        swapWords(word, text, {
+          reduce: reduced() || !this.sheet.matches || was === next,
+        });
       }
     }
     qs(this.root, "[data-way-toggle]").setAttribute(

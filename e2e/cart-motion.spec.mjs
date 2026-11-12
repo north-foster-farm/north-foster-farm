@@ -121,8 +121,55 @@ const record = (page) => page.evaluate(() => {
     clear: "[data-cart-clear]",
   };
   const frames = [];
+  // A heartbeat on the main thread, beside the frames (fix round on
+  // 93e80094: a clear's whole move fell between two frames 475 ms
+  // apart). Each frame keeps how many beats ran since the last and the
+  // longest the thread went without one: a gap with beats running all
+  // through it is the renderer starved, one with a single long turn is
+  // the page's own long task.
+  let beats = 0;
+  let lastBeat = performance.now();
+  let turn = 0;
+  const beat = () => {
+    const now = performance.now();
+
+    turn = Math.max(turn, now - lastBeat);
+    lastBeat = now;
+    beats += 1;
+    window.cartBeat = setTimeout(beat, 0);
+  };
+  // Every ease of the pane as it starts, from the page's own record of
+  // it: whose it is, its opacity keyframes and its length. A move the
+  // frames miss is still seen here.
+  const eases = [];
+  const known = new WeakSet();
+  const whose = (el) => {
+    if (el.matches("[data-cart-word]")) return "word";
+    if (el === pane) return "pane";
+
+    const hit = Object.entries(TEXTS).find(([, sel]) => el.matches(sel));
+
+    return hit ? hit[0] : el.tagName.toLowerCase();
+  };
+  const noteEases = () => {
+    for (const a of pane.getAnimations({ subtree: true })) {
+      if (a.id !== "cart-move" || known.has(a) || !a.effect) continue;
+      known.add(a);
+      eases.push({
+        frame: frames.length,
+        part: whose(a.effect.target),
+        duration: a.effect.getTiming().duration,
+        opacity: a.effect.getKeyframes()
+          .filter((k) => k.opacity !== undefined)
+          .map((k) => ({ offset: k.computedOffset, opacity: +k.opacity })),
+      });
+    }
+  };
   const tick = () => {
     const s = getComputedStyle(pane);
+    const now = performance.now();
+
+    noteEases();
     const list = q("[data-cart-items]");
     const wrap = q("[data-cart-scroll]");
     const body = q("[data-cart-body]");
@@ -132,7 +179,9 @@ const record = (page) => page.evaluate(() => {
     const clear = q("[data-cart-clear]");
 
     frames.push({
-      t: performance.now(),
+      t: now,
+      beats,
+      turn: Math.max(turn, now - lastBeat),
       vh: innerHeight,
       moving: pane.getAnimations().length + pane.getAnimations({
         subtree: true,
@@ -180,12 +229,20 @@ const record = (page) => page.evaluate(() => {
       badge: box(badge),
       tip: box(tip),
     });
+    beats = 0;
+    turn = 0;
     window.cartTick = requestAnimationFrame(tick);
   };
 
+  clearTimeout(window.cartBeat);
   window.cartFrames = frames;
+  window.cartEases = eases;
   window.cartTick = requestAnimationFrame(tick);
+  window.cartBeat = setTimeout(beat, 0);
 });
+
+// The eases the last recording saw start (see record).
+const easesOf = (page) => page.evaluate(() => window.cartEases || []);
 
 // Stops recording, a few still frames after the pane is at rest.
 const recorded = async (page, order) => {
@@ -199,6 +256,7 @@ const recorded = async (page, order) => {
 
   return page.evaluate(() => {
     cancelAnimationFrame(window.cartTick);
+    clearTimeout(window.cartBeat);
 
     return window.cartFrames;
   });
@@ -276,6 +334,8 @@ const r = (b) => (b ? `${Math.round(b.top)}..${Math.round(b.bottom)}` : "-");
 const op = (v) => (v === undefined ? "-" : v.toFixed(2));
 const line = (f, i) => `#${i} ${f.placement}/${f.fold} y=${Math.round(f.y)}`
   + ` +${f.t === undefined ? "-" : Math.round(f.t)}ms`
+  + ` (${f.beats ?? "-"} beats, longest turn ${
+    f.turn === undefined ? "-" : Math.round(f.turn)}ms)`
   + ` pane ${r(f.pane)} lines ${r(f.lines)}@${op(f.ops?.lines)}`
   + ` total ${r(f.total)} foot ${r(f.foot)}`
   + ` next ${r(f.next)} pill "${f.word}"@${op(f.wordOp)}`
@@ -758,20 +818,35 @@ test.describe("each change moves the pane and its parts together", () => {
     await press(clear);
     await expect(order.cart).toHaveAttribute("data-empty", "");
     const frames = await recorded(page, order);
+    const eases = await easesOf(page);
 
     transition("clear", frames);
     // The pane eased to its minimized size, and never stood empty.
     expect(frames[frames.length - 1].fold).toBe("closed");
     // One motion (round 3): Clear cart fades out, still asking, rather
-    // than going in one frame, and Expand fades in, so nothing swaps in
-    // the frame before the ease.
+    // than going in one frame, and the pill's word fades out as Hide
+    // and in as Expand, so nothing swaps in the frame before the ease.
     // A failure prints the timeline from the press, so a cut and a
     // fade too quick for the frames read apart (run 43312689748).
+    const swap = Math.max(0, frames.findIndex((f) => f.fold === "closed"));
+    const why = (what) => `${what}; eases ${JSON.stringify(eases)}`;
+    // An ease of `part`, from the page's own record, whose opacity goes
+    // from `from` to `to` over the whole move, through `via` if given.
+    const eased = (part, from, to, via) => eases.some((e) => {
+      const o = e.opacity;
+
+      return e.part === part && e.duration >= MOVE_MS - 1 && o.length > 1
+        && o[0].opacity === from && o[o.length - 1].opacity === to
+        && o[o.length - 1].offset === 1
+        && (via === undefined || o.some((k) => k.opacity === via));
+    });
     const pill = frames.filter((f) => f.clear && f.ops.clear > 0.05);
 
-    if (!pill.some((f) => f.ops.clear < 0.95)) {
-      fail("clear", frames, Math.max(0, frames.findIndex((f) => (
-        f.word === "Expand")) - 1), "Clear cart never showed faded");
+    // Seen faded on a frame, or, where WebKit on CI drew no frame
+    // through the move (93e80094: frames 475 ms apart, the heartbeat
+    // in the timeline says whose), faded by its ease.
+    if (!pill.some((f) => f.ops.clear < 0.95) && !eased("clear", 1, 0)) {
+      fail("clear", frames, swap, why("Clear cart never showed faded"));
     }
     pill.forEach((f) => {
       if (f.clearText !== "Clear cart?") {
@@ -779,8 +854,25 @@ test.describe("each change moves the pane and its parts together", () => {
           `Clear cart said "${f.clearText}" as it went`);
       }
     });
-    expect(frames.some((f) => f.word === "Expand" && f.wordOp > 0.05
-      && f.wordOp < 0.95), "Expand faded in").toBe(true);
+    // The word changes only while it shows nothing: never between two
+    // frames a frame apart with the old word still showing (93e80094:
+    // "Hide"@1.00, then "Expand"@0.00 38 ms later).
+    frames.forEach((f, i) => {
+      const g = frames[i + 1];
+
+      if (g && g.word !== f.word && g.t - f.t < 60 && f.wordOp > 0.5) {
+        fail("clear", frames, i + 1,
+          `the pill's "${f.word}" became "${g.word}" in one frame`);
+      }
+    });
+    if (frames[swap].word !== "Hide") {
+      fail("clear", frames, swap, "the pill's word changed before its ease");
+    }
+    if (!eased("word", 1, 1, 0)
+      && !frames.some((f) => f.word === "Expand" && f.wordOp > 0.05
+        && f.wordOp < 0.95)) {
+      fail("clear", frames, swap, why("Expand never faded in"));
+    }
     // The lines and Clear cart went, so the focus is the pane's (#531),
     // and never the pill's.
     await expect(order.cart).toBeFocused();

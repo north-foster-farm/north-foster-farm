@@ -2,8 +2,9 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
-  FADE_IN, FADE_OUT, OWN_MS, fadeFrames, liftShift, moreShown, moveFrames,
-  moves, ownScroll, paneFrames, pillFadeFrames, restOf, toPx,
+  FADE_IN, FADE_OUT, OWN_MS, WORD_FRAMES, fadeFrames, liftShift, moreShown,
+  moveFrames, moves, ownScroll, paneFrames, pillFadeFrames, restOf, toPx,
+  wordsAt,
 } from "../assets/scripts/order/cart/view.mjs";
 
 // Whose scroll it is (#559): a finger down, or one within OWN_MS of
@@ -182,6 +183,29 @@ describe("pillFadeFrames", () => {
   it("brings one in, or leaves one, as fadeFrames does", () => {
     assert.deepEqual(pillFadeFrames(gone, shown), fadeFrames(gone, shown));
     assert.equal(pillFadeFrames(shown, shown), null);
+  });
+});
+
+// #559, fix round on 93e80094: the pill's word never changes in a frame
+// of its own. The old word fades out as a part that goes, the new one
+// is put in while nothing shows and fades in as a part that comes.
+describe("WORD_FRAMES and wordsAt", () => {
+  it("fades the old word out by FADE_OUT and the new in from FADE_IN", () => {
+    assert.deepEqual(WORD_FRAMES.map((f) => [f.offset, f.opacity]), [
+      [0, 1], [FADE_OUT, 0], [FADE_IN, 0], [1, 1],
+    ]);
+    assert.ok(FADE_OUT < FADE_IN);
+  });
+
+  it("keeps the old word until it has faded to nothing", () => {
+    assert.equal(wordsAt(0, "Hide", "Expand"), "Hide");
+    assert.equal(wordsAt(FADE_OUT - 0.01, "Hide", "Expand"), "Hide");
+    assert.equal(wordsAt(FADE_OUT, "Hide", "Expand"), "Expand");
+    assert.equal(wordsAt(1, "Hide", "Expand"), "Expand");
+  });
+
+  it("puts the new word in once the ease is over", () => {
+    assert.equal(wordsAt(null, "Hide", "Expand"), "Expand");
   });
 });
 

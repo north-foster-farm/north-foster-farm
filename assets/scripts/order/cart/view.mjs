@@ -634,16 +634,71 @@ const movePill = (el, was, now, timing) => {
   };
 };
 
-// Fades in words that changed with a move, Hide's or Expand's, as a
-// part that comes fades in (#559, round 3: on the clear, Hide became
-// Expand in the frame before anything eased). Nothing under reduced
-// motion.
-export const fadeInWords = (el, { reduce = reduced() } = {}) => {
-  if (reduce || typeof el.animate !== "function") return;
-  el.animate(fadeFrames({ shown: false }, { shown: true }), {
+// The opacity keyframes for words that change with a move (pure, for
+// the unit tests): the old words go as a part that goes (gone by
+// FADE_OUT), and the new ones come as a part that comes (from FADE_IN).
+export const WORD_FRAMES = [
+  { opacity: 1, offset: 0 },
+  { opacity: 0, offset: FADE_OUT },
+  { opacity: 0, offset: FADE_IN },
+  { opacity: 1, offset: 1 },
+];
+
+// The words the swap puts in, from the ease's progress on the shared
+// curve (pure, for the unit tests): the old ones until they have faded
+// to nothing, the new ones after.
+export const wordsAt = (progress, was, now) => (
+  progress !== null && progress < FADE_OUT ? was : now
+);
+
+// Swaps the words of a control with a move, Hide's or Expand's (#559,
+// round 3): the old words fade out with what goes, the new ones are put
+// in while nothing shows and fade in with what comes. On the clear,
+// Hide became Expand in the frame before anything eased, and then
+// "Expand" in one frame at nothing (fix round on 93e80094). Under
+// reduced motion, or with no ease, the words change at once. A newer
+// change cancels the ease (moveParts), and the newest words go in.
+export const swapWords = (el, text, { reduce = reduced() } = {}) => {
+  el.wantWords = text;
+  if (reduce || typeof el.animate !== "function") {
+    el.textContent = text;
+
+    return;
+  }
+  if (el.wordEase && el.wordEase.playState !== "idle") return;
+
+  const was = el.textContent;
+  const ease = el.animate(WORD_FRAMES, {
     duration: MOVE_MS, easing: MOVE_EASE, id: MOVE_ID,
   });
+  const put = () => {
+    if (el.textContent !== el.wantWords) el.textContent = el.wantWords;
+  };
+  const look = () => {
+    if (el.wordEase !== ease) return;
+
+    const { progress } = ease.effect.getComputedTiming();
+
+    if (wordsAt(progress, was, el.wantWords) !== was) {
+      put();
+
+      return;
+    }
+    requestAnimationFrame(look);
+  };
+  const end = () => {
+    if (el.wordEase !== ease) return;
+    el.wordEase = null;
+    put();
+  };
+
+  el.wordEase = ease;
+  requestAnimationFrame(look);
+  ease.finished.then(end, end);
 };
+
+// The words a control is showing or on its way to (see swapWords).
+export const wordsOf = (el) => el.wantWords ?? el.textContent;
 
 export const moveParts = (pane, apply, { reduce = reduced() } = {}) => {
   const parts = movers(pane);
@@ -704,10 +759,26 @@ export const moveParts = (pane, apply, { reduce = reduced() } = {}) => {
 
   const body = pane.querySelector("[data-cart-body]");
   let hold = null;
+  // Where the hold last left the body: a scroll from anywhere else, the
+  // person's or the code field brought into view, is kept, and the hold
+  // lets go. Under the keyboard the body scrolls as a whole and the
+  // field is the place to keep, so nothing is held (cart-keyboard spec:
+  // a body scrolled to its top was put back at its end, 166px down).
+  // A body that shrank under its scroll, clamped to its new end, is
+  // still at its end.
+  let left = body ? body.scrollTop : 0;
+  const moved = () => Math.abs(body.scrollTop - left) > 1
+    && body.scrollTop + body.clientHeight < body.scrollHeight - 1;
   const atEnd = () => {
-    if (body && body.scrollHeight > body.clientHeight + 1) {
+    if (!body || toPx(prop(pane, "--cart-kb")) > 0 || moved()) {
+      hold = null;
+
+      return;
+    }
+    if (body.scrollHeight > body.clientHeight + 1) {
       body.scrollTop = body.scrollHeight;
     }
+    left = body.scrollTop;
     hold = requestAnimationFrame(atEnd);
   };
 

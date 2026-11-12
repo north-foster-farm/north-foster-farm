@@ -448,15 +448,20 @@ to CSS. Its surface, which the Cart class imports:
   as far below its rest as keeps its top where the settled cart's was
   (`liftShift`), with its cap lifted while it eases: it rested on its
   foot and jumped up over the catalog, two carts on screen. Clear cart
-  fades out where it stood, still asking, and moves with a settle; new
-  words in the pill fade in (`fadeInWords`). An emptied cart keeps
+  fades out where it stood, still asking, and moves with a settle. The
+  pill's old word fades out with what goes and the new one is put in
+  while nothing shows, then fades in with what comes (`swapWords`;
+  2026-11-12, #559: Hide became Expand in one frame before the clear's
+  ease). An emptied cart keeps
   its lines drawn for it. The items list keeps the larger of its two
   sizes while the lines ease, so the edge uncovers or covers it and
   never squeezes it, and its arrows and fades are set inside the change
   (`Cart.motion`). Everything that changes a part's size is set inside
   `apply`, the nudge among them (2026-11-12, #559: it was set after the
   sizes were read, and its line snapped). The body is held at its end
-  while it overflows, so the total row stays on the foot. Add, remove,
+  while it overflows, so the total row stays on the foot, but not under
+  the keyboard, and not once anything else scrolls it (2026-11-12,
+  #559: a body scrolled to its top went back to its end). Add, remove,
   clear, Expand, Hide, the minimize on scroll, the settle and the
   lift-off all go through it. It replaced
   `animateFold` there, which held the pane at a height its contents
