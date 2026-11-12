@@ -130,14 +130,40 @@ export const ensureMemberId = async (stores, email, {
 // { email, by, queuedAt, tries, nextAt }, and each jobs run (every 15
 // minutes) sets the codes due through syncSquareReference. A try that
 // throws is logged and tried again later, waiting twice as long each
-// time up to a day, and from the RETRY_ALERT-th try on it is a jobs
-// error, so the farm is alerted. A decided answer (set, already set, a
-// conflict, or nothing to set) ends the entry; so does the CLI's sync.
+// time up to a day, and from the RETRY_ALERT-th try on the jobs run
+// alerts (member.square_retrying). A decided answer (set, already set,
+// a conflict, or nothing to set) ends the entry; so does the CLI's sync.
+//
+// Square refusing outright (a SquareError with `retryable` false: a bad
+// token, a request it won't take) is decided too, since asking again
+// gets the same answer: the entry stays, marked `refused` with the
+// error, is never tried by the jobs again, and is alerted once
+// (member.square_refused). `members show`, `mint` and `sync` name it,
+// and the CLI's next successful set ends it.
 export const squareQueueKey = (id) => `member-square/${id}`;
 
 export const RETRY_FIRST = 15 * 60_000;
 export const RETRY_MAX = 24 * 60 * 60_000;
 export const RETRY_ALERT = 4;
+
+// One jobs run sets at most DRAIN_MAX codes and stops starting new ones
+// after DRAIN_MS, every Square call cut at that deadline, so a slow
+// Square costs the run a few seconds at most, well inside the
+// function's 30 s. What is left waits for the next run, the longest
+// waiting first.
+export const DRAIN_MAX = 10;
+export const DRAIN_MS = 5000;
+
+// Whether Square has answered for good: asking again won't change it.
+export const refusal = (error) => error instanceof square.SquareError
+  && !error.retryable;
+
+const errorOf = (error) => {
+  const message = String((error && error.message) || error);
+  const code = error && error.code;
+
+  return code && !message.includes(code) ? `${message} (${code})` : message;
+};
 
 export const retryAfter = (tries) =>
   Math.min(RETRY_FIRST * 2 ** Math.max(tries - 1, 0), RETRY_MAX);
@@ -165,20 +191,40 @@ export const squareQueue = async (stores) => {
   }))).filter(Boolean);
 };
 
-// The jobs run's step: each code due set in Square, one at a time.
-// -> [{ id, outcome, tries, alert? }], outcome the action Square's
-// answer took, "dropped" when there was nothing to set, or "retry"
-// with the error.
+// The code's entry, or null when none waits. A refused one has
+// `refused: true`, `refusedAt` and `lastError`.
+export const squareQueueEntry = async (stores, id) => {
+  const entry = id ? await stores.jobs.get(squareQueueKey(id)) : null;
+
+  return entry ? { id, ...entry } : null;
+};
+
+// The jobs run's step: each code due set in Square, one at a time, the
+// longest waiting first, at most `max` of them and none started after
+// `ms` of real time (`clock`, for tests). -> { done, left }, done
+// [{ id, outcome, tries, alert?, error? }] with outcome the action
+// Square's answer took, "dropped" when there was nothing to set,
+// "refused" when Square said no for good, or "retry"; left the count of
+// codes due that waits for the next run.
 export const drainSquareQueue = async (stores, {
-  env = process.env, fetchImpl, now = new Date(),
+  env = process.env, fetchImpl, now = new Date(), max = DRAIN_MAX,
+  ms = DRAIN_MS, clock = Date.now,
 } = {}) => {
   const done = [];
+  const deadline = clock() + ms;
+  const due = (await squareQueue(stores))
+    .filter((e) => !e.refused && Date.parse(e.nextAt) <= now.getTime())
+    .sort((a, b) => Date.parse(a.nextAt) - Date.parse(b.nextAt)
+      || a.id.localeCompare(b.id));
+  let n = 0;
 
-  for (const entry of await squareQueue(stores)) {
-    if (Date.parse(entry.nextAt) > now.getTime()) continue;
+  for (; n < due.length; n++) {
+    if (n >= max || clock() >= deadline) break;
 
+    const entry = due[n];
     const key = squareQueueKey(entry.id);
     const by = entry.by && entry.by.role ? entry.by : { role: "member" };
+    const tries = entry.tries + 1;
 
     try {
       const customer = await getCustomer(stores, entry.email);
@@ -188,20 +234,33 @@ export const drainSquareQueue = async (stores, {
         ? await syncSquareReference(stores, customer, {
           by: by.role === "member" ? { role: "member",
             email: customer.email } : by,
-          env, fetchImpl, now,
+          env, fetchImpl, now, deadline,
         })
         : null;
 
       await stores.jobs.delete(key);
-      done.push({ id: entry.id, outcome: r ? r.action : "dropped",
-        tries: entry.tries + 1 });
+      done.push({ id: entry.id, outcome: r ? r.action : "dropped", tries });
     } catch (error) {
-      const tries = entry.tries + 1;
-      const message = String((error && error.message) || error);
-
-      await stores.jobs.set(key, {
+      const message = errorOf(error);
+      const kept = {
         email: entry.email, by: entry.by, queuedAt: entry.queuedAt,
         tries, lastError: message,
+      };
+
+      if (refusal(error)) {
+        await stores.jobs.set(key, {
+          ...kept, refused: true, refusedAt: now.toISOString(),
+          nextAt: entry.nextAt,
+        });
+        log.warn({ event: "member_id.square", by: by.role,
+          outcome: "refused", tries });
+        done.push({ id: entry.id, outcome: "refused", tries,
+          error: message });
+        continue;
+      }
+
+      await stores.jobs.set(key, {
+        ...kept,
         nextAt: new Date(now.getTime() + retryAfter(tries)).toISOString(),
       });
       log.warn({ event: "member_id.square", by: by.role, outcome: "retry",
@@ -211,7 +270,11 @@ export const drainSquareQueue = async (stores, {
     }
   }
 
-  return done;
+  const left = due.length - n;
+
+  if (left) log.info({ event: "member_id.square_drain", left });
+
+  return { done, left };
 };
 
 // The code on the member's Square profile as its reference_id, found by
@@ -221,8 +284,10 @@ export const drainSquareQueue = async (stores, {
 // -> lib/square.mjs's { customerId, action, was }, or null when the
 // customer has no code or is in no group: the log is the group's, and
 // a former member's profile keeps whatever it was last given.
+// `deadline` (a Date.now() value) cuts each Square call short.
 export const syncSquareReference = async (stores, customer, {
   by, env = process.env, fetchImpl, now = new Date(), apply = true,
+  deadline,
 }) => {
   const group = memberKeyOf(customer);
 
@@ -230,7 +295,7 @@ export const syncSquareReference = async (stores, customer, {
 
   const id = customer.memberId;
   const r = await square.setCustomerReference(customer, id, {
-    env, fetchImpl, apply,
+    env, fetchImpl, apply, deadline,
   });
 
   if (r.action === "updated" || r.action === "created") {

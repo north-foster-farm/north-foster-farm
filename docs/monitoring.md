@@ -598,6 +598,21 @@ rule and its order.
 **`jobs.crashed`.** The run itself threw before it could do its work.
 The log has the stack. This is the one that also stops the heartbeat.
 
+**`member.square_refused`.** Square refused for good to set a member
+code (#131) as the reference_id of the member's profile: a bad token,
+or a request it will not take. The jobs won't try that code again. The
+alert names the code and Square's error, once per code.
+`bin/nff members show <code>` names the member and the entry; fix the
+cause, then `bin/nff members mint <email>` sets it and ends the entry.
+
+**`member.square_retrying`.** A member code minted on the site has
+failed to reach Square four times or more (Square or the network was
+down), or the jobs run's member codes step itself threw. It runs after
+the heartbeat, so this is not a `jobs.errors`. The jobs keep trying,
+waiting up to a day between tries. Check Square's status; `bin/nff
+members show <code>` names the last error, and `members mint <email>`
+tries now.
+
 **`backup.failed`.** The nightly backup export did not reach the R2
 bucket: a `BACKUP_` variable is unset or wrong, the store could not
 be read, or R2 refused the upload. The *Backup* check pushes too.

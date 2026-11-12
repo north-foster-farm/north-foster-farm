@@ -9,7 +9,7 @@ import { writeFileSync } from "node:fs";
 import { groupMembers } from "../netlify/functions/lib/group-log.mjs";
 import { groupOf, memberKeyOf } from "../netlify/functions/lib/groups.mjs";
 import {
-  findMember, syncMembers, syncSquareReference,
+  findMember, squareQueue, squareQueueEntry, syncMembers, syncSquareReference,
 } from "../netlify/functions/lib/member-id.mjs";
 import { qrSvg } from "../netlify/functions/lib/qr.mjs";
 
@@ -56,6 +56,20 @@ const line = (d, dry) => {
   return `${d.email}  ${d.memberId || "(new code)"}${minted}  ${square}`;
 };
 
+// What a code's entry in the jobs' queue for Square says
+// (lib/member-id.mjs squareQueue).
+const queued = (e) => {
+  const tries = `${e.tries} ${e.tries === 1 ? "try" : "tries"}`;
+
+  if (e.refused) {
+    return `Square refused it on ${e.refusedAt} (${e.lastError}), after `
+      + `${tries}; the jobs won't try again. members mint sets it`;
+  }
+
+  return `waiting to be set in Square, next try ${e.nextAt}${
+    e.tries ? ` (${tries}, last: ${e.lastError})` : ""}`;
+};
+
 // `env` and `fetchImpl` reach Square (the fake where env says so);
 // `writeFile` is for tests.
 export const membersCommand = async (action, rest, {
@@ -77,6 +91,10 @@ export const membersCommand = async (action, rest, {
     out(`${c.email}  ${c.memberId || "no code yet"}  ${
       group ? group.key : "in no group"}`);
     if (r) out(`Square: ${SHOWN[r.action](r)}`);
+
+    const waiting = await squareQueueEntry(stores, c.memberId);
+
+    if (waiting) out(`Jobs: ${queued(waiting)}`);
     if (typeof flags.out === "string") {
       if (!c.memberId) throw new Error("No code to draw: members mint first.");
 
@@ -106,11 +124,20 @@ export const membersCommand = async (action, rest, {
     emails = (await groupMembers(stores, g.key)).map((m) => m.email);
   }
 
+  // Codes Square refused for good, read before this run may end them.
+  const refused = new Map((await squareQueue(stores))
+    .filter((e) => e.refused).map((e) => [e.id, e]));
   const done = await syncMembers(stores, emails, {
     by: FARM, env, fetchImpl, now, apply: !dry,
   });
 
-  for (const d of done) out(line(d, dry));
+  for (const d of done) {
+    out(line(d, dry));
+
+    const was = d.memberId && refused.get(d.memberId);
+
+    if (was) out(`  ${queued(was)}`);
+  }
   if (!done.length) out("No members.");
   if (dry) out("--dry-run: nothing was written.");
 

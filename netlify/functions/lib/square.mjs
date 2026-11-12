@@ -570,17 +570,19 @@ export const customerView = (c) => ({
 // would do. -> { customerId, action, was }, where action is one of
 // "unchanged", "updated", "created", "conflict", or with `apply` false
 // "would-update" or "would-create"; customerId is null for a profile
-// not made yet.
+// not made yet. `deadline` (a Date.now() value) cuts each call short,
+// as a timeout (retryable).
 export const setCustomerReference = async (customer, referenceId, {
   env = process.env,
   fetchImpl = globalThis.fetch,
   apply = true,
+  deadline,
 } = {}) => {
   if (isFake(env)) {
     return fake.setCustomerReference(customer, referenceId, { apply });
   }
 
-  const cfg = settings(env);
+  const cfg = { ...settings(env), deadline };
   const found = await searchCustomer(cfg, customer.email, fetchImpl);
 
   if (!found) {

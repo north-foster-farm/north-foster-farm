@@ -289,6 +289,24 @@ export const GUIDE = {
       "Square or the entry in data/catalog.json; bin/nff stock hidden " +
       "shows them all.",
   },
+  "member.square_refused": {
+    means: "Square refused for good to set a member code as the " +
+      "reference_id of the member's Square profile: a bad token, or a " +
+      "request it will not take. The jobs won't try that code again. " +
+      "The alert names the code and Square's error, once per code.",
+    action: "bin/nff members show <code> names the member and the " +
+      "entry. Fix the cause, then bin/nff members mint <email> sets it " +
+      "and ends the entry.",
+  },
+  "member.square_retrying": {
+    means: "A member code minted on the site has failed to reach Square " +
+      "four times or more (Square or the network was down), or the jobs " +
+      "run's member codes step itself threw. It runs after the " +
+      "heartbeat, so this is not jobs.errors. The jobs keep trying, " +
+      "waiting up to a day between tries.",
+    action: "Check Square's status. bin/nff members show <code> names " +
+      "the last error, and bin/nff members mint <email> tries now.",
+  },
   "jobs.crashed": {
     means: "The run itself threw before it could do its work. This is " +
       "the one that also stops the heartbeat.",

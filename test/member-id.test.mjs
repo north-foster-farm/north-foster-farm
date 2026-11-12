@@ -18,7 +18,8 @@ import { maskEmail } from "../netlify/functions/lib/mask.mjs";
 import { membersCommand } from "../bin/members.mjs";
 import { runJobs } from "../netlify/functions/lib/jobs.mjs";
 import {
-  RETRY_ALERT, drainSquareQueue, ensureMemberId, findMember, memberIdOf,
+  DRAIN_MAX, DRAIN_MS, RETRY_ALERT, RETRY_MAX, drainSquareQueue,
+  ensureMemberId, findMember, memberIdOf,
   newMemberId, retryAfter, squareQueue, syncMembers, syncSquareReference,
 } from "../netlify/functions/lib/member-id.mjs";
 import {
@@ -470,12 +471,13 @@ describe("a code minted on the site reaches Square", () => {
       by: { role: "member", email: PAT }, now,
     });
     const net = square();
-    const done = await drainSquareQueue(stores, {
+    const { done, left } = await drainSquareQueue(stores, {
       env: LIVE, fetchImpl: net.impl, now,
     });
 
     assert.deepEqual(done, [{ id: own.memberId, outcome: "updated",
       tries: 1 }]);
+    assert.equal(left, 0);
     assert.deepEqual(net.sent[1].body, { reference_id: own.memberId });
     assert.deepEqual(await squareQueue(stores), []);
 
@@ -493,7 +495,7 @@ describe("a code minted on the site reaches Square", () => {
     let at = now;
 
     for (let tries = 1; tries <= RETRY_ALERT; tries++) {
-      const [d] = await drainSquareQueue(stores, {
+      const { done: [d] } = await drainSquareQueue(stores, {
         env: LIVE, fetchImpl: down, now: at,
       });
       const [entry] = await squareQueue(stores);
@@ -509,11 +511,11 @@ describe("a code minted on the site reaches Square", () => {
       // Not due again before its time.
       assert.deepEqual(await drainSquareQueue(stores, {
         env: LIVE, fetchImpl: down, now: new Date(at.getTime() + 1000),
-      }), []);
+      }), { done: [], left: 0 });
       at = new Date(entry.nextAt);
     }
 
-    const [back] = await drainSquareQueue(stores, {
+    const { done: [back] } = await drainSquareQueue(stores, {
       env: LIVE, fetchImpl: square().impl, now: at,
     });
 
@@ -535,16 +537,16 @@ describe("a code minted on the site reaches Square", () => {
     const own = await ensureMemberId(stores, PAT, { by: FARM, now });
 
     await deleteCustomer(stores, PAT);
-    assert.deepEqual(await drainSquareQueue(stores, {
+    assert.deepEqual((await drainSquareQueue(stores, {
       env: LIVE, fetchImpl: down, now,
-    }), [{ id: own.memberId, outcome: "dropped", tries: 1 }]);
+    })).done, [{ id: own.memberId, outcome: "dropped", tries: 1 }]);
 
     const again = await setup();
     const mine = await ensureMemberId(again, PAT, { by: FARM, now });
 
-    assert.deepEqual(await drainSquareQueue(again, {
+    assert.deepEqual((await drainSquareQueue(again, {
       env: LIVE, fetchImpl: square({ reference: "LOYALTY-0042" }).impl, now,
-    }), [{ id: mine.memberId, outcome: "conflict", tries: 1 }]);
+    })).done, [{ id: mine.memberId, outcome: "conflict", tries: 1 }]);
     assert.deepEqual(await squareQueue(again), []);
   });
 
@@ -561,25 +563,201 @@ describe("a code minted on the site reaches Square", () => {
     assert.deepEqual(await squareQueue(stores), []);
   });
 
-  it("is a step of every jobs run, which alerts when it keeps failing",
+  // Square's answer to a bad token: no use asking again.
+  const refuses = async () => new Response(JSON.stringify({
+    errors: [{ category: "AUTHENTICATION_ERROR", code: "UNAUTHORIZED" }],
+  }), { status: 401 });
+
+  it("is refused for good on a SquareError that isn't retryable: kept, "
+    + "named, never tried again", async () => {
+    const stores = await setup();
+    const own = await ensureMemberId(stores, PAT, { by: FARM, now });
+    const { done } = await drainSquareQueue(stores, {
+      env: LIVE, fetchImpl: refuses, now,
+    });
+
+    assert.equal(done.length, 1);
+    assert.equal(done[0].outcome, "refused");
+    assert.equal(done[0].id, own.memberId);
+    assert.match(done[0].error, /401.*UNAUTHORIZED/);
+    assert.equal(done[0].alert, undefined, "not a retry's alert");
+
+    const [entry] = await squareQueue(stores);
+
+    assert.equal(entry.refused, true);
+    assert.equal(entry.refusedAt, now.toISOString());
+    assert.match(entry.lastError, /UNAUTHORIZED/);
+
+    // Never tried again by the jobs, however late.
+    const net = square();
+
+    assert.deepEqual(await drainSquareQueue(stores, { env: LIVE,
+      fetchImpl: net.impl, now: new Date(now.getTime() + RETRY_MAX * 2) }),
+    { done: [], left: 0 });
+    assert.deepEqual(net.sent, []);
+  });
+
+  it("goes on retrying on a timeout or a network error", async () => {
+    const stores = await setup();
+
+    await ensureMemberId(stores, PAT, { by: FARM, now });
+
+    const { done: [d] } = await drainSquareQueue(stores, {
+      env: LIVE, now, fetchImpl: async () => {
+        throw new TypeError("fetch failed");
+      },
+    });
+
+    assert.equal(d.outcome, "retry");
+    assert.ok(!(await squareQueue(stores))[0].refused);
+  });
+
+  // Three members of vff with a code each, queued a minute apart, PAT's
+  // the oldest.
+  const three = async () => {
+    const stores = await setup();
+    const LEE = "lee@example.com";
+
+    await saveCustomer(stores, { email: LEE, firstName: "Lee",
+      lastName: "Example", name: "Lee Example", phone: "" });
+    await joinGroup(stores, SAM, "vff", { now, via: "qr" });
+    await joinGroup(stores, LEE, "vff", { now, via: "qr" });
+
+    const ids = [];
+
+    for (const [i, email] of [PAT, SAM, LEE].entries()) {
+      ids.push((await ensureMemberId(stores, email, {
+        by: FARM, now: new Date(now.getTime() + i * 60_000),
+      })).memberId);
+    }
+
+    return { stores, ids, at: new Date(now.getTime() + 5 * 60_000) };
+  };
+
+  it("sets at most DRAIN_MAX a run, the longest waiting first",
+    async () => {
+      assert.equal(DRAIN_MAX, 10);
+
+      const { stores, ids, at } = await three();
+      const first = await drainSquareQueue(stores, {
+        env: LIVE, fetchImpl: square().impl, now: at, max: 2,
+      });
+
+      assert.deepEqual(first.done.map((d) => d.id), ids.slice(0, 2));
+      assert.equal(first.left, 1);
+
+      const second = await drainSquareQueue(stores, {
+        env: LIVE, fetchImpl: square().impl, now: at, max: 2,
+      });
+
+      assert.deepEqual(second.done.map((d) => d.id), ids.slice(2));
+      assert.equal(second.left, 0);
+    });
+
+  it("starts none after DRAIN_MS, and cuts Square's calls at it",
+    async () => {
+      assert.ok(DRAIN_MS <= 10_000, "well inside the function's 30 s");
+
+      const { stores, ids, at } = await three();
+      let t = 0;
+      const clock = () => (t += 3000);
+      const { done, left } = await drainSquareQueue(stores, {
+        env: LIVE, fetchImpl: square().impl, now: at, ms: 5000, clock,
+      });
+
+      assert.deepEqual(done.map((d) => d.id), ids.slice(0, 1));
+      assert.equal(left, 2);
+
+      // A call that would outlive the deadline is cut, as a retry.
+      const stall = (url, init) => new Promise((resolve, reject) => {
+        init.signal.addEventListener("abort",
+          () => reject(init.signal.reason));
+      });
+      const started = Date.now();
+      const cut = await drainSquareQueue(stores, {
+        env: LIVE, fetchImpl: stall, now: at, ms: 300,
+      });
+
+      assert.ok(Date.now() - started < 3000, "not CALL_MS per code");
+      assert.equal(cut.done[0].outcome, "retry");
+      assert.ok(cut.done.length + cut.left === 2);
+    });
+
+  // A jobs run with a heartbeat, alert mail, and Square answering
+  // `squareImpl` (the heartbeat's pings answer 200).
+  const jobsRun = async (stores, squareImpl) => {
+    const calls = [];
+    const sent = [];
+    const report = await runJobs(stores, {
+      now, realNow: now,
+      env: { ...LIVE, HEALTHCHECKS_JOBS_URL: "https://hc/jobs",
+        DEV_NOTIFICATIONS_EMAIL: "dev@example.com", MAIL_DRIVER: "test" },
+      fetchImpl: async (url, init) => {
+        calls.push(String(url));
+
+        return String(url).startsWith("https://hc/")
+          ? new Response("OK") : squareImpl(url, init);
+      },
+      mail: async (m) => {
+        sent.push(m);
+
+        return { id: "m" };
+      },
+    });
+
+    return { report, calls, sent: sent.map((m) => m.subject) };
+  };
+
+  it("runs last in the jobs run, after the heartbeat", async () => {
+    const stores = await setup();
+
+    await ensureMemberId(stores, PAT, { by: FARM, now });
+
+    const { report, calls } = await jobsRun(stores, square().impl);
+    const beat = calls.findIndex((u) => u.startsWith("https://hc/jobs"));
+    const set = calls.findIndex((u) => u.includes("/v2/customers"));
+
+    assert.deepEqual(report.memberCodes.map((d) => d.outcome), ["updated"]);
+    assert.ok(beat >= 0 && set > beat, calls.join("\n"));
+    assert.ok(report.creditSwept && report.invariants, "the steps before");
+  });
+
+  it("alerts once for a code Square refuses, by its code alone",
     async () => {
       const stores = await setup();
       const own = await ensureMemberId(stores, PAT, { by: FARM, now });
-      const key = `member-square/${own.memberId}`;
+      const first = await jobsRun(stores, refuses);
 
-      await stores.jobs.set(key, {
-        ...(await stores.jobs.get(key)), tries: RETRY_ALERT - 1,
-      });
+      assert.deepEqual(first.report.memberCodes.map((d) => d.outcome),
+        ["refused"]);
+      assert.deepEqual(first.sent.filter((s) => /member\./.test(s)),
+        ["Site alert: member.square_refused"]);
+      assert.ok(!first.report.errors.some((e) => e.step === "memberSquare"),
+        "not a jobs error: the heartbeat has gone");
 
-      const report = await runJobs(stores, {
-        now, realNow: now, env: LIVE, fetchImpl: down,
-        mail: async () => ({ id: "m" }),
-      });
+      const again = await jobsRun(stores, refuses);
 
-      assert.deepEqual(report.memberCodes.map((d) => d.outcome), ["retry"]);
-      assert.ok(report.errors.some((e) => e.step === "memberSquare"
-        && e.id === own.memberId));
+      assert.deepEqual(again.report.memberCodes, []);
+      assert.deepEqual(again.sent.filter((s) => /member\./.test(s)), [],
+        "once");
+      assert.ok(own.memberId);
     });
+
+  it("alerts when a code keeps failing, from the fourth try", async () => {
+    const stores = await setup();
+    const own = await ensureMemberId(stores, PAT, { by: FARM, now });
+    const key = `member-square/${own.memberId}`;
+
+    await stores.jobs.set(key, {
+      ...(await stores.jobs.get(key)), tries: RETRY_ALERT - 1,
+    });
+
+    const { report, sent } = await jobsRun(stores, down);
+
+    assert.deepEqual(report.memberCodes.map((d) => d.outcome), ["retry"]);
+    assert.ok(sent.includes("Site alert: member.square_retrying"),
+      sent.join("\n"));
+  });
 });
 
 // The commands of bin/nff members, as gate-cli.test.mjs drives
@@ -615,6 +793,7 @@ describe("bin/nff members", () => {
       assert.deepEqual((await members(stores, ["show", PAT])).lines, [
         `${PAT}  ${memberId}  vff`,
         "Square: no profile under this address; members mint makes one",
+        `Jobs: waiting to be set in Square, next try ${now.toISOString()}`,
       ]);
       assert.deepEqual((await members(stores, ["show",
         memberId.toLowerCase()])).lines[0], `${PAT}  ${memberId}  vff`);
@@ -663,6 +842,48 @@ describe("bin/nff members", () => {
       assert.match(written[0].text, /^<svg/);
       assert.match(written[0].text,
         new RegExp(`aria-label="Member code ${memberId}"`));
+    });
+
+  // PAT's code, queued and then refused by Square in a jobs drain.
+  const refusedCode = async () => {
+    const stores = await setup();
+    const { memberId } = await ensureMemberId(stores, PAT, { by: FARM, now });
+
+    await drainSquareQueue(stores, { env: LIVE, now, fetchImpl: async () =>
+      new Response(JSON.stringify({ errors: [{
+        category: "AUTHENTICATION_ERROR", code: "UNAUTHORIZED",
+      }] }), { status: 401 }) });
+
+    return { stores, memberId };
+  };
+  const REFUSED = `Square refused it on ${now.toISOString()} (Square 401 on `
+    + "/v2/customers/search (UNAUTHORIZED)), after 1 try; the jobs won't "
+    + "try again. members mint sets it";
+
+  it("show: names a code Square refused", async () => {
+    const { stores, memberId } = await refusedCode();
+    const { lines } = await members(stores, ["show", memberId], {
+      env: LIVE, fetchImpl: square().impl,
+    });
+
+    assert.equal(lines.at(-1), `Jobs: ${REFUSED}`);
+  });
+
+  it("sync and mint: name a code Square refused, and end it once set",
+    async () => {
+      const { stores, memberId } = await refusedCode();
+      const { lines } = await members(stores, ["sync", "vff"], {
+        env: LIVE, fetchImpl: square().impl,
+      });
+
+      assert.deepEqual(lines, [
+        `${PAT}  ${memberId}  set in Square`,
+        `  ${REFUSED}`,
+      ]);
+      assert.deepEqual(await squareQueue(stores), []);
+      assert.deepEqual((await members(stores, ["mint", PAT], {
+        env: LIVE, fetchImpl: square({ reference: memberId }).impl,
+      })).lines, [`${PAT}  ${memberId}  Square already has it`]);
     });
 
   it("show: refuses someone with no record", async () => {

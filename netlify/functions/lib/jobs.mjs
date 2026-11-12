@@ -55,10 +55,11 @@
 //               sell (archived or `inStock: false`) that Square counts
 //               above 0 is an invariant, told once per SKU and count
 //               (#499)
-//   members     a member code minted on the site is set on the member's
-//               Square profile, retried until Square answers (#131)
 //   health      each run ends with invariant checks, a ledger line,
 //               alerts for what went wrong, and a heartbeat ping
+//   members     then, last, a member code minted on the site is set on
+//               the member's Square profile, a few per run, retried
+//               until Square answers (#131)
 
 import terms from "./terms.mjs";
 import {
@@ -94,7 +95,7 @@ import {
 } from "./packing.mjs";
 import { confirmationSent, sendForOrder } from "./payments.mjs";
 import { sweepStrandedCredit } from "./credit.mjs";
-import { drainSquareQueue } from "./member-id.mjs";
+import { DRAIN_MS, drainSquareQueue } from "./member-id.mjs";
 import { workRounds } from "./rounds.mjs";
 import { checkRefunds } from "./settle.mjs";
 import * as paypalApi from "./paypal.mjs";
@@ -197,6 +198,8 @@ export const runJobs = async (stores, {
   // past the function's 30 s (#516).
   orderIds = null,
 } = {}) => {
+  // Real time, for the member codes step's budget.
+  const started = Date.now();
   const report = {
     at: now.toISOString(), announced: [], deliveryReminded: [], closed: [],
     squareSynced: [], muted: [], missedTold: [], holdsExpired: [], rebuilt: [],
@@ -462,20 +465,6 @@ export const runJobs = async (stores, {
     return { closed: r.closed, settled: r.settled };
   });
 
-  // A member code minted from the Membership tab or the key tag page,
-  // set on the member's Square profile (lib/member-id.mjs, #131). Every
-  // run; a try that fails waits longer each time, and alerts from its
-  // RETRY_ALERT-th try on.
-  report.memberCodes = (await step("memberSquare", async () => {
-    const done = await drainSquareQueue(stores, { env, fetchImpl, now });
-
-    for (const d of done) {
-      if (d.alert) fail(d.id, "memberSquare", d.error);
-    }
-
-    return done;
-  })) || [];
-
   // Credit a submission spent a day ago and never settled goes back
   // to its member (lib/credit.mjs). Every run; nothing twice.
   report.creditSwept = (await step("creditSweep",
@@ -522,9 +511,74 @@ export const runJobs = async (stores, {
   await ping(env.HEALTHCHECKS_JOBS_URL, {
     ok: healthy, body: healthy ? null : summarize(report), fetchImpl,
   });
+
+  // Last, after the heartbeat, so a stalled Square can't cost the run
+  // anything else: a member code minted from the Membership tab or the
+  // key tag page, set on the member's Square profile (lib/member-id.mjs,
+  // #131). Capped by count and time, and never past MEMBER_SQUARE_BY of
+  // the run. A try that fails waits longer each time and alerts from its
+  // RETRY_ALERT-th try on; one Square refuses is alerted once. The
+  // heartbeat has gone, so these are alerts of their own, not
+  // jobs.errors.
+  report.memberCodes = (await timed("memberSquare", async () => {
+    try {
+      const ms = Math.min(DRAIN_MS, MEMBER_SQUARE_BY - (Date.now() - started));
+
+      return await drainMemberSquare(stores, {
+        env, mail, now, fetchImpl, ms,
+      });
+    } catch (error) {
+      await alert(stores, "member.square_retrying", {
+        step: "memberSquare", error: String((error && error.message) || error),
+      }, { env, mail, now, fetchImpl });
+
+      return null;
+    }
+  })) || [];
   log.info({ event: "jobs.run", ...summarize(report) });
 
   return report;
+};
+
+// The latest a jobs run starts setting member codes in Square, in real
+// time from its start, so the drain ends well inside the function's
+// 30 s however long the rest took.
+export const MEMBER_SQUARE_BY = 20_000;
+
+// The jobs run's member codes step (lib/member-id.mjs drainSquareQueue)
+// and its alerts. -> the drain's done list
+const drainMemberSquare = async (stores, {
+  env, mail, now, fetchImpl, ms,
+}) => {
+  if (ms <= 0) {
+    log.info({ event: "member_id.square_drain", skipped: "run budget" });
+
+    return [];
+  }
+
+  const { done } = await drainSquareQueue(stores, {
+    env, fetchImpl, now, ms,
+  });
+  const options = { env, mail, now, fetchImpl };
+
+  for (const d of done.filter((x) => x.outcome === "refused")) {
+    // Once per code: a refused entry is never tried by the jobs again.
+    await alert(stores, "member.square_refused", {
+      memberId: d.id, error: d.error,
+    }, { ...options, dedupe: false });
+  }
+
+  const stuck = done.filter((d) => d.alert);
+
+  if (stuck.length) {
+    await alert(stores, "member.square_retrying", {
+      count: stuck.length,
+      codes: stuck.map((d) => ({ memberId: d.id, tries: d.tries,
+        error: d.error })),
+    }, options);
+  }
+
+  return done;
 };
 
 // Retention (#189), once a day: orders placed more than seven years
