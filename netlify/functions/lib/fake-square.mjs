@@ -451,12 +451,10 @@ export const renameCustomerEmail = async () => [];
 // made profile, or an updated one) with the request's values put in,
 // read by square.mjs's own customerView.
 //
-// FINDING to record: `customer-update` is the recording of a PUT that
-// changed the email address (`renameCustomerEmail`). The PUT here sends
-// `reference_id` alone; until bin/fixtures/record keeps that one as
-// `customer-update-reference`, the answer is the rename's, whose
-// response has the same shape.
-const UPDATE = "customer-update";
+// The PUT here sends `reference_id` alone, so its answer is the
+// recording of exactly that request (recorded in the sandbox
+// 2026-11-12).
+const UPDATE = "customer-update-reference";
 
 export const setCustomerReference = async (customer, referenceId, {
   apply = true,

@@ -80,7 +80,7 @@ same value has the same placeholder in every file, so the payment in
 | `customers-search-none`, `-found` | `findOrCreateCustomer` searches by email |
 | `customer-create`, `customer-create-replay` | creates the profile; the same key again |
 | `customer-update`, `customer-delete`, `customer-delete-gone` | `renameCustomerEmail`, `deleteCustomer` (404 once gone) |
-| `customer-update-reference` | `setCustomerReference`: a member's code as the profile's `reference_id` (#131). Not recorded yet (2026-11-12): until it is, the fake answers with `customer-update` |
+| `customer-update-reference` | `setCustomerReference`: a member's code as the profile's `reference_id` (#131). Recorded in the sandbox 2026-11-12. |
 | `order-create-pickup`, `-delivery`, `-external`, `-cash` | `createOrder` (`buildOrder`) |
 | `order-create-catalog` | a line by `catalog_object_id`; only if the sandbox has a catalog |
 | `order-create-replay`, `order-create-key-reused` | the same key and body; the same key, another body |
