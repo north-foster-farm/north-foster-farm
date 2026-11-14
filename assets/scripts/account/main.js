@@ -29,6 +29,7 @@ import {
   METHOD, fileName, ordersCsv, paidWith, receiptsCsv, statusOf,
 } from "./lib/history.mjs";
 import { joinedLine, moment, roundsLine } from "./lib/membership.mjs";
+import { showMembership } from "./lib/membership-tab.mjs";
 
 const qs = (root, selector) => root.querySelector(selector);
 const all = (root, selector) => Array.from(root.querySelectorAll(selector));
@@ -163,11 +164,14 @@ class Account {
     }
     if (!me.ok) return null;
 
-    const [orders, membership] = await Promise.all([
-      api("/api/account/orders"),
-      // A buying group's member or host (#495): the Membership tab.
-      me.data.membership ? api("/api/membership") : null,
-    ]);
+    // A buying group's member or host (#495): the Membership tab. Its
+    // pane's request starts with the orders' but never holds up the
+    // page: a failure stays inside the pane (#577).
+    const inGroup = Boolean(me.data.membership);
+    const membership = inGroup
+      ? api("/api/membership").catch(() => ({ ok: false, data: null }))
+      : null;
+    const orders = await api("/api/account/orders");
 
     if (!orders.ok) return null;
 
@@ -177,13 +181,13 @@ class Account {
       member: me.data.member || null,
       // Credit kept with no group (#495, decision 6).
       credit: Number(me.data.credit) || 0,
-      membership: membership && membership.ok ? membership.data : null,
+      inGroup, membership,
     };
   }
 
   show({
     maintenance, customer, orders, member = null, credit = 0,
-    membership = null,
+    inGroup = false, membership = null,
   }) {
     if (maintenance) {
       this.loading.textContent = maintenance;
@@ -217,10 +221,12 @@ class Account {
     this.renderOrders();
     this.renderReceipts();
     this.renderSupportOrders();
-    this.renderMembership(membership);
+    const pane = this.loadMembership(inGroup, membership);
+
     this.app.hidden = false;
     this.showTab(location.hash.replace("#", "") || "orders");
-    this.joined();
+    // The banner names the group, so it waits for the pane.
+    pane.then(() => this.joined());
     this.openOrder(orderFromPath());
     this.emailChanged();
     this.confirmChange();
@@ -277,19 +283,41 @@ class Account {
     this.showTab("membership");
   }
 
-  // The Membership tab (#495): the group's facts for a member, and the
-  // QR code and member list for every group this address hosts, each
-  // its own block (James, 6458200999). For anyone else, the tab and
-  // its pane leave the page, so no hash can open them. Draft wording.
+  // The Membership tab (#495, #577): /api/me's membership shows it, as
+  // it does the account menu's Membership, and for anyone in no group
+  // the tab and its pane leave the page, so no hash can open them.
+  // `first` is the /api/membership request fetch() started; Try again
+  // asks afresh. -> once the pane has rendered or failed.
+  loadMembership(inGroup, first) {
+    let pending = first;
+
+    return showMembership({
+      inGroup,
+      region: document.getElementById("mem-region"),
+      request: () => {
+        const res = pending || api("/api/membership");
+
+        pending = null;
+
+        return res;
+      },
+      render: (view) => this.renderMembership(view),
+      reveal: () => {
+        qs(document, "[data-tab='membership']").hidden = false;
+      },
+      remove: () => {
+        for (const node of all(document, "[data-membership-only]")) {
+          node.remove();
+        }
+      },
+    });
+  }
+
+  // The pane: the group's facts for a member, and the QR code and
+  // member list for every group this address hosts, each its own block
+  // (James, 6458200999). Draft wording.
   renderMembership(view) {
     this.membership = view;
-    if (!view) {
-      for (const node of all(document, "[data-membership-only]")) {
-        node.remove();
-      }
-
-      return;
-    }
 
     const own = view.member;
     // The member's own group first, with the host's part when they
@@ -300,7 +328,6 @@ class Account {
         .map((h) => [h, h]),
     ];
 
-    qs(document, "[data-tab='membership']").hidden = false;
     document.getElementById("mem-groups").replaceChildren(
       ...blocks.map(([g, hosted]) => this.renderGroup(g, hosted))
     );

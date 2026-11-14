@@ -78,8 +78,13 @@
 
           {{/* A buying group (#495): what a member sees of it, and the
                host's QR code and member list. main.js fills it from
-               /api/membership; every line is a draft for James. */}}
+               /api/membership; every line is a draft for James. The
+               pane is its own loading region (#577): when the request
+               fails, the tab stays and the pane says so, with Try
+               again. */}}
           <section class="account-section account-membership" id="acct-membership" data-section="membership" data-membership-only aria-label="Membership" hidden>
+            <div id="mem-region">
+            {{ partial "skeleton/status.html" (dict "failed" "We couldn't load your group.") }}
             <div class="alert alert-success" id="membership-joined" role="status" hidden></div>
             {{/* One block per group, from tpl-mem-group: the member's
                  own group first, then each other group this address
@@ -119,6 +124,7 @@
                 </div>
               </div>
             </section>
+            </div>
           </section>
 
           {{/* Forms here are Bootstrap grid forms (Forms, Layout,
