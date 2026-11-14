@@ -23,8 +23,12 @@ import {
 import { testStores } from "../netlify/functions/lib/store.mjs";
 import terms from "../netlify/functions/lib/terms.mjs";
 import {
-  JOIN_WAYS, hours, joinedLine, moment, roundsLine,
+  JOIN_WAYS, hours, joinedLine, moment, pickupMoment, placeLines, roundRows,
+  roundsLine,
 } from "../assets/scripts/account/lib/membership.mjs";
+import {
+  tabsMore, tabsStop,
+} from "../assets/scripts/account/lib/tab-scroll.mjs";
 
 const now = new Date("2026-11-02T14:00:00Z");
 const env = { URL: "https://x" };
@@ -369,6 +373,43 @@ describe("the tab's words (drafts)", () => {
       "Saturday, November 21, 11:59 PM");
   });
 
+  // #579: four rows, James's labels, the pickups at the window's start.
+  it("give the four round rows from the group's data", () => {
+    const r = roundsNow({ series: "36TS" }, terms, now);
+
+    assert.deepEqual(roundRows(r, "America/New_York"), {
+      closes: "Saturday, November 21, 11:59 PM",
+      pickup: "Sunday, November 22, 8:30 AM",
+      opens: "Saturday, November 21, 11:59 PM",
+      "next-pickup": "Sunday, December 6, 8:30 AM",
+    });
+  });
+
+  it("leave out the rows the data can't fill", () => {
+    const r = { every: 2, opens: null, closes: null,
+      current: { date: "2026-11-22", closesAt: "2026-11-22T04:59:00.000Z" },
+      next: null };
+
+    assert.deepEqual(roundRows(r, "America/New_York"), {
+      closes: "Saturday, November 21, 11:59 PM",
+      pickup: "Sunday, November 22",
+      opens: "",
+      "next-pickup": "",
+    });
+    assert.deepEqual(roundRows(null, "America/New_York"), {
+      closes: "", pickup: "", opens: "", "next-pickup": "",
+    });
+    assert.equal(pickupMoment("2026-11-22", "13:05"),
+      "Sunday, November 22, 1:05 PM");
+  });
+
+  it("put the pickup place on three lines", () => {
+    assert.deepEqual(placeLines({ name: "The Gym", street: "1 Main St",
+      city: "Foster", state: "RI", zip: "02825" }),
+    ["The Gym", "1 Main St", "Foster, RI 02825"]);
+    assert.deepEqual(placeLines(null), []);
+  });
+
   it("say when and how each member joined", () => {
     const placed = () => "Nov 2, 2026";
 
@@ -392,4 +433,46 @@ describe("the tab and the menu entry", () => {
     assert.match(account, /<section [^>]*data-membership-only[^>]*hidden>/);
     assert.match(menu, /<li data-account-membership hidden>/);
   });
+
+  it("read as James wrote them (#579)", async () => {
+    const account = await readFile(
+      new URL("../layouts/account/single.html", import.meta.url), "utf8"
+    );
+
+    assert.ok(account.includes(
+      "<p>To add members to this group, share this QR code with them.</p>"
+    ));
+    for (const label of ["This round closes", "This round pickup",
+      "Next round opens", "Next round pickup"]) {
+      assert.match(account, new RegExp(`>${label}</dt>`), label);
+    }
+    assert.doesNotMatch(account, /People who scan this code/);
+  });
+});
+
+// #579: the account's tab row at 393 px, on the cart's pattern.
+describe("the tab row's arrow", () => {
+  // Six tabs of 80px in a 200px row: 280px of scroll.
+  const tabs = Array.from({ length: 6 }, (_, i) => ({
+    left: i * 80, right: i * 80 + 80,
+  }));
+  const view = (left) => ({ left, width: 200, full: 480 });
+
+  it("shows while any tab lies past the row's end", () => {
+    assert.equal(tabsMore(view(0)), true);
+    assert.equal(tabsMore(view(278.5)), true);
+  });
+
+  it("goes when the row fits or is scrolled to its end", () => {
+    assert.equal(tabsMore(view(280)), false);
+    // A pixel's allowance for a fractional rest.
+    assert.equal(tabsMore(view(279.2)), false);
+    assert.equal(tabsMore({ left: 0, width: 480, full: 480 }), false);
+  });
+
+  it("brings the first tab cut off to the row's start, never past the end",
+    () => {
+      assert.equal(tabsStop(tabs, view(0)), 160);
+      assert.equal(tabsStop(tabs, view(160)), 280);
+    });
 });

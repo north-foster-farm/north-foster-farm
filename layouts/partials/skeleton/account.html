@@ -8,10 +8,12 @@
     <span class="placeholder account-signout">Sign out</span>
   </div>
 </div>
-<div class="account-nav">
-  {{ range slice "Orders" "Receipts" "Address" "Settings" "Help" }}
-    <span class="account-tab"><span class="placeholder">{{ . }}</span></span>
-  {{ end }}
+<div class="account-nav-wrap">
+  <div class="account-nav">
+    {{ range slice "Orders" "Receipts" "Address" "Settings" "Help" }}
+      <span class="account-tab"><span class="placeholder">{{ . }}</span></span>
+    {{ end }}
+  </div>
 </div>
 {{/* Real headings, for their sizes; aria-hidden keeps them out of
      the outline. */}}

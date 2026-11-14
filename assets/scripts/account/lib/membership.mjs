@@ -50,6 +50,34 @@ export const moment = (iso, timeZone) => new Date(iso)
     hour: "numeric", minute: "2-digit",
   }).replace(" at ", ", ");
 
+// A pickup day at its window's start, as the round rows read it
+// (#579): "Sunday, November 22, 8:30 AM". The day alone when the
+// series names no hours.
+export const pickupMoment = (date, opens) => {
+  const day = new Date(`${date}T12:00:00Z`).toLocaleDateString("en-US", {
+    weekday: "long", month: "long", day: "numeric", timeZone: "UTC",
+  });
+
+  return opens ? `${day}, ${clock(opens)}` : day;
+};
+
+// The four round rows (#579), each a label's value: this round's
+// close and pickup, the next one's opening and pickup. A row the data
+// can't fill is "" and the page leaves it out.
+export const roundRows = (r, timeZone) => ({
+  closes: r ? moment(r.current.closesAt, timeZone) : "",
+  pickup: r ? pickupMoment(r.current.date, r.opens) : "",
+  opens: r && r.next ? moment(r.next.opensAt, timeZone) : "",
+  "next-pickup": r && r.next ? pickupMoment(r.next.date, r.opens) : "",
+});
+
+// The pickup place on three lines (#579): its name, the street, then
+// the city, state and ZIP. None: no lines.
+export const placeLines = (p) => (p ? [
+  p.name, p.street, [p.city, [p.state, p.zip].filter(Boolean).join(" ")]
+    .filter(Boolean).join(", "),
+].filter(Boolean) : []);
+
 // "Joined Nov 2, 2026, by QR code".
 export const joinedLine = (m, placed) => [
   m.joinedAt ? `Joined ${placed(m.joinedAt)}` : "",

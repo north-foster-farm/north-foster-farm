@@ -28,8 +28,11 @@ import { Autoplay } from "../video/video.js";
 import {
   METHOD, fileName, ordersCsv, paidWith, receiptsCsv, statusOf,
 } from "./lib/history.mjs";
-import { joinedLine, moment, roundsLine } from "./lib/membership.mjs";
+import {
+  joinedLine, placeLines, roundRows, roundsLine,
+} from "./lib/membership.mjs";
 import { showMembership } from "./lib/membership-tab.mjs";
+import { watchTabs } from "./tabs-more.js";
 
 const qs = (root, selector) => root.querySelector(selector);
 const all = (root, selector) => Array.from(root.querySelectorAll(selector));
@@ -225,6 +228,7 @@ class Account {
 
     this.app.hidden = false;
     this.showTab(location.hash.replace("#", "") || "orders");
+    watchTabs(qs(document, "[data-tabs-wrap]"));
     // The banner names the group, so it waits for the pane.
     pane.then(() => this.joined());
     this.openOrder(orderFromPath());
@@ -370,13 +374,19 @@ class Account {
       section.setAttribute("aria-labelledby", id);
     }
     out("name", g.group.name);
-    out("place", p
-      ? `${p.name}, ${p.street}, ${p.city}, ${p.state} ${p.zip}` : "");
+    // The place on three lines at every width (#579).
+    qs(box, "[data-mem='place']").replaceChildren(...placeLines(p)
+      .map((line) => el("span", "", line)));
     out("every", r ? roundsLine(r) : "");
-    out("closes", r ? `${moment(r.current.closesAt, zone)}, for pickup ${
-      label(r.current.date)}` : "");
-    out("opens", r && r.next ? `${moment(r.next.opensAt, zone)}, for pickup ${
-      label(r.next.date)}` : "");
+    // Four rows, each a label and its value (#579); one the data can't
+    // fill, such as a next round when there is none, is left out.
+    for (const [name, text] of Object.entries(roundRows(r, zone))) {
+      out(name, text);
+      if (!text) {
+        qs(box, `[data-mem-row='${name}']`).remove();
+        qs(box, `[data-mem='${name}']`).remove();
+      }
+    }
     qs(box, "[data-mem-host]").hidden = !hosted;
     if (hosted) this.renderHost(box, hosted);
 

@@ -72,8 +72,9 @@ prices are there without the code.
 
 Members see a Membership tab on their account page, and in the
 account menu at the top of every page. It shows the group's name, the
-pickup address, how often rounds run, when this round closes and when
-the next one opens. Members can leave the group there.
+pickup address, how often rounds run, when this round closes and its
+pickup, and when the next one opens and its pickup (2026-11-14, #579:
+the pickups are rows of their own). Members can leave the group there.
 
 As the host, you also see:
 

@@ -34,16 +34,22 @@
             </div>
           </header>
 
-          <nav class="account-nav" aria-label="Account sections">
-            <a class="account-tab" href="#orders" data-tab="orders">Orders</a>
-            <a class="account-tab" href="#receipts" data-tab="receipts">Receipts</a>
-            {{/* A buying group's member or host only (#495): main.js
-                 takes the tab and its pane out for anyone else. */}}
-            <a class="account-tab" href="#membership" data-tab="membership" data-membership-only hidden>Membership</a>
-            <a class="account-tab" href="#address" data-tab="address">Address</a>
-            <a class="account-tab" href="#settings" data-tab="settings">Settings</a>
-            <a class="account-tab" href="#help" data-tab="help">Help</a>
-          </nav>
+          {{/* Too wide for the screen (#579), the row scrolls, with the
+               cart's round arrow and a fade at its end while any tab
+               lies past it (tabs-more.js). */}}
+          <div class="account-nav-wrap" data-tabs-wrap>
+            <nav class="account-nav" aria-label="Account sections">
+              <a class="account-tab" href="#orders" data-tab="orders">Orders</a>
+              <a class="account-tab" href="#receipts" data-tab="receipts">Receipts</a>
+              {{/* A buying group's member or host only (#495): main.js
+                   takes the tab and its pane out for anyone else. */}}
+              <a class="account-tab" href="#membership" data-tab="membership" data-membership-only hidden>Membership</a>
+              <a class="account-tab" href="#address" data-tab="address">Address</a>
+              <a class="account-tab" href="#settings" data-tab="settings">Settings</a>
+              <a class="account-tab" href="#help" data-tab="help">Help</a>
+            </nav>
+            <button type="button" class="account-nav-more" aria-label="More tabs" data-tabs-more hidden>{{ partial "svg.html" (dict "src" "icons/arrow-down" "class" "account-nav-more-icon" "aria-hidden" "true") }}</button>
+          </div>
 
           <div class="alert alert-success" id="account-flash" role="status" aria-live="polite" hidden></div>
 
@@ -416,10 +422,16 @@
           <dd class="account-membership-value" data-mem="place"></dd>
           <dt class="account-membership-term">Rounds</dt>
           <dd class="account-membership-value" data-mem="every"></dd>
-          <dt class="account-membership-term">This round closes</dt>
+          {{/* The rounds as four rows (#579, James's labels); main.js
+               leaves out a row the data can't fill. */}}
+          <dt class="account-membership-term" data-mem-row="closes">This round closes</dt>
           <dd class="account-membership-value" data-mem="closes"></dd>
-          <dt class="account-membership-term">Next round opens</dt>
+          <dt class="account-membership-term" data-mem-row="pickup">This round pickup</dt>
+          <dd class="account-membership-value" data-mem="pickup"></dd>
+          <dt class="account-membership-term" data-mem-row="opens">Next round opens</dt>
           <dd class="account-membership-value" data-mem="opens"></dd>
+          <dt class="account-membership-term" data-mem-row="next-pickup">Next round pickup</dt>
+          <dd class="account-membership-value" data-mem="next-pickup"></dd>
         </dl>
       </section>
 
@@ -428,7 +440,7 @@
           <div class="account-group-head">
             <h2 class="h4 account-group-title" data-mem="qr-h">Your group's QR code</h2>
           </div>
-          <p>People who scan this code can join the group. It opens a page where they sign up with their name and email address.</p>
+          <p>To add members to this group, share this QR code with them.</p>
           <img class="account-membership-qr" data-mem="qr" alt="QR code to join the group" width="296" height="296" hidden>
           <p class="form-text" data-mem="qr-status" role="status" aria-live="polite"></p>
           <div class="account-membership-actions">

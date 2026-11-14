@@ -111,13 +111,68 @@
 
   // Tabs
 
+  // The row scrolls when it is wider than the screen (#579). On the
+  // cart's pattern (#560), a fade at its end and a round arrow on the
+  // fade show while any tab lies past the end; a tap brings the first
+  // tab cut off to the row's start (tabs-more.js).
+  .account-nav-wrap {
+    position: relative;
+    margin-bottom: 1.5rem;
+
+    &::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 1px;
+      width: 3rem;
+      background: linear-gradient(to right, transparent, var(--bs-body-bg));
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 140ms ease; // The cart's --order-fast.
+    }
+
+    &[data-more]::after {
+      opacity: 1;
+    }
+  }
+
   .account-nav {
+    // The tabs' offsets read in the row's own scroll space.
+    position: relative;
     display: flex;
     gap: 0.25rem;
-    margin-bottom: 1.5rem;
     overflow-x: auto;
     border-bottom: 1px solid var(--bs-border-color);
     scrollbar-width: none;
+  }
+
+  .account-nav-more {
+    position: absolute;
+    top: 50%;
+    right: 0;
+    z-index: 1;
+    display: grid;
+    place-items: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    padding: 0;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 50%;
+    background-color: var(--bs-body-bg);
+    box-shadow: var(--bs-box-shadow-sm); // The cart's --order-shadow.
+    color: var(--bs-primary);
+    transform: translateY(-50%);
+
+    &[hidden] {
+      display: none;
+    }
+  }
+
+  .account-nav-more-icon {
+    width: 1rem;
+    height: 1rem;
+    rotate: -90deg;
   }
 
   .account-tab {
@@ -707,6 +762,20 @@
 
   .account-membership-value {
     margin: 0;
+
+    // The pickup place, a line each (#579): a tag, not a class, since
+    // only the script makes them and PurgeCSS reads the templates.
+    > span {
+      display: block;
+    }
+  }
+
+  // The host's QR code and Members each read as a section of their
+  // own (#579): above each heading, the gap between the QR code's
+  // paragraph and the code (.account-group > p). The div is the host's
+  // part; no attribute selector, since PurgeCSS keeps only those named.
+  .account-membership-group > div > .account-group {
+    margin-top: var(--account-gap);
   }
 
   .account-membership-qr {
