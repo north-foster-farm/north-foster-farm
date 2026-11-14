@@ -12,8 +12,8 @@ import { handle } from "../netlify/functions/membership.mjs";
 import { createSession } from "../netlify/functions/lib/auth.mjs";
 import { auditLog } from "../netlify/functions/lib/group-log.mjs";
 import {
-  GROUPS, findGroupByToken, joinGroup, joinTokenOf, memberKeyOf,
-  setGroupCode, setGroupHost,
+  GROUPS, findGroupByToken, getGroupRecord, joinGroup, joinTokenOf, joinUrl,
+  memberKeyOf, setGroupCode, setGroupHost,
 } from "../netlify/functions/lib/groups.mjs";
 import { maskEmail } from "../netlify/functions/lib/mask.mjs";
 import { roleOf, roundsNow } from "../netlify/functions/lib/membership.mjs";
@@ -23,8 +23,8 @@ import {
 import { testStores } from "../netlify/functions/lib/store.mjs";
 import terms from "../netlify/functions/lib/terms.mjs";
 import {
-  JOIN_WAYS, hours, joinedLine, moment, pickupMoment, placeLines, roundRows,
-  roundsLine,
+  JOIN_WAYS, LINK_COPIED, LINK_NOT_COPIED, ROTATED, hours, joinedLine,
+  moment, pickupMoment, placeLines, roundRows, roundsLine,
 } from "../assets/scripts/account/lib/membership.mjs";
 import {
   tabsMore, tabsStop,
@@ -164,6 +164,57 @@ describe("who gets what", () => {
         { role: "host", email: maskEmail(HOST) }, "qr.rotate",
       ]);
     });
+
+  // #579: the join link, the URL the QR code encodes, beside the code.
+  it("gives the host the join link the QR code holds", async () => {
+    const { stores, host } = await setup();
+    const token = await joinTokenOf(stores, "vff", { now });
+    const view = await (await call(stores, "/api/membership",
+      { headers: host })).json();
+
+    assert.equal(view.hosts[0].qr.link, joinUrl(token, env));
+    assert.equal(view.hosts[0].qr.link, `https://x/join/?t=${token}`);
+  });
+
+  it("never gives a member the join link", async () => {
+    const { stores, member } = await setup();
+    const token = await joinTokenOf(stores, "vff", { now });
+    const res = await call(stores, "/api/membership", { headers: member });
+    const body = await res.text();
+
+    assert.equal(res.status, 200);
+    assert.ok(!body.includes(token), "no token");
+    assert.doesNotMatch(body, /\/join\//);
+    assert.deepEqual(JSON.parse(body).hosts, []);
+  });
+
+  it("writes nothing for the link: none before the first code",
+    async () => {
+      const { stores, host } = await setup();
+      const view = await (await call(stores, "/api/membership",
+        { headers: host })).json();
+
+      assert.deepEqual(view.hosts[0].qr, { setAt: null, link: null });
+      assert.ok(!(await getGroupRecord(stores, "vff")).joinToken);
+    });
+
+  it("replaces the link with the code", async () => {
+    const { stores, host } = await setup();
+    const old = joinUrl(await joinTokenOf(stores, "vff", { now }), env);
+    const res = await call(stores, "/api/membership/qr", {
+      method: "POST", headers: host, body: { group: "vff", rotate: true },
+    });
+    const { qr } = await res.json();
+    const token = await joinTokenOf(stores, "vff", { now });
+
+    assert.equal(qr.link, joinUrl(token, env));
+    assert.notEqual(qr.link, old);
+
+    const view = await (await call(stores, "/api/membership",
+      { headers: host })).json();
+
+    assert.equal(view.hosts[0].qr.link, qr.link);
+  });
 
   // The coordinator's security review: same-site lets a sibling
   // (a deploy preview, a branch subdomain) act as the host.
@@ -403,6 +454,19 @@ describe("the tab's words (drafts)", () => {
       "Sunday, November 22, 1:05 PM");
   });
 
+  // #579: the join link's Copy and the rotation's word, house rules
+  // (#400): no semicolons or em dashes, the label fragment unpunctuated.
+  it("say what Copy and a new code and link did", () => {
+    assert.equal(LINK_COPIED, "Link copied");
+    assert.equal(LINK_NOT_COPIED,
+      "Copying failed. The link is selected, so copy it yourself.");
+    assert.equal(ROTATED, "Here's your new QR code and link. The old ones " +
+      "no longer work. Download this code to print.");
+    for (const line of [LINK_COPIED, LINK_NOT_COPIED, ROTATED]) {
+      assert.doesNotMatch(line, /[;—]/, line);
+    }
+  });
+
   it("put the pickup place on three lines", () => {
     assert.deepEqual(placeLines({ name: "The Gym", street: "1 Main St",
       city: "Foster", state: "RI", zip: "02825" }),
@@ -439,9 +503,13 @@ describe("the tab and the menu entry", () => {
       new URL("../layouts/account/single.html", import.meta.url), "utf8"
     );
 
-    assert.ok(account.includes(
-      "<p>To add members to this group, share this QR code with them.</p>"
-    ));
+    assert.ok(account.includes("<p>Add members to this group by sharing " +
+      "the QR code or the link.</p>"));
+    assert.doesNotMatch(account, /To add members/);
+    // The button covers both, since a rotation replaces both (draft).
+    assert.match(account, />Generate new QR code and link<\/button>/);
+    assert.match(account, /"label" "Generate new QR code and link"/);
+    assert.doesNotMatch(account, /Generate new QR code</);
     for (const label of ["This round closes", "This round pickup",
       "Next round opens", "Next round pickup"]) {
       assert.match(account, new RegExp(`>${label}</dt>`), label);

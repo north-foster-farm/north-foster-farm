@@ -82,10 +82,12 @@ As the host, you also see:
   Anyone who scans it can join: it opens a page where they enter their
   name and email address, and the link we email them adds them to the
   group. The typed code works as before.
-- **Generate new QR code**, if the code has spread further than you
-  want. The old code stops working right away, so anything printed
-  with it must be replaced. Members stay in the group, and the typed
-  code doesn't change.
+- **The join link**, the address the QR code holds, with a Copy
+  button, to send instead of the code (2026-11-14, #579).
+- **Generate new QR code and link**, if the code or link has spread
+  further than you want. The old ones stop working right away, so
+  anything printed or sent with them must be replaced. Members stay
+  in the group, and the typed code doesn't change.
 - **The members**: each one's name, email address, the date they
   joined and how. You can remove someone. Their open orders stay as
   placed, and they can't move an order to a gym pickup after that.

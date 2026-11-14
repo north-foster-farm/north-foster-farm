@@ -20,8 +20,8 @@ import { normalizeEmail } from "./auth.mjs";
 import { creditBalance, voidCredit } from "./credit.mjs";
 import { audit, groupMembers } from "./group-log.mjs";
 import {
-  GROUPS, getGroupRecord, groupOf, leaveGroup, memberKeyOf, namedGroup,
-  privatePlaces,
+  GROUPS, getGroupRecord, groupOf, joinUrl, leaveGroup, memberKeyOf,
+  namedGroup, privatePlaces,
 } from "./groups.mjs";
 import { ensureMemberId } from "./member-id.mjs";
 import { qrSvg } from "./qr.mjs";
@@ -192,14 +192,23 @@ export const memberCode = async (stores, email, {
 export const memberCodeSvg = (id) =>
   qrSvg(id, { title: `Member code ${id}` });
 
+// The host's join QR code as the tab takes it: its version, and the
+// link it encodes for the field beside it (#579), which only a host
+// ever receives. `link` is null before the group's first token, which
+// the QR image's own request mints; the view itself writes nothing.
+export const hostQr = (record, env = process.env) => ({
+  setAt: (record && record.joinTokenSetAt) || null,
+  link: record && record.joinToken ? joinUrl(record.joinToken, env) : null,
+});
+
 // What the tab shows: the member's own group and code, and every group
 // they host with its QR code and members. When both are the same group,
 // it is in both. `email` is the signed-in address, for the code, and
-// `mint` as for memberCode.
+// `mint` as for memberCode. The join link is in the host's part alone.
 // -> { member: { key, group, rounds, code } | null,
-// hosts: [{ key, group, rounds, qr, members }] }
+// hosts: [{ key, group, rounds, qr: { setAt, link }, members }] }
 export const membershipView = async (stores, role, {
-  terms, now, email, mint = true,
+  terms, now, email, mint = true, env = process.env,
 }) => ({
   member: role.member
     ? {
@@ -212,8 +221,9 @@ export const membershipView = async (stores, role, {
 
     return {
       ...(await groupView(stores, g, { terms, now })),
-      // The QR code's version: the image is fetched again when it moves.
-      qr: { setAt: (record && record.joinTokenSetAt) || null },
+      // The QR code's version (the image is fetched again when it
+      // moves) and its link.
+      qr: hostQr(record, env),
       members: await hostMembers(stores, g.key),
     };
   })),

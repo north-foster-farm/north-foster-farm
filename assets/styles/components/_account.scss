@@ -786,6 +786,43 @@
     border: 1px solid var(--bs-border-color-translucent);
   }
 
+  // The join QR code and its link (#579): the link under the code on a
+  // phone, beside it from md up.
+  .account-membership-share {
+    @include media-breakpoint-up(md) {
+      display: flex;
+      gap: 1.5rem;
+      align-items: flex-start;
+      margin-bottom: 0.75rem;
+
+      .account-membership-qr {
+        flex: none;
+        margin-bottom: 0;
+      }
+    }
+  }
+
+  .account-membership-link {
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: 32rem;
+
+    .form-text {
+      min-height: 1.5em;
+    }
+  }
+
+  .account-membership-copy {
+    display: inline-flex;
+    gap: 0.375rem;
+    align-items: center;
+
+    svg {
+      width: 1em;
+      height: 1em;
+    }
+  }
+
   .account-membership-actions {
     display: flex;
     flex-wrap: wrap;

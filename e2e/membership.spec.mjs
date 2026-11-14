@@ -95,8 +95,9 @@ test.describe("a member of one group who hosts another", () => {
       await expect(hosted.locator("[data-mem='download']"))
         .toHaveAttribute("href", /\?group=gym2&download=1$/);
 
-      await hosted.getByRole("button", { name: "Generate new QR code" })
-        .first().click();
+      await hosted.getByRole("button", {
+        name: "Generate new QR code and link",
+      }).first().click();
       await hosted.locator("[data-mem='rotate']").click();
       await expect(hosted.locator("[data-mem='qr-status']"))
         .toContainText("Here's your new QR code");
