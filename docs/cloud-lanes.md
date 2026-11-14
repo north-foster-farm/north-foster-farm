@@ -248,6 +248,19 @@ here instead of restating it (2026-11-01, #494).
    promote main` refuses a commit (for a release branch, its staging
    parent) that is not the head of a successful run of the E2E staging
    workflow on `e2e/staging-full` whose specs ran.
+8. **A push to `staging` or `main` re-checks nothing `next` already
+   passed** (#580, 2026-11-14). `ci.yml` and `codeql.yml` start with a
+   `proven` job (`proven-on-next.yml`) that asks GitHub for a
+   successful push run of the same workflow on `next` at the same
+   commit. If there is one, `lint-and-test`, `build`, `supply-chain`,
+   `audit` and `codeql` are skipped, and a skipped job passes the
+   required check of its name (`lint-and-test`, `supply-chain` and
+   `codeql`, by the "required checks" ruleset). No run, a failed,
+   cancelled or still running one, or an API error runs everything,
+   as do pull requests, pushes to `next` and `workflow_dispatch`.
+   `record-shape` always runs: a push to `staging` covers every commit
+   since its last tip, and one green run on `next` doesn't vouch for
+   the earlier pushes.
 
 ## The e2e suite against staging
 

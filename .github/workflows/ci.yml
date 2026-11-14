@@ -24,8 +24,27 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # On a push to staging or main, a commit that next already passed
+  # skips the jobs that name this one in needs (#580). A job skipped
+  # by if passes a required check; !cancelled() makes a failed lookup
+  # run them instead. record-shape always runs: it is cheap, and a push
+  # to staging covers every commit since its last tip, which one green
+  # next run does not vouch for.
+  proven:
+    name: proven
+    if: >
+      github.event_name == 'push' &&
+      (github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/main')
+    permissions:
+      actions: read
+    uses: ./.github/workflows/proven-on-next.yml
+    with:
+      workflow: ci.yml
+
   lint-and-test:
     name: lint-and-test
+    needs: proven
+    if: ${{ !cancelled() && needs.proven.outputs.proven != 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -102,6 +121,8 @@ jobs:
   # (.github/actions/setup-hugo).
   build:
     name: build
+    needs: proven
+    if: ${{ !cancelled() && needs.proven.outputs.proven != 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -181,6 +202,8 @@ jobs:
   # holds no secret and prints counts and package names only.
   supply-chain:
     name: supply-chain
+    needs: proven
+    if: ${{ !cancelled() && needs.proven.outputs.proven != 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -215,6 +238,8 @@ jobs:
   # token is the run's own, to lift the advisory API's rate limit.
   audit:
     name: audit
+    needs: proven
+    if: ${{ !cancelled() && needs.proven.outputs.proven != 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

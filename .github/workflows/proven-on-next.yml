@@ -1,0 +1,60 @@
+name: Proven on next
+
+# Reusable (#580). Answers one question for ci.yml and codeql.yml on a
+# push to staging or main: did a push to next, at this exact commit,
+# already finish that workflow with success? Staging and main move only
+# by fast-forward, so such a commit has had every check it would get.
+#
+# Only a successful run counts. No run, a failed, cancelled or still
+# running one, a run from a fork and an API error all answer false, and
+# the step never fails, so the caller then runs everything. The log
+# holds the conclusion only.
+
+on:
+  workflow_call:
+    inputs:
+      workflow:
+        description: Workflow file to look up, such as ci.yml
+        required: true
+        type: string
+    outputs:
+      proven:
+        description: "true only when next passed this commit"
+        value: ${{ jobs.proven.outputs.proven }}
+
+permissions: {}
+
+jobs:
+  proven:
+    name: proven
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions:
+      actions: read
+    outputs:
+      proven: ${{ steps.look.outputs.proven }}
+    steps:
+      - name: Look for a green run of next at this commit
+        id: look
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+          WORKFLOW: ${{ inputs.workflow }}
+        run: |
+          conclusion=$(gh api \
+            "repos/$REPO/actions/workflows/$WORKFLOW/runs?head_sha=$SHA&branch=next&event=push&per_page=20" \
+            --jq '[.workflow_runs[]
+              | select(.head_sha == env.SHA
+                and .head_branch == "next"
+                and .event == "push"
+                and .head_repository.full_name == env.REPO
+                and .status == "completed"
+                and .conclusion == "success")]
+              | length' 2>/dev/null) || conclusion=error
+          echo "$WORKFLOW on next at this commit: green runs=$conclusion"
+          if [ "$conclusion" != "error" ] && [ "$conclusion" -ge 1 ] 2>/dev/null; then
+            echo "proven=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "proven=false" >> "$GITHUB_OUTPUT"
+          fi

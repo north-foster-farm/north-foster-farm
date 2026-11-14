@@ -31,8 +31,25 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # On a push to staging or main, a commit that next already passed
+  # skips the scan, the checkout and the alert check, all of which
+  # passed on next (#580). A job skipped by if passes a required check;
+  # !cancelled() makes a failed lookup run the job instead.
+  proven:
+    name: proven
+    if: >
+      github.event_name == 'push' &&
+      (github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/main')
+    permissions:
+      actions: read
+    uses: ./.github/workflows/proven-on-next.yml
+    with:
+      workflow: codeql.yml
+
   codeql:
     name: codeql
+    needs: proven
+    if: ${{ !cancelled() && needs.proven.outputs.proven != 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
