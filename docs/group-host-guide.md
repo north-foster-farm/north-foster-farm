@@ -86,11 +86,16 @@ As the host, you also see:
   button, to send instead of the code (2026-11-14, #579).
 - **Generate new QR code and link**, if the code or link has spread
   further than you want. The old ones stop working right away, so
-  anything printed or sent with them must be replaced. Members stay
-  in the group, and the typed code doesn't change.
+  anything printed or sent with them must be replaced. The short link
+  keeps working and leads to the new one. Members stay in the group,
+  and the typed code doesn't change.
 - **The members**: each one's name, email address, the date they
   joined and how. You can remove someone. Their open orders stay as
   placed, and they can't move an order to a gym pickup after that.
+
+The short link northfosterfarm.com/vff is easier to post or say out
+loud. It always opens the newest join link, so it never needs
+replacing (2026-11-16, #587).
 
 ## Questions
 
