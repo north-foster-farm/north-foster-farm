@@ -139,6 +139,28 @@ describe("a shipped log line", () => {
       { customer: "[removed]" });
   });
 
+  it("ships a key named __proto__ as a field of the map", async (t) => {
+    quiet(t);
+    await flush({ env: {} });
+    // JSON.parse makes __proto__ an own key, as a parsed body would.
+    log.info(JSON.parse(
+      '{"event":"test.proto","__proto__":{"polluted":1},"x":2}'
+    ));
+
+    const { bodies, fetchImpl } = axiom();
+
+    await flush({ env: AXIOM, fetchImpl });
+
+    const [line] = JSON.parse(bodies[0]);
+
+    assert.equal(line.event, "test.proto");
+    assert.deepEqual(Object.keys(line.data), ["__proto__", "x"]);
+    assert.deepEqual(Object.getOwnPropertyDescriptor(line.data,
+      "__proto__").value, { polluted: 1 });
+    assert.equal(Object.getPrototypeOf(line.data), Object.prototype);
+    assert.equal({}.polluted, undefined);
+  });
+
   it("from bin/nff, has the same shape", async (t) => {
     quiet(t);
     await flush({ env: {} });

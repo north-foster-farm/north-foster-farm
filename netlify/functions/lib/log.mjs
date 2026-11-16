@@ -105,18 +105,22 @@ export const MAP = "data";
 const plain = (v) => v === null || ["string", "number", "boolean"]
   .includes(typeof v);
 
-// -> the record as the store receives it.
+// -> the record as the store receives it. The halves are built from
+// entries, as scrub() builds the record, so every key ships as a
+// field: assigning `__proto__` would set the prototype instead (#585).
 export const shape = (record, { source, deploy }) => {
-  const top = {};
-  const data = {};
+  const top = [];
+  const data = [];
 
   for (const [key, value] of Object.entries(record)) {
     if (key === "source" || key === "deploy") continue;
-    if (FIXED.includes(key) && plain(value)) top[key] = value;
-    else data[key] = value;
+    (FIXED.includes(key) && plain(value) ? top : data).push([key, value]);
   }
 
-  return { ...top, source, deploy, [MAP]: data };
+  return {
+    ...Object.fromEntries(top), source, deploy,
+    [MAP]: Object.fromEntries(data),
+  };
 };
 
 export const configured = (env = process.env) =>
