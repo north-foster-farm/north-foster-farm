@@ -1,13 +1,11 @@
 // The Membership tab (#495, part 5):
 //
 //   GET  /api/membership            a member's and a host's view; a
-//                                   host's holds the join link (#579)
+//                                   host's holds the join link (#579),
+//                                   the group's short link (#589)
 //   GET  /api/membership/qr         ?group=<key> the host's join QR
-//                                   code, as SVG; &download=1 saves it
-//                                   as a file
-//   POST /api/membership/qr         { group, rotate: true } the host
-//                                   replaces it and its link; the old
-//                                   ones stop at once
+//                                   code, the short link as SVG;
+//                                   &download=1 saves it as a file
 //   POST /api/membership/remove     { group, email } the host takes a
 //                                   member out (#495, part 6)
 //   POST /api/membership/leave      {} a member leaves their own group
@@ -27,15 +25,12 @@ import {
   normalizeEmail, sameOrigin, sameSite, sessionFrom,
 } from "./lib/auth.mjs";
 import { now as clock } from "./lib/clock.mjs";
-import { audit } from "./lib/group-log.mjs";
-import {
-  joinQr, joinTokenOf, rotateJoinToken,
-} from "./lib/groups.mjs";
+import { joinQr } from "./lib/groups.mjs";
 import { json, readJson } from "./lib/http.mjs";
 import { withLog } from "./lib/log.mjs";
 import { gate } from "./lib/maintenance.mjs";
 import {
-  hostMembers, hostQr, hostedBy, memberCode, memberCodeSvg, membershipView,
+  hostMembers, hostedBy, memberCode, memberCodeSvg, membershipView,
   removeMember, roleOf,
 } from "./lib/membership.mjs";
 import { stores as defaultStores } from "./lib/store.mjs";
@@ -58,8 +53,8 @@ export const config = {
 export const SELF = "To leave the group yourself, use Leave group.";
 export const NOT_IN = "That person isn't in the group.";
 
-// The QR code, the current token's, never cached: after a rotation
-// the next request is the new one.
+// A QR code, never cached: the member's code can change, and the
+// host's is drawn fresh with the site's address.
 const svg = (body, { download, name }) => new Response(body, {
   status: 200,
   headers: {
@@ -171,30 +166,16 @@ export const handle = async (req, {
     return json(200, { ok: true, members: await hostMembers(stores, key) });
   }
 
+  // The short link drawn (#589), so the code reads nothing from the
+  // record and no poster ever needs replacing. The host has no
+  // replacement: with the short link following the token, a new one
+  // would stop no one. The farm replaces a leaked long link with
+  // `bin/nff groups qr <key> --rotate`.
   if (path === "/api/membership/qr" && req.method === "GET") {
-    const token = await joinTokenOf(stores, key, { now });
-
-    return svg(joinQr(token, name, { env }).svg, {
+    return svg(joinQr(key, name, { env }).svg, {
       download: url.searchParams.get("download") === "1",
       name: `join-${key}-qr.svg`,
     });
-  }
-
-  if (path === "/api/membership/qr" && req.method === "POST") {
-    const closed = await gate(stores);
-
-    if (closed) return closed;
-
-    if (body.rotate !== true) {
-      return json(400, { errors: { body: "Expected { rotate: true }." } });
-    }
-
-    const record = await rotateJoinToken(stores, key, { now });
-
-    await audit(stores, { group: key, by, action: "qr.rotate", now });
-
-    // The new link with the new code: the field beside it changes too.
-    return json(200, { ok: true, qr: hostQr(record, env) });
   }
 
   return NOTHING();

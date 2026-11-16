@@ -266,12 +266,14 @@ const USAGE = `Usage:
                                       the name members see (the data
                                       file's name until one is set)
   bin/nff groups qr <key> [--rotate] [--out <file>]
-                                      the sign-up link the group's QR
-                                      code carries, and with --out the
+                                      the short link the group's QR
+                                      code carries and the sign-up link
+                                      it leads to, and with --out the
                                       code as an SVG. --rotate replaces
-                                      it: the old QR code stops working
-                                      at once, the typed code and the
-                                      members stay
+                                      the sign-up link: the old one
+                                      stops working at once, the short
+                                      link and QR codes follow, the
+                                      typed code and the members stay
   bin/nff groups members <key> [--backfill]
                                       the members: name, email address,
                                       date joined and how (code, link,
@@ -1985,6 +1987,8 @@ const run = async () => {
 
     if (!g) throw new Error(`Unknown group "${rest[0]}".`);
 
+    // The QR code holds the short link (#589), which follows the token,
+    // so a rotation leaves every poster working.
     const token = flags.rotate
       ? (await groups.rotateJoinToken(stores, g.key)).joinToken
       : await groups.joinTokenOf(stores, g.key);
@@ -1994,7 +1998,7 @@ const run = async () => {
         action: "qr.rotate" });
     }
 
-    const { link, svg } = groups.joinQr(token, g.name);
+    const { link, svg } = groups.joinQr(g.key, g.name);
 
     if (typeof flags.out === "string") {
       const { writeFileSync } = await import("node:fs");
@@ -2003,8 +2007,10 @@ const run = async () => {
       out(`Wrote ${flags.out}.`);
     }
 
-    return out(`${g.key}  ${link}${flags.rotate
-      ? "  (new: the old QR code no longer works)" : ""}`);
+    out(`${g.key}  ${link}`);
+
+    return out(`  leads to ${groups.joinUrl(token)}${flags.rotate
+      ? "  (new: the old long link no longer works)" : ""}`);
   }
   // Who is in the group and how they came (#495). The output names
   // members: keep it off GitHub.

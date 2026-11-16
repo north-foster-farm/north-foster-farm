@@ -83,19 +83,21 @@ As the host, you also see:
   name and email address, and the link we email them adds them to the
   group. The typed code works as before.
 - **The join link**, the address the QR code holds, with a Copy
-  button, to send instead of the code (2026-11-14, #579).
-- **Generate new QR code and link**, if the code or link has spread
-  further than you want. The old ones stop working right away, so
-  anything printed or sent with them must be replaced. The short link
-  keeps working and leads to the new one. Members stay in the group,
-  and the typed code doesn't change.
+  button, to send instead of the code (2026-11-14, #579). It is the
+  short link, northfosterfarm.com/vff, easy to post or say out loud.
+  It always opens the group's sign-up page, so it and the QR code
+  never need replacing (2026-11-16, #587, #589).
 - **The members**: each one's name, email address, the date they
   joined and how. You can remove someone. Their open orders stay as
   placed, and they can't move an order to a gym pickup after that.
 
-The short link northfosterfarm.com/vff is easier to post or say out
-loud. It always opens the newest join link, so it never needs
-replacing (2026-11-16, #587).
+There is no button to replace the QR code or the link (2026-11-16,
+#589: Generate new QR code and link is gone). With the short link,
+a new one would stop no one. If a long sign-up link (one with
+`/join/?t=` in it) has spread further than it should, the farm
+replaces it from the CLI with `bin/nff groups qr <key> --rotate`: the
+old long link stops at once, and the short link and every printed QR
+code lead to the new one.
 
 ## Questions
 

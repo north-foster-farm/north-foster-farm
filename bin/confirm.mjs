@@ -45,8 +45,10 @@ const DESTRUCTIVE = {
   "groups remove": { does: "remove a member of the group" },
   // Reads a member's credit, and with --void voids it (#495).
   "groups credit": { does: "void the credit of", only: "void" },
-  // Prints the QR link, and with --rotate kills the printed one (#495).
-  "groups qr": { does: "replace the QR code of the group", only: "rotate" },
+  // Prints the QR link, and with --rotate kills the long link the short
+  // one led to (#495, #589).
+  "groups qr": { does: "replace the sign-up link of the group",
+    only: "rotate" },
   // Reads the members, and with --backfill logs those from before the
   // join log (#495).
   "groups members": { does: "backfill the join log of the group",

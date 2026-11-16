@@ -29,8 +29,8 @@ import {
   METHOD, fileName, ordersCsv, paidWith, receiptsCsv, statusOf,
 } from "./lib/history.mjs";
 import {
-  COPIED_MS, LINK_COPIED, LINK_NOT_COPIED, ROTATED, joinedLine, placeLines,
-  roundRows, roundsLine,
+  COPIED_MS, LINK_COPIED, LINK_NOT_COPIED, joinedLine, placeLines, roundRows,
+  roundsLine,
 } from "./lib/membership.mjs";
 import { showMembership } from "./lib/membership-tab.mjs";
 import { watchTabs } from "./tabs-more.js";
@@ -435,56 +435,27 @@ class Account {
     });
   }
 
-  // The host's part of one hosted group: the QR code, its download and
-  // replacement, and the members. Every request names the group.
+  // The host's part of one hosted group: the QR code, its download, the
+  // short link it holds, and the members. Every request names the
+  // group.
   renderHost(box, hosted) {
     const el = (name) => qs(box, `[data-mem='${name}']`);
     const group = encodeURIComponent(hosted.key);
     const img = el("qr");
-    const status = el("qr-status");
-    const open = el("qr-new");
-    const confirm = el("qr-confirm");
-    const rotate = el("rotate");
     const link = el("link");
     const linkBox = el("link-box");
     const copied = el("link-copied");
     const copy = el("link-copy");
-    // The link the QR code holds (#579), in the field beside it.
-    const showLink = (url) => {
-      link.value = url || "";
-      linkBox.hidden = !url;
-    };
-    const show = (qr) => {
-      img.src = `/api/membership/qr?group=${group}&v=${
-        encodeURIComponent((qr && qr.setAt) || "")}`;
-      img.hidden = false;
-      showLink(qr && qr.link);
-    };
-    // A group's first code is minted by its image's own request, so
-    // until then the view has no link: once the image is in, ask again.
-    const fetchLink = async () => {
-      const { ok, data } = await api("/api/membership")
-        .catch(() => ({ ok: false, data: null }));
-      const again = ok && data && (data.hosts || [])
-        .find((h) => h.key === hosted.key);
+    // The short link the QR code holds (#579, #589), beside it.
+    const url = (hosted.qr && hosted.qr.link) || "";
 
-      if (again && again.qr) showLink(again.qr.link);
-    };
-    const ask = (on) => {
-      confirm.hidden = !on;
-      open.setAttribute("aria-expanded", String(on));
-      (on ? rotate : open).focus();
-    };
-
-    confirm.id = `mem-${hosted.key}-qr-confirm`;
-    open.setAttribute("aria-controls", confirm.id);
     el("download").href = `/api/membership/qr?group=${group}&download=1`;
     link.id = `mem-${hosted.key}-link`;
     el("link-label").htmlFor = link.id;
-    if (!(hosted.qr && hosted.qr.link)) {
-      img.addEventListener("load", fetchLink, { once: true });
-    }
-    show(hosted.qr);
+    img.src = `/api/membership/qr?group=${group}`;
+    img.hidden = false;
+    link.value = url;
+    linkBox.hidden = !url;
     // The staging card's copy (staging/card.js): a word that it worked,
     // gone after a moment. Where the browser won't write the clipboard,
     // the link is selected to copy by hand.
@@ -501,24 +472,6 @@ class Account {
       copy.copiedTimer = setTimeout(() => {
         copied.textContent = "";
       }, COPIED_MS);
-    });
-    open.addEventListener("click", () => ask(true));
-    el("qr-keep").addEventListener("click", () => ask(false));
-    rotate.addEventListener("click", async () => {
-      if (isBusy(rotate)) return;
-
-      const { ok, data } = await whileBusy(rotate, api("/api/membership/qr", {
-        method: "POST", body: { group: hosted.key, rotate: true },
-      }).catch(() => ({ ok: false, data: null })));
-
-      if (!ok) {
-        failBusy(rotate, data && data.message);
-
-        return;
-      }
-      show(data.qr);
-      ask(false);
-      status.textContent = ROTATED;
     });
     this.renderMembers(box, hosted.key, hosted.members || []);
   }

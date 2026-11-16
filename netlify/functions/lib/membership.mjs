@@ -20,8 +20,8 @@ import { normalizeEmail } from "./auth.mjs";
 import { creditBalance, voidCredit } from "./credit.mjs";
 import { audit, groupMembers } from "./group-log.mjs";
 import {
-  GROUPS, getGroupRecord, groupOf, joinUrl, leaveGroup, memberKeyOf,
-  namedGroup, privatePlaces,
+  GROUPS, getGroupRecord, groupOf, leaveGroup, memberKeyOf, namedGroup,
+  privatePlaces, shortUrl,
 } from "./groups.mjs";
 import { ensureMemberId } from "./member-id.mjs";
 import { qrSvg } from "./qr.mjs";
@@ -192,13 +192,13 @@ export const memberCode = async (stores, email, {
 export const memberCodeSvg = (id) =>
   qrSvg(id, { title: `Member code ${id}` });
 
-// The host's join QR code as the tab takes it: its version, and the
-// link it encodes for the field beside it (#579), which only a host
-// ever receives. `link` is null before the group's first token, which
-// the QR image's own request mints; the view itself writes nothing.
-export const hostQr = (record, env = process.env) => ({
-  setAt: (record && record.joinTokenSetAt) || null,
-  link: record && record.joinToken ? joinUrl(record.joinToken, env) : null,
+// The host's join link as the tab takes it, for the field beside the
+// QR code (#579): the group's short link (#589), which the QR code
+// holds too. Never the token, so no host can hand out a link the farm
+// would have to retire. The view writes nothing: the short link mints
+// the group's first token when it is first followed.
+export const hostQr = (key, env = process.env) => ({
+  link: shortUrl(key, env),
 });
 
 // What the tab shows: the member's own group and code, and every group
@@ -206,7 +206,7 @@ export const hostQr = (record, env = process.env) => ({
 // it is in both. `email` is the signed-in address, for the code, and
 // `mint` as for memberCode. The join link is in the host's part alone.
 // -> { member: { key, group, rounds, code } | null,
-// hosts: [{ key, group, rounds, qr: { setAt, link }, members }] }
+// hosts: [{ key, group, rounds, qr: { link }, members }] }
 export const membershipView = async (stores, role, {
   terms, now, email, mint = true, env = process.env,
 }) => ({
@@ -216,15 +216,9 @@ export const membershipView = async (stores, role, {
       code: email ? await memberCode(stores, email, { now, mint }) : null,
     }
     : null,
-  hosts: await Promise.all(role.hosts.map(async (g) => {
-    const record = await getGroupRecord(stores, g.key);
-
-    return {
-      ...(await groupView(stores, g, { terms, now })),
-      // The QR code's version (the image is fetched again when it
-      // moves) and its link.
-      qr: hostQr(record, env),
-      members: await hostMembers(stores, g.key),
-    };
-  })),
+  hosts: await Promise.all(role.hosts.map(async (g) => ({
+    ...(await groupView(stores, g, { terms, now })),
+    qr: hostQr(g.key, env),
+    members: await hostMembers(stores, g.key),
+  }))),
 });

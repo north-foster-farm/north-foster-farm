@@ -138,11 +138,13 @@ export const setGroupName = async (stores, key, name, {
 };
 
 // The join token (#495, James 6452457293): a long random value on the
-// group's record, apart from the typed code, that the group's QR code
-// carries to the sign-up page. Unguessable, so it needs no limit of
-// its own past the misses. Replacing it retires the old QR code at
-// once and leaves the code and the members as they are; the record
-// keeps when, never the old tokens.
+// group's record, apart from the typed code, that the short link
+// carries to the sign-up page (#589: the QR code holds the short link
+// since, and so did the host's pane). Unguessable, so it needs no limit
+// of its own past the misses. Replacing it, from the CLI only, retires
+// the old long link at once, while the short link follows the new one,
+// and leaves the code and the members as they are; the record keeps
+// when, never the old tokens.
 export const newJoinToken = () => randomBytes(32).toString("base64url");
 
 const TOKEN = /^[A-Za-z0-9_-]{40,64}$/;
@@ -197,7 +199,7 @@ export const findGroupByToken = async (stores, token) => {
   return null;
 };
 
-// The sign-up page's link, which the QR code encodes.
+// The sign-up page's link, where the short link leads.
 export const joinPath = (token) => `/join/?t=${encodeURIComponent(token)}`;
 
 // The links whole, from SITE_URL as the emails build theirs: a phone
@@ -209,12 +211,23 @@ export const joinUrl = (token, env = process.env) =>
 export const codeUrl = (code, env = process.env) =>
   `${siteUrl(env)}/order/?group=${encodeURIComponent(code)}`;
 
-// The join QR code and the link it holds, for the Membership tab and
-// `bin/nff groups qr`. `draw` is the encoder, swapped in tests.
-export const joinQr = (token, name, {
+// The group's short link (#587, #589): /<group key>, which
+// group-link.mjs answers with the sign-up page of the token in force.
+// The one link a host hands out, so no token is ever in their hands,
+// and a replaced token needs no new poster.
+export const shortPath = (key) => `/${encodeURIComponent(key)}`;
+
+export const shortUrl = (key, env = process.env) =>
+  `${siteUrl(env)}${shortPath(key)}`;
+
+// The join QR code and the short link it holds (#589), for the
+// Membership tab and `bin/nff groups qr`. A short address also draws a
+// sparser code, which scans better from a poster. `draw` is the
+// encoder, swapped in tests.
+export const joinQr = (key, name, {
   env = process.env, draw = qrSvg,
 } = {}) => {
-  const link = joinUrl(token, env);
+  const link = shortUrl(key, env);
 
   return { link, svg: draw(link, { title: `Join ${name}` }) };
 };

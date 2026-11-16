@@ -19,7 +19,7 @@ const VIEW = {
   },
   hosts: [{
     key: "gym2", group: { name: "Second Gym", place: PLACE }, rounds: null,
-    qr: { setAt: "2026-10-28T00:00:00.000Z" },
+    qr: { link: "http://localhost/gym2" },
     members: [{
       email: "rob@example.com", name: "Rob Example",
       joinedAt: "2026-10-28T00:00:00.000Z", via: "farm",
@@ -53,13 +53,7 @@ test.describe("a member of one group who hosts another", () => {
       await page.route("**/api/membership/qr**", (route) => {
         const req = route.request();
 
-        if (req.method() === "POST") {
-          posted.push(req.postDataJSON());
-
-          return route.fulfill({
-            json: { ok: true, qr: { setAt: "2026-10-28T01:00:00.000Z" } },
-          });
-        }
+        if (req.method() !== "GET") posted.push(req.postDataJSON());
 
         return route.fulfill({ contentType: "image/svg+xml", body: SVG });
       });
@@ -91,16 +85,30 @@ test.describe("a member of one group who hosts another", () => {
       await expect(hosted.locator("[data-member]"))
         .toContainText("Rob Example");
       await expect(hosted.locator("[data-mem='qr']"))
-        .toHaveAttribute("src", /[?&]group=gym2&/);
+        .toHaveAttribute("src", /\?group=gym2$/);
       await expect(hosted.locator("[data-mem='download']"))
         .toHaveAttribute("href", /\?group=gym2&download=1$/);
 
-      await hosted.getByRole("button", {
-        name: "Generate new QR code and link",
-      }).first().click();
-      await hosted.locator("[data-mem='rotate']").click();
-      await expect(hosted.locator("[data-mem='qr-status']"))
-        .toContainText("Here's your new QR code");
-      expect(posted).toEqual([{ group: "gym2", rotate: true }]);
+      // #589: the field holds the short link and Copy copies it, and
+      // nothing in the pane replaces the code or the link.
+      await expect(hosted.getByLabel("Join link"))
+        .toHaveValue("http://localhost/gym2");
+      await page.evaluate(() => {
+        window.copiedText = [];
+        Object.defineProperty(navigator, "clipboard", {
+          configurable: true,
+          value: { writeText: async (t) => { window.copiedText.push(t); } },
+        });
+      });
+      await hosted.getByRole("button", { name: "Copy" }).click();
+      await expect(hosted.locator("[data-mem='link-copied']"))
+        .toHaveText("Link copied");
+      expect(await page.evaluate(() => window.copiedText))
+        .toEqual(["http://localhost/gym2"]);
+      await expect(hosted.getByRole("button", { name: /Generate/ }))
+        .toHaveCount(0);
+      await expect(hosted.locator("[data-mem='rotate']")).toHaveCount(0);
+      await expect(hosted).not.toContainText("/join/");
+      expect(posted).toEqual([]);
     });
 });
