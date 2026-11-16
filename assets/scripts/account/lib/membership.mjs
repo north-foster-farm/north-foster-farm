@@ -15,14 +15,11 @@ export const JOIN_WAYS = {
   order: "by code",
 };
 
-// The host's join link (#579): what its Copy says, for COPIED_MS, and
-// what the pane says after Generate new QR code and link.
+// The host's join link (#579): what its Copy says, for COPIED_MS.
 export const COPIED_MS = 1600;
 export const LINK_COPIED = "Link copied";
 export const LINK_NOT_COPIED =
   "Copying failed. The link is selected, so copy it yourself.";
-export const ROTATED = "Here's your new QR code and link. The old ones " +
-  "no longer work. Download this code to print.";
 
 // "08:30" -> "8:30 AM".
 export const clock = (hhmm) => {

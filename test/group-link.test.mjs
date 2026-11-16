@@ -6,7 +6,7 @@ import { describe, it } from "node:test";
 
 import { config, handle } from "../netlify/functions/group-link.mjs";
 import {
-  GROUPS, joinPath, joinTokenOf, rotateJoinToken,
+  GROUPS, joinPath, joinTokenOf, rotateJoinToken, shortPath, shortUrl,
 } from "../netlify/functions/lib/groups.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
 
@@ -25,6 +25,21 @@ describe("a group's short link", () => {
   it("routes every group key, with and without the slash", () => {
     assert.deepEqual([...config.path].sort(),
       GROUPS.flatMap((g) => [`/${g.key}`, `/${g.key}/`]).sort());
+  });
+
+  // #589: the link the host's pane and the QR code hand out is one this
+  // function answers, for every group.
+  it("is the link the pane and the QR code hand out", async () => {
+    const stores = testStores();
+
+    for (const g of GROUPS) {
+      const link = shortUrl(g.key, { SITE_URL: "https://x" });
+
+      assert.equal(new URL(link).pathname, shortPath(g.key));
+      assert.ok(config.path.includes(shortPath(g.key)), g.key);
+      assertJoin(await get(new URL(link).pathname, stores),
+        await joinTokenOf(stores, g.key));
+    }
   });
 
   it("answers /vff and /vff/ with the token in force", async () => {

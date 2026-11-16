@@ -456,18 +456,12 @@
               <p class="form-text" data-mem="link-copied" role="status" aria-live="polite"></p>
             </div>
           </div>
-          <p class="form-text" data-mem="qr-status" role="status" aria-live="polite"></p>
+          {{/* No replacement here (#589): the link and the code are
+               the short link, which follows the token, so a new one
+               would stop no one. The farm replaces a leaked long link
+               from the CLI. */}}
           <div class="account-membership-actions">
             <a class="btn btn-primary" data-mem="download" href="/api/membership/qr?download=1" download>Download QR code</a>
-            <button class="btn btn-outline-primary" type="button" data-mem="qr-new" aria-expanded="false">Generate new QR code and link</button>
-          </div>
-          <div class="account-order-panel" data-mem="qr-confirm" hidden>
-            <p class="account-panel-title">Generate a new QR code and link?</p>
-            <p class="form-text">The current code and link stop working right away, so anything already printed or sent with them must be replaced. Members stay in the group, and the typed code doesn't change.</p>
-            <div class="account-panel-actions">
-              {{ partial "busy-button.html" (dict "label" "Generate new QR code and link" "busy" "Generating" "class" "btn-danger btn-sm" "type" "button" "error" true "attrs" (dict "data-mem" "rotate")) }}
-              <button type="button" class="btn btn-outline-secondary btn-sm" data-mem="qr-keep">Never mind</button>
-            </div>
           </div>
         </section>
 

@@ -19,7 +19,7 @@ import { joinLog } from "../netlify/functions/lib/group-log.mjs";
 import {
   codeUrl, findGroupByCode, findGroupByToken, getGroupRecord, joinGroup,
   joinPath, joinQr, joinTokenOf, joinUrl, memberKeyOf, rotateJoinToken,
-  setGroupCode,
+  setGroupCode, shortUrl,
 } from "../netlify/functions/lib/groups.mjs";
 import {
   ELSEWHERE, INVALID_LINK, JOINED_PATH,
@@ -94,20 +94,23 @@ describe("the join token", () => {
         return "<svg/>";
       };
       const site = { SITE_URL: "https://www.northfosterfarm.com/" };
-      const { link, svg } = joinQr(token, "Valley Fitness", {
+      const { link, svg } = joinQr("vff", "Valley Fitness", {
         env: site, draw,
       });
 
-      assert.equal(link,
-        `https://www.northfosterfarm.com/join/?t=${token}`);
+      // #589: the QR code holds the short link, never the token.
+      assert.equal(link, "https://www.northfosterfarm.com/vff");
+      assert.equal(link, shortUrl("vff", site));
       assert.equal(svg, "<svg/>");
       assert.deepEqual(drawn, [{ text: link, title: "Join Valley Fitness" }]);
+      assert.equal(joinUrl(token, site),
+        `https://www.northfosterfarm.com/join/?t=${token}`);
       assert.equal(codeUrl("GYM-2026", site),
         "https://www.northfosterfarm.com/order/?group=GYM-2026");
 
       // With nothing set, still a whole address, never a bare path.
-      for (const url of [joinQr(token, "G", { env: {}, draw }).link,
-        joinUrl(token, {}), codeUrl("GYM-2026", {})]) {
+      for (const url of [joinQr("vff", "G", { env: {}, draw }).link,
+        shortUrl("vff", {}), joinUrl(token, {}), codeUrl("GYM-2026", {})]) {
         assert.match(url, /^https?:\/\/[^/]/);
       }
       assert.match(drawn.at(-1).text, /^https?:\/\/[^/]/);
@@ -117,7 +120,8 @@ describe("the join token", () => {
         "utf8");
 
       assert.ok(!cli.includes("process.env.URL"));
-      assert.match(cli, /groups\.joinQr\(token, g\.name\)/);
+      assert.match(cli, /groups\.joinQr\(g\.key, g\.name\)/);
+      assert.match(cli, /groups\.joinUrl\(token\)/);
       assert.match(cli, /groups\.codeUrl\(record\.code\)/);
     });
 

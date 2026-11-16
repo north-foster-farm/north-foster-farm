@@ -1,7 +1,7 @@
 // The Membership tab (#495, part 5): a member sees the group's name,
-// place and rounds; the host also gets the QR code, its replacement and
-// the member list; anyone else gets nothing, and the tab and the menu
-// entry show for neither.
+// place and rounds; the host also gets the QR code, the short link it
+// holds (#589) and the member list; anyone else gets nothing, and the
+// tab and the menu entry show for neither.
 
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -13,17 +13,17 @@ import { createSession } from "../netlify/functions/lib/auth.mjs";
 import { auditLog } from "../netlify/functions/lib/group-log.mjs";
 import {
   GROUPS, findGroupByToken, getGroupRecord, joinGroup, joinTokenOf, joinUrl,
-  memberKeyOf, setGroupCode, setGroupHost,
+  memberKeyOf, setGroupCode, setGroupHost, shortUrl,
 } from "../netlify/functions/lib/groups.mjs";
-import { maskEmail } from "../netlify/functions/lib/mask.mjs";
 import { roleOf, roundsNow } from "../netlify/functions/lib/membership.mjs";
+import { qrSvg } from "../netlify/functions/lib/qr.mjs";
 import {
   getCustomer, saveCustomer,
 } from "../netlify/functions/lib/records.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
 import terms from "../netlify/functions/lib/terms.mjs";
 import {
-  JOIN_WAYS, LINK_COPIED, LINK_NOT_COPIED, ROTATED, hours, joinedLine,
+  JOIN_WAYS, LINK_COPIED, LINK_NOT_COPIED, hours, joinedLine,
   moment, pickupMoment, placeLines, roundRows, roundsLine,
 } from "../assets/scripts/account/lib/membership.mjs";
 import {
@@ -89,7 +89,7 @@ describe("who gets what", () => {
 
     for (const [path, method, body] of [
       ["/api/membership", "GET"], ["/api/membership/qr?group=vff", "GET"],
-      ["/api/membership/qr", "POST", { group: "vff", rotate: true }],
+      ["/api/membership/remove", "POST", { group: "vff", email: PAT }],
     ]) {
       const res = await call(stores, path, { method, headers: stranger, body });
 
@@ -114,8 +114,8 @@ describe("who gets what", () => {
 
       assert.equal((await call(stores, "/api/membership/qr?group=vff",
         { headers: member })).status, 404);
-      assert.equal((await call(stores, "/api/membership/qr", {
-        method: "POST", headers: member, body: { group: "vff", rotate: true },
+      assert.equal((await call(stores, "/api/membership/remove", {
+        method: "POST", headers: member, body: { group: "vff", email: HOST },
       })).status, 404);
     });
 
@@ -147,33 +147,51 @@ describe("who gets what", () => {
       /^attachment; filename="join-vff-qr\.svg"$/);
   });
 
-  it("lets the host replace the QR code, logged, the old one dead",
-    async () => {
-      const { stores, host } = await setup();
-      const old = await joinTokenOf(stores, "vff", { now });
-      const res = await call(stores, "/api/membership/qr", {
-        method: "POST", headers: host, body: { group: "vff", rotate: true },
-      });
-
-      assert.equal(res.status, 200);
-      assert.equal(await findGroupByToken(stores, old), null);
-
-      const [act] = await auditLog(stores, "vff");
-
-      assert.deepEqual([act.by, act.action], [
-        { role: "host", email: maskEmail(HOST) }, "qr.rotate",
-      ]);
-    });
-
-  // #579: the join link, the URL the QR code encodes, beside the code.
-  it("gives the host the join link the QR code holds", async () => {
+  // #589: the downloaded code holds the short link. The drawing is
+  // the same for the same text (test/qr.test.mjs), so the download
+  // matching the short link's drawing, and not the long link's, is
+  // the code decoding to the short link.
+  it("draws the short link into the downloaded QR code", async () => {
     const { stores, host } = await setup();
     const token = await joinTokenOf(stores, "vff", { now });
-    const view = await (await call(stores, "/api/membership",
-      { headers: host })).json();
+    const saved = await (await call(stores,
+      "/api/membership/qr?group=vff&download=1", { headers: host })).text();
+    const title = `Join ${GROUPS[0].name}`;
 
-    assert.equal(view.hosts[0].qr.link, joinUrl(token, env));
-    assert.equal(view.hosts[0].qr.link, `https://x/join/?t=${token}`);
+    assert.equal(saved, qrSvg("https://x/vff", { title }));
+    assert.notEqual(saved, qrSvg(joinUrl(token, env), { title }));
+    assert.ok(!saved.includes(token));
+  });
+
+  // #589: the pane hands out nothing it could ever need to take back.
+  it("has no replacement for the host: no route, no log", async () => {
+    const { stores, host } = await setup();
+    const old = await joinTokenOf(stores, "vff", { now });
+
+    for (const body of [{ group: "vff", rotate: true }, { group: "vff" }]) {
+      const res = await call(stores, "/api/membership/qr", {
+        method: "POST", headers: host, body,
+      });
+
+      assert.equal(res.status, 404, JSON.stringify(body));
+    }
+    assert.equal((await findGroupByToken(stores, old)).key, "vff");
+    assert.deepEqual(await auditLog(stores, "vff"), []);
+  });
+
+  // #579, #589: the join link beside the code is the short link, and
+  // no token is anywhere in the host's answer.
+  it("gives the host the short link the QR code holds", async () => {
+    const { stores, host } = await setup();
+    const token = await joinTokenOf(stores, "vff", { now });
+    const res = await call(stores, "/api/membership", { headers: host });
+    const body = await res.text();
+    const view = JSON.parse(body);
+
+    assert.deepEqual(view.hosts[0].qr, { link: shortUrl("vff", env) });
+    assert.equal(view.hosts[0].qr.link, "https://x/vff");
+    assert.ok(!body.includes(token), "no token");
+    assert.doesNotMatch(body, /\/join\//);
   });
 
   it("never gives a member the join link", async () => {
@@ -188,42 +206,26 @@ describe("who gets what", () => {
     assert.deepEqual(JSON.parse(body).hosts, []);
   });
 
-  it("writes nothing for the link: none before the first code",
+  it("writes nothing for the link or the code: the short link mints",
     async () => {
       const { stores, host } = await setup();
       const view = await (await call(stores, "/api/membership",
         { headers: host })).json();
 
-      assert.deepEqual(view.hosts[0].qr, { setAt: null, link: null });
+      assert.deepEqual(view.hosts[0].qr, { link: "https://x/vff" });
+      assert.equal((await call(stores, "/api/membership/qr?group=vff",
+        { headers: host })).status, 200);
       assert.ok(!(await getGroupRecord(stores, "vff")).joinToken);
     });
 
-  it("replaces the link with the code", async () => {
-    const { stores, host } = await setup();
-    const old = joinUrl(await joinTokenOf(stores, "vff", { now }), env);
-    const res = await call(stores, "/api/membership/qr", {
-      method: "POST", headers: host, body: { group: "vff", rotate: true },
-    });
-    const { qr } = await res.json();
-    const token = await joinTokenOf(stores, "vff", { now });
-
-    assert.equal(qr.link, joinUrl(token, env));
-    assert.notEqual(qr.link, old);
-
-    const view = await (await call(stores, "/api/membership",
-      { headers: host })).json();
-
-    assert.equal(view.hosts[0].qr.link, qr.link);
-  });
-
   // The coordinator's security review: same-site lets a sibling
-  // (a deploy preview, a branch subdomain) act as the host.
-  it("refuses a rotation cross-site, or same-site but not same-origin",
+  // (a deploy preview, a branch subdomain) act as the host. The
+  // host's one change left is Remove (#589: the rotation is gone).
+  it("refuses a host's change cross-site, or same-site but not same-origin",
     async () => {
       const { stores, host } = await setup();
-      const old = await joinTokenOf(stores, "vff", { now });
-      const rotate = (headers) => call(stores, "/api/membership/qr", {
-        method: "POST", body: { group: "vff", rotate: true },
+      const remove = (headers) => call(stores, "/api/membership/remove", {
+        method: "POST", body: { group: "vff", email: PAT },
         headers: { ...host, ...headers },
       });
 
@@ -234,14 +236,14 @@ describe("who gets what", () => {
         { "sec-fetch-site": "", origin: "http://preview.x" },
         { "sec-fetch-site": "" },
       ]) {
-        assert.equal((await rotate(headers)).status, 403,
+        assert.equal((await remove(headers)).status, 403,
           JSON.stringify(headers));
       }
-      assert.equal((await findGroupByToken(stores, old)).key, "vff");
+      assert.equal(memberKeyOf(await getCustomer(stores, PAT)), "vff");
       assert.deepEqual(await auditLog(stores, "vff"), []);
 
       // A browser with no Sec-Fetch-Site but this Origin is let in.
-      assert.equal((await rotate({ "sec-fetch-site": "", origin: "http://x" }))
+      assert.equal((await remove({ "sec-fetch-site": "", origin: "http://x" }))
         .status, 200);
     });
 
@@ -337,16 +339,11 @@ describe("a member of one group who hosts another", () => {
       await setGroupHost(stores, "gym2", PAT, { now });
 
       const vff = await joinTokenOf(stores, "vff", { now });
-      const gym = await joinTokenOf(stores, "gym2", { now });
-      const rotate = (group) => call(stores, "/api/membership/qr", {
-        method: "POST", headers: member, body: { group, rotate: true },
-      });
       const remove = (body) => call(stores, "/api/membership/remove",
         { method: "POST", headers: member, body });
 
       // The group they belong to, none named, or one they don't host.
       for (const group of ["vff", undefined, "nope"]) {
-        assert.equal((await rotate(group)).status, 404, String(group));
         assert.equal((await call(stores,
           `/api/membership/qr?group=${group || ""}`, { headers: member }))
           .status, 404, String(group));
@@ -357,11 +354,10 @@ describe("a member of one group who hosts another", () => {
       assert.equal(memberKeyOf(await getCustomer(stores, HOST)), "vff");
       assert.deepEqual(await auditLog(stores, "vff"), []);
 
-      // The one they host.
-      assert.equal((await call(stores, "/api/membership/qr?group=gym2",
-        { headers: member })).status, 200);
-      assert.equal((await rotate("gym2")).status, 200);
-      assert.equal(await findGroupByToken(stores, gym), null);
+      // The one they host, its code holding its own short link.
+      assert.equal(await (await call(stores, "/api/membership/qr?group=gym2",
+        { headers: member })).text(),
+      qrSvg("https://x/gym2", { title: "Join Second Gym" }));
 
       const out = await remove({ group: "gym2", email: ROB });
 
@@ -454,15 +450,13 @@ describe("the tab's words (drafts)", () => {
       "Sunday, November 22, 1:05 PM");
   });
 
-  // #579: the join link's Copy and the rotation's word, house rules
-  // (#400): no semicolons or em dashes, the label fragment unpunctuated.
-  it("say what Copy and a new code and link did", () => {
+  // #579: the join link's Copy, house rules (#400): no semicolons or
+  // em dashes, the label fragment unpunctuated.
+  it("say what Copy did", () => {
     assert.equal(LINK_COPIED, "Link copied");
     assert.equal(LINK_NOT_COPIED,
       "Copying failed. The link is selected, so copy it yourself.");
-    assert.equal(ROTATED, "Here's your new QR code and link. The old ones " +
-      "no longer work. Download this code to print.");
-    for (const line of [LINK_COPIED, LINK_NOT_COPIED, ROTATED]) {
+    for (const line of [LINK_COPIED, LINK_NOT_COPIED]) {
       assert.doesNotMatch(line, /[;—]/, line);
     }
   });
@@ -506,10 +500,13 @@ describe("the tab and the menu entry", () => {
     assert.ok(account.includes("<p>Add members to this group by sharing " +
       "the QR code or the link.</p>"));
     assert.doesNotMatch(account, /To add members/);
-    // The button covers both, since a rotation replaces both (draft).
-    assert.match(account, />Generate new QR code and link<\/button>/);
-    assert.match(account, /"label" "Generate new QR code and link"/);
-    assert.doesNotMatch(account, /Generate new QR code</);
+    // #589: no replacement in the pane, nor its panel or status.
+    assert.doesNotMatch(account, /Generate (a )?new QR code/);
+    for (const part of ["qr-new", "qr-confirm", "rotate", "qr-keep",
+      "qr-status"]) {
+      assert.ok(!account.includes(`"data-mem" "${part}"`), part);
+      assert.ok(!account.includes(`data-mem="${part}"`), part);
+    }
     for (const label of ["This round closes", "This round pickup",
       "Next round opens", "Next round pickup"]) {
       assert.match(account, new RegExp(`>${label}</dt>`), label);
