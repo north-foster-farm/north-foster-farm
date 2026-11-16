@@ -358,6 +358,12 @@ skipped rather than shifted:
   under `overrides`. `bin/nff events` lists every series with its
   occurrences in the coverage window and their schedule line;
   `bin/nff events new` makes an unused code.
+  A location's `name` is the venue line every page, email and the
+  schema print, as the venue words it ("Inside of Jordan's Jungle",
+  #581). Two optional fields keep what is not customer text apart:
+  `listing`, the name the maps apps know it by, for directions and
+  map searches, and `slug`, its map card's `#place-…` anchor when
+  that must not follow the name. Both default to the name.
   The Pickup days card's Where line on the home page follows one rule
   (`whereLine` in `order/lib/scheduled.mjs`): one location open, its
   `short` address from `data/locations.json` (a series may override

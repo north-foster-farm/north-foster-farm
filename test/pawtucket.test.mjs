@@ -18,7 +18,7 @@ import {
   checkSchedule, parseSchedule,
 } from "../assets/scripts/order/lib/schedule.mjs";
 import {
-  pickupName, scheduledChoice,
+  addressLines, pickupName, scheduledChoice,
 } from "../assets/scripts/order/lib/scheduled.mjs";
 import {
   addDays, instant, today,
@@ -51,10 +51,15 @@ const withoutPawtucket = (text) => text.split("\n")
   .filter((l) => !CODES.has(l.split(" ")[1])).join("\n");
 
 describe("Pawtucket in the model (#544)", () => {
-  it("is one location in Pawtucket, inside Jordan's Jungle", () => {
+  // The venue line reads as the market words it (James, #548, #581);
+  // the maps apps and the card's anchor keep the venue's own name.
+  it("is one location in Pawtucket, inside of Jordan's Jungle", () => {
     const loc = model.location("P7KX");
 
-    assert.equal(loc.name, "Jordan's Jungle");
+    assert.equal(loc.name, "Inside of Jordan's Jungle");
+    assert.equal(loc.short, "Inside of Jordan's Jungle, Pawtucket");
+    assert.equal(loc.listing, "Jordan's Jungle");
+    assert.equal(loc.slug, "jordans-jungle");
     assert.equal(loc.street, "545 Pawtucket Ave");
     assert.equal(loc.city, "Pawtucket");
     assert.equal(loc.zip, "02860");
@@ -113,7 +118,16 @@ describe("Pawtucket on the order page's pickup days (#544)", () => {
       "Pawtucket Farmers Market", "the name says its town");
     assert.equal(pickupName(popup.town, popup.name),
       "Pawtucket · Thanksgiving Prep");
-    for (const d of got) assert.equal(d.short, "Jordan's Jungle, Pawtucket");
+    for (const d of got) {
+      assert.equal(d.short, "Inside of Jordan's Jungle, Pawtucket");
+    }
+  });
+
+  it("names the venue above the street in the pickup's details", () => {
+    assert.deepEqual(addressLines(model.location("P7KX")), [
+      "Inside of Jordan's Jungle", "545 Pawtucket Ave",
+      "Pawtucket, RI 02860",
+    ]);
   });
 
   it("offers each pop-up when it comes into the horizon, timed PM", () => {
@@ -203,7 +217,16 @@ describe("Pawtucket on built pages (#544)", {
   it("lists the market on the About page, Tuesdays in the afternoon", () => {
     assert.match(text("about"), new RegExp("Pawtucket Farmers Market " +
       "Tuesdays, 12:00 – 4:00 PM November through April " +
-      "Jordan's Jungle 545 Pawtucket Ave, Pawtucket, RI 02860"));
+      "Inside of Jordan's Jungle 545 Pawtucket Ave, Pawtucket, RI 02860"));
+    // Its map search finds the venue by the name the maps apps know.
+    assert.ok(html("about").includes("query=Jordan%27s&#43;Jungle%2C" +
+      "&#43;545&#43;Pawtucket&#43;Ave%2C&#43;Pawtucket%2C&#43;RI"));
+    // Its Markdown twin names the venue the same way, and a market
+    // with no website prints none.
+    const md = readFileSync(join(out, "about", "index.md"), "utf8");
+
+    assert.match(md, /Inside of Jordan's Jungle, 545 Pawtucket Ave/);
+    assert.doesNotMatch(md, /<no value>/);
   });
 
   // Option (c) on #548: a winter market alone is no market season, so
@@ -233,10 +256,14 @@ describe("Pawtucket on built pages (#544)", {
 
   it("pins it on the map, with its card and directions", () => {
     const page = html("");
-    const card = text("").match(new RegExp("Jordan's Jungle " +
+    const card = text("").match(new RegExp("Inside of Jordan's Jungle " +
       "Pawtucket Farmers Market,.*?Market Instagram"));
 
     assert.match(page, /data-map-slug="place-jordans-jungle"/);
+    // The top bar's link to a pop-up opens a pin's card, so its anchor
+    // is a slug the map carries, not the venue line urlized (#581).
+    const bar = page.match(/class="top-bar-link" href="[^"]*#(place-[^"]+)"/);
+    if (bar) assert.ok(page.includes(`data-map-slug="${bar[1]}"`), bar[1]);
     assert.ok(card, "the row and its card");
     assert.match(card[0], new RegExp("Pawtucket Farmers Market Tuesdays, " +
       "12:00 – 4:00 PM November 10 to April 27"));

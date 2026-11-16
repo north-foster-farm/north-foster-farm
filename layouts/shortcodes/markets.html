@@ -28,7 +28,7 @@
     <ul class="markets-list list-unstyled mb-0">
       {{ range (partial "lib/pickup-lists.html" .).markets }}
         {{ $map := printf "https://www.google.com/maps/search/?api=1&query=%s"
-          (urlquery (printf "%s, RI" .where)) }}
+          (urlquery (printf "%s, RI" .search)) }}
         <li class="market">
           <strong class="d-block">{{ .name }}</strong>
           {{ .when }}<br>

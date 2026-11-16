@@ -55,7 +55,7 @@ const EVENT = next && {
   long: `${next.name} in ${next.address.city}, ${day(next.date, "long")}${
     next.start ? `, ${clock(next.start)} – ${clock(next.end || "23:59")}` : ""
   }`,
-  href: new RegExp(`#place-${urlize(next.place)}$`),
+  href: new RegExp(`#place-${next.slug || urlize(next.place)}$`),
 };
 
 const bar = (page) => page.locator("[data-top-bar]");

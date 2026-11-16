@@ -4,15 +4,15 @@ slug: "pawtucket-farmers-market"
 date: 2026-11-16
 draft: true
 description: >-
-  Find us at the Pawtucket Farmers Market, inside Jordan's Jungle,
+  Find us at the Pawtucket Farmers Market, inside of Jordan's Jungle,
   every Tuesday through April, and at four Saturday pop-ups, starting
   with Thanksgiving Prep on November 21.
 ---
 
 The outdoor markets are done for the year, but you don't have to wait
 for spring to see us. We've joined the Pawtucket Farmers Market, which
-runs indoors all winter, inside Jordan's Jungle at 545 Pawtucket Ave in
-Pawtucket. We set up there for the first time on November 10, and we'll
+runs indoors all winter, inside of Jordan's Jungle at 545 Pawtucket Ave
+in Pawtucket. We set up there for the first time on November 10, and we'll
 be back every Tuesday from 12 to 4 PM through April 27. Our next one is
 Tuesday, November 17.
 

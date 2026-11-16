@@ -73,13 +73,15 @@
     },
     {
       "code": "P7KX",
-      "name": "Jordan's Jungle",
+      "name": "Inside of Jordan's Jungle",
+      "listing": "Jordan's Jungle",
+      "slug": "jordans-jungle",
       "street": "545 Pawtucket Ave",
       "city": "Pawtucket",
       "state": "RI",
       "zip": "02860",
       "town": "Pawtucket",
-      "short": "Jordan's Jungle, Pawtucket",
+      "short": "Inside of Jordan's Jungle, Pawtucket",
       "lat": 41.85933,
       "lng": -71.39847
     }

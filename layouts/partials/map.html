@@ -130,15 +130,20 @@
         {{ if $endless }}{{ $until = "" }}{{ end }}
         {{ $where := printf "%s, %s, %s" $loc.street $loc.city $loc.state }}
         {{ with $loc.zip }}{{ $where = printf "%s %s" $where . }}{{ end }}
+        {{/* The name is the venue line as the venue words it; the maps
+             apps match `listing`, and `slug` pins the card's anchor
+             (data/locations.json, #581). */}}
+        {{ $listing := $loc.listing | default $loc.name }}
         {{ $found = $found | append (merge (partial "map/xy.html" $loc) (dict
           "name" $loc.name "key" $loc.name "town" $loc.town
+          "slug" ($loc.slug | default ($loc.name | urlize))
           "next" $next "until" $until "nudge" $nudge "drop" $drop
           "code" $loc.code
           "day" (delimit ($days | uniq) ", ")
           "names" (delimit $names ", ")
           "blocks" $blocks
           "where" $where
-          "directions" (dict "to" (cond (eq $loc.name $loc.street) $where (printf "%s, %s" $loc.name $where)))
+          "directions" (dict "to" (cond (eq $loc.name $loc.street) $where (printf "%s, %s" $listing $where)))
           "links" $links)) }}
       {{ end }}
     {{ end }}
@@ -199,7 +204,7 @@
           {{/* The places' pins. data-map-pin is the pin's card. */}}
           <g class="map-pins">
             {{ range $i, $p := $places }}
-              <g class="map-pin" data-map-pin="{{ add $i 1 }}" data-map-slug="place-{{ $p.name | urlize }}" data-x="{{ $p.x }}" data-y="{{ $p.y }}" {{- with $p.nudge }} data-nudge="{{ . }}"{{ end }} {{- with $p.until }} data-until="{{ . }}"{{ end }} transform="translate({{ $p.x }} {{ $p.y }})" tabindex="0" role="button" aria-pressed="false" aria-label="{{ $p.name }}">
+              <g class="map-pin" data-map-pin="{{ add $i 1 }}" data-map-slug="place-{{ $p.slug | default ($p.name | urlize) }}" data-x="{{ $p.x }}" data-y="{{ $p.y }}" {{- with $p.nudge }} data-nudge="{{ . }}"{{ end }} {{- with $p.until }} data-until="{{ . }}"{{ end }} transform="translate({{ $p.x }} {{ $p.y }})" tabindex="0" role="button" aria-pressed="false" aria-label="{{ $p.name }}">
                 <g class="map-pin-body">
                   <path d="{{ $pin }}"/>
                   <text class="map-pin-num" y="-24" aria-hidden="true">{{ add $i 1 }}</text>

@@ -41,7 +41,7 @@ const LIST = scheduledChoices([
   entry("H3TQ-261117", "2026-11-17", "Tuesday, November 17", {
     series: "H3TQ", name: "Pawtucket Farmers Market", town: "Pawtucket",
     location: "pawtucket", window: "12:00 – 4:00 PM",
-    short: "Jordan's Jungle, Pawtucket",
+    short: "Inside of Jordan's Jungle, Pawtucket",
     cutoff: "2026-11-17T04:59:00.000Z",
   }),
   entry("VFVQ-261121", "2026-11-21", "Saturday, November 21", {
