@@ -30,6 +30,7 @@ const NOT_IN_A_SAMPLE = {
   AWS_LAMBDA_FUNCTION_NAME: "the functions runtime's",
   LAMBDA_TASK_ROOT: "the functions runtime's",
   NETLIFY_DEV: "set by netlify dev",
+  FIXTURES_DIR: "set by bin/dev-functions.mjs for the fake drivers (#584)",
   NETLIFY_BLOBS_CONTEXT: "Netlify's Blobs credentials, in a function",
   // GitHub Actions' own, or a repository secret or variable there.
   GITHUB_ACTIONS: "GitHub Actions",

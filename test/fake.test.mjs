@@ -11,7 +11,9 @@ import { after, afterEach, beforeEach, describe, it } from "node:test";
 
 import * as fakePaypal from "../netlify/functions/lib/fake-paypal.mjs";
 import * as fakeSquare from "../netlify/functions/lib/fake-square.mjs";
-import { FAKE_SDK_URLS } from "../netlify/functions/lib/fake.mjs";
+import {
+  FAKE_SDK_URLS, fixtureFile, recorded,
+} from "../netlify/functions/lib/fake.mjs";
 import * as paypal from "../netlify/functions/lib/paypal.mjs";
 import { getOrder } from "../netlify/functions/lib/records.mjs";
 import * as square from "../netlify/functions/lib/square.mjs";
@@ -482,5 +484,20 @@ describe("the development sample takes orders offline", () => {
 
     assert.match(saved.payments[0].paypalCaptureId, /^FAKE-CAPTURE-/);
     assert.deepEqual(net.seen, []);
+  });
+});
+
+describe("fixtureFile (#584)", () => {
+  it("honors FIXTURES_DIR, which the dev wrapper sets", () => {
+    assert.equal(
+      fixtureFile("square", "x", { FIXTURES_DIR: "/r/test/fixtures" }),
+      "/r/test/fixtures/square/x.json"
+    );
+  });
+
+  it("falls back to the repo's folder beside the source", () => {
+    assert.match(fixtureFile("square", "x", {}).pathname,
+      /test\/fixtures\/square\/x\.json$/);
+    assert.equal(typeof recorded("square", "payment-card-ok"), "object");
   });
 });

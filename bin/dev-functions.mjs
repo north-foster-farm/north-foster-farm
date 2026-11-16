@@ -22,6 +22,9 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const args = process.argv.slice(2);
 
 loadEnv(join(root, ".env"));
+// The fake drivers read their recorded answers from here: the bundle
+// `netlify dev` builds has no test/fixtures, and none ships (#584).
+process.env.FIXTURES_DIR = join(root, "test", "fixtures");
 if (!process.env.PICKUP_SCHEDULE) process.env.PICKUP_SCHEDULE = devSchedule();
 
 // Resolves to a port the system has free on 127.0.0.1, where Hugo

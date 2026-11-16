@@ -13,6 +13,7 @@
 
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 import { deployContext } from "./store.mjs";
 
@@ -49,10 +50,18 @@ export const fakeId = (prefix, ...parts) => `${prefix}-${createHash("sha256")
 // vendor's (test/fixtures/README.md, bin/fixtures/record): { _source,
 // status, request, response }. Read when asked for, so a deploy that
 // never fakes never needs the files. A fresh copy each time.
+// `netlify dev` bundles the functions without test/fixtures, so
+// bin/dev-functions.mjs names the repo's folder in FIXTURES_DIR (#584);
+// no deploy sets it, and none bundles the fixtures.
+export const fixtureFile = (service, name, env = process.env) =>
+  env.FIXTURES_DIR
+    ? join(env.FIXTURES_DIR, service, `${name}.json`)
+    : new URL(
+      `../../../test/fixtures/${service}/${name}.json`, import.meta.url
+    );
+
 export const recorded = (service, name) => {
-  const file = new URL(
-    `../../../test/fixtures/${service}/${name}.json`, import.meta.url
-  );
+  const file = fixtureFile(service, name);
 
   try {
     return JSON.parse(readFileSync(file, "utf8"));
