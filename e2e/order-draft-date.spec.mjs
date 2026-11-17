@@ -6,7 +6,8 @@
 // placed.
 
 import {
-  OrderPage, expect, pickupChosen, pickupRadios, pickupValues, test,
+  OrderPage, choosePickup, expect, orderPicker, pickupChosen, pickupRadios,
+  pickupValues, test,
 } from "./support/order.mjs";
 import { DROP, FOSTER, datesWith } from "./support/scheduled.mjs";
 
@@ -60,23 +61,23 @@ test.describe("a draft's date (#284)", () => {
 
       await page.route("**/api/dates", answer);
       await order.open({ eggs: 1 }, { method: "scheduled" });
+      // Each card waits, hidden, for its day on the strip (#540).
       await expect(pickupRadios(page).first())
-        .toBeVisible({ timeout: 15_000 });
+        .toBeAttached({ timeout: 15_000 });
 
       // The market's last date, never the list's first.
       const value = (await pickupValues(page))
         .filter((v) => v.startsWith(`${FOSTER.series}-`)).at(-1);
 
-      await page.locator(`#scheduled-pickups input[value='${value}']`)
-        .check();
+      await choosePickup(orderPicker(page), value);
       await expect.poll(() => page.evaluate(() => JSON.parse(
         localStorage.getItem("nff-order-draft") || "{}"
       ).payload.fulfilment)).toMatchObject({
         method: "scheduled", occurrence: value,
       });
       await page.goto("/order/");
-      await expect(pickupRadios(page).first())
-        .toBeVisible({ timeout: 15_000 });
+      // Restored, the pickup shows on its day.
+      await expect(pickupChosen(page)).toBeVisible({ timeout: 15_000 });
       await expect(pickupChosen(page)).toHaveValue(value);
     });
 
@@ -104,8 +105,7 @@ test.describe("a draft's date (#284)", () => {
       }, date);
       await order.open();
       await expect(page.locator("#method-scheduled")).toBeChecked();
-      await expect(pickupRadios(page).first())
-        .toBeVisible({ timeout: 15_000 });
+      await expect(pickupChosen(page)).toBeVisible({ timeout: 15_000 });
       await expect(pickupChosen(page)).toHaveValue(occurrence);
     });
 
