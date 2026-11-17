@@ -17,6 +17,7 @@ import {
   withBooked,
 } from "./lib/picker.mjs";
 import { label, today } from "./lib/zoned.mjs";
+import { keepLastTwo } from "../utils/keep-together.mjs";
 
 let seq = 0;
 
@@ -251,7 +252,8 @@ export class PickupPicker {
     address.textContent = "";
     for (const line of facts.address) address.appendChild(span(line));
     address.hidden = !facts.address.length;
-    cutoff.textContent = facts.orderBy;
+    // "13, 11:59 PM" on one line (#593).
+    cutoff.textContent = keepLastTwo(facts.orderBy);
     cutoff.hidden = !facts.orderBy;
   }
 

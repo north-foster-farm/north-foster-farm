@@ -23,6 +23,7 @@ import { fieldError } from "../utils/field-errors.mjs";
 import {
   confirmHash, isFor, readConfirm, showConfirm,
 } from "../utils/email-confirm.js";
+import { keepTogether, meridiem } from "../utils/keep-together.mjs";
 import { whileLoading } from "../utils/skeleton.js";
 import { Autoplay } from "../video/video.js";
 import {
@@ -43,18 +44,25 @@ const busyButton = (form) => qs(form, ".busy-button");
 const total = (items) => (items || [])
   .reduce((s, x) => s + (x.amount || 0), 0);
 
+// A line of text the page writes, each time held to its AM or PM and
+// its last two words kept on one line (#593), as bin/orphans/wrap.mjs
+// keeps the built pages' prose.
+const write = (node, text) => {
+  node.textContent = keepTogether(text);
+};
+
 const el = (tag, className, text) => {
   const node = document.createElement(tag);
 
   if (className) node.className = className;
-  if (text !== undefined) node.textContent = text;
+  if (text !== undefined) write(node, text);
 
   return node;
 };
 
 const clone = (id) => document.getElementById(id).content.cloneNode(true);
 
-const hour12 = (h) => `${((h + 11) % 12) + 1} ${h < 12 ? "AM" : "PM"}`;
+const hour12 = (h) => meridiem(((h + 11) % 12) + 1, h < 12 ? "AM" : "PM");
 
 // The drop site's series code (data/series.json), set by the page.
 let dropSeries = "";
@@ -194,7 +202,7 @@ class Account {
     inGroup = false, membership = null,
   }) {
     if (maintenance) {
-      this.loading.textContent = maintenance;
+      write(this.loading, maintenance);
       this.loading.hidden = false;
 
       return;
@@ -262,8 +270,8 @@ class Account {
     params.delete("email");
     history.replaceState(null, "", location.pathname
       + (params.toString() ? `?${params}` : "") + location.hash);
-    document.getElementById("email-change-sent").textContent =
-      `Your email address has been changed to ${this.customer.email}.`;
+    write(document.getElementById("email-change-sent"),
+      `Your email address has been changed to ${this.customer.email}.`);
   }
 
   // Arrived from a group's sign-up link (#495): say so once, then drop
@@ -283,7 +291,7 @@ class Account {
 
     if (!banner || !own) return;
 
-    banner.textContent = `You've joined ${own.group.name}.`;
+    write(banner, `You've joined ${own.group.name}.`);
     banner.hidden = false;
     this.showTab("membership");
   }
@@ -359,9 +367,7 @@ class Account {
   renderGroup(g, hosted) {
     const item = clone("tpl-mem-group");
     const box = qs(item, "[data-mem-group]");
-    const out = (name, text) => {
-      qs(box, `[data-mem='${name}']`).textContent = text;
-    };
+    const out = (name, text) => write(qs(box, `[data-mem='${name}']`), text);
     const p = g.group.place;
     const r = g.rounds;
     const zone = this.terms.timeZone;
@@ -378,6 +384,8 @@ class Account {
     // The place on three lines at every width (#579).
     qs(box, "[data-mem='place']").replaceChildren(...placeLines(p)
       .map((line) => el("span", "", line)));
+    // Each line and row below keeps its last two words together, and
+    // a time its AM or PM (#593).
     out("every", r ? roundsLine(r) : "");
     // Four rows, each a label and its value (#579); one the data can't
     // fill, such as a next round when there is none, is left out.
@@ -462,11 +470,11 @@ class Account {
     copy.addEventListener("click", async () => {
       try {
         await navigator.clipboard.writeText(link.value);
-        copied.textContent = LINK_COPIED;
+        write(copied, LINK_COPIED);
       } catch (error) {
         console.error("Copy failed", error);
         link.select();
-        copied.textContent = LINK_NOT_COPIED;
+        write(copied, LINK_NOT_COPIED);
       }
       clearTimeout(copy.copiedTimer);
       copy.copiedTimer = setTimeout(() => {
@@ -482,16 +490,16 @@ class Account {
 
     list.replaceChildren();
     el("list-empty").hidden = members.length > 0;
-    el("list-h").textContent = members.length
-      ? `Members (${members.length})` : "Members";
+    write(el("list-h"), members.length
+      ? `Members (${members.length})` : "Members");
 
     for (const m of members) {
       const item = clone("tpl-member");
       const row = qs(item, "[data-member]");
 
-      qs(row, "[data-out='name']").textContent = m.name || "No name yet";
+      write(qs(row, "[data-out='name']"), m.name || "No name yet");
       qs(row, "[data-out='email']").textContent = m.email;
-      qs(row, "[data-out='joined']").textContent = joinedLine(m, placed);
+      write(qs(row, "[data-out='joined']"), joinedLine(m, placed));
       this.wireRemove(box, key, row, m);
       list.append(item);
     }
@@ -671,8 +679,8 @@ class Account {
 
       input.value = "";
       show(false);
-      sent.textContent = `We sent a link to ${data.email}. Open it to ` +
-        "confirm this change.";
+      write(sent, `We sent a link to ${data.email}. Open it to ` +
+        "confirm this change.");
     };
 
     open.addEventListener("click", () => show(true));
@@ -708,7 +716,7 @@ class Account {
   }
 
   say(message) {
-    this.flash.textContent = message;
+    write(this.flash, message);
     this.flash.hidden = !message;
     if (message) this.flash.scrollIntoView({ block: "nearest" });
   }
@@ -810,7 +818,7 @@ class Account {
     line.dataset.save = state;
     const out = qs(line, "[data-save-text]");
 
-    out.textContent = text;
+    write(out, text);
     if (mark) {
       const span = document.createElement("span");
 
@@ -848,7 +856,7 @@ class Account {
       const field = qs(form, `[data-field="${key}"], [name="${key}"]`);
 
       if (slot) {
-        slot.textContent = message;
+        write(slot, message);
         slot.style.display = "block";
       }
       if (field) field.classList.add("is-invalid");
@@ -923,7 +931,7 @@ class Account {
         "our pickup days are open to everyone.";
       tone = "no";
     }
-    status.textContent = text;
+    write(status, text);
     status.dataset.tone = tone;
     status.hidden = !text;
   }
@@ -973,7 +981,7 @@ class Account {
         const line = document.createElement("span");
 
         line.className = "d-block";
-        line.textContent = text;
+        write(line, text);
 
         return line;
       }));
@@ -1160,12 +1168,12 @@ class Account {
       try {
         await navigator.clipboard.writeText(address.textContent);
         copy.textContent = "Copied";
-        copied.textContent = "Email address copied.";
+        write(copied, "Email address copied.");
       } catch (error) {
         console.error("Copy failed", error);
         getSelection().selectAllChildren(address);
-        copied.textContent = "Copying failed. The address is selected: " +
-          "copy it yourself.";
+        write(copied, "Copying failed. The address is selected: " +
+          "copy it yourself.");
       }
     });
     qs(dialog, "[data-delete-close]").addEventListener("click", () => {
@@ -1186,7 +1194,7 @@ class Account {
   deleteNote(message) {
     const { field, note } = this.deleteUi;
 
-    note.textContent = message;
+    write(note, message);
     note.dataset.tone = message ? "no" : "";
     field.classList.toggle("is-invalid", !!message);
     if (message) field.setAttribute("aria-invalid", "true");
@@ -1274,9 +1282,7 @@ class Account {
   orderCard(order) {
     const node = clone("tpl-order");
     const card = qs(node, "[data-order]");
-    const set = (name, text) => {
-      qs(node, `[data-out="${name}"]`).textContent = text;
-    };
+    const set = (name, text) => write(qs(node, `[data-out="${name}"]`), text);
 
     card.id = `order-${order.id}`;
     card.dataset.status = order.status;
@@ -1295,15 +1301,15 @@ class Account {
     // A scheduled pickup whose occurrence no longer resolves has no
     // change control. Draft wording.
     if (order.pickup && order.pickup.gone) {
-      pickup.textContent = "We can't change this pickup here. Please " +
-        "call, text, or email us, and we'll work it out.";
+      write(pickup, "We can't change this pickup here. Please " +
+        "call, text, or email us, and we'll work it out.");
       pickup.hidden = false;
     }
 
     if (q && !q.answeredAt && q.kind === "window") {
-      pickup.textContent = "We can't make that pickup time" +
+      write(pickup, "We can't make that pickup time" +
         `${q.reason ? `: ${q.reason}` : "."} Please choose another day and ` +
-        "time with Change pickup, or cancel the order.";
+        "time with Change pickup, or cancel the order.");
       pickup.hidden = false;
     }
     // A delivery we couldn't leave (#193). James approved the words on
@@ -1321,18 +1327,18 @@ class Account {
             "isn't refunded because we made the trip"
           : " in full"}.`;
 
-      pickup.textContent = "We couldn't deliver this order, so we're " +
+      write(pickup, "We couldn't deliver this order, so we're " +
         `holding it until ${label(q.until)}. Choose ${day} or a pickup ` +
         `with Change items, or cancel it for a refund of ${dollars(back)}. ` +
-        `${ifUnanswered}`;
+        `${ifUnanswered}`);
       pickup.hidden = false;
     }
 
     const note = qs(node, "[data-out='note']");
 
     if (order.cancelRequested) {
-      note.textContent = "We're refunding this order. Your money goes back " +
-        "to the way you paid.";
+      write(note, "We're refunding this order. Your money goes back " +
+        "to the way you paid.");
       note.hidden = false;
     } else if (order.refunds.length) {
       const back = total(order.refunds);
@@ -1340,16 +1346,16 @@ class Account {
         ? "Refunded"
         : `Refunded ${dollars(back)}`;
 
-      note.textContent = `${what} on ${
-        placed(order.refunds.at(-1).at)}, back to the way you paid.`;
+      write(note, `${what} on ${
+        placed(order.refunds.at(-1).at)}, back to the way you paid.`);
       note.hidden = false;
     } else if (order.status === "unpaid" && order.due > 0) {
       // An order the farm made (#181). Draft wording.
-      note.textContent = `Not paid yet: ${dollars(order.due)} due.`;
+      write(note, `Not paid yet: ${dollars(order.due)} due.`);
       note.hidden = false;
     } else if (order.status === "abandoned") {
-      note.textContent = "This order wasn't paid by the cutoff, so it was " +
-        "canceled.";
+      write(note, "This order wasn't paid by the cutoff, so it was " +
+        "canceled.");
       note.hidden = false;
     }
 
@@ -1362,7 +1368,7 @@ class Account {
       const add = qs(li, "[data-out='add']");
 
       qs(li, "[data-out='qty']").textContent = `${line.qty} ×`;
-      qs(li, "[data-out='label']").textContent = line.label;
+      write(qs(li, "[data-out='label']"), line.label);
       qs(li, "[data-out='total']").textContent = dollars(line.lineTotal * 100);
       add.href = addUrl([line]);
       add.setAttribute("aria-label", `Add ${line.qty} × ${line.label} to ` +
@@ -1645,7 +1651,7 @@ class Account {
 
       input.value = w.id;
       input.checked = w.id === pick;
-      qs(node, "span").textContent = w.label;
+      write(qs(node, "span"), w.label);
       box.appendChild(node);
     }
   }
@@ -1656,12 +1662,12 @@ class Account {
 
     // After a missed delivery the fee stays (#193). James's words of
     // 2026-11-02 (#237).
-    qs(form, "[data-out='explain']").textContent = order.keptFee
+    write(qs(form, "[data-out='explain']"), order.keptFee
       ? `The delivery fee of ${dollars(order.keptFee)} isn't refunded ` +
         "because we made the trip. We'll refund the rest the way you " +
         "paid, usually within a few business days."
       : "We'll refund you the way you paid, usually within a few " +
-        "business days.";
+        "business days.");
     qs(form, "[data-close]").addEventListener("click",
       () => this.closePanel(card));
     form.addEventListener("submit", async (e) => {
@@ -1762,9 +1768,8 @@ class Account {
     for (const { order, payment, i } of rows) {
       const node = clone("tpl-receipt");
       const item = qs(node, "[data-receipt-item]");
-      const set = (name, text) => {
-        qs(node, `[data-out="${name}"]`).textContent = text;
-      };
+      const set = (name, text) => write(qs(node, `[data-out="${name}"]`),
+        text);
       const back = total(order.refunds.filter((r) => r.payment === i));
       const link = qs(node, "[data-out='link']");
 
@@ -1807,9 +1812,8 @@ class Account {
   // order hold, and the farm's name and address.
   showReceipt(order, payment) {
     const card = document.getElementById("receipt-card");
-    const set = (key, text) => {
-      qs(card, `[data-receipt="${key}"]`).textContent = text;
-    };
+    const set = (key, text) => write(qs(card, `[data-receipt="${key}"]`),
+      text);
     const row = (key, text) => {
       const dt = qs(card, `[data-receipt-row="${key}"]`);
 
@@ -1818,8 +1822,8 @@ class Account {
       set(key, text || "");
     };
 
-    document.getElementById("receipt-card-h").textContent =
-      `Receipt for ${order.id}`;
+    write(document.getElementById("receipt-card-h"),
+      `Receipt for ${order.id}`);
     set("paid", payment.at ? placed(payment.at) : "");
     set("amount", dollars(payment.amount));
     row("payer", payment.payer);

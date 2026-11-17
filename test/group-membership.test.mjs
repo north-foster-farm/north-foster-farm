@@ -413,11 +413,13 @@ describe("the tab's words (drafts)", () => {
     const r = { every: 2, opens: "08:30", closes: "09:00",
       current: { date: "2026-11-22" } };
 
-    assert.equal(roundsLine(r), "Every 2 weeks, on Sundays, 8:30 to 9:00 AM");
+    // A time and its AM or PM are joined by a no-break space (#593).
+    assert.equal(roundsLine(r),
+      "Every 2 weeks, on Sundays, 8:30 to 9:00\u00a0AM");
     assert.equal(roundsLine({ ...r, every: 1 }).slice(0, 10), "Every week");
-    assert.equal(hours("11:30", "12:30"), "11:30 AM to 12:30 PM");
+    assert.equal(hours("11:30", "12:30"), "11:30\u00a0AM to 12:30\u00a0PM");
     assert.equal(moment("2026-11-22T04:59:00.000Z", "America/New_York"),
-      "Saturday, November 21, 11:59 PM");
+      "Saturday, November 21, 11:59\u00a0PM");
   });
 
   // #579: four rows, James's labels, the pickups at the window's start.
@@ -425,10 +427,10 @@ describe("the tab's words (drafts)", () => {
     const r = roundsNow({ series: "36TS" }, terms, now);
 
     assert.deepEqual(roundRows(r, "America/New_York"), {
-      closes: "Saturday, November 21, 11:59 PM",
-      pickup: "Sunday, November 22, 8:30 AM",
-      opens: "Saturday, November 21, 11:59 PM",
-      "next-pickup": "Sunday, December 6, 8:30 AM",
+      closes: "Saturday, November 21, 11:59\u00a0PM",
+      pickup: "Sunday, November 22, 8:30\u00a0AM",
+      opens: "Saturday, November 21, 11:59\u00a0PM",
+      "next-pickup": "Sunday, December 6, 8:30\u00a0AM",
     });
   });
 
@@ -438,7 +440,7 @@ describe("the tab's words (drafts)", () => {
       next: null };
 
     assert.deepEqual(roundRows(r, "America/New_York"), {
-      closes: "Saturday, November 21, 11:59 PM",
+      closes: "Saturday, November 21, 11:59\u00a0PM",
       pickup: "Sunday, November 22",
       opens: "",
       "next-pickup": "",
@@ -447,7 +449,7 @@ describe("the tab's words (drafts)", () => {
       closes: "", pickup: "", opens: "", "next-pickup": "",
     });
     assert.equal(pickupMoment("2026-11-22", "13:05"),
-      "Sunday, November 22, 1:05 PM");
+      "Sunday, November 22, 1:05\u00a0PM");
   });
 
   // #579: the join link's Copy, house rules (#400): no semicolons or

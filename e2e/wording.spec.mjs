@@ -83,7 +83,11 @@ test.describe("no retired words (#150)", () => {
       // And what the page says once its scripts have run.
       await page.goto(path);
       await page.waitForLoadState("networkidle");
-      said.text = await page.locator("body").innerText();
+      // A line set from a script keeps its last two words together
+      // with a no-break space (#593): read it as a space, so a retired
+      // phrase it joins is still found.
+      said.text = (await page.locator("body").innerText())
+        .replaceAll(String.fromCharCode(0xa0), " ");
 
       for (const [where, text] of Object.entries(said)) {
         expect(firstHit(text), `${path} ${where}`).toBeNull();

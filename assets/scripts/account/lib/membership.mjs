@@ -1,5 +1,9 @@
 // The Membership tab's words (#495), kept apart from the page so the
-// tests can hold them. Every line is a draft for James.
+// tests can hold them. Every line is a draft for James. A time keeps
+// its AM or PM here; main.js keeps each line's last two words together
+// where it sets the text (#593).
+
+import { joinMeridiem, meridiem } from "../../utils/keep-together.mjs";
 
 // How a member came to the group, as the host's list says it.
 export const JOIN_WAYS = {
@@ -21,12 +25,13 @@ export const LINK_COPIED = "Link copied";
 export const LINK_NOT_COPIED =
   "Copying failed. The link is selected, so copy it yourself.";
 
-// "08:30" -> "8:30 AM".
+// "08:30" -> "8:30 AM", the half of the day joined to the time by a
+// no-break space (#593).
 export const clock = (hhmm) => {
   const [h, m] = String(hhmm).split(":").map(Number);
 
-  return `${((h + 11) % 12) + 1}:${String(m).padStart(2, "0")} ${
-    h < 12 ? "AM" : "PM"}`;
+  return meridiem(`${((h + 11) % 12) + 1}:${String(m).padStart(2, "0")}`,
+    h < 12 ? "AM" : "PM");
 };
 
 const weekday = (iso) => new Date(`${iso}T12:00:00Z`)
@@ -49,12 +54,13 @@ export const roundsLine = (r) => {
   return `${every}, on ${weekday(r.current.date)}s${time}`;
 };
 
-// An instant in the farm's zone: "Saturday, November 7, 11:59 PM".
-export const moment = (iso, timeZone) => new Date(iso)
+// An instant in the farm's zone: "Saturday, November 7, 11:59 PM",
+// the time and its PM joined (#593).
+export const moment = (iso, timeZone) => joinMeridiem(new Date(iso)
   .toLocaleString("en-US", {
     timeZone, weekday: "long", month: "long", day: "numeric",
     hour: "numeric", minute: "2-digit",
-  }).replace(" at ", ", ");
+  }).replace(" at ", ", "));
 
 // A pickup day at its window's start, as the round rows read it
 // (#579): "Sunday, November 22, 8:30 AM". The day alone when the

@@ -175,8 +175,9 @@ describe("the strip's words", () => {
 
 describe("the details panel", () => {
   it("names the place and gives the order-by time in the farm's zone", () => {
+    // The PM joined by a no-break space, whatever space ICU gave (#593).
     assert.equal(orderBy(drop.cutoff, ZONE),
-      "Order by Friday, November 13, 11:59 PM");
+      "Order by Friday, November 13, 11:59\u00a0PM");
     assert.equal(orderBy("", ZONE), "");
   });
 
@@ -193,7 +194,7 @@ describe("the details panel", () => {
         "North Scituate Community House", "46 Institute Lane",
         "North Scituate, RI 02857",
       ],
-      orderBy: "Order by Friday, November 13, 11:59 PM",
+      orderBy: "Order by Friday, November 13, 11:59\u00a0PM",
     });
   });
 

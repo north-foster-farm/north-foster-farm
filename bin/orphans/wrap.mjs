@@ -4,7 +4,11 @@
 //
 //   bin/orphans/wrap.mjs public
 //
-// It rewrites each HTML file in place and prints a count. The rules:
+// It rewrites each HTML file in place and prints a count. Text a
+// script sets in the browser never comes here: the scripts keep their
+// own lines' last words together with keepLastTwo, in
+// assets/scripts/utils/keep-together.mjs, which holds the word rule
+// below for both (#593). The rules:
 //
 // - Only h1 to h6, p, li and the other prose elements in PROSE, and
 //   none inside pre, code, svg, math, script, style or textarea.
@@ -35,6 +39,8 @@ import { readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
+import { unsafeWord } from "../../assets/scripts/utils/keep-together.mjs";
+
 const PROSE = new Set([
   "h1", "h2", "h3", "h4", "h5", "h6", "p", "li", "dt", "dd",
   "blockquote", "figcaption", "caption", "summary", "legend", "label",
@@ -50,7 +56,6 @@ const VOID = new Set([
 ]);
 const INLINE = new Set(["b", "strong", "em", "i"]);
 const CELL = new Set(["th", "td"]);
-const MAX_WORD = 14;
 const OPEN = '<span class="text-nowrap">';
 const CLOSE = "</span>";
 
@@ -210,9 +215,6 @@ function oneWordSpan(tokens, open, close) {
   return 0;
 }
 
-const unsafe = (word) => /:\/\/|www\.|@/i.test(word)
-  || [...word].length > MAX_WORD;
-
 // The edit for one element, or null to leave it as it is.
 function plan(tokens, open, close) {
   const { seq, whole } = tail(tokens, open, close);
@@ -255,7 +257,7 @@ function plan(tokens, open, close) {
   // are wrapped too (#303), unless the element is a table cell.
   if (k < 0 && (!whole || CELL.has(tokens[open].name))) return null;
   const first = chars.slice(k + 1, firstEnd + 1).join("");
-  if (unsafe(first) || unsafe(second)) return null;
+  if (unsafeWord(first) || unsafeWord(second)) return null;
 
   // Start the span at the first word. At the very start of a text
   // token, take in the start tags just before it as well.
