@@ -36,8 +36,11 @@
 
           {{/* Too wide for the screen (#579), the row scrolls, with the
                cart's round arrow and a fade at its end while any tab
-               lies past it (tabs-more.js). */}}
+               lies past it, and the same at its start while any tab
+               lies before it (#591, tabs-more.js). "Earlier tabs" is a
+               draft. */}}
           <div class="account-nav-wrap" data-tabs-wrap>
+            <button type="button" class="account-nav-more account-nav-more-start" aria-label="Earlier tabs" data-tabs-back hidden>{{ partial "svg.html" (dict "src" "icons/arrow-down" "class" "account-nav-more-icon" "aria-hidden" "true") }}</button>
             <nav class="account-nav" aria-label="Account sections">
               <a class="account-tab" href="#orders" data-tab="orders">Orders</a>
               <a class="account-tab" href="#receipts" data-tab="receipts">Receipts</a>

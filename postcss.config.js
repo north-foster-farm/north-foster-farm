@@ -98,6 +98,8 @@ const plugins = [
         "once",
         "data-show",
         "data-more",
+        // The account tab row's start fade (#591, tabs-more.js).
+        "data-back",
         "data-top",
         "data-card-open",
         "data-cart-passed",

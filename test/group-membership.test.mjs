@@ -27,7 +27,7 @@ import {
   moment, pickupMoment, placeLines, roundRows, roundsLine,
 } from "../assets/scripts/account/lib/membership.mjs";
 import {
-  tabsMore, tabsStop,
+  tabsBack, tabsBackStop, tabsMore, tabsStop,
 } from "../assets/scripts/account/lib/tab-scroll.mjs";
 
 const now = new Date("2026-11-02T14:00:00Z");
@@ -542,4 +542,55 @@ describe("the tab row's arrow", () => {
       assert.equal(tabsStop(tabs, view(0)), 160);
       assert.equal(tabsStop(tabs, view(160)), 280);
     });
+});
+
+// #591: the same arrow at the row's start.
+describe("the tab row's start arrow", () => {
+  const tabs = Array.from({ length: 6 }, (_, i) => ({
+    left: i * 80, right: i * 80 + 80,
+  }));
+  const view = (left) => ({ left, width: 200, full: 480 });
+
+  it("shows while any tab lies before the row's start", () => {
+    assert.equal(tabsBack(view(280)), true);
+    assert.equal(tabsBack(view(1.5)), true);
+  });
+
+  it("goes when the row fits or is at its start", () => {
+    assert.equal(tabsBack(view(0)), false);
+    // The end's pixel of allowance.
+    assert.equal(tabsBack(view(0.8)), false);
+    assert.equal(tabsBack({ left: 0, width: 480, full: 480 }), false);
+  });
+
+  it("shows with the end's arrow mid-row", () => {
+    assert.equal(tabsBack(view(120)), true);
+    assert.equal(tabsMore(view(120)), true);
+  });
+
+  it("brings the last tab cut off at the start to the row's end", () => {
+    // At the end, the fourth tab (240-320) is cut off: its right end
+    // meets the row's end.
+    assert.equal(tabsBackStop(tabs, view(280)), 120);
+    // Mid-tab: the tab under the start (80-160) comes whole.
+    assert.equal(tabsBackStop(tabs, view(120)), 0);
+    // A fractional rest doesn't count as a tab cut off: half a pixel
+    // into the fourth tab (240-320), the third (160-240) is the one
+    // brought to the end. Without the allowance it would be the
+    // fourth, at 120.
+    assert.equal(tabsBackStop(tabs, view(240.5)), 40);
+  });
+
+  it("starts a tab wider than the row at the row's start", () => {
+    const wide = [{ left: 0, right: 80 }, { left: 80, right: 400 }];
+
+    assert.equal(
+      tabsBackStop(wide, { left: 300, width: 200, full: 400 }), 80
+    );
+  });
+
+  it("never goes past the start", () => {
+    assert.equal(tabsBackStop(tabs, view(0)), 0);
+    assert.equal(tabsBackStop([], view(100)), 0);
+  });
 });

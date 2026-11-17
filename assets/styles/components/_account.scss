@@ -114,24 +114,38 @@
   // The row scrolls when it is wider than the screen (#579). On the
   // cart's pattern (#560), a fade at its end and a round arrow on the
   // fade show while any tab lies past the end; a tap brings the first
-  // tab cut off to the row's start (tabs-more.js).
+  // tab cut off to the row's start (tabs-more.js). Their mirror at the
+  // row's start while any tab lies before it (#591): a tap brings the
+  // last tab cut off there to the row's end.
   .account-nav-wrap {
     position: relative;
     margin-bottom: 1.5rem;
 
+    &::before,
     &::after {
       content: "";
       position: absolute;
       top: 0;
-      right: 0;
       bottom: 1px;
       width: 3rem;
-      background: linear-gradient(to right, transparent, var(--bs-body-bg));
       opacity: 0;
       pointer-events: none;
       transition: opacity 140ms ease; // The cart's --order-fast.
     }
 
+    // Before the row in the markup, so lifted over its tabs.
+    &::before {
+      left: 0;
+      z-index: 1;
+      background: linear-gradient(to left, transparent, var(--bs-body-bg));
+    }
+
+    &::after {
+      right: 0;
+      background: linear-gradient(to right, transparent, var(--bs-body-bg));
+    }
+
+    &[data-back]::before,
     &[data-more]::after {
       opacity: 1;
     }
@@ -173,6 +187,16 @@
     width: 1rem;
     height: 1rem;
     rotate: -90deg;
+  }
+
+  .account-nav-more-start {
+    right: auto;
+    left: 0;
+    z-index: 2;
+
+    .account-nav-more-icon {
+      rotate: 90deg;
+    }
   }
 
   .account-tab {
