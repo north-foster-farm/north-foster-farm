@@ -125,7 +125,15 @@ const install = () => {
     || (was.shadow && was.shadow !== now.shadow)
     || (was.stroke && was.stroke !== now.stroke);
 
-  const kbd = { seen: new WeakSet(), stops: [], candidates: [] };
+  const kbd = {
+    seen: new WeakSet(), stops: [], walking: false,
+    // Candidates the focus hasn't come to or gone past yet, each with
+    // a live Range kept just before it (it holds the place if the node
+    // is taken out) and whether it showed at the last press of Tab.
+    pending: new Map(),
+    known: new WeakSet(),
+    missed: [],
+  };
 
   // After each Tab: judge the stop now focused, and keep how it looks
   // for kbdNoRing.
@@ -139,6 +147,8 @@ const install = () => {
 
     const shown = shownFor(el);
 
+    // Read from the focus itself, not only from focusin: see reach.
+    if (kbd.walking) reach(el);
     out.name = name(el);
     // Square's card fields are its own iframe, passed over. The stub
     // SDK's plain fields (fake payments, a local run) stand in for it
@@ -193,10 +203,96 @@ const install = () => {
   const TABBABLE = "a[href], button, input:not([type='hidden']), select, " +
     "textarea, summary, iframe, [tabindex], [contenteditable='true']";
 
+  const shows = (el) => el.isConnected && visible(shownFor(el));
+
+  // Every control a person could Tab to now, not yet listed and lying
+  // after `from` in document order (the site sets no positive
+  // tabindex, so that is Tab order). One that turns up behind the
+  // focus (a back-to-top link) was never in Tab's way.
+  const list = (from) => {
+    for (const el of document.querySelectorAll(TABBABLE)) {
+      if (kbd.known.has(el) || el.tabIndex < 0 || el.disabled
+        || el.closest("[inert]")) continue;
+      if (from && !(from.compareDocumentPosition(el)
+        & Node.DOCUMENT_POSITION_FOLLOWING)) continue;
+      if (!shows(el)) continue;
+
+      const place = document.createRange();
+
+      place.setStartBefore(el);
+      kbd.known.add(el);
+      kbd.pending.set(el, { place, shown: true });
+    }
+  };
+
+  // Each candidate is judged once, when the focus moves past it, by
+  // how it was the moment before that Tab: shown then and passed over
+  // is missed, hidden then is excused. Not by how it is when the walk
+  // ends (#591, qa): a control that hides as the page scrolls, is
+  // rendered again or hides on blur after Tab skipped it would pass
+  // that way. The account's end arrow (#579) is the excused case: the
+  // focus on the last tab scrolls the row to its end and the arrow
+  // hides, so it is already hidden at the Tab that passes it.
+  //
+  // The moment before is the Tab's keydown, which comes before the
+  // browser moves the focus: re-list what has turned up ahead (a
+  // control shown only while its neighbor has the focus) and note
+  // which candidates show. The walk also calls it just before each
+  // press, since with the focus inside an iframe the keydown goes to
+  // the frame's document and this one hears nothing.
+  const before = () => {
+    list(document.activeElement);
+    for (const [el, c] of kbd.pending) c.shown = shows(el);
+  };
+
+  window.kbdBefore = () => {
+    if (kbd.walking) before();
+  };
+  addEventListener("keydown", (e) => {
+    if (kbd.walking && e.key === "Tab") before();
+  }, true);
+
+  // Where the focus lands, everything before it has been passed. A
+  // node taken out on the way still has its Range to place it.
+  //
+  // Called from focusin and, after each Tab settles, from kbdStep with
+  // document.activeElement. When Tab takes the focus into an iframe
+  // (a YouTube video on a news post), its focusin fires in the frame's
+  // document, so this one sees none and only activeElement becomes the
+  // iframe: without kbdStep the frame stayed pending and was counted
+  // as passed over once the focus left it. The same holds for an
+  // object or embed with a document of its own. A focus inside an
+  // open shadow root does reach here, retargeted to its host, and so
+  // does activeElement. A second call for the same focus finds
+  // nothing left to judge.
+  const reach = (to) => {
+    for (const [el, c] of kbd.pending) {
+      if (el === to) {
+        kbd.pending.delete(el);
+        continue;
+      }
+
+      let passed;
+
+      try {
+        passed = c.place.comparePoint(to, 0) > 0 && !el.contains(to);
+      } catch {
+        passed = false;
+      }
+      if (!passed) continue;
+      kbd.pending.delete(el);
+      if (c.shown) kbd.missed.push({ el, name: name(el) });
+    }
+  };
+
+  addEventListener("focusin", (e) => {
+    if (kbd.walking) reach(e.target);
+  }, true);
+
   window.kbdStart = () => {
-    kbd.candidates = [...document.querySelectorAll(TABBABLE)]
-      .filter((el) => el.tabIndex >= 0 && !el.disabled
-        && !el.closest("[inert]") && visible(shownFor(el)));
+    kbd.pending.clear();
+    kbd.missed = [];
+    kbd.known = new WeakSet();
 
     // Blur alone leaves Tab going on from where the focus was, so
     // start from a mark at the very top, outside the Tab order.
@@ -205,17 +301,28 @@ const install = () => {
     start.tabIndex = -1;
     document.body.prepend(start);
     start.focus({ preventScroll: true });
+    list(null);
+    kbd.walking = true;
 
-    return kbd.candidates.length;
+    return kbd.pending.size;
   };
 
-  // Controls Tab never reached; a radio group counts once reached.
-  window.kbdMissed = () => kbd.candidates
-    .filter((el) => !kbd.seen.has(el))
-    .filter((el) => !(el.type === "radio" && el.name
-      && [...document.getElementsByName(el.name)]
-        .some((r) => kbd.seen.has(r))))
-    .map(name);
+  // Controls Tab passed over while they showed, and those it never
+  // came to that showed at its last press; a radio group counts once
+  // reached.
+  window.kbdMissed = () => {
+    kbd.walking = false;
+
+    const left = [...kbd.pending]
+      .filter(([el, c]) => c.shown && !kbd.seen.has(el))
+      .map(([el]) => ({ el, name: name(el) }));
+
+    return [...kbd.missed, ...left]
+      .filter(({ el }) => !(el.type === "radio" && el.name
+        && [...document.getElementsByName(el.name)]
+          .some((r) => kbd.seen.has(r))))
+      .map((m) => m.name);
+  };
 };
 
 const tabKey = (browserName) => (browserName === "webkit" ? "Alt+Tab"
@@ -274,6 +381,7 @@ const walk = async (page, key) => {
   let steps = 0;
 
   for (; steps < limit; steps += 1) {
+    await page.evaluate(() => window.kbdBefore());
     await page.keyboard.press(key);
 
     // WebKit scrolls to the focus a frame or two after it moves, and a
@@ -508,3 +616,76 @@ for (const width of WIDTHS) {
       });
   });
 }
+
+// The walk's own rule for a missed control (#591, qa), on a page made
+// for it. A's keydown sends Tab straight to B, skipping three controls
+// while they show: one that hides once the page scrolls, one rendered
+// again as B takes the focus, and one shown only while A has it. Each
+// would have passed a rule that looked at the page when the walk ended.
+// The arrow hides as C takes the focus, like the account's end arrow,
+// so Tab rightly passes it, and Back to top turns up behind the focus.
+// The frame takes the focus with no focusin here, as a news post's
+// video does, and must count as reached, with E after it.
+const SKIPS = `
+  <button id="a">A</button>
+  <button id="scrolls">Hides on scroll</button>
+  <span id="slot"><button id="again">Rendered again</button></span>
+  <button id="blurs" hidden>Shown with A</button>
+  <div style="height: 2000px"></div>
+  <button id="b">B</button>
+  <button id="c">C</button>
+  <button id="arrow">Arrow</button>
+  <button id="d">D</button>
+  <iframe id="frame" title="Frame"
+    srcdoc="<button>In the frame</button><button>Also in it</button>">
+  </iframe>
+  <button id="e">E</button>
+`;
+
+const skip = () => {
+  const $ = (id) => document.getElementById(id);
+
+  $("a").addEventListener("focus", () => { $("blurs").hidden = false; });
+  $("a").addEventListener("blur", () => { $("blurs").hidden = true; });
+  $("a").addEventListener("keydown", (e) => {
+    if (e.key !== "Tab" || e.shiftKey) return;
+    e.preventDefault();
+    $("b").focus();
+  });
+  addEventListener("scroll", () => { $("scrolls").hidden = true; },
+    { once: true });
+  $("b").addEventListener("focus", () => {
+    $("slot").replaceChildren($("again").cloneNode(true));
+  });
+  $("c").addEventListener("focus", () => { $("arrow").hidden = true; });
+  $("d").addEventListener("focus", () => {
+    const top = document.createElement("button");
+
+    top.textContent = "Back to top";
+    $("b").before(top);
+  });
+};
+
+test.describe("the keyboard walk (#591)", () => {
+  test.use({
+    viewport: { width: 1280, height: 900 }, isMobile: false, hasTouch: false,
+  });
+
+  test("misses a control Tab skipped while it showed",
+    async ({ page, browserName }) => {
+      await page.setContent(SKIPS);
+      await page.evaluate(install);
+      await page.evaluate(skip);
+
+      const missed = (await walk(page, tabKey(browserName)))
+        .filter((p) => p.startsWith("not reached by Tab: "))
+        .map((p) => p.slice("not reached by Tab: ".length))
+        .sort();
+
+      expect(missed).toEqual([
+        "button#again \"Rendered again\"",
+        "button#blurs \"Shown with A\"",
+        "button#scrolls \"Hides on scroll\"",
+      ]);
+    });
+});
