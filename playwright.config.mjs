@@ -125,14 +125,15 @@ export default defineConfig({
     },
     // Safari on an iPhone, which is how James tests: only the checks
     // of layout, accessibility and the cart's motion frame by frame
-    // (#559), where a WebKit-only fault shows. cart-motion skips
-    // itself in the other projects.
+    // (#559), where a WebKit-only fault shows, and the account's tab
+    // row (#592). cart-motion skips itself in the other projects.
     {
       name: "iphone",
       testMatch: [
         "**/overflow.spec.mjs", "**/a11y.spec.mjs", "**/keyboard.spec.mjs",
         "**/payment-stacking.spec.mjs", "**/cart-keyboard.spec.mjs",
         "**/cart-a11y.spec.mjs", "**/cart-motion.spec.mjs",
+        "**/account-tabs.spec.mjs",
       ],
       use: { ...devices["iPhone 15"] },
     },

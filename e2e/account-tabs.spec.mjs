@@ -4,8 +4,19 @@
 // before it (#591). Signed in with canned answers, so this runs on a
 // local build as well as staging, and saves nothing.
 
-import { signedIn } from "./support/canned.mjs";
-import { expect, test } from "./support/order.mjs";
+//
+// The row scrolls sideways only (#592): no taller than its box with any
+// tab selected and focused, so iOS has nothing to bounce up and down,
+// with the focus ring and the selected underline whole inside it. The
+// cart's scrollers, which the row was modeled on (#560), are checked
+// for the same fault on the other axis. On the iPhone project too.
+
+import {
+  ACCOUNT_TABS, cannedDates, signedIn,
+} from "./support/canned.mjs";
+import {
+  FULL_CART, OrderPage, expect, test, unfoldCart,
+} from "./support/order.mjs";
 
 // A wide screen fits the row: nothing to scroll.
 test.skip(({ isMobile }) => !isMobile, "the row fits a wide screen");
@@ -121,4 +132,63 @@ test.describe("the account's tab row", () => {
       await expect.poll(async () => Math.round((await row(nav)).left))
         .toBeGreaterThanOrEqual(stop - 1);
     });
+
+  test("scrolls sideways only, its ring and underline whole",
+    async ({ page }) => {
+      for (const name of ACCOUNT_TABS) {
+        await open(page, name);
+
+        const nav = page.locator(".account-nav");
+        const tab = nav.locator(`[data-tab="${name}"]`);
+
+        await expect(tab).toHaveClass(/\bis-active\b/);
+        await tab.focus();
+
+        const seen = await tab.evaluate((el) => {
+          const box = el.parentElement;
+          const row = box.getBoundingClientRect();
+          const own = el.getBoundingClientRect();
+          const style = getComputedStyle(el);
+
+          return {
+            overflowY: getComputedStyle(box).overflowY,
+            tall: box.scrollHeight, room: box.clientHeight,
+            // Inside the row's box, top to foot: nothing of it clipped.
+            inside: own.top >= row.top - 0.5
+              && own.bottom <= row.bottom + 0.5,
+            underline: parseFloat(style.borderBottomWidth),
+            // Drawn inward, so the row's clip can't cut it.
+            ring: parseFloat(style.outlineWidth) > 0
+              && parseFloat(style.outlineOffset)
+                + parseFloat(style.outlineWidth) <= 0,
+          };
+        });
+
+        expect(seen.overflowY, name).toBe("hidden");
+        expect(seen.tall, `${name}: no taller than its box`)
+          .toBe(seen.room);
+        expect(seen.inside, `${name}: the tab whole in the row`).toBe(true);
+        expect(seen.underline, `${name}: the underline`).toBe(2);
+        expect(seen.ring, `${name}: the ring drawn inside`).toBe(true);
+      }
+    });
+});
+
+test("the cart's scrollers don't scroll sideways", async ({ page }) => {
+  const order = new OrderPage(page);
+
+  await cannedDates(page);
+  await order.open(FULL_CART);
+  if (await order.cart.getAttribute("data-placement") === "floating") {
+    await unfoldCart(order);
+  }
+
+  for (const sel of [".order-cart-body", ".order-cart-items"]) {
+    const box = order.cart.locator(sel).first();
+    const { wide, room } = await box.evaluate((el) => ({
+      wide: el.scrollWidth, room: el.clientWidth,
+    }));
+
+    expect(wide, `${sel}: no wider than its box`).toBe(room);
+  }
 });
