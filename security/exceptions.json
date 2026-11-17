@@ -1,1 +1,9 @@
-[]
+[
+  {
+    "package": "picomatch",
+    "advisory": "GHSA-fc5q-39xc-vjpf",
+    "why": "No patched release exists: versions through 4.0.7 are affected and 4.0.7 is the latest.",
+    "exposure": "Dev-only, through stylelint, postcss-cli and purgecss. It globs fixed repo paths, never untrusted patterns. Not in the functions, the build output or runtime.",
+    "plan": "Re-raises by itself when the advisory database names a patched version; then bump the lockfile and drop this entry."
+  }
+]
