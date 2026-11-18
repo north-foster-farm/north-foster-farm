@@ -15,6 +15,20 @@
 //
 // The page itself (no option offered, a ticked draft restored as an
 // ordinary delivery) is e2e/group-delivery-removed.spec.mjs.
+//
+// The seam criterion 3 needs (the coordinator, 2026-11-18): the page
+// builds the delivery it posts, for a new order and for ?edit= alike,
+// with a pure function,
+//
+//   postedDelivery(values)  from  assets/scripts/order/lib/posted.mjs
+//
+// `values` is the form's delivery fields as the page reads them
+// (address1, address2, town, zip, cooler, notes; anything else is
+// ignored). It returns the delivery object the page posts, with no
+// `toGroup` key whatever `values` holds, so an edit of an order stored
+// with `toGroup` carries the stored value through (lib/edit.mjs
+// `payloadFor` merges the stored delivery under the posted one).
+// order-form.js imports it and builds `fulfilment.delivery` with it.
 
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -23,10 +37,13 @@ import { describe, it } from "node:test";
 import {
   carryOf, cartOf,
 } from "../assets/scripts/order/lib/cart-sync.mjs";
-import { groupOf } from "../netlify/functions/lib/groups.mjs";
-import terms from "../netlify/functions/lib/terms.mjs";
+import { getOrder } from "../netlify/functions/lib/records.mjs";
+import {
+  COOLER, GYM, SKU, atPlace, editStored, storedToGroup,
+} from "./group-delivery-stored.mjs";
 
-const GYM = terms.model.location(groupOf("vff").location);
+const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url),
+  "utf8");
 
 // A member's draft saved with the option ticked, as the page saved it
 // at launch: the address fields filled from the group's place.
@@ -84,10 +101,61 @@ describe("#626 criterion 2", () => {
   });
 });
 
+describe("#626 criterion 3", () => {
+  it("an edit from the order page of an order stored with toGroup " +
+    "keeps toGroup", async () => {
+    // The page: what it posts never names toGroup, ticked or not.
+    const { postedDelivery } = await import(
+      "../assets/scripts/order/lib/posted.mjs");
+    const form = {
+      address1: GYM.street, address2: "", town: GYM.city, zip: GYM.zip,
+      cooler: COOLER, notes: "Ring twice",
+    };
+
+    for (const values of [form, { ...form, toGroup: false },
+      { ...form, toGroup: true }]) {
+      const posted = postedDelivery(values);
+
+      assert.equal(Object.hasOwn(posted, "toGroup"), false,
+        `posted ${JSON.stringify(posted)} from ${JSON.stringify(values)}`);
+      assert.equal(posted.address1, GYM.street);
+      assert.equal(posted.cooler, COOLER);
+      assert.equal(posted.notes, "Ring twice");
+    }
+
+    const page = read("assets/scripts/order/order-form.js");
+
+    assert.match(page, new RegExp("import\\s*\\{[^}]*\\bpostedDelivery\\b" +
+      "[^}]*\\}\\s*from\\s*[\"']\\./lib/posted\\.mjs[\"']"),
+    "order-form.js builds its delivery with postedDelivery");
+    assert.match(page, /delivery:\s*postedDelivery\(/,
+      "the posted fulfilment's delivery is postedDelivery's");
+    assert.doesNotMatch(page, /\btoGroup\s*:/,
+      "order-form.js posts no toGroup");
+
+    // The server: that delivery, posted as the page's edit, keeps the
+    // stored toGroup, the place's address and the cooler line.
+    const { stores, id } = await storedToGroup();
+    const result = await editStored(stores, id, {
+      idempotencyKey: "edit-key-000000-627",
+      lines: [{ sku: SKU, qty: 3 }],
+      fulfilment: { method: "delivery", date: "2026-11-05",
+        delivery: postedDelivery({ ...form, toGroup: false }) },
+      payment: { method: "card", sourceId: "cnon:tok" },
+    });
+
+    assert.equal(result.ok, true, JSON.stringify(result.errors));
+
+    const saved = (await getOrder(stores, id)).fulfilment.delivery;
+
+    assert.equal(saved.toGroup, true, "the stored toGroup carries through");
+    atPlace(saved);
+  });
+});
+
 // The paragraphs of a Markdown file: blank-line blocks, and each list
 // item on its own.
-const paragraphs = (file) => readFileSync(new URL(`../${file}`,
-  import.meta.url), "utf8")
+const paragraphs = (file) => read(file)
   .split(/\n\s*\n|\n(?=\s*[-*] |\s*\d+\. )/)
   .map((p) => p.replace(/\s+/g, " ").trim())
   .filter(Boolean);
