@@ -243,13 +243,16 @@ describe("promoting main", () => {
 
   it("refuses when the only green full run stood down or ran elsewhere",
     async () => {
-      const [stoodDown, failed, passed] = E2E.runs.workflow_runs;
+      const [stoodDown, , passed] = E2E.runs.workflow_runs;
       const only = (...picked) => world({
         heads, pulls: pr(), timeline: label("2026-10-18T11:00:00Z"),
         fullRunsOf: (sha) => e2eRuns(sha, picked),
       });
 
-      for (const w of [only(stoodDown, failed), only({
+      // A failed run beside the stood-down one is now judged by the
+      // staging exemption (#654); test/promote-exempt-reading.test.mjs
+      // holds that case.
+      for (const w of [only(stoodDown), only({
         ...passed, head_branch: "e2e/staging",
       }), only({ ...passed, event: "workflow_dispatch" })]) {
         await assert.rejects(promote("main", { out: w.out }, w.deps),

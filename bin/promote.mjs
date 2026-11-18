@@ -26,7 +26,10 @@
 // on against staging (#502, 2026-10-28): the commit itself, or for a
 // release branch its staging parent, must be the head of a successful
 // E2E staging run on e2e/staging-full whose specs ran. A green run on
-// an earlier commit does not count once a later fix lands.
+// an earlier commit does not count once a later fix lands. Without one,
+// a failed run is accepted only through the recorded exemption in
+// bin/staging-exempt.mjs (#654), which prints each exemption it used
+// and, once main has moved, logs them as `promote.exemptions`.
 //
 // A release branch (`promote main release/<name>`, James, 2026-10-26)
 // takes main one step by a merge commit instead of moving it to a
@@ -48,6 +51,11 @@ import { promisify } from "node:util";
 
 import { collectFindings, npmAudit, summary } from "./audit/check.mjs";
 import { evaluate, incompleteExceptions } from "./audit/findings.mjs";
+import { EXEMPTIONS, exemptionProblems, stagingExemption }
+  from "./staging-exempt.mjs";
+import { log } from "../netlify/functions/lib/log.mjs";
+
+export { EXEMPTIONS, exemptionProblems };
 
 const run = promisify(execFile);
 
@@ -105,14 +113,24 @@ export const USAGE = `
                                       second parent on staging, staging's
                                       tree. Main also needs a passed full
                                       e2e run against staging on that
-                                      staging commit (e2e/staging-full)`
+                                      staging commit (e2e/staging-full),
+                                      or a failed one whose failures are
+                                      all exempt (e2e/staging-exempt.json)`
   .slice(1);
 
 const git = async (args) => (await run("git", args)).stdout.trim();
 
 // A GET, or with `fields` a POST of those string fields. With `all`, a
-// GET of a list follows every page and returns one array.
-const ghApi = async (path, { fields, all = false } = {}) => {
+// GET of a list follows every page and returns one array. With `text`,
+// a GET of a job's log as text, never parsed: gh refuses a Playwright
+// log's escape sequences unless told to pass them (#623), and what it
+// passes is read only through printable().
+const ghApi = async (path, { fields, all = false, text = false } = {}) => {
+  if (text) {
+    return (await run("gh", ["api", "--allow-escape-sequences", path],
+      { maxBuffer: 64 * 1024 * 1024 })).stdout;
+  }
+
   const post = fields
     ? ["-X", "POST", ...Object.entries(fields)
       .flatMap(([key, value]) => ["-f", `${key}=${value}`])]
@@ -370,8 +388,10 @@ export const promote = async (
 
   if (sha === there) return out(`${target} is already at ${from} (${sha}).`);
 
-  // The staging commit the full suite must have passed on.
+  // The staging commit the full suite must have passed on, and the
+  // exemptions that stood in for a green run on it, when any did.
   let tested = sha;
+  let exempted;
 
   if (release) {
     const facts = await releaseFacts(sh, sha, there);
@@ -451,13 +471,31 @@ export const promote = async (
 
     const suite = await stagingSuite(api, tested);
 
-    if (!suite.ok) throw new Error(`Refused: ${suite.reason}.`);
-    out(suite.reason);
+    if (suite.ok) {
+      out(suite.reason);
+    } else {
+      // No green full run counts: only the recorded exemption may still
+      // accept a failed one (#654). It throws every refusal.
+      exempted = await stagingExemption({
+        api, show, repo: REPO, staging: STAGING_E2E, sha: tested,
+        refusal: suite.reason,
+      });
+      for (const line of exempted.lines) out(line);
+    }
   }
 
   if (dryRun) return out(`Would fast-forward ${target} to ${sha}.`);
 
   await sh(["push", "origin", `${sha}:refs/heads/${target}`]);
+
+  // On record once main has moved, never for a refusal or a dry run.
+  if (exempted) {
+    log.info({
+      event: "promote.exemptions", by: "cli", target, before: there,
+      after: sha, stagingRun: exempted.stagingRun,
+      exemptions: exempted.exemptions,
+    });
+  }
 
   return out(`${target} is now at ${sha}.`);
 };

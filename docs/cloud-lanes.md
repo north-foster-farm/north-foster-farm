@@ -297,7 +297,17 @@ here instead of restating it (2026-11-01, #494).
    earlier commit doesn't count once a later fix lands. `bin/nff
    promote main` refuses a commit (for a release branch, its staging
    parent) that is not the head of a successful run of the E2E staging
-   workflow on `e2e/staging-full` whose specs ran.
+   workflow on `e2e/staging-full` whose specs ran. The one exception
+   is recorded (#654, 2026-11-18): a failed full run is accepted when
+   every test that failed in it meets all three conditions. It is
+   named, by spec and title, in `e2e/staging-exempt.json` at that
+   commit, in an entry that holds a reason, a date and an approver;
+   it failed in that run with Netlify's bot-challenge message
+   (`e2e/support/challenge.mjs`) and nothing else; and it passed, in
+   every project it failed in, in a green `e2e.yml` run on the same
+   commit. James approves each entry in the pull request that adds
+   it. Promote prints every exemption it used with both runs, and
+   logs the promotion as `promote.exemptions`.
 8. **A push to `staging` or `main` re-checks nothing `next` already
    passed** (#580, 2026-11-14). `ci.yml` and `codeql.yml` start with a
    `proven` job (`proven-on-next.yml`) that asks GitHub for a
