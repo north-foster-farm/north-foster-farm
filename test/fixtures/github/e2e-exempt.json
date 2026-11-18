@@ -1,0 +1,1891 @@
+{
+  "_source": {
+    "recorded": "2026-11-18",
+    "by": "the exempt-tests lane, with gh, read-only, for #654",
+    "requests": [
+      "GET repos/north-foster-farm/north-foster-farm/actions/workflows/e2e-staging.yml/runs?branch=e2e/staging-full&head_sha=1471cc858676dcc3bb4cad29ccc2c6ffca34f377&per_page=100",
+      "GET repos/north-foster-farm/north-foster-farm/actions/runs/44396830525/jobs?per_page=100",
+      "GET repos/north-foster-farm/north-foster-farm/actions/jobs/135128896595/logs (gh api --allow-escape-sequences)",
+      "GET repos/north-foster-farm/north-foster-farm/actions/workflows/e2e-staging.yml/runs?branch=e2e/staging-full&head_sha=7479ca145d1da17f72a374eedfdfff2bf14c550f&per_page=100",
+      "GET repos/north-foster-farm/north-foster-farm/actions/runs/44379156341/jobs?per_page=100",
+      "GET repos/north-foster-farm/north-foster-farm/actions/jobs/135066332292/logs (gh api --allow-escape-sequences)",
+      "GET repos/north-foster-farm/north-foster-farm/actions/workflows/e2e.yml/runs?head_sha=1471cc858676dcc3bb4cad29ccc2c6ffca34f377&per_page=100",
+      "GET repos/north-foster-farm/north-foster-farm/actions/runs/44395502115/jobs?per_page=100",
+      "GET repos/north-foster-farm/north-foster-farm/actions/jobs/135124245684/logs (gh api --allow-escape-sequences)",
+      "GET repos/north-foster-farm/north-foster-farm/actions/workflows/e2e.yml/runs?head_sha=9b7353fa6d7795d36ce26c3cc1a65150d6829282&per_page=100",
+      "GET repos/north-foster-farm/north-foster-farm/actions/runs/44260592026/jobs?per_page=100",
+      "GET repos/north-foster-farm/north-foster-farm/actions/jobs/134652730635/logs (gh api --allow-escape-sequences)",
+      "GET repos/north-foster-farm/north-foster-farm/actions/workflows/e2e.yml/runs?head_sha=3982a6c77e9e5acaccbed975d655047c68da4346&created=2026-11-18T09:10:00Z..2026-11-18T09:20:00Z&per_page=100",
+      "GET repos/north-foster-farm/north-foster-farm/actions/runs/44273965134/jobs?per_page=100",
+      "GET repos/north-foster-farm/north-foster-farm/activity?ref=refs/heads/staging&activity_type=push&per_page=100"
+    ],
+    "scrubbed": "Runs, jobs and steps trimmed to the fields listed in bin/promote.mjs's readers and their neighbors, as e2e-staging-runs.json is: no actor, author or committer is kept. Logs are byte for byte; they hold test titles and errors only, and the staging workflow publishes them already."
+  },
+  "staging": {
+    "44396830525": {
+      "sha": "1471cc858676dcc3bb4cad29ccc2c6ffca34f377",
+      "runs": {
+        "total_count": 1,
+        "workflow_runs": [
+          {
+            "id": 44396830525,
+            "name": "E2E staging",
+            "head_branch": "e2e/staging-full",
+            "head_sha": "1471cc858676dcc3bb4cad29ccc2c6ffca34f377",
+            "path": ".github/workflows/e2e-staging.yml",
+            "display_title": "Name Netlify's bot challenge when a spec meets it",
+            "run_number": 54,
+            "event": "push",
+            "status": "completed",
+            "conclusion": "failure",
+            "workflow_id": 396050911,
+            "html_url": "https://github.com/north-foster-farm/north-foster-farm/actions/runs/44396830525",
+            "created_at": "2026-11-18T20:59:55Z",
+            "updated_at": "2026-11-18T21:38:51Z",
+            "run_attempt": 1,
+            "run_started_at": "2026-11-18T20:59:55Z"
+          }
+        ]
+      },
+      "jobs": {
+        "total_count": 1,
+        "jobs": [
+          {
+            "id": 135128896595,
+            "run_id": 44396830525,
+            "workflow_name": "E2E staging",
+            "head_branch": "e2e/staging-full",
+            "head_sha": "1471cc858676dcc3bb4cad29ccc2c6ffca34f377",
+            "name": "e2e-staging",
+            "status": "completed",
+            "conclusion": "failure",
+            "steps": [
+              {
+                "name": "Set up job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 1
+              },
+              {
+                "name": "Initialize containers",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 2
+              },
+              {
+                "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 3
+              },
+              {
+                "name": "Trust the checkout",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 4
+              },
+              {
+                "name": "Run actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 5
+              },
+              {
+                "name": "Wait for the deploy",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 6
+              },
+              {
+                "name": "Install",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 7
+              },
+              {
+                "name": "Sweep the suite's leftovers",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 8
+              },
+              {
+                "name": "Run ./.github/actions/setup-playwright",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 9
+              },
+              {
+                "name": "Run",
+                "status": "completed",
+                "conclusion": "failure",
+                "number": 10
+              },
+              {
+                "name": "Failure screenshots",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 11
+              },
+              {
+                "name": "Summary",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 12
+              },
+              {
+                "name": "Alert",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 13
+              },
+              {
+                "name": "Post Run actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 24
+              },
+              {
+                "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 25
+              },
+              {
+                "name": "Stop containers",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 26
+              },
+              {
+                "name": "Complete job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 27
+              }
+            ]
+          }
+        ]
+      },
+      "logs": {
+        "135128896595": "e2e-exempt-staging-44396830525.txt"
+      }
+    },
+    "44379156341": {
+      "sha": "7479ca145d1da17f72a374eedfdfff2bf14c550f",
+      "runs": {
+        "total_count": 1,
+        "workflow_runs": [
+          {
+            "id": 44379156341,
+            "name": "E2E staging",
+            "head_branch": "e2e/staging-full",
+            "head_sha": "7479ca145d1da17f72a374eedfdfff2bf14c550f",
+            "path": ".github/workflows/e2e-staging.yml",
+            "display_title": "Run container jobs' steps under bash",
+            "run_number": 53,
+            "event": "push",
+            "status": "completed",
+            "conclusion": "failure",
+            "workflow_id": 396050911,
+            "html_url": "https://github.com/north-foster-farm/north-foster-farm/actions/runs/44379156341",
+            "created_at": "2026-11-18T19:18:44Z",
+            "updated_at": "2026-11-18T20:03:57Z",
+            "run_attempt": 1,
+            "run_started_at": "2026-11-18T19:18:44Z"
+          }
+        ]
+      },
+      "jobs": {
+        "total_count": 1,
+        "jobs": [
+          {
+            "id": 135066332292,
+            "run_id": 44379156341,
+            "workflow_name": "E2E staging",
+            "head_branch": "e2e/staging-full",
+            "head_sha": "7479ca145d1da17f72a374eedfdfff2bf14c550f",
+            "name": "e2e-staging",
+            "status": "completed",
+            "conclusion": "failure",
+            "steps": [
+              {
+                "name": "Set up job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 1
+              },
+              {
+                "name": "Initialize containers",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 2
+              },
+              {
+                "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 3
+              },
+              {
+                "name": "Trust the checkout",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 4
+              },
+              {
+                "name": "Run actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 5
+              },
+              {
+                "name": "Wait for the deploy",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 6
+              },
+              {
+                "name": "Install",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 7
+              },
+              {
+                "name": "Sweep the suite's leftovers",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 8
+              },
+              {
+                "name": "Run ./.github/actions/setup-playwright",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 9
+              },
+              {
+                "name": "Run",
+                "status": "completed",
+                "conclusion": "failure",
+                "number": 10
+              },
+              {
+                "name": "Failure screenshots",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 11
+              },
+              {
+                "name": "Summary",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 12
+              },
+              {
+                "name": "Alert",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 13
+              },
+              {
+                "name": "Post Run actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 24
+              },
+              {
+                "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 25
+              },
+              {
+                "name": "Stop containers",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 26
+              },
+              {
+                "name": "Complete job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 27
+              }
+            ]
+          }
+        ]
+      },
+      "logs": {
+        "135066332292": "e2e-exempt-staging-44379156341.txt"
+      }
+    }
+  },
+  "local": {
+    "1471cc858676dcc3bb4cad29ccc2c6ffca34f377": {
+      "runs": {
+        "total_count": 1,
+        "workflow_runs": [
+          {
+            "id": 44395502115,
+            "name": "E2E",
+            "head_branch": "lane/e2e-tests",
+            "head_sha": "1471cc858676dcc3bb4cad29ccc2c6ffca34f377",
+            "path": ".github/workflows/e2e.yml",
+            "display_title": "E2E",
+            "run_number": 334,
+            "event": "workflow_dispatch",
+            "status": "completed",
+            "conclusion": "success",
+            "workflow_id": 391072012,
+            "html_url": "https://github.com/north-foster-farm/north-foster-farm/actions/runs/44395502115",
+            "created_at": "2026-11-18T20:52:07Z",
+            "updated_at": "2026-11-18T20:54:37Z",
+            "run_attempt": 1,
+            "run_started_at": "2026-11-18T20:52:07Z"
+          }
+        ]
+      },
+      "jobs": {
+        "44395502115": {
+          "total_count": 6,
+          "jobs": [
+            {
+              "id": 135124182792,
+              "run_id": 44395502115,
+              "workflow_name": "E2E",
+              "head_branch": "lane/e2e-tests",
+              "head_sha": "1471cc858676dcc3bb4cad29ccc2c6ffca34f377",
+              "name": "plan",
+              "status": "completed",
+              "conclusion": "success",
+              "steps": [
+                {
+                  "name": "Set up job",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 1
+                },
+                {
+                  "name": "Check the named specs and pages",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 2
+                },
+                {
+                  "name": "Complete job",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 3
+                }
+              ]
+            },
+            {
+              "id": 135124245044,
+              "run_id": 44395502115,
+              "workflow_name": "E2E",
+              "head_branch": "lane/e2e-tests",
+              "head_sha": "1471cc858676dcc3bb4cad29ccc2c6ffca34f377",
+              "name": "e2e-burn-in-named",
+              "status": "completed",
+              "conclusion": "success",
+              "steps": [
+                {
+                  "name": "Set up job",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 1
+                },
+                {
+                  "name": "Every changed spec passed ten times",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 2
+                },
+                {
+                  "name": "Complete job",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 3
+                }
+              ]
+            },
+            {
+              "id": 135124245324,
+              "run_id": 44395502115,
+              "workflow_name": "E2E",
+              "head_branch": "lane/e2e-tests",
+              "head_sha": "1471cc858676dcc3bb4cad29ccc2c6ffca34f377",
+              "name": "burn-in",
+              "status": "completed",
+              "conclusion": "skipped",
+              "steps": []
+            },
+            {
+              "id": 135124245684,
+              "run_id": 44395502115,
+              "workflow_name": "E2E",
+              "head_branch": "lane/e2e-tests",
+              "head_sha": "1471cc858676dcc3bb4cad29ccc2c6ffca34f377",
+              "name": "narrow / shard 1",
+              "status": "completed",
+              "conclusion": "success",
+              "steps": [
+                {
+                  "name": "Set up job",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 1
+                },
+                {
+                  "name": "Initialize containers",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 2
+                },
+                {
+                  "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 3
+                },
+                {
+                  "name": "Trust the checkout",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 4
+                },
+                {
+                  "name": "Run actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 5
+                },
+                {
+                  "name": "Install",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 6
+                },
+                {
+                  "name": "Run ./.github/actions/setup-hugo",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 7
+                },
+                {
+                  "name": "Run ./.github/actions/setup-playwright",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 8
+                },
+                {
+                  "name": "Back-office token",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 9
+                },
+                {
+                  "name": "Run",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 10
+                },
+                {
+                  "name": "Report",
+                  "status": "completed",
+                  "conclusion": "skipped",
+                  "number": 11
+                },
+                {
+                  "name": "Pictures",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 12
+                },
+                {
+                  "name": "Post Run actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 22
+                },
+                {
+                  "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 23
+                },
+                {
+                  "name": "Stop containers",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 24
+                },
+                {
+                  "name": "Complete job",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 25
+                }
+              ]
+            },
+            {
+              "id": 135124246737,
+              "run_id": 44395502115,
+              "workflow_name": "E2E",
+              "head_branch": "lane/e2e-tests",
+              "head_sha": "1471cc858676dcc3bb4cad29ccc2c6ffca34f377",
+              "name": "full",
+              "status": "completed",
+              "conclusion": "skipped",
+              "steps": []
+            },
+            {
+              "id": 135125622191,
+              "run_id": 44395502115,
+              "workflow_name": "E2E",
+              "head_branch": "lane/e2e-tests",
+              "head_sha": "1471cc858676dcc3bb4cad29ccc2c6ffca34f377",
+              "name": "e2e-named",
+              "status": "completed",
+              "conclusion": "success",
+              "steps": [
+                {
+                  "name": "Set up job",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 1
+                },
+                {
+                  "name": "Every shard passed both passes",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 2
+                },
+                {
+                  "name": "Complete job",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 3
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "logs": {
+        "135124245684": "e2e-exempt-local-44395502115.txt"
+      }
+    },
+    "9b7353fa6d7795d36ce26c3cc1a65150d6829282": {
+      "runs": {
+        "total_count": 1,
+        "workflow_runs": [
+          {
+            "id": 44260592026,
+            "name": "E2E",
+            "head_branch": "lane/membership",
+            "head_sha": "9b7353fa6d7795d36ce26c3cc1a65150d6829282",
+            "path": ".github/workflows/e2e.yml",
+            "display_title": "E2E",
+            "run_number": 257,
+            "event": "workflow_dispatch",
+            "status": "completed",
+            "conclusion": "success",
+            "workflow_id": 391072012,
+            "html_url": "https://github.com/north-foster-farm/north-foster-farm/actions/runs/44260592026",
+            "created_at": "2026-11-18T07:39:29Z",
+            "updated_at": "2026-11-18T07:55:30Z",
+            "run_attempt": 1,
+            "run_started_at": "2026-11-18T07:39:29Z"
+          }
+        ]
+      },
+      "jobs": {
+        "44260592026": {
+          "total_count": 6,
+          "jobs": [
+            {
+              "id": 134652697908,
+              "run_id": 44260592026,
+              "workflow_name": "E2E",
+              "head_branch": "lane/membership",
+              "head_sha": "9b7353fa6d7795d36ce26c3cc1a65150d6829282",
+              "name": "plan",
+              "status": "completed",
+              "conclusion": "success",
+              "steps": [
+                {
+                  "name": "Set up job",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 1
+                },
+                {
+                  "name": "Check the named specs",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 2
+                },
+                {
+                  "name": "Complete job",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 3
+                }
+              ]
+            },
+            {
+              "id": 134652730635,
+              "run_id": 44260592026,
+              "workflow_name": "E2E",
+              "head_branch": "lane/membership",
+              "head_sha": "9b7353fa6d7795d36ce26c3cc1a65150d6829282",
+              "name": "narrow / shard 1",
+              "status": "completed",
+              "conclusion": "success",
+              "steps": [
+                {
+                  "name": "Set up job",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 1
+                },
+                {
+                  "name": "Initialize containers",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 2
+                },
+                {
+                  "name": "Run actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 3
+                },
+                {
+                  "name": "Trust the checkout",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 4
+                },
+                {
+                  "name": "Run actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 5
+                },
+                {
+                  "name": "Install",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 6
+                },
+                {
+                  "name": "Run ./.github/actions/setup-hugo",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 7
+                },
+                {
+                  "name": "Run ./.github/actions/setup-playwright",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 8
+                },
+                {
+                  "name": "Back-office token",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 9
+                },
+                {
+                  "name": "Run",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 10
+                },
+                {
+                  "name": "Report",
+                  "status": "completed",
+                  "conclusion": "skipped",
+                  "number": 11
+                },
+                {
+                  "name": "Pictures",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 12
+                },
+                {
+                  "name": "Post Run actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 22
+                },
+                {
+                  "name": "Post Run actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 23
+                },
+                {
+                  "name": "Stop containers",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 24
+                },
+                {
+                  "name": "Complete job",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 25
+                }
+              ]
+            },
+            {
+              "id": 134652730696,
+              "run_id": 44260592026,
+              "workflow_name": "E2E",
+              "head_branch": "lane/membership",
+              "head_sha": "9b7353fa6d7795d36ce26c3cc1a65150d6829282",
+              "name": "e2e-burn-in-named",
+              "status": "completed",
+              "conclusion": "success",
+              "steps": [
+                {
+                  "name": "Set up job",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 1
+                },
+                {
+                  "name": "Every changed spec passed ten times",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 2
+                },
+                {
+                  "name": "Complete job",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 3
+                }
+              ]
+            },
+            {
+              "id": 134652732001,
+              "run_id": 44260592026,
+              "workflow_name": "E2E",
+              "head_branch": "lane/membership",
+              "head_sha": "9b7353fa6d7795d36ce26c3cc1a65150d6829282",
+              "name": "burn-in",
+              "status": "completed",
+              "conclusion": "skipped",
+              "steps": []
+            },
+            {
+              "id": 134652732260,
+              "run_id": 44260592026,
+              "workflow_name": "E2E",
+              "head_branch": "lane/membership",
+              "head_sha": "9b7353fa6d7795d36ce26c3cc1a65150d6829282",
+              "name": "full",
+              "status": "completed",
+              "conclusion": "skipped",
+              "steps": []
+            },
+            {
+              "id": 134659497655,
+              "run_id": 44260592026,
+              "workflow_name": "E2E",
+              "head_branch": "lane/membership",
+              "head_sha": "9b7353fa6d7795d36ce26c3cc1a65150d6829282",
+              "name": "e2e-named",
+              "status": "completed",
+              "conclusion": "success",
+              "steps": [
+                {
+                  "name": "Set up job",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 1
+                },
+                {
+                  "name": "Every shard passed both passes",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 2
+                },
+                {
+                  "name": "Complete job",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 3
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "logs": {
+        "134652730635": "e2e-exempt-local-44260592026.txt"
+      }
+    },
+    "3982a6c77e9e5acaccbed975d655047c68da4346": {
+      "runs": {
+        "total_count": 1,
+        "workflow_runs": [
+          {
+            "id": 44273965134,
+            "name": "E2E",
+            "head_branch": "lane/picker-out",
+            "head_sha": "3982a6c77e9e5acaccbed975d655047c68da4346",
+            "path": ".github/workflows/e2e.yml",
+            "display_title": "E2E",
+            "run_number": 272,
+            "event": "workflow_dispatch",
+            "status": "completed",
+            "conclusion": "failure",
+            "workflow_id": 391072012,
+            "html_url": "https://github.com/north-foster-farm/north-foster-farm/actions/runs/44273965134",
+            "created_at": "2026-11-18T09:13:50Z",
+            "updated_at": "2026-11-18T09:48:16Z",
+            "run_attempt": 1,
+            "run_started_at": "2026-11-18T09:13:50Z"
+          }
+        ]
+      },
+      "jobs": {
+        "44273965134": {
+          "total_count": 6,
+          "jobs": [
+            {
+              "id": 134697269414,
+              "run_id": 44273965134,
+              "workflow_name": "E2E",
+              "head_branch": "lane/picker-out",
+              "head_sha": "3982a6c77e9e5acaccbed975d655047c68da4346",
+              "name": "plan",
+              "status": "completed",
+              "conclusion": "success",
+              "steps": [
+                {
+                  "name": "Set up job",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 1
+                },
+                {
+                  "name": "Check the named specs",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 2
+                },
+                {
+                  "name": "Complete job",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 3
+                }
+              ]
+            },
+            {
+              "id": 134697325837,
+              "run_id": 44273965134,
+              "workflow_name": "E2E",
+              "head_branch": "lane/picker-out",
+              "head_sha": "3982a6c77e9e5acaccbed975d655047c68da4346",
+              "name": "narrow / shard 1",
+              "status": "completed",
+              "conclusion": "failure",
+              "steps": [
+                {
+                  "name": "Set up job",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 1
+                },
+                {
+                  "name": "Initialize containers",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 2
+                },
+                {
+                  "name": "Run actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 3
+                },
+                {
+                  "name": "Trust the checkout",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 4
+                },
+                {
+                  "name": "Run actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 5
+                },
+                {
+                  "name": "Install",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 6
+                },
+                {
+                  "name": "Run ./.github/actions/setup-hugo",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 7
+                },
+                {
+                  "name": "Run ./.github/actions/setup-playwright",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 8
+                },
+                {
+                  "name": "Back-office token",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 9
+                },
+                {
+                  "name": "Run",
+                  "status": "completed",
+                  "conclusion": "failure",
+                  "number": 10
+                },
+                {
+                  "name": "Report",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 11
+                },
+                {
+                  "name": "Pictures",
+                  "status": "completed",
+                  "conclusion": "skipped",
+                  "number": 12
+                },
+                {
+                  "name": "Post Run actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444",
+                  "status": "completed",
+                  "conclusion": "skipped",
+                  "number": 22
+                },
+                {
+                  "name": "Post Run actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 23
+                },
+                {
+                  "name": "Stop containers",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 24
+                },
+                {
+                  "name": "Complete job",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 25
+                }
+              ]
+            },
+            {
+              "id": 134697326713,
+              "run_id": 44273965134,
+              "workflow_name": "E2E",
+              "head_branch": "lane/picker-out",
+              "head_sha": "3982a6c77e9e5acaccbed975d655047c68da4346",
+              "name": "e2e-burn-in-named",
+              "status": "completed",
+              "conclusion": "success",
+              "steps": [
+                {
+                  "name": "Set up job",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 1
+                },
+                {
+                  "name": "Every changed spec passed ten times",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 2
+                },
+                {
+                  "name": "Complete job",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 3
+                }
+              ]
+            },
+            {
+              "id": 134697328465,
+              "run_id": 44273965134,
+              "workflow_name": "E2E",
+              "head_branch": "lane/picker-out",
+              "head_sha": "3982a6c77e9e5acaccbed975d655047c68da4346",
+              "name": "full",
+              "status": "completed",
+              "conclusion": "skipped",
+              "steps": []
+            },
+            {
+              "id": 134697328542,
+              "run_id": 44273965134,
+              "workflow_name": "E2E",
+              "head_branch": "lane/picker-out",
+              "head_sha": "3982a6c77e9e5acaccbed975d655047c68da4346",
+              "name": "burn-in",
+              "status": "completed",
+              "conclusion": "skipped",
+              "steps": []
+            },
+            {
+              "id": 134715541707,
+              "run_id": 44273965134,
+              "workflow_name": "E2E",
+              "head_branch": "lane/picker-out",
+              "head_sha": "3982a6c77e9e5acaccbed975d655047c68da4346",
+              "name": "e2e-named",
+              "status": "completed",
+              "conclusion": "failure",
+              "steps": [
+                {
+                  "name": "Set up job",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 1
+                },
+                {
+                  "name": "Every shard passed both passes",
+                  "status": "completed",
+                  "conclusion": "failure",
+                  "number": 2
+                },
+                {
+                  "name": "Complete job",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 3
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "logs": {
+        "134697325837": "e2e-verdict-escapes.txt"
+      }
+    }
+  },
+  "activity": [
+    {
+      "id": 50907753572,
+      "before": "1471cc858676dcc3bb4cad29ccc2c6ffca34f377",
+      "after": "5f074746efc24b9d4af99f85fcc979cf7f30a920",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-11-18T22:09:52Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 50899681495,
+      "before": "7479ca145d1da17f72a374eedfdfff2bf14c550f",
+      "after": "1471cc858676dcc3bb4cad29ccc2c6ffca34f377",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-11-18T20:58:48Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 50887791241,
+      "before": "86fd069b749e8dbc5da5354e8e0cd3ca410fccd0",
+      "after": "7479ca145d1da17f72a374eedfdfff2bf14c550f",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-11-18T19:17:40Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 50881065218,
+      "before": "ef7ed19895685e1dda6a8431f38b57aeca1c7228",
+      "after": "86fd069b749e8dbc5da5354e8e0cd3ca410fccd0",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-11-18T18:21:51Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 50855188189,
+      "before": "4a8cceeaebb781adaa4952326eef525f514601ec",
+      "after": "ef7ed19895685e1dda6a8431f38b57aeca1c7228",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-11-18T15:02:58Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 50850202724,
+      "before": "a25d9f7c83004b7694f8d2f54d54e30a9f56281a",
+      "after": "4a8cceeaebb781adaa4952326eef525f514601ec",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-11-18T14:26:20Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 50848089012,
+      "before": "78c614f517324512d9af231e4d2f65b9edbf62f4",
+      "after": "a25d9f7c83004b7694f8d2f54d54e30a9f56281a",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-11-18T14:10:31Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 50846875818,
+      "before": "8e70d6d968f34a0a830818cf07caac43e94fdd18",
+      "after": "78c614f517324512d9af231e4d2f65b9edbf62f4",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-11-18T14:01:24Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 50846081574,
+      "before": "77e5378c0c23d3f1f3f177b566c9f72499d6423b",
+      "after": "8e70d6d968f34a0a830818cf07caac43e94fdd18",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-11-18T13:55:26Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 50843219651,
+      "before": "33a00cc30de6cf5fbc5f253fce711b04596d280c",
+      "after": "77e5378c0c23d3f1f3f177b566c9f72499d6423b",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-11-18T13:33:11Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 50837665854,
+      "before": "8795eafd7ebad86d707ebe859c1387557ec808da",
+      "after": "33a00cc30de6cf5fbc5f253fce711b04596d280c",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-11-18T12:48:42Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 50834873625,
+      "before": "0b4c8789ea88da5bff5e88a09d4377e367692333",
+      "after": "8795eafd7ebad86d707ebe859c1387557ec808da",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-11-18T12:25:37Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 50834341363,
+      "before": "cc97787f818f8846b509c9957cc83f544ec222b4",
+      "after": "0b4c8789ea88da5bff5e88a09d4377e367692333",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-11-18T12:21:12Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 50823911967,
+      "before": "6c7800cd3fa737dd811042616b3481072c883027",
+      "after": "cc97787f818f8846b509c9957cc83f544ec222b4",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-11-18T10:51:47Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 50820307974,
+      "before": "21185931ff1b1b607c18a78e0a1111218d509f5b",
+      "after": "6c7800cd3fa737dd811042616b3481072c883027",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-11-18T10:20:43Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 50818067044,
+      "before": "c5a6a889bc9294d2d0af4e60485be4cedefe1f90",
+      "after": "21185931ff1b1b607c18a78e0a1111218d509f5b",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-11-18T10:01:43Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 50812581927,
+      "before": "073bfd404412a08f3123f59fdae6631d1e822855",
+      "after": "c5a6a889bc9294d2d0af4e60485be4cedefe1f90",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-11-18T09:14:20Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 50808434452,
+      "before": "3dc193cc826f7bb17cdea270891839af25d66514",
+      "after": "073bfd404412a08f3123f59fdae6631d1e822855",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-11-18T08:37:14Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 50807892760,
+      "before": "2cd133873a3e55a9a816f1da0441656dee56cd12",
+      "after": "3dc193cc826f7bb17cdea270891839af25d66514",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-11-18T08:32:11Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 50794416786,
+      "before": "cedc022141aedb8e29a7d793943fe95b97274023",
+      "after": "e146cd21b1ce8eaa6b16d5f6a9f2bbad3bcf77a0",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-11-18T06:17:42Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 50779509164,
+      "before": "07439c8763bf0079cb6921911ff80656510b6f5b",
+      "after": "cedc022141aedb8e29a7d793943fe95b97274023",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-11-18T03:27:50Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 50763811700,
+      "before": "37561bc1340bc9272e1164a167961c5b256624ca",
+      "after": "07439c8763bf0079cb6921911ff80656510b6f5b",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-11-18T00:31:13Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 50759037848,
+      "before": "9ebb9f99f4700b60461cfce8f7c4b46c6e39230c",
+      "after": "37561bc1340bc9272e1164a167961c5b256624ca",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-11-17T23:40:19Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 50601745044,
+      "before": "399bae05e40994afeec217ad5212423fdf5010b8",
+      "after": "9ebb9f99f4700b60461cfce8f7c4b46c6e39230c",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-11-16T23:53:30Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 50600801697,
+      "before": "c6c09b5e69504519a59623a82a58e972faa50b0a",
+      "after": "399bae05e40994afeec217ad5212423fdf5010b8",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-11-16T23:43:12Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 50600531953,
+      "before": "c5791aaa801f50be3fb7a61af72d469089f80c08",
+      "after": "c6c09b5e69504519a59623a82a58e972faa50b0a",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-11-16T23:40:18Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 50599237446,
+      "before": "12473c98fcab93c800d77cd065eb393858c53687",
+      "after": "c5791aaa801f50be3fb7a61af72d469089f80c08",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-11-16T23:26:38Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 50598446576,
+      "before": "e467c372d2dc5f5d1d64e09e866fe49e275c0599",
+      "after": "12473c98fcab93c800d77cd065eb393858c53687",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-11-16T23:18:24Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 50482373080,
+      "before": "e7e31b09553a560cd06513f759ec1c0aaa7cd299",
+      "after": "e467c372d2dc5f5d1d64e09e866fe49e275c0599",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-11-16T06:38:23Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 50338433866,
+      "before": "563ebc185d8efcc7a4910ec1e42f8a1256fb0578",
+      "after": "e7e31b09553a560cd06513f759ec1c0aaa7cd299",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-11-14T23:32:43Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 50337343635,
+      "before": "a50a48614aa9a30a9ec6e8f1d0c51d2baec58e2f",
+      "after": "563ebc185d8efcc7a4910ec1e42f8a1256fb0578",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-11-14T23:18:02Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 50333783117,
+      "before": "b7a8fc2a8165c34415fa5540cf476b8f53ca0d97",
+      "after": "a50a48614aa9a30a9ec6e8f1d0c51d2baec58e2f",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-11-14T22:31:00Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 50082846111,
+      "before": "00a980848f53a953b289b4794d140d97c43f6649",
+      "after": "b7a8fc2a8165c34415fa5540cf476b8f53ca0d97",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-11-12T23:21:22Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 50041968764,
+      "before": "ce9df671e9c2dc34d8506a97c5a5920ada0ae22d",
+      "after": "00a980848f53a953b289b4794d140d97c43f6649",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-11-12T17:16:11Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 50031579797,
+      "before": "2cfd27eaaa0e25c09d9a4afce39231818c4d38d4",
+      "after": "ce9df671e9c2dc34d8506a97c5a5920ada0ae22d",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-11-12T15:55:18Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 50024571149,
+      "before": "917a3aec383375cda28bd5a2aeb843a1e68fc8a4",
+      "after": "2cfd27eaaa0e25c09d9a4afce39231818c4d38d4",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-11-12T15:02:17Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 49956434041,
+      "before": "42f047e57b8558d8708913bb095d0a58fb18a35b",
+      "after": "917a3aec383375cda28bd5a2aeb843a1e68fc8a4",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-11-12T04:33:47Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 49952454129,
+      "before": "6a612bb655f92c619452ee8e9d62a480794f1da8",
+      "after": "42f047e57b8558d8708913bb095d0a58fb18a35b",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-11-12T03:46:09Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 49951259410,
+      "before": "6151ea6f1b7cb5bba14a5fc6cfcfa5b56d78b03c",
+      "after": "6a612bb655f92c619452ee8e9d62a480794f1da8",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-11-12T03:31:48Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 49946348636,
+      "before": "7cc63d9499566e57a9112105b5f5b6157f1ef09e",
+      "after": "6151ea6f1b7cb5bba14a5fc6cfcfa5b56d78b03c",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-11-12T02:34:45Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 49942627764,
+      "before": "bde5d97918a716ddb6ea3f3f344f68b08fdece01",
+      "after": "7cc63d9499566e57a9112105b5f5b6157f1ef09e",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-11-12T01:51:52Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 49941429317,
+      "before": "5c26c25d39802d8a581a5a1543d48d1e8dca6579",
+      "after": "bde5d97918a716ddb6ea3f3f344f68b08fdece01",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-11-12T01:37:41Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 49939835451,
+      "before": "dc486e200c56804e48e57fe8e4b5e41d15e88532",
+      "after": "5c26c25d39802d8a581a5a1543d48d1e8dca6579",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-11-12T01:18:44Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 49938589058,
+      "before": "fd9bd070e2ff4ebff1a9092dff1fe2d1d4d31e53",
+      "after": "dc486e200c56804e48e57fe8e4b5e41d15e88532",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-11-12T01:04:20Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 49937758274,
+      "before": "6f72ef204e7bcb126f1a493bfe6a055dfeedf816",
+      "after": "fd9bd070e2ff4ebff1a9092dff1fe2d1d4d31e53",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-11-12T00:54:54Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 49933710407,
+      "before": "2c30be876fc3e3ce434ae8a8d429f8682760e42c",
+      "after": "6f72ef204e7bcb126f1a493bfe6a055dfeedf816",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-11-12T00:07:54Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 49918021417,
+      "before": "d0f70538cfca0fba44298d4a108533c185be89b5",
+      "after": "2c30be876fc3e3ce434ae8a8d429f8682760e42c",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-11-11T21:25:11Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 49908902071,
+      "before": "468c8011b92324763d70079a9cc3d6f536b3a483",
+      "after": "d0f70538cfca0fba44298d4a108533c185be89b5",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-11-11T19:54:42Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 49893170056,
+      "before": "4963bfc50c6b395f335149f3eb13ff462566c249",
+      "after": "468c8011b92324763d70079a9cc3d6f536b3a483",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-11-11T17:36:45Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 49885633100,
+      "before": "138bfd3a4342b5a29f2a57c1ff4c742f2591f8cf",
+      "after": "4963bfc50c6b395f335149f3eb13ff462566c249",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-11-11T16:33:32Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 49865845953,
+      "before": "88948b30370c74d7db3e1e954e9e46d04819fe75",
+      "after": "138bfd3a4342b5a29f2a57c1ff4c742f2591f8cf",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-11-11T13:52:37Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 49862938588,
+      "before": "8cfc26e36334a5b765e527c5d6b3fa8ba7f5c178",
+      "after": "88948b30370c74d7db3e1e954e9e46d04819fe75",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-11-11T13:28:11Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 49861267299,
+      "before": "7fcdba9715b045bdab7d54696d716762e1010408",
+      "after": "8cfc26e36334a5b765e527c5d6b3fa8ba7f5c178",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-11-11T13:13:52Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 49859026404,
+      "before": "fc72872c63371c89dcb15ebb7eb8382b22ffb98a",
+      "after": "7fcdba9715b045bdab7d54696d716762e1010408",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-11-11T12:54:53Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 49856701594,
+      "before": "3f462c278d317a7c7728845aad38c2984f89f693",
+      "after": "fc72872c63371c89dcb15ebb7eb8382b22ffb98a",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-11-11T12:34:55Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 49854867592,
+      "before": "74898131e4e74a66c3063f487f71fe551d3a5aff",
+      "after": "3f462c278d317a7c7728845aad38c2984f89f693",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-11-11T12:18:58Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 49850931497,
+      "before": "7a9ff85299592551be9148c61510db0d58d79c6c",
+      "after": "74898131e4e74a66c3063f487f71fe551d3a5aff",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-11-11T11:43:58Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 49848350726,
+      "before": "f8a1ab79d4170fb25f25ba1da87cd32cbe0d4cb7",
+      "after": "7a9ff85299592551be9148c61510db0d58d79c6c",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-11-11T11:20:11Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 49846812780,
+      "before": "651a5d37c965550835ab3ac112b8c615001b8493",
+      "after": "f8a1ab79d4170fb25f25ba1da87cd32cbe0d4cb7",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-11-11T11:06:03Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 49845200310,
+      "before": "2097be0cbe35ebf22d0f2cb657676289aff87578",
+      "after": "651a5d37c965550835ab3ac112b8c615001b8493",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-11-11T10:51:15Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 49576798300,
+      "before": "29db72fabb4b8a86c6b2e185009e7ab71da13b50",
+      "after": "2097be0cbe35ebf22d0f2cb657676289aff87578",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-11-09T13:58:34Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 49402198620,
+      "before": "026e63b3e5f656ffcb34ec1dc5545f10996b0f96",
+      "after": "29db72fabb4b8a86c6b2e185009e7ab71da13b50",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-11-07T22:11:15Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 49398578788,
+      "before": "b0511e8a5c2d0e07816e23c452bc1b146b128797",
+      "after": "026e63b3e5f656ffcb34ec1dc5545f10996b0f96",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-11-07T21:18:30Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 49396574564,
+      "before": "83de5704da13465b5cc6c6f409ba0cb6b79a665a",
+      "after": "b0511e8a5c2d0e07816e23c452bc1b146b128797",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-11-07T20:50:03Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 48748000535,
+      "before": "5a8c41478d0bd9980f01b7ee32aea6323245d04b",
+      "after": "83de5704da13465b5cc6c6f409ba0cb6b79a665a",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-11-02T21:58:06Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 48306058719,
+      "before": "8f8b27a8a81d0734356cd0fd562767f821e79fc0",
+      "after": "5a8c41478d0bd9980f01b7ee32aea6323245d04b",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-10-30T01:05:27Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 48302115099,
+      "before": "1d6009786d899e48c405d356d9f7711a47ef0029",
+      "after": "8f8b27a8a81d0734356cd0fd562767f821e79fc0",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-10-30T00:13:05Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 48296386520,
+      "before": "af2432dbb34ed64d8cf605064be0f3e082050b77",
+      "after": "1d6009786d899e48c405d356d9f7711a47ef0029",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-10-29T22:59:58Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 48172405307,
+      "before": "564790b7c628910ad3f0285e7763c6732bf897bf",
+      "after": "af2432dbb34ed64d8cf605064be0f3e082050b77",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-10-29T01:38:36Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 48063801383,
+      "before": "c34b65d207f7b2e1246eb15ff69f83ef369dc9f6",
+      "after": "564790b7c628910ad3f0285e7763c6732bf897bf",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-10-28T07:40:51Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 48053594126,
+      "before": "84fbd51ba10794889e9628b9b3b00421fb1cb0f4",
+      "after": "c34b65d207f7b2e1246eb15ff69f83ef369dc9f6",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-10-28T05:34:01Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 48049109998,
+      "before": "d491da3aef39194d0787f721622d5ecee130729d",
+      "after": "84fbd51ba10794889e9628b9b3b00421fb1cb0f4",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-10-28T04:33:02Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 48045046583,
+      "before": "e2ae37515b57d9368d616603f4c9a2570aa65b58",
+      "after": "d491da3aef39194d0787f721622d5ecee130729d",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-10-28T03:36:54Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 48043030329,
+      "before": "154645156f2daa23c83d8e861aa8a5da1707164f",
+      "after": "e2ae37515b57d9368d616603f4c9a2570aa65b58",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-10-28T03:09:28Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 48040725006,
+      "before": "7fdfe2b273e47514a5a340af83d13a491ee1d042",
+      "after": "154645156f2daa23c83d8e861aa8a5da1707164f",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-10-28T02:38:47Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 48038216540,
+      "before": "9df647b92854d83395e9df424a97ed3261583f05",
+      "after": "7fdfe2b273e47514a5a340af83d13a491ee1d042",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-10-28T02:04:45Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 48037167784,
+      "before": "436c75a92dea2a8b8689dc551551848b08b9fc2b",
+      "after": "9df647b92854d83395e9df424a97ed3261583f05",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-10-28T01:50:40Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 48033599080,
+      "before": "f7addfed8c7134b6e361ab91aba5d937d84e1b97",
+      "after": "436c75a92dea2a8b8689dc551551848b08b9fc2b",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-10-28T01:02:20Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 48032508056,
+      "before": "348582ad66ece76113fcc2acd42f7db571635fa5",
+      "after": "f7addfed8c7134b6e361ab91aba5d937d84e1b97",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-10-28T00:47:55Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 48032167332,
+      "before": "ccf8ab9f4a3f789a6ebd72aa2d8dde33655d643b",
+      "after": "348582ad66ece76113fcc2acd42f7db571635fa5",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-10-28T00:43:46Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 48030330758,
+      "before": "05aece3614cece59bb265944ad5ab776bf58f131",
+      "after": "ccf8ab9f4a3f789a6ebd72aa2d8dde33655d643b",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-10-28T00:19:12Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 48026438423,
+      "before": "1a571a93816bfe8606a1c403ed4968b08d05aeb5",
+      "after": "05aece3614cece59bb265944ad5ab776bf58f131",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-10-27T23:29:18Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 48020754314,
+      "before": "6a187b36a4bec4800dba6e3b1a4d4e5ff8df03eb",
+      "after": "1a571a93816bfe8606a1c403ed4968b08d05aeb5",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-10-27T22:20:15Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 48016196210,
+      "before": "771e73ce239968a1d43ebc532b2b6f5f159abd45",
+      "after": "6a187b36a4bec4800dba6e3b1a4d4e5ff8df03eb",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-10-27T21:30:03Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 48013567121,
+      "before": "191a021bf08ce7595e52f83ffad76d566cf611f8",
+      "after": "771e73ce239968a1d43ebc532b2b6f5f159abd45",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-10-27T21:02:27Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 48007817057,
+      "before": "2043deaeecfac5af3f542ae5a651b92ee2cb6fb1",
+      "after": "191a021bf08ce7595e52f83ffad76d566cf611f8",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-10-27T20:05:00Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 48005147574,
+      "before": "3bcdcd9d9264b68eb04414959bedcc9252129721",
+      "after": "2043deaeecfac5af3f542ae5a651b92ee2cb6fb1",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-10-27T19:38:50Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 47962549710,
+      "before": "06bdf227f68dd6a5321556587b214c6408ddefee",
+      "after": "3bcdcd9d9264b68eb04414959bedcc9252129721",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-10-27T13:21:15Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 47911853244,
+      "before": "5cb3c4967ec1de761c2700279f3bae42a7f7615f",
+      "after": "06bdf227f68dd6a5321556587b214c6408ddefee",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-10-27T03:57:13Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 47911617989,
+      "before": "e523f521f1b5551fa46b3181d0253d0581dae067",
+      "after": "5cb3c4967ec1de761c2700279f3bae42a7f7615f",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-10-27T03:53:51Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 47901866885,
+      "before": "d7281e3a0d73ae502f3708d1b1f41b52851ee873",
+      "after": "e523f521f1b5551fa46b3181d0253d0581dae067",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-10-27T01:41:23Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 47897773083,
+      "before": "42dfb6526716fe7b234a903bdc5038f25d0d2b0a",
+      "after": "d7281e3a0d73ae502f3708d1b1f41b52851ee873",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-10-27T00:45:52Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 47896635588,
+      "before": "88595a06106fcf4914b71025d07e93605f4903a1",
+      "after": "42dfb6526716fe7b234a903bdc5038f25d0d2b0a",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-10-27T00:30:49Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 47895162966,
+      "before": "6621887ec67d83211587b87e328c265de16cabde",
+      "after": "88595a06106fcf4914b71025d07e93605f4903a1",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-10-27T00:11:08Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 47893401593,
+      "before": "0be77c46d9cb79e60b465385d720f86e27877a3b",
+      "after": "6621887ec67d83211587b87e328c265de16cabde",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-10-26T23:48:02Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 47892395959,
+      "before": "43466b6c5804ff3a4a2d2146836dc93c17947651",
+      "after": "0be77c46d9cb79e60b465385d720f86e27877a3b",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-10-26T23:34:37Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 47891670074,
+      "before": "b14606b386419b22d545020993c02a60fd18a7bb",
+      "after": "43466b6c5804ff3a4a2d2146836dc93c17947651",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-10-26T23:25:44Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 47890633775,
+      "before": "c01255ba89bb68996c80770914d84fa43e8a7576",
+      "after": "b14606b386419b22d545020993c02a60fd18a7bb",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-10-26T23:12:15Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 47890283425,
+      "before": "4739a79a8d3fb28ec71d5c5176fd052081e665ea",
+      "after": "c01255ba89bb68996c80770914d84fa43e8a7576",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-10-26T23:07:51Z",
+      "activity_type": "push"
+    },
+    {
+      "id": 47887017782,
+      "before": "386bdbb1ef300ca33da8fff50d72a0762c39b3b7",
+      "after": "4739a79a8d3fb28ec71d5c5176fd052081e665ea",
+      "ref": "refs/heads/staging",
+      "timestamp": "2026-10-26T22:28:58Z",
+      "activity_type": "push"
+    }
+  ]
+}

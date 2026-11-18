@@ -1,0 +1,931 @@
+﻿2026-11-18T07:39:39.1791871Z Current runner version: '2.338.2'
+2026-11-18T07:39:39.1815908Z ##[group]Runner Image Provisioner
+2026-11-18T07:39:39.1816862Z Hosted Compute Agent
+2026-11-18T07:39:39.1817494Z Version: 20261103.629
+2026-11-18T07:39:39.1818174Z Commit: 15dbd9ccb5dbf34fae002b6ed1a2670f52df37bc
+2026-11-18T07:39:39.1818957Z Build Date: 2026-11-03T17:26:59Z
+2026-11-18T07:39:39.1819593Z Worker ID: {a217d9cf-2268-42c2-ac47-721a14aa497f}
+2026-11-18T07:39:39.1821109Z Region: westus
+2026-11-18T07:39:39.1821716Z Cloud: Azure
+2026-11-18T07:39:39.1822285Z ##[endgroup]
+2026-11-18T07:39:39.1823784Z ##[group]Operating System
+2026-11-18T07:39:39.1824410Z Ubuntu
+2026-11-18T07:39:39.1825290Z 26.04.1
+2026-11-18T07:39:39.1825844Z LTS
+2026-11-18T07:39:39.1826369Z ##[endgroup]
+2026-11-18T07:39:39.1826991Z ##[group]Runner Image
+2026-11-18T07:39:39.1827623Z Image: ubuntu-26.04
+2026-11-18T07:39:39.1828222Z Version: 20261111.196.1
+2026-11-18T07:39:39.1829496Z Included Software: https://github.com/actions/runner-images/blob/ubuntu26/20261111.196/images/ubuntu/Ubuntu2604-Readme.md
+2026-11-18T07:39:39.1831668Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu26%2F20261111.196
+2026-11-18T07:39:39.1832691Z ##[endgroup]
+2026-11-18T07:39:39.1833927Z ##[group]GITHUB_TOKEN Permissions
+2026-11-18T07:39:39.1835827Z Contents: read
+2026-11-18T07:39:39.1836514Z Metadata: read
+2026-11-18T07:39:39.1837072Z ##[endgroup]
+2026-11-18T07:39:39.1839073Z Secret source: Actions
+2026-11-18T07:39:39.1840436Z Cache mode: write
+2026-11-18T07:39:39.1841120Z Prepare workflow directory
+2026-11-18T07:39:39.2280494Z Prepare all required actions
+2026-11-18T07:39:39.2327708Z Getting action download info
+2026-11-18T07:39:39.5962075Z Download action repository 'actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09' (SHA:fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09)
+2026-11-18T07:39:39.7067491Z Download action repository 'actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444' (SHA:a0853c24544627f65ddf259abe73b1d18a591444)
+2026-11-18T07:39:39.7768322Z Download action repository 'actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9' (SHA:cf430e030ddbb5b0abf93d22962f4752f3646cd9)
+2026-11-18T07:39:39.9470854Z Uses: north-foster-farm/north-foster-farm/.github/workflows/e2e-run.yml@refs/heads/lane/membership (9b7353fa6d7795d36ce26c3cc1a65150d6829282)
+2026-11-18T07:39:39.9476109Z ##[group] Inputs
+2026-11-18T07:39:39.9477291Z   args: e2e/membership.spec.mjs e2e/membership-layout.spec.mjs e2e/account.spec.mjs e2e/keep-together.spec.mjs e2e/overflow.spec.mjs e2e/keyboard.spec.mjs
+2026-11-18T07:39:39.9478993Z   passes: 1
+2026-11-18T07:39:39.9479421Z   shards: [1]
+2026-11-18T07:39:39.9480014Z   total: 1
+2026-11-18T07:39:39.9480435Z   workers: 2
+2026-11-18T07:39:39.9480916Z   timeout: 90
+2026-11-18T07:39:39.9481985Z   specs: e2e/membership.spec.mjs e2e/membership-layout.spec.mjs e2e/account.spec.mjs e2e/keep-together.spec.mjs e2e/overflow.spec.mjs e2e/keyboard.spec.mjs
+2026-11-18T07:39:39.9483191Z ##[endgroup]
+2026-11-18T07:39:39.9483662Z Complete job name: narrow / shard 1
+2026-11-18T07:39:40.0100635Z ##[group]Checking docker version
+2026-11-18T07:39:40.0113740Z ##[command]/usr/bin/docker version --format '{{.Server.APIVersion}}'
+2026-11-18T07:39:40.1232195Z '1.54'
+2026-11-18T07:39:40.1253211Z Docker daemon API version: '1.54'
+2026-11-18T07:39:40.1253970Z ##[command]/usr/bin/docker version --format '{{.Client.APIVersion}}'
+2026-11-18T07:39:40.1445759Z '1.54'
+2026-11-18T07:39:40.1469334Z Docker client API version: '1.54'
+2026-11-18T07:39:40.1476196Z ##[endgroup]
+2026-11-18T07:39:40.1480592Z ##[group]Clean up resources from previous jobs
+2026-11-18T07:39:40.1488056Z ##[command]/usr/bin/docker ps --all --quiet --no-trunc --filter "label=dae4eb"
+2026-11-18T07:39:40.1655263Z ##[command]/usr/bin/docker network prune --force --filter "label=dae4eb"
+2026-11-18T07:39:40.1805588Z ##[endgroup]
+2026-11-18T07:39:40.1806124Z ##[group]Create local container network
+2026-11-18T07:39:40.1815857Z ##[command]/usr/bin/docker network create --label dae4eb github_network_402e31ac65464c72be0dfb57fd881f66
+2026-11-18T07:39:40.2268309Z e7bef7805a07def7b67f33fd1d89ccc62e838ff114ac1d39bd05f8ccaab84089
+2026-11-18T07:39:40.2290964Z ##[endgroup]
+2026-11-18T07:39:40.2314417Z ##[group]Starting job container
+2026-11-18T07:39:40.2339065Z ##[command]/usr/bin/docker pull mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e
+2026-11-18T07:39:40.3479003Z mcr.microsoft.com/playwright@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e: Pulling from playwright
+2026-11-18T07:39:40.4066469Z 782c0a3f363f: Pulling fs layer
+2026-11-18T07:39:40.4067821Z 43f9c849a2a2: Pulling fs layer
+2026-11-18T07:39:40.4069027Z 64112f4c67a2: Pulling fs layer
+2026-11-18T07:39:40.4070270Z dad65d3622fa: Pulling fs layer
+2026-11-18T07:39:40.4071409Z ca2678b20700: Pulling fs layer
+2026-11-18T07:39:40.4072595Z 4d796d6a8178: Pulling fs layer
+2026-11-18T07:39:40.4073850Z 00d16ab601f6: Pulling fs layer
+2026-11-18T07:39:40.5559044Z dad65d3622fa: Download complete
+2026-11-18T07:39:40.7569322Z ca2678b20700: Download complete
+2026-11-18T07:39:41.4548415Z 782c0a3f363f: Download complete
+2026-11-18T07:39:41.9552302Z 43f9c849a2a2: Download complete
+2026-11-18T07:39:41.9558673Z 64112f4c67a2: Download complete
+2026-11-18T07:39:42.2576692Z ca2678b20700: Pull complete
+2026-11-18T07:39:43.4533530Z 4d796d6a8178: Download complete
+2026-11-18T07:39:43.4538730Z 00d16ab601f6: Download complete
+2026-11-18T07:39:45.2547316Z dad65d3622fa: Pull complete
+2026-11-18T07:39:45.2573660Z 43f9c849a2a2: Pull complete
+2026-11-18T07:39:50.2583073Z 00d16ab601f6: Pull complete
+2026-11-18T07:39:53.1580791Z 4d796d6a8178: Pull complete
+2026-11-18T07:39:54.4552312Z 64112f4c67a2: Pull complete
+2026-11-18T07:39:55.6867495Z 782c0a3f363f: Pull complete
+2026-11-18T07:39:55.6868753Z Digest: sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e
+2026-11-18T07:39:55.6870866Z Status: Downloaded newer image for mcr.microsoft.com/playwright@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e
+2026-11-18T07:39:55.6884570Z mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e
+2026-11-18T07:39:55.7008430Z ##[command]/usr/bin/docker create --name e80ee222d35c4ec2b16c21f9810eea4a_mcrmicrosoftcomplaywrightv1621noblesha256dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e_a4b5af --label dae4eb --workdir /__w/north-foster-farm/north-foster-farm --network github_network_402e31ac65464c72be0dfb57fd881f66  -e "HOME=/github/home" -e GITHUB_ACTIONS=true -e CI=true -v "/var/run/docker.sock":"/var/run/docker.sock" -v "/home/runner/work":"/__w" -v "/home/runner/actions-runner/cached/2.338.2/externals":"/__e":ro -v "/home/runner/work/_temp":"/__w/_temp" -v "/home/runner/work/_actions":"/__w/_actions" -v "/opt/hostedtoolcache":"/__t" -v "/home/runner/work/_temp/_github_home":"/github/home" -v "/home/runner/work/_temp/_github_workflow":"/github/workflow" --entrypoint "tail" mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e "-f" "/dev/null"
+2026-11-18T07:39:58.4782838Z 407eeef93f0d9b677ca431d1370472d3d2c60885daf5ddab02cf903c1e08e7b7
+2026-11-18T07:39:58.4809655Z ##[command]/usr/bin/docker start 407eeef93f0d9b677ca431d1370472d3d2c60885daf5ddab02cf903c1e08e7b7
+2026-11-18T07:39:58.6867029Z 407eeef93f0d9b677ca431d1370472d3d2c60885daf5ddab02cf903c1e08e7b7
+2026-11-18T07:39:58.6890964Z ##[command]/usr/bin/docker ps --all --filter id=407eeef93f0d9b677ca431d1370472d3d2c60885daf5ddab02cf903c1e08e7b7 --filter status=running --no-trunc --format "{{.ID}} {{.Status}}"
+2026-11-18T07:39:58.7086334Z 407eeef93f0d9b677ca431d1370472d3d2c60885daf5ddab02cf903c1e08e7b7 Up Less than a second
+2026-11-18T07:39:58.7108156Z ##[command]/usr/bin/docker inspect --format "{{range .Config.Env}}{{println .}}{{end}}" 407eeef93f0d9b677ca431d1370472d3d2c60885daf5ddab02cf903c1e08e7b7
+2026-11-18T07:39:58.7250323Z HOME=/github/home
+2026-11-18T07:39:58.7250768Z GITHUB_ACTIONS=true
+2026-11-18T07:39:58.7251132Z CI=true
+2026-11-18T07:39:58.7260820Z PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+2026-11-18T07:39:58.7261274Z LANG=C.UTF-8
+2026-11-18T07:39:58.7261475Z LC_ALL=C.UTF-8
+2026-11-18T07:39:58.7261731Z PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+2026-11-18T07:39:58.7273622Z ##[endgroup]
+2026-11-18T07:39:58.7282839Z ##[group]Waiting for all services to be ready
+2026-11-18T07:39:58.7284578Z ##[endgroup]
+2026-11-18T07:39:58.7654041Z ##[group]Run actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+2026-11-18T07:39:58.7654756Z with:
+2026-11-18T07:39:58.7654983Z   persist-credentials: false
+2026-11-18T07:39:58.7655236Z   fetch-depth: 0
+2026-11-18T07:39:58.7655497Z   repository: north-foster-farm/north-foster-farm
+2026-11-18T07:39:58.7658117Z   token: ***
+2026-11-18T07:39:58.7658327Z   ssh-strict: true
+2026-11-18T07:39:58.7658538Z   ssh-user: git
+2026-11-18T07:39:58.7658727Z   clean: true
+2026-11-18T07:39:58.7658944Z   sparse-checkout-cone-mode: true
+2026-11-18T07:39:58.7659207Z   fetch-tags: false
+2026-11-18T07:39:58.7659434Z   show-progress: true
+2026-11-18T07:39:58.7659644Z   lfs: false
+2026-11-18T07:39:58.7660009Z   submodules: false
+2026-11-18T07:39:58.7660226Z   set-safe-directory: true
+2026-11-18T07:39:58.7660483Z   allow-unsafe-pr-checkout: false
+2026-11-18T07:39:58.7660967Z env:
+2026-11-18T07:39:58.7661159Z   E2E_PORT: 8895
+2026-11-18T07:39:58.7661428Z   NODE_OPTIONS: --dns-result-order=ipv4first
+2026-11-18T07:39:58.7661763Z ##[endgroup]
+2026-11-18T07:39:58.7723759Z ##[command]/usr/bin/docker exec  407eeef93f0d9b677ca431d1370472d3d2c60885daf5ddab02cf903c1e08e7b7 sh -c "cat /etc/*release | grep ^ID"
+2026-11-18T07:39:59.1737981Z Syncing repository: north-foster-farm/north-foster-farm
+2026-11-18T07:39:59.1739373Z ##[group]Getting Git version info
+2026-11-18T07:39:59.1740155Z Working directory is '/__w/north-foster-farm/north-foster-farm'
+2026-11-18T07:39:59.1741140Z [command]/usr/bin/git version
+2026-11-18T07:39:59.1741595Z git version 2.43.0
+2026-11-18T07:39:59.1760057Z ##[endgroup]
+2026-11-18T07:39:59.1775989Z Temporarily overriding HOME='/__w/_temp/2889caf9-ee92-46e4-940d-c403e04d5ed5' before making global git config changes
+2026-11-18T07:39:59.1777448Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-18T07:39:59.1783722Z [command]/usr/bin/git config --global --add safe.directory /__w/north-foster-farm/north-foster-farm
+2026-11-18T07:39:59.1824820Z Deleting the contents of '/__w/north-foster-farm/north-foster-farm'
+2026-11-18T07:39:59.1830583Z ##[group]Initializing the repository
+2026-11-18T07:39:59.1835250Z [command]/usr/bin/git init /__w/north-foster-farm/north-foster-farm
+2026-11-18T07:39:59.1878729Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-11-18T07:39:59.1879734Z hint: is subject to change. To configure the initial branch name to use in all
+2026-11-18T07:39:59.1880804Z hint: of your new repositories, which will suppress this warning, call:
+2026-11-18T07:39:59.1881269Z hint: 
+2026-11-18T07:39:59.1881669Z hint: 	git config --global init.defaultBranch <name>
+2026-11-18T07:39:59.1882012Z hint: 
+2026-11-18T07:39:59.1882313Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-11-18T07:39:59.1882814Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-11-18T07:39:59.1883211Z hint: 
+2026-11-18T07:39:59.1883413Z hint: 	git branch -m <name>
+2026-11-18T07:39:59.1893839Z Initialized empty Git repository in /__w/north-foster-farm/north-foster-farm/.git/
+2026-11-18T07:39:59.1902495Z [command]/usr/bin/git remote add origin https://github.com/north-foster-farm/north-foster-farm
+2026-11-18T07:39:59.1937744Z ##[endgroup]
+2026-11-18T07:39:59.1938374Z ##[group]Disabling automatic garbage collection
+2026-11-18T07:39:59.1940600Z [command]/usr/bin/git config --local gc.auto 0
+2026-11-18T07:39:59.1983301Z ##[endgroup]
+2026-11-18T07:39:59.1983997Z ##[group]Setting up auth
+2026-11-18T07:39:59.1984790Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-18T07:39:59.2016147Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-18T07:39:59.2337651Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-18T07:39:59.2376133Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-18T07:39:59.2668176Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-18T07:39:59.2714807Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-18T07:39:59.2974850Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-11-18T07:39:59.3021864Z ##[endgroup]
+2026-11-18T07:39:59.3022320Z ##[group]Fetching the repository
+2026-11-18T07:39:59.3034252Z [command]/usr/bin/git -c protocol.version=2 fetch --prune --no-recurse-submodules origin +refs/heads/*:refs/remotes/origin/* +refs/tags/*:refs/tags/*
+2026-11-18T07:40:06.2934101Z From https://github.com/north-foster-farm/north-foster-farm
+2026-11-18T07:40:06.2934845Z  * [new branch]        agent/relay             -> origin/agent/relay
+2026-11-18T07:40:06.2936196Z  * [new branch]        agent/wip-a11y-lang-and-link-names -> origin/agent/wip-a11y-lang-and-link-names
+2026-11-18T07:40:06.2938654Z  * [new branch]        agent/wip-eslint-10     -> origin/agent/wip-eslint-10
+2026-11-18T07:40:06.2939670Z  * [new branch]        agent/wip-nanoid-advisory -> origin/agent/wip-nanoid-advisory
+2026-11-18T07:40:06.2941423Z  * [new branch]        area-fee                -> origin/area-fee
+2026-11-18T07:40:06.2942815Z  * [new branch]        backup/lane-release-2026-10-26 -> origin/backup/lane-release-2026-10-26
+2026-11-18T07:40:06.2945408Z  * [new branch]        checkout                -> origin/checkout
+2026-11-18T07:40:06.2947036Z  * [new branch]        checkout-consent        -> origin/checkout-consent
+2026-11-18T07:40:06.2951297Z  * [new branch]        contact                 -> origin/contact
+2026-11-18T07:40:06.2956333Z  * [new branch]        dependabot/github_actions/next/actions/checkout-7.0.1 -> origin/dependabot/github_actions/next/actions/checkout-7.0.1
+2026-11-18T07:40:06.2958660Z  * [new branch]        dependabot/github_actions/next/actions/setup-node-7.1.0 -> origin/dependabot/github_actions/next/actions/setup-node-7.1.0
+2026-11-18T07:40:06.2962343Z  * [new branch]        dependabot/npm_and_yarn/autoprefixer-10.5.6 -> origin/dependabot/npm_and_yarn/autoprefixer-10.5.6
+2026-11-18T07:40:06.2964572Z  * [new branch]        dependabot/npm_and_yarn/eslint-10.10.0 -> origin/dependabot/npm_and_yarn/eslint-10.10.0
+2026-11-18T07:40:06.2966846Z  * [new branch]        dependabot/npm_and_yarn/globals-17.12.0 -> origin/dependabot/npm_and_yarn/globals-17.12.0
+2026-11-18T07:40:06.2968930Z  * [new branch]        dependabot/npm_and_yarn/npm_and_yarn-56e86fd9c9 -> origin/dependabot/npm_and_yarn/npm_and_yarn-56e86fd9c9
+2026-11-18T07:40:06.2971446Z  * [new branch]        dependabot/npm_and_yarn/npm_and_yarn-c12db4747a -> origin/dependabot/npm_and_yarn/npm_and_yarn-c12db4747a
+2026-11-18T07:40:06.2983266Z  * [new branch]        dependabot/npm_and_yarn/postcss-8.5.28 -> origin/dependabot/npm_and_yarn/postcss-8.5.28
+2026-11-18T07:40:06.2984623Z  * [new branch]        dependabot/npm_and_yarn/postcss-cli-12.0.0 -> origin/dependabot/npm_and_yarn/postcss-cli-12.0.0
+2026-11-18T07:40:06.2985937Z  * [new branch]        docs/agent-working-rules -> origin/docs/agent-working-rules
+2026-11-18T07:40:06.2986955Z  * [new branch]        docs/rollback-and-secrets -> origin/docs/rollback-and-secrets
+2026-11-18T07:40:06.2988898Z  * [new branch]        e2e/staging             -> origin/e2e/staging
+2026-11-18T07:40:06.2991240Z  * [new branch]        e2e/staging-full        -> origin/e2e/staging-full
+2026-11-18T07:40:06.2994192Z  * [new branch]        farm-news               -> origin/farm-news
+2026-11-18T07:40:06.2997540Z  * [new branch]        hold/114                -> origin/hold/114
+2026-11-18T07:40:06.2999786Z  * [new branch]        hold/148                -> origin/hold/148
+2026-11-18T07:40:06.3002218Z  * [new branch]        hold/149                -> origin/hold/149
+2026-11-18T07:40:06.3004428Z  * [new branch]        hold/161                -> origin/hold/161
+2026-11-18T07:40:06.3006650Z  * [new branch]        hold/165                -> origin/hold/165
+2026-11-18T07:40:06.3009649Z  * [new branch]        hold/167                -> origin/hold/167
+2026-11-18T07:40:06.3012115Z  * [new branch]        hold/182                -> origin/hold/182
+2026-11-18T07:40:06.3014867Z  * [new branch]        hold/183                -> origin/hold/183
+2026-11-18T07:40:06.3019500Z  * [new branch]        hold/191                -> origin/hold/191
+2026-11-18T07:40:06.3032528Z  * [new branch]        hold/193                -> origin/hold/193
+2026-11-18T07:40:06.3033207Z  * [new branch]        hold/215                -> origin/hold/215
+2026-11-18T07:40:06.3033953Z  * [new branch]        hold/232                -> origin/hold/232
+2026-11-18T07:40:06.3034662Z  * [new branch]        hold/235                -> origin/hold/235
+2026-11-18T07:40:06.3035261Z  * [new branch]        hold/236                -> origin/hold/236
+2026-11-18T07:40:06.3035631Z  * [new branch]        hold/240                -> origin/hold/240
+2026-11-18T07:40:06.3036065Z  * [new branch]        hold/241                -> origin/hold/241
+2026-11-18T07:40:06.3037355Z  * [new branch]        instagram-nudge         -> origin/instagram-nudge
+2026-11-18T07:40:06.3038528Z  * [new branch]        keep/cart-total-row-fold -> origin/keep/cart-total-row-fold
+2026-11-18T07:40:06.3041680Z  * [new branch]        lane/cart1              -> origin/lane/cart1
+2026-11-18T07:40:06.3052538Z  * [new branch]        lane/cart2              -> origin/lane/cart2
+2026-11-18T07:40:06.3053820Z  * [new branch]        lane/catalog            -> origin/lane/catalog
+2026-11-18T07:40:06.3054778Z  * [new branch]        lane/checkout           -> origin/lane/checkout
+2026-11-18T07:40:06.3055743Z  * [new branch]        lane/checkout-318       -> origin/lane/checkout-318
+2026-11-18T07:40:06.3056531Z  * [new branch]        lane/checkout-322       -> origin/lane/checkout-322
+2026-11-18T07:40:06.3057090Z  * [new branch]        lane/checkout-323       -> origin/lane/checkout-323
+2026-11-18T07:40:06.3057530Z  * [new branch]        lane/cloud-129          -> origin/lane/cloud-129
+2026-11-18T07:40:06.3057938Z  * [new branch]        lane/cloud-131          -> origin/lane/cloud-131
+2026-11-18T07:40:06.3059644Z  * [new branch]        lane/cloud-146          -> origin/lane/cloud-146
+2026-11-18T07:40:06.3060779Z  * [new branch]        lane/cloud-159          -> origin/lane/cloud-159
+2026-11-18T07:40:06.3063637Z  * [new branch]        lane/cloud-159b         -> origin/lane/cloud-159b
+2026-11-18T07:40:06.3065871Z  * [new branch]        lane/cloud-182          -> origin/lane/cloud-182
+2026-11-18T07:40:06.3072217Z  * [new branch]        lane/cloud-330          -> origin/lane/cloud-330
+2026-11-18T07:40:06.3072981Z  * [new branch]        lane/cloud-350          -> origin/lane/cloud-350
+2026-11-18T07:40:06.3073735Z  * [new branch]        lane/cloud-351          -> origin/lane/cloud-351
+2026-11-18T07:40:06.3074190Z  * [new branch]        lane/cloud-352          -> origin/lane/cloud-352
+2026-11-18T07:40:06.3076116Z  * [new branch]        lane/cloud-358          -> origin/lane/cloud-358
+2026-11-18T07:40:06.3076861Z  * [new branch]        lane/cloud-360          -> origin/lane/cloud-360
+2026-11-18T07:40:06.3078471Z  * [new branch]        lane/cloud-372          -> origin/lane/cloud-372
+2026-11-18T07:40:06.3080756Z  * [new branch]        lane/cloud-378          -> origin/lane/cloud-378
+2026-11-18T07:40:06.3082979Z  * [new branch]        lane/cloud-383          -> origin/lane/cloud-383
+2026-11-18T07:40:06.3085460Z  * [new branch]        lane/cloud-384          -> origin/lane/cloud-384
+2026-11-18T07:40:06.3088334Z  * [new branch]        lane/cloud-385          -> origin/lane/cloud-385
+2026-11-18T07:40:06.3090283Z  * [new branch]        lane/cloud-386          -> origin/lane/cloud-386
+2026-11-18T07:40:06.3092782Z  * [new branch]        lane/cloud-387          -> origin/lane/cloud-387
+2026-11-18T07:40:06.3102937Z  * [new branch]        lane/cloud-388          -> origin/lane/cloud-388
+2026-11-18T07:40:06.3103732Z  * [new branch]        lane/cloud-389          -> origin/lane/cloud-389
+2026-11-18T07:40:06.3104556Z  * [new branch]        lane/cloud-390          -> origin/lane/cloud-390
+2026-11-18T07:40:06.3105275Z  * [new branch]        lane/cloud-391          -> origin/lane/cloud-391
+2026-11-18T07:40:06.3106008Z  * [new branch]        lane/cloud-392          -> origin/lane/cloud-392
+2026-11-18T07:40:06.3106730Z  * [new branch]        lane/cloud-393          -> origin/lane/cloud-393
+2026-11-18T07:40:06.3107480Z  * [new branch]        lane/cloud-395          -> origin/lane/cloud-395
+2026-11-18T07:40:06.3108212Z  * [new branch]        lane/cloud-396          -> origin/lane/cloud-396
+2026-11-18T07:40:06.3111262Z  * [new branch]        lane/cloud-397          -> origin/lane/cloud-397
+2026-11-18T07:40:06.3113295Z  * [new branch]        lane/cloud-398          -> origin/lane/cloud-398
+2026-11-18T07:40:06.3122647Z  * [new branch]        lane/cloud-399          -> origin/lane/cloud-399
+2026-11-18T07:40:06.3123406Z  * [new branch]        lane/cloud-400          -> origin/lane/cloud-400
+2026-11-18T07:40:06.3124056Z  * [new branch]        lane/cloud-406          -> origin/lane/cloud-406
+2026-11-18T07:40:06.3124491Z  * [new branch]        lane/cloud-409          -> origin/lane/cloud-409
+2026-11-18T07:40:06.3124920Z  * [new branch]        lane/cloud-411          -> origin/lane/cloud-411
+2026-11-18T07:40:06.3132515Z  * [new branch]        lane/cloud-414          -> origin/lane/cloud-414
+2026-11-18T07:40:06.3133415Z  * [new branch]        lane/cloud-415          -> origin/lane/cloud-415
+2026-11-18T07:40:06.3134242Z  * [new branch]        lane/cloud-416          -> origin/lane/cloud-416
+2026-11-18T07:40:06.3135002Z  * [new branch]        lane/cloud-417          -> origin/lane/cloud-417
+2026-11-18T07:40:06.3135778Z  * [new branch]        lane/cloud-421          -> origin/lane/cloud-421
+2026-11-18T07:40:06.3136595Z  * [new branch]        lane/cloud-424          -> origin/lane/cloud-424
+2026-11-18T07:40:06.3137755Z  * [new branch]        lane/cloud-428          -> origin/lane/cloud-428
+2026-11-18T07:40:06.3142398Z  * [new branch]        lane/cloud-431          -> origin/lane/cloud-431
+2026-11-18T07:40:06.3143129Z  * [new branch]        lane/cloud-437          -> origin/lane/cloud-437
+2026-11-18T07:40:06.3162294Z  * [new branch]        lane/cloud-441          -> origin/lane/cloud-441
+2026-11-18T07:40:06.3162923Z  * [new branch]        lane/cloud-448          -> origin/lane/cloud-448
+2026-11-18T07:40:06.3163637Z  * [new branch]        lane/cloud-449          -> origin/lane/cloud-449
+2026-11-18T07:40:06.3164125Z  * [new branch]        lane/cloud-450          -> origin/lane/cloud-450
+2026-11-18T07:40:06.3164530Z  * [new branch]        lane/cloud-452          -> origin/lane/cloud-452
+2026-11-18T07:40:06.3164980Z  * [new branch]        lane/cloud-453          -> origin/lane/cloud-453
+2026-11-18T07:40:06.3165588Z  * [new branch]        lane/cloud-465          -> origin/lane/cloud-465
+2026-11-18T07:40:06.3166035Z  * [new branch]        lane/cloud-473          -> origin/lane/cloud-473
+2026-11-18T07:40:06.3166513Z  * [new branch]        lane/cloud-475          -> origin/lane/cloud-475
+2026-11-18T07:40:06.3166919Z  * [new branch]        lane/cloud-476          -> origin/lane/cloud-476
+2026-11-18T07:40:06.3167569Z  * [new branch]        lane/cloud-484          -> origin/lane/cloud-484
+2026-11-18T07:40:06.3169013Z  * [new branch]        lane/cloud-490          -> origin/lane/cloud-490
+2026-11-18T07:40:06.3169737Z  * [new branch]        lane/cloud-491          -> origin/lane/cloud-491
+2026-11-18T07:40:06.3170709Z  * [new branch]        lane/cloud-492          -> origin/lane/cloud-492
+2026-11-18T07:40:06.3172521Z  * [new branch]        lane/cloud-494          -> origin/lane/cloud-494
+2026-11-18T07:40:06.3174009Z  * [new branch]        lane/cloud-495          -> origin/lane/cloud-495
+2026-11-18T07:40:06.3177347Z  * [new branch]        lane/cloud-496          -> origin/lane/cloud-496
+2026-11-18T07:40:06.3182959Z  * [new branch]        lane/cloud-497          -> origin/lane/cloud-497
+2026-11-18T07:40:06.3183962Z  * [new branch]        lane/cloud-498          -> origin/lane/cloud-498
+2026-11-18T07:40:06.3184685Z  * [new branch]        lane/cloud-499          -> origin/lane/cloud-499
+2026-11-18T07:40:06.3186185Z  * [new branch]        lane/cloud-501          -> origin/lane/cloud-501
+2026-11-18T07:40:06.3187699Z  * [new branch]        lane/cloud-502          -> origin/lane/cloud-502
+2026-11-18T07:40:06.3190326Z  * [new branch]        lane/cloud-504          -> origin/lane/cloud-504
+2026-11-18T07:40:06.3192966Z  * [new branch]        lane/cloud-506          -> origin/lane/cloud-506
+2026-11-18T07:40:06.3195557Z  * [new branch]        lane/cloud-507          -> origin/lane/cloud-507
+2026-11-18T07:40:06.3203137Z  * [new branch]        lane/cloud-508          -> origin/lane/cloud-508
+2026-11-18T07:40:06.3204409Z  * [new branch]        lane/cloud-510          -> origin/lane/cloud-510
+2026-11-18T07:40:06.3205281Z  * [new branch]        lane/cloud-511          -> origin/lane/cloud-511
+2026-11-18T07:40:06.3206105Z  * [new branch]        lane/cloud-513          -> origin/lane/cloud-513
+2026-11-18T07:40:06.3206961Z  * [new branch]        lane/cloud-515          -> origin/lane/cloud-515
+2026-11-18T07:40:06.3207932Z  * [new branch]        lane/cloud-516          -> origin/lane/cloud-516
+2026-11-18T07:40:06.3210615Z  * [new branch]        lane/cloud-517          -> origin/lane/cloud-517
+2026-11-18T07:40:06.3212775Z  * [new branch]        lane/cloud-521          -> origin/lane/cloud-521
+2026-11-18T07:40:06.3215669Z  * [new branch]        lane/cloud-524          -> origin/lane/cloud-524
+2026-11-18T07:40:06.3217587Z  * [new branch]        lane/cloud-531          -> origin/lane/cloud-531
+2026-11-18T07:40:06.3220151Z  * [new branch]        lane/cloud-532          -> origin/lane/cloud-532
+2026-11-18T07:40:06.3222728Z  * [new branch]        lane/cloud-533          -> origin/lane/cloud-533
+2026-11-18T07:40:06.3225069Z  * [new branch]        lane/cloud-534          -> origin/lane/cloud-534
+2026-11-18T07:40:06.3227968Z  * [new branch]        lane/cloud-536          -> origin/lane/cloud-536
+2026-11-18T07:40:06.3230838Z  * [new branch]        lane/cloud-537          -> origin/lane/cloud-537
+2026-11-18T07:40:06.3232940Z  * [new branch]        lane/cloud-540          -> origin/lane/cloud-540
+2026-11-18T07:40:06.3235787Z  * [new branch]        lane/cloud-541          -> origin/lane/cloud-541
+2026-11-18T07:40:06.3238261Z  * [new branch]        lane/cloud-544          -> origin/lane/cloud-544
+2026-11-18T07:40:06.3240475Z  * [new branch]        lane/cloud-545          -> origin/lane/cloud-545
+2026-11-18T07:40:06.3243088Z  * [new branch]        lane/cloud-549          -> origin/lane/cloud-549
+2026-11-18T07:40:06.3245539Z  * [new branch]        lane/cloud-552          -> origin/lane/cloud-552
+2026-11-18T07:40:06.3248067Z  * [new branch]        lane/cloud-554          -> origin/lane/cloud-554
+2026-11-18T07:40:06.3251542Z  * [new branch]        lane/cloud-557          -> origin/lane/cloud-557
+2026-11-18T07:40:06.3253866Z  * [new branch]        lane/cloud-559          -> origin/lane/cloud-559
+2026-11-18T07:40:06.3256430Z  * [new branch]        lane/cloud-560          -> origin/lane/cloud-560
+2026-11-18T07:40:06.3258841Z  * [new branch]        lane/cloud-561          -> origin/lane/cloud-561
+2026-11-18T07:40:06.3261739Z  * [new branch]        lane/cloud-562          -> origin/lane/cloud-562
+2026-11-18T07:40:06.3263796Z  * [new branch]        lane/cloud-564          -> origin/lane/cloud-564
+2026-11-18T07:40:06.3266340Z  * [new branch]        lane/cloud-565          -> origin/lane/cloud-565
+2026-11-18T07:40:06.3269077Z  * [new branch]        lane/cloud-568          -> origin/lane/cloud-568
+2026-11-18T07:40:06.3271956Z  * [new branch]        lane/cloud-571          -> origin/lane/cloud-571
+2026-11-18T07:40:06.3274658Z  * [new branch]        lane/cloud-573          -> origin/lane/cloud-573
+2026-11-18T07:40:06.3277725Z  * [new branch]        lane/cloud-574          -> origin/lane/cloud-574
+2026-11-18T07:40:06.3279659Z  * [new branch]        lane/cloud-577          -> origin/lane/cloud-577
+2026-11-18T07:40:06.3282696Z  * [new branch]        lane/cloud-579          -> origin/lane/cloud-579
+2026-11-18T07:40:06.3285726Z  * [new branch]        lane/cloud-581          -> origin/lane/cloud-581
+2026-11-18T07:40:06.3287610Z  * [new branch]        lane/cloud-582          -> origin/lane/cloud-582
+2026-11-18T07:40:06.3290506Z  * [new branch]        lane/cloud-585          -> origin/lane/cloud-585
+2026-11-18T07:40:06.3293176Z  * [new branch]        lane/cloud-587          -> origin/lane/cloud-587
+2026-11-18T07:40:06.3296199Z  * [new branch]        lane/cloud-589          -> origin/lane/cloud-589
+2026-11-18T07:40:06.3299050Z  * [new branch]        lane/cloud-607          -> origin/lane/cloud-607
+2026-11-18T07:40:06.3302138Z  * [new branch]        lane/cloud-pulse        -> origin/lane/cloud-pulse
+2026-11-18T07:40:06.3304260Z  * [new branch]        lane/cloud-tocart       -> origin/lane/cloud-tocart
+2026-11-18T07:40:06.3306120Z  * [new branch]        lane/coop               -> origin/lane/coop
+2026-11-18T07:40:06.3309177Z  * [new branch]        lane/copy               -> origin/lane/copy
+2026-11-18T07:40:06.3311998Z  * [new branch]        lane/cover1             -> origin/lane/cover1
+2026-11-18T07:40:06.3314302Z  * [new branch]        lane/cover2             -> origin/lane/cover2
+2026-11-18T07:40:06.3316534Z  * [new branch]        lane/cover2-cancel      -> origin/lane/cover2-cancel
+2026-11-18T07:40:06.3319571Z  * [new branch]        lane/cover2-fix         -> origin/lane/cover2-fix
+2026-11-18T07:40:06.3332700Z  * [new branch]        lane/cover2-fix2        -> origin/lane/cover2-fix2
+2026-11-18T07:40:06.3333603Z  * [new branch]        lane/cover2-follow      -> origin/lane/cover2-follow
+2026-11-18T07:40:06.3334269Z  * [new branch]        lane/cover2-race        -> origin/lane/cover2-race
+2026-11-18T07:40:06.3335346Z  * [new branch]        lane/cover2-race2       -> origin/lane/cover2-race2
+2026-11-18T07:40:06.3336256Z  * [new branch]        lane/cover2-rotation    -> origin/lane/cover2-rotation
+2026-11-18T07:40:06.3337351Z  * [new branch]        lane/deps               -> origin/lane/deps
+2026-11-18T07:40:06.3338076Z  * [new branch]        lane/deps-330           -> origin/lane/deps-330
+2026-11-18T07:40:06.3338655Z  * [new branch]        lane/devserver          -> origin/lane/devserver
+2026-11-18T07:40:06.3352945Z  * [new branch]        lane/e2e-dispatch       -> origin/lane/e2e-dispatch
+2026-11-18T07:40:06.3353812Z  * [new branch]        lane/e2e-dispatch-tests -> origin/lane/e2e-dispatch-tests
+2026-11-18T07:40:06.3354655Z  * [new branch]        lane/email              -> origin/lane/email
+2026-11-18T07:40:06.3355278Z  * [new branch]        lane/fixtures           -> origin/lane/fixtures
+2026-11-18T07:40:06.3355756Z  * [new branch]        lane/footer             -> origin/lane/footer
+2026-11-18T07:40:06.3356230Z  * [new branch]        lane/gate               -> origin/lane/gate
+2026-11-18T07:40:06.3356752Z  * [new branch]        lane/gate-215           -> origin/lane/gate-215
+2026-11-18T07:40:06.3357230Z  * [new branch]        lane/gate-aller         -> origin/lane/gate-aller
+2026-11-18T07:40:06.3358695Z  * [new branch]        lane/gate-jan27         -> origin/lane/gate-jan27
+2026-11-18T07:40:06.3359281Z  * [new branch]        lane/gate-revoke        -> origin/lane/gate-revoke
+2026-11-18T07:40:06.3363003Z  * [new branch]        lane/gh-shot            -> origin/lane/gh-shot
+2026-11-18T07:40:06.3365309Z  * [new branch]        lane/gh-shot-hardening  -> origin/lane/gh-shot-hardening
+2026-11-18T07:40:06.3368632Z  * [new branch]        lane/home               -> origin/lane/home
+2026-11-18T07:40:06.3372845Z  * [new branch]        lane/map                -> origin/lane/map
+2026-11-18T07:40:06.3375018Z  * [new branch]        lane/map-282            -> origin/lane/map-282
+2026-11-18T07:40:06.3376423Z  * [new branch]        lane/membership         -> origin/lane/membership
+2026-11-18T07:40:06.3378911Z  * [new branch]        lane/membership-tests   -> origin/lane/membership-tests
+2026-11-18T07:40:06.3381865Z  * [new branch]        lane/newsmail           -> origin/lane/newsmail
+2026-11-18T07:40:06.3384729Z  * [new branch]        lane/node-24            -> origin/lane/node-24
+2026-11-18T07:40:06.3387187Z  * [new branch]        lane/orders             -> origin/lane/orders
+2026-11-18T07:40:06.3389780Z  * [new branch]        lane/orders-268         -> origin/lane/orders-268
+2026-11-18T07:40:06.3392827Z  * [new branch]        lane/orders-284         -> origin/lane/orders-284
+2026-11-18T07:40:06.3395271Z  * [new branch]        lane/orders-292b        -> origin/lane/orders-292b
+2026-11-18T07:40:06.3398108Z  * [new branch]        lane/orders-319         -> origin/lane/orders-319
+2026-11-18T07:40:06.3400837Z  * [new branch]        lane/orders-321         -> origin/lane/orders-321
+2026-11-18T07:40:06.3403506Z  * [new branch]        lane/orders-331         -> origin/lane/orders-331
+2026-11-18T07:40:06.3406165Z  * [new branch]        lane/orders-334         -> origin/lane/orders-334
+2026-11-18T07:40:06.3408885Z  * [new branch]        lane/orders-335         -> origin/lane/orders-335
+2026-11-18T07:40:06.3411998Z  * [new branch]        lane/orders-e2e         -> origin/lane/orders-e2e
+2026-11-18T07:40:06.3414680Z  * [new branch]        lane/orders-reset       -> origin/lane/orders-reset
+2026-11-18T07:40:06.3417138Z  * [new branch]        lane/pages              -> origin/lane/pages
+2026-11-18T07:40:06.3419747Z  * [new branch]        lane/pipeline           -> origin/lane/pipeline
+2026-11-18T07:40:06.3433811Z  * [new branch]        lane/pipeline-check     -> origin/lane/pipeline-check
+2026-11-18T07:40:06.3434987Z  * [new branch]        lane/prod               -> origin/lane/prod
+2026-11-18T07:40:06.3436114Z  * [new branch]        lane/products           -> origin/lane/products
+2026-11-18T07:40:06.3436919Z  * [new branch]        lane/qa                 -> origin/lane/qa
+2026-11-18T07:40:06.3437687Z  * [new branch]        lane/release            -> origin/lane/release
+2026-11-18T07:40:06.3442089Z  * [new branch]        lane/release-ci-order   -> origin/lane/release-ci-order
+2026-11-18T07:40:06.3443027Z  * [new branch]        lane/release-completion -> origin/lane/release-completion
+2026-11-18T07:40:06.3444017Z  * [new branch]        lane/release-envguard   -> origin/lane/release-envguard
+2026-11-18T07:40:06.3446467Z  * [new branch]        lane/release-envs       -> origin/lane/release-envs
+2026-11-18T07:40:06.3450480Z  * [new branch]        lane/release-fixes3     -> origin/lane/release-fixes3
+2026-11-18T07:40:06.3452849Z  * [new branch]        lane/release-golive     -> origin/lane/release-golive
+2026-11-18T07:40:06.3455863Z  * [new branch]        lane/release-news-footer -> origin/lane/release-news-footer
+2026-11-18T07:40:06.3458558Z  * [new branch]        lane/release-photo      -> origin/lane/release-photo
+2026-11-18T07:40:06.3461688Z  * [new branch]        lane/release-photo-1    -> origin/lane/release-photo-1
+2026-11-18T07:40:06.3464603Z  * [new branch]        lane/release-publickey  -> origin/lane/release-publickey
+2026-11-18T07:40:06.3467224Z  * [new branch]        lane/release-specfix    -> origin/lane/release-specfix
+2026-11-18T07:40:06.3470317Z  * [new branch]        lane/release-welcome    -> origin/lane/release-welcome
+2026-11-18T07:40:06.3473199Z  * [new branch]        lane/release-where      -> origin/lane/release-where
+2026-11-18T07:40:06.3475718Z  * [new branch]        lane/skeletons          -> origin/lane/skeletons
+2026-11-18T07:40:06.3478560Z  * [new branch]        lane/squash1            -> origin/lane/squash1
+2026-11-18T07:40:06.3482858Z  * [new branch]        lane/squash1-181        -> origin/lane/squash1-181
+2026-11-18T07:40:06.3484737Z  * [new branch]        lane/squash1-181-page   -> origin/lane/squash1-181-page
+2026-11-18T07:40:06.3487394Z  * [new branch]        lane/squash2            -> origin/lane/squash2
+2026-11-18T07:40:06.3490810Z  * [new branch]        lane/stagefix           -> origin/lane/stagefix
+2026-11-18T07:40:06.3493557Z  * [new branch]        lane/tidy               -> origin/lane/tidy
+2026-11-18T07:40:06.3495964Z  * [new branch]        lane/writer1            -> origin/lane/writer1
+2026-11-18T07:40:06.3499218Z  * [new branch]        lane/writer1-account-server -> origin/lane/writer1-account-server
+2026-11-18T07:40:06.3502520Z  * [new branch]        lane/writer1-chrome     -> origin/lane/writer1-chrome
+2026-11-18T07:40:06.3505358Z  * [new branch]        lane/writer1-contact    -> origin/lane/writer1-contact
+2026-11-18T07:40:06.3508334Z  * [new branch]        lane/writer1-drop-sites -> origin/lane/writer1-drop-sites
+2026-11-18T07:40:06.3511459Z  * [new branch]        lane/writer1-news       -> origin/lane/writer1-news
+2026-11-18T07:40:06.3514166Z  * [new branch]        lane/writer1-policy     -> origin/lane/writer1-policy
+2026-11-18T07:40:06.3517167Z  * [new branch]        lane/writer1-post       -> origin/lane/writer1-post
+2026-11-18T07:40:06.3520338Z  * [new branch]        lane/writer2            -> origin/lane/writer2
+2026-11-18T07:40:06.3523289Z  * [new branch]        lane/writer2-alerts     -> origin/lane/writer2-alerts
+2026-11-18T07:40:06.3525958Z  * [new branch]        lane/writer2-checkout   -> origin/lane/writer2-checkout
+2026-11-18T07:40:06.3530160Z  * [new branch]        lane/writer2-drafts     -> origin/lane/writer2-drafts
+2026-11-18T07:40:06.3532904Z  * [new branch]        lane/writer2-emails     -> origin/lane/writer2-emails
+2026-11-18T07:40:06.3535712Z  * [new branch]        lane/writer2-farm       -> origin/lane/writer2-farm
+2026-11-18T07:40:06.3539039Z  * [new branch]        lane/writer2-farm-news  -> origin/lane/writer2-farm-news
+2026-11-18T07:40:06.3541920Z  * [new branch]        lane/writer2-info       -> origin/lane/writer2-info
+2026-11-18T07:40:06.3544017Z  * [new branch]        lane/writer2-launch     -> origin/lane/writer2-launch
+2026-11-18T07:40:06.3546767Z  * [new branch]        lane/writer2-missed     -> origin/lane/writer2-missed
+2026-11-18T07:40:06.3549180Z  * [new branch]        lane/writer2-order      -> origin/lane/writer2-order
+2026-11-18T07:40:06.3552315Z  * [new branch]        lane/writer2-reports    -> origin/lane/writer2-reports
+2026-11-18T07:40:06.3554683Z  * [new branch]        lane/writer2-slip       -> origin/lane/writer2-slip
+2026-11-18T07:40:06.3556802Z  * [new branch]        launch-guide            -> origin/launch-guide
+2026-11-18T07:40:06.3558546Z  * [new branch]        main                    -> origin/main
+2026-11-18T07:40:06.3561705Z  * [new branch]        news                    -> origin/news
+2026-11-18T07:40:06.3564714Z  * [new branch]        next                    -> origin/next
+2026-11-18T07:40:06.3567284Z  * [new branch]        pickup-hours            -> origin/pickup-hours
+2026-11-18T07:40:06.3568947Z  * [new branch]        qa-launch               -> origin/qa-launch
+2026-11-18T07:40:06.3572228Z  * [new branch]        release/eggs-perks      -> origin/release/eggs-perks
+2026-11-18T07:40:06.3574603Z  * [new branch]        screenshots             -> origin/screenshots
+2026-11-18T07:40:06.3576658Z  * [new branch]        september-update        -> origin/september-update
+2026-11-18T07:40:06.3578686Z  * [new branch]        settings-name           -> origin/settings-name
+2026-11-18T07:40:06.3581314Z  * [new branch]        share-card              -> origin/share-card
+2026-11-18T07:40:06.3583976Z  * [new branch]        shots/240               -> origin/shots/240
+2026-11-18T07:40:06.3586216Z  * [new branch]        shots/267               -> origin/shots/267
+2026-11-18T07:40:06.3588107Z  * [new branch]        shots/267-review        -> origin/shots/267-review
+2026-11-18T07:40:06.3592145Z  * [new branch]        shots/267-v9            -> origin/shots/267-v9
+2026-11-18T07:40:06.3592915Z  * [new branch]        shots/272               -> origin/shots/272
+2026-11-18T07:40:06.3594617Z  * [new branch]        shots/273               -> origin/shots/273
+2026-11-18T07:40:06.3596447Z  * [new branch]        shots/274-r4            -> origin/shots/274-r4
+2026-11-18T07:40:06.3602647Z  * [new branch]        shots/274-r4b           -> origin/shots/274-r4b
+2026-11-18T07:40:06.3603484Z  * [new branch]        shots/274-r4c           -> origin/shots/274-r4c
+2026-11-18T07:40:06.3604212Z  * [new branch]        shots/274-r5            -> origin/shots/274-r5
+2026-11-18T07:40:06.3606451Z  * [new branch]        shots/275               -> origin/shots/275
+2026-11-18T07:40:06.3607144Z  * [new branch]        shots/277               -> origin/shots/277
+2026-11-18T07:40:06.3609449Z  * [new branch]        shots/280               -> origin/shots/280
+2026-11-18T07:40:06.3612404Z  * [new branch]        shots/294               -> origin/shots/294
+2026-11-18T07:40:06.3614985Z  * [new branch]        shots/303               -> origin/shots/303
+2026-11-18T07:40:06.3617719Z  * [new branch]        shots/303-show          -> origin/shots/303-show
+2026-11-18T07:40:06.3619569Z  * [new branch]        shots/303b              -> origin/shots/303b
+2026-11-18T07:40:06.3623191Z  * [new branch]        shots/303c              -> origin/shots/303c
+2026-11-18T07:40:06.3624533Z  * [new branch]        staging                 -> origin/staging
+2026-11-18T07:40:06.3626667Z  * [new branch]        staging-env             -> origin/staging-env
+2026-11-18T07:40:06.3628382Z  * [new tag]           pre-cart                -> pre-cart
+2026-11-18T07:40:06.3704899Z [command]/usr/bin/git branch --list --remote origin/lane/membership
+2026-11-18T07:40:06.3770330Z   origin/lane/membership
+2026-11-18T07:40:06.3778905Z [command]/usr/bin/git rev-parse refs/remotes/origin/lane/membership
+2026-11-18T07:40:06.3810713Z 9b7353fa6d7795d36ce26c3cc1a65150d6829282
+2026-11-18T07:40:06.3816134Z ##[endgroup]
+2026-11-18T07:40:06.3817096Z ##[group]Determining the checkout info
+2026-11-18T07:40:06.3818854Z ##[endgroup]
+2026-11-18T07:40:06.3825443Z [command]/usr/bin/git sparse-checkout disable
+2026-11-18T07:40:06.3874668Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-11-18T07:40:06.3913982Z ##[group]Checking out the ref
+2026-11-18T07:40:06.3918308Z [command]/usr/bin/git checkout --progress --force -B lane/membership refs/remotes/origin/lane/membership
+2026-11-18T07:40:06.6751917Z Switched to a new branch 'lane/membership'
+2026-11-18T07:40:06.6753074Z branch 'lane/membership' set up to track 'origin/lane/membership'.
+2026-11-18T07:40:06.6788184Z ##[endgroup]
+2026-11-18T07:40:06.6843669Z [command]/usr/bin/git log -1 --format=%H
+2026-11-18T07:40:06.6885162Z 9b7353fa6d7795d36ce26c3cc1a65150d6829282
+2026-11-18T07:40:06.6929213Z ##[group]Removing auth
+2026-11-18T07:40:06.6934601Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-18T07:40:06.6975736Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-18T07:40:06.7271733Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-18T07:40:06.7294290Z http.https://github.com/.extraheader
+2026-11-18T07:40:06.7301711Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-11-18T07:40:06.7361796Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-18T07:40:06.7609321Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-18T07:40:06.7671178Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-18T07:40:06.7904130Z ##[endgroup]
+2026-11-18T07:40:06.8134284Z ##[group]Run git config --global --add safe.directory "$GITHUB_WORKSPACE"
+2026-11-18T07:40:06.8134869Z [36;1mgit config --global --add safe.directory "$GITHUB_WORKSPACE"[0m
+2026-11-18T07:40:06.8138252Z shell: sh -e {0}
+2026-11-18T07:40:06.8138472Z env:
+2026-11-18T07:40:06.8138650Z   E2E_PORT: 8895
+2026-11-18T07:40:06.8138891Z   NODE_OPTIONS: --dns-result-order=ipv4first
+2026-11-18T07:40:06.8139176Z ##[endgroup]
+2026-11-18T07:40:06.8844158Z ##[group]Run actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+2026-11-18T07:40:06.8844572Z with:
+2026-11-18T07:40:06.8844788Z   node-version-file: .nvmrc
+2026-11-18T07:40:06.8845023Z   cache: npm
+2026-11-18T07:40:06.8845217Z   always-auth: false
+2026-11-18T07:40:06.8845428Z   check-latest: false
+2026-11-18T07:40:06.8847885Z   token: ***
+2026-11-18T07:40:06.8848102Z   package-manager-cache: true
+2026-11-18T07:40:06.8848358Z env:
+2026-11-18T07:40:06.8848531Z   E2E_PORT: 8895
+2026-11-18T07:40:06.8848761Z   NODE_OPTIONS: --dns-result-order=ipv4first
+2026-11-18T07:40:06.8849056Z ##[endgroup]
+2026-11-18T07:40:06.8855859Z ##[command]/usr/bin/docker exec  407eeef93f0d9b677ca431d1370472d3d2c60885daf5ddab02cf903c1e08e7b7 sh -c "cat /etc/*release | grep ^ID"
+2026-11-18T07:40:07.1325065Z Node version file is not JSON file
+2026-11-18T07:40:07.1327187Z Resolved .nvmrc as 24.22.1
+2026-11-18T07:40:07.1347720Z Attempting to download 24.22.1...
+2026-11-18T07:40:07.1509781Z (node:240) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-11-18T07:40:07.1511157Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-11-18T07:40:07.9789048Z Acquiring 24.22.1 - x64 from https://github.com/actions/node-versions/releases/download/24.22.1-39619001896/node-24.22.1-linux-x64.tar.gz
+2026-11-18T07:40:08.4786096Z Extracting ...
+2026-11-18T07:40:08.4908754Z [command]/usr/bin/tar xz --strip 1 --warning=no-unknown-keyword --overwrite -C /__w/_temp/8abd56c9-08d8-44fc-9b53-e1a3ca8fe7e3 -f /__w/_temp/0216abf5-d2c5-4221-be85-c3c24971e8fb
+2026-11-18T07:40:09.7893538Z Adding to the cache ...
+2026-11-18T07:40:11.6354550Z ##[group]Environment details
+2026-11-18T07:40:11.8585791Z node: v24.22.1
+2026-11-18T07:40:11.8586200Z npm: 11.19.1
+2026-11-18T07:40:11.8586445Z yarn: 1.22.22
+2026-11-18T07:40:11.8586933Z ##[endgroup]
+2026-11-18T07:40:11.8603722Z [command]/__t/node/24.22.1/x64/bin/npm config get cache
+2026-11-18T07:40:11.9638152Z /github/home/.npm
+2026-11-18T07:40:12.2581169Z Cache hit for: node-cache-Linux-x64-npm-42e6dd7e2379c8bcd5b81ae067a584d49faa22f9ebc67c9a02ff47bbe86daea6
+2026-11-18T07:40:12.2700030Z (node:240) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-11-18T07:40:14.3792713Z Received 17705057 of 17705057 (100.0%), 16.8 MBs/sec
+2026-11-18T07:40:14.3793359Z Cache Size: ~17 MB (17705057 B)
+2026-11-18T07:40:14.3809543Z [command]/usr/bin/tar -xf /__w/_temp/a170e916-cfa5-4488-97a9-bc2bd8d78520/cache.tgz -P -C /__w/north-foster-farm/north-foster-farm -z
+2026-11-18T07:40:14.5336028Z Cache restored successfully
+2026-11-18T07:40:14.5348491Z Cache restored from key: node-cache-Linux-x64-npm-42e6dd7e2379c8bcd5b81ae067a584d49faa22f9ebc67c9a02ff47bbe86daea6
+2026-11-18T07:40:14.5572344Z ##[group]Run npm ci
+2026-11-18T07:40:14.5572631Z [36;1mnpm ci[0m
+2026-11-18T07:40:14.5573110Z shell: sh -e {0}
+2026-11-18T07:40:14.5573316Z env:
+2026-11-18T07:40:14.5573501Z   E2E_PORT: 8895
+2026-11-18T07:40:14.5573743Z   NODE_OPTIONS: --dns-result-order=ipv4first
+2026-11-18T07:40:14.5574041Z ##[endgroup]
+2026-11-18T07:40:17.6599791Z 
+2026-11-18T07:40:17.6608463Z > north-foster-farm@1.0.0 prepare
+2026-11-18T07:40:17.6609385Z > git config core.hooksPath .githooks 2>/dev/null || true
+2026-11-18T07:40:17.6610118Z 
+2026-11-18T07:40:17.7004430Z 
+2026-11-18T07:40:17.7005341Z added 305 packages, and audited 306 packages in 3s
+2026-11-18T07:40:17.7005800Z 
+2026-11-18T07:40:17.7006435Z 89 packages are looking for funding
+2026-11-18T07:40:17.7008202Z   run `npm fund` for details
+2026-11-18T07:40:17.7130682Z 
+2026-11-18T07:40:17.7131025Z 15 high severity vulnerabilities
+2026-11-18T07:40:17.7131373Z 
+2026-11-18T07:40:17.7131797Z To address all issues (including breaking changes), run:
+2026-11-18T07:40:17.7132536Z   npm audit fix --force
+2026-11-18T07:40:17.7132801Z 
+2026-11-18T07:40:17.7133038Z Run `npm audit` for details.
+2026-11-18T07:40:17.7996594Z Prepare all required actions
+2026-11-18T07:40:17.8040291Z ##[group]Run ./.github/actions/setup-hugo
+2026-11-18T07:40:17.8040597Z env:
+2026-11-18T07:40:17.8040789Z   E2E_PORT: 8895
+2026-11-18T07:40:17.8041042Z   NODE_OPTIONS: --dns-result-order=ipv4first
+2026-11-18T07:40:17.8041338Z ##[endgroup]
+2026-11-18T07:40:17.8096189Z ##[start-action display=Install Hugo and Dart Sass;id=__self.__run]
+2026-11-18T07:40:17.8120705Z ##[group]Run set -euo pipefail
+2026-11-18T07:40:17.8121010Z [36;1mset -euo pipefail[0m
+2026-11-18T07:40:17.8121276Z [36;1mtools="$RUNNER_TEMP/tools"[0m
+2026-11-18T07:40:17.8121557Z [36;1mmkdir -p "$tools"[0m
+2026-11-18T07:40:17.8121795Z [36;1mcd "$RUNNER_TEMP"[0m
+2026-11-18T07:40:17.8122125Z [36;1mbase=https://github.com/gohugoio/hugo/releases/download[0m
+2026-11-18T07:40:17.8122561Z [36;1mhugo="hugo_extended_${HUGO_VERSION}_linux-amd64.tar.gz"[0m
+2026-11-18T07:40:17.8122974Z [36;1mcurl -fsSL -o hugo.tgz "$base/v$HUGO_VERSION/$hugo"[0m
+2026-11-18T07:40:17.8123403Z [36;1mecho "$HUGO_SHA256  hugo.tgz" | sha256sum -c -[0m
+2026-11-18T07:40:17.8123741Z [36;1mtar -xzf hugo.tgz -C "$tools" hugo[0m
+2026-11-18T07:40:17.8124114Z [36;1mbase=https://github.com/sass/dart-sass/releases/download[0m
+2026-11-18T07:40:17.8124536Z [36;1msass="dart-sass-${SASS_VERSION}-linux-x64.tar.gz"[0m
+2026-11-18T07:40:17.8124919Z [36;1mcurl -fsSL -o sass.tgz "$base/$SASS_VERSION/$sass"[0m
+2026-11-18T07:40:17.8125285Z [36;1mecho "$SASS_SHA256  sass.tgz" | sha256sum -c -[0m
+2026-11-18T07:40:17.8125593Z [36;1mtar -xzf sass.tgz[0m
+2026-11-18T07:40:17.8125843Z [36;1mcp -r dart-sass/* "$tools"[0m
+2026-11-18T07:40:17.8126123Z [36;1mecho "$tools" >> "$GITHUB_PATH"[0m
+2026-11-18T07:40:17.8127747Z shell: bash --noprofile --norc -e -o pipefail {0}
+2026-11-18T07:40:17.8128066Z env:
+2026-11-18T07:40:17.8128255Z   E2E_PORT: 8895
+2026-11-18T07:40:17.8128495Z   NODE_OPTIONS: --dns-result-order=ipv4first
+2026-11-18T07:40:17.8128794Z   HUGO_VERSION: 0.164.0
+2026-11-18T07:40:17.8129159Z   HUGO_SHA256: fea17b8c076f950bb2e9f9486667bdaa29422883888d509d63931c73e8a9b3a4
+2026-11-18T07:40:17.8129579Z   SASS_VERSION: 1.79.5
+2026-11-18T07:40:17.8130095Z   SASS_SHA256: a2a776abc777f2b8594b7410c2d057d7aa7a9090b55ed20382eea72cde6a10ce
+2026-11-18T07:40:17.8130504Z ##[endgroup]
+2026-11-18T07:40:18.2346130Z hugo.tgz: OK
+2026-11-18T07:40:18.8605533Z sass.tgz: OK
+2026-11-18T07:40:18.9393696Z ##[end-action id=__self.__run;outcome=success;conclusion=success;duration_ms=1129]
+2026-11-18T07:40:18.9466931Z Prepare all required actions
+2026-11-18T07:40:18.9517482Z ##[group]Run ./.github/actions/setup-playwright
+2026-11-18T07:40:18.9517796Z with:
+2026-11-18T07:40:18.9517992Z   browsers: chromium webkit
+2026-11-18T07:40:18.9518215Z env:
+2026-11-18T07:40:18.9518395Z   E2E_PORT: 8895
+2026-11-18T07:40:18.9518810Z   NODE_OPTIONS: --dns-result-order=ipv4first
+2026-11-18T07:40:18.9519211Z ##[endgroup]
+2026-11-18T07:40:18.9545465Z ##[start-action display=Browsers;id=__self_2.__run]
+2026-11-18T07:40:18.9561920Z ##[group]Run # shellcheck disable=SC2086
+2026-11-18T07:40:18.9562265Z [36;1m# shellcheck disable=SC2086[0m
+2026-11-18T07:40:18.9562653Z [36;1mtimeout --kill-after=15s 5m npx playwright install $BROWSERS[0m
+2026-11-18T07:40:18.9563190Z shell: bash --noprofile --norc -e -o pipefail {0}
+2026-11-18T07:40:18.9563487Z env:
+2026-11-18T07:40:18.9563668Z   E2E_PORT: 8895
+2026-11-18T07:40:18.9563906Z   NODE_OPTIONS: --dns-result-order=ipv4first
+2026-11-18T07:40:18.9564415Z   BROWSERS: chromium webkit
+2026-11-18T07:40:18.9564649Z ##[endgroup]
+2026-11-18T07:40:20.0616215Z ##[end-action id=__self_2.__run;outcome=success;conclusion=success;duration_ms=1107]
+2026-11-18T07:40:20.0622399Z ##[start-action display=Check the browsers launch;id=__self_2.launch]
+2026-11-18T07:40:20.0641703Z ##[group]Run missing=0
+2026-11-18T07:40:20.0641958Z [36;1mmissing=0[0m
+2026-11-18T07:40:20.0642178Z [36;1mfor b in $BROWSERS; do[0m
+2026-11-18T07:40:20.0642494Z [36;1m  js="require('@playwright/test')['$b'].launch()"[0m
+2026-11-18T07:40:20.0642870Z [36;1m  if node -e "$js.then(x => x.close())" \[0m
+2026-11-18T07:40:20.0643193Z [36;1m    > "$RUNNER_TEMP/launch-$b.log" 2>&1[0m
+2026-11-18T07:40:20.0643506Z [36;1m  then echo "$b launches"[0m
+2026-11-18T07:40:20.0643837Z [36;1m  else echo "$b needs system libraries"; missing=1; fi[0m
+2026-11-18T07:40:20.0644171Z [36;1mdone[0m
+2026-11-18T07:40:20.0644415Z [36;1mecho "missing=$missing" >> "$GITHUB_OUTPUT"[0m
+2026-11-18T07:40:20.0644988Z shell: bash --noprofile --norc -e -o pipefail {0}
+2026-11-18T07:40:20.0645300Z env:
+2026-11-18T07:40:20.0645486Z   E2E_PORT: 8895
+2026-11-18T07:40:20.0645726Z   NODE_OPTIONS: --dns-result-order=ipv4first
+2026-11-18T07:40:20.0646043Z   BROWSERS: chromium webkit
+2026-11-18T07:40:20.0646281Z ##[endgroup]
+2026-11-18T07:40:20.6872914Z chromium launches
+2026-11-18T07:40:21.4539403Z webkit launches
+2026-11-18T07:40:21.4602372Z ##[end-action id=__self_2.launch;outcome=success;conclusion=success;duration_ms=1397]
+2026-11-18T07:40:21.4605763Z ##[start-action display=System libraries;id=__self_2.__run_2]
+2026-11-18T07:40:21.4612627Z ##[end-action id=__self_2.__run_2;outcome=skipped;conclusion=skipped;duration_ms=0]
+2026-11-18T07:40:21.4639785Z ##[group]Run token=$(openssl rand -hex 24)
+2026-11-18T07:40:21.4640425Z [36;1mtoken=$(openssl rand -hex 24)[0m
+2026-11-18T07:40:21.4640727Z [36;1mecho "::add-mask::$token"[0m
+2026-11-18T07:40:21.4641046Z [36;1mecho "E2E_STAGING_TOKEN=$token" >> "$GITHUB_ENV"[0m
+2026-11-18T07:40:21.4641609Z shell: sh -e {0}
+2026-11-18T07:40:21.4641815Z env:
+2026-11-18T07:40:21.4642004Z   E2E_PORT: 8895
+2026-11-18T07:40:21.4642241Z   NODE_OPTIONS: --dns-result-order=ipv4first
+2026-11-18T07:40:21.4642540Z ##[endgroup]
+2026-11-18T07:40:21.5320629Z ##[group]Run serve() {
+2026-11-18T07:40:21.5320963Z [36;1mserve() {[0m
+2026-11-18T07:40:21.5321265Z [36;1m  node bin/e2e/serve.mjs --port "$E2E_PORT" \[0m
+2026-11-18T07:40:21.5321632Z [36;1m    > "$RUNNER_TEMP/serve-$1.log" 2>&1 &[0m
+2026-11-18T07:40:21.5321928Z [36;1m  server=$![0m
+2026-11-18T07:40:21.5322154Z [36;1m  for _ in $(seq 1 180); do[0m
+2026-11-18T07:40:21.5322491Z [36;1m    if curl -fs -o /dev/null "$E2E_BASE_URL/api/dates"[0m
+2026-11-18T07:40:21.5322826Z [36;1m    then return 0; fi[0m
+2026-11-18T07:40:21.5323069Z [36;1m    sleep 1[0m
+2026-11-18T07:40:21.5323285Z [36;1m  done[0m
+2026-11-18T07:40:21.5323526Z [36;1m  tail -n 40 "$RUNNER_TEMP/serve-$1.log"[0m
+2026-11-18T07:40:21.5323823Z [36;1m  exit 1[0m
+2026-11-18T07:40:21.5324036Z [36;1m}[0m
+2026-11-18T07:40:21.5324222Z [36;1mfailed=0[0m
+2026-11-18T07:40:21.5324448Z [36;1mfor pass in $(seq 1 "$PASSES"); do[0m
+2026-11-18T07:40:21.5324753Z [36;1m  serve "$pass"[0m
+2026-11-18T07:40:21.5325100Z [36;1m  echo "::group::Pass $pass of $PASSES, shard $SHARD"[0m
+2026-11-18T07:40:21.5325450Z [36;1m  # shellcheck disable=SC2086[0m
+2026-11-18T07:40:21.5325838Z [36;1m  if PLAYWRIGHT_HTML_OUTPUT_DIR="playwright-report/pass-$pass" \[0m
+2026-11-18T07:40:21.5326312Z [36;1m    npx playwright test --retries=0 --workers="$WORKERS" \[0m
+2026-11-18T07:40:21.5326715Z [36;1m    --shard="$SHARD" --reporter=list,html $ARGS[0m
+2026-11-18T07:40:21.5327131Z [36;1m  then result=passed; else result=failed; failed=$((failed + 1))[0m
+2026-11-18T07:40:21.5327492Z [36;1m  fi[0m
+2026-11-18T07:40:21.5327705Z [36;1m  echo "::endgroup::"[0m
+2026-11-18T07:40:21.5327961Z [36;1m  echo "Pass $pass: $result"[0m
+2026-11-18T07:40:21.5328228Z [36;1m  kill "$server"[0m
+2026-11-18T07:40:21.5328685Z [36;1m  wait "$server" 2>/dev/null || true[0m
+2026-11-18T07:40:21.5328964Z [36;1mdone[0m
+2026-11-18T07:40:21.5329192Z [36;1mif [ "$failed" -eq 0 ]; then exit 0; fi[0m
+2026-11-18T07:40:21.5329514Z [36;1mif [ "$failed" -lt "$PASSES" ]; then[0m
+2026-11-18T07:40:21.5330129Z [36;1m  echo "::error title=e2e flake::A pass and a fail on one" \[0m
+2026-11-18T07:40:21.5330628Z [36;1m    "commit. The flaky test fails the check; fix it or remove it."[0m
+2026-11-18T07:40:21.5330993Z [36;1mfi[0m
+2026-11-18T07:40:21.5331181Z [36;1mexit 1[0m
+2026-11-18T07:40:21.5331459Z shell: sh -e {0}
+2026-11-18T07:40:21.5331668Z env:
+2026-11-18T07:40:21.5331853Z   E2E_PORT: 8895
+2026-11-18T07:40:21.5332092Z   NODE_OPTIONS: --dns-result-order=ipv4first
+2026-11-18T07:40:21.5332739Z   E2E_STAGING_TOKEN: ***
+2026-11-18T07:40:21.5333038Z   E2E_BASE_URL: http://localhost:8895
+2026-11-18T07:40:21.5333316Z   PASSES: 1
+2026-11-18T07:40:21.5333933Z   ARGS: e2e/membership.spec.mjs e2e/membership-layout.spec.mjs e2e/account.spec.mjs e2e/keep-together.spec.mjs e2e/overflow.spec.mjs e2e/keyboard.spec.mjs
+2026-11-18T07:40:21.5334610Z   SHARD: 1/1
+2026-11-18T07:40:21.5334802Z   WORKERS: 2
+2026-11-18T07:40:21.5335013Z   PLAYWRIGHT_HTML_OPEN: never
+2026-11-18T07:40:21.5335274Z ##[endgroup]
+2026-11-18T07:40:55.9734143Z ##[group]Pass 1 of 1, shard 1/1
+2026-11-18T07:40:57.3009596Z 
+2026-11-18T07:40:57.3010554Z Running 201 tests using 2 workers, shard 1 of 1
+2026-11-18T07:40:57.3011037Z 
+2026-11-18T07:40:59.2864050Z   ✓    1 [desktop] › e2e/keep-together.spec.mjs:37:1 › the Membership tab's joined words keep their space (1.3s)
+2026-11-18T07:41:00.9237543Z   ✓    2 [desktop] › e2e/account.spec.mjs:48:3 › accounts › a link by email signs in, once @regression (2.3s)
+2026-11-18T07:41:01.9339311Z   ✓    4 [desktop] › e2e/account.spec.mjs:88:3 › accounts › the account page lists the order and its receipt (961ms)
+2026-11-18T07:41:17.1511335Z   ✓    5 [desktop] › e2e/account.spec.mjs:132:3 › sign-in links are rate limited › a fourth link is refused quietly, the first three kept (15.2s)
+2026-11-18T07:41:18.2834443Z   ✓    6 [desktop] › e2e/account.spec.mjs:205:3 › the Account menu on a desktop › a hover opens it and leaving closes it (1.1s)
+2026-11-18T07:41:20.0605776Z   ✓    7 [desktop] › e2e/account.spec.mjs:216:3 › the Account menu on a desktop › a click on a hover-opened menu keeps it open until clicked again (1.8s)
+2026-11-18T07:41:21.7288928Z   ✓    8 [desktop] › e2e/account.spec.mjs:238:5 › the Account menu on a desktop › a kept menu closes on a click away (1.6s)
+2026-11-18T07:41:23.4432332Z   ✓    9 [desktop] › e2e/account.spec.mjs:238:5 › the Account menu on a desktop › a kept menu closes on Escape (1.7s)
+2026-11-18T07:41:24.1664199Z   ✓   10 [desktop] › e2e/account.spec.mjs:285:3 › a scheduled pickup on the account page › the card names the way, the place and the window (702ms)
+2026-11-18T07:41:26.2695703Z   ✓   11 [desktop] › e2e/account.spec.mjs:307:3 › a scheduled pickup on the account page › Change this pickup lists every open occurrence and posts the one chosen (2.1s)
+2026-11-18T07:41:26.8614697Z   ✓   12 [desktop] › e2e/account.spec.mjs:361:3 › a scheduled pickup on the account page › an occurrence that no longer resolves says to get in touch (577ms)
+2026-11-18T07:41:27.4478625Z   ✓   13 [desktop] › e2e/account.spec.mjs:381:3 › a scheduled pickup on the account page › a denied address points to scheduled pickup (draft) (574ms)
+2026-11-18T07:41:28.1709311Z   ✓   14 [desktop] › e2e/membership-layout.spec.mjs:68:3 › a round on the Membership tab (#602) › sets the date bold and the window regular (694ms)
+2026-11-18T07:41:28.7986444Z   ✓   15 [desktop] › e2e/membership-layout.spec.mjs:80:3 › a round on the Membership tab (#602) › puts the second line under the first, smaller and gray (613ms)
+2026-11-18T07:41:29.4212778Z   ✓   16 [desktop] › e2e/membership-layout.spec.mjs:94:5 › a round on the Membership tab (#602) › keeps the date and window whole, the pill first, at 1280 px (610ms)
+2026-11-18T07:41:29.9882033Z   ✓   17 [desktop] › e2e/membership-layout.spec.mjs:94:5 › a round on the Membership tab (#602) › keeps the date and window whole, the pill first, at 768 px (551ms)
+2026-11-18T07:41:30.5251792Z   ✓   18 [desktop] › e2e/membership-layout.spec.mjs:94:5 › a round on the Membership tab (#602) › keeps the date and window whole, the pill first, at 390 px (521ms)
+2026-11-18T07:41:31.0894521Z   ✓   19 [desktop] › e2e/membership-layout.spec.mjs:94:5 › a round on the Membership tab (#602) › keeps the date and window whole, the pill first, at 320 px (550ms)
+2026-11-18T07:41:31.2869285Z   -   20 [desktop] › e2e/membership-layout.spec.mjs:94:5 › a round on the Membership tab (#602) › keeps the date and window whole, the pill first, at its own width
+2026-11-18T07:41:32.1525821Z   ✓   21 [desktop] › e2e/membership-layout.spec.mjs:124:3 › a round on the Membership tab (#602) › breaks the first line at the dot when it must wrap (850ms)
+2026-11-18T07:41:32.7528216Z   ✓   22 [desktop] › e2e/membership-layout.spec.mjs:174:5 › a round on the Membership tab (#602) › sets two rounds side by side at 992 px (586ms)
+2026-11-18T07:41:33.3843129Z   ✓   23 [desktop] › e2e/membership-layout.spec.mjs:174:5 › a round on the Membership tab (#602) › sets two rounds side by side at 1280 px (619ms)
+2026-11-18T07:41:33.9933668Z   ✓   24 [desktop] › e2e/membership-layout.spec.mjs:192:5 › a round on the Membership tab (#602) › stacks the rounds at 768 px (596ms)
+2026-11-18T07:41:34.5212485Z   ✓   25 [desktop] › e2e/membership-layout.spec.mjs:192:5 › a round on the Membership tab (#602) › stacks the rounds at 390 px (515ms)
+2026-11-18T07:41:35.0289551Z   ✓   26 [desktop] › e2e/membership-layout.spec.mjs:192:5 › a round on the Membership tab (#602) › stacks the rounds at 320 px (495ms)
+2026-11-18T07:41:35.1880962Z   -   27 [desktop] › e2e/membership-layout.spec.mjs:192:5 › a round on the Membership tab (#602) › stacks the rounds at its own width
+2026-11-18T07:41:35.9054678Z   ✓   28 [desktop] › e2e/membership-layout.spec.mjs:210:3 › a round on the Membership tab (#602) › sets one round alone at the left (702ms)
+2026-11-18T07:41:36.5897289Z   ✓   29 [desktop] › e2e/membership-layout.spec.mjs:241:3 › the group on the Membership tab (#602) › the group's name is the account email's size, bold, the address one small gray line (672ms)
+2026-11-18T07:41:37.2206671Z   ✓   30 [desktop] › e2e/membership-layout.spec.mjs:279:3 › the group on the Membership tab (#602) › gives every section heading the host's space above it (617ms)
+2026-11-18T07:41:37.9738612Z   ✓   31 [desktop] › e2e/membership-layout.spec.mjs:329:3 › the group on the Membership tab (#602) › veils the QR code in white and centers Coming soon on it (733ms)
+2026-11-18T07:41:38.6727471Z   ✓   32 [desktop] › e2e/membership-layout.spec.mjs:463:3 › the Membership tab's section headings (#608) › gives each section heading more room above and less below (684ms)
+2026-11-18T07:41:39.3658788Z   ✓   33 [desktop] › e2e/membership-layout.spec.mjs:494:3 › the Membership tab's section headings (#608) › fills the host's Download QR code button (673ms)
+2026-11-18T07:41:40.6712699Z   ✓   34 [desktop] › e2e/membership-layout.spec.mjs:642:3 › the account head (#608) › shows no group name in the head, for a member and a host (1.3s)
+2026-11-18T07:41:42.4793685Z   ✓   35 [desktop] › e2e/membership-layout.spec.mjs:671:3 › the account head (#608) › puts the credit on the Sign out line after a separator, or Sign out alone (1.8s)
+2026-11-18T07:41:42.9692479Z   ✓   36 [desktop] › e2e/membership-layout.spec.mjs:737:5 › the account head's email address (#601) › keeps a short address on one line at 390 px (476ms)
+2026-11-18T07:41:43.4435165Z   ✓   37 [desktop] › e2e/membership-layout.spec.mjs:737:5 › the account head's email address (#601) › keeps a short address on one line at 320 px (460ms)
+2026-11-18T07:41:43.5830007Z   -   38 [desktop] › e2e/membership-layout.spec.mjs:737:5 › the account head's email address (#601) › keeps a short address on one line at its own width
+2026-11-18T07:41:44.0816554Z   ✓   39 [desktop] › e2e/membership-layout.spec.mjs:783:7 › an address too long for one line (#601) › breaks a 24-character address only before the @ or a dot at 320 px (486ms)
+2026-11-18T07:41:44.6458040Z   ✓   40 [desktop] › e2e/membership-layout.spec.mjs:783:7 › an address too long for one line (#601) › breaks a 31-character address only before the @ or a dot at 320 px (548ms)
+2026-11-18T07:41:45.1517331Z   ✓   41 [desktop] › e2e/membership-layout.spec.mjs:783:7 › an address too long for one line (#601) › breaks a 24-character address only before the @ or a dot at 360 px (494ms)
+2026-11-18T07:41:45.6354961Z   ✓   42 [desktop] › e2e/membership-layout.spec.mjs:783:7 › an address too long for one line (#601) › breaks a 31-character address only before the @ or a dot at 360 px (471ms)
+2026-11-18T07:41:46.1254837Z   ✓   43 [desktop] › e2e/membership-layout.spec.mjs:783:7 › an address too long for one line (#601) › breaks a 24-character address only before the @ or a dot at 390 px (473ms)
+2026-11-18T07:41:46.6376590Z   ✓   44 [desktop] › e2e/membership-layout.spec.mjs:783:7 › an address too long for one line (#601) › breaks a 31-character address only before the @ or a dot at 390 px (499ms)
+2026-11-18T07:41:47.7121271Z   ✓   45 [desktop] › e2e/membership.spec.mjs:25:3 › a member of one group who hosts another › sees both, and the host's part acts on the hosted group (1.1s)
+2026-11-18T07:41:48.4728893Z   ✓   46 [desktop] › e2e/membership.spec.mjs:94:3 › the rebuilt Membership tab (#602) › lists the group's sections in order (746ms)
+2026-11-18T07:41:49.0923836Z   ✓   47 [desktop] › e2e/membership.spec.mjs:120:3 › the rebuilt Membership tab (#602) › shows each round as two lines (606ms)
+2026-11-18T07:41:50.5664718Z   ✓   48 [desktop] › e2e/membership.spec.mjs:142:3 › the rebuilt Membership tab (#602) › makes the Open pill the order link, with no Order now button (1.5s)
+2026-11-18T07:41:51.6746441Z   ✓   49 [desktop] › e2e/membership.spec.mjs:236:3 › the rebuilt Membership tab (#602) › takes a member from the Open pill to the order page with the group applied (1.1s)
+2026-11-18T07:41:52.4180410Z   ✓   50 [desktop] › e2e/membership.spec.mjs:261:3 › the rebuilt Membership tab (#602) › drops what direction C took out (723ms)
+2026-11-18T07:41:53.1675617Z   ✓   51 [desktop] › e2e/membership.spec.mjs:279:3 › the rebuilt Membership tab (#602) › opens the Membership QR code with James's sentence as a paragraph (732ms)
+2026-11-18T07:41:53.8612773Z   ✓   52 [desktop] › e2e/membership.spec.mjs:307:3 › the rebuilt Membership tab (#602) › puts the meantime sentence in a countdown-style note after it (676ms)
+2026-11-18T07:41:54.6985222Z   ✓   53 [desktop] › e2e/membership.spec.mjs:371:3 › the rebuilt Membership tab (#602) › shows the Membership QR code as coming soon (807ms)
+2026-11-18T07:41:55.3873619Z   ✓   54 [desktop] › e2e/membership.spec.mjs:402:3 › the rebuilt Membership tab (#602) › has no no-break space anywhere (658ms)
+2026-11-18T07:41:56.1083889Z   ✓   55 [desktop] › e2e/membership.spec.mjs:432:1 › writes the closed round's line as Next pickup is its date (705ms)
+2026-11-18T07:41:56.8787804Z   ✓   56 [desktop] › e2e/membership.spec.mjs:446:1 › keeps the closed pickup first, until it has happened (755ms)
+2026-11-18T07:42:02.4894182Z   ✓   57 [desktop] › e2e/overflow.spec.mjs:92:5 › at 375px (#185) › every page fits (5.6s)
+2026-11-18T07:42:08.3842722Z   ✓   58 [desktop] › e2e/overflow.spec.mjs:105:5 › at 375px (#185) › every page fits before its images load (5.9s)
+2026-11-18T07:42:11.1533967Z   ✓   59 [desktop] › e2e/overflow.spec.mjs:120:5 › at 375px (#185) › the order page fits with a full cart (2.8s)
+2026-11-18T07:42:12.6147445Z   ✓   60 [desktop] › e2e/overflow.spec.mjs:135:5 › at 375px (#185) › search fits with results showing (1.4s)
+2026-11-18T07:42:13.3028346Z   ✓   61 [desktop] › e2e/overflow.spec.mjs:148:5 › at 375px (#185) › the account fits, signed in (659ms)
+2026-11-18T07:42:19.4450534Z   ✓   62 [desktop] › e2e/overflow.spec.mjs:92:5 › at 768px (#185) › every page fits (6.1s)
+2026-11-18T07:42:25.0191732Z   ✓   63 [desktop] › e2e/overflow.spec.mjs:105:5 › at 768px (#185) › every page fits before its images load (5.6s)
+2026-11-18T07:42:27.4614467Z   ✓   64 [desktop] › e2e/overflow.spec.mjs:120:5 › at 768px (#185) › the order page fits with a full cart (2.4s)
+2026-11-18T07:42:29.1871125Z   ✓   65 [desktop] › e2e/overflow.spec.mjs:135:5 › at 768px (#185) › search fits with results showing (1.7s)
+2026-11-18T07:42:29.9286164Z   ✓   66 [desktop] › e2e/overflow.spec.mjs:148:5 › at 768px (#185) › the account fits, signed in (723ms)
+2026-11-18T07:42:35.6838889Z   ✓   67 [desktop] › e2e/overflow.spec.mjs:92:5 › at 992px (#185) › every page fits (5.7s)
+2026-11-18T07:42:40.0532970Z   ✓    3 [desktop] › e2e/keyboard.spec.mjs:506:5 › keyboard at 1280px (#197) › every page tabs cleanly (1.7m)
+2026-11-18T07:42:41.4747079Z   ✓   68 [desktop] › e2e/overflow.spec.mjs:105:5 › at 992px (#185) › every page fits before its images load (5.8s)
+2026-11-18T07:42:43.8743414Z   ✓   70 [desktop] › e2e/overflow.spec.mjs:120:5 › at 992px (#185) › the order page fits with a full cart (2.4s)
+2026-11-18T07:42:45.5062563Z   ✓   71 [desktop] › e2e/overflow.spec.mjs:135:5 › at 992px (#185) › search fits with results showing (1.6s)
+2026-11-18T07:42:46.2467522Z   ✓   72 [desktop] › e2e/overflow.spec.mjs:148:5 › at 992px (#185) › the account fits, signed in (720ms)
+2026-11-18T07:42:51.8884259Z   ✓   73 [desktop] › e2e/overflow.spec.mjs:92:5 › at 1440px (#185) › every page fits (5.6s)
+2026-11-18T07:42:55.2272913Z   ✓   69 [desktop] › e2e/keyboard.spec.mjs:519:5 › keyboard at 1280px (#197) › the order page with a cart tabs cleanly (15.2s)
+2026-11-18T07:42:57.0101143Z   ✓   74 [desktop] › e2e/overflow.spec.mjs:105:5 › at 1440px (#185) › every page fits before its images load (5.1s)
+2026-11-18T07:42:59.5232416Z   ✓   76 [desktop] › e2e/overflow.spec.mjs:120:5 › at 1440px (#185) › the order page fits with a full cart (2.5s)
+2026-11-18T07:43:01.5099302Z   ✓   77 [desktop] › e2e/overflow.spec.mjs:135:5 › at 1440px (#185) › search fits with results showing (2.0s)
+2026-11-18T07:43:02.3035533Z   ✓   78 [desktop] › e2e/overflow.spec.mjs:148:5 › at 1440px (#185) › the account fits, signed in (779ms)
+2026-11-18T07:43:04.4134994Z   ✓   79 [phone] › e2e/keep-together.spec.mjs:37:1 › the Membership tab's joined words keep their space (1.2s)
+2026-11-18T07:43:05.5451892Z   ✓   80 [phone] › e2e/membership-layout.spec.mjs:68:3 › a round on the Membership tab (#602) › sets the date bold and the window regular (1.1s)
+2026-11-18T07:43:06.7766377Z   ✓   81 [phone] › e2e/membership-layout.spec.mjs:80:3 › a round on the Membership tab (#602) › puts the second line under the first, smaller and gray (1.2s)
+2026-11-18T07:43:07.2216724Z   -   82 [phone] › e2e/membership-layout.spec.mjs:94:5 › a round on the Membership tab (#602) › keeps the date and window whole, the pill first, at 1280 px
+2026-11-18T07:43:07.6121194Z   -   83 [phone] › e2e/membership-layout.spec.mjs:94:5 › a round on the Membership tab (#602) › keeps the date and window whole, the pill first, at 768 px
+2026-11-18T07:43:08.0174193Z   -   84 [phone] › e2e/membership-layout.spec.mjs:94:5 › a round on the Membership tab (#602) › keeps the date and window whole, the pill first, at 390 px
+2026-11-18T07:43:09.0676139Z   ✓   85 [phone] › e2e/membership-layout.spec.mjs:94:5 › a round on the Membership tab (#602) › keeps the date and window whole, the pill first, at 320 px (1.0s)
+2026-11-18T07:43:10.1888141Z   ✓   86 [phone] › e2e/membership-layout.spec.mjs:94:5 › a round on the Membership tab (#602) › keeps the date and window whole, the pill first, at its own width (1.1s)
+2026-11-18T07:43:11.3271084Z   ✓   87 [phone] › e2e/membership-layout.spec.mjs:124:3 › a round on the Membership tab (#602) › breaks the first line at the dot when it must wrap (1.1s)
+2026-11-18T07:43:11.7337959Z   -   88 [phone] › e2e/membership-layout.spec.mjs:174:5 › a round on the Membership tab (#602) › sets two rounds side by side at 992 px
+2026-11-18T07:43:12.1320222Z   -   89 [phone] › e2e/membership-layout.spec.mjs:174:5 › a round on the Membership tab (#602) › sets two rounds side by side at 1280 px
+2026-11-18T07:43:12.5138803Z   -   90 [phone] › e2e/membership-layout.spec.mjs:192:5 › a round on the Membership tab (#602) › stacks the rounds at 768 px
+2026-11-18T07:43:12.9104621Z   -   91 [phone] › e2e/membership-layout.spec.mjs:192:5 › a round on the Membership tab (#602) › stacks the rounds at 390 px
+2026-11-18T07:43:13.9320059Z   ✓   92 [phone] › e2e/membership-layout.spec.mjs:192:5 › a round on the Membership tab (#602) › stacks the rounds at 320 px (1.0s)
+2026-11-18T07:43:14.6115859Z   ✓   75 [desktop] › e2e/keyboard.spec.mjs:535:5 › keyboard at 1280px (#197) › the account tabs cleanly, signed in (19.4s)
+2026-11-18T07:43:15.1062351Z   ✓   93 [phone] › e2e/membership-layout.spec.mjs:192:5 › a round on the Membership tab (#602) › stacks the rounds at its own width (1.2s)
+2026-11-18T07:43:16.1063327Z   ✓   94 [desktop] › e2e/keyboard.spec.mjs:549:5 › keyboard at 1280px (#197) › Escape closes search (1.5s)
+2026-11-18T07:43:16.3544856Z   ✓   95 [phone] › e2e/membership-layout.spec.mjs:210:3 › a round on the Membership tab (#602) › sets one round alone at the left (1.2s)
+2026-11-18T07:43:17.0425268Z   -   96 [desktop] › e2e/keyboard.spec.mjs:561:5 › keyboard at 1280px (#197) › Escape closes the site menu
+2026-11-18T07:43:17.6587728Z   ✓   97 [phone] › e2e/membership-layout.spec.mjs:241:3 › the group on the Membership tab (#602) › the group's name is the account email's size, bold, the address one small gray line (1.3s)
+2026-11-18T07:43:18.0408331Z   ✓   98 [desktop] › e2e/keyboard.spec.mjs:575:5 › keyboard at 1280px (#197) › Escape closes the account menu (980ms)
+2026-11-18T07:43:18.8094009Z   ✓   99 [phone] › e2e/membership-layout.spec.mjs:279:3 › the group on the Membership tab (#602) › gives every section heading the host's space above it (1.1s)
+2026-11-18T07:43:19.8557973Z   ✓  101 [phone] › e2e/membership-layout.spec.mjs:329:3 › the group on the Membership tab (#602) › veils the QR code in white and centers Coming soon on it (1.0s)
+2026-11-18T07:43:20.3609464Z   -  100 [desktop] › e2e/keyboard.spec.mjs:593:5 › keyboard at 1280px (#197) › Escape folds the order page's floating cart
+2026-11-18T07:43:21.0022388Z   ✓  102 [phone] › e2e/membership-layout.spec.mjs:463:3 › the Membership tab's section headings (#608) › gives each section heading more room above and less below (1.1s)
+2026-11-18T07:43:22.0624558Z   ✓  104 [phone] › e2e/membership-layout.spec.mjs:494:3 › the Membership tab's section headings (#608) › fills the host's Download QR code button (1.0s)
+2026-11-18T07:43:23.3613929Z   ✓  105 [phone] › e2e/membership-layout.spec.mjs:642:3 › the account head (#608) › shows no group name in the head, for a member and a host (1.3s)
+2026-11-18T07:43:25.2525038Z   ✓  106 [phone] › e2e/membership-layout.spec.mjs:671:3 › the account head (#608) › puts the credit on the Sign out line after a separator, or Sign out alone (1.9s)
+2026-11-18T07:43:25.6467389Z   -  107 [phone] › e2e/membership-layout.spec.mjs:737:5 › the account head's email address (#601) › keeps a short address on one line at 390 px
+2026-11-18T07:43:26.6490043Z   ✓  108 [phone] › e2e/membership-layout.spec.mjs:737:5 › the account head's email address (#601) › keeps a short address on one line at 320 px (989ms)
+2026-11-18T07:43:27.7547721Z   ✓  109 [phone] › e2e/membership-layout.spec.mjs:737:5 › the account head's email address (#601) › keeps a short address on one line at its own width (1.1s)
+2026-11-18T07:43:28.7441285Z   ✓  110 [phone] › e2e/membership-layout.spec.mjs:783:7 › an address too long for one line (#601) › breaks a 24-character address only before the @ or a dot at 320 px (976ms)
+2026-11-18T07:43:29.7355107Z   ✓  111 [phone] › e2e/membership-layout.spec.mjs:783:7 › an address too long for one line (#601) › breaks a 31-character address only before the @ or a dot at 320 px (975ms)
+2026-11-18T07:43:30.9077032Z   ✓  112 [phone] › e2e/membership-layout.spec.mjs:783:7 › an address too long for one line (#601) › breaks a 24-character address only before the @ or a dot at 360 px (1.1s)
+2026-11-18T07:43:31.9862551Z   ✓  113 [phone] › e2e/membership-layout.spec.mjs:783:7 › an address too long for one line (#601) › breaks a 31-character address only before the @ or a dot at 360 px (1.1s)
+2026-11-18T07:43:33.0441435Z   ✓  114 [phone] › e2e/membership-layout.spec.mjs:783:7 › an address too long for one line (#601) › breaks a 24-character address only before the @ or a dot at 390 px (1.0s)
+2026-11-18T07:43:34.1422419Z   ✓  115 [phone] › e2e/membership-layout.spec.mjs:783:7 › an address too long for one line (#601) › breaks a 31-character address only before the @ or a dot at 390 px (1.1s)
+2026-11-18T07:43:35.4462494Z   ✓  116 [phone] › e2e/membership.spec.mjs:25:3 › a member of one group who hosts another › sees both, and the host's part acts on the hosted group (1.3s)
+2026-11-18T07:43:36.5881989Z   ✓  117 [phone] › e2e/membership.spec.mjs:94:3 › the rebuilt Membership tab (#602) › lists the group's sections in order (1.1s)
+2026-11-18T07:43:37.7020346Z   ✓  118 [phone] › e2e/membership.spec.mjs:120:3 › the rebuilt Membership tab (#602) › shows each round as two lines (1.1s)
+2026-11-18T07:43:39.4392669Z   ✓  119 [phone] › e2e/membership.spec.mjs:142:3 › the rebuilt Membership tab (#602) › makes the Open pill the order link, with no Order now button (1.7s)
+2026-11-18T07:43:41.3517580Z   ✓  120 [phone] › e2e/membership.spec.mjs:236:3 › the rebuilt Membership tab (#602) › takes a member from the Open pill to the order page with the group applied (1.9s)
+2026-11-18T07:43:42.4274788Z   ✓  121 [phone] › e2e/membership.spec.mjs:261:3 › the rebuilt Membership tab (#602) › drops what direction C took out (1.1s)
+2026-11-18T07:43:43.5732210Z   ✓  122 [phone] › e2e/membership.spec.mjs:279:3 › the rebuilt Membership tab (#602) › opens the Membership QR code with James's sentence as a paragraph (1.1s)
+2026-11-18T07:43:44.6793242Z   ✓  123 [phone] › e2e/membership.spec.mjs:307:3 › the rebuilt Membership tab (#602) › puts the meantime sentence in a countdown-style note after it (1.1s)
+2026-11-18T07:43:45.8452058Z   ✓  124 [phone] › e2e/membership.spec.mjs:371:3 › the rebuilt Membership tab (#602) › shows the Membership QR code as coming soon (1.1s)
+2026-11-18T07:43:46.8773964Z   ✓  125 [phone] › e2e/membership.spec.mjs:402:3 › the rebuilt Membership tab (#602) › has no no-break space anywhere (1.0s)
+2026-11-18T07:43:47.9326712Z   ✓  126 [phone] › e2e/membership.spec.mjs:432:1 › writes the closed round's line as Next pickup is its date (1.0s)
+2026-11-18T07:43:49.0911948Z   ✓  127 [phone] › e2e/membership.spec.mjs:446:1 › keeps the closed pickup first, until it has happened (1.1s)
+2026-11-18T07:43:51.7435493Z   ✓  128 [iphone] › e2e/keep-together.spec.mjs:37:1 › the Membership tab's joined words keep their space (1.9s)
+2026-11-18T07:44:51.6306401Z   ✓  103 [desktop] › e2e/keyboard.spec.mjs:506:5 › keyboard at 390px (#197) › every page tabs cleanly (1.5m)
+2026-11-18T07:45:03.9646808Z   ✓  130 [desktop] › e2e/keyboard.spec.mjs:519:5 › keyboard at 390px (#197) › the order page with a cart tabs cleanly (12.3s)
+2026-11-18T07:45:22.1043884Z   ✓  131 [desktop] › e2e/keyboard.spec.mjs:535:5 › keyboard at 390px (#197) › the account tabs cleanly, signed in (18.1s)
+2026-11-18T07:45:23.1962860Z   ✓  132 [desktop] › e2e/keyboard.spec.mjs:549:5 › keyboard at 390px (#197) › Escape closes search (1.1s)
+2026-11-18T07:45:25.2750470Z   ✓  133 [desktop] › e2e/keyboard.spec.mjs:561:5 › keyboard at 390px (#197) › Escape closes the site menu (2.1s)
+2026-11-18T07:45:26.0515659Z   ✓  134 [desktop] › e2e/keyboard.spec.mjs:575:5 › keyboard at 390px (#197) › Escape closes the account menu (758ms)
+2026-11-18T07:45:28.1556184Z   ✓  135 [desktop] › e2e/keyboard.spec.mjs:593:5 › keyboard at 390px (#197) › Escape folds the order page's floating cart (2.1s)
+2026-11-18T07:45:28.9552006Z   ✓  136 [desktop] › e2e/keyboard.spec.mjs:674:3 › the keyboard walk (#591) › misses a control Tab skipped while it showed (785ms)
+2026-11-18T07:45:32.3545023Z   ✓  137 [iphone] › e2e/membership-layout.spec.mjs:68:3 › a round on the Membership tab (#602) › sets the date bold and the window regular (2.4s)
+2026-11-18T07:45:34.4472644Z   ✓  138 [iphone] › e2e/membership-layout.spec.mjs:80:3 › a round on the Membership tab (#602) › puts the second line under the first, smaller and gray (2.1s)
+2026-11-18T07:45:35.6732816Z   -  139 [iphone] › e2e/membership-layout.spec.mjs:94:5 › a round on the Membership tab (#602) › keeps the date and window whole, the pill first, at 1280 px
+2026-11-18T07:45:36.9020697Z   -  140 [iphone] › e2e/membership-layout.spec.mjs:94:5 › a round on the Membership tab (#602) › keeps the date and window whole, the pill first, at 768 px
+2026-11-18T07:45:38.2543491Z   -  141 [iphone] › e2e/membership-layout.spec.mjs:94:5 › a round on the Membership tab (#602) › keeps the date and window whole, the pill first, at 390 px
+2026-11-18T07:45:40.2660142Z   ✓  142 [iphone] › e2e/membership-layout.spec.mjs:94:5 › a round on the Membership tab (#602) › keeps the date and window whole, the pill first, at 320 px (2.0s)
+2026-11-18T07:45:42.2746174Z   ✓  143 [iphone] › e2e/membership-layout.spec.mjs:94:5 › a round on the Membership tab (#602) › keeps the date and window whole, the pill first, at its own width (2.0s)
+2026-11-18T07:45:44.3319029Z   ✓  144 [iphone] › e2e/membership-layout.spec.mjs:124:3 › a round on the Membership tab (#602) › breaks the first line at the dot when it must wrap (2.0s)
+2026-11-18T07:45:45.6262915Z   -  145 [iphone] › e2e/membership-layout.spec.mjs:174:5 › a round on the Membership tab (#602) › sets two rounds side by side at 992 px
+2026-11-18T07:45:46.8237559Z   -  146 [iphone] › e2e/membership-layout.spec.mjs:174:5 › a round on the Membership tab (#602) › sets two rounds side by side at 1280 px
+2026-11-18T07:45:48.0140211Z   -  147 [iphone] › e2e/membership-layout.spec.mjs:192:5 › a round on the Membership tab (#602) › stacks the rounds at 768 px
+2026-11-18T07:45:49.2468571Z   -  148 [iphone] › e2e/membership-layout.spec.mjs:192:5 › a round on the Membership tab (#602) › stacks the rounds at 390 px
+2026-11-18T07:45:51.1309440Z   ✓  149 [iphone] › e2e/membership-layout.spec.mjs:192:5 › a round on the Membership tab (#602) › stacks the rounds at 320 px (1.9s)
+2026-11-18T07:45:53.1714450Z   ✓  150 [iphone] › e2e/membership-layout.spec.mjs:192:5 › a round on the Membership tab (#602) › stacks the rounds at its own width (2.0s)
+2026-11-18T07:45:55.1805659Z   ✓  151 [iphone] › e2e/membership-layout.spec.mjs:210:3 › a round on the Membership tab (#602) › sets one round alone at the left (2.0s)
+2026-11-18T07:45:57.1502916Z   ✓  152 [iphone] › e2e/membership-layout.spec.mjs:241:3 › the group on the Membership tab (#602) › the group's name is the account email's size, bold, the address one small gray line (1.9s)
+2026-11-18T07:45:59.2899251Z   ✓  153 [iphone] › e2e/membership-layout.spec.mjs:279:3 › the group on the Membership tab (#602) › gives every section heading the host's space above it (2.1s)
+2026-11-18T07:46:01.4790840Z   ✓  154 [iphone] › e2e/membership-layout.spec.mjs:329:3 › the group on the Membership tab (#602) › veils the QR code in white and centers Coming soon on it (2.2s)
+2026-11-18T07:46:03.4382488Z   ✓  155 [iphone] › e2e/membership-layout.spec.mjs:463:3 › the Membership tab's section headings (#608) › gives each section heading more room above and less below (1.9s)
+2026-11-18T07:46:05.5806577Z   ✓  156 [iphone] › e2e/membership-layout.spec.mjs:494:3 › the Membership tab's section headings (#608) › fills the host's Download QR code button (2.1s)
+2026-11-18T07:46:08.3063835Z   ✓  157 [iphone] › e2e/membership-layout.spec.mjs:642:3 › the account head (#608) › shows no group name in the head, for a member and a host (2.7s)
+2026-11-18T07:46:12.3429790Z   ✓  158 [iphone] › e2e/membership-layout.spec.mjs:671:3 › the account head (#608) › puts the credit on the Sign out line after a separator, or Sign out alone (4.0s)
+2026-11-18T07:46:13.5511303Z   -  159 [iphone] › e2e/membership-layout.spec.mjs:737:5 › the account head's email address (#601) › keeps a short address on one line at 390 px
+2026-11-18T07:46:15.4601396Z   ✓  160 [iphone] › e2e/membership-layout.spec.mjs:737:5 › the account head's email address (#601) › keeps a short address on one line at 320 px (1.9s)
+2026-11-18T07:46:17.6593423Z   ✓  161 [iphone] › e2e/membership-layout.spec.mjs:737:5 › the account head's email address (#601) › keeps a short address on one line at its own width (2.2s)
+2026-11-18T07:46:19.6468990Z   ✓  162 [iphone] › e2e/membership-layout.spec.mjs:783:7 › an address too long for one line (#601) › breaks a 24-character address only before the @ or a dot at 320 px (2.0s)
+2026-11-18T07:46:21.7948791Z   ✓  163 [iphone] › e2e/membership-layout.spec.mjs:783:7 › an address too long for one line (#601) › breaks a 31-character address only before the @ or a dot at 320 px (2.1s)
+2026-11-18T07:46:23.8743037Z   ✓  164 [iphone] › e2e/membership-layout.spec.mjs:783:7 › an address too long for one line (#601) › breaks a 24-character address only before the @ or a dot at 360 px (2.0s)
+2026-11-18T07:46:26.1782344Z   ✓  165 [iphone] › e2e/membership-layout.spec.mjs:783:7 › an address too long for one line (#601) › breaks a 31-character address only before the @ or a dot at 360 px (2.3s)
+2026-11-18T07:46:28.2204397Z   ✓  166 [iphone] › e2e/membership-layout.spec.mjs:783:7 › an address too long for one line (#601) › breaks a 24-character address only before the @ or a dot at 390 px (2.0s)
+2026-11-18T07:46:30.2032459Z   ✓  167 [iphone] › e2e/membership-layout.spec.mjs:783:7 › an address too long for one line (#601) › breaks a 31-character address only before the @ or a dot at 390 px (2.0s)
+2026-11-18T07:46:42.2356369Z   ✓  168 [iphone] › e2e/overflow.spec.mjs:92:5 › at 375px (#185) › every page fits (12.0s)
+2026-11-18T07:46:53.6318667Z   ✓  169 [iphone] › e2e/overflow.spec.mjs:105:5 › at 375px (#185) › every page fits before its images load (11.4s)
+2026-11-18T07:46:59.9131888Z   ✓  170 [iphone] › e2e/overflow.spec.mjs:120:5 › at 375px (#185) › the order page fits with a full cart (6.3s)
+2026-11-18T07:47:05.1282263Z   ✓  171 [iphone] › e2e/overflow.spec.mjs:135:5 › at 375px (#185) › search fits with results showing (5.2s)
+2026-11-18T07:47:08.0202254Z   ✓  172 [iphone] › e2e/overflow.spec.mjs:148:5 › at 375px (#185) › the account fits, signed in (2.9s)
+2026-11-18T07:47:21.3272054Z   ✓  173 [iphone] › e2e/overflow.spec.mjs:92:5 › at 768px (#185) › every page fits (13.3s)
+2026-11-18T07:47:34.1684366Z   ✓  174 [iphone] › e2e/overflow.spec.mjs:105:5 › at 768px (#185) › every page fits before its images load (12.8s)
+2026-11-18T07:47:42.0411880Z   ✓  175 [iphone] › e2e/overflow.spec.mjs:120:5 › at 768px (#185) › the order page fits with a full cart (7.9s)
+2026-11-18T07:47:51.9672166Z   ✓  176 [iphone] › e2e/overflow.spec.mjs:135:5 › at 768px (#185) › search fits with results showing (9.9s)
+2026-11-18T07:47:55.8612082Z   ✓  177 [iphone] › e2e/overflow.spec.mjs:148:5 › at 768px (#185) › the account fits, signed in (3.9s)
+2026-11-18T07:48:11.2003553Z   ✓  178 [iphone] › e2e/overflow.spec.mjs:92:5 › at 992px (#185) › every page fits (15.3s)
+2026-11-18T07:48:26.4882906Z   ✓  179 [iphone] › e2e/overflow.spec.mjs:105:5 › at 992px (#185) › every page fits before its images load (15.2s)
+2026-11-18T07:48:38.5235987Z   ✓  180 [iphone] › e2e/overflow.spec.mjs:120:5 › at 992px (#185) › the order page fits with a full cart (12.0s)
+2026-11-18T07:48:48.0222893Z   ✓  181 [iphone] › e2e/overflow.spec.mjs:135:5 › at 992px (#185) › search fits with results showing (9.5s)
+2026-11-18T07:48:51.2508258Z   ✓  182 [iphone] › e2e/overflow.spec.mjs:148:5 › at 992px (#185) › the account fits, signed in (3.2s)
+2026-11-18T07:49:04.3826926Z   ✓  129 [iphone] › e2e/keyboard.spec.mjs:506:5 › keyboard at 1280px (#197) › every page tabs cleanly (5.2m)
+2026-11-18T07:49:09.2064871Z   ✓  183 [iphone] › e2e/overflow.spec.mjs:92:5 › at 1440px (#185) › every page fits (17.9s)
+2026-11-18T07:49:29.2948027Z   ✓  185 [iphone] › e2e/overflow.spec.mjs:105:5 › at 1440px (#185) › every page fits before its images load (20.1s)
+2026-11-18T07:49:39.4902360Z   ✓  186 [iphone] › e2e/overflow.spec.mjs:120:5 › at 1440px (#185) › the order page fits with a full cart (10.2s)
+2026-11-18T07:49:49.3581913Z   ✓  187 [iphone] › e2e/overflow.spec.mjs:135:5 › at 1440px (#185) › search fits with results showing (9.8s)
+2026-11-18T07:49:54.9782297Z   ✓  188 [iphone] › e2e/overflow.spec.mjs:148:5 › at 1440px (#185) › the account fits, signed in (5.6s)
+2026-11-18T07:50:53.4881972Z   ✓  184 [iphone] › e2e/keyboard.spec.mjs:519:5 › keyboard at 1280px (#197) › the order page with a cart tabs cleanly (1.8m)
+2026-11-18T07:51:33.0700572Z   ✓  189 [iphone] › e2e/keyboard.spec.mjs:535:5 › keyboard at 1280px (#197) › the account tabs cleanly, signed in (39.6s)
+2026-11-18T07:51:39.1972181Z   ✓  190 [iphone] › e2e/keyboard.spec.mjs:549:5 › keyboard at 1280px (#197) › Escape closes search (6.1s)
+2026-11-18T07:51:44.3902054Z   -  191 [iphone] › e2e/keyboard.spec.mjs:561:5 › keyboard at 1280px (#197) › Escape closes the site menu
+2026-11-18T07:51:49.7696996Z   ✓  192 [iphone] › e2e/keyboard.spec.mjs:575:5 › keyboard at 1280px (#197) › Escape closes the account menu (5.4s)
+2026-11-18T07:51:55.9105578Z   -  193 [iphone] › e2e/keyboard.spec.mjs:593:5 › keyboard at 1280px (#197) › Escape folds the order page's floating cart
+2026-11-18T07:53:56.8971146Z   ✓  194 [iphone] › e2e/keyboard.spec.mjs:506:5 › keyboard at 390px (#197) › every page tabs cleanly (2.0m)
+2026-11-18T07:54:36.7684395Z   ✓  195 [iphone] › e2e/keyboard.spec.mjs:519:5 › keyboard at 390px (#197) › the order page with a cart tabs cleanly (39.9s)
+2026-11-18T07:55:01.9867301Z   ✓  196 [iphone] › e2e/keyboard.spec.mjs:535:5 › keyboard at 390px (#197) › the account tabs cleanly, signed in (25.2s)
+2026-11-18T07:55:05.4611908Z   ✓  197 [iphone] › e2e/keyboard.spec.mjs:549:5 › keyboard at 390px (#197) › Escape closes search (3.4s)
+2026-11-18T07:55:09.5659587Z   ✓  198 [iphone] › e2e/keyboard.spec.mjs:561:5 › keyboard at 390px (#197) › Escape closes the site menu (4.1s)
+2026-11-18T07:55:12.3931998Z   ✓  199 [iphone] › e2e/keyboard.spec.mjs:575:5 › keyboard at 390px (#197) › Escape closes the account menu (2.8s)
+2026-11-18T07:55:16.3262150Z   ✓  200 [iphone] › e2e/keyboard.spec.mjs:593:5 › keyboard at 390px (#197) › Escape folds the order page's floating cart (3.9s)
+2026-11-18T07:55:19.3921551Z   ✓  201 [iphone] › e2e/keyboard.spec.mjs:674:3 › the keyboard walk (#591) › misses a control Tab skipped while it showed (3.1s)
+2026-11-18T07:55:19.6653359Z Function calls: 1477 in all; busiest specs: overflow.spec.mjs 728, keyboard.spec.mjs 297, membership-layout.spec.mjs 269, account.spec.mjs 98, membership.spec.mjs 76, keep-together.spec.mjs 9.
+2026-11-18T07:55:19.6660963Z 
+2026-11-18T07:55:19.6668077Z   Slow test file: [iphone] › e2e/keyboard.spec.mjs (11.5m)
+2026-11-18T07:55:19.6668955Z   Consider running tests from slow files in parallel. See: https://playwright.dev/docs/test-parallel
+2026-11-18T07:55:19.6669535Z   23 skipped
+2026-11-18T07:55:19.6669770Z   178 passed (14.4m)
+2026-11-18T07:55:20.0770762Z ##[endgroup]
+2026-11-18T07:55:20.0771100Z Pass 1: passed
+2026-11-18T07:55:20.0949119Z ##[group]Run actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+2026-11-18T07:55:20.0949568Z with:
+2026-11-18T07:55:20.0949780Z   name: e2e-pictures-1
+2026-11-18T07:55:20.0950492Z   path: test-results/**/*.png
+!test-results/e2e-site/**
+
+2026-11-18T07:55:20.0950827Z   if-no-files-found: ignore
+2026-11-18T07:55:20.0951072Z   retention-days: 3
+2026-11-18T07:55:20.0951288Z   compression-level: 6
+2026-11-18T07:55:20.0951502Z   overwrite: false
+2026-11-18T07:55:20.0951720Z   include-hidden-files: false
+2026-11-18T07:55:20.0951966Z   archive: true
+2026-11-18T07:55:20.0952157Z env:
+2026-11-18T07:55:20.0952333Z   E2E_PORT: 8895
+2026-11-18T07:55:20.0952576Z   NODE_OPTIONS: --dns-result-order=ipv4first
+2026-11-18T07:55:20.0953044Z   E2E_STAGING_TOKEN: ***
+2026-11-18T07:55:20.0953282Z ##[endgroup]
+2026-11-18T07:55:20.0956962Z ##[command]/usr/bin/docker exec  407eeef93f0d9b677ca431d1370472d3d2c60885daf5ddab02cf903c1e08e7b7 sh -c "cat /etc/*release | grep ^ID"
+2026-11-18T07:55:20.3891872Z No files were found with the provided path: test-results/**/*.png
+2026-11-18T07:55:20.3898412Z !test-results/e2e-site/**. No artifacts will be uploaded.
+2026-11-18T07:55:20.4178085Z Post job cleanup.
+2026-11-18T07:55:20.4201523Z ##[command]/usr/bin/docker exec  407eeef93f0d9b677ca431d1370472d3d2c60885daf5ddab02cf903c1e08e7b7 sh -c "cat /etc/*release | grep ^ID"
+2026-11-18T07:55:20.6509769Z (node:9239) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-11-18T07:55:20.6511479Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-11-18T07:55:20.6514071Z Cache hit occurred on the primary key node-cache-Linux-x64-npm-42e6dd7e2379c8bcd5b81ae067a584d49faa22f9ebc67c9a02ff47bbe86daea6, not saving cache.
+2026-11-18T07:55:20.6679234Z Post job cleanup.
+2026-11-18T07:55:20.6686874Z ##[command]/usr/bin/docker exec  407eeef93f0d9b677ca431d1370472d3d2c60885daf5ddab02cf903c1e08e7b7 sh -c "cat /etc/*release | grep ^ID"
+2026-11-18T07:55:20.8590297Z [command]/usr/bin/git version
+2026-11-18T07:55:20.8680599Z git version 2.43.0
+2026-11-18T07:55:20.8724125Z Copying '/github/home/.gitconfig' to '/__w/_temp/538fd7b8-eabc-46d3-b153-8a76e7a1492c/.gitconfig'
+2026-11-18T07:55:20.8737673Z Temporarily overriding HOME='/__w/_temp/538fd7b8-eabc-46d3-b153-8a76e7a1492c' before making global git config changes
+2026-11-18T07:55:20.8750111Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-18T07:55:20.8752283Z [command]/usr/bin/git config --global --add safe.directory /__w/north-foster-farm/north-foster-farm
+2026-11-18T07:55:20.8829240Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-18T07:55:20.8878593Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-18T07:55:20.9183051Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-18T07:55:20.9222786Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-18T07:55:20.9557293Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-18T07:55:20.9599401Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-18T07:55:21.0035981Z Stop and remove container: e80ee222d35c4ec2b16c21f9810eea4a_mcrmicrosoftcomplaywrightv1621noblesha256dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e_a4b5af
+2026-11-18T07:55:21.0041318Z ##[command]/usr/bin/docker rm --force 407eeef93f0d9b677ca431d1370472d3d2c60885daf5ddab02cf903c1e08e7b7
+2026-11-18T07:55:21.1711157Z 407eeef93f0d9b677ca431d1370472d3d2c60885daf5ddab02cf903c1e08e7b7
+2026-11-18T07:55:21.1745130Z Remove container network: github_network_402e31ac65464c72be0dfb57fd881f66
+2026-11-18T07:55:21.1749778Z ##[command]/usr/bin/docker network rm github_network_402e31ac65464c72be0dfb57fd881f66
+2026-11-18T07:55:21.2383756Z github_network_402e31ac65464c72be0dfb57fd881f66
+2026-11-18T07:55:21.2467242Z Cleaning up orphan processes

@@ -125,6 +125,7 @@ actor's login. Each JSON file's `_source` names its requests and date.
 | --- | --- |
 | `github/e2e-staging-runs.json` | the full staging runs `bin/promote.mjs` reads |
 | `github/e2e-dispatch.json`, `-failed.txt`, `-gate.txt` | a dispatch of `e2e.yml`, a queued, a passed and a failed run, their jobs and the failed jobs' logs, for `bin/nff e2e` (#610) |
+| `github/e2e-exempt.json`, `e2e-exempt-*.txt` | the two full staging runs of 2026-11-18 and three `e2e.yml` runs, their jobs and shard logs, and staging's pushes, for the staging exemption (#654); the failed `e2e.yml` run's log is `e2e-verdict-escapes.txt` |
 
 ## Still to record by hand
 
