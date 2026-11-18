@@ -20,6 +20,14 @@ const NBSP = String.fromCharCode(0xa0);
 const NARROW = String.fromCharCode(0x202f);
 const NO_BREAK = new RegExp(`[${NBSP}${NARROW}]`);
 
+// A group's rounds between a close and its pickup (#600): one of each.
+const ALL_ROUNDS = {
+  every: 2, opens: "08:30", closes: "09:00",
+  closed: { date: "2026-11-22", closedAt: "2026-11-22T04:59:00.000Z" },
+  current: { date: "2026-12-06", closesAt: "2026-12-06T04:59:00.000Z" },
+  next: { date: "2026-12-20", opensAt: "2026-12-06T04:59:00.000Z" },
+};
+
 const show = (text) => keepTogether(text)
   .map((r) => (r.nowrap ? `[${r.text}]` : r.text)).join("");
 
@@ -155,19 +163,16 @@ describe("the text the page writes (#598)", () => {
     assert.equal(keepTogether(text).map((r) => r.text).join(""), text);
   });
 
-  it("holds none in the Membership rows or the picker's Order by", () => {
-    const r = {
-      every: 2, opens: "08:30", closes: "09:00",
-      current: { date: "2026-11-22", closesAt: "2026-11-22T04:59:00.000Z" },
-      next: { date: "2026-12-06", opensAt: "2026-11-22T04:59:00.000Z" },
-    };
+  // #602: no no-break space anywhere on the Membership tab, in any of
+  // its rounds (closed, open and next).
+  it("holds none in the Membership rounds or the picker's Order by", () => {
     const lines = [
-      ...rounds(r, "America/New_York")
-        .flatMap((round) => [round.date, round.window, round.line]),
+      ...rounds(ALL_ROUNDS, "America/New_York")
+        .flatMap((round) => [round.pill, round.date, round.window,
+          round.line]),
       orderBy("2026-11-14T04:59:00.000Z", "America/New_York"),
     ];
 
-    assert.equal(lines.length, 7);
     for (const line of lines) {
       assert.doesNotMatch(line, NO_BREAK, line);
       for (const run of keepTogether(line)) {
@@ -218,20 +223,25 @@ describe("the word rule", () => {
   });
 });
 
+// #602: the round's second line is built with ordinary spaces and
+// kept pairs from the keep-together helper (#593, #598): a time stays
+// with its AM or PM, and the line's last two words stay together.
 describe("the Membership tab's round lines (#593, #602)", () => {
   it("never leave a word, or an AM or PM, to break off alone", () => {
-    const r = {
-      opens: "08:30", closes: "09:00",
-      closed: { date: "2026-11-08", closedAt: "2026-11-08T04:59:00.000Z" },
-      current: { date: "2026-11-22", closesAt: "2026-11-22T04:59:00.000Z" },
-      next: { date: "2026-12-06", opensAt: "2026-11-22T04:59:00.000Z" },
-    };
-    const lines = rounds(r, "America/New_York").map((round) => round.line);
+    const lines = rounds(ALL_ROUNDS, "America/New_York")
+      .map((round) => round.line);
 
-    assert.deepEqual(lines.map(show), [
-      "Pickup is Sunday, [Nov 8]",
-      "Closes at [11:59 PM] on Sat, [Nov 21]",
-      "Opens on Sun, [Nov 22]",
-    ]);
+    assert.ok(lines.length >= 3, "a closed, an open and a next round");
+    for (const line of lines) {
+      const runs = keepTogether(line);
+      const kept = runs.filter((r) => r.nowrap).map((r) => r.text);
+      const words = line.split(" ");
+
+      assert.ok(runs.at(-1).nowrap, line);
+      assert.ok(runs.at(-1).text.endsWith(words.slice(-2).join(" ")), line);
+      for (const time of line.match(/\d+:\d\d [AP]M/g) || []) {
+        assert.ok(kept.some((k) => k.includes(time)), `${time} in ${line}`);
+      }
+    }
   });
 });

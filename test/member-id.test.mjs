@@ -987,43 +987,19 @@ describe("the pages", () => {
   const read = (path) => readFile(new URL(`../${path}`, import.meta.url),
     "utf8");
 
-  // #602: until the code does something at a market, the tab shows
-  // the QR code under a "Coming soon" badge and no more. The code as
-  // text, the key tag and the download stay in the template behind
-  // params.features.memberCode, which is off.
-  it("put the code on the tab as a QR code that is coming soon",
-    async () => {
-      const html = await read("layouts/account/single.html");
-      const config = await read("config/_default/hugo.toml");
-      const [live, soon] = html.match(new RegExp(
-        "\\{\\{ if \\$live \\}\\}([\\s\\S]*?)\\{\\{ else \\}\\}"
-        + "([\\s\\S]*?)\\{\\{ end \\}\\}"
-      )).slice(1);
+  // #602: the member's section is "Membership QR code", over James's
+  // paragraph word for word, its second sentence bold. What the page
+  // shows and hides is measured in e2e/membership.spec.mjs.
+  it("keep James's paragraph for the Membership QR code", async () => {
+    const html = await read("layouts/account/single.html");
 
-      assert.match(config, /^ {4}memberCode = false$/m);
-      assert.match(html, /\$live := site\.Params\.features\.memberCode/);
-      assert.match(html, /data-mem-code hidden/);
-      assert.match(html, /id="mem-code-h">Membership QR code<\/h3>/);
-
-      // James's paragraph, word for word, its second sentence bold.
-      assert.ok(soon.includes("<p>Coming soon: scan your code when you make "
-        + "a purchase in person (like at a farmers market), and your "
-        + "membership benefits will apply automatically. <strong>In the "
-        + "meantime, let us know you are a member at checkout, and we'll "
-        + "look up your membership by name or email.</strong></p>"));
-      assert.match(soon, /id="mem-code-qr" alt="[^"]*not in use yet"/);
-      assert.match(soon, />Coming soon<\/span>/);
-      for (const gone of ["mem-code-id", "member-tag", "mem-code-download",
-        "letters and numbers"]) {
-        assert.ok(!soon.includes(gone), gone);
-      }
-
-      // Easy to turn back on: the old block is whole behind the flag.
-      assert.match(live, /id="mem-code-id"/);
-      assert.match(live,
-        /href="\{\{ "\/account\/member-tag\/" \| relURL \}\}"/);
-      assert.match(live, /id="mem-code-download"/);
-    });
+    assert.match(html, /<h3 [^>]*>Membership QR code<\/h3>/);
+    assert.ok(html.includes("Coming soon: scan your code when you make "
+      + "a purchase in person (like at a farmers market), and your "
+      + "membership benefits will apply automatically. <strong>In the "
+      + "meantime, let us know you are a member at checkout, and we'll "
+      + "look up your membership by name or email.</strong>"));
+  });
 
   it("print the tag at 1.25 x 2.5 in, kept out of search", async () => {
     const scss = await read("assets/styles/components/_member-tag.scss");
