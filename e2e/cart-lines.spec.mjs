@@ -106,13 +106,16 @@ test("another tab's change to the cart arrives here", async ({
 
 test.describe("a long list on a phone", () => {
   test.use({ viewport: PHONE });
+  // Each test jumps to 400 and waits out the lift-off before it reads
+  // the fold: read 27 ms into a smooth scroll it said "open" while the
+  // pane was still inline, then the pane floated closed (#641).
 
   test("an arrow shows each way lines are hidden, with no count, and "
     + "never sits over a line", async ({ page }) => {
     const order = new OrderPage(page);
 
     await order.open(FULL_CART);
-    await page.evaluate(() => window.scrollTo(0, 400));
+    await jumpTo(page, 400);
     await unfold(order);
 
     const list = order.cart.locator("[data-cart-items]");
@@ -176,7 +179,7 @@ test.describe("a long list on a phone", () => {
 
     // $206, past the top tier: no next discount to nudge toward.
     await order.open({ ...FULL_CART, eggs: FULL_CART.eggs + 1 });
-    await page.evaluate(() => window.scrollTo(0, 400));
+    await jumpTo(page, 400);
     await unfold(order);
     await expect(order.cart.locator("[data-nudge]")).toBeHidden();
 
@@ -199,7 +202,7 @@ test.describe("a long list on a phone", () => {
       const order = new OrderPage(page);
 
       await order.open(FULL_CART);
-      await page.evaluate(() => window.scrollTo(0, 400));
+      await jumpTo(page, 400);
       await unfold(order);
 
       const list = order.cart.locator("[data-cart-items]");
