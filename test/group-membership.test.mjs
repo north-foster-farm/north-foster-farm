@@ -23,8 +23,8 @@ import {
 import { testStores } from "../netlify/functions/lib/store.mjs";
 import terms from "../netlify/functions/lib/terms.mjs";
 import {
-  JOIN_WAYS, LINK_COPIED, LINK_NOT_COPIED, hours, joinedLine,
-  moment, pickupMoment, placeLines, roundGroups, roundRows, roundsLine,
+  JOIN_WAYS, LINK_COPIED, LINK_NOT_COPIED, PILLS, addressLine, hours,
+  joinedLine, pickupDay, rounds,
 } from "../assets/scripts/account/lib/membership.mjs";
 import {
   tabsBack, tabsBackStop, tabsMore, tabsStop,
@@ -392,6 +392,7 @@ describe("the rounds", () => {
     const r = roundsNow(group, terms, now);
 
     assert.equal(r.every, 2);
+    assert.equal(r.closed, null);
     assert.deepEqual(r.current, {
       date: "2026-11-22", closesAt: "2026-11-22T04:59:00.000Z",
     });
@@ -408,79 +409,74 @@ describe("the rounds", () => {
   });
 });
 
-describe("the tab's words (drafts)", () => {
-  it("say how often, which day and when", () => {
-    const r = { every: 2, opens: "08:30", closes: "09:00",
-      current: { date: "2026-11-22" } };
-
-    // An ordinary space before AM or PM, never a no-break one (#598):
-    // the page keeps the two together where it sets the text.
-    assert.equal(roundsLine(r),
-      "Every 2 weeks, on Sundays, 8:30 to 9:00 AM");
-    assert.equal(roundsLine({ ...r, every: 1 }).slice(0, 10), "Every week");
-    assert.equal(hours("11:30", "12:30"), "11:30 AM to 12:30 PM");
-    assert.equal(moment("2026-11-22T04:59:00.000Z", "America/New_York"),
-      "Saturday, November 21, 11:59 PM");
-  });
-
-  // #579: four rows, James's labels, the pickups at the window's start.
-  it("give the four round rows from the group's data", () => {
+describe("the tab's words", () => {
+  // James's sketch (#602): the date bold with the weekday in full and
+  // the month short, the window after a dot, then the pill and when
+  // the round closes or opens. An ordinary space before AM or PM,
+  // never a no-break one (#598).
+  it("give each round its two lines", () => {
     const r = roundsNow({ series: "36TS" }, terms, now);
 
-    assert.deepEqual(roundRows(r, "America/New_York"), {
-      closes: "Saturday, November 21, 11:59 PM",
-      pickup: "Sunday, November 22, 8:30 AM",
-      opens: "Saturday, November 21, 11:59 PM",
-      "next-pickup": "Sunday, December 6, 8:30 AM",
+    assert.deepEqual(rounds(r, "America/New_York"), [{
+      state: "open", pill: "Open", date: "Sunday, Nov 22",
+      window: "8:30 – 9:00 AM", line: "Closes at 11:59 PM on Sat, Nov 21",
+      order: true,
+    }, {
+      state: "next", pill: "Next", date: "Sunday, Dec 6",
+      window: "8:30 – 9:00 AM", line: "Opens on Sun, Nov 22",
+      order: false,
+    }]);
+    assert.deepEqual(PILLS, { closed: "Closed", open: "Open", next: "Next" });
+  });
+
+  // #600: between its close and its pickup, a round is listed
+  // first, with its own pill (test/membership-rounds.test.mjs
+  // has the three moments).
+  it("lists the closed round first, with its own pill", () => {
+    const listed = rounds(roundsNow({ series: "36TS" }, terms,
+      new Date("2026-11-22T13:00:00Z")), "America/New_York");
+
+    assert.deepEqual(listed.map((round) => round.state),
+      ["closed", "open", "next"]);
+    assert.deepEqual(listed[0], {
+      state: "closed", pill: "Closed", date: "Sunday, Nov 22",
+      window: "8:30 – 9:00 AM", line: "Pickup is Sunday, Nov 22",
+      order: false,
     });
   });
 
-  it("leave out the rows the data can't fill", () => {
+  it("write a window with an en dash, each half of the day once", () => {
+    assert.equal(hours("08:30", "09:00"), "8:30 – 9:00 AM");
+    assert.equal(hours("11:30", "12:30"), "11:30 AM – 12:30 PM");
+    assert.equal(hours("13:05", "14:00"), "1:05 – 2:00 PM");
+    assert.equal(pickupDay("2026-12-06"), "Sunday, Dec 6");
+  });
+
+  it("leave out what the data can't fill", () => {
     const r = { every: 2, opens: null, closes: null,
       current: { date: "2026-11-22", closesAt: "2026-11-22T04:59:00.000Z" },
       next: null };
 
-    assert.deepEqual(roundRows(r, "America/New_York"), {
-      closes: "Saturday, November 21, 11:59 PM",
-      pickup: "Sunday, November 22",
-      opens: "",
-      "next-pickup": "",
-    });
-    assert.deepEqual(roundRows(null, "America/New_York"), {
-      closes: "", pickup: "", opens: "", "next-pickup": "",
-    });
-    assert.equal(pickupMoment("2026-11-22", "13:05"),
-      "Sunday, November 22, 1:05 PM");
+    // No hours: the date alone. No next round: one round.
+    assert.deepEqual(rounds(r, "America/New_York"), [{
+      state: "open", pill: "Open", date: "Sunday, Nov 22", window: "",
+      line: "Closes at 11:59 PM on Sat, Nov 21", order: true,
+    }]);
+    assert.deepEqual(rounds(null, "America/New_York"), []);
   });
 
-  // #597: the rows under This round and Next round, in order.
-  it("group the round rows under this round and the next", () => {
-    const r = roundsNow({ series: "36TS" }, terms, now);
+  // House rules (#400): no semicolons or em dashes, and a fragment
+  // takes no end punctuation.
+  it("keep to the house rules", () => {
+    const r = roundsNow({ series: "36TS" }, terms,
+      new Date("2026-11-22T13:00:00Z"));
 
-    assert.deepEqual(roundGroups(r, "America/New_York"), {
-      this: [
-        ["closes", "Saturday, November 21, 11:59 PM"],
-        ["pickup", "Sunday, November 22, 8:30 AM"],
-      ],
-      next: [
-        ["opens", "Saturday, November 21, 11:59 PM"],
-        ["next-pickup", "Sunday, December 6, 8:30 AM"],
-      ],
-    });
-  });
-
-  it("leave out a round with no rows, and the rows it lacks", () => {
-    const r = { every: 2, opens: null, closes: null,
-      current: { date: "2026-11-22", closesAt: "2026-11-22T04:59:00.000Z" },
-      next: null };
-
-    assert.deepEqual(roundGroups(r, "America/New_York"), {
-      this: [
-        ["closes", "Saturday, November 21, 11:59 PM"],
-        ["pickup", "Sunday, November 22"],
-      ],
-    });
-    assert.deepEqual(roundGroups(null, "America/New_York"), {});
+    for (const round of rounds(r, "America/New_York")) {
+      for (const text of [round.pill, round.date, round.window,
+        round.line]) {
+        assert.doesNotMatch(text, /[;—.!]$|[;—]/, text);
+      }
+    }
   });
 
   // #579: the join link's Copy, house rules (#400): no semicolons or
@@ -494,11 +490,15 @@ describe("the tab's words (drafts)", () => {
     }
   });
 
-  it("put the pickup place on three lines", () => {
-    assert.deepEqual(placeLines({ name: "The Gym", street: "1 Main St",
-      city: "Foster", state: "RI", zip: "02825" }),
-    ["The Gym", "1 Main St", "Foster, RI 02825"]);
-    assert.deepEqual(placeLines(null), []);
+  // #602: one line under the group's name, which it doesn't repeat.
+  it("put the pickup place on one line, without the group's name", () => {
+    const place = { name: "The Gym", street: "1 Main St", city: "Foster",
+      state: "RI", zip: "02825" };
+
+    assert.equal(addressLine(place, "The Gym"), "1 Main St, Foster, RI 02825");
+    assert.equal(addressLine(place, "Monday Lifters"),
+      "The Gym, 1 Main St, Foster, RI 02825");
+    assert.equal(addressLine(null, "The Gym"), "");
   });
 
   it("say when and how each member joined", () => {
@@ -540,21 +540,31 @@ describe("the tab and the menu entry", () => {
       assert.ok(!account.includes(`"data-mem" "${part}"`), part);
       assert.ok(!account.includes(`data-mem="${part}"`), part);
     }
-    // #597: James's subheadings, real headings under the group's h2,
-    // each over its rows with the short labels (drafts).
-    const round = (name) => account.match(new RegExp(
-      `data-mem-round="${name}">([\\s\\S]*?)</div>`
-    ))[1];
-
-    assert.match(round("this"), /<h3 [^>]*>This round<\/h3>/);
-    assert.match(round("this"), /data-mem-row="closes">Closes<\/dt>/);
-    assert.match(round("this"), /data-mem-row="pickup">Pickup<\/dt>/);
-    assert.match(round("next"), /<h3 [^>]*>Next round<\/h3>/);
-    assert.match(round("next"), /data-mem-row="opens">Opens<\/dt>/);
-    assert.match(round("next"), /data-mem-row="next-pickup">Pickup<\/dt>/);
-    assert.doesNotMatch(account, /(This|Next) round (closes|opens|pickup)/);
-    // Rounds has a row hook too, so a group with none drops it.
-    assert.match(account, /data-mem-row="every">Rounds<\/dt>/);
+    // #602: the group's name over its sections, which are real
+    // headings under it, and each round a column of the grid with its
+    // pill at the start of the second line.
+    assert.match(account,
+      /<h2 class="account-membership-title" data-mem="name"><\/h2>/);
+    assert.match(account, /<h3 [^>]*data-mem="pickups-h">Pickups<\/h3>/);
+    assert.match(account, /<h3 [^>]*data-mem="qr-h">Invite members<\/h3>/);
+    assert.match(account, /<h3 [^>]*data-mem="list-h">Members<\/h3>/);
+    assert.match(account, /<div class="row g-4">/);
+    assert.match(account,
+      /<div class="col-12 col-md-6" data-mem-round="\{\{ \.state \}\}">/);
+    assert.match(account, /<p class="account-round-status"><span class=/);
+    for (const pill of ["Closed", "Open", "Next"]) {
+      assert.ok(account.includes(`"pill" "${pill}"`), pill);
+    }
+    // The order button, on the open round alone.
+    assert.match(account, new RegExp("\\{\\{ if eq \\.state \"open\" \\}\\}\\s*"
+      + "<a class=\"btn btn-primary account-round-order\" "
+      + "href=\"\\{\\{ relURL \"order/\" \\}\\}\">Order now</a>"));
+    // Gone (#602): the Rounds row and its "every 2 weeks", #597's
+    // subheadings and label column.
+    assert.doesNotMatch(account, /(This|Next) round/);
+    assert.doesNotMatch(account,
+      /data-mem-row|account-membership-(term|value|rows|facts)/);
+    assert.doesNotMatch(account, /Rounds/);
     assert.doesNotMatch(account, /People who scan this code/);
   });
 });

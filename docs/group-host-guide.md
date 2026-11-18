@@ -71,14 +71,20 @@ prices are there without the code.
 ## The Membership tab
 
 Members see a Membership tab on their account page, and in the
-account menu at the top of every page. It shows the group's name, the
-pickup address, how often rounds run, when this round closes and its
-pickup, and when the next one opens and its pickup (2026-11-14, #579:
-the pickups are rows of their own). Members can leave the group there.
+account menu at the top of every page. It shows the group's name and
+pickup address, then the pickups: the open round's pickup day and
+window with when ordering closes and a button to the order page, and
+the next round's with when it opens. From a round's close until its
+pickup is over, that pickup stays at the top, marked Closed
+(2026-11-18, #602 and #600: this replaced the rows of labels and the
+"every 2 weeks" line, and before it the pickup left the tab at the
+close). A member also sees their membership QR code, marked "Coming
+soon" until scanning it does something at a market, and can leave the
+group there.
 
 As the host, you also see:
 
-- **The group's QR code**, with a button to download it for a sign.
+- **Invite members**: the group's QR code, with a button to download it for a sign.
   Anyone who scans it can join: it opens a page where they enter their
   name and email address, and the link we email them adds them to the
   group. The typed code works as before.

@@ -12,9 +12,7 @@ import {
   MAX_WORD, NOWRAP, keepTogether, meridiem, setKept, spaceMeridiem,
   unsafeWord,
 } from "../assets/scripts/utils/keep-together.mjs";
-import {
-  pickupMoment, roundRows, roundsLine,
-} from "../assets/scripts/account/lib/membership.mjs";
+import { rounds } from "../assets/scripts/account/lib/membership.mjs";
 import { orderBy } from "../assets/scripts/order/lib/picker.mjs";
 import { wrapLastWords } from "../bin/orphans/wrap.mjs";
 
@@ -86,8 +84,8 @@ describe("the last two words of a line", () => {
   });
 
   it("take a time and its AM or PM as one word", () => {
-    assert.equal(show(pickupMoment("2026-11-22", "08:30")),
-      "Sunday, November [22, 8:30 AM]");
+    assert.equal(show("Closes at 11:59 PM on Sat, Nov 21"),
+      "Closes at [11:59 PM] on Sat, [Nov 21]");
     assert.equal(show("At 8:30 AM"), "[At 8:30 AM]");
   });
 
@@ -152,7 +150,7 @@ describe("the text the page writes (#598)", () => {
   });
 
   it("keeps every character but the spaces it makes ordinary", () => {
-    const text = "Every 2 weeks, on Sundays, 8:30 to 9:00 AM";
+    const text = "Closes at 11:59 PM on Sat, Nov 21";
 
     assert.equal(keepTogether(text).map((r) => r.text).join(""), text);
   });
@@ -164,12 +162,12 @@ describe("the text the page writes (#598)", () => {
       next: { date: "2026-12-06", opensAt: "2026-11-22T04:59:00.000Z" },
     };
     const lines = [
-      ...Object.values(roundRows(r, "America/New_York")),
-      roundsLine(r),
+      ...rounds(r, "America/New_York")
+        .flatMap((round) => [round.date, round.window, round.line]),
       orderBy("2026-11-14T04:59:00.000Z", "America/New_York"),
     ];
 
-    assert.equal(lines.length, 6);
+    assert.equal(lines.length, 7);
     for (const line of lines) {
       assert.doesNotMatch(line, NO_BREAK, line);
       for (const run of keepTogether(line)) {
@@ -220,23 +218,20 @@ describe("the word rule", () => {
   });
 });
 
-describe("the Membership tab's rows (#593)", () => {
+describe("the Membership tab's round lines (#593, #602)", () => {
   it("never leave a word, or an AM or PM, to break off alone", () => {
     const r = {
-      opens: "08:30",
+      opens: "08:30", closes: "09:00",
+      closed: { date: "2026-11-08", closedAt: "2026-11-08T04:59:00.000Z" },
       current: { date: "2026-11-22", closesAt: "2026-11-22T04:59:00.000Z" },
       next: { date: "2026-12-06", opensAt: "2026-11-22T04:59:00.000Z" },
     };
-    const rows = Object.values(roundRows(r, "America/New_York"));
+    const lines = rounds(r, "America/New_York").map((round) => round.line);
 
-    assert.equal(rows.length, 4);
-    for (const text of rows) {
-      const runs = keepTogether(text);
-      const last = runs.at(-1);
-
-      // The last run holds the day's number, the time and its half.
-      assert.ok(last.nowrap, text);
-      assert.match(last.text, /^\d+, \d+:\d\d [AP]M$/, text);
-    }
+    assert.deepEqual(lines.map(show), [
+      "Pickup is Sunday, [Nov 8]",
+      "Closes at [11:59 PM] on Sat, [Nov 21]",
+      "Opens on Sun, [Nov 22]",
+    ]);
   });
 });

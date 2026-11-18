@@ -73,7 +73,9 @@ test("the Membership tab's joined words keep their space", async ({
   // James saw closed up are among them.
   const gaps = (await Promise.all([
     own.locator("[data-mem='name']"),
-    ...await own.locator(".account-membership-value").all(),
+    own.locator("[data-mem='address']"),
+    ...await own.locator(".account-round-when").all(),
+    ...await own.locator(".account-round-status").all(),
   ].map((row) => row.evaluate(wordGaps)))).flat();
 
   for (const g of gaps) {
@@ -85,8 +87,8 @@ test("the Membership tab's joined words keep their space", async ({
 
   const kept = gaps.filter((g) => g.kept).map((g) => g.words);
 
-  for (const words of ["Family Fitness", "8:30 AM", "RI 02888",
-    "to 9:00", "21, 11:59"]) {
+  for (const words of ["Family Fitness", "RI 02888", "Nov 22",
+    "9:00 AM", "11:59 PM", "Nov 21"]) {
     expect(kept.some((w) => w.includes(words)), words).toBe(true);
   }
 });

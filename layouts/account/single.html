@@ -100,14 +100,25 @@
                  hosts (James, 6458200999). */}}
             <div id="mem-groups"></div>
 
-            {{/* The member's own code (#131): the ID as text and as a
-                 QR code of it, which the stand scans, drawn by our own
-                 code on the server (/api/membership/code), and the key
-                 tag to print. Every line is a draft for James. */}}
+            {{/* The member's own code (#131), drawn by our own code on
+                 the server (/api/membership/code). Nothing reads it
+                 yet: at a market the farm finds the member by name in
+                 Square. So until it does something (James, #602) the
+                 QR code shows under a white veil and a "Coming soon"
+                 badge, and the code as text, the line about reading it
+                 aloud, the key tag and the download are left out.
+                 Display only: the server, the CLI and the key tag's
+                 page are as they were, and `memberCode = true` under
+                 params.features brings the rest back. The heading and
+                 the paragraph are James's words; the image's name is
+                 a draft. main.js moves this and Leave the group into
+                 the member's own group. */}}
+            {{ $live := site.Params.features.memberCode }}
             <section class="account-group account-member-code" aria-labelledby="mem-code-h" data-mem-code hidden>
               <div class="account-group-head">
-                <h2 class="h4 account-group-title" id="mem-code-h">Your member code</h2>
+                <h3 class="h4 account-group-title" id="mem-code-h">Membership QR code</h3>
               </div>
+              {{ if $live }}
               <p>Show this code when you pay at the farm stand, and we'll scan it to find your account.</p>
               <img class="account-membership-qr account-member-code-qr" id="mem-code-qr" alt="QR code for your member code" width="296" height="296" hidden>
               <p class="account-member-code-id" id="mem-code-id"></p>
@@ -116,12 +127,21 @@
                 <a class="btn btn-primary" href="{{ "/account/member-tag/" | relURL }}">Print a key tag</a>
                 <a class="btn btn-outline-primary" id="mem-code-download" href="/api/membership/code?download=1" download>Download QR code</a>
               </div>
+              {{ else }}
+              <p>Coming soon: scan your code when you make a purchase in person (like at a farmers market), and your membership benefits will apply automatically. <strong>In the meantime, let us know you are a member at checkout, and we'll look up your membership by name or email.</strong></p>
+              <div class="account-member-code-soon">
+                <img class="account-membership-qr account-member-code-qr" id="mem-code-qr" alt="Your membership QR code, not in use yet" width="296" height="296" hidden>
+                <span class="account-status account-member-code-badge">Coming soon</span>
+              </div>
+              {{ end }}
             </section>
 
             {{/* A member leaves on their own (James, 6452533356), with
                  the same rules as a removal. */}}
             <section class="account-group" aria-labelledby="mem-leave-h" data-mem-leave hidden>
-              <h2 class="h4 account-group-title" id="mem-leave-h">Leave the group</h2>
+              <div class="account-group-head">
+                <h3 class="h4 account-group-title" id="mem-leave-h">Leave the group</h3>
+              </div>
               <p>Your open orders stay as placed. To join again, you'll need the group's code or QR code.</p>
               <button class="btn btn-outline-danger" type="button" id="mem-leave" aria-expanded="false" aria-controls="mem-leave-confirm">Leave group</button>
               <div class="account-order-panel" id="mem-leave-confirm" hidden>
@@ -411,53 +431,54 @@
     </article>
   </template>
 
-  {{/* One group on the Membership tab (#495): its facts, and the
-       host's QR code and member list when this address hosts it.
+  {{/* One group on the Membership tab (#495, #602: direction C of the
+       #599 review, as James revised it). The group's name in the
+       account email's type with its address as one small line, then
+       its sections at the page's section heading: Pickups, for a host
+       Invite members and Members, and for a member the Membership QR
+       code and Leave the group, which main.js moves in from the pane.
        main.js gives each heading its id. */}}
   <template id="tpl-mem-group">
-    <div class="account-membership-group" data-mem-group>
-      <section class="account-group" data-mem-labelled="name">
+    <section class="account-membership-group" data-mem-group>
+      <header class="account-membership-head">
+        <h2 class="account-membership-title" data-mem="name"></h2>
+        <p class="account-membership-address" data-mem="address"></p>
+      </header>
+
+      {{/* The rounds, each two lines as James sketched them (#602):
+           the pickup's date, bold, a middle dot and its window, which
+           break only at the dot, then, smaller and gray, the pill at
+           the line's start and when the round closes or opens. Side by
+           side from md up, stacked on a phone. Only the open round has
+           the order button. main.js takes out a round the data
+           doesn't give, and the section when there is none. The Closed
+           round is the one between its close and its pickup (#600).
+           Open and Next are James's words; Closed and Order now are
+           drafts. */}}
+      <section class="account-group" data-mem="pickups" data-mem-labelled="pickups-h">
         <div class="account-group-head">
-          <h2 class="h4 account-group-title" data-mem="name"></h2>
+          <h3 class="h4 account-group-title" data-mem="pickups-h">Pickups</h3>
         </div>
-        {{/* One label column for all three lists, as wide as the
-             longest label (#597). */}}
-        <div class="account-membership-facts">
-          <dl class="account-membership-rows">
-            <dt class="account-membership-term">Pickup</dt>
-            <dd class="account-membership-value" data-mem="place"></dd>
-            <dt class="account-membership-term" data-mem-row="every">Rounds</dt>
-            <dd class="account-membership-value" data-mem="every"></dd>
-          </dl>
-          {{/* The rounds as two rows each under This round and Next
-               round (#579, #597: James's subheadings, the short labels
-               drafts); main.js leaves out a row the data can't fill,
-               and a round with none, heading and all. */}}
-          <div class="account-membership-round" data-mem-round="this">
-            <h3 class="h6 account-membership-round-title">This round</h3>
-            <dl class="account-membership-rows">
-              <dt class="account-membership-term" data-mem-row="closes">Closes</dt>
-              <dd class="account-membership-value" data-mem="closes"></dd>
-              <dt class="account-membership-term" data-mem-row="pickup">Pickup</dt>
-              <dd class="account-membership-value" data-mem="pickup"></dd>
-            </dl>
+        <div class="row g-4">
+          {{ range (slice
+            (dict "state" "closed" "pill" "Closed")
+            (dict "state" "open" "pill" "Open")
+            (dict "state" "next" "pill" "Next")) }}
+          <div class="col-12 col-md-6" data-mem-round="{{ .state }}">
+            <p class="account-round-when"><span class="text-nowrap"><strong data-round="date"></strong><span data-round="dot"> ·</span></span> <span class="text-nowrap" data-round="window"></span></p>
+            <p class="account-round-status"><span class="account-status account-round-pill{{ if eq .state "open" }} is-open{{ end }}">{{ .pill }}</span> <span data-round="line"></span></p>
+            {{ if eq .state "open" }}
+            <a class="btn btn-primary account-round-order" href="{{ relURL "order/" }}">Order now</a>
+            {{ end }}
           </div>
-          <div class="account-membership-round" data-mem-round="next">
-            <h3 class="h6 account-membership-round-title">Next round</h3>
-            <dl class="account-membership-rows">
-              <dt class="account-membership-term" data-mem-row="opens">Opens</dt>
-              <dd class="account-membership-value" data-mem="opens"></dd>
-              <dt class="account-membership-term" data-mem-row="next-pickup">Pickup</dt>
-              <dd class="account-membership-value" data-mem="next-pickup"></dd>
-            </dl>
-          </div>
+          {{ end }}
         </div>
       </section>
 
       <div data-mem-host hidden>
         <section class="account-group" data-mem-labelled="qr-h">
           <div class="account-group-head">
-            <h2 class="h4 account-group-title" data-mem="qr-h">Your group's QR code</h2>
+            <h3 class="h4 account-group-title" data-mem="qr-h">Invite members</h3>
           </div>
           <p>Add members to this group by sharing the QR code or the link.</p>
           {{/* The QR code and the link it holds (#579), the link under
@@ -480,19 +501,19 @@
                would stop no one. The farm replaces a leaked long link
                from the CLI. */}}
           <div class="account-membership-actions">
-            <a class="btn btn-primary" data-mem="download" href="/api/membership/qr?download=1" download>Download QR code</a>
+            <a class="btn btn-outline-primary" data-mem="download" href="/api/membership/qr?download=1" download>Download QR code</a>
           </div>
         </section>
 
         <section class="account-group" data-mem-labelled="list-h">
           <div class="account-group-head">
-            <h2 class="h4 account-group-title" data-mem="list-h">Members</h2>
+            <h3 class="h4 account-group-title" data-mem="list-h">Members</h3>
           </div>
           <p class="account-empty" data-mem="list-empty" hidden>No members yet.</p>
           <ul class="account-membership-list" data-mem="list"></ul>
         </section>
       </div>
-    </div>
+    </section>
   </template>
 
   {{/* One member on the host's list (#495). */}}

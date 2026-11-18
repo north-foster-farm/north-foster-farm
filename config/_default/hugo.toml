@@ -105,6 +105,13 @@ timeZone = "America/New_York"
     # any email links to the pages. See docs/order-form.md, "Account".
     accounts = true
 
+    # The member's own code on the Membership tab as text, with its
+    # key tag and download. Off (James, #602) until scanning it does
+    # something at a market: the tab shows the QR code under a
+    # "Coming soon" badge instead. The server and the CLI still mint
+    # and draw the code.
+    memberCode = false
+
   [params.defaults]
     [params.defaults.featuredImage]
       [params.defaults.featuredImage.default]

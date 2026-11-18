@@ -1,7 +1,9 @@
-// The Membership tab's words (#495), kept apart from the page so the
-// tests can hold them. Every line is a draft for James. Spaces here
-// are ordinary; main.js keeps each time with its AM or PM, and each
-// line's last two words, together where it sets the text (#593, #598).
+// The Membership tab's words (#495, #602), kept apart from the page so
+// the tests can hold them. The pills Open and Next and the two lines
+// under them follow James's sketch (#602); the rest is a draft for
+// him. Spaces here are ordinary; main.js keeps each time with its AM
+// or PM, and each line's last two words, together where it sets the
+// text (#593, #598).
 
 import { meridiem, spaceMeridiem } from "../../utils/keep-together.mjs";
 
@@ -33,80 +35,80 @@ export const clock = (hhmm) => {
     h < 12 ? "AM" : "PM");
 };
 
-const weekday = (iso) => new Date(`${iso}T12:00:00Z`)
-  .toLocaleDateString("en-US", { weekday: "long", timeZone: "UTC" });
-
-// "8:30 to 9:00 AM", or "11:30 AM to 12:30 PM" across noon.
+// A pickup window as James's sketch writes it (#602), an en dash
+// between its ends: "8:30 – 9:00 AM", or "11:30 AM – 12:30 PM" across
+// noon.
 export const hours = (from, to) => {
   const a = clock(from);
   const b = clock(to);
 
   return a.slice(-2) === b.slice(-2)
-    ? `${a.slice(0, -3)} to ${b}` : `${a} to ${b}`;
+    ? `${a.slice(0, -3)} – ${b}` : `${a} – ${b}`;
 };
 
-// "Every 2 weeks, on Sundays, 8:30 to 9:00 AM".
-export const roundsLine = (r) => {
-  const every = r.every === 1 ? "Every week" : `Every ${r.every} weeks`;
-  const time = r.opens && r.closes ? `, ${hours(r.opens, r.closes)}` : "";
-
-  return `${every}, on ${weekday(r.current.date)}s${time}`;
-};
-
-// An instant in the farm's zone: "Saturday, November 7, 11:59 PM",
-// ICU's narrow no-break space before the PM made ordinary (#598).
-export const moment = (iso, timeZone) => spaceMeridiem(new Date(iso)
-  .toLocaleString("en-US", {
-    timeZone, weekday: "long", month: "long", day: "numeric",
-    hour: "numeric", minute: "2-digit",
-  }).replace(" at ", ", "));
-
-// A pickup day at its window's start, as the round rows read it
-// (#579): "Sunday, November 22, 8:30 AM". The day alone when the
-// series names no hours.
-export const pickupMoment = (date, opens) => {
-  const day = new Date(`${date}T12:00:00Z`).toLocaleDateString("en-US", {
-    weekday: "long", month: "long", day: "numeric", timeZone: "UTC",
+// A pickup day, the weekday in full and the month short: "Sunday,
+// Nov 22".
+export const pickupDay = (date) => new Date(`${date}T12:00:00Z`)
+  .toLocaleDateString("en-US", {
+    weekday: "long", month: "short", day: "numeric", timeZone: "UTC",
   });
 
-  return opens ? `${day}, ${clock(opens)}` : day;
+// An instant's day in the farm's zone, both short: "Sat, Nov 21".
+export const shortDay = (iso, timeZone) => new Date(iso)
+  .toLocaleDateString("en-US", {
+    timeZone, weekday: "short", month: "short", day: "numeric",
+  });
+
+// An instant's time in the farm's zone: "11:59 PM", ICU's narrow
+// no-break space before the PM made ordinary (#598).
+export const timeOf = (iso, timeZone) => spaceMeridiem(new Date(iso)
+  .toLocaleTimeString("en-US", {
+    timeZone, hour: "numeric", minute: "2-digit",
+  }));
+
+// The pills, in the order the rounds are listed. Open and Next are
+// James's words; Closed is a draft.
+export const PILLS = { closed: "Closed", open: "Open", next: "Next" };
+
+// The rounds the tab lists (#602), in order: the one whose ordering
+// has closed and whose pickup is still to come (#600), the one open,
+// and the next. Each is two lines: the pickup's `date` and `window`
+// ("" when the series names no hours), then, after the pill, `line`.
+// Only the open round takes orders. None: [].
+export const rounds = (r, timeZone) => {
+  if (!r) return [];
+
+  const window = r.opens && r.closes ? hours(r.opens, r.closes) : "";
+  const round = (state, date, line) => ({
+    state, pill: PILLS[state], date: pickupDay(date), window, line,
+    order: state === "open",
+  });
+  // The next round opens as this one closes, at 11:59 PM, so the day
+  // it is open from is the day after: a minute on.
+  const opensOn = (iso) => shortDay(
+    new Date(new Date(iso).getTime() + 60000).toISOString(), timeZone
+  );
+
+  return [
+    r.closed && round("closed", r.closed.date,
+      `Pickup is ${pickupDay(r.closed.date)}`),
+    r.current && round("open", r.current.date,
+      `Closes at ${timeOf(r.current.closesAt, timeZone)} on ${
+        shortDay(r.current.closesAt, timeZone)}`),
+    r.next && round("next", r.next.date,
+      `Opens on ${opensOn(r.next.opensAt)}`),
+  ].filter(Boolean);
 };
 
-// The four round rows (#579), each a label's value: this round's
-// close and pickup, the next one's opening and pickup. A row the data
-// can't fill is "" and the page leaves it out.
-export const roundRows = (r, timeZone) => ({
-  closes: r ? moment(r.current.closesAt, timeZone) : "",
-  pickup: r ? pickupMoment(r.current.date, r.opens) : "",
-  opens: r && r.next ? moment(r.next.opensAt, timeZone) : "",
-  "next-pickup": r && r.next ? pickupMoment(r.next.date, r.opens) : "",
-});
-
-// Which round each row sits under (#597): the page's This round and
-// Next round subheadings, in order.
-export const ROUND_GROUPS = {
-  this: ["closes", "pickup"],
-  next: ["opens", "next-pickup"],
-};
-
-// The rows by round (#597): { this: [[row, value], ...], next: ... },
-// with only the rows the data fills. A round with none is left out,
-// its subheading with it.
-export const roundGroups = (r, timeZone) => {
-  const rows = roundRows(r, timeZone);
-
-  return Object.fromEntries(Object.entries(ROUND_GROUPS)
-    .map(([round, names]) => [round,
-      names.filter((name) => rows[name]).map((name) => [name, rows[name]])])
-    .filter(([, filled]) => filled.length));
-};
-
-// The pickup place on three lines (#579): its name, the street, then
-// the city, state and ZIP. None: no lines.
-export const placeLines = (p) => (p ? [
-  p.name, p.street, [p.city, [p.state, p.zip].filter(Boolean).join(" ")]
+// The pickup place as one line under the group's name (#602): the
+// street, then the city, state and ZIP. The place's own name leads
+// only when it is not the group's, which the heading already says.
+// None: "".
+export const addressLine = (p, groupName = "") => (p ? [
+  p.name === groupName ? "" : p.name, p.street,
+  [p.city, [p.state, p.zip].filter(Boolean).join(" ")]
     .filter(Boolean).join(", "),
-].filter(Boolean) : []);
+].filter(Boolean).join(", ") : "");
 
 // "Joined Nov 2, 2026, by QR code".
 export const joinedLine = (m, placed) => [

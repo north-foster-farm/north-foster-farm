@@ -30,8 +30,8 @@ import {
   METHOD, fileName, ordersCsv, paidWith, receiptsCsv, statusOf,
 } from "./lib/history.mjs";
 import {
-  COPIED_MS, LINK_COPIED, LINK_NOT_COPIED, ROUND_GROUPS, joinedLine,
-  placeLines, roundGroups, roundsLine,
+  COPIED_MS, LINK_COPIED, LINK_NOT_COPIED, addressLine, joinedLine,
+  rounds,
 } from "./lib/membership.mjs";
 import { showMembership } from "./lib/membership-tab.mjs";
 import { watchTabs } from "./tabs-more.js";
@@ -342,81 +342,86 @@ class Account {
         .map((h) => [h, h]),
     ];
 
-    document.getElementById("mem-groups").replaceChildren(
-      ...blocks.map(([g, hosted]) => this.renderGroup(g, hosted))
-    );
+    // The member's own two sections, the code and Leave the group,
+    // sit in the pane until their group is drawn, then in its block
+    // (#602). Held here so a second render can't lose them with the
+    // old blocks.
+    this.ownParts = this.ownParts || [
+      qs(document, "[data-mem-code]"), qs(document, "[data-mem-leave]"),
+    ];
+
+    const groups = blocks.map(([g, hosted]) => this.renderGroup(g, hosted));
+
+    if (own) groups[0].append(...this.ownParts);
+    document.getElementById("mem-groups").replaceChildren(...groups);
     this.renderCode(own && own.code);
     this.renderLeave(view);
   }
 
-  // The member's own code (#131): the ID in text and its QR code, with
-  // the key tag's link. None yet (the site in maintenance): no block.
+  // The member's own code (#131) as its QR code. While the code does
+  // nothing at a market (#602) the page has only the image, under its
+  // "Coming soon" badge. With `memberCode` on, the ID in text is there
+  // too. None yet (the site in maintenance): no block.
   renderCode(code) {
-    const box = qs(document, "[data-mem-code]");
+    const [box] = this.ownParts;
 
     box.hidden = !code;
     if (!code) return;
 
-    const img = document.getElementById("mem-code-qr");
+    const img = qs(box, "#mem-code-qr");
+    const id = qs(box, "#mem-code-id");
 
-    document.getElementById("mem-code-id").textContent = code.id;
+    if (id) id.textContent = code.id;
     img.src = `/api/membership/code?v=${encodeURIComponent(code.id)}`;
     img.hidden = false;
   }
 
-  // One group's block: its facts, and the host's part when `hosted`.
+  // One group's block: its name and address, its rounds, and the
+  // host's part when `hosted`.
   renderGroup(g, hosted) {
     const item = clone("tpl-mem-group");
     const box = qs(item, "[data-mem-group]");
     const out = (name, text) => write(qs(box, `[data-mem='${name}']`), text);
-    const p = g.group.place;
-    const r = g.rounds;
-    const zone = this.terms.timeZone;
-
-    // Each section is labelled by its heading, its id unique per group.
-    for (const section of all(box, "[data-mem-labelled]")) {
-      const part = section.dataset.memLabelled;
+    const label = (section, part) => {
       const id = `mem-${g.key}-${part}`;
 
       qs(box, `[data-mem='${part}']`).id = id;
       section.setAttribute("aria-labelledby", id);
+    };
+    const address = addressLine(g.group.place, g.group.name);
+
+    // The block is labelled by the group's name, and each section by
+    // its heading, its id unique per group.
+    label(box, "name");
+    for (const section of all(box, "[data-mem-labelled]")) {
+      label(section, section.dataset.memLabelled);
     }
     out("name", g.group.name);
-    // The place on three lines at every width (#579).
-    qs(box, "[data-mem='place']").replaceChildren(...placeLines(p)
-      .map((line) => el("span", "", line)));
-    // Each line and row below keeps its last two words together, and
-    // a time its AM or PM (#593).
-    // With no rounds, Rounds goes too, label and all (#597).
-    const every = r ? roundsLine(r) : "";
+    if (address) out("address", address);
+    else qs(box, "[data-mem='address']").remove();
 
-    if (every) {
-      out("every", every);
-    } else {
-      qs(box, "[data-mem-row='every']").remove();
-      qs(box, "[data-mem='every']").remove();
-    }
-    // Two rows under each round's subheading, a label and its value
-    // (#579, #597); a row the data can't fill is left out, and a round
-    // with none, such as a next round when there is none, goes whole.
-    const groups = roundGroups(r, zone);
+    // Each round the data gives (#602), and no Pickups at all without
+    // one. The date and the window are each whole in the template's
+    // text-nowrap spans; the line under them keeps its time with its
+    // AM or PM and its last two words together (#593).
+    const listed = new Map(rounds(g.rounds, this.terms.timeZone)
+      .map((round) => [round.state, round]));
 
-    for (const [round, names] of Object.entries(ROUND_GROUPS)) {
-      const filled = new Map(groups[round] || []);
+    for (const col of all(box, "[data-mem-round]")) {
+      const round = listed.get(col.dataset.memRound);
 
-      if (!filled.size) {
-        qs(box, `[data-mem-round='${round}']`).remove();
+      if (!round) {
+        col.remove();
         continue;
       }
-      for (const name of names) {
-        if (filled.has(name)) {
-          out(name, filled.get(name));
-        } else {
-          qs(box, `[data-mem-row='${name}']`).remove();
-          qs(box, `[data-mem='${name}']`).remove();
-        }
-      }
+      qs(col, "[data-round='date']").textContent = round.date;
+      qs(col, "[data-round='window']").textContent = round.window;
+      // No hours: the date alone, with no dot after it.
+      if (!round.window) qs(col, "[data-round='dot']").remove();
+      write(qs(col, "[data-round='line']"), round.line);
     }
+    if (!listed.size) qs(box, "[data-mem='pickups']").remove();
+
     qs(box, "[data-mem-host]").hidden = !hosted;
     if (hosted) this.renderHost(box, hosted);
 
@@ -426,7 +431,7 @@ class Account {
   // A member's own Leave group (#495), asked first. Gone, the page
   // starts again without the tab.
   renderLeave(view) {
-    const box = qs(document, "[data-mem-leave]");
+    const box = this.ownParts[1];
 
     box.hidden = !view.member;
     if (!view.member || this.leaveWired) return;
