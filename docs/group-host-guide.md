@@ -36,11 +36,10 @@ prices are there without the code.
 - Prices: the group's prices are today's prices, locked through
   December 31, 2027. If the farm's prices rise before then, the group
   stays on today's.
-- There is no delivery fee on a pickup round.
-- Delivery to the group, an order left in the gym's cooler on a
-  Thursday, is parked (2026-11-18, #626): the order page no longer
-  offers it, and it waits on `parked/group-delivery` for review. A
-  member can still choose an ordinary delivery to their own address.
+- There is no delivery fee on a pickup round. A member who wants an
+  order left in the gym's cooler on a Thursday can choose that on the
+  order page: it is a regular delivery, with the usual minimum and
+  fee.
 - Someone who buys at the gym without ordering ahead can be counted in
   the round if the farm has their email address.
 

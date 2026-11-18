@@ -102,9 +102,7 @@ export const findCode = (value, codes) => {
 // too, so its pickup is offered. `deliverTo` is the group's place
 // (data/locations.json): a delivery with `delivery.toGroup` true goes
 // to its address, a Thursday delivery like any other (James,
-// 6406932945), with the usual minimum and fee. The order page no
-// longer offers it (#626, parked on `parked/group-delivery`); the
-// server still takes it, and an edit keeps a stored one.
+// 6406932945), with the usual minimum and fee.
 // `credit` is the member's credit in cents (lib/credit.mjs), which the
 // caller has read for the signed-in customer; the totals take as much
 // of it as the order needs, and `total` is then the money due.

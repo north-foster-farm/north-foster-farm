@@ -315,14 +315,6 @@ to Square as one line-item discount each. A SKU the member price list
 has no price for is charged at retail. A tie between the member price
 and the bulk tier goes to the member price.
 
-Delivery to the group's place, a member's tick that filled the
-address from it and posted `delivery.toGroup` (#471), is parked
-(#626, 2026-11-18) on `parked/group-delivery`, one commit ahead of
-`next`. The page no longer offers it or posts `toGroup`
-(`postedDelivery` in `lib/posted.mjs`), and a draft saved ticked
-loads as an ordinary delivery with no address. The server still
-takes the field, and an edit of an order stored with it keeps it.
-
 A discount code is typed into the cart and sent as `code` on the
 payload. The server looks it up in `data/discount-codes.json`
 (`findCode` in `lib/validate.mjs`; upper case, letters and digits); a

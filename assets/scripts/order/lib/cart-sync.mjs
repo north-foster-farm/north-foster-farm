@@ -23,17 +23,14 @@ const linesOf = (list) => (Array.isArray(list) ? list : [])
 // -> the part of a draft's payload worth carrying to another device:
 // the customer's details, the cart, the way and the code, a pass and a
 // buying group's code (each asked about again when the draft is
-// restored), and a scheduled pickup's occurrence (#521). A payment
-// attempt's keys and the claimed total stay with the device.
+// restored), and a scheduled pickup's occurrence and a member's
+// delivery to the group (#521). A payment attempt's keys and the
+// claimed total stay with the device.
 export const cartOf = (payload) => {
   const p = obj(payload);
   const c = obj(p.customer);
   const f = obj(p.fulfilment);
-  const given = obj(f.delivery);
-  // A draft ticked for the group's place (#471) holds the place, not
-  // the customer's address; with the option parked (#626) it carries
-  // as an ordinary delivery with no address.
-  const d = given.toGroup === true ? { notes: given.notes } : given;
+  const d = obj(f.delivery);
   const lines = linesOf(p.lines);
 
   return {
@@ -59,8 +56,7 @@ export const cartOf = (payload) => {
         zip: text(d.zip, 10),
         cooler: text(d.cooler, 300),
         notes: text(d.notes, 1000),
-        // Kept in the shape, never ticked (#626).
-        toGroup: false,
+        toGroup: d.toGroup === true,
       },
     },
     code: text(p.code, 40),
@@ -80,11 +76,11 @@ const match = (value, pattern) => (typeof value === "string"
 
 // What the sign-in page carries to a link that may open in another
 // browser (#521): the cart lines and the delivery choice (the way, the
-// day or the scheduled pickup and the on-farm window), and nothing
-// that names the customer or where they live. `draft` is
-// { payload, savedAt }, as the browser keeps it. The page sends this
-// and the auth API takes it again, so a field not named here never
-// reaches the link's record.
+// day or the scheduled pickup, the on-farm window, and whether a
+// member's delivery goes to the group's place), and nothing that names
+// the customer or where they live. `draft` is { payload, savedAt }, as
+// the browser keeps it. The page sends this and the auth API takes it
+// again, so a field not named here never reaches the link's record.
 // -> { payload, savedAt }, or null with no line to carry.
 export const carryOf = (draft) => {
   const r = obj(draft);
@@ -108,6 +104,7 @@ export const carryOf = (draft) => {
   if (date) fulfilment.date = date;
   if (occurrence) fulfilment.occurrence = occurrence;
   if (window) fulfilment.onfarm = { window };
+  if (obj(f.delivery).toGroup === true) fulfilment.delivery = { toGroup: true };
 
   return { payload: { lines, fulfilment }, savedAt };
 };

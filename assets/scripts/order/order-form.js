@@ -8,7 +8,6 @@ import {
 } from "./lib/scheduled.mjs";
 import { groupFromQuery, withPlaces } from "./lib/group.mjs";
 import { perkEffects } from "./lib/perks.mjs";
-import { postedDelivery } from "./lib/posted.mjs";
 import { linkedMethod, withoutParam } from "./lib/query.mjs";
 import { showing } from "./lib/sections.mjs";
 import { sentence } from "./lib/sentence.mjs";
@@ -678,6 +677,7 @@ export class OrderForm {
       if (e.target.name === "customer.marketing" && e.target.checked) {
         celebrate(e.target);
       }
+      if (e.target.name === "delivery.toGroup") this.fillGroupAddress();
     });
     this.form.addEventListener("submit", (e) => this.submit(e));
     this.form.addEventListener("click", (e) => this.step(e));
@@ -1258,6 +1258,7 @@ export class OrderForm {
     if (this.wantedOccurrence && this.dates.choose(this.wantedOccurrence)) {
       this.wantedOccurrence = null;
     }
+    this.renderGroupDelivery();
     this.refresh();
     this.draft.save(this.collect());
   }
@@ -1310,6 +1311,63 @@ export class OrderForm {
     }
   }
 
+  // The group's place as the page knows it once unlocked, or null.
+  groupPlace() {
+    return this.member
+      ? this.terms.model.location(this.member.location) || null
+      : null;
+  }
+
+  // A member may have a Thursday delivery left at the group's place
+  // (#471): the choice shows once the group is unlocked, named for
+  // it, and goes with the group.
+  renderGroupDelivery() {
+    const row = qs(this.form, "[data-deliver-to-group]");
+
+    if (!row) return;
+
+    row.hidden = !this.member;
+    if (this.member) {
+      qs(row, "[data-group-name]").textContent = this.member.name;
+      // A restored draft's tick is filled now that the place is known.
+      if (qs(row, "input").checked) this.fillGroupAddress();
+    } else {
+      qs(row, "input").checked = false;
+      this.fillGroupAddress();
+    }
+  }
+
+  // Ticked, the address fields take the place's and hold still; the
+  // server fills them from the place again. Unticked, they are the
+  // customer's to type.
+  fillGroupAddress() {
+    const box = qs(this.form, "[data-field='delivery.toGroup']");
+    const place = this.groupPlace();
+    const on = !!(box && box.checked && place);
+    const fields = {
+      "delivery.address1": place ? place.street : "",
+      "delivery.address2": "",
+      "delivery.town": place ? place.city : "",
+      "delivery.zip": place ? place.zip : "",
+    };
+
+    for (const [key, text] of Object.entries(fields)) {
+      const el = qs(this.form, `[data-field="${key}"]`);
+
+      if (!el) continue;
+      if (on) el.value = text;
+      el.readOnly = on;
+    }
+
+    const cooler = qs(this.form, "[data-field='delivery.cooler']");
+
+    // Draft wording.
+    if (on && cooler && !cooler.value) {
+      cooler.value = `The cooler at ${place.name}`;
+    }
+    this.refresh();
+  }
+
   // A code the server refused at submission (replaced since the page
   // applied it): the group comes off, its pickup with it, and the
   // words go by the code box, as for a pass.
@@ -1319,6 +1377,7 @@ export class OrderForm {
     this.credit = this.ownCredit || 0;
     this.terms = withPlaces(this.terms, this.raw);
     this.dates.dropExtra();
+    this.renderGroupDelivery();
     this.cart.codeResult({ text: message });
     this.refresh();
     this.draft.save(this.collect());
@@ -1650,16 +1709,16 @@ export class OrderForm {
         onfarm: {
           window: value("onfarm.window"),
         },
-        // Never names the group's place (#626): an edit of an order
-        // that went there keeps it.
-        delivery: postedDelivery({
+        delivery: {
           address1: value("delivery.address1"),
           address2: value("delivery.address2"),
           town: value("delivery.town"),
           zip: value("delivery.zip"),
           cooler: value("delivery.cooler"),
           notes: value("delivery.notes"),
-        }),
+          // A member's delivery to the group's place (#471).
+          toGroup: value("delivery.toGroup") === true,
+        },
       },
       code: this.code
         ? this.code.code
@@ -1779,17 +1838,13 @@ export class OrderForm {
     // The radios are drawn from the lists when they come.
     this.wantedWindow = o.window || null;
 
-    // A draft saved with the group's delivery ticked (#471, parked in
-    // #626) holds the group's place, which is no longer offered: it
-    // comes back as an ordinary delivery with the address to type.
-    // A paid order being changed keeps its own address.
-    const ticked = d.toGroup === true && !this.editing;
-
     for (const key of [
       "address1", "address2", "town", "zip", "cooler", "notes",
     ]) {
-      set(`delivery.${key}`, ticked && key !== "notes" ? "" : d[key]);
+      set(`delivery.${key}`, d[key]);
     }
+    // Filled from the group's place once the group is unlocked (#471).
+    set("delivery.toGroup", d.toGroup === true);
 
     // Kept until the real list arrives; fill() honours it if the date
     // is still valid (#284).
@@ -1850,6 +1905,7 @@ export class OrderForm {
       // As lib/edit.mjs passes it (#643).
       keptDate: (this.editing && this.editing.booked) || null,
       lock: this.lock(),
+      deliverTo: this.groupPlace(),
       credit: this.editing ? 0 : this.credit,
       waive: { minimum: !!this.pass, fee: !!this.pass && this.passFee },
       perks: this.perkTypes(),
