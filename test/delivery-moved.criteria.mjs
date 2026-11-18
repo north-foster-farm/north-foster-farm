@@ -469,6 +469,13 @@ describe("an order for the 25th", () => {
     assert.ok(!early.sent.some((m) => /deliveryReminder/
       .test(m.idempotencyKey || "")), "not before 18:00");
 
+    // The evening packet goes from 15:00 (EVE_HOUR, #515), once a day.
+    const packet = (m) => m.subject.startsWith(
+      "Packing slips for tomorrow, Wednesday, November 25");
+
+    assert.ok(early.sent.some(packet),
+      early.sent.map((m) => m.subject).join("\n"));
+
     const jobs = outbox();
     const evening = ny("2026-11-24", 18, 5);
 
@@ -486,9 +493,7 @@ describe("an order for the 25th", () => {
     assert.equal(manifest && manifest.subject,
       "Tomorrow, Wednesday, November 25: 1 order");
     assert.ok(manifest.text.includes(id));
-    assert.ok(jobs.sent.some((m) => m.subject.startsWith(
-      "Packing slips for tomorrow, Wednesday, November 25")),
-    jobs.sent.map((m) => m.subject).join("\n"));
+    assert.ok(!jobs.sent.some(packet), "the packet is not sent twice");
   });
 });
 
@@ -533,9 +538,19 @@ describe("nothing tells a customer of a Wednesday delivery that it is " +
           at: ny("2026-11-19", 15).toISOString() },
       }, { now: ny("2026-11-19", 16) }));
 
-      assert.ok(text.includes("November 25"), text);
-      assert.ok(!text.includes("November 26"), text);
+      // No line offering delivery names the 26th. The hold is not a
+      // delivery day: it stays holdDays (7) from the missed day, as
+      // today, and #640 does not move it.
+      const offers = text.match(/Deliver it[^\n<]*/g) || [];
+
+      assert.ok(offers.length > 0, text);
+      for (const offer of offers) {
+        assert.ok(offer.includes("Wednesday, November 25"), offer);
+        assert.ok(!offer.includes("November 26"), offer);
+      }
       assert.ok(!/next Thursday|Thursday, November 25/.test(text), text);
+      assert.ok(text.includes(
+        "We'll hold your order until Thursday, November 26."), text);
       assert.equal(nextDeliveryDay("2026-11-19"), "2026-11-25");
     });
 });
