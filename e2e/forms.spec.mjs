@@ -247,15 +247,8 @@ test.describe("contact and pickup forms", () => {
       expect(sizes[0]).toBeLessThan(sizes[1]);
     });
 
-  test("the delivery countdown names the next delivery day",
-    async ({ page }) => {
-      const order = new OrderPage(page);
-
-      await order.open({ wings: 5 }, { method: "delivery" });
-      await expect(page.locator("[data-countdown-text]")).toHaveText(
-        /^Order within .+ for delivery on [A-Z][a-z]+day\.$/
-      );
-    });
+  // The delivery countdown's wording: e2e/countdown-date.spec.mjs
+  // (#627; this file's weekday-only assertion retired into it).
 
   test("ticking the farm-news box sends no email", async ({ page }) => {
     const order = new OrderPage(page);
