@@ -1,9 +1,9 @@
 // The Membership tab's words (#495), kept apart from the page so the
-// tests can hold them. Every line is a draft for James. A time keeps
-// its AM or PM here; main.js keeps each line's last two words together
-// where it sets the text (#593).
+// tests can hold them. Every line is a draft for James. Spaces here
+// are ordinary; main.js keeps each time with its AM or PM, and each
+// line's last two words, together where it sets the text (#593, #598).
 
-import { joinMeridiem, meridiem } from "../../utils/keep-together.mjs";
+import { meridiem, spaceMeridiem } from "../../utils/keep-together.mjs";
 
 // How a member came to the group, as the host's list says it.
 export const JOIN_WAYS = {
@@ -25,8 +25,7 @@ export const LINK_COPIED = "Link copied";
 export const LINK_NOT_COPIED =
   "Copying failed. The link is selected, so copy it yourself.";
 
-// "08:30" -> "8:30 AM", the half of the day joined to the time by a
-// no-break space (#593).
+// "08:30" -> "8:30 AM".
 export const clock = (hhmm) => {
   const [h, m] = String(hhmm).split(":").map(Number);
 
@@ -55,8 +54,8 @@ export const roundsLine = (r) => {
 };
 
 // An instant in the farm's zone: "Saturday, November 7, 11:59 PM",
-// the time and its PM joined (#593).
-export const moment = (iso, timeZone) => joinMeridiem(new Date(iso)
+// ICU's narrow no-break space before the PM made ordinary (#598).
+export const moment = (iso, timeZone) => spaceMeridiem(new Date(iso)
   .toLocaleString("en-US", {
     timeZone, weekday: "long", month: "long", day: "numeric",
     hour: "numeric", minute: "2-digit",

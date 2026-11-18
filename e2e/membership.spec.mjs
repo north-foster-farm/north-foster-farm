@@ -149,17 +149,17 @@ test.describe("a member of one group who hosts another", () => {
     const hosted = blocks.nth(1);
     const round = (block, name) => block.locator(".account-membership-round")
       .filter({ has: page.getByRole("heading", { level: 3, name }) });
-    const _ = " ";
 
     await expect(own.getByRole("heading", { level: 3 }))
       .toHaveText(["This round", "Next round"]);
+    // Ordinary spaces, never a no-break one (#598).
     expect(await rowsOf(round(own, "This round").locator("dl"))).toEqual([
-      ["Closes", `Saturday, November 21,${_}11:59${_}PM`],
-      ["Pickup", `Sunday, November 22,${_}8:30${_}AM`],
+      ["Closes", "Saturday, November 21, 11:59 PM"],
+      ["Pickup", "Sunday, November 22, 8:30 AM"],
     ]);
     expect(await rowsOf(round(own, "Next round").locator("dl"))).toEqual([
-      ["Opens", `Saturday, November 21,${_}11:59${_}PM`],
-      ["Pickup", `Sunday, December 6,${_}8:30${_}AM`],
+      ["Opens", "Saturday, November 21, 11:59 PM"],
+      ["Pickup", "Sunday, December 6, 8:30 AM"],
     ]);
 
     // No next round: no Next round heading, nor its rows.

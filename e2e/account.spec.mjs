@@ -104,11 +104,9 @@ test.describe("accounts", () => {
       );
       await page.locator("[data-tab='receipts']").click();
       await expect(page.locator("#receipts-list")).toContainText(orderId);
-      // The sandbox's approved nonce is a Visa ending 5858. The page
-      // keeps a line's last two words together with a no-break space
-      // (#593), which a pattern, unlike a string, matches as written.
+      // The sandbox's approved nonce is a Visa ending 5858.
       await expect(page.locator("#receipts-list")).toContainText(
-        /Visa\sending\s\d{4}/
+        /Visa ending \d{4}/
       );
       await expect(page.locator("#receipts-list")).toContainText("$7");
       await expect(page.locator("body")).not.toContainText("Pay now");

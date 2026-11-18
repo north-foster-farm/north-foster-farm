@@ -840,8 +840,10 @@
     margin: 0;
 
     // The pickup place, a line each (#579): a tag, not a class, since
-    // only the script makes them and PurgeCSS reads the templates.
-    > span {
+    // only the script makes them and PurgeCSS reads the templates. Not
+    // the text-nowrap span that keeps a row's last two words together
+    // (#598): it stays inline, beside the words before it.
+    > span:not(.text-nowrap) {
       display: block;
     }
   }

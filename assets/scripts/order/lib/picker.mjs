@@ -10,7 +10,7 @@ import {
   addressLines, fallbackChoice, locationCount, pickupName,
 } from "./scheduled.mjs";
 import { addDays, label, today, weekday } from "./zoned.mjs";
-import { joinMeridiem } from "../../utils/keep-together.mjs";
+import { spaceMeridiem } from "../../utils/keep-together.mjs";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -156,9 +156,9 @@ const clock = (date, timeZone) => {
   }
 
   // Newer ICU puts a narrow no-break space before AM and PM, older a
-  // space: either way a no-break space, so the PM never wraps alone
-  // (#593).
-  return joinMeridiem(timeFormatters.get(timeZone).format(date));
+  // space: either way an ordinary space (#598). The picker's setter
+  // keeps the PM from wrapping alone (#593).
+  return spaceMeridiem(timeFormatters.get(timeZone).format(date));
 };
 
 // The details panel's last line: "Order by Friday, November 20, 11:59

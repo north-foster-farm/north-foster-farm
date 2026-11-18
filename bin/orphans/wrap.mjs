@@ -6,7 +6,7 @@
 //
 // It rewrites each HTML file in place and prints a count. Text a
 // script sets in the browser never comes here: the scripts keep their
-// own lines' last words together with keepLastTwo, in
+// own lines' last words together with keepTogether, in
 // assets/scripts/utils/keep-together.mjs, which holds the word rule
 // below for both (#593). The rules:
 //

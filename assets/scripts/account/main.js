@@ -23,7 +23,7 @@ import { fieldError } from "../utils/field-errors.mjs";
 import {
   confirmHash, isFor, readConfirm, showConfirm,
 } from "../utils/email-confirm.js";
-import { keepTogether, meridiem } from "../utils/keep-together.mjs";
+import { meridiem, setKept } from "../utils/keep-together.mjs";
 import { whileLoading } from "../utils/skeleton.js";
 import { Autoplay } from "../video/video.js";
 import {
@@ -46,9 +46,10 @@ const total = (items) => (items || [])
 
 // A line of text the page writes, each time held to its AM or PM and
 // its last two words kept on one line (#593), as bin/orphans/wrap.mjs
-// keeps the built pages' prose.
+// keeps the built pages' prose: each pair in a text-nowrap span, with
+// an ordinary space (#598).
 const write = (node, text) => {
-  node.textContent = keepTogether(text);
+  setKept(node, text);
 };
 
 const el = (tag, className, text) => {

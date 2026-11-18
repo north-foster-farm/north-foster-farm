@@ -1,81 +1,113 @@
 // The words the browser keeps together (#593): a time and its AM or
 // PM, and the last two words of a line, by bin/orphans/wrap.mjs's rule.
-// `_` below is the no-break space, so the expected strings stay plain.
+// Kept apart by an ordinary space, on one line by a text-nowrap span,
+// never by a no-break space, which drew with no width (#598). `show`
+// below writes a kept run in [brackets], so the expected strings stay
+// plain.
 
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
-  MAX_WORD, NBSP as _, joinMeridiem, keepLastTwo, keepTogether, meridiem,
+  MAX_WORD, NOWRAP, keepTogether, meridiem, setKept, spaceMeridiem,
   unsafeWord,
 } from "../assets/scripts/utils/keep-together.mjs";
 import {
-  pickupMoment, roundRows,
+  pickupMoment, roundRows, roundsLine,
 } from "../assets/scripts/account/lib/membership.mjs";
+import { orderBy } from "../assets/scripts/order/lib/picker.mjs";
 import { wrapLastWords } from "../bin/orphans/wrap.mjs";
 
+const NBSP = String.fromCharCode(0xa0);
 const NARROW = String.fromCharCode(0x202f);
+const NO_BREAK = new RegExp(`[${NBSP}${NARROW}]`);
+
+const show = (text) => keepTogether(text)
+  .map((r) => (r.nowrap ? `[${r.text}]` : r.text)).join("");
+
+// Enough of a DOM for setKept: text nodes and spans, in order.
+const fakeNode = () => {
+  const doc = {
+    createElement: (tag) => ({ tag, className: "", textContent: "" }),
+  };
+  const node = {
+    ownerDocument: doc,
+    kids: [{ text: "stale" }],
+    set textContent(value) {
+      this.kids = value ? [{ text: value }] : [];
+    },
+    get textContent() {
+      return this.kids.map((k) => (typeof k === "string" ? k
+        : k.textContent ?? k.text)).join("");
+    },
+    append(kid) {
+      this.kids.push(kid);
+    },
+  };
+
+  return node;
+};
 
 describe("a time and its half of the day", () => {
-  it("are joined by a no-break space", () => {
-    assert.equal(_, String.fromCharCode(0xa0));
-    assert.equal(meridiem("8:30", "AM"), `8:30${_}AM`);
-    assert.equal(meridiem(9, "PM"), `9${_}PM`);
+  it("are written with an ordinary space", () => {
+    assert.equal(meridiem("8:30", "AM"), "8:30 AM");
+    assert.equal(meridiem(9, "PM"), "9 PM");
   });
 
-  it("are joined in text already written, whatever the space", () => {
-    assert.equal(joinMeridiem("Saturday, November 21, 11:59 PM"),
-      `Saturday, November 21, 11:59${_}PM`);
-    // Newer ICU's narrow no-break space.
-    assert.equal(joinMeridiem(`11:59${NARROW}PM`), `11:59${_}PM`);
-    assert.equal(joinMeridiem("9 AM to 1 PM"), `9${_}AM to 1${_}PM`);
-    assert.equal(joinMeridiem(`8:30${_}AM`), `8:30${_}AM`);
+  it("take an ordinary space in text already written", () => {
+    // Newer ICU's narrow no-break space, and #593's no-break one.
+    assert.equal(spaceMeridiem(`11:59${NARROW}PM`), "11:59 PM");
+    assert.equal(spaceMeridiem(`8:30${NBSP}AM`), "8:30 AM");
+    assert.equal(spaceMeridiem("9  AM to 1 PM"), "9 AM to 1 PM");
+    assert.equal(spaceMeridiem("At 4 PMs"), "At 4 PMs");
+  });
+
+  it("are kept on one line, wherever they are", () => {
+    assert.equal(show("9 AM to 1 PM, at the market"),
+      "[9 AM] to [1 PM,] at [the market]");
+    assert.equal(show("10 AM – 12 PM, at Canned Market"),
+      "[10 AM] – [12 PM,] at [Canned Market]");
   });
 
   it("leave a word that only starts with AM or PM alone", () => {
-    assert.equal(joinMeridiem("At 4 PMs"), "At 4 PMs");
-    assert.equal(joinMeridiem("Room 4 AMPLE"), "Room 4 AMPLE");
-    assert.equal(joinMeridiem("No time here"), "No time here");
+    assert.equal(show("At 4 PMs today"), "At 4 [PMs today]");
+    assert.equal(show("Room 4 AMPLE"), "Room [4 AMPLE]");
+    assert.equal(show("No time here"), "No [time here]");
   });
 });
 
 describe("the last two words of a line", () => {
-  it("are joined by a no-break space", () => {
-    assert.equal(keepLastTwo("Every 2 weeks, on Sundays"),
-      `Every 2 weeks, on${_}Sundays`);
-    assert.equal(keepLastTwo("Foster, RI 02825"), `Foster, RI${_}02825`);
+  it("are kept on one line", () => {
+    assert.equal(show("Every 2 weeks, on Sundays"),
+      "Every 2 weeks, [on Sundays]");
+    assert.equal(show("Foster, RI 02825"), "Foster, [RI 02825]");
+    assert.equal(show("The Village Family Fitness"),
+      "The Village [Family Fitness]");
   });
 
-  it("take a time joined to its AM or PM as one word", () => {
-    assert.equal(keepLastTwo(pickupMoment("2026-11-22", "08:30")),
-      `Sunday, November 22,${_}8:30${_}AM`);
+  it("take a time and its AM or PM as one word", () => {
+    assert.equal(show(pickupMoment("2026-11-22", "08:30")),
+      "Sunday, November [22, 8:30 AM]");
+    assert.equal(show("At 8:30 AM"), "[At 8:30 AM]");
   });
 
   it("keep spaces at the end, and every space before the pair", () => {
-    assert.equal(keepLastTwo("Saved it  "), `Saved${_}it  `);
-    assert.equal(keepLastTwo("one  two   three"), `one  two${_}three`);
-    assert.equal(keepLastTwo("a\nb"), `a${_}b`);
+    assert.equal(show("Saved it  "), "[Saved it]  ");
+    assert.equal(show("one  two   three"), "one  [two three]");
+    assert.equal(show("a\nb"), "[a b]");
   });
 
   it("join an element of just two words, as wrap.mjs does", () => {
-    assert.equal(keepLastTwo("Link copied"), `Link${_}copied`);
+    assert.equal(show("Link copied"), "[Link copied]");
   });
 
   it("leave one word, none, or a missing value alone", () => {
-    assert.equal(keepLastTwo("Members"), "Members");
-    assert.equal(keepLastTwo("  Members "), "  Members ");
-    assert.equal(keepLastTwo(""), "");
-    assert.equal(keepLastTwo(undefined), "");
-    assert.equal(keepLastTwo(null), "");
-    assert.equal(keepLastTwo(3), "3");
-  });
-
-  it("are joined only once", () => {
-    const once = keepLastTwo("Joined Nov 2, 2026, by QR code");
-
-    assert.equal(once, `Joined Nov 2, 2026, by QR${_}code`);
-    assert.equal(keepLastTwo(once), `Joined Nov 2, 2026, by${_}QR${_}code`,
-      "the joined pair reads as one word, as it does to wrap.mjs");
+    assert.equal(show("Members"), "Members");
+    assert.equal(show("  Members "), "  Members ");
+    assert.equal(show(""), "");
+    assert.equal(show(undefined), "");
+    assert.equal(show(null), "");
+    assert.equal(show(3), "3");
   });
 
   it("leave a URL or an email address apart", () => {
@@ -85,7 +117,7 @@ describe("the last two words of a line", () => {
       "See www.example.org today",
       "Write to SALES@example.com",
     ]) {
-      assert.equal(keepLastTwo(text), text, text);
+      assert.equal(show(text), text, text);
     }
   });
 
@@ -93,44 +125,80 @@ describe("the last two words of a line", () => {
     const long = "x".repeat(MAX_WORD + 1);
     const most = "x".repeat(MAX_WORD);
 
-    assert.equal(keepLastTwo(`Pay ${long}`), `Pay ${long}`);
-    assert.equal(keepLastTwo(`${long} now`), `${long} now`);
-    assert.equal(keepLastTwo(`Pay ${most}`), `Pay${_}${most}`);
+    assert.equal(show(`Pay ${long}`), `Pay ${long}`);
+    assert.equal(show(`${long} now`), `${long} now`);
+    assert.equal(show(`Pay ${most}`), `[Pay ${most}]`);
+    assert.equal(show(`At 9 AM ${long}`), `At [9 AM] ${long}`);
     // Characters, not UTF-16 units: an emoji counts once.
-    assert.equal(keepLastTwo(`Saved ${"👍".repeat(MAX_WORD)}`),
-      `Saved${_}${"👍".repeat(MAX_WORD)}`);
+    assert.equal(show(`Saved ${"👍".repeat(MAX_WORD)}`),
+      `[Saved ${"👍".repeat(MAX_WORD)}]`);
   });
 });
 
-describe("a line as the browser sets it", () => {
-  it("holds a time written elsewhere to its AM or PM mid-line", () => {
-    // A pickup window as the server's windowLabel writes it, with
-    // plain spaces, then a place: keepLastTwo alone would leave
-    // "10 AM" free to part.
-    assert.equal(keepTogether("10 AM – 12 PM, at Canned Market"),
-      `10${_}AM – 12${_}PM, at Canned${_}Market`);
-    assert.equal(keepTogether(`Order by 11:59${NARROW}PM`),
-      `Order by${_}11:59${_}PM`);
-    assert.equal(keepTogether("Sunday, 9 AM – noon (as booked)"),
-      `Sunday, 9${_}AM – noon (as${_}booked)`);
+describe("the text the page writes (#598)", () => {
+  it("never holds a no-break space, whatever came in", () => {
+    for (const text of [
+      `Order by 11:59${NARROW}PM`,
+      `Sunday, November 22, 8:30${NBSP}AM`,
+      `53 Venturi${NBSP}Ave`,
+      `Warwick, RI${NBSP}02888`,
+    ]) {
+      const runs = keepTogether(text);
+
+      for (const r of runs) assert.doesNotMatch(r.text, NO_BREAK, text);
+    }
+    assert.equal(show(`Warwick, RI${NBSP}02888`), "Warwick, [RI 02888]");
+    assert.equal(show(`Order by 11:59${NARROW}PM`), "Order [by 11:59 PM]");
   });
 
-  it("keeps the exceptions apart, as keepLastTwo does", () => {
-    const long = "x".repeat(MAX_WORD + 1);
+  it("keeps every character but the spaces it makes ordinary", () => {
+    const text = "Every 2 weeks, on Sundays, 8:30 to 9:00 AM";
 
-    assert.equal(keepTogether("Sent to pat@example.com"),
-      "Sent to pat@example.com");
-    assert.equal(keepTogether("Open https://northfosterfarm.com"),
-      "Open https://northfosterfarm.com");
-    assert.equal(keepTogether(`At 9 AM ${long}`), `At 9${_}AM ${long}`);
+    assert.equal(keepTogether(text).map((r) => r.text).join(""), text);
   });
 
-  it("leaves a missing value empty and a joined time as it was", () => {
-    assert.equal(keepTogether(undefined), "");
-    assert.equal(keepTogether(null), "");
-    assert.equal(keepTogether(""), "");
-    assert.equal(keepTogether(`8:30${_}AM`), `8:30${_}AM`);
-    assert.equal(keepTogether(`At 8:30${_}AM`), `At${_}8:30${_}AM`);
+  it("holds none in the Membership rows or the picker's Order by", () => {
+    const r = {
+      every: 2, opens: "08:30", closes: "09:00",
+      current: { date: "2026-11-22", closesAt: "2026-11-22T04:59:00.000Z" },
+      next: { date: "2026-12-06", opensAt: "2026-11-22T04:59:00.000Z" },
+    };
+    const lines = [
+      ...Object.values(roundRows(r, "America/New_York")),
+      roundsLine(r),
+      orderBy("2026-11-14T04:59:00.000Z", "America/New_York"),
+    ];
+
+    assert.equal(lines.length, 6);
+    for (const line of lines) {
+      assert.doesNotMatch(line, NO_BREAK, line);
+      for (const run of keepTogether(line)) {
+        assert.doesNotMatch(run.text, NO_BREAK, line);
+      }
+    }
+  });
+
+  it("is set as text and spans, the pair in a text-nowrap span", () => {
+    const node = fakeNode();
+
+    setKept(node, "The Village Family Fitness");
+    assert.equal(NOWRAP, "text-nowrap");
+    assert.deepEqual(node.kids, [
+      "The Village ",
+      { tag: "span", className: "text-nowrap", textContent: "Family Fitness" },
+    ]);
+    assert.equal(node.textContent, "The Village Family Fitness");
+
+    setKept(node, "Members");
+    assert.deepEqual(node.kids, ["Members"], "the old text is gone");
+
+    setKept(node, "<b>x</b> y");
+    assert.deepEqual(node.kids, [
+      { tag: "span", className: "text-nowrap", textContent: "<b>x</b> y" },
+    ], "markup in the text stays text");
+
+    setKept(node, undefined);
+    assert.deepEqual(node.kids, []);
   });
 });
 
@@ -144,10 +212,11 @@ describe("the word rule", () => {
     assert.ok(!unsafeWord("x".repeat(14)));
     for (const word of ["x".repeat(15), "a@b.co"]) {
       assert.equal(wrapLastWords(`<p>Hello ${word}</p>`).count, 0, word);
-      assert.equal(keepLastTwo(`Hello ${word}`), `Hello ${word}`, word);
+      assert.equal(show(`Hello ${word}`), `Hello ${word}`, word);
     }
-    assert.equal(wrapLastWords("<p>Hello there</p>").count, 1);
-    assert.equal(keepLastTwo("Hello there"), `Hello${_}there`);
+    assert.equal(wrapLastWords("<p>Hello there</p>").html,
+      "<p><span class=\"text-nowrap\">Hello there</span></p>");
+    assert.equal(show("Hello there"), "[Hello there]");
   });
 });
 
@@ -162,12 +231,12 @@ describe("the Membership tab's rows (#593)", () => {
 
     assert.equal(rows.length, 4);
     for (const text of rows) {
-      const kept = keepLastTwo(text);
-      const tail = kept.slice(kept.lastIndexOf(" ") + 1);
+      const runs = keepTogether(text);
+      const last = runs.at(-1);
 
-      // The last line holds the day's number, the time and its half.
-      assert.match(tail, /^\d+,.+[AP]M$/, text);
-      assert.equal(tail.split(_).length, 3, text);
+      // The last run holds the day's number, the time and its half.
+      assert.ok(last.nowrap, text);
+      assert.match(last.text, /^\d+, \d+:\d\d [AP]M$/, text);
     }
   });
 });

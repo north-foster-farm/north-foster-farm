@@ -1,68 +1,126 @@
 // Words that must not part at a line break, for text the browser
 // writes (#593). bin/orphans/wrap.mjs keeps the last two words of the
 // built pages' prose together (#303), but never sees a line set from
-// a script, so the scripts call these where they set the text.
+// a script, so the scripts set those lines through setKept.
 //
-// A no-break space (U+00A0) does the joining: it is not one of HTML's
-// whitespace characters, so a line never breaks at one, and the words
-// either side read as one word to wrap.mjs and to keepLastTwo.
+// The words stay apart by an ordinary space, and a span with the
+// text-nowrap class keeps them on one line, as wrap.mjs does (#598).
+// A no-break space (U+00A0) did the joining before, but Aller's has an
+// advance of 0, which Chromium and Firefox draw as no width (WebKit
+// draws a space's), so "Family Fitness" read "FamilyFitness".
+// No no-break space, nor ICU's narrow one (U+202F), is ever written:
+// copied text carries ordinary spaces too.
 
-export const NBSP = "\u00a0";
-
-// The longest word wrap.mjs and keepLastTwo will join. A longer one
+// The longest word wrap.mjs and keepTogether will join. A longer one
 // kept beside its neighbor could run past a phone's screen.
 export const MAX_WORD = 14;
 
-// HTML's whitespace, which leaves out the no-break space.
-const SPACE = /[ \t\n\r\f]/;
-const isSpace = (c) => SPACE.test(c);
+// The class that keeps a pair on one line: Bootstrap's, which the
+// built pages use, so PurgeCSS keeps it.
+export const NOWRAP = "text-nowrap";
+
+// HTML's whitespace, and the two no-break spaces (U+00A0, U+202F),
+// which become ordinary ones.
+const GAP = /[ \t\n\r\f]+/;
+const NO_BREAK = new RegExp(`[${String.fromCharCode(0xa0, 0x202f)}]`, "g");
 
 // A word never joined to its neighbor: a URL, an email address, or a
 // word over MAX_WORD characters. wrap.mjs reads the same rule.
 export const unsafeWord = (word) => /:\/\/|www\.|@/i.test(word)
   || [...word].length > MAX_WORD;
 
-// A time and its half of the day: ("8:30", "AM") -> "8:30 AM", with a
-// no-break space, so "AM" never starts a line alone.
-export const meridiem = (time, half) => `${time}${NBSP}${half}`;
+// A time and its half of the day: ("8:30", "AM") -> "8:30 AM", with an
+// ordinary space. keepTogether keeps the two on one line.
+export const meridiem = (time, half) => `${time} ${half}`;
 
-// The same join on text that is already written, such as what
-// toLocaleString gives: "11:59 PM", with an ASCII space, or the narrow
-// no-break space (U+202F) newer ICU puts there, takes a no-break space.
-export const joinMeridiem = (text) => String(text)
-  .replace(/(\d)[ \t\n\r\f\u202f]+([AP]M)\b/g, `$1${NBSP}$2`);
+// The same on text that is already written, such as what
+// toLocaleString gives: the narrow no-break space (U+202F) newer ICU
+// puts before AM or PM, or any other space there, becomes one ordinary
+// space, as does any other no-break space.
+export const spaceMeridiem = (text) => String(text)
+  .replace(NO_BREAK, " ")
+  .replace(/(\d)[ \t\n\r\f]+([AP]M)\b/g, "$1 $2");
 
-// The text with its last two words joined by a no-break space, by
-// wrap.mjs's rule: a word is any run of non-whitespace, and nothing
-// changes when either word is unsafe (above) or there is only one.
-// "Sunday, November 22, 8:30 AM" keeps "22, 8:30 AM" on one line when
-// its time came from meridiem.
-export const keepLastTwo = (text) => {
-  const s = String(text ?? "");
-  let end = s.length;
+// A word that ends in a digit, then AM or PM as a word of its own.
+const isTime = (word) => /\d$/.test(word);
+const isHalf = (word) => /^[AP]M(?![A-Za-z0-9_])/.test(word);
 
-  while (end > 0 && isSpace(s[end - 1])) end--;
+// The line as runs, in order, each { text, nowrap }: a run with nowrap
+// must stay on one line. Every time is held to its AM or PM, even one
+// that arrived formatted with a plain space ("10 AM – 12 PM, at the
+// market"), and the last two words are held together by wrap.mjs's
+// rule: a word is any run of non-whitespace, a time and its AM or PM
+// count as one, and the pair is left apart when either word is unsafe
+// (above) or there is only one. Spaces stay where they were, ordinary,
+// and a gap inside a kept run becomes one space.
+export const keepTogether = (text) => {
+  const s = String(text ?? "").replace(NO_BREAK, " ");
+  const tokens = s.split(new RegExp(`(${GAP.source})`));
+  // The tokens alternate word, gap, word ... and start and end with a
+  // word, which is empty where the text starts or ends with a gap.
+  const words = tokens.filter((_, i) => i % 2 === 0);
+  const glued = words.map((w, i) => i + 1 < words.length && w !== ""
+    && isTime(w) && isHalf(words[i + 1]));
 
-  let second = end;
+  // Units: words chained by a time's glue, as [first, last] indexes.
+  const units = [];
 
-  while (second > 0 && !isSpace(s[second - 1])) second--;
+  words.forEach((w, i) => {
+    if (w === "") return;
+    if (i > 0 && glued[i - 1]) units.at(-1)[1] = i;
+    else units.push([i, i]);
+  });
 
-  let gap = second;
+  if (units.length >= 2) {
+    const unit = ([a, b]) => words.slice(a, b + 1).join(" ");
+    const [before, last] = units.slice(-2);
 
-  while (gap > 0 && isSpace(s[gap - 1])) gap--;
-  if (gap === 0) return s;
-
-  let first = gap;
-
-  while (first > 0 && !isSpace(s[first - 1])) first--;
-  if (unsafeWord(s.slice(first, gap)) || unsafeWord(s.slice(second, end))) {
-    return s;
+    if (!unsafeWord(unit(before)) && !unsafeWord(unit(last))) {
+      glued[before[1]] = true;
+    }
   }
 
-  return `${s.slice(0, gap)}${NBSP}${s.slice(second)}`;
+  const runs = [];
+  const add = (piece, nowrap) => {
+    const end = runs.at(-1);
+
+    if (end && !end.nowrap && !nowrap) end.text += piece;
+    else runs.push({ text: piece, nowrap });
+  };
+  let held = null;
+
+  words.forEach((w, i) => {
+    if (held !== null) held += ` ${w}`;
+    else if (glued[i]) held = w;
+    else add(w, false);
+
+    if (held !== null && !glued[i]) {
+      add(held, true);
+      held = null;
+    }
+    if (i + 1 < words.length && !glued[i]) add(tokens[i * 2 + 1], false);
+  });
+
+  return runs.filter((r) => r.text !== "");
 };
 
-// A line as the browser should set it: every time held to its AM or
-// PM, even one that arrived already formatted with a plain space ("10
-// AM – 12 PM, at the market"), and the last two words kept together.
-export const keepTogether = (text) => keepLastTwo(joinMeridiem(text ?? ""));
+// Set a node's text from keepTogether's runs, each kept run in a span
+// with the text-nowrap class. Built with DOM APIs, never innerHTML, so
+// nothing in the text becomes markup.
+export const setKept = (node, text) => {
+  const doc = node.ownerDocument;
+
+  node.textContent = "";
+  for (const run of keepTogether(text)) {
+    if (!run.nowrap) {
+      node.append(run.text);
+      continue;
+    }
+
+    const span = doc.createElement("span");
+
+    span.className = NOWRAP;
+    span.textContent = run.text;
+    node.append(span);
+  }
+};
