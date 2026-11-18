@@ -14,7 +14,7 @@ import {
   cutoffOf, seriesDates,
 } from "../../../assets/scripts/order/lib/events.mjs";
 import {
-  addDays, today,
+  addDays, instant, today,
 } from "../../../assets/scripts/order/lib/zoned.mjs";
 import { normalizeEmail } from "./auth.mjs";
 import { creditBalance, voidCredit } from "./credit.mjs";
@@ -65,28 +65,54 @@ export const hostedBy = (role, key) =>
   (role && typeof key === "string" && role.hosts.find((g) => g.key === key))
   || null;
 
+// When a pickup day is over: the end of its window, or the end of the
+// day when the series names no hours.
+const pickupEnd = (date, s, timeZone) => {
+  if (!s.closes) return cutoffOf(addDays(date, 1), timeZone).getTime() + 60000;
+
+  const [hour, minute] = s.closes.split(":").map(Number);
+
+  return instant(date, hour, minute, timeZone).getTime();
+};
+
 // The round being ordered for now, and the one after: each with its
 // pickup day and when ordering for it closes (11:59 PM the day
 // before). The next one opens as this one closes.
+//
+// Between a round's close and the end of its pickup (#600) that round
+// is `closed`: the pickup the members just ordered for, which would
+// otherwise leave the tab the night before it happens. Null at any
+// other time. `current` is null only when no round is open and one is
+// closed, the series' last.
 export const roundsNow = (group, terms, now = new Date()) => {
   const s = terms.model.seriesOf(group.series);
 
   if (!s) return null;
 
-  const from = today(now, terms.timeZone);
+  const zone = terms.timeZone;
+  const from = today(now, zone);
+  const at = now.getTime();
+  const past = (d) => cutoffOf(d, zone).getTime() <= at;
   const open = seriesDates(s, from, addDays(from, 400))
-    .filter((d) => cutoffOf(d, terms.timeZone).getTime() > now.getTime());
+    .filter((d) => !past(d));
+  // A closed round's pickup is today or, in the last minute of the
+  // day before it, tomorrow.
+  const [closed] = seriesDates(s, from, addDays(from, 1))
+    .filter((d) => past(d) && pickupEnd(d, s, zone) > at);
   const [current, next] = open;
 
-  if (!current) return null;
+  if (!current && !closed) return null;
 
-  const closes = cutoffOf(current, terms.timeZone).toISOString();
+  const closes = current ? cutoffOf(current, zone).toISOString() : null;
 
   return {
     every: s.every || 1,
     opens: s.opens || null,
     closes: s.closes || null,
-    current: { date: current, closesAt: closes },
+    closed: closed
+      ? { date: closed, closedAt: cutoffOf(closed, zone).toISOString() }
+      : null,
+    current: current ? { date: current, closesAt: closes } : null,
     next: next ? { date: next, opensAt: closes } : null,
   };
 };
