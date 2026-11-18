@@ -191,7 +191,7 @@ test.describe("markets on the about page (#313)", () => {
     async ({ page }) => {
       await page.route("**/api/dates", dates([
         { date: "2026-10-25", label: "Sunday, October 25",
-          series: "WAC5", name: "Foster Farmers Market" },
+          series: "WAC5", name: "Foster Farmers’ Market" },
       ]));
       await page.goto("/about/");
 

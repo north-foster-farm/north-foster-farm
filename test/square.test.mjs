@@ -17,6 +17,7 @@ import {
 import { buildModel } from "../assets/scripts/order/lib/events.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
 import { recorded, reply } from "./recorded.mjs";
+import { FOSTER_NAME } from "./foster-name.mjs";
 
 const env = {
   SQUARE_ACCESS_TOKEN: "tok",
@@ -297,7 +298,7 @@ describe("buildOrder", () => {
 
     assert.match(at("WAC5-261025").pickup_at, /T13:00:00/);
     assert.match(at("WAC5-261025").note,
-      /^Pickup at Foster Farmers Market, Shady Acres Diner/);
+      new RegExp(`^Pickup at ${FOSTER_NAME}, Shady Acres Diner`));
   });
 
   it("schedules a pop-up pickup at its start, with minutes", () => {

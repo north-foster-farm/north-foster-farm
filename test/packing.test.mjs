@@ -21,6 +21,7 @@ import {
 } from "../netlify/functions/lib/records.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
 import { instant } from "../assets/scripts/order/lib/zoned.mjs";
+import { FOSTER_IN_PDF, FOSTER_NAME } from "./foster-name.mjs";
 
 const TZ = "America/New_York";
 const at = (iso, h, m = 0) => instant(iso, h, m, TZ);
@@ -616,7 +617,7 @@ describe("scheduled pickups in a packet", () => {
     const text = packetPdf({ entries, now: at(TUESDAY, 6), title: "T" })
       .toString("latin1");
 
-    assert.ok(text.includes("Foster Farmers Market"), "the series' name");
+    assert.ok(text.includes(FOSTER_IN_PDF), "the series' name");
     assert.ok(text.includes("Shady Acres Diner"), "its place");
     assert.ok(text.includes("(Your order)"));
   });
@@ -626,8 +627,8 @@ describe("scheduled pickups in a packet", () => {
     const now = snapshotOf(sched("A", "WAC5-261025", "2026-10-25"));
     const changes = changesBetween(was, now);
 
-    assert.ok(changes.includes("Pickup: was Drop site, now Foster " +
-      "Farmers Market"), changes.join("; "));
+    assert.ok(changes.includes(`Pickup: was Drop site, now ${FOSTER_NAME}`),
+      changes.join("; "));
     assert.ok(!changes.some((c) => /^Type:/.test(c)));
   });
 
@@ -685,7 +686,7 @@ describe("scheduled pickups in a packet", () => {
     const text = pdfText(h.sent[1]);
 
     assert.match(text, /\(CANCELED\)/);
-    assert.ok(text.includes("Foster Farmers Market"));
+    assert.ok(text.includes(FOSTER_IN_PDF));
     assert.ok(!text.includes("undefined"));
   });
 
@@ -702,7 +703,8 @@ describe("scheduled pickups in a packet", () => {
 
     assert.match(text, /\nDelivery, Thursday, October 8\n- C/);
     assert.match(text, /\nDrop site, Saturday, October 17, 46 Institute Lane/);
-    assert.match(text, /\nFoster Farmers Market, Sunday, October 25, Shady/);
+    assert.match(text,
+      new RegExp(`\n${FOSTER_NAME}, Sunday, October 25, Shady`));
     assert.match(text, /9 AM – 1 PM\n- B\b/);
     assert.doesNotMatch(text, /Market pickup/);
   });

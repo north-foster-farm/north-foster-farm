@@ -27,6 +27,7 @@ import {
 import { summaryLine } from "../netlify/functions/lib/templates.mjs";
 import { instant } from "../assets/scripts/order/lib/zoned.mjs";
 import { AFTERNOON, MORNING, SCHEDULE } from "./schedule-fixture.mjs";
+import { FOSTER_NAME } from "./foster-name.mjs";
 
 const MAILS = {
   FARM_NOTIFICATIONS_EMAIL: "farm@example.com",
@@ -854,8 +855,9 @@ describe("farmEdit", () => {
     assert.equal(saved.fulfilment.date, "2026-10-25");
     assert.ok(calls.some((c) => c[0] === "cancelFulfillment"));
     assert.equal(sent.length, 1);
-    assert.match(sent[0].text, /Foster Farmers Market/);
-    assert.match(summaryLine(saved), /paid \$55 Foster Farmers Market 2026/);
+    assert.match(sent[0].text, new RegExp(FOSTER_NAME));
+    assert.match(summaryLine(saved),
+      new RegExp(`paid \\$55 ${FOSTER_NAME} 2026`));
   });
 
   it("refuses a market the schedule or the data lacks", async () => {

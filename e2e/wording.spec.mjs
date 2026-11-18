@@ -109,7 +109,8 @@ test.describe("no retired words (#150)", () => {
     expect(section[1]).toMatch(/46 Institute Lane/);
     expect(section[1]).toMatch(/11:59 PM the day before/);
     expect(section[1]).toMatch(/Markets and pop-ups appear on the order page/);
-    expect(section[1]).not.toMatch(/Foster Farmers Market|Tilted Barn/);
+    expect(section[1])
+      .not.toMatch(/Foster Farmers?\W{0,8}s? Market|Tilted Barn/i);
   });
 
   test("the paper order form leads to the order page", async ({

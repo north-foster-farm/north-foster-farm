@@ -15,6 +15,7 @@ import {
 import { testStores } from "../netlify/functions/lib/store.mjs";
 import { instant } from "../assets/scripts/order/lib/zoned.mjs";
 import { MORNING, SCHEDULE } from "./schedule-fixture.mjs";
+import { FOSTER_NAME } from "./foster-name.mjs";
 
 const now = instant("2026-10-06", 9, 0, "America/New_York");
 const SKU = "NFF-CHK-WHL-35-39";
@@ -204,12 +205,12 @@ describe("a customer's move within scheduled pickup", () => {
     const toCustomer = sent.find((m) => m.to === "pat@example.com");
 
     assert.match(toCustomer.text, /Before: 46 Institute Lane/);
-    assert.match(toCustomer.text, /Where: Foster Farmers Market/);
+    assert.match(toCustomer.text, new RegExp(`Where: ${FOSTER_NAME}`));
 
     const toFarm = sent.find((m) => m.subject.startsWith("Pickup moved"));
 
     assert.match(toFarm.text, /Was: Drop site, 46 Institute Lane/);
-    assert.match(toFarm.text, /Now: Foster Farmers Market/);
+    assert.match(toFarm.text, new RegExp(`Now: ${FOSTER_NAME}`));
   });
 
   it("moves to another date of the same series on a date alone",

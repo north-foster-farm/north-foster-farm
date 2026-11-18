@@ -76,8 +76,8 @@ test.describe("scheduled pickup", () => {
       await expect(part(page, FOSTER.series, "time"))
         .toHaveText("9:00 AM – 1:00 PM");
       await expect(part(page, FOSTER.series, "name"))
-        .toHaveText("Foster Farmers Market");
-      await expect(details("place")).toHaveText("Foster Farmers Market");
+        .toHaveText("Foster Farmers’ Market");
+      await expect(details("place")).toHaveText("Foster Farmers’ Market");
       // A line to each part (#439).
       await expect(details("address").locator("span")).toHaveText([
         "Shady Acres Diner", "164 Danielson Pike", "Foster, RI 02825",

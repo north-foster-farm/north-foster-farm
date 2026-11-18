@@ -848,7 +848,7 @@ test.describe("home", () => {
         short: DROP_ADDRESS },
     ];
     const FOSTER_OPEN = { date: "2026-10-25", label: "Sunday, October 25",
-      series: "WAC5", name: "Foster Farmers Market",
+      series: "WAC5", name: "Foster Farmers’ Market",
       window: "9:00 AM – 1:00 PM",
       short: "Shady Acres Diner, 164 Danielson Pike, Foster" };
     const opened = (page, scheduled) => page.route("**/api/dates",

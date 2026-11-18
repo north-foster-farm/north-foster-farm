@@ -66,7 +66,8 @@ test.describe("policies", () => {
       expect(section).toMatch(/opened one event at a time/);
       expect(section).toMatch(/11:59 PM the day before/);
       expect(section).toMatch(/no minimum or fee/i);
-      expect(section).not.toMatch(/Farmers Market|9:00 AM|Tilted Barn/);
+      expect(section).not.toMatch(
+        /Farmers?\W{0,8}s? Market|9:00 AM|Tilted Barn/i);
       expect(text).toMatch(/Pickup days:\s+11:59 PM the day before/);
     });
 

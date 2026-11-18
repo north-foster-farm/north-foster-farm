@@ -23,9 +23,10 @@ export const DROP = {
 };
 
 export const FOSTER = {
-  series: "WAC5", name: "Foster Farmers Market", location: "D8RW",
+  series: "WAC5", name: "Foster Farmers’ Market", location: "D8RW",
   town: "Foster",
-  place: "Foster Farmers Market, Shady Acres Diner, 164 Danielson Pike, Foster",
+  place: "Foster Farmers’ Market, Shady Acres Diner, 164 Danielson Pike, "
+    + "Foster",
   short: "Shady Acres Diner, 164 Danielson Pike, Foster",
   window: "9:00 AM – 1:00 PM",
 };
