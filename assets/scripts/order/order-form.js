@@ -17,7 +17,9 @@ import {
 import {
   disallowedFor, normalizeCode, phoneOk, validateOrder, zipInfo,
 } from "./lib/validate.mjs";
-import { pickupTimes, windowLabel } from "./lib/schedule.mjs";
+import {
+  fullWindowLabel, pickupTimes, windowLabel,
+} from "./lib/schedule.mjs";
 import { label, today } from "./lib/zoned.mjs";
 import { Cart, JOKE_CODE } from "./cart/cart.js";
 import { celebrate } from "./celebrate.js";
@@ -41,6 +43,7 @@ import { forget, me } from "../session/session.js";
 import { watchSignIn } from "../session/watch.js";
 import { api } from "../utils/api.js";
 import { setBusy as spin } from "../utils/busy-button.js";
+import { setWhole } from "../utils/keep-together.mjs";
 import { whileLoading } from "../utils/skeleton.js";
 
 // A send that can't get through is tried once more this soon, while
@@ -1410,8 +1413,9 @@ export class OrderForm {
   }
 
   // The chosen pickup day's windows, one radio each, from the farm's
-  // schedule (W11d). The time chosen carries over to a new day that
-  // has it; otherwise the day's first is chosen.
+  // schedule (W11d), each on its own line with its times in full
+  // (#616). The time chosen carries over to a new day that has it;
+  // otherwise the day's first is chosen.
   renderWindows() {
     const box = qs(this.form, "[data-windows]");
     const select = qs(this.form, "[data-dates='onfarm']");
@@ -1451,7 +1455,7 @@ export class OrderForm {
       input.value = w.id;
       input.checked = w.id === pick;
       text.htmlFor = input.id;
-      text.textContent = w.label;
+      setWhole(text, fullWindowLabel(w));
       box.appendChild(node);
     }
     if (lists) this.wantedWindow = null;

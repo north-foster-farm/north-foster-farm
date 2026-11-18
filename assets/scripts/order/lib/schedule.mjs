@@ -353,3 +353,25 @@ export const windowLabel = ({ from, to }) => {
 
   return `${start} – ${end}`;
 };
+
+// "8:00 – 10:00 AM", "10:00 AM – 12:00 PM": a window written in full,
+// for the on-farm "Pickup time" radios (#616). Both ends carry their
+// minutes; AM or PM is written once when the ends share it and on each
+// when they differ; twelve o'clock is "12:00 PM", never "noon". The
+// spaces are ordinary: the page keeps the label on one line (setWhole
+// in utils/keep-together.mjs).
+export const fullWindowLabel = ({ from, to }) => {
+  const clock = (hhmm) => {
+    const [h, m] = hhmm.split(":").map(Number);
+
+    return {
+      text: `${((h + 11) % 12) + 1}:${String(m).padStart(2, "0")}`,
+      half: h < 12 ? "AM" : "PM",
+    };
+  };
+  const a = clock(from);
+  const b = clock(to);
+  const start = a.half === b.half ? a.text : `${a.text} ${a.half}`;
+
+  return `${start} – ${b.text} ${b.half}`;
+};

@@ -57,11 +57,14 @@
               {{/* The chosen day's windows from the farm's schedule
                    (/api/dates, W11d), one radio each, from the
                    template below (order-form.js renderWindows). */}}
-              <div class="order-radios" role="radiogroup" aria-labelledby="onfarm-window-label" data-field="onfarm.window" data-windows>
+              <div class="order-radios order-radios-stack" role="radiogroup" aria-labelledby="onfarm-window-label" data-field="onfarm.window" data-windows>
                 <p class="order-windows-none">Loading times&hellip;</p>
               </div>
+              {{/* One time to a line, written in full (#616);
+                   order-form.js sets each label in a text-nowrap
+                   span. */}}
               <template id="tpl-window">
-                <div class="form-check form-check-inline">
+                <div class="form-check">
                   <input class="form-check-input" type="radio" name="onfarm.window">
                   <label class="form-check-label"></label>
                 </div>

@@ -5,7 +5,9 @@
 
 import { mergeScheduled } from "../order/lib/group.mjs";
 import { perkSentence } from "../order/lib/perks.mjs";
-import { pickupTimes, windowLabel } from "../order/lib/schedule.mjs";
+import {
+  fullWindowLabel, pickupTimes, windowLabel,
+} from "../order/lib/schedule.mjs";
 import { dollars } from "../order/lib/totals.mjs";
 import { forgetCustomer } from "../order/draft.js";
 import { label } from "../order/lib/zoned.mjs";
@@ -20,7 +22,9 @@ import { fieldError } from "../utils/field-errors.mjs";
 import {
   confirmHash, isFor, readConfirm, showConfirm,
 } from "../utils/email-confirm.js";
-import { meridiem, setKept } from "../utils/keep-together.mjs";
+import {
+  meridiem, setKept, setWhole,
+} from "../utils/keep-together.mjs";
 import { whileLoading } from "../utils/skeleton.js";
 import { Autoplay } from "../video/video.js";
 import {
@@ -1644,7 +1648,9 @@ class Account {
     select.focus();
   }
 
-  // The chosen day's pickup times, from the farm's schedule (W11d).
+  // The chosen day's pickup times, from the farm's schedule (W11d),
+  // each on its own line with its times in full, as on the order page
+  // (#616); the booked time reads as the order card does.
   // The day as booked, if the schedule no longer has it, keeps just
   // the booked time, so the notes can change without moving it.
   drawWindows(form, order, dates, date) {
@@ -1669,7 +1675,8 @@ class Account {
 
       input.value = w.id;
       input.checked = w.id === pick;
-      write(qs(node, "span"), w.label);
+      if (w.from && w.to) setWhole(qs(node, "span"), fullWindowLabel(w));
+      else write(qs(node, "span"), w.label);
       box.appendChild(node);
     }
   }

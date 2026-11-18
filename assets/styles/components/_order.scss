@@ -782,6 +782,12 @@
     }
   }
 
+  // One radio to a line at every width: the on-farm pickup times
+  // (#616).
+  .order-radios-stack {
+    flex-flow: column nowrap;
+  }
+
   // The scheduled pickups: a vertical list of radio cards, white until
   // chosen (#323), in the secondary color so they read apart from the
   // card's own (primary) radio. Each shows its day and hours, the

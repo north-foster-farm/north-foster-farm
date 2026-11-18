@@ -4,6 +4,9 @@
 // now. It pays nothing: "Use this" puts the choice on the form and the
 // customer pays again with the same button. Draft wording.
 
+import { fullWindowLabel } from "./lib/schedule.mjs";
+import { appendWhole } from "../utils/keep-together.mjs";
+
 // Keyed by the form's way: `scheduled` is scheduled pickup, the drop site
 // and every market or pop-up in one list.
 const NOUN = {
@@ -86,7 +89,10 @@ export class Lapsed {
 
     const choices = method === "onfarm"
       ? dates.flatMap((d) => (d.windows || []).map((w) => ({
-        value: `${d.date}|${w.id}`, text: `${d.label}, ${w.label}`,
+        // The time in full, as on the form's radios (#616), kept
+        // on one line after the day.
+        value: `${d.date}|${w.id}`, text: `${d.label}, `,
+        kept: fullWindowLabel(w),
       })))
       : dates.map((d) => ({
         value: d.value || d.date, text: d.text || d.label,
@@ -117,6 +123,7 @@ export class Lapsed {
       input.checked = i === 0;
       label.htmlFor = input.id;
       label.textContent = choice.text;
+      if (choice.kept) appendWhole(label, choice.kept);
       this.list.appendChild(node);
     });
     this.choices.hidden = !some;

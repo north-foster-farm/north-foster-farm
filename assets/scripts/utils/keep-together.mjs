@@ -124,3 +124,22 @@ export const setKept = (node, text) => {
     node.append(span);
   }
 };
+
+// A whole line kept on one line: `text` in one span with the
+// text-nowrap class, appended to `node`. For a short line that must
+// never break, such as a pickup time written in full, "10:00 AM –
+// 12:00 PM" (#616), where keepTogether would still let it break at
+// the dash. No-break spaces become ordinary ones here too.
+export const appendWhole = (node, text) => {
+  const span = node.ownerDocument.createElement("span");
+
+  span.className = NOWRAP;
+  span.textContent = String(text ?? "").replace(NO_BREAK, " ");
+  node.append(span);
+};
+
+// The same as a node's only text.
+export const setWhole = (node, text) => {
+  node.textContent = "";
+  appendWhole(node, text);
+};
