@@ -420,22 +420,38 @@
         <div class="account-group-head">
           <h2 class="h4 account-group-title" data-mem="name"></h2>
         </div>
-        <dl class="account-membership-facts">
-          <dt class="account-membership-term">Pickup</dt>
-          <dd class="account-membership-value" data-mem="place"></dd>
-          <dt class="account-membership-term">Rounds</dt>
-          <dd class="account-membership-value" data-mem="every"></dd>
-          {{/* The rounds as four rows (#579, James's labels); main.js
-               leaves out a row the data can't fill. */}}
-          <dt class="account-membership-term" data-mem-row="closes">This round closes</dt>
-          <dd class="account-membership-value" data-mem="closes"></dd>
-          <dt class="account-membership-term" data-mem-row="pickup">This round pickup</dt>
-          <dd class="account-membership-value" data-mem="pickup"></dd>
-          <dt class="account-membership-term" data-mem-row="opens">Next round opens</dt>
-          <dd class="account-membership-value" data-mem="opens"></dd>
-          <dt class="account-membership-term" data-mem-row="next-pickup">Next round pickup</dt>
-          <dd class="account-membership-value" data-mem="next-pickup"></dd>
-        </dl>
+        {{/* One label column for all three lists, as wide as the
+             longest label (#597). */}}
+        <div class="account-membership-facts">
+          <dl class="account-membership-rows">
+            <dt class="account-membership-term">Pickup</dt>
+            <dd class="account-membership-value" data-mem="place"></dd>
+            <dt class="account-membership-term" data-mem-row="every">Rounds</dt>
+            <dd class="account-membership-value" data-mem="every"></dd>
+          </dl>
+          {{/* The rounds as two rows each under This round and Next
+               round (#579, #597: James's subheadings, the short labels
+               drafts); main.js leaves out a row the data can't fill,
+               and a round with none, heading and all. */}}
+          <div class="account-membership-round" data-mem-round="this">
+            <h3 class="h6 account-membership-round-title">This round</h3>
+            <dl class="account-membership-rows">
+              <dt class="account-membership-term" data-mem-row="closes">Closes</dt>
+              <dd class="account-membership-value" data-mem="closes"></dd>
+              <dt class="account-membership-term" data-mem-row="pickup">Pickup</dt>
+              <dd class="account-membership-value" data-mem="pickup"></dd>
+            </dl>
+          </div>
+          <div class="account-membership-round" data-mem-round="next">
+            <h3 class="h6 account-membership-round-title">Next round</h3>
+            <dl class="account-membership-rows">
+              <dt class="account-membership-term" data-mem-row="opens">Opens</dt>
+              <dd class="account-membership-value" data-mem="opens"></dd>
+              <dt class="account-membership-term" data-mem-row="next-pickup">Pickup</dt>
+              <dd class="account-membership-value" data-mem="next-pickup"></dd>
+            </dl>
+          </div>
+        </div>
       </section>
 
       <div data-mem-host hidden>

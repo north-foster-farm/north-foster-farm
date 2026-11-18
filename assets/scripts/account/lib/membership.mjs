@@ -83,6 +83,25 @@ export const roundRows = (r, timeZone) => ({
   "next-pickup": r && r.next ? pickupMoment(r.next.date, r.opens) : "",
 });
 
+// Which round each row sits under (#597): the page's This round and
+// Next round subheadings, in order.
+export const ROUND_GROUPS = {
+  this: ["closes", "pickup"],
+  next: ["opens", "next-pickup"],
+};
+
+// The rows by round (#597): { this: [[row, value], ...], next: ... },
+// with only the rows the data fills. A round with none is left out,
+// its subheading with it.
+export const roundGroups = (r, timeZone) => {
+  const rows = roundRows(r, timeZone);
+
+  return Object.fromEntries(Object.entries(ROUND_GROUPS)
+    .map(([round, names]) => [round,
+      names.filter((name) => rows[name]).map((name) => [name, rows[name]])])
+    .filter(([, filled]) => filled.length));
+};
+
 // The pickup place on three lines (#579): its name, the street, then
 // the city, state and ZIP. None: no lines.
 export const placeLines = (p) => (p ? [

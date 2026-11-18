@@ -24,7 +24,7 @@ import { testStores } from "../netlify/functions/lib/store.mjs";
 import terms from "../netlify/functions/lib/terms.mjs";
 import {
   JOIN_WAYS, LINK_COPIED, LINK_NOT_COPIED, hours, joinedLine,
-  moment, pickupMoment, placeLines, roundRows, roundsLine,
+  moment, pickupMoment, placeLines, roundGroups, roundRows, roundsLine,
 } from "../assets/scripts/account/lib/membership.mjs";
 import {
   tabsBack, tabsBackStop, tabsMore, tabsStop,
@@ -452,6 +452,36 @@ describe("the tab's words (drafts)", () => {
       "Sunday, November 22, 1:05\u00a0PM");
   });
 
+  // #597: the rows under This round and Next round, in order.
+  it("group the round rows under this round and the next", () => {
+    const r = roundsNow({ series: "36TS" }, terms, now);
+
+    assert.deepEqual(roundGroups(r, "America/New_York"), {
+      this: [
+        ["closes", "Saturday, November 21, 11:59\u00a0PM"],
+        ["pickup", "Sunday, November 22, 8:30\u00a0AM"],
+      ],
+      next: [
+        ["opens", "Saturday, November 21, 11:59\u00a0PM"],
+        ["next-pickup", "Sunday, December 6, 8:30\u00a0AM"],
+      ],
+    });
+  });
+
+  it("leave out a round with no rows, and the rows it lacks", () => {
+    const r = { every: 2, opens: null, closes: null,
+      current: { date: "2026-11-22", closesAt: "2026-11-22T04:59:00.000Z" },
+      next: null };
+
+    assert.deepEqual(roundGroups(r, "America/New_York"), {
+      this: [
+        ["closes", "Saturday, November 21, 11:59\u00a0PM"],
+        ["pickup", "Sunday, November 22"],
+      ],
+    });
+    assert.deepEqual(roundGroups(null, "America/New_York"), {});
+  });
+
   // #579: the join link's Copy, house rules (#400): no semicolons or
   // em dashes, the label fragment unpunctuated.
   it("say what Copy did", () => {
@@ -509,10 +539,21 @@ describe("the tab and the menu entry", () => {
       assert.ok(!account.includes(`"data-mem" "${part}"`), part);
       assert.ok(!account.includes(`data-mem="${part}"`), part);
     }
-    for (const label of ["This round closes", "This round pickup",
-      "Next round opens", "Next round pickup"]) {
-      assert.match(account, new RegExp(`>${label}</dt>`), label);
-    }
+    // #597: James's subheadings, real headings under the group's h2,
+    // each over its rows with the short labels (drafts).
+    const round = (name) => account.match(new RegExp(
+      `data-mem-round="${name}">([\\s\\S]*?)</div>`
+    ))[1];
+
+    assert.match(round("this"), /<h3 [^>]*>This round<\/h3>/);
+    assert.match(round("this"), /data-mem-row="closes">Closes<\/dt>/);
+    assert.match(round("this"), /data-mem-row="pickup">Pickup<\/dt>/);
+    assert.match(round("next"), /<h3 [^>]*>Next round<\/h3>/);
+    assert.match(round("next"), /data-mem-row="opens">Opens<\/dt>/);
+    assert.match(round("next"), /data-mem-row="next-pickup">Pickup<\/dt>/);
+    assert.doesNotMatch(account, /(This|Next) round (closes|opens|pickup)/);
+    // Rounds has a row hook too, so a group with none drops it.
+    assert.match(account, /data-mem-row="every">Rounds<\/dt>/);
     assert.doesNotMatch(account, /People who scan this code/);
   });
 });

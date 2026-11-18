@@ -30,8 +30,8 @@ import {
   METHOD, fileName, ordersCsv, paidWith, receiptsCsv, statusOf,
 } from "./lib/history.mjs";
 import {
-  COPIED_MS, LINK_COPIED, LINK_NOT_COPIED, joinedLine, placeLines, roundRows,
-  roundsLine,
+  COPIED_MS, LINK_COPIED, LINK_NOT_COPIED, ROUND_GROUPS, joinedLine,
+  placeLines, roundGroups, roundsLine,
 } from "./lib/membership.mjs";
 import { showMembership } from "./lib/membership-tab.mjs";
 import { watchTabs } from "./tabs-more.js";
@@ -386,14 +386,34 @@ class Account {
       .map((line) => el("span", "", line)));
     // Each line and row below keeps its last two words together, and
     // a time its AM or PM (#593).
-    out("every", r ? roundsLine(r) : "");
-    // Four rows, each a label and its value (#579); one the data can't
-    // fill, such as a next round when there is none, is left out.
-    for (const [name, text] of Object.entries(roundRows(r, zone))) {
-      out(name, text);
-      if (!text) {
-        qs(box, `[data-mem-row='${name}']`).remove();
-        qs(box, `[data-mem='${name}']`).remove();
+    // With no rounds, Rounds goes too, label and all (#597).
+    const every = r ? roundsLine(r) : "";
+
+    if (every) {
+      out("every", every);
+    } else {
+      qs(box, "[data-mem-row='every']").remove();
+      qs(box, "[data-mem='every']").remove();
+    }
+    // Two rows under each round's subheading, a label and its value
+    // (#579, #597); a row the data can't fill is left out, and a round
+    // with none, such as a next round when there is none, goes whole.
+    const groups = roundGroups(r, zone);
+
+    for (const [round, names] of Object.entries(ROUND_GROUPS)) {
+      const filled = new Map(groups[round] || []);
+
+      if (!filled.size) {
+        qs(box, `[data-mem-round='${round}']`).remove();
+        continue;
+      }
+      for (const name of names) {
+        if (filled.has(name)) {
+          out(name, filled.get(name));
+        } else {
+          qs(box, `[data-mem-row='${name}']`).remove();
+          qs(box, `[data-mem='${name}']`).remove();
+        }
       }
     }
     qs(box, "[data-mem-host]").hidden = !hosted;
