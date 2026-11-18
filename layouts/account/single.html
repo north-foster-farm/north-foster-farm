@@ -464,7 +464,7 @@
             (dict "state" "closed" "pill" "Closed")
             (dict "state" "open" "pill" "Open")
             (dict "state" "next" "pill" "Next")) }}
-          <div class="col-12 col-md-6" data-mem-round="{{ .state }}">
+          <div class="col-12 col-lg-6" data-mem-round="{{ .state }}">
             <p class="account-round-when"><span class="text-nowrap"><strong data-round="date"></strong><span data-round="dot"> ·</span></span> <span class="text-nowrap" data-round="window"></span></p>
             <p class="account-round-status"><span class="account-status account-round-pill{{ if eq .state "open" }} is-open{{ end }}">{{ .pill }}</span> <span data-round="line"></span></p>
             {{ if eq .state "open" }}

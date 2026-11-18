@@ -67,7 +67,7 @@ export const timeOf = (iso, timeZone) => spaceMeridiem(new Date(iso)
   }));
 
 // The pills, in the order the rounds are listed. Open and Next are
-// James's words; Closed is a draft.
+// James's words; Closed is a draft he accepted (2026-11-18).
 export const PILLS = { closed: "Closed", open: "Open", next: "Next" };
 
 // The rounds the tab lists (#602), in order: the one whose ordering
@@ -91,7 +91,7 @@ export const rounds = (r, timeZone) => {
 
   return [
     r.closed && round("closed", r.closed.date,
-      `Pickup is ${pickupDay(r.closed.date)}`),
+      `Next pickup is ${pickupDay(r.closed.date)}`),
     r.current && round("open", r.current.date,
       `Closes at ${timeOf(r.current.closesAt, timeZone)} on ${
         shortDay(r.current.closesAt, timeZone)}`),
