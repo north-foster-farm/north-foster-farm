@@ -635,3 +635,53 @@ describe("the tab row's start arrow", () => {
     assert.equal(tabsBackStop([], view(100)), 0);
   });
 });
+
+// #591: each end's fade, its arrow on it, 30px here. A stop brings the
+// tab clear of both fades, so neither arrow lands on its letters.
+describe("the tab row's stops, clear of the fades", () => {
+  const tabs = Array.from({ length: 6 }, (_, i) => ({
+    left: i * 80, right: i * 80 + 80,
+  }));
+  const view = (left) => ({ left, width: 200, full: 480 });
+  const clear = (t, left) => (left <= 1 || t.left >= left + 30)
+    && (left >= 280 || t.right <= left + 200 - 30);
+
+  it("the end's arrow starts the tab cut off past the start's fade", () => {
+    // From the start, the third tab (160-240) is cut off: it starts
+    // 30px in, not under the start's arrow. Without the fade, 160.
+    assert.equal(tabsStop(tabs, view(0), 30), 130);
+    assert.ok(clear(tabs[2], 130));
+    // A tab whole but under the end's fade counts as cut off: at 130
+    // the row ends at 330, and the fourth tab (240-320) lies under the
+    // fade (300-330), so it is the next.
+    assert.equal(tabsStop(tabs, view(130), 30), 210);
+    assert.ok(clear(tabs[3], 210));
+  });
+
+  it("the start's arrow ends the tab cut off before the end's fade",
+    () => {
+      // At the end, the fourth tab (240-320) lies under the start's
+      // fade (280-310): its right end comes 30px short of the row's.
+      assert.equal(tabsBackStop(tabs, view(280), 30), 150);
+      assert.ok(clear(tabs[3], 150));
+      // Whole but under the fade still counts: at 150 the third tab
+      // (160-240) lies under the start's fade (150-180), so it is the
+      // one, its end clear of the end's fade. Without the fade, 0.
+      assert.equal(tabsBackStop(tabs, view(150), 30), 70);
+      assert.ok(clear(tabs[2], 70));
+      assert.equal(tabsBackStop(tabs, view(150)), 0);
+    });
+
+  it("moves a tab too wide for the room between the fades on", () => {
+    const wide = [{ left: 0, right: 80 }, { left: 80, right: 400 }];
+    const row = { width: 200, full: 400 };
+
+    assert.equal(tabsStop(wide, { ...row, left: 60 }, 30), 200);
+    assert.equal(tabsBackStop(wide, { ...row, left: 200 }, 30), 50);
+  });
+
+  it("never passes either end", () => {
+    assert.equal(tabsStop(tabs, view(250), 30), 280);
+    assert.equal(tabsBackStop(tabs, view(40), 30), 0);
+  });
+});

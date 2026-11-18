@@ -40,6 +40,17 @@ const scrollTo = (nav, left) => nav.evaluate((el, to) => {
   el.scrollLeft = to;
 }, left);
 
+// Each end's fade, the arrow on it (#591): a tab an arrow brings into
+// view sits clear of both, unless the row is at that end, where the
+// end's arrow and fade are gone.
+const fadeWidth = (wrap) => wrap.evaluate(
+  (el) => parseFloat(getComputedStyle(el, "::before").width)
+);
+const clear = (tab, { left, width, full }, fade) => ({
+  start: left <= 1 || tab.left >= left + fade - 1,
+  end: left + width >= full - 1 || tab.right <= left + width - fade + 1,
+});
+
 test.describe("the account's tab row", () => {
   test.beforeEach(async ({ page }) => {
     await page.emulateMedia({ reducedMotion: "reduce" });
@@ -97,15 +108,20 @@ test.describe("the account's tab row", () => {
       await scrollTo(nav, (await row(nav)).full);
       await expect(back).toBeVisible();
 
+      const fade = await fadeWidth(wrap);
       const before = await row(nav);
-      const cut = before.tabs.findLast((t) => t.left < before.left - 1);
+      const cut = before.tabs.findLast(
+        (t) => t.left < before.left + fade - 1
+      );
 
+      expect(fade, "the fade is wider than its arrow")
+        .toBeGreaterThan((await back.boundingBox()).width);
       await back.click();
-      await expect.poll(async () => {
-        const { left, width } = await row(nav);
-
-        return cut.left >= left - 1 && cut.right <= left + width + 1;
-      }, "the cut-off tab shows whole").toBe(true);
+      // Whole, and clear of both arrows and their fades (#591), not
+      // under the end's arrow that now shows.
+      await expect.poll(async () => clear(cut, await row(nav), fade),
+        "the cut-off tab shows whole, clear of the arrows")
+        .toEqual({ start: true, end: true });
 
       // Tap by tap, it reaches the start, and its arrow goes.
       for (let i = 0; i < 6 && await back.isVisible(); i += 1) {
@@ -115,22 +131,41 @@ test.describe("the account's tab row", () => {
       expect((await row(nav)).left).toBeLessThanOrEqual(1);
     });
 
-  test("the end's arrow brings the first tab cut off to the start",
+  // #591: the start's arrow, which shows once the row moves, used to
+  // land on that tab's first letter ("Membership" read "embership").
+  test("the end's arrow brings the first tab cut off clear of the start's",
     async ({ page }) => {
       await open(page);
 
       const wrap = page.locator("[data-tabs-wrap]");
       const nav = wrap.locator(".account-nav");
       const more = wrap.locator("[data-tabs-more]");
+      const fade = await fadeWidth(wrap);
       const before = await row(nav);
       const cut = before.tabs.find(
-        (t) => t.right > before.left + before.width + 1
+        (t) => t.right > before.left + before.width - fade + 1
       );
-      const stop = Math.min(before.full - before.width, cut.left);
 
       await more.click();
-      await expect.poll(async () => Math.round((await row(nav)).left))
-        .toBeGreaterThanOrEqual(stop - 1);
+      await expect.poll(async () => (await row(nav)).left)
+        .toBeGreaterThan(before.left + 1);
+      await expect.poll(async () => clear(cut, await row(nav), fade),
+        "the cut-off tab shows clear of the arrows")
+        .toEqual({ start: true, end: true });
+
+      // Tap by tap to the end, no tab the row stops at is under the
+      // start's arrow.
+      for (let i = 0; i < 6 && await more.isVisible(); i += 1) {
+        const now = await row(nav);
+        const next = now.tabs.find(
+          (t) => t.right > now.left + now.width - fade + 1
+        );
+
+        await more.click();
+        await expect.poll(async () => clear(next, await row(nav), fade)
+          .start, "clear of the start's arrow").toBe(true);
+      }
+      await expect(more).toBeHidden();
     });
 
   test("scrolls sideways only, its ring and underline whole",

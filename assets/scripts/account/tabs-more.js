@@ -24,6 +24,11 @@ export const watchTabs = (wrap) => {
   const view = () => ({
     left: nav.scrollLeft, width: nav.clientWidth, full: nav.scrollWidth,
   });
+  // Each end's fade, its arrow on it (#591): the stops bring a tab
+  // clear of it, so neither arrow lands on a tab's first or last
+  // letters. Read from the styles, so the two stay one width.
+  const edge = () => parseFloat(getComputedStyle(wrap, "::before").width)
+    || 0;
 
   const sync = () => {
     const now = view();
@@ -39,8 +44,9 @@ export const watchTabs = (wrap) => {
     left, behavior: reduced() ? "auto" : "smooth",
   });
 
-  more.addEventListener("click", () => go(tabsStop(tabs(), view())));
-  back.addEventListener("click", () => go(tabsBackStop(tabs(), view())));
+  more.addEventListener("click", () => go(tabsStop(tabs(), view(), edge())));
+  back.addEventListener("click",
+    () => go(tabsBackStop(tabs(), view(), edge())));
   nav.addEventListener("scroll", sync, { passive: true });
 
   // The row and each tab: a tab that shows (Membership) or turns bold
