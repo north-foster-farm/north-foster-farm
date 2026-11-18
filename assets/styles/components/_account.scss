@@ -42,30 +42,62 @@
   // Head: the avatar, the address in the headings' type, and Sign out
   // under it as a quiet link (#303).
 
+  // A grid, so the email address has the head's width beside the
+  // avatar whatever sits with it (#601).
   .account-head {
-    display: flex;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    column-gap: 1rem;
     align-items: center;
-    gap: 1rem;
     margin-bottom: 1.25rem;
   }
 
   .account-avatar {
-    flex: none;
     width: 3.5rem;
     height: 3.5rem;
     border-radius: 50%;
   }
 
+  // On the narrowest phones the avatar and its gap give 12 px back, so
+  // an email address of 18 characters keeps one line at 320 px (#601).
+  @media (max-width: 359.98px) {
+    .account-head {
+      column-gap: 0.75rem;
+    }
+
+    .account-avatar {
+      width: 3rem;
+      height: 3rem;
+    }
+  }
+
   .account-who {
-    flex: 1 1 auto;
     min-width: 0;
   }
 
-  // A buying group's member: the group's name and the credit, on the
-  // head's right (#471).
+  // A buying group's member: the group's name and the credit (#471).
+  // Below md, a phone above all, the head is one column (James, #601):
+  // the avatar and the email address with Sign out, then the group and
+  // the credit as a row of their own under them, left aligned with the
+  // head, so a long name never squeezes the address to a letter a
+  // line. From md up they sit on the head's right, in at most half of
+  // it, and a long name wraps there.
   .account-member {
-    flex: none;
-    text-align: right;
+    grid-column: 1 / -1;
+    min-width: 0;
+    margin-top: 0.75rem;
+
+    @include media-breakpoint-up(md) {
+      grid-column: 3;
+      margin-top: 0;
+      text-align: right;
+    }
+  }
+
+  @include media-breakpoint-up(md) {
+    .account-head {
+      grid-template-columns: auto minmax(0, 1fr) fit-content(50%);
+    }
   }
 
   .account-member-group,
@@ -91,6 +123,14 @@
     font-weight: bold;
     line-height: 1.25;
     overflow-wrap: anywhere;
+
+    // The name and the domain (main.js): each stays whole while it
+    // fits a line, so a long address breaks before the @, then before
+    // a dot, and inside a word only when one word outruns the line.
+    span {
+      display: inline-block;
+      max-width: 100%;
+    }
   }
 
   .account-signout {

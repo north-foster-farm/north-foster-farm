@@ -65,6 +65,64 @@ const rowsOf = (list) => list.evaluate((dl) => Array.from(
 const SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1 1\">"
   + "<rect width=\"1\" height=\"1\"/></svg>";
 
+// #601: beside a long group name the email address was squeezed to a
+// letter a line at 320 px. Below md the head is one column (James):
+// the avatar and the address, then the group and the credit as a row
+// of their own, left aligned with the head.
+test.describe("the account head of a long-named group's member", () => {
+  for (const width of [390, 320]) {
+    test(`keeps a short email address whole at ${width} px`, async ({
+      page, context, baseURL,
+    }) => {
+      await page.setViewportSize({ width, height: 664 });
+      await signIn(page, context, baseURL);
+      await page.route("**/api/me", (route) => route.fulfill({
+        json: {
+          signedIn: true, membership: true,
+          customer: { ...CUSTOMER, email: "member@james.com" },
+          member: { name: "The Village Family Fitness", credit: 0 },
+        },
+      }));
+      await page.goto("/account/#orders");
+
+      const head = page.locator("#account-app .account-head");
+      const email = page.locator("#account-email");
+
+      await expect(email).toHaveText("member@james.com");
+      await expect(page.locator("#account-member [data-member-group]"))
+        .toHaveText("The Village Family Fitness");
+
+      const m = await head.evaluate((node) => {
+        const address = node.querySelector("#account-email");
+        const group = node.querySelector("#account-member");
+        const box = (el) => el.getBoundingClientRect();
+
+        return {
+          share: box(address).width / box(node).width,
+          lines: Math.round(box(address).height
+            / parseFloat(getComputedStyle(address).lineHeight)),
+          under: box(group).top >= box(node.querySelector(
+            ".account-who"
+          )).bottom,
+          atLeft: Math.abs(box(group).left - box(node).left) < 0.5,
+          leftAligned: getComputedStyle(group).textAlign !== "right",
+          inside: box(group).right <= box(node).right + 0.5,
+        };
+      });
+
+      // The address has at least 60% of the head, on one line, with
+      // the group in its own row under it, at the head's left edge,
+      // and nothing past the head's right.
+      expect(m.share).toBeGreaterThanOrEqual(0.6);
+      expect(m.lines).toBe(1);
+      expect(m.under).toBe(true);
+      expect(m.atLeft).toBe(true);
+      expect(m.leftAligned).toBe(true);
+      expect(m.inside).toBe(true);
+    });
+  }
+});
+
 test.describe("a member of one group who hosts another", () => {
   test("sees both, and the host's part acts on the hosted group",
     async ({ page, context, baseURL }) => {

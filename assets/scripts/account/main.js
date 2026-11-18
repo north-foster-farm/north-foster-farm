@@ -905,7 +905,25 @@ class Account {
     qs(document, "#account-avatar use").setAttribute(
       "href", `#avatar-${c.avatar || "hen-brown"}`
     );
-    document.getElementById("account-email").textContent = c.email;
+    // An address too long for its line breaks before the @ first, then
+    // before a dot, never inside a word (#601): the name and the domain
+    // are a span each, which the styles keep whole while they fit, and
+    // a <wbr> stands ahead of the @ and of every dot.
+    const wbr = () => document.createElement("wbr");
+    const at = c.email.lastIndexOf("@");
+    const halves = at > 0 ? [c.email.slice(0, at), c.email.slice(at)]
+      : [c.email];
+
+    document.getElementById("account-email").replaceChildren(
+      ...halves.flatMap((half, i) => {
+        const span = document.createElement("span");
+
+        span.append(...half.split(/(?=\.)/).flatMap((part, j) => (j
+          ? [wbr(), part] : [part])));
+
+        return i ? [wbr(), span] : [span];
+      })
+    );
 
     // A buying group's member (#471): the group's name and the credit
     // balance, on the head's right. Credit is the account's (#495,
