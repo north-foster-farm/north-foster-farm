@@ -377,6 +377,7 @@
         "e2e/forms.spec.mjs",
         "e2e/group-code.spec.mjs",
         "e2e/group-credit.spec.mjs",
+        "e2e/group-delivery-removed.spec.mjs",
         "e2e/keyboard.spec.mjs",
         "e2e/maintenance.spec.mjs",
         "e2e/map.spec.mjs",
@@ -446,6 +447,7 @@
         "e2e/forms.spec.mjs",
         "e2e/group-code.spec.mjs",
         "e2e/group-credit.spec.mjs",
+        "e2e/group-delivery-removed.spec.mjs",
         "e2e/keyboard.spec.mjs",
         "e2e/llms.spec.mjs",
         "e2e/maintenance.spec.mjs",
@@ -680,6 +682,7 @@
         "e2e/cancel-order.spec.mjs",
         "e2e/cart-sync.spec.mjs",
         "e2e/group-credit.spec.mjs",
+        "e2e/group-delivery-removed.spec.mjs",
         "e2e/history-download.spec.mjs",
         "e2e/keep-together.spec.mjs",
         "e2e/keyboard.spec.mjs",
@@ -1293,6 +1296,14 @@
       ],
       "specs": [
         "e2e/group-code.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/group-delivery-removed.spec.mjs"
+      ],
+      "specs": [
+        "e2e/group-delivery-removed.spec.mjs"
       ]
     },
     {

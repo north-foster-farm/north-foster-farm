@@ -84,8 +84,9 @@ describe("the cart across devices (#149)", () => {
     assert.equal(cartOf(left).customer.email, "");
   });
 
-  it("carries a scheduled pickup, a group's delivery, a pass and a " +
-    "group code (#521)", () => {
+  // A group's delivery (the tick) moved to group-delivery-offer.test.mjs
+  // (#626), which goes when the option comes off the page.
+  it("carries a scheduled pickup, a pass and a group code (#521)", () => {
     const cart = cartOf({
       ...payload(),
       fulfilment: { method: "scheduled", occurrence: "36TS-261010",
@@ -96,7 +97,6 @@ describe("the cart across devices (#149)", () => {
     });
 
     assert.equal(cart.fulfilment.occurrence, "36TS-261010");
-    assert.equal(cart.fulfilment.delivery.toGroup, true);
     assert.equal(cart.pass, "AB7K-Q2MX");
     assert.equal(cart.groupCode, "GYM2026");
     assert.equal("groupLink" in cart, false, "how the code came stays");
@@ -110,7 +110,6 @@ describe("the cart across devices (#149)", () => {
     assert.equal(none.pass, "");
     assert.equal(none.groupCode, "");
     assert.equal(none.fulfilment.occurrence, "");
-    assert.equal(none.fulfilment.delivery.toGroup, false);
   });
 
   it("the account keeps a scheduled pickup and a group code (#521)",
@@ -541,17 +540,8 @@ describe("the cart a sign-in link carries (#521)", () => {
       },
     });
     assert.doesNotMatch(JSON.stringify(carryOf(guestDraft())), PRIVATE);
-
-    const scheduled = carryOf({ savedAt: 1, payload: {
-      lines: [{ sku: "A", qty: 1 }],
-      fulfilment: { method: "scheduled", occurrence: "36TS-261010",
-        delivery: { toGroup: true, address1: "1 Main St" } },
-    } });
-
-    assert.deepEqual(scheduled.payload.fulfilment, {
-      method: "scheduled", occurrence: "36TS-261010",
-      delivery: { toGroup: true },
-    });
+    // A group's delivery (the tick) moved to group-delivery-offer.test.mjs
+    // (#626), which goes when the option comes off the page.
   });
 
   it("drops what isn't its shape, and bounds the lines", () => {
