@@ -9,6 +9,7 @@ import {
 import { legacyOccurrence } from "./events.mjs";
 import { moneyOn } from "./money-on.mjs";
 import { perkEffects } from "./perks.mjs";
+import { CHOOSE } from "./picker.mjs";
 import { computeTotals, meetsMinimum } from "./totals.mjs";
 import { today } from "./zoned.mjs";
 import {
@@ -255,7 +256,7 @@ export const validateOrder = (payload, {
   // Nothing is chosen for the customer: a scheduled pickup without its
   // occurrence is incomplete, like an on-farm pickup without its time.
   if (method === "scheduled" && posted === "scheduled" && !occurrence) {
-    errors["fulfilment.occurrence"] = "Choose a pickup day and place.";
+    errors["fulfilment.occurrence"] = CHOOSE;
   }
 
   if (method === "delivery") {

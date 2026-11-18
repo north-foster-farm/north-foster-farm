@@ -824,12 +824,12 @@ A time that lapses as the customer pays (the farm dropped it, or a
 day closed) answers 409 with the fresh list, and the page raises a
 blocking dialog offering what is open now (`order/lapsed.js`, UX's U1
 to U3); nothing has been charged, and the customer pays again with
-the same button. The pickup-day picker (#540) is not on `next`: it
-is parked on the branch `parked/pickup-picker`, one commit ahead and
-rebased whenever `next` moves (#617, 2026-11-18), so a scheduled
-pickup is a list of radios on the order page and in the dialog, and
-a select in the account's Change pickup. The lists also refresh at
-the earliest scheduled cutoff, so a pickup leaves the list as it
+the same button. A scheduled pickup is chosen there, on the order
+page and in the account's Change pickup on one component, the
+pickup-day picker (#540: `order/pickup-picker.js`, its logic in
+`order/lib/picker.mjs`, its markup in
+`partials/order/pickup-picker.html`). The lists also refresh at the
+earliest scheduled cutoff, so a pickup leaves the picker as it
 closes (`date-lists.js` `watchClosing`). A buying group's round,
 which comes once from `/api/group`, is dropped at its own cutoff
 (`stillOpen`), so a closed round never holds the timer at the past.

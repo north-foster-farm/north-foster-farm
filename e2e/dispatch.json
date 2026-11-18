@@ -414,7 +414,6 @@
         "e2e/pay-focus.spec.mjs",
         "e2e/payment-stacking.spec.mjs",
         "e2e/payment.spec.mjs",
-        "e2e/picker-out.spec.mjs",
         "e2e/pickup-horizon.spec.mjs",
         "e2e/pricing.spec.mjs",
         "e2e/rate-limit.spec.mjs",
@@ -496,7 +495,6 @@
         "e2e/pay-focus.spec.mjs",
         "e2e/payment-stacking.spec.mjs",
         "e2e/payment.spec.mjs",
-        "e2e/picker-out.spec.mjs",
         "e2e/pickup-horizon.spec.mjs",
         "e2e/pricing.spec.mjs",
         "e2e/rate-limit.spec.mjs",
@@ -522,6 +520,85 @@
       ],
       "pages": [
         "/order/"
+      ]
+    },
+    {
+      "paths": [
+        "layouts/partials/order/pickup-picker.html",
+        "assets/scripts/order/pickup-picker.js",
+        "assets/styles/components/_pickup-picker.scss"
+      ],
+      "specs": [
+        "e2e/account-tabs.spec.mjs",
+        "e2e/account.spec.mjs",
+        "e2e/archived-edit.spec.mjs",
+        "e2e/busy-buttons.spec.mjs",
+        "e2e/buttons.spec.mjs",
+        "e2e/cancel-order.spec.mjs",
+        "e2e/cart-a11y.spec.mjs",
+        "e2e/cart-badge.spec.mjs",
+        "e2e/cart-float.spec.mjs",
+        "e2e/cart-fold.spec.mjs",
+        "e2e/cart-keyboard.spec.mjs",
+        "e2e/cart-lines.spec.mjs",
+        "e2e/cart-money.spec.mjs",
+        "e2e/cart-motion.spec.mjs",
+        "e2e/cart-one.spec.mjs",
+        "e2e/cart-sync.spec.mjs",
+        "e2e/cart-way.spec.mjs",
+        "e2e/catalog-visibility.spec.mjs",
+        "e2e/contact-send.spec.mjs",
+        "e2e/contact.spec.mjs",
+        "e2e/delivery-pass.spec.mjs",
+        "e2e/edit-order-date.spec.mjs",
+        "e2e/fake-payments.spec.mjs",
+        "e2e/favicon.spec.mjs",
+        "e2e/footer.spec.mjs",
+        "e2e/forms.spec.mjs",
+        "e2e/group-code.spec.mjs",
+        "e2e/group-credit.spec.mjs",
+        "e2e/history-download.spec.mjs",
+        "e2e/keep-together.spec.mjs",
+        "e2e/keyboard.spec.mjs",
+        "e2e/maintenance.spec.mjs",
+        "e2e/map.spec.mjs",
+        "e2e/membership-layout.spec.mjs",
+        "e2e/membership.spec.mjs",
+        "e2e/missed-delivery.spec.mjs",
+        "e2e/news-hide.spec.mjs",
+        "e2e/onfarm-times.spec.mjs",
+        "e2e/order-draft-date.spec.mjs",
+        "e2e/order-layout.spec.mjs",
+        "e2e/order-page.spec.mjs",
+        "e2e/order-scheduled.spec.mjs",
+        "e2e/overflow.spec.mjs",
+        "e2e/pay-focus.spec.mjs",
+        "e2e/payment-stacking.spec.mjs",
+        "e2e/payment.spec.mjs",
+        "e2e/pickup-horizon.spec.mjs",
+        "e2e/pricing.spec.mjs",
+        "e2e/rate-limit.spec.mjs",
+        "e2e/recovery.spec.mjs",
+        "e2e/remove-icon.spec.mjs",
+        "e2e/report-privacy.spec.mjs",
+        "e2e/restock.spec.mjs",
+        "e2e/scheduled-pickup.spec.mjs",
+        "e2e/search.spec.mjs",
+        "e2e/sign-in-order.spec.mjs",
+        "e2e/skeletons.spec.mjs",
+        "e2e/skip-link.spec.mjs",
+        "e2e/sku-alias.spec.mjs",
+        "e2e/staging-toolbar.spec.mjs",
+        "e2e/stock-failure.spec.mjs",
+        "e2e/top-bar.spec.mjs",
+        "e2e/typed-address.spec.mjs",
+        "e2e/venmo-paid.spec.mjs",
+        "e2e/wallets.spec.mjs",
+        "e2e/wording.spec.mjs"
+      ],
+      "pages": [
+        "/order/",
+        "/account/"
       ]
     },
     {
@@ -577,7 +654,6 @@
         "e2e/pay-focus.spec.mjs",
         "e2e/payment-stacking.spec.mjs",
         "e2e/payment.spec.mjs",
-        "e2e/picker-out.spec.mjs",
         "e2e/pickup-horizon.spec.mjs",
         "e2e/pricing.spec.mjs",
         "e2e/rate-limit.spec.mjs",
@@ -662,7 +738,6 @@
         "e2e/missed-delivery.spec.mjs",
         "e2e/onfarm-times.spec.mjs",
         "e2e/overflow.spec.mjs",
-        "e2e/picker-out.spec.mjs",
         "e2e/scheduled-pickup.spec.mjs",
         "e2e/sign-in-order.spec.mjs",
         "e2e/skeletons.spec.mjs",
@@ -1551,14 +1626,6 @@
       ],
       "specs": [
         "e2e/window-label.spec.mjs"
-      ]
-    },
-    {
-      "paths": [
-        "e2e/picker-out.spec.mjs"
-      ],
-      "specs": [
-        "e2e/picker-out.spec.mjs"
       ]
     },
     {

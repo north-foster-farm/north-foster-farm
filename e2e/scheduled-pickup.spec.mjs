@@ -11,7 +11,7 @@
 // while e2e is paused. docs/qa-launch.md, OP-02 and AR-13.
 
 import {
-  OrderPage, expect, pickupChosen, test, uniqueEmail,
+  OrderPage, choosePickup, expect, pickupChosen, test, uniqueEmail,
 } from "./support/order.mjs";
 import {
   BACK_OFFICE_MISSING, backOffice, clearMail, closeOrder, deleteCustomer,
@@ -108,12 +108,15 @@ test.describe("a market order, moved to the drop site", () => {
     await page.getByRole("button", { name: /^Change (delivery|pickup)$/ })
       .first().click();
 
-    const select = page.locator("[data-dates]");
+    // The order page's pickup-day picker (#540), the booked pickup
+    // chosen.
+    const picker = page.locator(".account-panel-form [data-picker]");
+    const pickups = picker.locator("[data-picker-pickups]");
 
-    await expect(select).toHaveValue(chosen);
-    await expect(select.locator(`option[value='${drop.occurrence}']`))
+    await expect(pickups.locator("input:checked")).toHaveValue(chosen);
+    await expect(pickups.locator(`input[value='${drop.occurrence}']`))
       .toHaveCount(1);
-    await select.selectOption(drop.occurrence);
+    await choosePickup(picker, drop.occurrence);
     await page.getByRole("button", { name: "Save changes" }).click();
     await expect(when).toContainText("at the drop site");
     await expect(when).not.toContainText(market.name);
