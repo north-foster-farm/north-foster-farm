@@ -8,7 +8,7 @@
 // 300px shorter.
 
 import {
-  FULL_CART, OrderPage, codeRing, expect, test, unfoldCart,
+  FULL_CART, OrderPage, codeRing, expect, jumpTo, test, unfoldCart,
 } from "./support/order.mjs";
 
 const SIZES = [
@@ -64,11 +64,16 @@ const underKeyboard = async (page, size, { roundTrip = false } = {}) => {
 
   await order.open(FULL_CART);
   if (roundTrip) {
-    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    // At once, not smoothly: on a starved renderer WebKit's smooth
+    // scroll (Bootstrap's reboot makes every one smooth) stalled
+    // partway, 1,400 px short of the foot, and swung 1 px a frame for
+    // good, so scrollSettled timed out. The step wants the page at its
+    // foot, not the smoothness (#641; jumpTo in support/order.mjs).
+    await jumpTo(page, "foot");
     await order.scrollSettled();
     await expect(cart).toHaveAttribute("data-placement", "inline");
   }
-  await page.evaluate(() => window.scrollTo(0, 400));
+  await jumpTo(page, 400);
   await order.scrollSettled();
   await expect(cart).toHaveAttribute("data-placement", "floating");
 

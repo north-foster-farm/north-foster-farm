@@ -6,7 +6,7 @@
 // its own sizes, so it runs in the desktop project only.
 
 import {
-  FULL_CART, OrderPage, expect, paneStill, test, unfoldCart,
+  FULL_CART, OrderPage, expect, jumpTo, paneStill, test, unfoldCart,
 } from "./support/order.mjs";
 import { scopeCookie } from "./support/stock.mjs";
 
@@ -29,7 +29,7 @@ const gone = (locator) => locator.evaluate((el) => {
 // closed. Floats it, open, at the catalog's top.
 const floatOpen = async (page, order) => {
   await order.scrollSettled();
-  await page.evaluate(() => window.scrollTo(0, 300));
+  await jumpTo(page, 300);
   await order.scrollSettled();
   await expect(order.cart).toHaveAttribute("data-placement", "floating");
   await unfoldCart(order);

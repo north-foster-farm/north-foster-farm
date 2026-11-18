@@ -24,7 +24,7 @@
 // it isn't reached here.
 
 import {
-  FULL_CART, OrderPage, expect, test, unfoldCart,
+  FULL_CART, OrderPage, expect, jumpTo, test, unfoldCart,
 } from "./support/order.mjs";
 import {
   ACCOUNT_TABS, builtSitemap, cannedDates, everyPage, keepHome, namedPages,
@@ -671,7 +671,7 @@ for (const width of WIDTHS) {
         // where it settled inline and open at once.
         await order.scrollSettled();
         await expect.poll(async () => {
-          await page.evaluate(() => scrollTo(0, 0));
+          await jumpTo(page, 0);
           await order.scrollSettled();
           return page.evaluate(() => scrollY);
         }, { message: "the page stays at the top" }).toBe(0);

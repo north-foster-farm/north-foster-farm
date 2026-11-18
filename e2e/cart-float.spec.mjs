@@ -8,7 +8,7 @@
 // own sizes, so it runs in the desktop project only.
 
 import {
-  FULL_CART, OrderPage, expect, paneStill, test, unfoldCart,
+  FULL_CART, OrderPage, expect, jumpTo, paneStill, test, unfoldCart,
 } from "./support/order.mjs";
 
 const PHONE = { width: 390, height: 844 };
@@ -56,7 +56,7 @@ test.describe("placement on load", () => {
       const order = new OrderPage(page);
 
       await order.open(FULL_CART);
-      await page.evaluate(() => window.scrollTo(0, 0));
+      await jumpTo(page, 0);
       await order.scrollSettled();
       await expect(order.cart).toHaveAttribute("data-placement", placement);
     });
@@ -72,7 +72,7 @@ test.describe("floating, settling and lifting off", () => {
         const order = new OrderPage(page);
 
         await order.open(FULL_CART);
-        await page.evaluate(() => window.scrollTo(0, 200));
+        await jumpTo(page, 200);
         await order.scrollSettled();
         await expect(order.cart).toHaveAttribute("data-placement", "floating");
 
@@ -107,7 +107,7 @@ test.describe("floating, settling and lifting off", () => {
         await expect(order.cart.locator("[data-cart-toggle]")).toBeHidden();
 
         // Back up: it lifts off closed, once.
-        await page.evaluate(() => window.scrollTo(0, 0));
+        await jumpTo(page, 0);
         await order.scrollSettled();
         await expect(order.cart).toHaveAttribute("data-placement", "floating");
         await expect(order.cart).toHaveAttribute("data-fold", "closed");
@@ -162,7 +162,7 @@ test.describe("floating, settling and lifting off", () => {
 
     await order.open(FULL_CART);
     for (const y of [0, 400, 1200]) {
-      await page.evaluate((top) => window.scrollTo(0, top), y);
+      await jumpTo(page, y);
       await order.scrollSettled();
       await expect(order.cart).toHaveAttribute("data-placement", "inline");
     }
@@ -180,7 +180,7 @@ test.describe("the phone's sheet", () => {
 
       await order.open(FULL_CART);
       await order.scrollSettled();
-      await page.evaluate(() => window.scrollTo(0, 300));
+      await jumpTo(page, 300);
       await order.scrollSettled();
       await expect(order.cart).toHaveAttribute("data-placement", "floating");
       await unfoldCart(order);
@@ -218,7 +218,7 @@ test.describe("the phone's sheet", () => {
     const order = new OrderPage(page);
 
     await order.open(FULL_CART);
-    await page.evaluate(() => window.scrollTo(0, 300));
+    await jumpTo(page, 300);
     await order.scrollSettled();
 
     const [bar, pane] = await page.evaluate(() => [
@@ -241,7 +241,7 @@ test.describe("the tablet's panel", () => {
 
         await order.open(FULL_CART);
         await order.scrollSettled();
-        await page.evaluate(() => window.scrollTo(0, 300));
+        await jumpTo(page, 300);
         await order.scrollSettled();
         await expect(order.cart).toHaveAttribute("data-placement", "floating");
         await unfoldCart(order);
@@ -284,7 +284,7 @@ test.describe("the tablet's panel", () => {
     await page.setViewportSize(TABLET);
     await order.open(FULL_CART);
     await order.scrollSettled();
-    await page.evaluate(() => window.scrollTo(0, 300));
+    await jumpTo(page, 300);
     await order.scrollSettled();
     await expect(order.cart).toHaveAttribute("data-placement", "floating");
     await unfoldCart(order);
@@ -443,7 +443,7 @@ test.describe("the tablet's panel", () => {
 
     await order.open({ ...FULL_CART, whole: 2 });
     await order.scrollSettled();
-    await page.evaluate(() => window.scrollTo(0, 300));
+    await jumpTo(page, 300);
     await order.scrollSettled();
     await expect(order.cart).toHaveAttribute("data-placement", "floating");
     await unfoldCart(order);

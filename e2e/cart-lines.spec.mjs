@@ -10,7 +10,7 @@ import {
   CONFIRM_GUARD, CONFIRM_WAIT,
 } from "../assets/scripts/order/cart/confirm.mjs";
 import {
-  FULL_CART, OrderPage, SKU, SUITE_STOCK, expect, settleCart as settle,
+  FULL_CART, OrderPage, SKU, SUITE_STOCK, expect, jumpTo, settleCart as settle,
   test, unfoldCart as unfold,
 } from "./support/order.mjs";
 import { PLENTY } from "./support/stock.mjs";
@@ -282,7 +282,7 @@ for (const [width, viewport] of [["a phone", PHONE], ["the column", XL]]) {
       // the catalog it floats, and opens by its pill. The column has
       // no fold.
       if (viewport === PHONE) {
-        await page.evaluate(() => window.scrollTo(0, 400));
+        await jumpTo(page, 400);
         await order.scrollSettled();
         await expect(order.cart)
           .toHaveAttribute("data-placement", "floating");

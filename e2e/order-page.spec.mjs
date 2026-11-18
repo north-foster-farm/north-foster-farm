@@ -3,7 +3,9 @@
 
 import { readFileSync } from "node:fs";
 
-import { OrderPage, SKU, expect, test } from "./support/order.mjs";
+import {
+  OrderPage, SKU, expect, jumpTo, test,
+} from "./support/order.mjs";
 import { PLENTY } from "./support/stock.mjs";
 
 const catalog = JSON.parse(readFileSync(
@@ -398,7 +400,9 @@ test.describe("order page", () => {
       // Settled below the catalog, the cart is in view once the page is
       // scrolled to it. It is no longer the page's last part: the
       // Place your order section follows it (bc0570ae).
-      await cart.evaluate((el) => el.scrollIntoView({ block: "center" }));
+      await cart.evaluate((el) => el.scrollIntoView({
+        block: "center", behavior: "instant",
+      }));
       await order.scrollSettled();
       await expect(cart).toBeInViewport({ ratio: 1 });
       await link.click();
@@ -425,9 +429,7 @@ test.describe("order page", () => {
 
       await page.setViewportSize(size);
       await order.open({ eggs: 1, wings: 1, thighs: 1, drums: 1 });
-      await page.evaluate(
-        () => window.scrollTo({ top: document.body.scrollHeight })
-      );
+      await jumpTo(page, "foot");
       await order.scrollSettled();
       // Up in a flick, and the link at once, as the cart lifts off.
       await page.evaluate(() => {

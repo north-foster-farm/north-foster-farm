@@ -60,13 +60,39 @@ export const codeRing = (order) => order.codeInput.evaluate((el) => {
 export const foldCart = (page, cart) => setFold(cart, "closed");
 export const unfoldCart = (order) => setFold(order.cart, "open");
 
+// A test's own move of the page to a place it then waits at, made at
+// once (#641). Bootstrap's reboot makes every scroll of the page
+// smooth, and on a starved renderer WebKit's smooth scroll can stall
+// partway and swing 1 px a frame for good, so scrollSettled never sees
+// the page still. The step wants the page at its place, not the
+// smoothness. `top` is a number of px or "foot", the page's end. A
+// test of the page's own smooth scrolls never comes through here.
+// The jump then waits out the cart's own move, a settle or a lift-off
+// that starts on the next frames: a smooth scroll outlasted it, and a
+// test that read the pane at once caught it halfway (cart-float.spec
+// :68 read a lifting pane 54 px under the screen's foot).
+export const jumpTo = async (page, top) => {
+  await page.evaluate((to) => new Promise((done) => {
+    window.scrollTo({
+      top: to === "foot" ? document.body.scrollHeight : to,
+      behavior: "instant",
+    });
+    // The scroll's frame, the placement's look and the move's start.
+    let frames = 3;
+    const tick = () => (--frames ? requestAnimationFrame(tick) : done());
+
+    requestAnimationFrame(tick);
+  }), top);
+  await paneStill(page.locator("#order-cart"));
+};
+
 // Brings the cart into the page, settled and open, at every width:
 // below xl the heading at the top of the screen settles it inline; from
 // xl it is the column. Layout is measured there, never mid-fold.
 export const settleCart = async (order) => {
   await order.page.evaluate(() => document.getElementById(
     "order-cart-heading"
-  ).scrollIntoView({ block: "start" }));
+  ).scrollIntoView({ block: "start", behavior: "instant" }));
   await order.scrollSettled();
   await paneStill(order.cart);
   await expect(order.cart).toHaveAttribute("data-fold", "open");
@@ -301,7 +327,7 @@ export class OrderPage {
   async showRow(name) {
     await this.scrollSettled();
     await this.item(name).evaluate(
-      (el) => el.scrollIntoView({ block: "center" })
+      (el) => el.scrollIntoView({ block: "center", behavior: "instant" })
     );
     // The cart's scroll watch runs on the next frames.
     await this.scrollSettled();

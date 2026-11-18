@@ -5,7 +5,7 @@
 // pricing.spec.mjs's; this is where the cart shows them.
 
 import {
-  FULL_CART, OrderPage, expect, paneStill, settleCart as settled, test,
+  FULL_CART, OrderPage, expect, jumpTo, paneStill, settleCart as settled, test,
   unfoldCart as unfold,
 } from "./support/order.mjs";
 
@@ -119,7 +119,7 @@ test("the chicks leave the tier just earned", async ({ page }) => {
 
   // $48: two dollars short of the first tier.
   await order.open({ wings: 4, eggs: 1 });
-  await page.evaluate(() => window.scrollTo(0, 300));
+  await jumpTo(page, 300);
   await order.scrollSettled();
   await unfold(order);
 

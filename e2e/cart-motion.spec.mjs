@@ -1178,7 +1178,10 @@ test.describe("every frame pair (#559, round 3)", () => {
       await page.evaluate(() => {
         const slot = document.getElementById("order-cart-heading");
 
-        window.scrollBy(0, slot.getBoundingClientRect().top - innerHeight);
+        window.scrollBy({
+          top: slot.getBoundingClientRect().top - innerHeight,
+          behavior: "instant",
+        });
       });
       await order.scrollSettled();
       await expect(order.cart).toHaveAttribute("data-placement", "floating");

@@ -6,7 +6,7 @@
 // and desktop projects, and in WebKit as the iphone project.
 
 import {
-  FULL_CART, OrderPage, codeRing, expect, foldCart, test, unfoldCart,
+  FULL_CART, OrderPage, codeRing, expect, foldCart, jumpTo, test, unfoldCart,
 } from "./support/order.mjs";
 
 const PHONE = { width: 390, height: 844 };
@@ -15,7 +15,7 @@ const PHONE = { width: 390, height: 844 };
 // closed. Floats it, closed, at the catalog's top.
 const float = async (page, order) => {
   await order.scrollSettled();
-  await page.evaluate(() => window.scrollTo(0, 300));
+  await jumpTo(page, 300);
   await order.scrollSettled();
   await expect(order.cart).toHaveAttribute("data-placement", "floating");
 };
@@ -119,7 +119,7 @@ test.describe("on a phone", () => {
 
       await order.open(FULL_CART);
       await order.scrollSettled();
-      await page.evaluate(() => window.scrollTo(0, 0));
+      await jumpTo(page, 0);
       await order.scrollSettled();
       await expect(order.cart).toHaveAttribute("data-placement", "floating");
 
