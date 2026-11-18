@@ -112,7 +112,7 @@ test.describe("the picker out of next (#617)", () => {
         date: m.date },
       pickup: {
         name: "Canned Market", place: "Town Common, 1 Main St, Foster, RI",
-        window: "10 AM – 12 PM", occurrence: m.occurrence, gone: false,
+        window: "10:00 AM – 12:00 PM", occurrence: m.occurrence, gone: false,
       },
     };
 

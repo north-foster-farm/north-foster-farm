@@ -73,7 +73,7 @@ test.describe("payments", () => {
     await expect(card.locator("[data-out='email']")).toHaveText(email);
     await expect(card.locator("[data-out='orderId']")).toHaveText(ORDER_ID);
     await expect(card.locator("[data-out='when']")).toHaveText(
-      /, \d.* (AM|PM|noon), at the farm\.$/
+      /, \d{1,2}:\d{2}( AM| PM)? – \d{1,2}:\d{2} (AM|PM), at the farm\.$/
     );
     // The fake driver has no receipt, and the sandbox's opens Page not
     // found, so the card shows none (#441).

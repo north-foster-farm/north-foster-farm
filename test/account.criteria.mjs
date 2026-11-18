@@ -1,0 +1,1019 @@
+// Criteria copy of test/account.test.mjs for #616's shared label
+// (2026-11-18): the same file with every window label in the full
+// format ("9:00 AM – 12:00 PM", "between 10:00 and 11:00 AM").
+// Held out of `npm test` by its name until windowLabel takes the new
+// format; the implementer turns it on, over the live file, with
+//
+//   git mv -f test/account.criteria.mjs test/account.test.mjs
+//
+// Changed: the moved pickup's email window.
+
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
+
+import {
+  cancelOrder, changeOrder, listOrders, requestReturn, saveAddress,
+  sendSupport, updateProfile,
+} from "../netlify/functions/lib/account.mjs";
+import {
+  createSession, publicCustomer,
+} from "../netlify/functions/lib/auth.mjs";
+import {
+  getCustomer, getOrder, saveCustomer, saveOrder, setStatus,
+} from "../netlify/functions/lib/records.mjs";
+import { getCounts, setCount } from "../netlify/functions/lib/stock.mjs";
+import { testStores } from "../netlify/functions/lib/store.mjs";
+import { handle } from "../netlify/functions/account.mjs";
+import { instant } from "../assets/scripts/order/lib/zoned.mjs";
+import { AFTERNOON, SCHEDULE } from "./schedule-fixture.mjs";
+
+// A SKU the catalog knows: an order with an unknown one can't change.
+const EGG = "NFF-CHK-EGG-LG";
+const MAILS = {
+  FARM_NOTIFICATIONS_EMAIL: "farm@example.com",
+  DEV_NOTIFICATIONS_EMAIL: "dev@example.com",
+};
+
+const TZ = "America/New_York";
+// Monday 5 October 2026, 09:00 ET; delivery Thursday the 8th.
+const now = instant("2026-10-05", 9, 0, TZ);
+const env = {
+  ...MAILS, URL: "https://x",
+  PICKUP_SCHEDULE: SCHEDULE,
+};
+
+// Born paid, by card through Square.
+const order = (id, method = "delivery", email = "pat@example.com") => ({
+  id,
+  status: "paid",
+  submittedAt: now.toISOString(),
+  paidAt: now.toISOString(),
+  customer: { name: "Pat Example", email, phone: "" },
+  lines: [
+    { sku: EGG, label: "Eggs, Large", qty: 1, unitPrice: 7,
+      lineTotal: 7 },
+  ],
+  totals: { subtotal: 700, discountAmount: 0, deliveryFee: 500, total: 1200 },
+  fulfilment: {
+    method,
+    date: method === "delivery" ? "2026-10-08" : "2026-10-07",
+    onfarm: method === "onfarm"
+      ? { window: "morning", phone: "4015550100", textOk: false } : null,
+    delivery: method === "delivery" ? {
+      address1: "1 Main St", town: "Foster", zip: "02825", cooler: "Porch",
+      gate: "", notes: "",
+    } : null,
+  },
+  notes: "",
+  square: { squareOrderId: "SQO", customerId: "CUST" },
+  payment: {
+    via: "square", method: "card", at: now.toISOString(),
+    squarePaymentId: `PAY-${id}`, receiptUrl: "https://r/x", brand: "VISA",
+    last4: "4242",
+  },
+});
+
+const customerOf = (email = "pat@example.com") => ({
+  email, name: "Pat Example", phone: "", avatar: null, discountGroup: null,
+  address: null,
+});
+
+const harness = () => {
+  const sent = [];
+  const calls = [];
+
+  return {
+    sent,
+    calls,
+    opts: {
+      now,
+      env,
+      mail: async (m) => {
+        sent.push(m);
+
+        return { id: `m${sent.length}`, driver: "test" };
+      },
+      square: {
+        updateFulfillment: async (id, o) => {
+          calls.push(["updateFulfillment", id, o.fulfilment.date]);
+        },
+        refundPayment: async ({ squarePaymentId, amount, key }) => {
+          calls.push(["square.refund", squarePaymentId, amount, key]);
+
+          return { squareRefundId: "SQR-1", status: "PENDING", amount };
+        },
+        cancelFulfillment: async (id) => { calls.push(["fulfilment", id]); },
+      },
+      paypal: {
+        refundCapture: async ({ paypalCaptureId, amount }) => {
+          calls.push(["paypal.refund", paypalCaptureId, amount]);
+
+          return { paypalRefundId: "PPR-1", status: "COMPLETED", amount };
+        },
+      },
+    },
+  };
+};
+
+describe("listOrders", () => {
+  it("says what an order the farm made still owes, and keeps the site " +
+    "off money the farm took by hand (#181)", async () => {
+    const stores = testStores();
+
+    await saveOrder(stores, {
+      ...order("U"), status: "unpaid", paidAt: undefined, payment: undefined,
+      payments: [],
+    });
+    await saveOrder(stores, order("P"));
+    await saveOrder(stores, {
+      ...order("C"), payment: undefined,
+      payments: [{ amount: 1900, via: "cash", method: "cash",
+        squarePaymentId: "PAY-C", by: "farm" }],
+    });
+
+    const { orders } = await listOrders(stores, customerOf(), { now });
+    const u = orders.find((o) => o.id === "U");
+    const p = orders.find((o) => o.id === "P");
+    const c = orders.find((o) => o.id === "C");
+
+    assert.equal(u.due, u.totals.total);
+    assert.equal(u.canChange, false);
+    assert.equal(u.canCancel, false);
+    assert.equal(p.due, 0);
+    assert.equal(p.canCancel, true);
+    // Paid in cash: cancelled or changed with the farm, which hands
+    // the money back itself.
+    assert.equal(c.due, 0);
+    assert.equal(c.canCancel, false);
+    assert.equal(c.canChange, false);
+  });
+
+  it("shows only the customer's orders, newest first, in public shape",
+    async () => {
+      const stores = testStores();
+
+      await saveOrder(stores, {
+        ...order("A"), submittedAt: "2026-10-01T00:00:00Z",
+      });
+      await saveOrder(stores, order("B"));
+      await saveOrder(stores, order("C", "delivery", "other@example.com"));
+
+      const { orders } = await listOrders(stores, customerOf(), { now });
+
+      assert.deepEqual(orders.map((o) => o.id), ["B", "A"]);
+      assert.deepEqual(orders[0].payments, [{
+        at: orders[0].paidAt, amount: orders[0].totals.total, via: "square",
+        method: "card", brand: "VISA", last4: "4242",
+        receiptUrl: "https://r/x", paypalCaptureId: null, payer: null,
+      }]);
+      assert.deepEqual(orders[0].refunds, []);
+      assert.equal(orders[0].invoice, undefined);
+      assert.equal(orders[0].paymentPending, undefined);
+      assert.equal(orders[0].canCancel, true);
+      assert.equal(orders[0].canChange, true);
+      assert.equal(orders[0].square, undefined);
+      assert.equal(orders[0].history, undefined);
+      // The order page fills a change in from the order itself, the
+      // email included (#284).
+      assert.deepEqual(orders[0].customer, {
+        firstName: "", lastName: "", email: "pat@example.com", phone: "",
+        contact: "",
+      });
+    });
+
+  it("shows no receipt link for a sandbox payment (#441)", async () => {
+    const stores = testStores();
+    const record = order("S");
+
+    record.payment.receiptUrl =
+      "https://squareupsandbox.com/receipt/preview/PAY-S";
+    await saveOrder(stores, record);
+
+    const { orders } = await listOrders(stores, customerOf(), { now });
+
+    assert.equal(orders[0].payments[0].receiptUrl, null);
+  });
+
+  it("gives a Venmo payment what its receipt needs, not the email",
+    async () => {
+      const stores = testStores();
+
+      await saveOrder(stores, {
+        ...order("V"),
+        payment: {
+          via: "venmo", method: "venmo", at: now.toISOString(),
+          amount: 1400, squarePaymentId: "PAY-V", receiptUrl: null,
+          paypalOrderId: "PPO-V", paypalCaptureId: "CAP-V",
+          payer: { name: "Pat Example", email: "pat@paypal.example" },
+        },
+      });
+
+      const { orders } = await listOrders(stores, customerOf(), { now });
+      const [payment] = orders[0].payments;
+
+      assert.equal(payment.paypalCaptureId, "CAP-V");
+      assert.equal(payment.payer, "Pat Example");
+      assert.equal(JSON.stringify(payment).includes("paypal.example"),
+        false);
+    });
+
+  it("shows a refund, and a record with no payment shows none", async () => {
+    const stores = testStores();
+
+    await saveOrder(stores, {
+      ...order("A"),
+      refund: {
+        at: "2026-10-06T00:00:00Z", source: "farm", amount: 1200, total: true,
+        squareRefundId: "SQR-1", paypalRefundId: null, status: "PENDING",
+      },
+    });
+    await saveOrder(stores, { ...order("B"), payment: null });
+
+    const { orders } = await listOrders(stores, customerOf(), { now });
+    const a = orders.find((o) => o.id === "A");
+    const b = orders.find((o) => o.id === "B");
+
+    assert.deepEqual(a.refunds, [{
+      at: "2026-10-06T00:00:00Z", amount: 1200, payment: 0,
+    }]);
+    assert.deepEqual(b.payments, []);
+  });
+
+  it("never offers a change to an order holding a SKU the catalog lacks",
+    async () => {
+      const stores = testStores();
+      const old = {
+        ...order("OLD"),
+        lines: [{ sku: "NFF-CHK-BRSBL-0000-0125", label: "Boneless " +
+          "Breasts, 1.0 – 1.2 lbs", qty: 2, unitPrice: 15, lineTotal: 30 }],
+      };
+
+      await saveOrder(stores, old, now);
+
+      const { orders } = await listOrders(stores, customerOf(), { now });
+
+      assert.equal(orders[0].canChange, false);
+      assert.equal(orders[0].canCancel, true);
+
+      const r = await changeOrder(stores, customerOf(), "OLD", {}, { now });
+
+      assert.equal(r.status, 409);
+    });
+});
+
+describe("cancelOrder", () => {
+  it("refunds in full, cancels, puts the stock back and tells the farm " +
+    "there's nothing to run", async () => {
+    const stores = testStores();
+    const { sent, calls, opts } = harness();
+
+    await setCount(stores, EGG, 3);
+    await saveOrder(stores, order("A"), now);
+    const r = await cancelOrder(stores, customerOf(), "A", opts);
+
+    assert.equal(r.ok, true);
+    assert.equal(r.order.status, "cancelled");
+    assert.equal(r.order.canCancel, false);
+    assert.equal(r.order.canChange, false);
+    assert.deepEqual(r.order.refunds.map((x) => x.amount), [1200]);
+    assert.deepEqual(calls, [
+      ["square.refund", "PAY-A", 1200, "refund-cancel-A-0"],
+      ["fulfilment", "SQO"],
+    ]);
+    assert.equal((await getCounts(stores))[EGG], 4);
+    assert.equal(sent.length, 2);
+    assert.match(sent[0].subject, /canceled/);
+    assert.match(sent[0].text,
+      /as requested\.\nA refund of \$\d+ is on its way/);
+    assert.deepEqual(sent[1].to, ["farm@example.com"]);
+    assert.equal(sent[1].subject, "Canceled: A by pat@example.com");
+    assert.match(sent[1].text, /refunded \$12 automatically/);
+
+    const saved = await getOrder(stores, "A");
+
+    assert.equal(saved.refunds[0].source, "customer");
+    assert.equal(saved.cancelRequested, undefined);
+
+    // Asking twice is refused: it is already canceled.
+    const again = await cancelOrder(stores, customerOf(), "A", opts);
+
+    assert.equal(again.status, 409);
+    assert.equal(sent.length, 2);
+  });
+
+  it("answers 409, and asks the farm for nothing, when the order is " +
+    "handed over while the cancel is under way", async () => {
+    const stores = testStores();
+    const { sent, opts } = harness();
+
+    await saveOrder(stores, order("A"), now);
+
+    const tagged = stores.orders.getTagged.bind(stores.orders);
+    let reads = 0;
+
+    // The refund's own write reads first; the close lands before the
+    // cancel's.
+    stores.orders.getTagged = async (key) => {
+      reads += 1;
+      if (reads === 2 && key === "order/A") {
+        await setStatus(stores, "A", "fulfilled", now);
+      }
+
+      return tagged(key);
+    };
+
+    const r = await cancelOrder(stores, customerOf(), "A", opts);
+
+    assert.equal(r.status, 409);
+    assert.equal((await getOrder(stores, "A")).status, "fulfilled");
+    assert.equal((await getOrder(stores, "A")).cancelRequested, undefined);
+    assert.deepEqual(sent, [], "no email to the customer or the farm");
+  });
+
+  it("when the refund fails, flags the order and tells the farm what " +
+    "to run", async () => {
+    const stores = testStores();
+    const { sent, calls, opts } = harness();
+
+    await setCount(stores, EGG, 3);
+    await saveOrder(stores, order("A"), now);
+    const r = await cancelOrder(stores, customerOf(), "A", {
+      ...opts,
+      square: {
+        ...opts.square,
+        refundPayment: async () => { throw new Error("Square 503"); },
+      },
+    });
+
+    assert.equal(r.ok, true);
+    assert.equal(r.order.status, "paid", "closed by the farm, not here");
+    assert.equal(r.order.cancelRequested, true);
+    assert.equal(r.order.canCancel, false);
+    assert.deepEqual(calls, []);
+    assert.equal((await getCounts(stores))[EGG], 4);
+    assert.equal(sent.length, 2);
+    assert.match(sent[0].text, /A refund of \$12 is on its way/);
+    assert.equal(sent[1].subject,
+      "Refund needed: A canceled by pat@example.com");
+    assert.match(sent[1].text, /bin\/nff orders cancel A\n/);
+    assert.match(sent[1].html,
+      /user-select:all">bin\/nff orders cancel A<\/pre>/);
+
+    const saved = await getOrder(stores, "A");
+
+    assert.equal(saved.cancelRequestedAt, now.toISOString());
+    assert.deepEqual(saved.history.slice(-3).map((h) => h.event), [
+      "cancel.requested", "mail.orderCancelled", "mail.farmRefundNeeded",
+    ]);
+    assert.ok(saved.emails.farmRefundNeeded, "recorded, so sent once");
+  });
+
+  it("alerts when the refund-needed notice can't reach the farm (#268)",
+    async () => {
+      const stores = testStores();
+      const { sent, opts } = harness();
+      await saveOrder(stores, order("A"), now);
+      const r = await cancelOrder(stores, customerOf(), "A", {
+        ...opts,
+        mail: async (m) => {
+          if (/^Refund needed/.test(m.subject)) {
+            throw new Error("Resend 500");
+          }
+
+          return opts.mail(m);
+        },
+        square: {
+          ...opts.square,
+          refundPayment: async () => { throw new Error("Square 503"); },
+        },
+      });
+
+      assert.equal(r.ok, true, "the customer's cancel still stands");
+      assert.equal(r.order.cancelRequested, true);
+
+      const alerted = sent.filter((m) => [].concat(m.to)
+        .includes("dev@example.com"));
+
+      assert.equal(alerted.length, 1);
+      assert.match(alerted[0].text, /farmRefundNeeded/);
+      assert.equal((await getOrder(stores, "A")).emails.farmRefundNeeded,
+        undefined, "not recorded, so a retry can send it");
+    });
+
+  it("refuses someone else's order, and one past the cutoff", async () => {
+    const stores = testStores();
+    const { opts } = harness();
+
+    await saveOrder(stores, order("A"), now);
+    assert.equal((await cancelOrder(stores, customerOf("x@y.com"), "A", opts))
+      .status, 404);
+
+    const late = instant("2026-10-07", 12, 1, TZ);
+
+    assert.equal((await cancelOrder(stores, customerOf(), "A", {
+      ...opts, now: late,
+    })).status, 409);
+  });
+});
+
+describe("changeOrder", () => {
+  it("moves the date and drop-off details and updates Square", async () => {
+    const stores = testStores();
+    const { sent, calls, opts } = harness();
+
+    await saveOrder(stores, order("A"), now);
+    const r = await changeOrder(stores, customerOf(), "A", {
+      date: "2026-10-15",
+      delivery: { cooler: "Back steps", gate: "9", notes: "Dog is friendly" },
+      notes: "Thanks!",
+    }, opts);
+
+    assert.equal(r.ok, true, JSON.stringify(r));
+    assert.equal(r.order.fulfilment.date, "2026-10-15");
+    assert.equal(r.order.fulfilment.delivery.cooler, "Back steps");
+    assert.equal(r.order.notes, "Thanks!");
+    assert.deepEqual(calls, [["updateFulfillment", "SQO", "2026-10-15"]]);
+    assert.match(sent[0].subject, /updated/);
+    assert.match(sent[0].text, /find your cooler\? Back steps\n/);
+  });
+
+  it("rejects a date that is not offered and an empty cooler", async () => {
+    const stores = testStores();
+    const { opts } = harness();
+
+    await saveOrder(stores, order("A"), now);
+    const bad = await changeOrder(stores, customerOf(), "A", {
+      date: "2026-10-09", delivery: { cooler: "" },
+    }, opts);
+
+    assert.equal(bad.status, 422);
+    assert.ok(bad.errors.date);
+    assert.ok(bad.errors["delivery.cooler"]);
+  });
+
+  it("books a moved pickup from the schedule, answers a time the farm " +
+    "gave up, and tells the farm (W11d)", async () => {
+    const stores = testStores();
+    const { sent, opts } = harness();
+    const o = order("A", "onfarm");
+
+    o.fulfilment.state = "agreed";
+    o.fulfilment.agreedAt = "2026-10-05T12:00:00Z";
+    o.question = {
+      kind: "window", reason: "Rain.", openedAt: "2026-10-05T12:30:00Z",
+      answeredAt: null, answer: null, by: null,
+    };
+    await saveOrder(stores, o, now);
+
+    // Only the notes: still agreed, question still open.
+    const same = await changeOrder(stores, customerOf(), "A", {
+      notes: "Back door", onfarm: { window: "morning", phone: "12" },
+    }, opts);
+
+    assert.equal(same.ok, true, "Phone for the day is gone (PH2)");
+    assert.equal(same.order.fulfilment.state, "agreed");
+    assert.equal(same.order.question.answeredAt, null);
+    assert.equal(sent.filter((m) => Array.isArray(m.to)).length, 0);
+
+    // A time the schedule doesn't offer is refused.
+    const gone = await changeOrder(stores, customerOf(), "A", {
+      onfarm: { window: "10:00-11:00" },
+    }, opts);
+
+    assert.equal(gone.status, 422);
+    assert.equal(gone.errors["onfarm.window"],
+      "That pickup time isn't available.");
+
+    const moved = await changeOrder(stores, customerOf(), "A", {
+      onfarm: { window: AFTERNOON },
+    }, opts);
+
+    assert.equal(moved.ok, true, JSON.stringify(moved));
+    assert.equal(moved.order.fulfilment.state, "agreed", "booked as is");
+    assert.deepEqual(moved.order.fulfilment.onfarm, {
+      window: AFTERNOON, from: "13:00", to: "17:00",
+    });
+    assert.equal(moved.order.question.answer, "reschedule");
+    assert.ok(moved.order.question.answeredAt);
+
+    const customer = sent.filter((m) => !Array.isArray(m.to));
+    const farm = sent.filter((m) => Array.isArray(m.to));
+
+    assert.match(customer.at(-1).subject, /updated/);
+    assert.match(customer.at(-1).text,
+      /- When: Wednesday, October 7, 1:00 – 5:00 PM/);
+    assert.equal(farm.length, 1);
+    assert.match(farm[0].subject, /^Pickup moved: A/);
+    assert.doesNotMatch(farm[0].text, /orders confirm/);
+  });
+
+  it("keeps a denied order open to change or cancel past the cutoff",
+    async () => {
+      const stores = testStores();
+      const { sent, opts } = harness();
+      const o = order("A", "onfarm");
+
+      o.question = {
+        kind: "window", reason: "", openedAt: now.toISOString(),
+        answeredAt: null, answer: null, by: null,
+      };
+      await saveOrder(stores, o, now);
+
+      // Midnight before the pickup has passed.
+      const late = instant("2026-10-07", 9, 0, TZ);
+      const listed = await listOrders(stores, customerOf(), { now: late });
+
+      assert.equal(listed.orders[0].canChange, true);
+      assert.equal(listed.orders[0].canCancel, true);
+      assert.equal(listed.orders[0].question.kind, "window");
+
+      const r = await cancelOrder(stores, customerOf(), "A", {
+        ...opts, now: late,
+      });
+
+      assert.equal(r.ok, true);
+      assert.equal(r.order.status, "cancelled", "refunded on the spot");
+      assert.equal(r.order.question.answer, "cancel");
+      assert.match(sent[0].subject, /canceled/);
+      assert.match(sent[0].text, /A refund of \$\d+ is on its way/);
+
+      // Without a question the cutoff still closes the doors.
+      await saveOrder(stores, order("B", "onfarm"), now);
+      const b = await listOrders(stores, customerOf(), { now: late });
+
+      assert.equal(b.orders.find((x) => x.id === "B").canChange, false);
+    });
+
+  it("after a missed delivery, keeps the doors open and moves the day " +
+    "only when the fee was waived (#193)", async () => {
+    const stores = testStores();
+    const { sent, opts } = harness();
+    const missed = (id, fee) => ({
+      ...order(id),
+      attempted: { at: "2026-10-08T17:00:00Z", date: "2026-10-08",
+        cause: "no-cooler", fee, waived: !fee, note: "", detail: "" },
+      question: { kind: "missed", reason: "", until: "2026-10-15",
+        openedAt: "2026-10-08T17:00:00Z", answeredAt: null, answer: null,
+        by: null },
+    });
+    const late = instant("2026-10-09", 9, 0, TZ);
+
+    await saveOrder(stores, missed("A", 500), now);
+    await saveOrder(stores, missed("B", 0), now);
+
+    const listed = await listOrders(stores, customerOf(), { now: late });
+    const a = listed.orders.find((x) => x.id === "A");
+
+    assert.equal(a.canChange, true);
+    assert.equal(a.canCancel, true);
+    assert.equal(a.keptFee, 500);
+    assert.equal(a.keptDate, "2026-10-08");
+    assert.equal(a.question.until, "2026-10-15");
+
+    // The same day with a new cooler spot: fine, and still open.
+    const spot = await changeOrder(stores, customerOf(), "A", {
+      date: "2026-10-08", delivery: { cooler: "Side door" },
+    }, { ...opts, now: late });
+
+    assert.equal(spot.ok, true, JSON.stringify(spot));
+    assert.equal(spot.order.question.answeredAt, null);
+
+    // Another day charges the fee again, so not here.
+    const refused = await changeOrder(stores, customerOf(), "A", {
+      date: "2026-10-15",
+    }, { ...opts, now: late });
+
+    assert.equal(refused.status, 422);
+    assert.match(refused.errors.date, /Change items/);
+
+    const moved = await changeOrder(stores, customerOf(), "B", {
+      date: "2026-10-15",
+    }, { ...opts, now: late });
+
+    assert.equal(moved.ok, true, JSON.stringify(moved));
+    assert.equal(moved.order.question.answer, "reschedule");
+
+    // Cancelling answers it and keeps the fee.
+    sent.length = 0;
+    const c = await cancelOrder(stores, customerOf(), "A", {
+      ...opts, now: late,
+    });
+
+    assert.equal(c.order.status, "cancelled");
+    assert.equal(c.order.question.answer, "cancel");
+    assert.match(sent[0].text, /A refund of \$7 is on its way/);
+  });
+
+  it("flags the order and tells the farm when Square cannot follow",
+    async () => {
+      const stores = testStores();
+      const { sent, opts } = harness();
+
+      await saveOrder(stores, order("A", "onfarm"), now);
+      const r = await changeOrder(stores, customerOf(), "A", {
+        onfarm: { window: AFTERNOON },
+      }, {
+        ...opts,
+        square: { updateFulfillment: async () => { throw new Error("no"); } },
+      });
+
+      assert.equal(r.ok, true);
+      assert.equal((await getOrder(stores, "A")).flags.squareOutOfSync, true);
+      assert.ok(sent.some((m) => /out of sync/.test(m.subject)));
+    });
+});
+
+describe("profile and address", () => {
+  it("updates the name in parts, the phone and a valid avatar", async () => {
+    const stores = testStores();
+    const { sent, opts } = harness();
+    const ok = await updateProfile(stores, customerOf(), {
+      firstName: " Patricia ", lastName: "Example", phone: "401-555-0100",
+      avatar: "rooster", marketing: true,
+    }, { ...opts, now: new Date("2026-09-23T15:00:00Z") });
+
+    assert.equal(ok.customer.firstName, "Patricia");
+    assert.equal(ok.customer.lastName, "Example");
+    assert.equal(ok.customer.name, "Patricia Example");
+    assert.equal(ok.customer.marketing, true);
+    assert.equal(ok.customer.marketingAt, "2026-09-23T15:00:00.000Z");
+    assert.equal(ok.customer.marketingSource, "account");
+
+    assert.equal(sent.length, 1, "welcomed to farm news (T6)");
+    assert.equal(sent[0].subject, "Welcome to Farm News");
+    assert.doesNotMatch(sent[0].text, /confirm\?token=/,
+      "on the list at once, with no confirmation (#303)");
+
+    const off = await updateProfile(stores, ok.customer, {
+      marketing: false,
+    }, { ...opts, now: new Date("2026-09-24T15:00:00Z") });
+
+    assert.equal(off.customer.marketing, false);
+    assert.equal(off.customer.marketingAt, "2026-09-24T15:00:00.000Z");
+    assert.equal(publicCustomer(customerOf()).marketing, false,
+      "off unless the customer turned it on");
+    assert.equal(ok.customer.avatar, "rooster");
+    assert.equal((await getCustomer(stores, "pat@example.com")).avatar,
+      "rooster");
+
+    const bad = await updateProfile(stores, customerOf(), {
+      firstName: "", lastName: "", phone: "12", avatar: "dragon",
+    });
+
+    assert.equal(bad.status, 422);
+    assert.deepEqual(Object.keys(bad.errors).sort(),
+      ["avatar", "firstName", "lastName", "phone"]);
+  });
+
+  it("keeps a dismissed review section dismissed (#303)", async () => {
+    const stores = testStores();
+    const saved = await saveCustomer(stores, customerOf());
+
+    assert.equal(publicCustomer(saved).reviewDismissed, false);
+
+    const first = await updateProfile(stores, saved, {
+      reviewDismissed: true,
+    }, { now: new Date("2026-10-22T15:00:00Z") });
+
+    assert.equal(first.customer.reviewDismissedAt,
+      "2026-10-22T15:00:00.000Z");
+    assert.equal(publicCustomer(first.customer).reviewDismissed, true);
+
+    const again = await updateProfile(stores, first.customer, {
+      reviewDismissed: false,
+    }, { now: new Date("2026-10-23T15:00:00Z") });
+    const later = await updateProfile(stores, again.customer, {
+      reviewDismissed: true,
+    }, { now: new Date("2026-10-24T15:00:00Z") });
+
+    assert.equal(later.customer.reviewDismissedAt,
+      "2026-10-22T15:00:00.000Z", "nothing undoes or redates it");
+    assert.equal((await getCustomer(stores, "pat@example.com"))
+      .reviewDismissedAt, "2026-10-22T15:00:00.000Z");
+  });
+
+  it("keeps the videos setting unset until chosen (#161)", async () => {
+    const stores = testStores();
+    const saved = await saveCustomer(stores, customerOf());
+
+    assert.equal(publicCustomer(saved).autoplay, null,
+      "each browser follows its own rules until the customer chooses");
+
+    const off = await updateProfile(stores, saved, { autoplay: "off" });
+
+    assert.equal(off.customer.autoplay, "off");
+    assert.equal(publicCustomer(off.customer).autoplay, "off");
+    assert.equal((await getCustomer(stores, "pat@example.com")).autoplay,
+      "off");
+
+    const on = await updateProfile(stores, off.customer, { autoplay: "on" });
+
+    assert.equal(publicCustomer(on.customer).autoplay, "on");
+
+    const other = await updateProfile(stores, on.customer, { phone: "" });
+
+    assert.equal(other.customer.autoplay, "on", "left alone when not sent");
+
+    const reset = await updateProfile(stores, on.customer, {
+      autoplay: null,
+    });
+
+    assert.equal(publicCustomer(reset.customer).autoplay, null);
+
+    for (const value of [true, "yes", 1]) {
+      const bad = await updateProfile(stores, on.customer, {
+        autoplay: value,
+      });
+
+      assert.equal(bad.status, 422);
+      assert.deepEqual(Object.keys(bad.errors), ["autoplay"]);
+    }
+    assert.equal(publicCustomer({ ...saved, autoplay: "maybe" }).autoplay,
+      null, "a stray value reads as never chosen");
+  });
+
+  it("turns the delivery reminder off and on", async () => {
+    const stores = testStores();
+    const saved = await saveCustomer(stores, customerOf());
+    const off = await updateProfile(stores, saved, {
+      reminders: { delivery: 0 },
+    });
+
+    assert.deepEqual(off.customer.reminders, { delivery: false });
+    assert.deepEqual((await getCustomer(stores, "pat@example.com")).reminders,
+      { delivery: false });
+
+    // A key left out is unchanged; one that no longer exists (payment
+    // reminders, from when an order could be unpaid) is ignored.
+    const same = await updateProfile(stores, off.customer, {
+      reminders: { payment: true },
+    });
+
+    assert.deepEqual(same.customer.reminders, { delivery: false });
+
+    const back = await updateProfile(stores, same.customer, {
+      reminders: { delivery: 1 },
+    });
+
+    assert.deepEqual(back.customer.reminders, { delivery: true });
+    assert.equal((await updateProfile(stores, saved, { reminders: "no" }))
+      .status, 422);
+  });
+
+  it("approves an in-area address at once", async () => {
+    const stores = testStores();
+    const { sent, opts } = harness();
+    const r = await saveAddress(stores, customerOf(), {
+      address1: "1 Main St", town: "Foster", zip: "02825", cooler: "Porch",
+    }, opts);
+
+    assert.equal(r.customer.address.status, "approved");
+    assert.equal(r.customer.address.state, "RI");
+    assert.equal(sent.length, 0);
+  });
+
+  it("holds an outside address pending and tells the farm", async () => {
+    const stores = testStores();
+    const { sent, opts } = harness();
+    const r = await saveAddress(stores, customerOf(), {
+      address1: "5 Far Rd", town: "Nowhere", zip: "01234",
+    }, opts);
+
+    assert.equal(r.customer.address.status, "pending");
+    assert.equal(sent.length, 1);
+    assert.deepEqual(sent[0].to, ["farm@example.com"]);
+    assert.match(sent[0].subject, /Address to review/);
+
+    // The farm approves; changing only the cooler keeps that.
+    const approved = await saveCustomer(stores, {
+      ...r.customer,
+      address: { ...r.customer.address, status: "approved" },
+    });
+    const again = await saveAddress(stores, approved, {
+      address1: "5 Far Rd", town: "Nowhere", zip: "01234", cooler: "Shed",
+    }, opts);
+
+    assert.equal(again.customer.address.status, "approved");
+    assert.equal(sent.length, 1);
+
+    // A new street starts the review over.
+    const moved = await saveAddress(stores, again.customer, {
+      address1: "6 Far Rd", town: "Nowhere", zip: "01234",
+    }, opts);
+
+    assert.equal(moved.customer.address.status, "pending");
+    assert.equal(sent.length, 2);
+  });
+});
+
+describe("returns and support", () => {
+  it("records a return request on a paid order and tells the farm",
+    async () => {
+      const stores = testStores();
+      const { sent, opts } = harness();
+
+      await saveOrder(stores, { ...order("Z"), status: "cancelled" }, now);
+      assert.equal((await requestReturn(stores, customerOf(), "Z", {
+        reason: "x",
+      }, opts)).status, 409, "a canceled order has nothing to return");
+      await saveOrder(stores, order("A"), now);
+      sent.length = 0;
+      const r = await requestReturn(stores, customerOf(), "A", {
+        reason: "One pack was thawed", skus: [EGG, "nope"],
+      }, opts);
+
+      assert.equal(r.ok, true);
+      assert.equal(r.request.status, "requested");
+      assert.deepEqual(r.request.skus, [EGG]);
+      assert.equal(r.order.returns.length, 1);
+      assert.match(sent[0].subject, /Return request/);
+    });
+
+  it("files a support message and tells the farm", async () => {
+    const stores = testStores();
+    const { sent, opts } = harness();
+    const r = await sendSupport(stores, customerOf(), {
+      subject: "Eggs", message: "Do you have duck eggs?", orderId: "",
+    }, opts);
+
+    assert.equal(r.ok, true);
+    assert.match(sent[0].subject, /Support: Eggs/);
+    assert.match(sent[0].text, /duck eggs/);
+    assert.equal(sent[0].replyTo, "\"Pat Example\" <pat@example.com>",
+      "the farm answers by replying, to the customer by name");
+    assert.equal((await stores.customers.list("support/pat@example.com/"))
+      .length, 1);
+    sent.length = 0;
+    await sendSupport(stores, customerOf(), {
+      message: "<b>bold</b> & more",
+    }, opts);
+    assert.match(sent[0].html, /&lt;b&gt;bold&lt;\/b&gt; &amp; more/);
+    assert.equal((await sendSupport(stores, customerOf(), {}, opts)).status,
+      422);
+  });
+
+  it("keeps the support subject to one line (#268)", async () => {
+    const stores = testStores();
+    const { sent, opts } = harness();
+
+    await sendSupport(stores, customerOf(), {
+      subject: "Eggs\r\nBcc: someone@example.com\nand more",
+      message: "Line one\nline two", orderId: "A\r\n",
+    }, opts);
+
+    assert.match(sent[0].subject,
+      /^Support: Eggs Bcc: someone@example\.com and more from /);
+    assert.doesNotMatch(sent[0].subject, /[\r\n]/);
+    assert.match(sent[0].text, /Line one\nline two/,
+      "the note keeps its lines");
+
+    const [{ key }] = await stores.customers.list("support/pat@example.com/");
+    const filed = await stores.customers.get(key);
+
+    assert.equal(filed.subject, "Eggs Bcc: someone@example.com and more");
+    assert.equal(filed.orderId, "A");
+  });
+
+  it("alerts when a support note can't reach the farm (#268)", async () => {
+    const stores = testStores();
+    const { sent, opts } = harness();
+    const r = await sendSupport(stores, customerOf(), {
+      subject: "Eggs", message: "Do you have duck eggs?",
+    }, {
+      ...opts,
+      mail: async (m) => {
+        if (/^Support:/.test(m.subject)) throw new Error("Resend 500");
+
+        return opts.mail(m);
+      },
+    });
+
+    assert.equal(r.ok, true, "the note is filed all the same");
+    assert.equal(sent.length, 1);
+    assert.deepEqual([].concat(sent[0].to), ["dev@example.com"]);
+    assert.match(sent[0].text, /farmSupport/);
+  });
+});
+
+describe("the account endpoints", () => {
+  const req = (path, method, body, cookie) => new Request(`https://x${path}`, {
+    method,
+    headers: {
+      "Content-Type": "application/json",
+      "sec-fetch-site": "same-origin",
+      ...(cookie ? { cookie: `nff_session=${cookie}` } : {}),
+    },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+
+  it("routes a pay request to the order the farm made (#181)", async () => {
+    const stores = testStores();
+    const { opts } = harness();
+    const session = await createSession(stores, "pat@example.com", { now });
+
+    await saveOrder(stores, {
+      ...order("U"), status: "unpaid", paidAt: undefined, payment: undefined,
+      payments: [], square: { squareOrderId: "SQO", customerId: "CUST" },
+    }, now);
+
+    const calls = [];
+    const square = {
+      ...opts.square,
+      getOrder: async (id) => ({ id, tenders: [] }),
+      createPayment: async (args) => {
+        calls.push([args.squareOrderId, args.amount]);
+
+        return { squarePaymentId: "PAY-U", status: "COMPLETED",
+          receiptUrl: null, brand: "VISA", last4: "4242", wallet: null };
+      },
+    };
+    const r = await handle(req("/api/account/orders/U/pay", "POST", {
+      idempotencyKey: "0f7c1e3a-9c9b-4b3a-8e9d-1a2b3c4d5e6f", attempt: 1,
+      payment: { method: "card", sourceId: "cnon:tok" },
+    }, session.id), { stores, ...opts, square });
+
+    assert.equal(r.status, 200);
+
+    const data = await r.json();
+
+    assert.equal(data.order.status, "paid");
+    assert.equal(data.difference, data.order.totals.total);
+    assert.deepEqual(calls, [["SQO", data.order.totals.total]]);
+  });
+
+  it("needs a session and routes by path", async () => {
+    const stores = testStores();
+    const { opts } = harness();
+
+    assert.equal((await handle(req("/api/account/orders", "GET"), {
+      stores, ...opts,
+    })).status, 401);
+
+    const session = await createSession(stores, "pat@example.com", { now });
+
+    await saveOrder(stores, order("A"), now);
+
+    const list = await handle(req("/api/account/orders", "GET", undefined,
+      session.id), { stores, ...opts });
+
+    assert.equal(list.status, 200);
+    assert.equal((await list.json()).orders[0].id, "A");
+
+    const profile = await handle(req("/api/account/profile", "PATCH", {
+      firstName: "Pat", lastName: "Example", avatar: "chick",
+      reminders: { delivery: false },
+    }, session.id), { stores, ...opts });
+    const me = (await profile.json()).customer;
+
+    assert.equal(me.avatar, "chick");
+    assert.equal(me.name, "Pat Example");
+    assert.deepEqual(me.reminders, { delivery: false });
+
+    const cancel = await handle(req("/api/account/orders/A/cancel", "POST",
+      {}, session.id), { stores, ...opts });
+
+    assert.equal(cancel.status, 200);
+    assert.equal((await cancel.json()).order.status, "cancelled");
+
+    // Old four-character ids and the six of #253 route alike.
+    for (const id of ["NFF-2609-K3WM", "NFF-2610-K3WM7Q"]) {
+      await saveOrder(stores, order(id), now);
+
+      const r = await handle(req(`/api/account/orders/${id}/cancel`, "POST",
+        {}, session.id), { stores, ...opts });
+
+      assert.equal(r.status, 200, id);
+      assert.equal((await r.json()).order.id, id);
+    }
+
+    const missing = await handle(req("/api/account/orders/ZZZZZZ/cancel",
+      "POST", {}, session.id), { stores, ...opts });
+
+    assert.equal(missing.status, 404);
+
+    // The pay-link and Venmo routes went with the invoice.
+    for (const gone of ["resend", "venmo"]) {
+      const r = await handle(req(`/api/account/orders/A/${gone}`, "POST",
+        {}, session.id), { stores, ...opts });
+
+      assert.equal(r.status, 404, gone);
+    }
+  });
+
+  it("refuses cross-site posts", async () => {
+    const stores = testStores();
+    const { opts } = harness();
+    const session = await createSession(stores, "pat@example.com", { now });
+    const r = new Request("https://x/api/account/support", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "sec-fetch-site": "cross-site",
+        cookie: `nff_session=${session.id}`,
+      },
+      body: "{}",
+    });
+
+    assert.equal((await handle(r, { stores, ...opts })).status, 403);
+  });
+});

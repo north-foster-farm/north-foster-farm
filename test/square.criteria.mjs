@@ -1,0 +1,1221 @@
+// Criteria copy of test/square.test.mjs for #616's shared label
+// (2026-11-18): the same file with every window label in the full
+// format ("9:00 AM – 12:00 PM", "between 10:00 and 11:00 AM").
+// Held out of `npm test` by its name until windowLabel takes the new
+// format; the implementer turns it on, over the live file, with
+//
+//   git mv -f test/square.criteria.mjs test/square.test.mjs
+//
+// Changed: the pickup note's window. Eight recorded requests in
+// test/fixtures/square still hold "pickup 9 AM – noon" and are
+// re-recorded: order-create-pickup, -external, -cash, -catalog,
+// -key-reused (test/square-replay.test.mjs compares them), -replay,
+// -short and -line-discount.
+//
+// Lint: test/square.test.mjs is in eslint.config.js's snake_case list;
+// this copy is not, so it says so itself.
+/* eslint camelcase: "off" */
+
+import assert from "node:assert/strict";
+import { readdirSync, readFileSync } from "node:fs";
+import { describe, it } from "node:test";
+
+import pkg from "../package.json" with { type: "json" };
+import {
+  ORDER_METADATA, SITE_VERSION, SOURCE_NAME, SquareError, buildChangeOrder,
+  buildOrder, cancelFulfillment, cancelOrder, clientConfig, completeOrder,
+  createOrder, createPayment, customerOrders, dashboardUrl, deleteCustomer,
+  e164, getPayment, inventoryCounts, paymentRecord, receiptLink,
+  refundPayment,
+  searchOpenOrders, settings, updateFulfillment,
+} from "../netlify/functions/lib/square.mjs";
+import {
+  KILL_SWITCH, deletionsPaused, readPause, setPause,
+} from "../netlify/functions/lib/square-pause.mjs";
+import { buildModel } from "../assets/scripts/order/lib/events.mjs";
+import { testStores } from "../netlify/functions/lib/store.mjs";
+import { recorded, reply } from "./recorded.mjs";
+
+const env = {
+  SQUARE_ACCESS_TOKEN: "tok",
+  SQUARE_LOCATION_ID: "LOC",
+  SQUARE_ENV: "sandbox",
+};
+const cfg = settings(env);
+const KEY = "0123456789abcdef0123456789abcdef";
+
+const order = (overrides = {}) => ({
+  id: "NFF-2610-ABCD",
+  customer: {
+    name: "Pat Example",
+    email: "pat@example.com",
+    phone: "401-555-0100",
+    contact: "text",
+  },
+  fulfilment: {
+    method: "onfarm",
+    date: "2026-10-07",
+    onfarm: { window: "morning" },
+    delivery: null,
+  },
+  lines: [{
+    sku: "NFF-CHK-WHL-35-39",
+    label: "Whole Chicken, 3.5 – 3.9 lbs",
+    name: "Whole Chicken (per each), 3.5 – 3.9 lbs",
+    unitPrice: 30,
+    qty: 2,
+    lineTotal: 60,
+    squareVariationId: null,
+  }],
+  totals: {
+    subtotal: 6000, discountTier: 50, discountAmount: 500,
+    deliveryFee: 0, total: 5500,
+  },
+  notes: "",
+  source: "Flyer",
+  flags: { zipUnlisted: false, totalMismatch: false },
+  ...overrides,
+});
+
+// A fetch stub that records calls and answers each path in turn.
+const fakeFetch = (answers) => {
+  const calls = [];
+  const impl = async (url, init) => {
+    const path = new URL(url).pathname;
+
+    calls.push({
+      path,
+      method: init.method,
+      body: init.body ? JSON.parse(init.body) : null,
+      headers: init.headers,
+    });
+    const answer = answers[path];
+
+    if (typeof answer === "function") return answer(calls.length);
+
+    return new Response(JSON.stringify(answer || {}), { status: 200 });
+  };
+
+  return { impl, calls };
+};
+
+// A payment Square took, as the sandbox recorded one
+// (test/fixtures/square), with whatever a test changes.
+const completed = (extra = {}, name = "payment-card-ok") => ({
+  payment: { ...recorded("square", name).response.payment, ...extra },
+});
+const card = recorded("square", "payment-card-ok").response.payment;
+
+// #241 and #236: one switch stops every automatic Square cleanup.
+describe("the Square deletion kill switch", () => {
+  it("is off unset or blank, and on at any value", async () => {
+    const stores = testStores();
+
+    assert.equal(KILL_SWITCH, "SQUARE_DELETION_KILL_SWITCH");
+    assert.equal(await deletionsPaused(stores, {}), false);
+    assert.equal(await deletionsPaused(stores, { [KILL_SWITCH]: " " }),
+      false);
+    for (const value of ["1", "true", "on", "0", "false"]) {
+      assert.equal(await deletionsPaused(stores, { [KILL_SWITCH]: value }),
+        true, value);
+    }
+  });
+
+  it("is on while the flag is, which takes effect at once", async () => {
+    const stores = testStores();
+    const now = new Date("2026-10-22T09:00:00Z");
+
+    assert.deepEqual(await setPause(stores, true, { by: "t", now }),
+      { changed: true, paused: true });
+    assert.equal(await deletionsPaused(stores, {}), true);
+    assert.deepEqual(await readPause(stores), {
+      paused: true, at: now.toISOString(), by: "t",
+    });
+    assert.deepEqual(await setPause(stores, true), {
+      changed: false, paused: true,
+    });
+    await setPause(stores, false);
+    assert.equal(await deletionsPaused(stores, {}), false);
+  });
+
+  it("counts a flag it cannot read as set", async () => {
+    const broken = { jobs: { get: async () => {
+      throw new Error("Blobs down");
+    } } };
+
+    assert.equal(await deletionsPaused(broken, {}), true);
+    assert.equal((await readPause(broken)).unreadable, true);
+  });
+});
+
+describe("settings", () => {
+  it("fails fast without credentials", () => {
+    assert.throws(() => settings({}), SquareError);
+  });
+
+  it("targets the sandbox unless told otherwise", () => {
+    assert.match(cfg.host, /squareupsandbox/);
+    assert.match(settings({ ...env, SQUARE_ENV: "production" }).host,
+      /connect\.squareup\.com/);
+  });
+});
+
+describe("clientConfig", () => {
+  it("is null until the application id is set", () => {
+    assert.equal(clientConfig(env), null);
+    assert.equal(clientConfig({ SQUARE_APPLICATION_ID: "app" }), null,
+      "the location is needed too");
+  });
+
+  it("names the SDK for the right Square", () => {
+    const sandbox = clientConfig({ ...env, SQUARE_APPLICATION_ID: "sb-app" });
+
+    assert.deepEqual(sandbox, {
+      applicationId: "sb-app",
+      locationId: "LOC",
+      env: "sandbox",
+      sdkUrl: "https://sandbox.web.squarecdn.com/v1/square.js",
+    });
+
+    const live = clientConfig({
+      ...env, SQUARE_ENV: "production", SQUARE_APPLICATION_ID: "sq-app",
+    });
+
+    assert.equal(live.env, "production");
+    assert.equal(live.sdkUrl, "https://web.squarecdn.com/v1/square.js");
+  });
+});
+
+describe("e164", () => {
+  it("normalises US numbers and drops the rest", () => {
+    assert.equal(e164("(401) 555-0100"), "+14015550100");
+    assert.equal(e164("1 401 555 0100"), "+14015550100");
+    assert.equal(e164("555"), undefined);
+  });
+});
+
+describe("the site version tag (#331)", () => {
+  it("reads the version from package.json, nowhere else", () => {
+    assert.equal(SITE_VERSION, pkg.version);
+    assert.deepEqual(ORDER_METADATA, {
+      site_version: pkg.version, order_flow: "order-page",
+    });
+
+    const [major, minor] = pkg.version.split(".");
+
+    assert.equal(SOURCE_NAME, `northfosterfarm.com v${major}.${minor}`);
+  });
+
+  it("tags the first order and a change order alike", () => {
+    const change = {
+      added: [{ name: "Eggs", qty: 1, unitPrice: 6 }],
+      difference: 600,
+    };
+
+    for (const o of [
+      buildOrder(order(), "CUST", cfg),
+      buildChangeOrder(order(), change, "CUST", cfg),
+    ]) {
+      assert.deepEqual(o.source, { name: SOURCE_NAME });
+      assert.deepEqual(o.metadata, ORDER_METADATA);
+      assert.equal(o.reference_id, "NFF-2610-ABCD");
+      assert.equal(o.custom_attributes, undefined);
+    }
+  });
+
+  it("is not read back from source.name anywhere", () => {
+    const dir = new URL("../netlify/functions/", import.meta.url);
+    const files = readdirSync(dir, { recursive: true })
+      .filter((f) => f.endsWith(".mjs"));
+    const readers = files.filter((f) => (
+      /\.source\??\.name\b|\bsource\??\.name\b/.test(
+        readFileSync(new URL(f, dir), "utf8"))));
+
+    assert.ok(files.length > 10);
+    assert.deepEqual(readers, []);
+  });
+
+  it("gives each order its own copy of the metadata", () => {
+    const o = buildOrder(order(), "CUST", cfg);
+
+    o.metadata.site_version = "x";
+    assert.equal(ORDER_METADATA.site_version, pkg.version);
+  });
+});
+
+describe("buildOrder", () => {
+  it("uses an ad hoc line while the variation id is null", () => {
+    const o = buildOrder(order(), "CUST", cfg);
+
+    assert.equal(o.location_id, "LOC");
+    assert.equal(o.reference_id, "NFF-2610-ABCD");
+    assert.deepEqual(o.source, { name: SOURCE_NAME });
+    assert.deepEqual(o.metadata, ORDER_METADATA);
+    assert.deepEqual(o.line_items[0], {
+      name: "Whole Chicken (per each), 3.5 – 3.9 lbs",
+      quantity: "2",
+      base_price_money: { amount: 3000, currency: "USD" },
+    });
+  });
+
+  it("uses the catalog object in production once the id is set", () => {
+    const o = order();
+
+    o.lines[0].squareVariationId = "VAR1";
+
+    const production = settings({ ...env, SQUARE_ENV: "production" });
+    const built = buildOrder(o, "CUST", production);
+
+    assert.deepEqual(built.line_items[0],
+      { catalog_object_id: "VAR1", quantity: "2" });
+  });
+
+  it("sends ad hoc lines to the sandbox, whose library is its own", () => {
+    const o = order();
+
+    o.lines[0].squareVariationId = "VAR1";
+    const built = buildOrder(o, "CUST", cfg);
+
+    assert.equal(built.line_items[0].catalog_object_id, undefined);
+    assert.equal(built.line_items[0].name, o.lines[0].name);
+    assert.deepEqual(built.line_items[0].base_price_money,
+      { amount: 3000, currency: "USD" });
+  });
+
+  it("carries the discount as an order-scope amount", () => {
+    const o = buildOrder(order(), "CUST", cfg);
+
+    assert.equal(o.discounts[0].amount_money.amount, 500);
+    assert.equal(o.discounts[0].scope, "ORDER");
+    assert.equal(o.service_charges, undefined);
+  });
+
+  it("splits the outside-area fee onto its own line", () => {
+    const o = buildOrder(order({
+      fulfilment: { method: "delivery", date: "2026-10-08", onfarm: null,
+        delivery: { address1: "1 Main St", address2: "", town: "Coventry",
+          zip: "02816", cooler: "Porch", notes: "", zipStatus: "unlisted" } },
+      totals: {
+        subtotal: 6000, discountTier: 50, discountAmount: 500,
+        deliveryFee: 800, areaFee: 300, total: 6300,
+      },
+    }), "CUST", cfg);
+
+    assert.deepEqual(
+      o.service_charges.map((c) => [c.name, c.amount_money.amount]),
+      [["Delivery fee", 500], ["Outside-area fee", 300]]
+    );
+  });
+
+  it("schedules a market pickup at the occurrence's opening", () => {
+    const at = (occurrence) => buildOrder(order({
+      fulfilment: { method: "scheduled", occurrence, date: "2026-10-25",
+        onfarm: null },
+    }), "CUST", cfg).fulfillments[0].pickup_details;
+
+    assert.match(at("WAC5-261025").pickup_at, /T13:00:00/);
+    assert.match(at("WAC5-261025").note,
+      /^Pickup at Foster Farmers Market, Shady Acres Diner/);
+  });
+
+  it("schedules a pop-up pickup at its start, with minutes", () => {
+    const pop = buildOrder(order({
+      fulfilment: { method: "scheduled", occurrence: "GR6C-260710",
+        date: "2026-07-10", onfarm: null },
+    }), "CUST", cfg).fulfillments[0].pickup_details;
+
+    assert.equal(pop.pickup_at, "2026-07-10T22:00:00.000Z");
+    assert.match(pop.note,
+      /^Pickup at Summer Celebration, Warwick City Hall Plaza, 3275 Post/);
+  });
+
+  it("names the drop site in its note", () => {
+    const note = buildOrder(order({
+      fulfilment: { method: "scheduled", occurrence: "VFVQ-261017",
+        date: "2026-10-17", onfarm: null },
+    }), "CUST", cfg).fulfillments[0].pickup_details.note;
+
+    assert.match(note,
+      /^Pickup at Drop site, 46 Institute Lane, North Scituate/);
+  });
+
+  it("reads a Stage 1 drop site order the same way", () => {
+    const note = buildOrder(order({
+      fulfilment: { method: "scituate", date: "2026-10-17", onfarm: null },
+    }), "CUST", cfg).fulfillments[0].pickup_details.note;
+
+    assert.match(note,
+      /^Pickup at Drop site, 46 Institute Lane, North Scituate/);
+  });
+
+  it("does not call a market gone from the data on-farm", () => {
+    const gone = buildOrder(order({
+      fulfilment: { method: "scheduled", occurrence: "ZZZZ-261025",
+        date: "2026-10-25", onfarm: null },
+    }), "CUST", cfg).fulfillments[0].pickup_details;
+    const { note } = gone;
+
+    assert.equal(gone.pickup_at, undefined,
+      "no hour of the drop site's: the update keeps Square's own");
+
+    assert.match(note, /^Pickup, ZZZZ-261025/);
+  });
+
+  it("names a legacy market gone from the data by its site", () => {
+    const { note } = buildOrder(order({
+      fulfilment: { method: "market", site: "gone-site",
+        date: "2026-10-25", onfarm: null },
+    }), "CUST", cfg).fulfillments[0].pickup_details;
+
+    assert.match(note, /^gone-site · /);
+  });
+
+  it("reads an evening site's hour and minutes", () => {
+    const [site] = buildModel([], [{
+      code: "AAAA", name: "Evening Market", location: "BBBB",
+      start: "2026-06-03", end: "2026-08-26", opens: "16:30",
+      closes: "19:00",
+    }]).series;
+
+    assert.equal(site.opensHour, 16);
+    assert.equal(site.opensMinute, 30);
+  });
+
+  it("schedules an on-farm pickup at its window's start, New York " +
+    "time (W11d-D)", () => {
+    const o = buildOrder(order(), "CUST", cfg);
+    const f = o.fulfillments[0];
+
+    assert.equal(f.type, "PICKUP");
+    assert.equal(f.pickup_details.pickup_at, "2026-10-07T13:00:00.000Z",
+      "a record from before W11d: its morning is 9:00");
+    assert.equal(f.pickup_details.recipient.phone_number, "+14015550100");
+    assert.match(f.pickup_details.note, /prefers text/);
+    assert.match(f.pickup_details.note, /pickup 9:00 AM – 12:00 PM/);
+
+    const later = order();
+
+    later.fulfilment.onfarm = { window: "13:30-15:00", from: "13:30",
+      to: "15:00" };
+    const g = buildOrder(later, "CUST", cfg).fulfillments[0];
+
+    assert.equal(g.pickup_details.pickup_at, "2026-10-07T17:30:00.000Z");
+    assert.match(g.pickup_details.note, /pickup 1:30 – 3:00 PM/);
+  });
+
+  it("sends the hours the farm confirmed, as the email tells them " +
+    "(#308)", () => {
+    const o = order();
+
+    o.fulfilment.onfarm = { window: "morning",
+      confirmed: { from: 10, to: 12 } };
+    const f = buildOrder(o, "CUST", cfg).fulfillments[0].pickup_details;
+
+    assert.equal(f.pickup_at, "2026-10-07T14:00:00.000Z");
+    assert.match(f.note, /pickup 10:00 AM – 12:00 PM/);
+  });
+
+  it("builds pickup_at from New York time on both sides of the " +
+    "November 1 change (#308)", () => {
+    const at = (date, window, from) => {
+      const o = order();
+
+      o.fulfilment.date = date;
+      o.fulfilment.onfarm = { window, from, to: "12:00" };
+
+      return buildOrder(o, "CUST", cfg).fulfillments[0]
+        .pickup_details.pickup_at;
+    };
+
+    assert.equal(at("2026-10-31", "10:00-12:00", "10:00"),
+      "2026-10-31T14:00:00.000Z", "EDT is UTC-4");
+    assert.equal(at("2026-11-01", "10:00-12:00", "10:00"),
+      "2026-11-01T15:00:00.000Z", "EST is UTC-5 from 2 AM");
+    assert.equal(at("2026-11-02", "13:30-15:00", "13:30"),
+      "2026-11-02T18:30:00.000Z");
+  });
+
+  it("builds a delivery fulfillment with fee and address", () => {
+    const o = order({
+      fulfilment: {
+        method: "delivery",
+        date: "2026-10-08",
+        onfarm: null,
+        delivery: {
+          address1: "1 Main St",
+          address2: "",
+          town: "Foster",
+          zip: "02825",
+          gate: "1234",
+          cooler: "Side porch",
+          notes: "Dog in the yard",
+          zipStatus: "approved",
+        },
+      },
+      totals: {
+        subtotal: 6000, discountTier: 50, discountAmount: 500,
+        deliveryFee: 500, total: 6000,
+      },
+    });
+    const built = buildOrder(o, "CUST", cfg);
+    const f = built.fulfillments[0];
+
+    assert.equal(built.service_charges[0].amount_money.amount, 500);
+    assert.equal(f.type, "DELIVERY");
+    assert.equal(f.delivery_details.deliver_at, "2026-10-08T14:00:00.000Z");
+    assert.equal(f.delivery_details.recipient.address.postal_code, "02825");
+    assert.equal(
+      f.delivery_details.recipient.address.administrative_district_level_1,
+      "RI"
+    );
+    assert.match(f.delivery_details.note, /gate: 1234/);
+    assert.match(f.delivery_details.note, /Dog in the yard/);
+  });
+});
+
+describe("deleteCustomer", () => {
+  it("deletes by id, and a profile already gone counts as gone", async () => {
+    const calls = [];
+    const impl = async (url, init) => {
+      calls.push({ url, method: init.method, body: init.body });
+
+      return calls.length === 1
+        ? new Response("{}", { status: 200 })
+        : new Response(JSON.stringify({ errors: [{ code: "NOT_FOUND" }] }),
+          { status: 404 });
+    };
+
+    assert.deepEqual(await deleteCustomer("CUST 1", { env, fetchImpl: impl }),
+      { deleted: true });
+    assert.deepEqual(await deleteCustomer("CUST1", { env, fetchImpl: impl }),
+      { deleted: false, gone: true });
+    assert.equal(calls[0].url,
+      "https://connect.squareupsandbox.com/v2/customers/CUST%201");
+    assert.equal(calls[0].method, "DELETE");
+    assert.equal(calls[0].body, undefined);
+  });
+
+  it("throws when Square fails for any other reason", async () => {
+    const impl = async () => new Response("{}", { status: 503 });
+
+    await assert.rejects(deleteCustomer("C", { env, fetchImpl: impl }),
+      { name: "SquareError", retryable: true });
+  });
+});
+
+describe("createOrder", () => {
+  // Searching, making the customer and the order with derived keys,
+  // and a profile a retry finds, are square-replay.test's, on the
+  // sandbox's recorded answers (#494).
+  it("reuses an existing customer", async () => {
+    const { impl, calls } = fakeFetch({
+      "/v2/customers/search": { customers: [{ id: "OLD" }] },
+      "/v2/orders": { order: { id: "SQO" } },
+    });
+    const out = await createOrder(order(), KEY, { env, fetchImpl: impl });
+
+    assert.equal(out.customerId, "OLD");
+    assert.equal(out.customerMade, false, "found, not made");
+    assert.ok(!calls.some((c) => c.path === "/v2/customers"));
+    assert.equal(calls[1].body.order.customer_id, "OLD");
+  });
+
+  it("marks 5xx and network failures retryable and 4xx not", async () => {
+    const boom = fakeFetch({
+      "/v2/customers/search": () => new Response("{}", { status: 503 }),
+    });
+
+    await assert.rejects(
+      createOrder(order(), KEY, { env, fetchImpl: boom.impl }),
+      (e) => e instanceof SquareError && e.retryable === true
+    );
+
+    const bad = fakeFetch({
+      "/v2/customers/search": () => new Response(
+        JSON.stringify({ errors: [{ code: "BAD" }] }), { status: 400 }
+      ),
+    });
+
+    await assert.rejects(
+      createOrder(order(), KEY, { env, fetchImpl: bad.impl }),
+      (e) => e.retryable === false && e.declined === false
+        && e.code === "BAD" && e.detail[0].code === "BAD"
+    );
+
+    const offline = async () => { throw new TypeError("fetch failed"); };
+
+    await assert.rejects(
+      createOrder(order(), KEY, { env, fetchImpl: offline }),
+      (e) => e.retryable === true
+    );
+  });
+});
+
+describe("createPayment", () => {
+  const source = { sourceId: "cnon:card-nonce" };
+  const args = (extra = {}) => ({
+    order: order(), squareOrderId: "SQO", customerId: "CUST", key: KEY,
+    source, ...extra,
+  });
+
+  it("charges the order's total against the order, with a derived key",
+    async () => {
+      const { impl, calls } = fakeFetch({ "/v2/payments": completed() });
+      const out = await createPayment(args(), { env, fetchImpl: impl });
+
+      assert.deepEqual(out, {
+        squarePaymentId: card.id,
+        status: "COMPLETED",
+        receiptUrl: card.receipt_url,
+        brand: card.card_details.card.card_brand,
+        last4: card.card_details.card.last_4,
+        wallet: null,
+      });
+      assert.equal(calls.length, 1);
+      assert.equal(calls[0].method, "POST");
+      assert.deepEqual(calls[0].body, {
+        idempotency_key: `${KEY}-payment`,
+        amount_money: { amount: 5500, currency: "USD" },
+        order_id: "SQO",
+        location_id: "LOC",
+        customer_id: "CUST",
+        buyer_email_address: "pat@example.com",
+        reference_id: "NFF-2610-ABCD",
+        note: "North Foster Farm order NFF-2610-ABCD",
+        source_id: "cnon:card-nonce",
+      });
+    });
+
+  it("passes the verification token only when given", async () => {
+    const { impl, calls } = fakeFetch({ "/v2/payments": completed() });
+
+    await createPayment(args({
+      source: { ...source, verificationToken: "verf:1" },
+    }), { env, fetchImpl: impl });
+    assert.equal(calls[0].body.verification_token, "verf:1");
+  });
+
+  it("records money that came another way as an external tender",
+    async () => {
+      const { impl, calls } = fakeFetch({
+        "/v2/payments": completed({}, "payment-external"),
+      });
+      const out = await createPayment(args({
+        source: { external: { source: "Venmo", sourceId: "CAP-1" } },
+      }), { env, fetchImpl: impl });
+
+      assert.equal(calls[0].body.source_id, "EXTERNAL");
+      assert.deepEqual(calls[0].body.external_details, {
+        type: "SOCIAL", source: "Venmo", source_id: "CAP-1",
+      });
+      assert.equal(calls[0].body.verification_token, undefined);
+      assert.deepEqual(out, paymentRecord(
+        recorded("square", "payment-external").response.payment
+      ));
+    });
+
+  it("records cash the farm took as Square's cash payment, the buyer's " +
+    "money being the amount (#181)", async () => {
+    const { impl, calls } = fakeFetch({
+      "/v2/payments": completed({}, "payment-cash"),
+    });
+
+    await createPayment(args({ source: { cash: true }, amount: 2000 }),
+      { env, fetchImpl: impl });
+
+    assert.equal(calls[0].body.source_id, "CASH");
+    assert.deepEqual(calls[0].body.amount_money,
+      { amount: 2000, currency: "USD" });
+    assert.deepEqual(calls[0].body.cash_details, {
+      buyer_supplied_money: { amount: 2000, currency: "USD" },
+    });
+    assert.equal(calls[0].body.external_details, undefined);
+  });
+
+  it("records a check as an external payment of its own type (#181)",
+    async () => {
+      const { impl, calls } = fakeFetch({
+        "/v2/payments": completed({}, "payment-external"),
+      });
+
+      await createPayment(args({
+        source: { external: { type: "CHECK", source: "Check",
+          sourceId: "1042" } },
+      }), { env, fetchImpl: impl });
+
+      assert.equal(calls[0].body.source_id, "EXTERNAL");
+      assert.deepEqual(calls[0].body.external_details, {
+        type: "CHECK", source: "Check", source_id: "1042",
+      });
+    });
+
+  it("keeps the wallet's name when a wallet paid", async () => {
+    const { impl } = fakeFetch({
+      "/v2/payments": completed({
+        wallet_details: { brand: "CASH_APP", status: "CAPTURED" },
+      }),
+    });
+    const out = await createPayment(args(), { env, fetchImpl: impl });
+
+    assert.equal(out.wallet, "CASH_APP");
+  });
+
+  it("says a declined card was declined, with Square's code", async () => {
+    const declined = recorded("square", "payment-card-declined");
+    const { impl } = fakeFetch({
+      "/v2/payments": () => reply("square", "payment-card-declined"),
+    });
+
+    await assert.rejects(
+      createPayment(args(), { env, fetchImpl: impl }),
+      (e) => e instanceof SquareError && e.declined === true
+        && e.code === declined.response.errors[0].code
+        && e.retryable === false && e.status === declined.status
+    );
+  });
+
+  it("is retryable on a temporary error, not declined", async () => {
+    const { impl } = fakeFetch({
+      "/v2/payments": () => new Response(
+        JSON.stringify({ errors: [{ code: "TEMPORARY_ERROR" }] }),
+        { status: 400 }
+      ),
+    });
+
+    await assert.rejects(
+      createPayment(args(), { env, fetchImpl: impl }),
+      (e) => e.retryable === true && e.declined === false
+        && e.code === "TEMPORARY_ERROR"
+    );
+  });
+
+  it("treats a payment that did not complete as declined", async () => {
+    const { impl } = fakeFetch({
+      "/v2/payments": completed({ status: "FAILED" }),
+    });
+
+    await assert.rejects(
+      createPayment(args(), { env, fetchImpl: impl }),
+      (e) => e.declined === true && e.code === "FAILED"
+    );
+
+    const empty = fakeFetch({ "/v2/payments": {} });
+
+    // A 200 without a payment is an answer that did not arrive whole,
+    // which may have charged the card: never a decline.
+    await assert.rejects(
+      createPayment(args(), { env, fetchImpl: empty.impl }),
+      (e) => e.retryable === true && e.declined === false
+    );
+  });
+
+  it("takes an approved payment as good", async () => {
+    const { impl } = fakeFetch({
+      "/v2/payments": completed({ status: "APPROVED" }),
+    });
+    const out = await createPayment(args(), { env, fetchImpl: impl });
+
+    assert.equal(out.status, "APPROVED");
+  });
+});
+
+describe("receiptLink (#441)", () => {
+  it("passes production's receipt", () => {
+    const url = "https://squareup.com/receipt/preview/PAY";
+
+    assert.equal(receiptLink(url), url);
+  });
+
+  it("drops the sandbox's receipt, which opens Page not found", () => {
+    assert.equal(
+      receiptLink("https://squareupsandbox.com/receipt/preview/PAY"), null);
+    assert.equal(
+      receiptLink("https://app.squareupsandbox.com/receipt/preview/P"), null);
+  });
+
+  it("answers null for no link or one that is not a URL", () => {
+    assert.equal(receiptLink(null), null);
+    assert.equal(receiptLink(""), null);
+    assert.equal(receiptLink("not a url"), null);
+  });
+});
+
+describe("cancelOrder", () => {
+  const answers = (state) => ({
+    "/v2/orders/SQO": (n) => new Response(JSON.stringify(n === 1
+      ? { order: { id: "SQO", state, version: 3 } }
+      : { order: { id: "SQO", state: "CANCELED", version: 4 } })),
+  });
+
+  it("reads the version, then cancels", async () => {
+    const { impl, calls } = fakeFetch(answers("OPEN"));
+    const out = await cancelOrder("SQO", { env, fetchImpl: impl });
+
+    assert.deepEqual(out, { id: "SQO", cancelled: true });
+    assert.equal(calls.length, 2);
+    assert.equal(calls[0].method, "GET");
+    assert.equal(calls[1].method, "PUT");
+    assert.deepEqual(calls[1].body, {
+      order: { location_id: "LOC", version: 3, state: "CANCELED" },
+    });
+  });
+
+  it("cancels an open fulfillment first, then the order at the new " +
+    "version", async () => {
+    const open = recorded("square", "order-get-before-cancel").response.order;
+    const { impl, calls } = fakeFetch({
+      [`/v2/orders/${open.id}`]: (n) => new Response(JSON.stringify({
+        order: { ...open, version: open.version + n - 1 },
+      })),
+    });
+    const out = await cancelOrder(open.id, { env, fetchImpl: impl });
+
+    assert.deepEqual(out, { id: open.id, cancelled: true });
+    assert.deepEqual(calls.map((c) => c.method), ["GET", "PUT", "PUT"]);
+    assert.deepEqual(calls[1].body.order.fulfillments,
+      [{ uid: open.fulfillments[0].uid, state: "CANCELED" }]);
+    assert.equal(calls[1].body.order.version, open.version);
+    assert.deepEqual(calls[2].body.order, {
+      location_id: open.location_id || "LOC",
+      version: open.version + 1,
+      state: "CANCELED",
+    });
+  });
+
+  it("leaves an order that is no longer open alone", async () => {
+    const { impl, calls } = fakeFetch(answers("COMPLETED"));
+    const out = await cancelOrder("SQO", { env, fetchImpl: impl });
+
+    assert.equal(out.cancelled, false);
+    assert.equal(calls.length, 1);
+  });
+
+  it("with unpaid, leaves an open order that has taken a tender",
+    async () => {
+      const { impl, calls } = fakeFetch({
+        "/v2/orders/SQO": { order: {
+          id: "SQO", state: "OPEN", version: 3, tenders: [{ id: "T" }],
+        } },
+      });
+      const out = await cancelOrder("SQO", {
+        env, fetchImpl: impl, unpaid: true,
+      });
+
+      assert.equal(out.cancelled, false);
+      assert.equal(calls.length, 1);
+    });
+});
+
+describe("searchOpenOrders", () => {
+  it("asks for this location's OPEN orders made before the cutoff, " +
+    "newest first, and follows the cursor", async () => {
+    const page = (orders, cursor) => new Response(JSON.stringify({
+      orders, cursor,
+    }));
+    const { impl, calls } = fakeFetch({
+      "/v2/orders/search": (n) => (n === 1
+        ? page([{
+          id: "SQ1", reference_id: "NFF-2610-ABCD",
+          metadata: { site_version: SITE_VERSION },
+          created_at: "2026-10-01T12:00:00Z",
+          total_money: { amount: 1200, currency: "USD" },
+        }], "next")
+        : page([{
+          id: "SQ2", created_at: "2026-09-30T12:00:00Z",
+          tenders: [{ id: "T" }],
+        }])),
+    });
+    const before = new Date("2026-10-02T00:00:00Z");
+    const out = await searchOpenOrders({ before }, { env, fetchImpl: impl });
+
+    assert.deepEqual(out, [{
+      id: "SQ1", referenceId: "NFF-2610-ABCD", siteVersion: SITE_VERSION,
+      createdAt: "2026-10-01T12:00:00Z", tenders: 0, total: 1200,
+    }, {
+      id: "SQ2", referenceId: null, siteVersion: null,
+      createdAt: "2026-09-30T12:00:00Z", tenders: 1, total: 0,
+    }]);
+    assert.equal(calls.length, 2);
+    assert.deepEqual(calls[0].body.location_ids, ["LOC"]);
+    assert.deepEqual(calls[0].body.query, {
+      filter: {
+        state_filter: { states: ["OPEN"] },
+        date_time_filter: {
+          created_at: { end_at: "2026-10-02T00:00:00.000Z" },
+        },
+      },
+      sort: { sort_field: "CREATED_AT", sort_order: "DESC" },
+    });
+    assert.equal(calls[0].body.cursor, undefined);
+    assert.equal(calls[1].body.cursor, "next");
+  });
+});
+
+describe("inventoryCounts (#267)", () => {
+  const prod = { ...env, SQUARE_ENV: "production" };
+  const PATH = "/v2/inventory/counts/batch-retrieve";
+
+  it("reads IN_STOCK at the site's location, page by page", async () => {
+    const { impl, calls } = fakeFetch({
+      [PATH]: (n) => new Response(JSON.stringify(n === 1
+        ? {
+          counts: [
+            { catalog_object_id: "V1", location_id: "LOC", quantity: "4" },
+            { catalog_object_id: "V2", location_id: "ELSE", quantity: "9" },
+          ],
+          cursor: "C2",
+        }
+        : {
+          counts: [
+            { catalog_object_id: "V2", location_id: "LOC", quantity: "-1" },
+            { catalog_object_id: "V3", location_id: "LOC", quantity: "x" },
+          ],
+        })),
+    });
+    const out = await inventoryCounts(["V1", "V2", "V3"],
+      { env: prod, fetchImpl: impl });
+
+    assert.deepEqual(out, { V1: 4, V2: -1 });
+    assert.equal(calls.length, 2);
+    assert.deepEqual(calls[0].body, {
+      catalog_object_ids: ["V1", "V2", "V3"],
+      location_ids: ["LOC"],
+      states: ["IN_STOCK"],
+      limit: 1000,
+    });
+    assert.equal(calls[1].body.cursor, "C2");
+  });
+
+  it("asks nothing of the sandbox or a Square without keys", async () => {
+    const { impl, calls } = fakeFetch({});
+
+    assert.equal(await inventoryCounts(["V1"], { env, fetchImpl: impl }),
+      null);
+    assert.equal(await inventoryCounts(["V1"], {
+      env: { SQUARE_ENV: "production" }, fetchImpl: impl,
+    }), null);
+    assert.equal(calls.length, 0);
+  });
+
+  it("throws what Square answers wrong", async () => {
+    const { impl } = fakeFetch({
+      [PATH]: () => new Response("{}", { status: 503 }),
+    });
+
+    await assert.rejects(inventoryCounts(["V1"],
+      { env: prod, fetchImpl: impl }), SquareError);
+  });
+});
+
+// An order placed before SQUARE_LOCATION_ID moved (#267, one location)
+// is updated at its own location, not the new one.
+describe("an update to an order at another location", () => {
+  const placed = {
+    id: "SQO", state: "OPEN", version: 3, location_id: "OLD",
+    fulfillments: [{ uid: "F1", type: "PICKUP", state: "PROPOSED" }],
+  };
+  const answers = {
+    "/v2/orders/SQO": () => new Response(JSON.stringify({
+      order: { ...placed, version: 4 },
+    })),
+  };
+  const sent = (calls) => calls.find((c) => c.method === "PUT")
+    .body.order.location_id;
+
+  it("cancels it there", async () => {
+    const { impl, calls } = fakeFetch({
+      "/v2/orders/SQO": (n) => new Response(JSON.stringify({
+        order: n === 1 ? placed : { ...placed, state: "CANCELED" },
+      })),
+    });
+
+    await cancelOrder("SQO", { env, fetchImpl: impl });
+    assert.equal(sent(calls), "OLD");
+  });
+
+  it("moves and cancels its fulfilment there", async () => {
+    for (const run of [
+      (impl) => updateFulfillment("SQO", order(), { env, fetchImpl: impl }),
+      (impl) => cancelFulfillment("SQO", { env, fetchImpl: impl }),
+    ]) {
+      const { impl, calls } = fakeFetch({
+        "/v2/orders/SQO": (n) => (n === 1
+          ? new Response(JSON.stringify({ order: placed }))
+          : answers["/v2/orders/SQO"]()),
+      });
+
+      await run(impl);
+      assert.equal(sent(calls), "OLD");
+    }
+  });
+});
+
+// #308: a rescheduled pickup reaches Square by the fulfilment's uid,
+// against the order's current version, and a refusal is thrown.
+describe("a rescheduled pickup", () => {
+  const placed = {
+    id: "SQO", state: "OPEN", version: 7, location_id: "LOC",
+    fulfillments: [{
+      uid: "F1", type: "PICKUP", state: "PROPOSED",
+      pickup_details: { pickup_at: "2026-10-07T13:00:00.000Z" },
+    }],
+  };
+  const moved = () => {
+    const o = order();
+
+    o.fulfilment.date = "2026-11-01";
+    o.fulfilment.onfarm = { window: "10:00-12:00", from: "10:00",
+      to: "12:00" };
+
+    return o;
+  };
+
+  it("updates pickup_at on the fulfilment", async () => {
+    const { impl, calls } = fakeFetch({
+      "/v2/orders/SQO": (n) => new Response(JSON.stringify({
+        order: { ...placed, version: n === 1 ? 7 : 8 },
+      })),
+    });
+    const out = await updateFulfillment("SQO", moved(), {
+      env, fetchImpl: impl,
+    });
+    const put = calls.find((c) => c.method === "PUT").body.order;
+
+    assert.equal(put.version, 7);
+    assert.equal(put.fulfillments[0].uid, "F1");
+    assert.equal(put.fulfillments[0].pickup_details.pickup_at,
+      "2026-11-01T15:00:00.000Z");
+    assert.equal(put.fulfillments[0].state, undefined);
+    assert.equal(out.version, 8);
+  });
+
+  it("throws when Square refuses it", async () => {
+    const { impl } = fakeFetch({
+      "/v2/orders/SQO": (n) => (n === 1
+        ? new Response(JSON.stringify({ order: placed }))
+        : new Response(JSON.stringify({ errors: [{
+          code: "VERSION_MISMATCH", detail: "stale" }] }),
+        { status: 409 })),
+    });
+
+    await assert.rejects(
+      updateFulfillment("SQO", moved(), { env, fetchImpl: impl }),
+      SquareError);
+  });
+});
+
+describe("customerOrders", () => {
+  const since = new Date("2026-10-05T00:00:00Z");
+  const search = (orders) => fakeFetch({
+    "/v2/orders/search": { orders },
+  });
+
+  it("asks for the customer's orders at every location, ten at a time",
+    async () => {
+      const others = Array.from({ length: 10 }, (_, i) => ({ id: `M${i}` }));
+      const { impl, calls } = fakeFetch({
+        "/v2/locations": { locations: [{ id: "LOC" }, ...others] },
+        "/v2/orders/search": { orders: [] },
+      });
+
+      assert.deepEqual(await customerOrders("CUST", { since }, {
+        env, fetchImpl: impl,
+      }), { paid: false, recent: false });
+      assert.equal(calls[0].method, "GET");
+      assert.equal(calls[0].body, null);
+
+      const searches = calls.filter((c) => c.path === "/v2/orders/search");
+
+      assert.deepEqual(searches.map((c) => c.body.location_ids), [
+        ["LOC", "M0", "M1", "M2", "M3", "M4", "M5", "M6", "M7", "M8"],
+        ["M9"],
+      ]);
+      assert.deepEqual(searches[0].body.query.filter,
+        { customer_filter: { customer_ids: ["CUST"] } });
+    });
+
+  it("counts a paid order at the market's location", async () => {
+    const { impl } = fakeFetch({
+      "/v2/locations": { locations: [{ id: "LOC" }, { id: "MKT" }] },
+      "/v2/orders/search": { orders: [{
+        id: "SALE", state: "COMPLETED", location_id: "MKT",
+        created_at: "2026-09-01T12:00:00Z",
+      }] },
+    });
+
+    assert.equal((await customerOrders("CUST", { since }, {
+      env, fetchImpl: impl,
+    })).paid, true);
+  });
+
+  it("finds a paid order, or a recent one that may be paying", async () => {
+    const old = "2026-10-04T12:00:00Z";
+    const paid = search([
+      { id: "A", state: "CANCELED", created_at: old },
+      { id: "B", state: "OPEN", created_at: old, tenders: [{ id: "T" }] },
+    ]);
+    const recent = search([
+      { id: "A", state: "OPEN", created_at: "2026-10-05T09:00:00Z" },
+    ]);
+
+    assert.equal((await customerOrders("CUST", { since }, {
+      env, fetchImpl: paid.impl,
+    })).paid, true);
+    assert.deepEqual(await customerOrders("CUST", { since }, {
+      env, fetchImpl: recent.impl,
+    }), { paid: false, recent: true });
+  });
+});
+
+describe("refundPayment", () => {
+  it("posts the refund with a derived key and a trimmed reason",
+    async () => {
+      const { impl, calls } = fakeFetch({
+        "/v2/refunds": { refund: {
+          id: "REF-1", status: "PENDING",
+          amount_money: { amount: 1200, currency: "USD" },
+        } },
+      });
+      const out = await refundPayment({
+        squarePaymentId: "PAY-1", amount: 1200, key: "refund-x",
+        reason: "x".repeat(200),
+      }, { env, fetchImpl: impl });
+
+      assert.deepEqual(out, {
+        squareRefundId: "REF-1", status: "PENDING", amount: 1200,
+      });
+      assert.equal(calls[0].path, "/v2/refunds");
+      assert.equal(calls[0].body.idempotency_key, "refund-x-refund");
+      assert.equal(calls[0].body.payment_id, "PAY-1");
+      assert.deepEqual(calls[0].body.amount_money,
+        { amount: 1200, currency: "USD" });
+      assert.equal(calls[0].body.reason.length, 192);
+    });
+
+  it("sends no reason when there is none", async () => {
+    const { impl, calls } = fakeFetch({ "/v2/refunds": { refund: {} } });
+    const out = await refundPayment({
+      squarePaymentId: "PAY-1", amount: 500, key: "k",
+    }, { env, fetchImpl: impl });
+
+    assert.equal(calls[0].body.reason, undefined);
+    assert.equal(out.amount, 500, "the asked amount when Square is quiet");
+  });
+});
+
+describe("getPayment", () => {
+  it("reads one payment back in the record's shape", async () => {
+    const { impl, calls } = fakeFetch({
+      "/v2/payments/PAY-1": recorded("square", "payment-get").response,
+    });
+    const out = await getPayment("PAY-1", { env, fetchImpl: impl });
+    const got = recorded("square", "payment-get").response.payment;
+
+    assert.equal(calls[0].method, "GET");
+    assert.equal(calls[0].body, null);
+    assert.equal(out.squarePaymentId, got.id);
+    assert.equal(out.last4, got.card_details.card.last_4);
+    assert.equal(out.refunded, 0, "nothing back yet");
+  });
+
+  it("says how much has been refunded", async () => {
+    const back = recorded("square", "payment-get-refunded").response;
+    const { impl } = fakeFetch({ "/v2/payments/PAY-1": back });
+
+    assert.equal((await getPayment("PAY-1", { env, fetchImpl: impl }))
+      .refunded, back.payment.refunded_money.amount);
+  });
+});
+
+describe("dashboardUrl", () => {
+  const square = { squareOrderId: "SO-1", customerId: "CUST" };
+
+  it("points at the order, in the right Square", () => {
+    assert.equal(
+      dashboardUrl(square, { SQUARE_ENV: "production" }),
+      "https://app.squareup.com/dashboard/orders/overview/SO-1"
+    );
+    assert.equal(
+      dashboardUrl(square, env),
+      "https://app.squareupsandbox.com/dashboard/orders/overview/SO-1"
+    );
+    assert.equal(dashboardUrl(square, {}).includes("sandbox"), true,
+      "anything but production is the sandbox");
+  });
+
+  it("is nothing without a Square order", () => {
+    assert.equal(dashboardUrl({}, env), "");
+    assert.equal(dashboardUrl({ invoiceId: "INV-1" }, env), "",
+      "an invoice-era record without an order id links nowhere");
+    assert.equal(dashboardUrl(null, env), "");
+  });
+});
+
+// #328: a fulfilled order goes COMPLETED in Square, fulfillment and
+// order in one call, at the order's own location and version.
+describe("completeOrder", () => {
+  const placed = {
+    id: "SQO", state: "OPEN", version: 5, location_id: "OLD",
+    fulfillments: [{ uid: "F1", type: "PICKUP", state: "PROPOSED" }],
+  };
+  const serve = (order) => fakeFetch({
+    "/v2/orders/SQO": () => new Response(JSON.stringify({ order })),
+  });
+
+  it("completes the fulfillment and the order in one call", async () => {
+    const { impl, calls } = serve(placed);
+    const out = await completeOrder("SQO", { env, fetchImpl: impl });
+    const puts = calls.filter((c) => c.method === "PUT");
+
+    assert.deepEqual(out, { id: "SQO", completed: true });
+    assert.equal(puts.length, 1);
+    assert.deepEqual(puts[0].body.order, {
+      location_id: "OLD", version: 5, state: "COMPLETED",
+      fulfillments: [{ uid: "F1", state: "COMPLETED" }],
+    });
+  });
+
+  it("counts an order already COMPLETED as success, sending nothing",
+    async () => {
+      const { impl, calls } = serve({
+        ...placed, state: "COMPLETED",
+        fulfillments: [{ uid: "F1", state: "COMPLETED" }],
+      });
+      const out = await completeOrder("SQO", { env, fetchImpl: impl });
+
+      assert.equal(out.completed, false);
+      assert.equal(calls.filter((c) => c.method === "PUT").length, 0);
+    });
+
+  it("closes an order whose fulfillment was completed by hand",
+    async () => {
+      const { impl, calls } = serve({
+        ...placed, fulfillments: [{ uid: "F1", state: "COMPLETED" }],
+      });
+      const out = await completeOrder("SQO", { env, fetchImpl: impl });
+      const put = calls.find((c) => c.method === "PUT").body.order;
+
+      assert.equal(out.completed, true);
+      assert.equal(put.state, "COMPLETED");
+      assert.equal(put.fulfillments, undefined);
+    });
+
+  it("throws when Square refuses it", async () => {
+    const { impl } = fakeFetch({
+      "/v2/orders/SQO": (n) => (n === 1
+        ? new Response(JSON.stringify({ order: placed }))
+        : new Response("{}", { status: 400 })),
+    });
+
+    await assert.rejects(
+      completeOrder("SQO", { env, fetchImpl: impl }), SquareError
+    );
+  });
+
+  it("encodes the id it puts in the path", async () => {
+    const { impl, calls } = fakeFetch({});
+
+    await completeOrder("a/../b?x", { env, fetchImpl: impl });
+    assert.equal(calls[0].path, "/v2/orders/a%2F..%2Fb%3Fx");
+  });
+});

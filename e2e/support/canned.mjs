@@ -40,7 +40,7 @@ export const ORDER = {
   },
   fulfilment: {
     method: "onfarm", date: "2026-10-03", state: "requested",
-    onfarm: { window: "10 AM – 12 PM" },
+    onfarm: { window: "10:00-12:00", from: "10:00", to: "12:00" },
   },
   notes: "",
   payments: [{
@@ -64,7 +64,7 @@ export const ORDER_SCHEDULED = {
   pickup: {
     name: "Drop site",
     place: "46 Institute Lane, North Scituate, RI 02857",
-    window: "10 – 11 AM", gone: false,
+    window: "10:00 – 11:00 AM", gone: false,
   },
 };
 

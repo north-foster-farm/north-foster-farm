@@ -256,7 +256,7 @@ test.describe("a scheduled pickup on the account page", () => {
     ...ORDER_SCHEDULED,
     pickup: {
       name: "Canned Market", place: "Town Common, 1 Main St, Foster, RI",
-      window: "10 AM – 12 PM", occurrence: null, gone: false,
+      window: "10:00 AM – 12:00 PM", occurrence: null, gone: false,
     },
   };
 
@@ -296,7 +296,7 @@ test.describe("a scheduled pickup on the account page", () => {
       const when = page.locator("[data-out='when']").first();
 
       await expect(when).toContainText(
-        `Pickup days, ${m.label}, 10 AM – 12 PM, at Canned Market`
+        `Pickup days, ${m.label}, 10:00 AM – 12:00 PM, at Canned Market`
       );
       await expect(when).not.toContainText("scheduled,");
       await expect(when).not.toContainText("scituate");
@@ -322,7 +322,7 @@ test.describe("a scheduled pickup on the account page", () => {
         fulfilment: { ...order.fulfilment, occurrence: drop.occurrence,
           date: drop.date },
         pickup: { name: "Drop site", place: "46 Institute Lane",
-          window: "10 AM – 12 PM", occurrence: drop.occurrence,
+          window: "10:00 AM – 12:00 PM", occurrence: drop.occurrence,
           series: "VFVQ", gone: false },
       } } });
     });
@@ -345,7 +345,7 @@ test.describe("a scheduled pickup on the account page", () => {
     expect(posted.method).toBe("scheduled");
     expect(posted.occurrence).toBe(drop.occurrence);
     await expect(page.locator("[data-out='when']").first())
-      .toContainText("10 AM – 12 PM, at the drop site");
+      .toContainText("10:00 AM – 12:00 PM, at the drop site");
   });
 
   test("an occurrence that no longer resolves says to get in touch",

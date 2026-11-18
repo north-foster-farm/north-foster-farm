@@ -12,7 +12,7 @@
 // text "HH:MM-HH:MM" ("08:00-10:00"), as on `next` before #616: it
 // stays.
 //
-// The unit test of the label's formatter is test/onfarm-label.criteria
+// The unit test of the label's formatter is test/window-label.criteria
 // .mjs (held out of npm test until the formatter exists).
 
 import {
