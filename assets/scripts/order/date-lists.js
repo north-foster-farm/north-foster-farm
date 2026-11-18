@@ -3,10 +3,10 @@
 // visitor's wrong clock cannot offer a closed date.
 
 import { mergeScheduled } from "./lib/group.mjs";
-import { earliestCutoff, stillOpen } from "./lib/picker.mjs";
-import { scheduledChoices } from "./lib/scheduled.mjs";
+import {
+  earliestCutoff, fallbackChoice, pickupParts, scheduledChoices, stillOpen,
+} from "./lib/scheduled.mjs";
 import { dayName, weekday } from "./lib/zoned.mjs";
-import { PickupPicker } from "./pickup-picker.js";
 import { clear, whileLoading } from "../utils/skeleton.js";
 
 const RETRY = [2000, 5000, 15000, 30000];
@@ -53,11 +53,6 @@ export class DateLists {
     // A location by its code, for a pickup's address; the form sets it
     // from the model (data/locations.json).
     this.place = () => null;
-    // The pickup-day picker, made with the first scheduled list.
-    this.pickupPicker = null;
-    // A paid order's pickup being changed (?edit=), offered "As
-    // booked" once the lists no longer have it (lib/picker.mjs).
-    this.booked = null;
     // Refreshes the lists when the earliest scheduled pickup closes.
     this.closing = null;
   }
@@ -194,16 +189,14 @@ export class DateLists {
   // A date to choose once the lists come: a restored draft's, or the
   // paid order's being changed. Set on the select before its options
   // exist, the browser would drop it and the first date would win
-  // (#284). For `scheduled` the "date" is the pickup's value, the
-  // occurrence id; `quiet` keeps the picker's closed note back for a
-  // buying group's round the lists gain once its code is checked.
-  want(method, date, series = "", { quiet = false } = {}) {
+  // (#284). For `scheduled` the "date" is the option's value, the
+  // occurrence id.
+  want(method, date, series = "") {
     const select = this.form.querySelector(`[data-dates="${method}"]`);
 
     if (!select || !date) return;
     select.dataset.want = date;
     if (series) select.dataset.series = series;
-    if (quiet) select.dataset.quiet = "true";
     if (this.lists) this.fill(select, this.lists[method] || []);
   }
 
@@ -215,40 +208,68 @@ export class DateLists {
     return on ? on.value : "";
   }
 
-  // Chooses a pickup in the list, if it is there, and shows its day.
+  // Chooses a pickup in the list, if it is there.
   choose(value) {
     const box = this.form.querySelector("[data-dates='scheduled']");
+    const radio = box && Array.from(box.querySelectorAll("input"))
+      .find((input) => input.value === value);
 
-    return Boolean(box) && this.picker(box).choose(value);
+    if (radio) radio.checked = true;
+
+    return Boolean(radio);
   }
 
-  // The one picker (pickup-picker.js) round the pickups group.
-  picker(box) {
-    if (!this.pickupPicker) {
-      this.pickupPicker = new PickupPicker(box.closest("[data-picker]"), {
-        locate: (entry) => this.place(entry.location),
-      });
-    }
-
-    return this.pickupPicker;
-  }
-
-  // The scheduled pickups on the picker. Nothing is chosen but what
-  // the customer chose, or a draft or link named; a draft's closed
-  // occurrence of the old drop site falls to that series' next, and a
-  // paid order's pickup the list has lost shows "As booked" (`booked`,
-  // set by the form for ?edit=).
+  // The scheduled pickups as a vertical list of radios, one line each,
+  // from the template (#tpl-pickup). Nothing is chosen but what the
+  // customer chose, or a draft or link named; a draft's closed
+  // occurrence of the old drop site falls to that series' next.
   fillPickups(box, list) {
-    const want = box.dataset.want || "";
+    const current = box.dataset.want || this.scheduledValue();
     const series = box.dataset.series || "";
-    const quiet = box.dataset.quiet === "true";
 
+    box.textContent = "";
     delete box.dataset.want;
     delete box.dataset.series;
-    delete box.dataset.quiet;
-    this.picker(box).render(list, {
-      want, series, quiet, booked: this.booked || null, now: this.now(),
-    });
+
+    if (list.length === 0) {
+      const none = document.createElement("p");
+
+      none.className = "order-windows-none";
+      none.textContent = "No pickup days are open right now.";
+      box.appendChild(none);
+
+      return;
+    }
+
+    const kept = list.some((d) => d.value === current);
+    const pick = kept ? current
+      : series && (fallbackChoice(list, series) || {}).value;
+
+    for (const entry of list) {
+      const node = document.getElementById("tpl-pickup").content
+        .cloneNode(true);
+      const input = node.querySelector("input");
+      const label = node.querySelector("label");
+      const parts = pickupParts(entry, this.place(entry.location));
+
+      input.id = `scheduled-${entry.value.toLowerCase()}`;
+      input.value = entry.value;
+      input.checked = entry.value === pick;
+      label.htmlFor = input.id;
+      label.querySelector(".order-pickup-date").textContent = parts.date;
+      label.querySelector(".order-pickup-time").textContent = parts.time;
+      label.querySelector(".order-pickup-name").textContent = parts.name;
+
+      const address = label.querySelector(".order-pickup-address");
+
+      for (const line of parts.address) {
+        const part = document.createElement("span");
+
+        part.textContent = line;
+        address.appendChild(part);
+      }
+      box.appendChild(node);
+    }
   }
 
   fill(select, list) {
@@ -311,7 +332,7 @@ export class DateLists {
   }
 
   // The lists refresh once the earliest scheduled pickup's cutoff has
-  // passed, so a closed pickup leaves the picker without a reload or a
+  // passed, so a closed pickup leaves the list without a reload or a
   // 409 at payment (#540). A second's margin lets the server's list
   // drop it; a wait past a timer's limit refreshes early and waits
   // again.

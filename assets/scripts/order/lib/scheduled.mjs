@@ -4,12 +4,15 @@
 // `scheduled`; a choice is an occurrence id ("K4Q7-261101"), the
 // series' code and the date, and it is the picker's option value.
 
-// An entry of /api/dates' `scheduled`, ready for the picker
-// (pickup-picker.js): its `value`, the occurrence id. The lapsed
-// dialog's one-line `text` went with its list (#540).
+// An entry of /api/dates' `scheduled`, ready for a picker: its `value`
+// and its `text`, date then place then window, the window as the
+// server prints it ("Saturday, October 24: Drop site, North Scituate,
+// 10:00 – 11:00 AM").
 export const scheduledChoice = (entry) => ({
   ...entry,
   value: entry.occurrence,
+  text: `${entry.label}: ${[entry.name, entry.town, entry.window]
+    .filter(Boolean).join(", ")}`,
 });
 
 export const scheduledChoices = (list) => (list || []).map(scheduledChoice);
@@ -131,4 +134,26 @@ export const pickupParts = (entry, loc) => ({
   time: entry.window,
   name: pickupName(entry.town || (loc || {}).town, entry.name),
   address: addressLines(loc),
+});
+
+// The earliest cutoff in a list, as epoch milliseconds, for the timer
+// that refreshes the lists when that pickup closes; null when none has
+// one.
+export const earliestCutoff = (list) => {
+  const times = (list || []).map((d) => Date.parse(d.cutoff))
+    .filter(Number.isFinite);
+
+  return times.length ? Math.min(...times) : null;
+};
+
+// The entries still open at `now` (epoch milliseconds): those whose
+// cutoff is later, and those with none. A buying group's rounds come
+// once from /api/group and are joined to every list after, so a round
+// that closes with the page open is dropped here; kept, its passed
+// cutoff would stay the earliest and the lists would refresh about
+// once a second (#540).
+export const stillOpen = (list, now) => (list || []).filter((d) => {
+  const at = Date.parse(d.cutoff);
+
+  return !Number.isFinite(at) || at > now;
 });
