@@ -60,7 +60,7 @@ test.describe("busy buttons", () => {
     const at = await width(button);
 
     await button.click();
-    await expectBusy(page, button, { busyWord: "Sending", width: at });
+    await expectBusy(page, button, { busyWord: "Submitting", width: at });
     await button.click({ force: true });
     hold.release();
     await expectIdle(button, { width: at });

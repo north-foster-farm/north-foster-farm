@@ -2466,7 +2466,7 @@ so nobody is added; FN-01 covers the real sign-up.
   address." when empty; "Enter a valid email address, like
   you@example.com." with the field marked invalid and focused for both
   bad addresses; the mark clears once the address is valid. While
-  held: `data-state="busy"`, "Submitting" and the egg spinner faded in,
+  held: `data-state="busy"`, "Sending" and the egg spinner faded in,
   "Sign me up" faded out, the button's width unchanged, the line under
   the field empty, and the second press sends nothing. Then the
   "Check your email: click the link we sent you to join." answer at
