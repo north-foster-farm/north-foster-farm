@@ -8,8 +8,7 @@ import {
   locationCount, locationsLabel,
 } from "../assets/scripts/order/lib/scheduled.mjs";
 import {
-  OrderPage, choosePickup, expect, orderPicker, pickupChosen, pickupRadios,
-  pickupValues, test,
+  OrderPage, expect, pickupChosen, pickupRadios, pickupValues, test,
 } from "./support/order.mjs";
 import {
   DROP, FOSTER, POPUP, cannedScheduled, datesWith, payable,
@@ -21,19 +20,11 @@ const draft = (page) => page.evaluate(() => JSON.parse(
 ).payload.fulfilment);
 
 const values = pickupValues;
-// The picker's week strip shows once the list has a pickup; the cards
-// stay hidden until a day is chosen (#540).
-const listed = async (page) => {
-  await expect(orderPicker(page).locator("[data-picker-strip]"))
-    .toBeVisible();
-  await expect(pickupRadios(page).first()).toBeAttached();
-};
+const listed = (page) => expect(pickupRadios(page).first()).toBeVisible();
 const part = (page, code, name) => page.locator(
   `#scheduled-pickups .order-pickup:has(input[value^='${code}-']) ` +
   `.order-pickup-${name}`
 ).first();
-const first = async (page, code) => (await values(page))
-  .find((v) => v.startsWith(`${code}-`));
 
 const series = async (page) => (await values(page))
   .map((v) => v.split("-")[0]);
@@ -59,38 +50,34 @@ test.describe("scheduled pickup", () => {
       expect(dates).toEqual([...dates].sort());
     });
 
-  // The picker (#540): the day over its cards, each card its hours and
-  // name, and the details panel the chosen pickup's place and address.
-  test("each entry is a card: hours and name, the address beside",
+  test("each entry is a card: day and hours, name, then address",
     async ({ page }) => {
       await cannedScheduled(page);
 
       const order = new OrderPage(page);
-      const picker = orderPicker(page);
-      const details = (name) => picker.locator(`[data-picker-${name}]`);
 
       await order.open({ eggs: 1 }, { method: "scheduled" });
       await listed(page);
-      await choosePickup(picker, await first(page, FOSTER.series));
-      await expect(details("day")).toHaveText(/^\w+, \w+ \d+$/);
+      await expect(part(page, FOSTER.series, "date"))
+        .toHaveText(/^\w+, \w+ \d+$/);
       await expect(part(page, FOSTER.series, "time"))
         .toHaveText("9:00 AM – 1:00 PM");
       await expect(part(page, FOSTER.series, "name"))
         .toHaveText("Foster Farmers Market");
-      await expect(details("place")).toHaveText("Foster Farmers Market");
-      // A line to each part (#439).
-      await expect(details("address").locator("span")).toHaveText([
-        "Shady Acres Diner", "164 Danielson Pike", "Foster, RI 02825",
-      ]);
-      await choosePickup(picker, await first(page, DROP.series));
+      // The parts joined by commas, a line breaking only between two
+      // (#439).
+      await expect(part(page, FOSTER.series, "address").locator("span"))
+        .toHaveText([
+          "Shady Acres Diner", "164 Danielson Pike", "Foster, RI 02825",
+        ]);
       await expect(part(page, DROP.series, "time"))
         .toHaveText("10:00 – 11:00 AM");
       await expect(part(page, DROP.series, "name"))
         .toHaveText("North Scituate · Drop site");
-      await expect(details("place")).toHaveText("North Scituate · Drop site");
-      await expect(details("address").locator("span")).toHaveText([
-        "46 Institute Lane", "North Scituate, RI 02857",
-      ]);
+      await expect(part(page, DROP.series, "address").locator("span"))
+        .toHaveText([
+          "46 Institute Lane", "North Scituate, RI 02857",
+        ]);
     });
 
   test("an unchosen card is white and a chosen one is not",
@@ -106,10 +93,8 @@ test.describe("scheduled pickup", () => {
       const bg = () => card.evaluate((el) => getComputedStyle(el)
         .backgroundColor);
 
-      // Computed while the card waits, hidden, for its day.
       expect(await bg()).toBe("rgb(255, 255, 255)");
-      await choosePickup(orderPicker(page),
-        await card.locator("input").inputValue());
+      await card.locator("input").check();
       // The fill eases in (--order-hover), so it leaves white a moment
       // after the check.
       await expect.poll(bg).not.toBe("rgb(255, 255, 255)");
@@ -361,7 +346,7 @@ test.describe("a lapsed scheduled pickup", () => {
       // Take the other Saturday, not the first offered.
       const market = lists.scheduled.at(-1);
 
-      await choosePickup(dialog.locator("[data-picker]"), market.occurrence);
+      await dialog.getByLabel(new RegExp(market.label)).check();
       await dialog.getByRole("button", { name: "Use this pickup" }).click();
       await expect(pickupChosen(page)).toHaveValue(market.occurrence);
       await expect(page.locator("[data-lapsed-status]")).toHaveText(

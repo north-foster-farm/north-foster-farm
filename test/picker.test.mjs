@@ -14,6 +14,7 @@ import {
   stillOpen, weekIndex, weekName, weekStart, weekTitle, withBooked,
 } from "../assets/scripts/order/lib/picker.mjs";
 import { scheduledChoices } from "../assets/scripts/order/lib/scheduled.mjs";
+import { keepTogether } from "../assets/scripts/utils/keep-together.mjs";
 
 const ZONE = "America/New_York";
 // Wednesday, November 11, 2026: this week runs November 8 to 14.
@@ -160,6 +161,15 @@ describe("the strip's words", () => {
       "Pickup chosen: 9:00 AM to 1:00 PM, Foster Farmers Market");
   });
 
+  // Moved from test/pawtucket.test.mjs (#617), to go where the picker
+  // goes.
+  it("announce Pawtucket's market and pop-up (#544)", () => {
+    assert.equal(chosenText(LIST[2]),
+      "Pickup chosen: 12:00 to 4:00 PM, Pawtucket Farmers Market");
+    assert.equal(chosenText(popup),
+      "Pickup chosen: 12:00 to 5:00 PM, Pawtucket, Thanksgiving Prep");
+  });
+
   it("have no semicolons or em dashes (#400)", () => {
     const weeks = pickerWeeks(LIST);
     const lines = [
@@ -179,6 +189,18 @@ describe("the details panel", () => {
     assert.equal(orderBy(drop.cutoff, ZONE),
       "Order by Friday, November 13, 11:59 PM");
     assert.equal(orderBy("", ZONE), "");
+  });
+
+  // Moved from test/keep-together.test.mjs (#602, #617), to go where
+  // the picker goes.
+  it("writes Order by with no no-break space, kept or not", () => {
+    const line = orderBy("2026-11-14T04:59:00.000Z", ZONE);
+    const NO_BREAK = new RegExp(`[${String.fromCharCode(0xa0, 0x202f)}]`);
+
+    assert.doesNotMatch(line, NO_BREAK, line);
+    for (const run of keepTogether(line)) {
+      assert.doesNotMatch(run.text, NO_BREAK, line);
+    }
   });
 
   it("takes the address from the location when the page has it", () => {

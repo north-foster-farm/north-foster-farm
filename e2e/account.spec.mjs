@@ -8,9 +8,7 @@ import { NONCE, eggOrder, postOrder } from "./support/api.mjs";
 import {
   CANNED, CUSTOMER, ORDER_SCHEDULED, cannedDates, dates,
 } from "./support/canned.mjs";
-import {
-  choosePickup, expect, test, uniqueEmail,
-} from "./support/order.mjs";
+import { expect, test, uniqueEmail } from "./support/order.mjs";
 import {
   BACK_OFFICE_MISSING, backOffice, clearMail, clearSession, closeOrder,
   deleteCustomer,
@@ -332,24 +330,16 @@ test.describe("a scheduled pickup on the account page", () => {
     await page.getByRole("button", { name: /^Change (delivery|pickup)$/ })
       .first().click();
 
-    // The order page's pickup-day picker (#540): the booked pickup is
-    // chosen, its day shown, and every open occurrence has its radio.
-    const picker = page.locator(".account-panel-form [data-picker]");
-    const pickups = picker.locator("[data-picker-pickups]");
-    const booked = pickups.locator(
-      `.order-pickup:has(input[value='${m.occurrence}'])`
-    );
+    const select = page.locator("[data-dates]");
 
-    await expect(pickups.locator("input:checked")).toHaveValue(m.occurrence);
+    await expect(select).toHaveValue(m.occurrence);
     for (const d of dates().scheduled) {
-      await expect(pickups.locator(`input[value='${d.occurrence}']`))
+      await expect(select.locator(`option[value='${d.occurrence}']`))
         .toHaveCount(1);
     }
-    await expect(booked).toBeVisible();
-    await expect(booked.locator(".order-pickup-time")).toHaveText(m.window);
-    await expect(picker.locator("[data-picker-place]"))
-      .toContainText("Canned Market");
-    await choosePickup(picker, drop.occurrence);
+    await expect(select.locator(`option[value='${m.occurrence}']`))
+      .toHaveText(`${m.label}, ${m.window}, at Canned Market`);
+    await select.selectOption(drop.occurrence);
     await page.getByRole("button", { name: "Save changes" }).click();
 
     expect(posted.method).toBe("scheduled");

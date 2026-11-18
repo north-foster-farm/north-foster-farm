@@ -210,45 +210,6 @@ export const pickupChosen = (page) => page.locator(
   "#scheduled-pickups input:checked"
 );
 
-// The order page's pickup-day picker (#540), round #scheduled-pickups;
-// the lapsed dialog has another.
-export const orderPicker = (page) => page.locator("[data-picker]")
-  .filter({ has: page.locator("#scheduled-pickups") });
-
-// Chooses a pickup on a pickup-day picker (`picker`, its
-// [data-picker]) as a customer does. Every pickup has its radio in the
-// group, but a card shows only on the day chosen on the week strip,
-// and none is until one is (#540): so the pickup's day first, paging
-// to its week, then its card. The day is the card's own, so this holds
-// on any day the specs run.
-export const choosePickup = async (picker, value) => {
-  const card = picker.locator(
-    `[data-picker-pickups] .order-pickup:has(input[value='${value}'])`
-  );
-
-  await expect(card, `${value} on the picker`).toHaveCount(1);
-
-  const date = await card.getAttribute("data-date");
-  const day = picker.locator(`[data-picker-week] input[value='${date}']`);
-  const shown = picker.locator("[data-picker-week] input");
-
-  // Only weeks with a pickup are pages, so a few steps reach any.
-  for (let i = 0; i < 12 && !(await day.count()); i += 1) {
-    const first = await shown.first().getAttribute("value");
-
-    await picker.locator(`[data-picker-page='${date < first ? -1 : 1}']`)
-      .click();
-  }
-  await expect(day).toBeEnabled();
-  // The day's radio is visually replaced by its label.
-  await picker.locator(`label[for='${await day.getAttribute("id")}']`)
-    .click();
-  await expect(day).toBeChecked();
-  await expect(card).toBeVisible();
-  await card.locator("input").check();
-  await expect(card.locator("input")).toBeChecked();
-};
-
 export class OrderPage {
   constructor(page) {
     this.page = page;
@@ -395,18 +356,17 @@ export class OrderPage {
   // Chooses scheduled pickup and the first occurrence of a series
   // (the drop site's, `VFVQ`, by default); returns the occurrence id
   // chosen. The pickups are a list of radios whose values are
-  // occurrence ids, "<code>-<YYMMDD>"; none is chosen until one is,
-  // and a card shows only on its day (choosePickup).
+  // occurrence ids, "<code>-<YYMMDD>"; none is chosen until one is.
   async scheduled(code = "VFVQ") {
     await this.method("scheduled");
-    await expect(orderPicker(this.page).locator("[data-picker-strip]"))
-      .toBeVisible();
+    await expect(pickupRadios(this.page).first()).toBeVisible();
 
     const value = (await pickupValues(this.page))
       .find((v) => v.startsWith(`${code}-`));
 
     expect(value, `a ${code} occurrence on offer`).toBeTruthy();
-    await choosePickup(orderPicker(this.page), value);
+    await this.page.locator(`#scheduled-pickups input[value='${value}']`)
+      .check();
 
     return value;
   }

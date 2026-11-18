@@ -13,7 +13,6 @@ import {
   unsafeWord,
 } from "../assets/scripts/utils/keep-together.mjs";
 import { rounds } from "../assets/scripts/account/lib/membership.mjs";
-import { orderBy } from "../assets/scripts/order/lib/picker.mjs";
 import { wrapLastWords } from "../bin/orphans/wrap.mjs";
 
 const NBSP = String.fromCharCode(0xa0);
@@ -164,14 +163,13 @@ describe("the text the page writes (#598)", () => {
   });
 
   // #602: no no-break space anywhere on the Membership tab, in any of
-  // its rounds (closed, open and next).
-  it("holds none in the Membership rounds or the picker's Order by", () => {
-    const lines = [
-      ...rounds(ALL_ROUNDS, "America/New_York")
-        .flatMap((round) => [round.pill, round.date, round.window,
-          round.line]),
-      orderBy("2026-11-14T04:59:00.000Z", "America/New_York"),
-    ];
+  // its rounds (closed, open and next). The picker's Order by is held
+  // to the same in test/picker.test.mjs, which goes where the picker
+  // goes (#617).
+  it("holds none in the Membership rounds", () => {
+    const lines = rounds(ALL_ROUNDS, "America/New_York")
+      .flatMap((round) => [round.pill, round.date, round.window,
+        round.line]);
 
     for (const line of lines) {
       assert.doesNotMatch(line, NO_BREAK, line);

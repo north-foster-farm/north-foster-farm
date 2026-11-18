@@ -13,7 +13,6 @@ import assert from "node:assert/strict";
 import { scheduleFor } from "../bin/dev-schedule.mjs";
 import terms from "../netlify/functions/lib/terms.mjs";
 import { allDates } from "../assets/scripts/order/lib/dates.mjs";
-import { chosenText } from "../assets/scripts/order/lib/picker.mjs";
 import {
   checkSchedule, parseSchedule,
 } from "../assets/scripts/order/lib/schedule.mjs";
@@ -108,12 +107,10 @@ describe("Pawtucket on the order page's pickup days (#544)", () => {
 
     const [market, popup] = got.map(scheduledChoice);
 
-    // The picker's words for them (#540).
+    // The picker's words for them (#540) are in test/picker.test.mjs,
+    // which goes where the picker goes (#617).
     assert.equal(market.window, "12:00 – 4:00 PM");
-    assert.equal(chosenText(market),
-      "Pickup chosen: 12:00 to 4:00 PM, Pawtucket Farmers Market");
-    assert.equal(chosenText(popup),
-      "Pickup chosen: 12:00 to 5:00 PM, Pawtucket, Thanksgiving Prep");
+    assert.equal(popup.window, "12:00 – 5:00 PM");
     assert.equal(pickupName(market.town, market.name),
       "Pawtucket Farmers Market", "the name says its town");
     assert.equal(pickupName(popup.town, popup.name),
