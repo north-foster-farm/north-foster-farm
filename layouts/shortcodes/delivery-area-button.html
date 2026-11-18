@@ -8,8 +8,15 @@
        href   Where the button points (default "#map-policy", the id
               the delivery-map shortcode gives the map on this page)
        label  The button's words (default "See where we deliver")
+
+     The last word and the arrow share a text-nowrap span with an
+     ordinary space, so the arrow never wraps alone: a no-break space
+     there drew with no width in Aller (#598).
 */}}
+{{- $words := split (.Get "label" | default "See where we deliver") " " }}
+{{- $last := index $words (sub (len $words) 1) }}
+{{- $head := delimit (first (sub (len $words) 1) $words) " " -}}
 <div class="policy-lead my-4">
   <div class="policy-lead-text">{{ .Inner | .Page.RenderString (dict "display" "block") }}</div>
-  <a class="btn btn-primary policy-lead-button" href="{{ .Get "href" | default "#map-policy" }}">{{ .Get "label" | default "See where we deliver" }}&nbsp;<span class="delivery-cta-arrow" aria-hidden="true">{{ partial "svg.html" "icons/arrow-down" }}</span></a>
+  <a class="btn btn-primary policy-lead-button" href="{{ .Get "href" | default "#map-policy" }}">{{ with $head }}{{ . }} {{ end }}<span class="text-nowrap">{{ $last }} <span class="delivery-cta-arrow" aria-hidden="true">{{ partial "svg.html" "icons/arrow-down" }}</span></span></a>
 </div>

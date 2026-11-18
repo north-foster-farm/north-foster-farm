@@ -55,7 +55,7 @@
     "name" "Pickup days"
     "badge" $dropBadge
     "line" "Order in advance and get your order at any upcoming market, pop-up, or drop site"
-    "when" (printf "%ss, %s" $drop.day (replace (replace $drop.window "–" "–\u2060") " " "\u00a0"))
+    "when" (printf "%ss, <span class=\"text-nowrap\">%s</span>" $drop.day (htmlEscape $drop.window) | safeHTML)
     "where" $drop.short
     "cost" "No minimum, no fee"
     "cta" "Shop for pickup days")
@@ -64,7 +64,7 @@
     "icon" "delivery"
     "name" "Delivery"
     "line" "Our farm-to-doorstep service: delivery to your front door, every week"
-    "when" (printf "Every %s, %s" (partial "weekday.html" hugo.Data.delivery.delivery.weekday) (replace (replace $terms.delivery.window "–" "–\u2060") " " "\u00a0"))
+    "when" (printf "Every %s, <span class=\"text-nowrap\">%s</span>" (partial "weekday.html" hugo.Data.delivery.delivery.weekday) (htmlEscape $terms.delivery.window) | safeHTML)
     "where" "Most of central Rhode Island and parts of eastern Connecticut"
     "cost" (printf "$%v minimum, $%v fee" $money.deliveryMinimum $money.deliveryFee)
     "cta" "Shop for delivery")

@@ -7,6 +7,7 @@ import {
   locationCount, locationsLabel,
 } from "../assets/scripts/order/lib/scheduled.mjs";
 import { today } from "../assets/scripts/order/lib/zoned.mjs";
+import { wordGaps } from "./support/gaps.mjs";
 import { expect, test } from "./support/order.mjs";
 
 // The delivery figures the build printed, from the same money.html
@@ -761,7 +762,7 @@ test.describe("home", () => {
       },
       {
         method: "scheduled", name: "Pickup days",
-        when: /Saturdays, 10:00\s–\u2060\s11:00\sAM/,
+        when: "Saturdays, 10:00 – 11:00 AM",
         line: "Order in advance and get your order at any upcoming " +
           "market, pop-up, or drop site",
         where: "46 Institute Ln, N Scituate, RI",
@@ -771,7 +772,7 @@ test.describe("home", () => {
         method: "delivery", name: "Delivery",
         line: "Our farm-to-doorstep service: delivery to your front " +
           "door, every week",
-        when: /Every Thursday, 10:00\sAM\s–\u2060\s4:00\sPM/,
+        when: "Every Thursday, 10:00 AM – 4:00 PM",
         where: "Most of central Rhode Island and parts of eastern " +
           "Connecticut",
         cost: `$${MONEY.deliveryMinimum} minimum, $${MONEY.deliveryFee} fee`,
@@ -808,7 +809,23 @@ test.describe("home", () => {
           await expect(place.locator(".place-fact")).toHaveCount(facts);
           await expect(place.locator(".place-fact svg")).toHaveCount(facts);
           if (way.when) {
-            await expect(place.locator(".place-when")).toHaveText(way.when);
+            const when = place.locator(".place-when > span:last-child");
+
+            await expect(when).toHaveText(way.when);
+            // #598: the window keeps its ordinary spaces, drawn (Aller's
+            // no-break space has no width in Chromium and Firefox), and
+            // holds together on one line.
+            for (const g of await when.evaluate(wordGaps)) {
+              if (g.kept) {
+                expect(g.sameLine, `${g.words} on one line`).toBe(true);
+              }
+              if (g.sameLine) {
+                expect(g.width, `the space in ${g.words}`)
+                  .toBeGreaterThan(1);
+              }
+            }
+            await expect(when.locator(".text-nowrap"))
+              .toHaveText(/^\d.* [AP]M$/);
           }
           await expect(place.locator(".place-where")).toHaveText(way.where);
           await expect(place.locator(".place-note")).toHaveText(way.cost);
