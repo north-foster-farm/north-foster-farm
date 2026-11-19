@@ -27,7 +27,7 @@ import {
   createOrder, createPayment, customerOrders, dashboardUrl, deleteCustomer,
   e164, getPayment, inventoryCounts, paymentRecord, receiptLink,
   refundPayment,
-  searchOpenOrders, settings, updateFulfillment,
+  searchOpenOrders, settings, updateFulfillment, VERSION_TRIES,
 } from "../netlify/functions/lib/square.mjs";
 import {
   KILL_SWITCH, deletionsPaused, readPause, setPause,
@@ -36,6 +36,7 @@ import { buildModel } from "../assets/scripts/order/lib/events.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
 import { recorded, reply } from "./recorded.mjs";
 import { FOSTER_NAME } from "./foster-name.mjs";
+import { CONFLICT, conflict } from "./version-conflict.mjs";
 
 const env = {
   SQUARE_ACCESS_TOKEN: "tok",
@@ -990,20 +991,41 @@ describe("a rescheduled pickup", () => {
     assert.equal(out.version, 8);
   });
 
-  it("throws when Square refuses it", async () => {
-    const { impl } = fakeFetch({
-      "/v2/orders/SQO": (n) => (n === 1
-        ? new Response(JSON.stringify({ order: placed }))
-        : new Response(JSON.stringify({ errors: [{
-          code: "VERSION_MISMATCH", detail: "stale" }] }),
-        { status: 409 })),
-    });
+  // #658: a version conflict is tried again from a fresh read, so the
+  // refusal that reaches the caller is the one that never clears. Every
+  // read answers with the recorded order, every PUT with the recorded
+  // conflict (test/version-conflict.mjs), and the waits are instant.
+  it("throws Square's refusal when a version conflict never clears",
+    async () => {
+      const ORDER = "order-get-paid-external";
+      const { status, response } = conflict();
+      const read = recorded("square", ORDER).response.order;
+      const calls = [];
+      const impl = async (url, init) => {
+        calls.push({
+          method: init.method || "GET",
+          body: init.body ? JSON.parse(init.body) : null,
+        });
 
-    // A conflict is tried again after a wait (#658): no real timer.
-    await assert.rejects(updateFulfillment("SQO", moved(), {
-      env, fetchImpl: impl, sleep: async () => {},
-    }), SquareError);
-  });
+        return reply("square", init.method === "PUT" ? CONFLICT : ORDER);
+      };
+      const error = await updateFulfillment(read.id, moved(), {
+        env, fetchImpl: impl, sleep: async () => {},
+      }).then(() => null, (e) => e);
+      const puts = calls.filter((c) => c.method === "PUT");
+
+      assert.ok(error instanceof SquareError, "it throws a SquareError");
+      assert.equal(error.status, status);
+      assert.equal(error.code, response.errors[0].code);
+      assert.equal(puts.length, VERSION_TRIES, "it gives up after the tries");
+      assert.deepEqual(calls.map((c) => c.method),
+        puts.flatMap(() => ["GET", "PUT"]), "each try reads the order first");
+      for (const put of puts) {
+        assert.equal(put.body.order.version, read.version);
+        assert.equal(put.body.order.fulfillments[0].uid,
+          read.fulfillments[0].uid);
+      }
+    });
 });
 
 describe("customerOrders", () => {
