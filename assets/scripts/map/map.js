@@ -933,15 +933,21 @@ const wire = (map) => {
 
   // A link to the section holding the map ("Check your ZIP code") is
   // a link to its ZIP field, which sits at the map's foot: if the jump
-  // leaves the field below the window, bring the map's foot up.
+  // leaves the field in the window's lower part, or below it, bring
+  // the field up to just past the middle, which keeps as much of the
+  // map above it as fits (#606: at the fold, a taller page above
+  // pushed it out of sight). A window tall enough to show the section
+  // whole, the field in its upper part, stays where the jump put it.
   const toField = () => {
     const hash = decodeURIComponent(location.hash.slice(1));
     const at = hash && document.getElementById(hash);
     const input = form && form.querySelector("[name='zip']");
 
     if (!input || !at || !at.contains(map)) return;
-    if (input.getBoundingClientRect().bottom > innerHeight) {
-      frame.scrollIntoView({ block: "end" });
+    const { bottom } = input.getBoundingClientRect();
+
+    if (bottom > innerHeight * 0.6) {
+      scrollBy({ top: bottom - innerHeight * 0.55 });
     }
   };
 
