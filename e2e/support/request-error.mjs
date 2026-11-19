@@ -53,10 +53,22 @@ const kindOf = (error) => {
   return ms ? `timed out after ${ms[1]} ms` : hit[1];
 };
 
-// The path alone: a query can hold a sign-in token.
+// The path alone: a query can hold a sign-in token. Most of the
+// suite's requests are relative ("/api/dates" against the base URL),
+// so a relative URL is resolved against a placeholder, only to take
+// its path: the placeholder never reaches the message. Anything that
+// is not a URL, or not a web address, has no path to name.
+const PLACEHOLDER = "http://relative.invalid";
+
 const pathOf = (url) => {
   try {
-    return new URL(url).pathname;
+    if (!(url instanceof URL) && (typeof url !== "string" || !url)) {
+      return "(no path)";
+    }
+
+    const { protocol, pathname } = new URL(url, PLACEHOLDER);
+
+    return /^https?:$/.test(protocol) ? pathname : "(no path)";
   } catch {
     return "(no path)";
   }

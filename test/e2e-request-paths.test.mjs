@@ -4,8 +4,8 @@
 // URL), names its path, still without the query, and still holds no
 // header, cookie or token; and a URL that cannot be read at all does
 // not make the error builder throw. One test per way in, each named
-// for it. Held out of npm test by this file's name; renaming it to
-// test/e2e-request-paths.test.mjs turns it on.
+// for it. Held out of npm test as e2e-request-paths.criteria.mjs
+// until the fix; turned on by its rename, with the fix.
 //
 // Ways in: the wrapper (watchRequests) on a request context with a
 // baseURL, as Playwright's `request` fixture is; route.fetch() given
