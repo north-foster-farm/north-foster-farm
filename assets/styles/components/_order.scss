@@ -714,9 +714,12 @@
     max-width: 24rem;
   }
 
-  // The four fields in a frame like the cart pane's: its border,
-  // radius, padding and shadow (#352).
-  .order-details .order-hform,
+  // The contact section and the last pane in a frame like the cart
+  // pane's: its border, radius, padding and shadow (#352). The contact
+  // frame is the fieldset itself, so its heading and sign-in line sit
+  // inside with the fields (#666). Bootstrap floats a legend, which is
+  // what puts it inside the fieldset's padding and not on its border.
+  .order-details,
   .order-confirm .order-pane {
     padding: 1rem var(--order-gutter);
     border: 1px solid var(--bs-border-color-translucent);
@@ -724,17 +727,27 @@
     background-color: var(--bs-body-bg);
     box-shadow: var(--order-shadow);
 
-    // The cart's shadow at each width: the lighter one alone from xl,
-    // below it the one off its back edge.
+    @media (max-width: 575.98px) {
+      padding: 0.75rem var(--order-gutter);
+    }
+  }
+
+  // The cart's shadow at each width: the lighter one alone from xl,
+  // below it the one off its back edge. The contact frame keeps the
+  // lighter one at every width, as the cards above it do (#666).
+  .order-confirm .order-pane {
     @media (max-width: 1199.98px) {
       box-shadow:
         var(--order-shadow),
         -1rem 0.25rem 1rem rgb(0 0 0 / 12%);
     }
+  }
 
-    @media (max-width: 575.98px) {
-      padding: 0.75rem var(--order-gutter);
-    }
+  // Bootstrap clears the float for the legend's next sibling only,
+  // which is the sign-in line: hidden for a signed-in customer, it
+  // clears nothing, and the fields began beside the heading (#666).
+  .order-details .order-hform {
+    clear: left;
   }
 
   // The news opt-in closes the Place your order pane, under the agreement
@@ -765,12 +778,74 @@
       display: none;
     }
 
+    // The frame's last row ends at its radios' bottom edge, as the
+    // other rows end at their field's, so the frame's space is the
+    // same above its heading and below its last row with or without
+    // this row (#666). Every height here is set in rem and none comes
+    // from a font's own line, so it is the same in every browser: the
+    // row is one 1rem line, the radios centered on their labels, and
+    // the room the lines gave above is padding.
+    padding-top: 0.75rem;
+
+    .col-form-label,
+    .form-check-label {
+      line-height: 1rem;
+    }
+
+    .col-form-label {
+      padding-top: 0;
+      padding-bottom: 0;
+    }
+
+    // When "Call" wraps under "Text" (large text on a narrow phone),
+    // the gap clears the half rem each label reaches past its line,
+    // so no part of one label lies over the other.
+    .order-radios {
+      row-gap: 1rem;
+      padding-top: 0;
+    }
+
+    .form-check {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      min-height: 0;
+      padding-left: 0;
+    }
+
+    .form-check-input {
+      flex: none;
+      float: none;
+      margin: 0;
+    }
+
+    // The label keeps a finger's height without adding to the row's.
+    .form-check-label {
+      margin: -0.5rem 0;
+      padding: 0.5rem 0;
+    }
+
+    // Stacked on a phone: the label, then the radios under it.
+    @media (max-width: 575.98px) {
+      padding-top: 0;
+
+      .col-form-label {
+        line-height: 1.3;
+      }
+
+      .order-radios {
+        padding-top: 0.75rem;
+      }
+    }
+
     &.is-entering {
       opacity: 0;
       transform: translateY(-0.25rem);
     }
   }
 
+  // The contact row above sets its own padding, on purpose (#666).
+  // stylelint-disable-next-line no-descending-specificity
   .order-radios {
     display: flex;
     flex-wrap: wrap;
@@ -1753,6 +1828,9 @@
     margin-top: 0.375rem;
   }
 
+  // The order page's contact row sets its own padding and line, on
+  // purpose (#666).
+  // stylelint-disable-next-line no-descending-specificity
   .col-form-label {
     font-size: 0.875rem;
   }

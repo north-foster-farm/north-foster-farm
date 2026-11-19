@@ -47,6 +47,19 @@ const open = async (page, context, baseURL, width, signedIn) => {
     await expect(page.locator("#customer-first-name"))
       .toHaveValue(CUSTOMER.firstName);
     await expect(page.locator("[data-signin-prompt]")).toBeHidden();
+
+    // A wait, added by the implementer (2026-11-19): the filled-in
+    // phone number brings in the "Prefer text or call?" row, which
+    // slides down a quarter rem as it fades in (order-form.js
+    // showContact). Measured mid-slide, as WebKit did in Actions, its
+    // radios stand 4 px high. So the row is let come to rest.
+    const row = page.locator("[data-contact-row]");
+
+    await expect(row).toHaveAttribute("data-shown", "true");
+    await expect(row).not.toHaveClass(/is-entering/);
+    await row.evaluate((el) => Promise.all(
+      el.getAnimations().map((a) => a.finished),
+    ));
   }
 };
 
