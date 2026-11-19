@@ -35,8 +35,10 @@
           {{ partial "market/season.html" . }}<br>
           <a href="{{ $map }}" target="_blank" rel="noopener">{{ with .venue }}{{ . }}<br>{{ end }}{{ .street }}, {{ .city }}, {{ .state }} {{ .zip }}</a>
           {{/* Shown by schedule.js while the market has a date open
-               for pickup. */}}
-          <div data-pickup-for="{{ .code }}" hidden>
+               for pickup. Its line is in the layout from the first
+               paint, shown or not, so nothing moves when it shows
+               (#651): it is the space between two markets. */}}
+          <div class="market-pickup" data-pickup-for="{{ .code }}" hidden>
             <a href="{{ relURL "order/" }}?method=scheduled&amp;series={{ .code }}">Order for pickup here</a>
           </div>
         </li>

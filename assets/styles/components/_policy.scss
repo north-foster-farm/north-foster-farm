@@ -49,10 +49,18 @@
   }
 
   // The About page's markets (shortcodes/markets.html): each market
-  // is a short stack of lines, set apart from the next like a
-  // paragraph.
+  // is a short stack of lines, set apart from the next by the line
+  // its "Order for pickup here" link takes. That line keeps its place
+  // whether the link shows or not, so the list never moves when
+  // /api/dates answers (#651); hidden, it is only out of sight and
+  // out of reach.
   .markets-list .market + .market {
-    margin-top: $paragraph-margin-bottom;
+    margin-top: 0.5rem;
+  }
+
+  .market-pickup[hidden] {
+    display: block !important;
+    visibility: hidden;
   }
 
   // Markdown tables in the body copy fill the column.

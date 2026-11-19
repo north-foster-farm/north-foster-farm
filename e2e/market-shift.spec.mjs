@@ -17,7 +17,7 @@
 // September of the season in data/series.json, as home.spec.mjs does.
 //
 // Held out of every project by `held` in playwright.config.mjs until
-// the fix lands; deleting this spec's line there turns it on.
+// the fix; turned on with it, by deleting this spec's line there.
 
 import { dates } from "./support/canned.mjs";
 import { expect, test } from "./support/counted.mjs";

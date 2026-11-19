@@ -518,8 +518,18 @@ $hero-text-shadow: 0 1px 3px rgb(0 0 0 / 50%);
     font-weight: lighter;
   }
 
+  // "Order for pickup here" keeps its line whether it shows or not,
+  // so the band never moves when /api/dates answers (#651); hidden,
+  // it is only out of sight and out of reach. It sits partly in the
+  // market's own bottom padding, so an empty one leaves little gap.
   .place-pickup {
-    margin-top: 2rem;
+    grid-area: cta;
+    margin: 0.5rem 0 -0.75rem;
+
+    &[hidden] {
+      display: block !important;
+      visibility: hidden;
+    }
   }
 
   .place-cta {
