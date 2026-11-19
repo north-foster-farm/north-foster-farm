@@ -93,7 +93,8 @@ FAILED=0
 #   send NAME SERVICE REQUEST_JSON [WANT]
 # REQUEST_JSON is { method, path, headers, body } as request.mjs prints
 # it. WANT is the class of status expected (2 by default, 4 for a call
-# meant to be refused); anything else is flagged, not fatal, since the
+# meant to be refused, `any` for a probe that checks the answer itself);
+# anything else is flagged, not fatal, since the
 # chain may still go on. Sets STATUS and OUT (the file written).
 send() {
   local name="$1" service="$2" request="$3" want="${4:-2}"
@@ -153,7 +154,7 @@ send() {
       request: $request, response: $response[0]}' > "$OUT"
   rm -f "$tmp.raw" "$tmp.err" "$tmp.body"
 
-  if [ "${STATUS%${STATUS#?}}" != "$want" ]; then
+  if [ "$want" != any ] && [ "${STATUS%${STATUS#?}}" != "$want" ]; then
     flag="  <-- expected a ${want}xx"
     FAILED=$((FAILED + 1))
   fi
@@ -257,6 +258,34 @@ for _ in 1 2 3 4 5 6; do
   [ -n "$(jq -r '.response.customers[0].id // empty' "$OUT")" ] && break
   sleep 2
 done
+
+# ---- An address Square refuses: 400 INVALID_VALUE on `email` (#678) ----
+# Searched as checkout searches. The first of these the sandbox refuses
+# is kept; each one passes the site's own rule. The last, with a
+# trailing period, is the shape a customer typed on 2026-11-19, which
+# production refused; it is kept if the sandbox takes all the others.
+LONG="$(printf 'x%.0s' $(seq 1 64))"
+REFUSED=""
+for candidate in "fixture..$RUN@example.com" ".fixture-$RUN@example.com" \
+  "fixture-$RUN.@example.com" "fixture-$RUN,x@example.com" \
+  "fixture-$RUN(x)@example.com" "fixture-$RUN[x]@example.com" \
+  "fixture-$RUN-$LONG@example.com" "fixture-$RUN@$LONG.com" \
+  "fixture-$RUN@example.com."; do
+  ARGS="$(jq -nc --arg locationId "$LOC" --arg email "$candidate" \
+    --arg key "$K-refused" --arg kind pickup --arg variationId "" \
+    '$ARGS.named')"
+  send customers-search-email-refused square \
+    "$(pick create-order "$ARGS" 0)" any
+  if [ "$STATUS" = 400 ] && jq -e '.response.errors[0]
+    | .code == "INVALID_VALUE" and .field == "email"' "$OUT" > /dev/null
+  then
+    REFUSED="$candidate"
+    break
+  fi
+  rm -f "$OUT"
+done
+[ -n "$REFUSED" ] || die "The sandbox refused none of the addresses."
+echo "  (refused: $REFUSED)"
 
 # ---- A pickup order, paid by card, refunded, completed ------------------
 new_order pickup pickup

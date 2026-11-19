@@ -1,0 +1,38 @@
+{
+  "_source": {
+    "service": "square",
+    "environment": "sandbox",
+    "recorded": "2026-11-19",
+    "squareVersion": "2026-09-16",
+    "by": "bin/fixtures/record, scrubbed by bin/fixtures/scrub"
+  },
+  "status": 400,
+  "request": {
+    "method": "POST",
+    "path": "/v2/customers/search",
+    "headers": {
+      "Square-Version": "2026-09-16",
+      "Content-Type": "application/json"
+    },
+    "body": {
+      "query": {
+        "filter": {
+          "email_address": {
+            "exact": "fixture..1795109057@example.com"
+          }
+        }
+      },
+      "limit": 1
+    }
+  },
+  "response": {
+    "errors": [
+      {
+        "code": "INVALID_VALUE",
+        "detail": "The provided email address is invalid. For more information, please refer to the Search endpoint technical reference.",
+        "field": "email",
+        "category": "INVALID_REQUEST_ERROR"
+      }
+    ]
+  }
+}
