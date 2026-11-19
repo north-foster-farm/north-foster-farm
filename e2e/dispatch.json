@@ -147,6 +147,7 @@
         "e2e/gate.spec.mjs",
         "e2e/home.spec.mjs",
         "e2e/keyboard.spec.mjs",
+        "e2e/map-link.spec.mjs",
         "e2e/map.spec.mjs",
         "e2e/market-shift.spec.mjs",
         "e2e/news-footer.spec.mjs",
@@ -178,6 +179,7 @@
         "e2e/home.spec.mjs",
         "e2e/keyboard.spec.mjs",
         "e2e/llms.spec.mjs",
+        "e2e/map-link.spec.mjs",
         "e2e/map.spec.mjs",
         "e2e/news-footer.spec.mjs",
         "e2e/news.spec.mjs",
@@ -210,6 +212,7 @@
         "e2e/gate.spec.mjs",
         "e2e/home.spec.mjs",
         "e2e/keyboard.spec.mjs",
+        "e2e/map-link.spec.mjs",
         "e2e/map.spec.mjs",
         "e2e/news-footer.spec.mjs",
         "e2e/news.spec.mjs",
@@ -244,6 +247,7 @@
         "e2e/gate.spec.mjs",
         "e2e/home.spec.mjs",
         "e2e/keyboard.spec.mjs",
+        "e2e/map-link.spec.mjs",
         "e2e/map.spec.mjs",
         "e2e/news-footer.spec.mjs",
         "e2e/news.spec.mjs",
@@ -305,6 +309,7 @@
       "specs": [
         "e2e/footer.spec.mjs",
         "e2e/keyboard.spec.mjs",
+        "e2e/map-link.spec.mjs",
         "e2e/map.spec.mjs",
         "e2e/overflow.spec.mjs",
         "e2e/policies.spec.mjs",
@@ -329,6 +334,7 @@
         "e2e/footer.spec.mjs",
         "e2e/keyboard.spec.mjs",
         "e2e/llms.spec.mjs",
+        "e2e/map-link.spec.mjs",
         "e2e/map.spec.mjs",
         "e2e/overflow.spec.mjs",
         "e2e/policies.spec.mjs",
@@ -387,6 +393,7 @@
         "e2e/kept-thursday.spec.mjs",
         "e2e/keyboard.spec.mjs",
         "e2e/maintenance.spec.mjs",
+        "e2e/map-link.spec.mjs",
         "e2e/map.spec.mjs",
         "e2e/missed-delivery.spec.mjs",
         "e2e/news-hide.spec.mjs",
@@ -466,6 +473,7 @@
         "e2e/keyboard.spec.mjs",
         "e2e/llms.spec.mjs",
         "e2e/maintenance.spec.mjs",
+        "e2e/map-link.spec.mjs",
         "e2e/map.spec.mjs",
         "e2e/missed-delivery.spec.mjs",
         "e2e/news-hide.spec.mjs",
@@ -543,6 +551,7 @@
         "e2e/group-credit.spec.mjs",
         "e2e/keyboard.spec.mjs",
         "e2e/maintenance.spec.mjs",
+        "e2e/map-link.spec.mjs",
         "e2e/map.spec.mjs",
         "e2e/membership.spec.mjs",
         "e2e/missed-delivery.spec.mjs",
@@ -827,6 +836,7 @@
         "e2e/gate.spec.mjs",
         "e2e/home.spec.mjs",
         "e2e/keyboard.spec.mjs",
+        "e2e/map-link.spec.mjs",
         "e2e/map.spec.mjs",
         "e2e/news-footer.spec.mjs",
         "e2e/news-hide.spec.mjs",
@@ -862,6 +872,7 @@
         "e2e/home.spec.mjs",
         "e2e/keyboard.spec.mjs",
         "e2e/llms.spec.mjs",
+        "e2e/map-link.spec.mjs",
         "e2e/map.spec.mjs",
         "e2e/news-footer.spec.mjs",
         "e2e/news-hide.spec.mjs",
@@ -1390,7 +1401,16 @@
         "e2e/map.spec.mjs"
       ],
       "specs": [
+        "e2e/map-link.spec.mjs",
         "e2e/map.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/map-link.spec.mjs"
+      ],
+      "specs": [
+        "e2e/map-link.spec.mjs"
       ]
     },
     {
