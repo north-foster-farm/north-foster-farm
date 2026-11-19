@@ -44,10 +44,14 @@
 //    quantity-only edit sends the kept date and the page lets it go.
 //
 // 4. After the cutoff. The page never sends another day in place of
-//    the kept one. Once the kept day's cutoff has passed, Save opens
-//    the lapsed dialog (order/lapsed.js) as it does for any lapsed
-//    date: "That delivery day is no longer available", with the days
-//    on offer. The e2e spec holds the page to this.
+//    the kept one. Once the kept day's cutoff has passed the server
+//    refuses the whole change (lib/account.mjs canChange), so the page
+//    offers no other day, and no lapsed dialog: Save ends in the card
+//    a refused change gets today (order-form.js fail, #order-failed)
+//    with the server's own words, "This order can't be changed any
+//    more." (The coordinator's decision, 2026-11-19, which James may
+//    overrule on the pull request.) The e2e spec holds the page to
+//    this.
 
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";

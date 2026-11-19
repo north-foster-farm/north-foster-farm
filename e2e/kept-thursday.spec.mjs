@@ -177,8 +177,12 @@ test.describe("an order on a replaced Thursday, on the order page (#643)",
         expect(datesSent(sent)).toEqual(["2026-12-17"]);
       });
 
-    test("says the day has passed and which days are on offer, after its " +
-      "cutoff", async ({ page, context, baseURL }) => {
+    // Past the kept day's cutoff the server refuses the whole change
+    // (lib/account.mjs canChange), so the page offers no other day: it
+    // says so in the server's words, in the card a refused change gets
+    // today (order-form.js fail, #order-failed).
+    test("says the order can no longer be changed, after its cutoff",
+      async ({ page, context, baseURL }) => {
       await page.clock.install({ time: BEFORE_CUTOFF });
 
       const { clock, sent } = await setUp(page, context, baseURL,
@@ -191,16 +195,11 @@ test.describe("an order on a replaced Thursday, on the order page (#643)",
       await page.clock.runFor(AFTER_CUTOFF - BEFORE_CUTOFF);
       await page.locator("#order-save").click();
 
-      const dialog = page.locator("#order-lapsed");
-
-      await expect(dialog).toBeVisible();
-      await expect(dialog.locator("#order-lapsed-title"))
-        .toHaveText("That delivery day is no longer available");
-
-      const list = dialog.locator("[data-lapsed-list]");
-
-      await expect(list).toContainText("Thursday, December 17");
-      await expect(list).not.toContainText("December 10");
+      await expect(page.locator(
+        "#order-result .order-result-failed [data-out='message']",
+      )).toHaveText("This order can't be changed any more.");
+      await expect(page.locator("#order-lapsed"),
+        "no days are offered that the server would refuse").toBeHidden();
       expect(datesSent(sent).filter((date) => date !== KEPT),
         "no other day was sent in its place").toEqual([]);
     });
