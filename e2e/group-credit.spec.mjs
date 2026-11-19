@@ -12,6 +12,7 @@ import {
 import {
   BACK_OFFICE_MISSING, backOffice, clearSession, op, teardown,
 } from "./support/staging.mjs";
+import { followLink } from "./support/request-error.mjs";
 
 const GROUP = "vff";
 const SERIES = "36TS";
@@ -41,7 +42,7 @@ test.describe("a member's credit (#471)", () => {
   test("shows on the account page and pays an order whole",
     async ({ page, context }) => {
       await clearSession(context);
-      await page.goto((await op("login", { email })).url);
+      await followLink(page, (await op("login", { email })).url);
       await expect(page.locator("#account-app")).toBeVisible();
 
       // The head: the balance on the Sign out line, and no group's

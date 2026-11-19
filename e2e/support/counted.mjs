@@ -27,6 +27,7 @@ import {
 import {
   challengeError, checkResponse, takeChallenges,
 } from "./challenge.mjs";
+import { maskSessions, requestError } from "./request-error.mjs";
 import { BASE_URL } from "./staging.mjs";
 
 export { expect };
@@ -67,10 +68,20 @@ const watchRoute = (route, spec) => {
 
     return abort.apply(route, args);
   };
-  route.fetch = (options = {}) => {
-    countCall(options.url || route.request().url(), BASE_URL, spec);
+  // Playwright's Route.fetch goes to the context's request straight,
+  // past the wrapper in watchRequests, and its error prints the
+  // browser's own headers, the cookie among them (#665).
+  route.fetch = async (options = {}) => {
+    const url = options.url || route.request().url();
 
-    return fetch.call(route, options);
+    countCall(url, BASE_URL, spec);
+    try {
+      return await fetch.call(route, options);
+    } catch (error) {
+      throw requestError(
+        options.method || route.request().method(), url, error
+      );
+    }
   };
 
   return route;
@@ -99,7 +110,30 @@ const watchRoutes = (target, spec) => {
   return target;
 };
 
-const watchRequests = (api, spec) => {
+// Whether a URL is the site's own: only its responses set a session.
+const ORIGIN = new URL(BASE_URL).origin;
+
+const ownSite = (url) => {
+  try {
+    return new URL(url, BASE_URL).origin === ORIGIN;
+  } catch {
+    return false;
+  }
+};
+
+// Masks the session cookies `holder` has now (request-error.mjs).
+// `list` answers its cookies. Never fails a test: the mask is the
+// second guard, behind errors that hold no header.
+const maskHeld = async (holder, list) => {
+  if (process.env.GITHUB_ACTIONS !== "true") return;
+  try {
+    maskSessions(holder, await list());
+  } catch {
+    // A context already closed has nothing left to print.
+  }
+};
+
+export const watchRequests = (api, spec) => {
   if (watched.has(api)) return api;
   watched.add(api);
 
@@ -109,11 +143,25 @@ const watchRequests = (api, spec) => {
   api.fetch = async (urlOrRequest, options) => {
     const url = typeof urlOrRequest === "string"
       ? urlOrRequest : urlOrRequest.url();
+    let res;
 
     countCall(url, BASE_URL, spec);
+    try {
+      res = await fetch.call(api, urlOrRequest, options);
+    } catch (error) {
+      // Playwright's error prints the request's headers (#665).
+      const method = (options && options.method)
+        || (typeof urlOrRequest === "string"
+          ? "GET" : urlOrRequest.method());
 
-    const res = await fetch.call(api, urlOrRequest, options);
+      throw requestError(method, url, error);
+    }
 
+    // Before the response is handed back, so before anything can
+    // print a cookie it set.
+    if (ownSite(url)) {
+      await maskHeld(api, async () => (await api.storageState()).cookies);
+    }
     await checkResponse(res.status(), url, () => res.text());
 
     return res;
@@ -126,7 +174,7 @@ const watchPage = (page, spec) => watchRoutes(page, spec);
 
 const contexts = new WeakSet();
 
-const watchContext = (context, spec = specNow()) => {
+export const watchContext = (context, spec = specNow()) => {
   if (contexts.has(context)) return context;
   contexts.add(context);
 
@@ -142,6 +190,10 @@ const watchContext = (context, spec = specNow()) => {
   context.on("response", (res) => checkResponse(
     res.status(), res.url(), () => res.text()
   ));
+  // A sign-in's response sets the session, and the context holds it.
+  context.on("response", (res) => {
+    if (ownSite(res.url())) maskHeld(context, () => context.cookies());
+  });
   context.on("page", (page) => watchPage(page, spec));
   for (const page of context.pages()) watchPage(page, spec);
   context.newPage = async (...args) => watchPage(

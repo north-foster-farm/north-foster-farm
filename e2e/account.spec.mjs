@@ -14,6 +14,7 @@ import {
   deleteCustomer,
   linkIn, mailTo, teardown, waitForMail,
 } from "./support/staging.mjs";
+import { followLink } from "./support/request-error.mjs";
 
 const SIGN_IN = "Your secure sign-in link to North Foster Farm";
 
@@ -62,7 +63,7 @@ test.describe("accounts", () => {
       expect(link, "sign-in link in the email").toBeTruthy();
       expect(new URL(link).host).toBe(new URL(page.url()).host);
 
-      await page.goto(link);
+      await followLink(page, link);
       await expect(page).toHaveURL(/\/account\/?/);
       await expect(page.locator("#account-email")).toHaveText(email);
 
@@ -76,7 +77,7 @@ test.describe("accounts", () => {
 
       // The same link a second time explains itself on /login/.
       await clearSession(page.context());
-      await page.goto(link);
+      await followLink(page, link);
       await expect(page).toHaveURL(/\/login\//);
       await expect(page.locator("[data-login-notice]")).toContainText(
         "already used"
@@ -94,7 +95,7 @@ test.describe("accounts", () => {
       const mail = await waitForMail({ to: email, subject: SIGN_IN,
         since: asked });
 
-      await page.goto(linkIn(mail, /\/api\/auth\/verify\?token=/));
+      await followLink(page, linkIn(mail, /\/api\/auth\/verify\?token=/));
       await expect(page).toHaveURL(/\/account\/?/);
       await expect(page.locator("#orders-list")).toContainText(orderId);
       await expect(page.locator("#orders-list")).not.toContainText(
@@ -168,7 +169,7 @@ test.describe("sign-in links are rate limited", () => {
 
       for (const n of [0, 2]) {
         await clearSession(page.context());
-        await page.goto(urls[n]);
+        await followLink(page, urls[n]);
         await expect(page, `link ${n + 1} of 3`).toHaveURL(/\/account\/?/);
         await expect(page.locator("#account-email")).toHaveText(email);
       }

@@ -8,6 +8,7 @@ import {
   BACK_OFFICE_MISSING, backOffice, clearMail, customerRecord, deleteCustomer,
   linkIn, mailTo,
 } from "./support/staging.mjs";
+import { followLink } from "./support/request-error.mjs";
 
 test.describe("farm news", () => {
   test.skip(!backOffice().ready, BACK_OFFICE_MISSING);
@@ -38,7 +39,7 @@ test.describe("farm news", () => {
 
         expect(link, "the confirmation's link").toBeTruthy();
         // The link lands on /news/, which says so and drops the query.
-        await page.goto(link);
+        await followLink(page, link);
         await expect(page).toHaveURL(/\/news\/$/);
         await expect(page.locator("[data-farm-list-note]").first())
           .toHaveText("You're on the list. Thanks!");

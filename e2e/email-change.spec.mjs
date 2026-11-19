@@ -10,6 +10,7 @@ import {
   BACK_OFFICE_MISSING, backOffice, clearMail, clearSession, customerRecord,
   deleteCustomer, linkIn, teardown, waitForMail,
 } from "./support/staging.mjs";
+import { followLink } from "./support/request-error.mjs";
 
 const SIGN_IN = "Your secure sign-in link to North Foster Farm";
 const CONFIRM = "Confirm your new email address for North Foster Farm";
@@ -32,6 +33,14 @@ test.describe("changing your own email", () => {
     since = new Date();
   });
 
+  // The page's URL for a check, the change link's token blanked. An
+  // email-change link is only peeked at by its GET: the page lands on
+  // #confirm=TOKEN and the token stays good until the confirm is
+  // posted. expect(page).toHaveURL() prints the whole URL when it
+  // fails, so these checks read the URL this way (#665).
+  const urlOf = (page) => page.url()
+    .replace(/confirm=[^&]*/, "confirm=_");
+
   test.afterAll(() => teardown([from, to, taken, late].flatMap((email) => [
     () => deleteCustomer(email),
     () => clearMail({ to: email, since }),
@@ -51,7 +60,7 @@ test.describe("changing your own email", () => {
     const mail = await waitForMail({ to: email, subject: SIGN_IN,
       since: asked });
 
-    await page.goto(linkIn(mail, VERIFY));
+    await followLink(page, linkIn(mail, VERIFY));
     await expect(page).toHaveURL(/\/account\/?/);
     await page.locator("[data-tab='settings']").click();
     await expect(page.locator("#prof-email")).toHaveValue(email);
@@ -99,11 +108,11 @@ test.describe("changing your own email", () => {
             "token=_")} -> ${next}`);
         }
       });
-      await page.goto(linkIn(mail, VERIFY));
+      await followLink(page, linkIn(mail, VERIFY));
       // The redirect has a query of its own, so Netlify copies none
       // onto it: the token stays in the fragment the page then drops.
-      await expect(page, hops.join("\n"))
-        .toHaveURL(/\/account\/\?via=link#settings$/);
+      await expect.poll(() => urlOf(page), hops.join("\n"))
+        .toMatch(/\/account\/\?via=link#settings$/);
       await expect(page.locator("#account-confirm")).toBeVisible();
       await expect(page.locator("#account-confirm [data-confirm-email]"))
         .toHaveText(to);
@@ -113,7 +122,7 @@ test.describe("changing your own email", () => {
 
       // Reloading the same link is another bare GET: still nothing
       // moved, and the card still shows.
-      await page.goto(linkIn(mail, VERIFY));
+      await followLink(page, linkIn(mail, VERIFY));
       await expect(page.locator("#account-confirm")).toBeVisible();
       expect(await customerRecord(to)).toBeNull();
 
@@ -125,9 +134,9 @@ test.describe("changing your own email", () => {
       expect(await customerRecord(to)).toBeNull();
 
       // The button is what actually moves it.
-      await page.goto(linkIn(mail, VERIFY));
+      await followLink(page, linkIn(mail, VERIFY));
       await page.locator("#account-confirm-submit").click();
-      await expect(page).toHaveURL(/\/account\/?#settings$/);
+      await expect.poll(() => urlOf(page)).toMatch(/\/account\/?#settings$/);
       await expect(page.locator("#account-email")).toHaveText(to);
       await expect(page.locator("#prof-email")).toHaveValue(to);
       await expect(page.locator("#email-change-sent")).toContainText(
@@ -140,7 +149,7 @@ test.describe("changing your own email", () => {
 
       // Spent: the same link no longer works.
       await clearSession(page.context());
-      await page.goto(linkIn(mail, VERIFY));
+      await followLink(page, linkIn(mail, VERIFY));
       await expect(page).toHaveURL(/\/login\/\?error=unknown/);
     });
 
@@ -193,8 +202,8 @@ test.describe("changing your own email", () => {
       // The GET still only peeks: with no session here, the account
       // page hands the link to the sign-in page's card (#345), not
       // knowing yet that the address was taken meanwhile.
-      await page.goto(linkIn(mail, VERIFY));
-      await expect(page).toHaveURL(/\/login\//);
+      await followLink(page, linkIn(mail, VERIFY));
+      await expect.poll(() => urlOf(page)).toMatch(/\/login\//);
       await expect(page.locator("#login-confirm")).toBeVisible();
       await page.locator("#login-confirm-submit").click();
       await expect(page.locator("[data-confirm-error]")).toContainText(

@@ -16,6 +16,7 @@ import {
   BACK_OFFICE_MISSING, backOffice, clearMail, clearSession, closeOrder,
   deleteCustomer, linkIn, nff, teardown, waitForMail,
 } from "./support/staging.mjs";
+import { followLink } from "./support/request-error.mjs";
 
 const SIGN_IN = "Your secure sign-in link to North Foster Farm";
 const PROMPT = "Have an account? Don't forget to sign in.";
@@ -86,7 +87,7 @@ test.describe("signing in partway through an order (#521)", () => {
         sessionStorage.clear();
       });
       await clearSession(page.context());
-      await page.goto(linkIn(mail, /\/api\/auth\/verify\?token=/));
+      await followLink(page, linkIn(mail, /\/api\/auth\/verify\?token=/));
       await expect(page).toHaveURL(/\/order\/(\?|$)/);
 
       // The lines and the delivery choice came; the address did not.
@@ -111,7 +112,7 @@ test.describe("signing in partway through an order (#521)", () => {
       // Signed in in another tab, as the emailed link would.
       const other = await page.context().newPage();
 
-      await other.goto(await nff(["login", email]));
+      await followLink(other, await nff(["login", email]));
       await expect(other).toHaveURL(/\/account\/?/);
       await other.close();
 
@@ -141,7 +142,7 @@ test.describe("signing in partway through an order (#521)", () => {
   test("an order tab left open reloads once when another tab signs out",
     async ({ page }) => {
       await clearSession(page.context());
-      await page.goto(await nff(["login", email]));
+      await followLink(page, await nff(["login", email]));
       await expect(page).toHaveURL(/\/account\/?/);
 
       const order = new OrderPage(page);

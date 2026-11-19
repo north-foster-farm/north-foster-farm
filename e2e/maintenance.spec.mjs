@@ -20,6 +20,7 @@ import {
   BACK_OFFICE_MISSING, BASE_URL, backOffice, clearMail, closeOrder, nff, op,
   stagingEnv, teardown, waitForMail,
 } from "./support/staging.mjs";
+import { followLink } from "./support/request-error.mjs";
 
 const MESSAGE = "Our site is currently under maintenance. Online ordering " +
   "and account access are temporarily unavailable, but we'll be up and " +
@@ -176,7 +177,7 @@ test.describe("maintenance mode", () => {
     const on = links.match(/ON:\s+(\S+)/)[1];
     const off = links.match(/OFF:\s+(\S+)/)[1];
 
-    await page.goto(on);
+    await followLink(page, on);
     await expect(page.getByRole("button", { name: "Turn maintenance ON" }))
       .toBeVisible();
     expect(await status(), "opening the link flips nothing").toBe(false);
@@ -185,7 +186,7 @@ test.describe("maintenance mode", () => {
     await expect(page.getByText("Maintenance is now ON")).toBeVisible();
     expect(await status()).toBe(true);
 
-    await page.goto(off);
+    await followLink(page, off);
     await page.getByRole("button", { name: "Turn maintenance OFF" }).click();
     await expect(page.getByText("Maintenance is now OFF")).toBeVisible();
     expect(await status()).toBe(false);

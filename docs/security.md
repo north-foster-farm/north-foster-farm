@@ -17,7 +17,16 @@ are standing, not a stopgap:
   branch. A leaked value is rotated (`docs/secrets.md`).
 - **Actions logs print counts and outcomes only.** Workflow logs and
   uploaded artifacts are readable by anyone, so neither may hold a
-  finding, a report or a name.
+  finding, a report or a name. The e2e suite's request errors never
+  print headers or a link's token: an error from a request of its own
+  (a request context, `route.fetch()`, the back office's `op()`)
+  names the method, the path without its query and the kind of
+  failure, and a session cookie it obtains is masked. A spec opens a
+  link that carries a token (sign-in, confirmation, maintenance) with
+  `followLink`, never `page.goto`, whose error prints the whole URL
+  (`e2e/support/request-error.mjs`; 2026-11-19, #665). Playwright's
+  other errors, a failed `expect(response).toBeOK()` among them,
+  still print what Playwright prints.
 - **Exploitable specifics stay out of public issues.** An issue may
   say that a weakness or incident exists, not how to use it.
 - **Incident write-ups live in the gitignored `incidents/` folder** at

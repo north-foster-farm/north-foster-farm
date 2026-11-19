@@ -17,6 +17,7 @@ import {
   BACK_OFFICE_MISSING, backOffice, clearMail, closeOrder, deleteCustomer,
   linkIn, orderRecord, teardown, waitForMail,
 } from "./support/staging.mjs";
+import { followLink } from "./support/request-error.mjs";
 
 const SIGN_IN = "Your secure sign-in link to North Foster Farm";
 const ORDER_ID = /^NFF-\d{4}-[A-Z2-9]{6}$/;
@@ -95,7 +96,7 @@ test.describe("a market order, moved to the drop site", () => {
     const mail = await waitForMail({ to: email, subject: SIGN_IN,
       since: asked });
 
-    await page.goto(linkIn(mail, /\/api\/auth\/verify\?token=/));
+    await followLink(page, linkIn(mail, /\/api\/auth\/verify\?token=/));
     await expect(page).toHaveURL(/\/account\/?/);
     await page.goto("/account/#orders");
     await expect(page.locator("#orders-list")).toContainText(orderId);

@@ -11,6 +11,7 @@ import {
   deleteContactMessages, deleteCustomer, linkIn, mailTo, orderLimitHeaders,
   outbox, teardown, waitForMail,
 } from "./support/staging.mjs";
+import { followLink } from "./support/request-error.mjs";
 
 // The contact form allows 5 messages in 10 minutes from one address,
 // and a burn-in runs this file ten times over. Off production the
@@ -136,7 +137,7 @@ test.describe("contact messages (#140)", () => {
       // cached the signed-out answer /login/ got.
       const tab = await page.context().newPage();
 
-      await tab.goto(link);
+      await followLink(tab, link);
       await expect(tab).toHaveURL(/\/account\/?/);
 
       await tab.goto("/contact/");

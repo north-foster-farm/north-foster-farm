@@ -13,6 +13,7 @@ import {
   BACK_OFFICE_MISSING, backOffice, clearMail, closeOrder,
   deleteCustomer, linkIn, orderRecord, teardown, waitForMail,
 } from "./support/staging.mjs";
+import { followLink } from "./support/request-error.mjs";
 
 const SIGN_IN = "Your secure sign-in link to North Foster Farm";
 
@@ -69,7 +70,7 @@ test.describe("changing a paid order's items (#284)", () => {
       const mail = await waitForMail({ to: email, subject: SIGN_IN,
         since: asked });
 
-      await page.goto(linkIn(mail, /\/api\/auth\/verify\?token=/));
+      await followLink(page, linkIn(mail, /\/api\/auth\/verify\?token=/));
       await expect(page).toHaveURL(/\/account\/?/);
 
       // Hold the date list until Save is pressed.
@@ -190,7 +191,7 @@ test.describe("changing a paid order's items (#284)", () => {
       const mail = await waitForMail({ to: email, subject: SIGN_IN,
         since: asked });
 
-      await page.goto(linkIn(mail, /\/api\/auth\/verify\?token=/));
+      await followLink(page, linkIn(mail, /\/api\/auth\/verify\?token=/));
       await expect(page).toHaveURL(/\/account\/?/);
       await context.route("**/api/dates", async (route) => {
         await new Promise((r) => setTimeout(r, 1500));
@@ -247,7 +248,7 @@ test.describe("changing a scheduled order's items (#312)", () => {
     const mail = await waitForMail({ to: email, subject: SIGN_IN,
       since: asked });
 
-    await page.goto(linkIn(mail, /\/api\/auth\/verify\?token=/));
+    await followLink(page, linkIn(mail, /\/api\/auth\/verify\?token=/));
     await expect(page).toHaveURL(/\/account\/?/);
     await page.goto(`/order/?edit=${orderId}`);
 

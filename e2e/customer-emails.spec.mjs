@@ -18,6 +18,7 @@ import {
   BACK_OFFICE_MISSING, backOffice, clearMail, closeOrder, customerRecord,
   deleteCustomer, linkIn, op, orderRecord, teardown, waitForMail,
 } from "./support/staging.mjs";
+import { followLink } from "./support/request-error.mjs";
 
 test.describe.configure({ mode: "serial" });
 
@@ -116,7 +117,7 @@ test.describe("customer emails, from their triggers", () => {
 
       // Sign in by the link the CLI would make, then save an address
       // outside the approved list, as the account page does.
-      await page.goto((await op("login", { email })).url);
+      await followLink(page, (await op("login", { email })).url);
       await expect(page).toHaveURL(/\/account\//);
 
       const saved = await page.evaluate(async () => {

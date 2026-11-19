@@ -12,6 +12,7 @@ import { OrderPage, expect, test, uniqueEmail } from "./support/order.mjs";
 import {
   BACK_OFFICE_MISSING, backOffice, clearSession, op, teardown,
 } from "./support/staging.mjs";
+import { followLink } from "./support/request-error.mjs";
 
 const GROUP = "vff";
 const GYM = locationData.locations.find((l) => l.code
@@ -26,7 +27,7 @@ const member = async (context, page, tag, made) => {
   made.push(email);
   await op("customerJoin", { email, key: GROUP });
   await clearSession(context);
-  await page.goto((await op("login", { email })).url);
+  await followLink(page, (await op("login", { email })).url);
   await expect(page.locator("#account-app")).toBeVisible();
 
   return email;

@@ -17,6 +17,7 @@ import { MACHINE_COOKIE } from "../../netlify/functions/lib/gate.mjs";
 import { SCOPE_COOKIE } from "../../netlify/functions/lib/stock-pins.mjs";
 import { countCall } from "./calls.mjs";
 import { challengeError, isChallenge } from "./challenge.mjs";
+import { requestError } from "./request-error.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
@@ -115,7 +116,10 @@ export const op = async (name, args = {}, {
         continue;
       }
       if (allowFail) return null;
-      throw new Error(`e2e ${name}: ${error.message}`, { cause: error });
+      // No cause and none of fetch's own words: the request carried
+      // the token (#665, request-error.mjs).
+      throw requestError("POST", `${BASE_URL}/api/staging/e2e`, error,
+        `e2e ${name}`);
     }
 
     if (res.ok) return res.json();
