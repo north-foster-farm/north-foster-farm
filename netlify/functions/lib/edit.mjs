@@ -379,46 +379,63 @@ const chargeSquare = async (order, change, k, payment, {
 
 // Square's view after the money: the fulfillment the farm packs from
 // follows the change, on the order that carries it. Failures are the
-// farm's to fix by hand; the customer's change stands.
+// farm's to fix by hand; the customer's change stands. A cancel that
+// fails for good still moves the record to the new order, which is
+// paid and holds the change, and keeps the old one as
+// `oldFulfilmentOrderId`: its fulfillment is the step left to finish.
 const syncFulfillment = async (stores, saved, change, { changeOrderId, k,
-  square, env, fetchImpl, mail, now }) => {
+  square, env, fetchImpl, sleep, mail, now }) => {
   const holder = saved.square && (saved.square.fulfilmentOrderId
     || saved.square.squareOrderId);
 
   if (!holder) return saved;
 
+  let step = "update";
+  let carrier = changeOrderId;
+
   try {
     if (!change.carries) {
-      await square.updateFulfillment(holder, saved, { env, fetchImpl });
+      await square.updateFulfillment(holder, saved, {
+        env, fetchImpl, sleep,
+      });
 
       return saved;
     }
 
-    let carrier = changeOrderId;
-
     if (!carrier) {
+      step = "create";
       const created = await square.createChangeOrder(saved, change, k, {
         env, fetchImpl,
       });
 
       carrier = created.squareOrderId;
+      step = "pay";
       await square.payZeroOrder(carrier, k, { env, fetchImpl });
     }
-    await square.cancelFulfillment(holder, { env, fetchImpl });
+    step = "cancel";
+    await square.cancelFulfillment(holder, { env, fetchImpl, sleep });
 
     return amendOrder(stores, saved.id, {
       square: { ...saved.square, fulfilmentOrderId: carrier },
     }, "square.fulfilment_moved", now);
   } catch (error) {
+    const code = (error && error.code) || null;
+
     log.error({
-      event: "square.update_failed", id: saved.id,
+      event: "square.update_failed", id: saved.id, step, code,
       error: String(error && error.message),
     });
     await alert(stores, "square.edit_failed", {
-      id: saved.id, error: String(error && error.message),
+      id: saved.id, step, code, error: String(error && error.message),
     }, { env, mail, now });
 
+    const moved = step === "cancel";
+
     return amendOrder(stores, saved.id, (f) => ({
+      ...(moved ? { square: {
+        ...f.square, fulfilmentOrderId: carrier,
+        oldFulfilmentOrderId: holder,
+      } } : {}),
       flags: { ...(f.flags || {}), squareOutOfSync: true },
     }), "square.out_of_sync", now);
   }
@@ -516,7 +533,7 @@ export const applyEdit = async (stores, plan, {
   order = await amendOrder(stores, id, markEdit(order, key, { state: "done" }),
     by === "farm" ? "farm.changed" : "edit.done", now);
   order = await syncFulfillment(stores, order, change, {
-    changeOrderId, k, square, env, fetchImpl, mail, now,
+    changeOrderId, k, square, env, fetchImpl, sleep, mail, now,
   });
 
   // Keyed by the edit, so a retry or the jobs never send twice.

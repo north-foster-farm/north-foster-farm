@@ -464,8 +464,11 @@ through and is recorded, but Square's fulfillment could not follow it,
 so what Square shows to pack or where is out of date. The order is
 flagged `squareOutOfSync`. Pack from `bin/nff orders show <id>`, not
 from Square. Check Square status and the log (`event:
-square.update_failed`), then fix the fulfillment in the Square
-dashboard by hand.
+square.update_failed`, with the `step` that failed and Square's
+`code`), then fix the fulfillment in the Square dashboard by hand.
+When the step is `cancel`, the new order already holds the change and
+the record's `square.oldFulfilmentOrderId` names the order whose
+fulfillment is still open: cancel that one.
 
 **`square.complete_failed`.** An order was fulfilled, from the CLI or
 by the close job, and the site's record says so, but Square could not

@@ -999,9 +999,10 @@ describe("a rescheduled pickup", () => {
         { status: 409 })),
     });
 
-    await assert.rejects(
-      updateFulfillment("SQO", moved(), { env, fetchImpl: impl }),
-      SquareError);
+    // A conflict is tried again after a wait (#658): no real timer.
+    await assert.rejects(updateFulfillment("SQO", moved(), {
+      env, fetchImpl: impl, sleep: async () => {},
+    }), SquareError);
   });
 });
 

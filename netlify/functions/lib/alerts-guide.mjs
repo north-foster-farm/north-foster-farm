@@ -171,7 +171,10 @@ export const GUIDE = {
       "flagged squareOutOfSync.",
     action: "Pack from bin/nff orders show <id>, not from Square. Check " +
       "Square status and the log (event square.update_failed), then fix " +
-      "the fulfillment in the Square dashboard by hand.",
+      "the fulfillment in the Square dashboard by hand. When the step " +
+      "is cancel, the new order already holds the change and the " +
+      "record's square.oldFulfilmentOrderId names the order whose " +
+      "fulfillment is still open: cancel that one.",
   },
   "square.complete_failed": {
     means: "An order was fulfilled and the record says so, but Square " +

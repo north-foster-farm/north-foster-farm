@@ -472,7 +472,8 @@ export const applyChange = async (stores, order, plan, {
       });
     } catch (error) {
       log.error({
-        event: "square.update_failed", id, error: String(error.message),
+        event: "square.update_failed", id, step: "update",
+        code: error.code || null, error: String(error.message),
       });
       await amendOrder(stores, id, (f) => ({
         flags: { ...(f.flags || {}), squareOutOfSync: true },

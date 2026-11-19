@@ -943,60 +943,118 @@ export const getOrder = async (squareOrderId, {
   return currentOrder(settings(env), squareOrderId, fetchImpl);
 };
 
+// Square bumps an order's version when it applies a refund, a moment
+// after the refund is made, so a change read just before can be
+// refused as stale (#658). Only that refusal, Square's code
+// VERSION_MISMATCH, is tried again: from a fresh read, at the version
+// that read gives. Three PUTs in all cover the refund's bump and one
+// more, and a second of waiting in all keeps an edit, which also pays
+// and refunds, well inside the function's time limit.
+export const VERSION_TRIES = 3;
+export const VERSION_WAIT_MS = 1000;
+const VERSION_DELAYS = [250, 750];
+const VERSION_MISMATCH = "VERSION_MISMATCH";
+
+const realSleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// `put(current, uid)` gets the order as read now and the uid of the
+// fulfillment the first read found, so every try changes the same one.
+// -> what `put` returns; throws anything but a version conflict at once,
+// and the last conflict once the tries or the wait are spent.
+const atCurrentVersion = async (cfg, squareOrderId, fetchImpl, sleep,
+  put) => {
+  let uid = null;
+  let waited = 0;
+
+  for (let tries = 1; ; tries++) {
+    const current = await currentOrder(cfg, squareOrderId, fetchImpl);
+    const fulfillments = current.fulfillments || [];
+    const existing = uid
+      ? fulfillments.find((f) => f.uid === uid)
+      : fulfillments[0];
+
+    if (uid && !existing) {
+      throw new SquareError("Square order lost its fulfillment");
+    }
+    if (existing) uid = existing.uid;
+
+    try {
+      return await put(current, existing);
+    } catch (error) {
+      if (!error || error.code !== VERSION_MISMATCH) throw error;
+
+      const delay = Math.min(
+        VERSION_DELAYS[Math.min(tries - 1, VERSION_DELAYS.length - 1)],
+        VERSION_WAIT_MS - waited
+      );
+
+      if (tries >= VERSION_TRIES || delay <= 0) throw error;
+
+      waited += delay;
+      await sleep(delay);
+    }
+  }
+};
+
 export const updateFulfillment = async (squareOrderId, order, {
   env = process.env,
   fetchImpl = globalThis.fetch,
+  sleep = realSleep,
 } = {}) => {
   if (isFake(env)) return fake.updateFulfillment(squareOrderId, order, { env });
 
   const cfg = settings(env);
-  const current = await currentOrder(cfg, squareOrderId, fetchImpl);
-  const existing = (current.fulfillments || [])[0];
 
-  if (!existing) throw new SquareError("Square order has no fulfillment");
+  return atCurrentVersion(cfg, squareOrderId, fetchImpl, sleep,
+    async (current, existing) => {
+      if (!existing) throw new SquareError("Square order has no fulfillment");
 
-  const next = fulfillment(order);
+      const next = fulfillment(order);
 
-  delete next.state;
-  // A pickup at a site the data no longer has keeps its time.
-  if (next.pickup_details && !next.pickup_details.pickup_at) {
-    next.pickup_details.pickup_at = (existing.pickup_details || {}).pickup_at;
-  }
+      delete next.state;
+      // A pickup at a site the data no longer has keeps its time.
+      if (next.pickup_details && !next.pickup_details.pickup_at) {
+        next.pickup_details.pickup_at = (existing.pickup_details || {})
+          .pickup_at;
+      }
 
-  const data = await call(cfg, orderPath(squareOrderId), {
-    order: {
-      location_id: current.location_id || cfg.locationId,
-      version: current.version,
-      fulfillments: [{ uid: existing.uid, ...next }],
-    },
-  }, fetchImpl, "PUT");
+      const data = await call(cfg, orderPath(squareOrderId), {
+        order: {
+          location_id: current.location_id || cfg.locationId,
+          version: current.version,
+          fulfillments: [{ uid: existing.uid, ...next }],
+        },
+      }, fetchImpl, "PUT");
 
-  return { id: squareOrderId, version: data.order && data.order.version };
+      return { id: squareOrderId, version: data.order && data.order.version };
+    });
 };
 
 export const cancelFulfillment = async (squareOrderId, {
   env = process.env,
   fetchImpl = globalThis.fetch,
+  sleep = realSleep,
 } = {}) => {
   if (isFake(env)) return fake.cancelFulfillment(squareOrderId, { env });
 
   const cfg = settings(env);
-  const current = await currentOrder(cfg, squareOrderId, fetchImpl);
-  const existing = (current.fulfillments || [])[0];
 
-  if (!existing || existing.state === "CANCELED") {
-    return { id: squareOrderId, cancelled: false };
-  }
+  return atCurrentVersion(cfg, squareOrderId, fetchImpl, sleep,
+    async (current, existing) => {
+      if (!existing || existing.state === "CANCELED") {
+        return { id: squareOrderId, cancelled: false };
+      }
 
-  await call(cfg, orderPath(squareOrderId), {
-    order: {
-      location_id: current.location_id || cfg.locationId,
-      version: current.version,
-      fulfillments: [{ uid: existing.uid, state: "CANCELED" }],
-    },
-  }, fetchImpl, "PUT");
+      await call(cfg, orderPath(squareOrderId), {
+        order: {
+          location_id: current.location_id || cfg.locationId,
+          version: current.version,
+          fulfillments: [{ uid: existing.uid, state: "CANCELED" }],
+        },
+      }, fetchImpl, "PUT");
 
-  return { id: squareOrderId, cancelled: true };
+      return { id: squareOrderId, cancelled: true };
+    });
 };
 
 // Closes a fulfilled order in Square (#328): the fulfillment and the

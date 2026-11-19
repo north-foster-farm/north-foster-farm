@@ -1077,7 +1077,14 @@ the order already holds may stay after it sells out. A switch between
 delivery and pickup puts the fulfillment on a new Square order ($0 and
 paid when nothing is owed, named in `square.fulfilmentOrderId`) and
 cancels the old one, since Square cannot change a fulfillment's type;
-once changed, the fulfillment's note lists the whole order. Each edit
+once changed, the fulfillment's note lists the whole order. Square
+bumps an order's version when it applies a refund, so a cancel or
+update refused with `VERSION_MISMATCH` is tried again from a fresh
+read, `VERSION_TRIES` PUTs and `VERSION_WAIT_MS` of waiting at most
+(#658). A cancel that still fails leaves the new order in
+`square.fulfilmentOrderId`, the old one, still open in Square, in
+`square.oldFulfilmentOrderId`, and the order flagged
+`squareOutOfSync`. Each edit
 has its own idempotency key and a line in `edits`; the customer gets
 "Your order is updated" with the money, the farm "Order changed".
 

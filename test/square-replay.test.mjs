@@ -15,6 +15,7 @@ import {
   completeOrder, createOrder, createPayment, customerOrders, deleteCustomer,
   findPaid, getPayment, getRefund, inventoryCounts, payZeroOrder,
   paymentRecord, refundPayment, searchOpenOrders, updateFulfillment,
+  VERSION_TRIES,
 } from "../netlify/functions/lib/square.mjs";
 import { squareTotal } from "../netlify/functions/lib/fake-square.mjs";
 import { differences, recorded, serve as serveFrom } from "./recorded.mjs";
@@ -346,10 +347,13 @@ describe("orders read and changed", () => {
   });
 
   it("reads Square's refusal of a stale version", async () => {
-    const error = await failed(
-      ["order-get-paid-external", "order-update-stale-version"],
-      (o) => cancelFulfillment(id, o)
-    );
+    // A conflict is tried again from a fresh read (#658), so the
+    // read and the refusal are served once for every try.
+    const rounds = Array.from({ length: VERSION_TRIES }, () => [
+      "order-get-paid-external", "order-update-stale-version",
+    ]).flat();
+    const error = await failed(rounds,
+      (o) => cancelFulfillment(id, { ...o, sleep: async () => {} }));
     const { status, response } = rec("order-update-stale-version");
 
     assert.equal(error.status, status);
