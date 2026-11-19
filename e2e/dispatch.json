@@ -148,6 +148,7 @@
         "e2e/home.spec.mjs",
         "e2e/keyboard.spec.mjs",
         "e2e/map.spec.mjs",
+        "e2e/market-shift.spec.mjs",
         "e2e/news-footer.spec.mjs",
         "e2e/news.spec.mjs",
         "e2e/overflow.spec.mjs",
@@ -279,6 +280,7 @@
         "e2e/home.spec.mjs",
         "e2e/keyboard.spec.mjs",
         "e2e/llms.spec.mjs",
+        "e2e/market-shift.spec.mjs",
         "e2e/news-hide.spec.mjs",
         "e2e/news-page.spec.mjs",
         "e2e/overflow.spec.mjs",
@@ -1377,6 +1379,14 @@
       ],
       "specs": [
         "e2e/map.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/market-shift.spec.mjs"
+      ],
+      "specs": [
+        "e2e/market-shift.spec.mjs"
       ]
     },
     {
