@@ -48,7 +48,7 @@ const CARD = { method: "card", sourceId: "cnon:tok" };
 
 // Square at lib/square.mjs's surface. Every call is kept in `calls` as
 // [name, Square order id]. `fail` names the calls that throw, by name
-// and order id.
+// and order id; a test may change it once the order is made.
 export const stubSquare = (fail = {}) => {
   const calls = [];
   let n = 0;
@@ -102,7 +102,7 @@ export const stubSquare = (fail = {}) => {
     },
   };
 
-  return { square, calls };
+  return { square, calls, fail };
 };
 
 // The Square order ids that `name` was called with, in order.
@@ -160,25 +160,28 @@ const toPickup = (stores, id, square) => switchTo(stores, id, {
   fulfilment: ONFARM,
 }, square);
 
-// Each builder -> { stores, id, square, calls }, `calls` emptied once
-// the order is made, so it holds only what the test then does.
-const made = async (stores, id, square, calls, want) => {
+// Each builder -> { stores, id, square, calls, fail }. Once the order
+// is made, `calls` is emptied, so it holds only what the test then
+// does, and `fail` is emptied, so every call succeeds until the test
+// names one that throws.
+const made = async ({ stores, id }, { square, calls, fail }, want) => {
   const saved = await getOrder(stores, id);
 
   for (const [key, value] of Object.entries(want)) {
     assert.equal(saved.square[key], value, `setup: square.${key}`);
   }
   calls.length = 0;
+  for (const key of Object.keys(fail)) delete fail[key];
 
-  return { stores, id, square, calls };
+  return { stores, id, square, calls, fail };
 };
 
 // Never switched: an on-farm pickup on SQO.
 export const neverSwitched = async () => {
-  const { square, calls } = stubSquare();
-  const { stores, id } = await placed(square);
+  const stub = stubSquare();
+  const order = await placed(stub.square);
 
-  return made(stores, id, square, calls, {
+  return made(order, stub, {
     squareOrderId: "SQO", fulfilmentOrderId: undefined,
     oldFulfilmentOrderId: undefined,
   });
@@ -187,12 +190,12 @@ export const neverSwitched = async () => {
 // Switched once: pickup to delivery, the fee paid on SQC1, which now
 // holds the delivery; SQO's pickup is cancelled.
 export const switchedOnce = async () => {
-  const { square, calls } = stubSquare();
-  const { stores, id } = await placed(square);
+  const stub = stubSquare();
+  const order = await placed(stub.square);
 
-  await toDelivery(stores, id, square);
+  await toDelivery(order.stores, order.id, stub.square);
 
-  return made(stores, id, square, calls, {
+  return made(order, stub, {
     squareOrderId: "SQO", fulfilmentOrderId: "SQC1",
     oldFulfilmentOrderId: undefined,
   });
@@ -202,13 +205,13 @@ export const switchedOnce = async () => {
 // $0 order SQC2 now holds it. SQO's and SQC1's fulfillments are
 // cancelled.
 export const switchedTwice = async () => {
-  const { square, calls } = stubSquare();
-  const { stores, id } = await placed(square);
+  const stub = stubSquare();
+  const order = await placed(stub.square);
 
-  await toDelivery(stores, id, square);
-  await toPickup(stores, id, square);
+  await toDelivery(order.stores, order.id, stub.square);
+  await toPickup(order.stores, order.id, stub.square);
 
-  return made(stores, id, square, calls, {
+  return made(order, stub, {
     squareOrderId: "SQO", fulfilmentOrderId: "SQC2",
     oldFulfilmentOrderId: undefined,
   });
@@ -216,18 +219,20 @@ export const switchedTwice = async () => {
 
 // Switched twice, the second switch's cancel of SQC1 refused for good
 // (#658): SQC2 holds the pickup, SQC1's delivery is still open in
-// Square and the record names it as `oldFulfilmentOrderId`.
+// Square and the record names it as `oldFulfilmentOrderId`. The refusal
+// is setup only: once the order is made, SQC1's cancel succeeds unless
+// the test says otherwise.
 export const staleHolder = async () => {
-  const { square, calls } = stubSquare({
+  const stub = stubSquare({
     cancelFulfillment: (holder) => (holder === "SQC1"
       ? refusal(CONFLICT, `/v2/orders/${holder}`) : null),
   });
-  const { stores, id } = await placed(square);
+  const order = await placed(stub.square);
 
-  await toDelivery(stores, id, square);
-  await toPickup(stores, id, square);
+  await toDelivery(order.stores, order.id, stub.square);
+  await toPickup(order.stores, order.id, stub.square);
 
-  return made(stores, id, square, calls, {
+  return made(order, stub, {
     squareOrderId: "SQO", fulfilmentOrderId: "SQC2",
     oldFulfilmentOrderId: "SQC1",
   });
