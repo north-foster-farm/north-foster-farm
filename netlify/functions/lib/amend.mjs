@@ -85,8 +85,9 @@ const movedEvent = (order, next, now) => {
     : [];
 };
 
-// The Square order that carries an order's fulfillment.
-const holderOf = (order) => order.square
+// The Square order that carries an order's fulfillment: the change
+// order a switch moved it to, else the one the customer paid on.
+export const holderOf = (order) => order.square
   && (order.square.fulfilmentOrderId || order.square.squareOrderId);
 
 const delivering = (order) => order.fulfilment.method === "delivery";

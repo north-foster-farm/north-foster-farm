@@ -24,6 +24,7 @@ import {
   phoneOk, zipInfo,
 } from "../../../assets/scripts/order/lib/validate.mjs";
 import { cancelOrder as cancelAndRefund } from "./admin.mjs";
+import { holderOf } from "./amend.mjs";
 import { placeOf } from "./describe.mjs";
 import {
   groupOf, memberKeyOf, memberTerms, offeredGroup, retag,
@@ -463,16 +464,17 @@ export const applyChange = async (stores, order, plan, {
   const { patch, moved, from } = plan;
   const f = patch.fulfilment;
   const changed = await amendOrder(stores, id, patch, `${by}.changed`, now);
-
   // Square carries the fulfillment the farm packs from; keep it in step.
-  if (order.square && order.square.squareOrderId) {
+  // After a switch it lives on the change order, not the one paid on,
+  // and a stale holder (`oldFulfilmentOrderId`) is the farm's to cancel.
+  const holder = holderOf(changed);
+
+  if (holder) {
     try {
-      await square.updateFulfillment(order.square.squareOrderId, changed, {
-        env,
-      });
+      await square.updateFulfillment(holder, changed, { env });
     } catch (error) {
       log.error({
-        event: "square.update_failed", id, step: "update",
+        event: "square.update_failed", id, step: "update", holder,
         code: error.code || null, error: String(error.message),
       });
       await amendOrder(stores, id, (f) => ({
