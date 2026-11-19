@@ -8,6 +8,7 @@ import { api } from "../utils/api.js";
 import { failBusy, isBusy, setBusy } from "../utils/busy-button.js";
 import { forgetCustomer } from "../order/draft.js";
 import { fresh, stampFrom } from "./cache.js";
+import { announceOnLoad } from "../utils/maintenance.js";
 import { whileLoading } from "../utils/skeleton.js";
 
 const KEY = "nff-me";
@@ -73,15 +74,23 @@ export const signOut = async (event) => {
   location.href = "/";
 };
 
+// Under maintenance the answer carries the farm's message, and the
+// order, account and sign-in pages show it at once (#489): from here,
+// since every page's header asks, so no page asks a second time.
 export const me = async () => {
   const cached = read();
 
-  if (cached) return cached;
+  if (cached) {
+    announceOnLoad(cached);
+
+    return cached;
+  }
 
   const { ok, data } = await api("/api/me");
   const result = ok && data ? data : { signedIn: false };
 
   write(result);
+  announceOnLoad(result);
 
   return result;
 };

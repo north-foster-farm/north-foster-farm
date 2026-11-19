@@ -74,9 +74,7 @@ const stagingOnly = local ? ["**/gate.spec.mjs"] : [];
 
 // Criteria tests written before their fix, held out of every project
 // until it lands: deleting a spec's line turns it on.
-const held = [
-  "**/maintenance-bar.spec.mjs", // #489
-];
+const held = [];
 
 // Quarantined tests (e2e/quarantine.json, James's call each time) stay
 // out of a run against staging, so they don't gate a promotion, until

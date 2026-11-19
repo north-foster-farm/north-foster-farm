@@ -19,6 +19,7 @@ import {
 } from "../utils/busy-button.js";
 import { say } from "../utils/contact-link.js";
 import { fieldError } from "../utils/field-errors.mjs";
+import { announce } from "../utils/maintenance.js";
 import {
   confirmHash, isFor, readConfirm, showConfirm,
 } from "../utils/email-confirm.js";
@@ -133,7 +134,6 @@ class Account {
       || {}).code || "";
     this.app = document.getElementById("account-app");
     this.region = document.getElementById("account-region");
-    this.loading = document.getElementById("account-loading");
     this.flash = document.getElementById("account-flash");
     this.customer = null;
     this.orders = [];
@@ -157,8 +157,10 @@ class Account {
   async fetch() {
     const me = await api("/api/me");
 
-    // Maintenance keeps sessions but closes the account: the message
-    // stands in for the page (#267).
+    // Maintenance keeps sessions but closes the account (#267): the
+    // bar across the top says so, and nothing of the account shows.
+    // The bar alone carries the message since #489, so the page never
+    // says the same sentence twice.
     if (me.ok && me.data.maintenance) return { maintenance: me.data.message };
     if (this.confirm && (me.status === 401
       || (me.ok && !me.data.signedIn))) {
@@ -205,8 +207,7 @@ class Account {
     inGroup = false, membership = null,
   }) {
     if (maintenance) {
-      write(this.loading, maintenance);
-      this.loading.hidden = false;
+      announce(maintenance);
 
       return;
     }

@@ -15,7 +15,18 @@ each request. There is no rebuild and no Netlify variable to change.
 Those words are `MESSAGE` in `lib/maintenance.mjs`. The API answers
 503 `{ maintenance: true, message }`, and the pages put the message
 where the customer is: a bar across the top (`utils/maintenance.js`),
-in place of the account page, or in the sign-in and sign-up forms.
+or in the sign-in and sign-up forms.
+
+The order, account and sign-in pages show the bar as soon as they
+load, from the `/api/me` answer the header already asks for
+(`session/session.js`), so nobody fills a cart before learning that
+Pay is refused (#489, 2026-11-19: the bar used to wait for a refused
+change, and the account page carried the message in place of its
+content; now the bar alone carries it there and the page shows
+nothing of the account). A cached `/api/me` answer counts for five
+minutes, so a tab already open can be that late to show the bar or to
+drop it. An admin's `/api/me` carries no notice, so an admin sees no
+bar.
 
 ## What it blocks, and what keeps running
 
