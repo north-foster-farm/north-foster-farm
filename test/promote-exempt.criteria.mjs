@@ -41,8 +41,10 @@
 // judged run is the newest run of e2e-staging.yml for the commit that
 // is on `e2e/staging-full`, by `push`, `completed` with conclusion
 // `failure`, whose job `e2e-staging` has its step `Run` concluded
-// `failure`. With none, today's refusal stands ("the full e2e suite
-// has not passed against staging on SHA. Push it to …").
+// `failure`, every step before Run concluded `success` and every step
+// after it `success` or `skipped` (#656 review, finding 2). With none,
+// today's refusal stands ("the full e2e suite has not passed against
+// staging on SHA. Push it to …").
 //
 // What failed in it, and why, from the log of its `e2e-staging` job:
 // `api("repos/north-foster-farm/north-foster-farm/actions/jobs/ID/logs")`
@@ -53,14 +55,27 @@
 // `  N failed` and the N lines after it, each
 // `[PROJECT] › SPEC:LINE:COL › TITLE`, with any trailing run of `─`
 // and spaces dropped. When there is no such list, or it holds other
-// than N tests, the failed tests cannot be read. Each failed test's
-// reason is the first non-blank line after its numbered report header
-// `K) [PROJECT] › SPEC:LINE:COL › TITLE`. A failure is the bot
-// challenge when that line, trimmed, matches
+// than N tests, the failed tests cannot be read. Nor can they when the
+// summary after the list holds anything but, in this order and each
+// at most once, `  N skipped` and `  N passed (DURATION)`, before the
+// `##[error]Process completed with exit code N.` line: Playwright's
+// `N interrupted`, `N flaky`, `N did not run` and `N error(s) were not
+// a part of any test` lines make the log unreadable. So does a log
+// without exactly one `Running N tests using W worker(s)` line whose N
+// is failed + skipped + passed (#656 review, finding 1).
+//
+// Each failed test's reason is the first non-blank line after its
+// numbered report header `K) [PROJECT] › SPEC:LINE:COL › TITLE`; its
+// report runs from that header to the next one, or to `  N failed`. A
+// failure is the bot challenge when that line, trimmed, matches
 //   /^Error: .*: \d{3} from Netlify's bot challenge, not the site
 //    \(staging's bot protection; e2e\/support\/challenge\.mjs\)$/
 // (one line; the message `challengeError()` in e2e/support/
-// challenge.mjs throws).
+// challenge.mjs throws), and no later line of its report, trimmed, is
+// another error: one matching /^\w*Error\b/, starting `Test timeout`,
+// holding `exceeded the test timeout`, or `Test was interrupted.`
+// (#656 review, finding 3). Refusing every line foreign to a challenge
+// report also meets this.
 //
 // The local-build pass. `api("repos/north-foster-farm/north-foster-
 // farm/actions/workflows/e2e.yml/runs?head_sha=SHA&per_page=100")`. A
@@ -124,12 +139,20 @@
 //
 // No real run shows a challenge failure and a local pass on the same
 // commit, so two are composed, and said so where used:
-//   - `onlyChallenges()` removes the membership test from run
-//     44396830525's log (its ✘ line, its report and its closing-list
-//     line) and makes "9 failed" "8 failed". Every other line is the
-//     recording's.
+//   - `onlyChallenges()` removes the phone project's membership test
+//     from run 44396830525's log (its ✘ line, its report and its
+//     closing-list line), as if that run had never held it, and
+//     recounts: "9 failed" becomes "8 failed" and "Running 1176 tests"
+//     "Running 1175 tests", so 8 + 94 skipped + 1073 passed adds up as
+//     the recording's did. Every other line is the recording's.
+//     Counting the test as passed or skipped instead would invent a
+//     result.
 //   - `atCommit()` sets `head_sha` on an e2e.yml run and its jobs to
 //     another commit. Nothing else changes.
+//   - The review's tests (#656) add Playwright's own lines to that
+//     composed log (`withLines()`), or set one step's conclusion in
+//     run 44396830525's recorded jobs (`stepConcluded()`), each named
+//     where used.
 // The pull request and its LGTM timeline are hand-shaped as in
 // test/promote.test.mjs's world: no real pull request ever held this
 // state to record. The rest is recorded.
@@ -224,7 +247,8 @@ const recordOf = (tests) => ({ exemptions: tests.map(entry) });
 const stagingLog = (run) => text(Object.values(REC.staging[run].logs)[0]);
 
 // COMPOSED: run 44396830525's log without the one failure that was not
-// the challenge, so its failures are the eight walks alone.
+// the challenge, so its failures are the eight walks alone, recounted
+// so the run holds one test fewer.
 const onlyChallenges = (log) => {
   const out = [];
   let inReport = false;
@@ -238,11 +262,53 @@ const onlyChallenges = (log) => {
     if (inReport) continue;
     if (bare.includes("e2e/membership.spec.mjs:120:3")
       && /✘|^ {4}\[phone\]/.test(bare)) continue;
-    out.push(/^\S+ {3}9 failed$/.test(line)
-      ? line.replace("9 failed", "8 failed") : line);
+    if (/^\S+ {3}9 failed$/.test(line)) {
+      out.push(line.replace("9 failed", "8 failed"));
+    } else if (/^\S+ Running 1176 tests /.test(line)) {
+      out.push(line.replace("Running 1176", "Running 1175"));
+    } else {
+      out.push(line);
+    }
   }
 
   return out.join("\n");
+};
+
+// COMPOSED: `added` lines put into a log, with the timestamp of the
+// line they follow: the first line matching the last of `after`, each
+// pattern searched from the line the one before it found. A pattern
+// is matched against the line without its timestamp.
+const withLines = (log, after, added) => {
+  const lines = log.split("\n");
+  let at = -1;
+
+  for (const pattern of after) {
+    const from = at + 1;
+    const found = lines.slice(from)
+      .findIndex((l) => pattern.test(l.replace(/^\S+ ?/, "")));
+
+    assert.ok(found >= 0, `no line matches ${pattern}`);
+    at = from + found;
+  }
+
+  const [stamp] = lines[at].split(" ");
+
+  lines.splice(at + 1, 0, ...added.map((a) => `${stamp} ${a}`));
+
+  return lines.join("\n");
+};
+
+// COMPOSED: run 44396830525's recorded jobs with one step of its
+// e2e-staging job concluded otherwise.
+const stepConcluded = (step, conclusion) => {
+  const jobs = clone(REC.staging[CHALLENGED].jobs);
+  const job = jobs.jobs.find((j) => j.name === "e2e-staging");
+  const found = job.steps.find((s) => s.name === step);
+
+  assert.ok(found, `no step ${step}`);
+  found.conclusion = conclusion;
+
+  return jobs;
 };
 
 // COMPOSED: a recorded e2e.yml answer, moved to another commit.
@@ -259,15 +325,17 @@ const atCommit = (local, sha) => {
 
 // Git, GitHub and the audit for one promotion of `sha` to main.
 // `staging` picks the recorded staging run, `log` overrides its job's
-// log, `local` is the e2e.yml answer (a recorded one, or composed),
-// `record` the committed record (undefined: no such file).
+// log and `jobs` its jobs, `local` is the e2e.yml answer (a recorded
+// one, or composed), `record` the committed record (undefined: no
+// such file).
 const world = ({
-  sha = SHA, staging = CHALLENGED, log, local = REC.local[WALKED], record,
+  sha = SHA, staging = CHALLENGED, log, jobs, local = REC.local[WALKED],
+  record,
 } = {}) => {
   const heads = { next: sha, staging: sha, main: OLD };
   const calls = [];
   const lines = [];
-  const stagingJobs = REC.staging[staging].jobs;
+  const stagingJobs = jobs ?? REC.staging[staging].jobs;
   const stagingJob = Object.keys(REC.staging[staging].logs)[0];
   const sh = async (args) => {
     calls.push(args.join(" "));
@@ -545,13 +613,15 @@ describe("bin/nff promote main and the staging exemption (#654)", () => {
       assert.match(JSON.parse(text("check-runs-green.json"))._source,
         /^RECORDED from GitHub on 2026-11-18/);
 
-      // The composed log only drops recorded lines and recounts.
+      // The composed log only drops recorded lines and recounts: the
+      // failed count and the count of tests run.
       const recorded = new Set(stagingLog(CHALLENGED).split("\n"));
       const changed = onlyChallenges(stagingLog(CHALLENGED)).split("\n")
         .filter((l) => !recorded.has(l));
 
-      assert.equal(changed.length, 1);
-      assert.match(changed[0], /^\S+ {3}8 failed$/);
+      assert.equal(changed.length, 2);
+      assert.match(changed[0], /^\S+ Running 1175 tests using 2 workers$/);
+      assert.match(changed[1], /^\S+ {3}8 failed$/);
     });
 
   it("box 9: a promotion that uses an exemption is logged: who, what, "
@@ -591,3 +661,85 @@ describe("bin/nff promote main and the staging exemption (#654)", () => {
       .filter((x) => x.event === "promote.exemptions"), []);
   });
 });
+
+// The security review of #656 made these conditions of the go.
+describe("the staging exemption's conditions from #656's security review",
+  () => {
+    const challenged = () => onlyChallenges(stagingLog(CHALLENGED));
+    const passing = { local: atCommit(REC.local[WALKED], SHA),
+      record: recordOf(OVERFLOW) };
+    // The last test of the closing list.
+    const LISTED = /^ {4}\[desktop\] › e2e\/overflow\.spec\.mjs:105:5 › at 14/;
+    const OTHER = "    [phone] › e2e/order-page.spec.mjs:14:3 › order page › "
+      + "an empty cart owes nothing and cannot continue";
+
+    it("finding 1: refuses a log with tests that did not run or a count "
+      + "that does not add up", async () => {
+      const unread = `Refused: the failed tests of run ${CHALLENGED} cannot `
+        + "be read from its log.";
+      // COMPOSED: Playwright's own summary lines added to the composed
+      // log in the places Playwright prints them, the other counts left
+      // as they were, so each line is refused on its own.
+      const logs = [
+        withLines(challenged(), [/^ {2}8 failed$/, LISTED],
+          ["  1 interrupted", OTHER]),
+        withLines(challenged(), [/^ {2}8 failed$/, LISTED],
+          ["  1 flaky", OTHER]),
+        withLines(challenged(), [/^ {2}94 skipped$/], ["  3 did not run"]),
+        withLines(challenged(), [/^ {2}1073 passed \(/],
+          ["  1 error was not a part of any test, see above for details"]),
+        // COMPOSED: counts of tests run that do not add up, and two of
+        // them.
+        challenged().replace("Running 1175 tests", "Running 1176 tests"),
+        challenged().replace("Running 1175 tests", "Running 1174 tests"),
+        withLines(challenged(), [/^Running 1175 tests /],
+          ["Running 1175 tests using 2 workers"]),
+      ];
+
+      for (const log of logs) {
+        await refuses(world({ ...passing, log }), unread);
+      }
+    });
+
+    it("finding 2: refuses a run with a step before Run that did not "
+      + "succeed, or one after it that neither succeeded nor was skipped",
+    async () => {
+      const unjudged = "Refused: the full e2e suite has not passed against "
+        + `staging on ${SHA}. Push it to e2e/staging-full and promote `
+        + "once that run is green.";
+
+      for (const [step, conclusion] of [
+        ["Sweep the suite's leftovers", "failure"],
+        ["Install", "skipped"],
+        ["Run ./.github/actions/setup-playwright", "cancelled"],
+        ["Failure screenshots", "failure"],
+        ["Summary", "cancelled"],
+      ]) {
+        await refuses(world({
+          ...passing, log: challenged(), jobs: stepConcluded(step, conclusion),
+        }), unjudged);
+      }
+    });
+
+    it("finding 3: refuses a challenge failure whose report holds another "
+      + "error", async () => {
+      const [walk] = OVERFLOW;
+
+      // COMPOSED: a second error added to the first walk's report after
+      // its challenge, as Playwright prints a fixture's own failure.
+      for (const error of [
+        "    TypeError: Cannot read properties of undefined (reading 'close')",
+        "    Test timeout of 30000ms exceeded.",
+        "    Tearing down \"page\" exceeded the test timeout of 30000ms.",
+        "    Test was interrupted.",
+      ]) {
+        await refuses(world({
+          ...passing,
+          log: withLines(challenged(), [
+            /^ {2}1\) \[desktop\] › e2e\/overflow\.spec\.mjs:92:5 › at 375px/,
+            /netlifyChallenge\.auto/,
+          ], ["", error]),
+        }), notChallenge(CHALLENGED, [walk]));
+      }
+    });
+  });
