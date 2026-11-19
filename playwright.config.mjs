@@ -41,6 +41,7 @@ const desktopOnly = [
   "**/pickup-horizon.spec.mjs",
   "**/rate-limit.spec.mjs",
   "**/maintenance.spec.mjs",
+  "**/maintenance-bar.spec.mjs",
   "**/account.spec.mjs",
   "**/email-change.spec.mjs",
   "**/news.spec.mjs",
@@ -75,6 +76,7 @@ const stagingOnly = local ? ["**/gate.spec.mjs"] : [];
 // until it lands: deleting a spec's line turns it on.
 const held = [
   "**/map-link.spec.mjs", // #606
+  "**/maintenance-bar.spec.mjs", // #489
 ];
 
 // Quarantined tests (e2e/quarantine.json, James's call each time) stay
