@@ -19,7 +19,7 @@ const execute = promisify(execFile);
 
 export const USAGE = `
   bin/nff e2e [e2e/<spec> ...] [/<page>/ ...] [--all] [--dry-run]
-              [--base=<ref>]
+              [--base=<ref>] [--help | -h]
                                       run in GitHub Actions the e2e specs
                                       this branch's changes against
                                       origin/next (or --base) reach, as
@@ -34,7 +34,11 @@ export const USAGE = `
                                       Exits 0 passed, 1 failed, 2
                                       nothing dispatched, 3 no verdict
                                       (GitHub did not answer, or the run
-                                      outlasted the wait)`
+                                      outlasted the wait). --help or -h
+                                      prints this and dispatches
+                                      nothing; any other flag, bin/nff's
+                                      own --staging and --no-email
+                                      among them, is refused`
   .slice(1);
 
 export const BASE = "origin/next";
@@ -352,8 +356,35 @@ const report = async (api, run, out) => {
   }
 };
 
+// The flags e2e reads. bin/nff's parser takes any `--name`, so a typo
+// (--dryrun) or a global flag that means nothing here (--staging,
+// --no-email: the run is GitHub's and sends no email) would otherwise
+// fall through to "no arguments" and dispatch (#630).
+export const FLAGS = ["all", "dry-run", "base", "help"];
+
+export const unknownFlags = (flags) => Object.keys(flags)
+  .filter((name) => !FLAGS.includes(name));
+
 export const e2eCommand = async (args, { flags = {}, out }, deps = {}) => {
   const d = { ...realDeps, ...deps };
+
+  // Before anything else is read: help wins over every other word.
+  if (flagOn(flags.help) || args.includes("-h")) {
+    out(USAGE);
+
+    return 0;
+  }
+
+  const unknown = unknownFlags(flags);
+
+  if (unknown.length) {
+    out(`Not a flag bin/nff e2e takes: ${
+      unknown.map((name) => `--${printable(name)}`).join(" ")}`);
+    out(USAGE);
+
+    return NOT_DISPATCHED;
+  }
+
   const named = {
     specs: args.filter((a) => a.startsWith("e2e/")),
     pages: args.filter((a) => a.startsWith("/")),
@@ -368,12 +399,16 @@ export const e2eCommand = async (args, { flags = {}, out }, deps = {}) => {
     return 2;
   }
 
-  const base = typeof flags.base === "string" ? flags.base : BASE;
+  // A bare --base arrives as `true`: refuse it, never fall back to BASE.
+  const given = flags.base !== undefined;
+  const base = given ? flags.base : BASE;
 
-  if (!checkBase(base)) {
-    out(`Not a ref to compare with: --base=${printable(base)}`);
+  if (typeof base !== "string" || !checkBase(base)) {
+    out(`Not a ref to compare with: --base${
+      typeof base === "string" ? `=${printable(base)}` : ""}`);
+    out(USAGE);
 
-    return 2;
+    return NOT_DISPATCHED;
   }
   let choice;
   let how = "changed";

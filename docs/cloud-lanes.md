@@ -145,7 +145,12 @@ run's link (2026-11-18, #623: a 404 mid-run, or a log holding escape
 sequences that `gh api` refused, ended it with exit 1 and no verdict;
 it now passes `--allow-escape-sequences` and prints only through
 `printable()`). `--dry-run` stops
-after the choice. Specs (`e2e/...`) or pages (`/...`) named on the
+after the choice. `--help` or `-h` prints the usage and dispatches
+nothing, and any flag but `--all`, `--dry-run`, `--base` and `--help`
+is refused with the usage and exit 2, `bin/nff`'s global ones
+(`--staging`, `--no-email`) included: the run is GitHub's, against a
+branch, and sends no email (2026-11-19, #630: `--help` and typos such
+as `--dryrun` fell through to the changed-path choice and dispatched). Specs (`e2e/...`) or pages (`/...`) named on the
 command line skip the table, and `--all` takes every spec the table
 names, still as named specs. It never sends an empty `specs`, which
 would be the full suite, nor pages without a spec. It sends pages only
