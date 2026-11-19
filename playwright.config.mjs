@@ -71,6 +71,12 @@ const desktopOnly = [
 const local = host === "localhost" || host === "127.0.0.1";
 const stagingOnly = local ? ["**/gate.spec.mjs"] : [];
 
+// Criteria tests written before their fix, held out of every project
+// until it lands: deleting a spec's line turns it on.
+const held = [
+  "**/contact-heading.spec.mjs", // #666
+];
+
 // Quarantined tests (e2e/quarantine.json, James's call each time) stay
 // out of a run against staging, so they don't gate a promotion, until
 // their issue is fixed or their expiry passes (test/quarantine.test.mjs
@@ -106,7 +112,7 @@ export default defineConfig({
   projects: [
     {
       name: "desktop",
-      testIgnore: stagingOnly,
+      testIgnore: [...stagingOnly, ...held],
       use: {
         ...devices["Desktop Chrome"],
         viewport: { width: 1500, height: 900 },
@@ -114,7 +120,7 @@ export default defineConfig({
     },
     {
       name: "phone",
-      testIgnore: [...desktopOnly, ...stagingOnly],
+      testIgnore: [...desktopOnly, ...stagingOnly, ...held],
       use: {
         browserName: "chromium",
         viewport: { width: 390, height: 664 },
@@ -128,7 +134,8 @@ export default defineConfig({
     // (#559), where a WebKit-only fault shows, and the account's tab
     // row (#592), and the width of the spaces the account page keeps
     // in a pair (#598), and the Membership tab's layout (#602, #601),
-    // and a badge's tooltip after a scroll (#644).
+    // and a badge's tooltip after a scroll (#644), and the order page's
+    // Contact information heading (#666).
     // cart-motion skips itself in the other projects.
     {
       name: "iphone",
@@ -138,8 +145,9 @@ export default defineConfig({
         "**/cart-a11y.spec.mjs", "**/cart-motion.spec.mjs",
         "**/cart-tip.spec.mjs",
         "**/account-tabs.spec.mjs", "**/keep-together.spec.mjs",
-        "**/membership-layout.spec.mjs",
+        "**/membership-layout.spec.mjs", "**/contact-heading.spec.mjs",
       ],
+      testIgnore: held,
       use: { ...devices["iPhone 15"] },
     },
   ],

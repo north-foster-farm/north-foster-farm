@@ -368,6 +368,7 @@
         "e2e/cart-tip.spec.mjs",
         "e2e/cart-way.spec.mjs",
         "e2e/catalog-visibility.spec.mjs",
+        "e2e/contact-heading.spec.mjs",
         "e2e/contact-send.spec.mjs",
         "e2e/contact.spec.mjs",
         "e2e/countdown-date.spec.mjs",
@@ -444,6 +445,7 @@
         "e2e/cart-tip.spec.mjs",
         "e2e/cart-way.spec.mjs",
         "e2e/catalog-visibility.spec.mjs",
+        "e2e/contact-heading.spec.mjs",
         "e2e/contact-send.spec.mjs",
         "e2e/contact.spec.mjs",
         "e2e/countdown-date.spec.mjs",
@@ -523,6 +525,7 @@
         "e2e/cart-tip.spec.mjs",
         "e2e/cart-way.spec.mjs",
         "e2e/catalog-visibility.spec.mjs",
+        "e2e/contact-heading.spec.mjs",
         "e2e/contact-send.spec.mjs",
         "e2e/contact.spec.mjs",
         "e2e/countdown-date.spec.mjs",
@@ -1118,6 +1121,14 @@
       ],
       "specs": [
         "e2e/catalog-visibility.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/contact-heading.spec.mjs"
+      ],
+      "specs": [
+        "e2e/contact-heading.spec.mjs"
       ]
     },
     {
