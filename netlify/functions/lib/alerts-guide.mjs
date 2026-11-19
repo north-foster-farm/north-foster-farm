@@ -183,6 +183,15 @@ export const GUIDE = {
     action: "Complete the order in the Square dashboard by hand. The " +
       "log (event square.complete_failed) has Square's answer.",
   },
+  "square.cancel_failed": {
+    means: "An order was cancelled and its money is back, but Square " +
+      "refused to cancel the fulfillment on the Square orders the alert " +
+      "names, so Square still shows them open to pack. The order is " +
+      "flagged squareOutOfSync.",
+    action: "Do not pack it. Cancel the fulfillment on each Square order " +
+      "the alert names in the Square dashboard by hand. The log (event " +
+      "square.fulfilment_cancel_failed) has Square's answer for each.",
+  },
   "square.refund_failed": {
     means: "A refund made in PayPal could not be repeated on the Square " +
       "copy of the Venmo payment. The customer has the money back and " +

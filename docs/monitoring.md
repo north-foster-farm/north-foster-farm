@@ -468,7 +468,10 @@ square.update_failed`, with the `step` that failed and Square's
 `code`), then fix the fulfillment in the Square dashboard by hand.
 When the step is `cancel`, the new order already holds the change and
 the record's `square.oldFulfilmentOrderId` names the order whose
-fulfillment is still open: cancel that one.
+fulfillment is still open: cancel that one. A cancel of the whole
+order (`bin/nff orders cancel`, or the customer's own) cancels it too
+and drops the field; if that cancel fails, the field stays and
+`square.cancel_failed` names it (#662).
 
 **`square.complete_failed`.** An order was fulfilled, from the CLI or
 by the close job, and the site's record says so, but Square could not
@@ -476,6 +479,17 @@ be told, so the order stays open there (#328). The order is flagged
 `squareOutOfSync` and the farm gets one "Square still open" email.
 Complete the order in the Square dashboard by hand; the log
 (`event: square.complete_failed`) has Square's answer.
+
+**`square.cancel_failed`.** An order was cancelled, from the CLI or
+by the customer, and its money is back, but Square refused to cancel
+the fulfillment on the Square orders the alert's `holders` names, so
+Square still shows them open to pack (#662). The order is flagged
+`squareOutOfSync`; the daily drift check compares paid orders only,
+so this alert is the one notice, and it mutes per order, not per
+kind: each order whose cancel fails sends its own. Do not pack it. Cancel the
+fulfillment on each of those Square orders in the Square dashboard by
+hand; the log (`event: square.fulfilment_cancel_failed`, one per
+order, with Square's `code`) has Square's answer for each.
 
 **`square.refund_failed`.** A refund made in PayPal could not be
 repeated on the Square copy of the Venmo payment. The customer has

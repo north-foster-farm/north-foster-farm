@@ -657,8 +657,17 @@ PayPal capture id> }`. No money moves through Square for it; the
 dashboard, the reports and the refunds keep one shape.
 
 `refundPayment` refunds a Square payment, whole or part;
-`cancelFulfillment` closes the fulfillment when an order is cancelled;
-`updateFulfillment` carries a customer's date or detail change across;
+`cancelFulfillment` closes the fulfillment when an order is cancelled,
+on every Square order the record names, once each and in this order:
+`square.fulfilmentOrderId`, `square.oldFulfilmentOrderId`,
+`square.squareOrderId` (#662). One that fails stops none of the
+others and is logged (`square.fulfilment_cancel_failed`); the order
+is cancelled all the same, flagged `squareOutOfSync`, and one
+`square.cancel_failed` alert names every order that stayed open,
+muted per order. A stale holder whose cancel succeeds drops out of
+the record. `updateFulfillment` carries a customer's date or detail
+change across, to the holder alone: `fulfilmentOrderId`, else
+`squareOrderId` (#660);
 `completeOrder` sets the fulfillment and the order to `COMPLETED` in
 one call when an order is fulfilled (#328), whether by
 `bin/nff orders fulfill <id>` or by the close job. Square takes a

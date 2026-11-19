@@ -16,8 +16,9 @@ import {
   authRecordsFor, deleteAuth, putAuth,
 } from "./auth-records.mjs";
 import { company } from "./company.mjs";
-import { DELIVERING } from "./health.mjs";
+import { DELIVERING, alert } from "./health.mjs";
 import { completeInSquare } from "./complete.mjs";
+import { holderOf } from "./amend.mjs";
 import { restoreCredit } from "./credit.mjs";
 import { audit, noteJoin } from "./group-log.mjs";
 import { GROUPS, groupOf, memberKeyOf } from "./groups.mjs";
@@ -583,6 +584,83 @@ export const refundOrder = async (stores, id, {
   return saved;
 };
 
+// Every Square order a record names that may hold an open fulfillment,
+// once each, the one the farm packs from first: the holder (holderOf),
+// then a stale holder a switch failed to cancel (#658), then the order
+// the customer paid on.
+const holdersToCancel = (order) => {
+  const sq = order.square || {};
+
+  return [...new Set([
+    holderOf(order), sq.oldFulfilmentOrderId, sq.squareOrderId,
+  ])].filter(Boolean);
+};
+
+// Cancels the fulfillment on each holder of a cancelled order (#662).
+// One that fails stops none of the others: it is logged, and the
+// order stays cancelled as before. A stale holder whose cancel went
+// through is no longer named, so the farm is not sent to cancel it
+// by hand. Any that failed leave an open fulfillment on an order
+// whose money is already back, which the drift check never sees (it
+// compares paid orders only): the order is flagged squareOutOfSync,
+// as a failed edit or fulfil is, and the farm gets one alert naming
+// them. `by` is who cancelled.
+const cancelHolders = async (stores, order, {
+  now, env, fetchImpl, mail, square, source,
+}) => {
+  const { id } = order;
+  const stale = order.square && order.square.oldFulfilmentOrderId;
+  const failed = [];
+
+  for (const holder of holdersToCancel(order)) {
+    try {
+      await square.cancelFulfillment(holder, { env, fetchImpl });
+    } catch (error) {
+      const code = (error && error.code) || null;
+
+      log.error({
+        event: "square.fulfilment_cancel_failed", id, holder, by: source,
+        code, error: String(error && error.message),
+      });
+      failed.push({ holder, code });
+      continue;
+    }
+
+    log.info({ event: "square.fulfilment_cancelled", id, holder,
+      by: source });
+    if (holder !== stale) continue;
+
+    let cleared = false;
+
+    await amendOrder(stores, id, (f) => {
+      if (!f.square || f.square.oldFulfilmentOrderId !== stale) return null;
+      const rest = { ...f.square };
+
+      delete rest.oldFulfilmentOrderId;
+      cleared = true;
+
+      return { square: rest };
+    }, "square.stale_cancelled", now);
+    if (!cleared) continue;
+
+    log.info({
+      event: "square.stale_cleared", id, by: source,
+      field: "square.oldFulfilmentOrderId", before: stale, after: null,
+    });
+  }
+
+  if (!failed.length) return;
+
+  // One mute per order: a second order failing inside the hour is
+  // news of its own, and nothing else surfaces it.
+  await alert(stores, "square.cancel_failed", {
+    id, holders: failed.map((f) => f.holder), code: failed[0].code,
+  }, { env, mail, now, mute: `square.cancel_failed/${id}` });
+  await amendOrder(stores, id, (f) => ({
+    flags: { ...(f.flags || {}), squareOutOfSync: true },
+  }), "square.out_of_sync", now);
+};
+
 // A cancel, the farm's or the customer's: any status but fulfilled,
 // which it refuses.
 // Stock goes back, the fulfillment is cancelled in Square, the money
@@ -638,15 +716,9 @@ export const cancelOrder = async (stores, id, {
 
   if (!order.cancelRequested) await adjust(stores, order.lines, 1);
 
-  if (order.square && order.square.squareOrderId) {
-    try {
-      await square.cancelFulfillment(order.square.squareOrderId, {
-        env, fetchImpl,
-      });
-    } catch (error) {
-      console.error(`Square cancel failed: ${error.message}`);
-    }
-  }
+  await cancelHolders(stores, cancelled, {
+    now, env, fetchImpl, mail, square, source,
+  });
 
   // A customer who already asked was already told. The email states
   // the money (T1a): what went back just now, or else what went back
