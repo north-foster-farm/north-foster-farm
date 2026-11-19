@@ -11,6 +11,15 @@
 // where the "Have an account?" line is gone. Canned, so nothing is
 // saved.
 //
+// "Inset on all sides" (the coordinator, 2026-11-19, on #666): the
+// heading sits inside its card, its words starting where First name's
+// do, and the space from the card's top edge to its words is the space
+// from the last field's bottom edge to the card's bottom edge. The
+// bottom is the reference because the card's padding is one value top
+// and bottom by construction, and not one on all sides (12 px by 16 px
+// on a phone, 16 by 20 at 768). The card is the frame with the shadow
+// that holds the First name field, whichever element draws it.
+//
 // Held out of every project until the fix lands: playwright.config.mjs
 // lists this file in `held`; deleting that line turns it on.
 
@@ -19,8 +28,6 @@ import { CUSTOMER } from "./support/canned.mjs";
 import { signIn } from "./support/membership.mjs";
 
 const NAME = "Contact information";
-// The section before it, whose heading it must sit like.
-const BEFORE = "Pickup or delivery";
 const WIDTHS = [375, 390, 768, 992, 1440];
 
 // The widths each project measures: null is the project's own.
@@ -43,43 +50,50 @@ const open = async (page, context, baseURL, width, signedIn) => {
   }
 };
 
-// Each section heading's place: the left edge of its words, and how
-// far its top sits below the top of its section. The First name
-// label's words, for the left edge they must share.
-const measure = (page) => page.evaluate(([name, before]) => {
-  const sectionOf = (title) => [...document.querySelectorAll("fieldset")]
-    .find((f) => {
-      const legend = f.querySelector(":scope > legend");
-
-      return legend && legend.textContent.trim() === title;
-    });
-  const wordsLeft = (el) => {
+// The heading's words against the card's edges: where they start
+// beside First name's, how far below the card's top edge they begin,
+// and how far the last field's bottom edge sits above the card's
+// bottom edge.
+const measure = (page) => page.evaluate((name) => {
+  const words = (el) => {
     const range = document.createRange();
 
     range.selectNodeContents(el);
 
-    return Math.min(...[...range.getClientRects()]
-      .filter((r) => r.width > 0).map((r) => r.left));
-  };
-  const heading = (title) => {
-    const section = sectionOf(title);
-    const legend = section.querySelector(":scope > legend");
+    const rects = [...range.getClientRects()].filter((r) => r.width > 0);
 
     return {
-      left: wordsLeft(legend),
-      below: legend.getBoundingClientRect().top
-        - section.getBoundingClientRect().top,
+      left: Math.min(...rects.map((r) => r.left)),
+      top: Math.min(...rects.map((r) => r.top)),
     };
   };
+  const section = [...document.querySelectorAll("fieldset")].find((f) => {
+    const legend = f.querySelector(":scope > legend");
+
+    return legend && legend.textContent.trim() === name;
+  });
+  const field = document.getElementById("customer-first-name");
+  let card = field.parentElement;
+
+  while (card && getComputedStyle(card).boxShadow === "none") {
+    card = card.parentElement;
+  }
+
+  const box = card.getBoundingClientRect();
+  const fields = [...card.querySelectorAll("input, select, textarea")]
+    .filter((el) => el.getClientRects().length
+      && getComputedStyle(el).visibility !== "hidden");
+  const heading = words(section.querySelector(":scope > legend"));
 
   return {
-    contact: heading(name),
-    before: heading(before),
-    firstName: wordsLeft(
+    left: heading.left,
+    firstName: words(
       document.querySelector("label[for='customer-first-name']"),
-    ),
+    ).left,
+    above: heading.top - box.top,
+    below: box.bottom - fields.at(-1).getBoundingClientRect().bottom,
   };
-}, [NAME, BEFORE]);
+}, NAME);
 
 test.describe(`the ${NAME} heading (#666)`, () => {
   for (const signedIn of [false, true]) {
@@ -88,8 +102,8 @@ test.describe(`the ${NAME} heading (#666)`, () => {
     for (const width of [...WIDTHS, null]) {
       // Done when 1 (the measurable part; the screenshots at 375 and
       // 1440 px are the coordinator's recorded check).
-      test(`lines up with First name and has the space above of the ${
-        BEFORE} heading at ${label(width)}, ${state}`, async ({
+      test(`sits inside its card, inset on all sides like the fields, at ${
+        label(width)}, ${state}`, async ({
         page, context, baseURL,
       }, info) => {
         test.skip(!widthsFor(info.project.name).includes(width),
@@ -98,13 +112,13 @@ test.describe(`the ${NAME} heading (#666)`, () => {
 
         const m = await measure(page);
 
-        expect(Math.abs(m.contact.left - m.firstName),
-          `its left edge (${m.contact.left}) against First name's (${
+        expect.soft(Math.abs(m.left - m.firstName),
+          `its left edge (${m.left}) against First name's (${
             m.firstName})`).toBeLessThanOrEqual(1);
-        expect(Math.abs(m.contact.below - m.before.below),
-          `the space above it (${m.contact.below}) against the ${
-            BEFORE} heading's (${m.before.below})`)
-          .toBeLessThanOrEqual(1);
+        expect.soft(Math.abs(m.above - m.below),
+          `the space from the card's top edge to its words (${
+            m.above}) against the last field's to the card's bottom (${
+            m.below})`).toBeLessThanOrEqual(2);
       });
     }
   }
