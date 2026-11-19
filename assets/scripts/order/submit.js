@@ -11,7 +11,9 @@
 //   { kind: "busy", message }            too many tries to place it;
 //                                        wait, then try again
 //   { kind: "retry" }                    transient, safe to try again
-//   { kind: "failed", message }          permanent
+//   { kind: "failed", message }          permanent; `locked: true`
+//                                        when the order can no longer
+//                                        be changed, or is not theirs
 //
 // Only 503 and a lost connection are transient. A 502 is permanent,
 // as the server says, and so is any other 5xx. An empty 204 is what
@@ -60,7 +62,7 @@ export class Submitter {
     }
     // An order that can no longer be changed, or is not theirs.
     if ([404, 409].includes(res.status) && data.errors && data.errors.order) {
-      return { kind: "failed", message: data.errors.order };
+      return { kind: "failed", message: data.errors.order, locked: true };
     }
     if (res.status === 409 && data.errors && data.errors.payment) {
       return { kind: "checkout", message: data.errors.payment };

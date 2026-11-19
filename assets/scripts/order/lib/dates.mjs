@@ -221,6 +221,41 @@ export const deliveryDates = (now, terms, count, schedule) => {
   return out;
 };
 
+// The Delivery day list for an order being changed (#643): `list`
+// as /api/dates gives it, with the order's own day added in date
+// order when the farm has since moved that week and its cutoff
+// (inclusive, as validateOrder's `keptDate`) has not passed. The day
+// is marked as the account marks it, "(as booked)". A new order, or
+// one on a day the list offers, gets the list as it is. `list` is
+// never changed.
+export const keptDelivery = (list, date, now, terms) => {
+  if (!date || list.some((d) => d.date === date)) return list;
+
+  const cutoff = cutoffFor(date, terms);
+
+  if (now.getTime() > cutoff.getTime()) return list;
+
+  const kept = {
+    date, label: `${label(date)} (as booked)`,
+    cutoff: cutoff.toISOString(), kept: true,
+  };
+
+  return [...list, kept].sort((a, b) => a.date.localeCompare(b.date));
+};
+
+// The delivery day an order's change keeps as booked (#643), from the
+// account API's order: none for a pickup, and none while the farm's
+// question is open. A missed delivery's customer was asked to choose
+// another day, so its past Thursday is never offered back.
+export const bookedDay = (order) => {
+  const { fulfilment, question } = order || {};
+
+  if (!fulfilment || fulfilment.method !== "delivery") return null;
+  if (question && !question.answeredAt) return null;
+
+  return fulfilment.date || null;
+};
+
 export const allDates = (now, terms, schedule) => ({
   now: now.toISOString(),
   onfarm: onFarmDates(now, terms, schedule),

@@ -62,6 +62,17 @@ describe("what the page makes of an answer", () => {
     assert.equal((await send()).kind, "failed");
   });
 
+  it("marks a change refused because the order is locked (#643)",
+    async () => {
+      answer(409, {
+        ok: false, errors: { order: "This order can't be changed any more." },
+      });
+      assert.deepEqual(await send(), {
+        kind: "failed", message: "This order can't be changed any more.",
+        locked: true,
+      });
+    });
+
   it("takes a 200 for success", async () => {
     answer(200, { orderId: "NFF-2610-ABCD" });
     assert.deepEqual(await send(), {

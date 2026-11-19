@@ -157,3 +157,19 @@
     </p>
   </div>
 </template>
+{{- /* A change the server refused because the order can no longer be
+  changed (#643). Draft wording, for James. */}}
+<template id="order-locked">
+  <div class="order-result-card order-result-failed">
+    <h2 class="h3">Your change wasn't saved</h2>
+    <p data-out="message"></p>
+    <p>
+      To ask us for a change, email
+      <a data-out="mailto" href="#"></a>, or call or text
+      <a data-out="phone" href="#"></a>.
+    </p>
+    <p class="mb-0">
+      <a class="btn btn-outline-primary btn-sm" href="/account/#orders">Back to your orders</a>
+    </p>
+  </div>
+</template>

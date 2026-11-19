@@ -1,5 +1,6 @@
 import { current, indexCatalog } from "./lib/catalog.mjs";
 import { buildModel } from "./lib/events.mjs";
+import { bookedDay, cutoffFor, keptDelivery } from "./lib/dates.mjs";
 import { moneyOn } from "./lib/money-on.mjs";
 import {
   draftOccurrence, dropSeriesCode, fulfilmentDate, locationCount,
@@ -386,7 +387,11 @@ export class OrderForm {
       id: order.id, held: sum(order.payments) - sum(order.refunds),
       kept: order.keptFee || 0, keptDate: order.keptDate || null,
       placed: order.submittedAt,
+      // The delivery day the order holds, which its change may keep
+      // though the farm has since moved that week (#643).
+      booked: bookedDay(order),
     };
+    this.keepBooked();
     for (const line of order.lines) {
       this.stock.held[line.sku] = line.qty;
       this.hold(line);
@@ -447,6 +452,35 @@ export class OrderForm {
     this.refresh();
     this.stock.start();
     this.payment.start();
+  }
+
+  // The Delivery day select of an order on a Thursday the farm has
+  // since moved shows that Thursday, marked "(as booked)", and selects
+  // it unless the customer chooses another day (#643). Past its cutoff
+  // it stays: a refresh of the lists must never put another day in
+  // its place, and the server then refuses the change in its own words.
+  keepBooked() {
+    const { booked } = this.editing;
+
+    if (!booked) return;
+
+    const cutoff = cutoffFor(booked, this.terms).getTime();
+
+    this.dates.shown = (method, list) => method === "delivery"
+      ? keptDelivery(list, booked,
+        new Date(Math.min(this.dates.now().getTime(), cutoff)), this.terms)
+      : list;
+  }
+
+  // Whether the order's own delivery day has passed its cutoff: the
+  // server refuses any change then (lib/account.mjs canChange), so the
+  // page sends it for that refusal rather than offer other days.
+  bookedClosed(payload) {
+    const booked = this.editing && this.editing.booked;
+
+    return Boolean(booked) && payload.fulfilment.method === "delivery"
+      && payload.fulfilment.date === booked
+      && this.dates.now().getTime() > cutoffFor(booked, this.terms).getTime();
   }
 
   // A line the paid order holds. An archived one's row shows, and its
@@ -1743,6 +1777,8 @@ export class OrderForm {
       index: this.index, terms: this.terms, now: this.dates.now(),
       placed: this.editing && this.editing.placed,
       group: this.group, code: this.code, schedule: this.dates.schedule(),
+      // As lib/edit.mjs passes it (#643).
+      keptDate: (this.editing && this.editing.booked) || null,
       lock: this.lock(),
       credit: this.editing ? 0 : this.credit,
       waive: { minimum: !!this.pass, fee: !!this.pass && this.passFee },
@@ -1783,7 +1819,13 @@ export class OrderForm {
     const status = document.querySelector("[data-lapsed-status]");
 
     if (status) status.hidden = true;
-    if (!check.ok) {
+    // Only the order's own day lapsed, past its cutoff: no dialog of
+    // other days, which the server would refuse too. The change goes
+    // as it is, and the server's refusal says why (#643).
+    const closed = !check.ok && check.status === 409
+      && this.bookedClosed(payload);
+
+    if (!check.ok && !closed) {
       // Only the day or time lapsed: the dialog. Before the lists have
       // come there is nothing to offer, so the errors say it.
       if (check.status === 409 && this.dates.lists) {
@@ -1837,7 +1879,7 @@ export class OrderForm {
     if (await this.dates.refresh()) {
       const again = this.check(payload);
 
-      if (!again.ok && again.status === 409) {
+      if (!again.ok && again.status === 409 && !this.bookedClosed(payload)) {
         this.lapse(payload.fulfilment.method, again.dates);
 
         return null;
@@ -2037,6 +2079,10 @@ export class OrderForm {
       this.payment.fail(outcome.message);
       break;
     default:
+      if (outcome.locked && this.editing) {
+        this.locked(outcome.message);
+        break;
+      }
       this.fail(payload, outcome.message);
     }
   }
@@ -2194,29 +2240,47 @@ export class OrderForm {
     return p.last4 ? `${brand} ending ${p.last4}` : brand;
   }
 
-  fail(payload, message) {
-    const node = document.getElementById("order-failed").content
-      .cloneNode(true);
-    const text = this.summaryText(payload);
+  // The farm's own address and number in a card, from the page's
+  // data; only a plain address or number becomes a link.
+  contactLinks(node, subject, body) {
     const mail = qs(node, "[data-out='mailto']");
     const phone = qs(node, "[data-out='phone']");
-    const copy = qs(node, "[data-out='copy']");
 
-    qs(node, "[data-out='message']").textContent = message;
-    qs(node, "[data-out='summary']").textContent = text;
-    // The farm's own address and number, from the page's data; only a
-    // plain address or number becomes a link.
     if (/^[^\s@?&#:/]+@[^\s@?&#:/]+$/.test(this.contact.email)) {
+      const tail = body ? `&body=${encodeURIComponent(body)}` : "";
+
       mail.href = `mailto:${encodeURIComponent(this.contact.email)}` +
-        `?subject=` +
-        `${encodeURIComponent("Order from the website")}&body=` +
-        `${encodeURIComponent(text)}`;
+        `?subject=${encodeURIComponent(subject)}${tail}`;
     }
     mail.textContent = this.contact.email;
     if (/^\+?\d+$/.test(this.contact.phone.plain)) {
       phone.href = `tel:${this.contact.phone.plain}`;
     }
     phone.textContent = this.contact.phone.display;
+  }
+
+  // A change the server refused: the order can no longer be changed
+  // (#643). Nothing went wrong on our end, so no summary to send and
+  // no word to the farm.
+  locked(message) {
+    const node = document.getElementById("order-locked").content
+      .cloneNode(true);
+
+    qs(node, "[data-out='message']").textContent = message;
+    this.contactLinks(node, `Order ${this.editing.id}`);
+    this.draft.clear();
+    this.finish(node);
+  }
+
+  fail(payload, message) {
+    const node = document.getElementById("order-failed").content
+      .cloneNode(true);
+    const text = this.summaryText(payload);
+    const copy = qs(node, "[data-out='copy']");
+
+    qs(node, "[data-out='message']").textContent = message;
+    qs(node, "[data-out='summary']").textContent = text;
+    this.contactLinks(node, "Order from the website", text);
 
     copy.addEventListener("click", async () => {
       try {

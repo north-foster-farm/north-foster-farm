@@ -53,6 +53,12 @@ export class DateLists {
     // A location by its code, for a pickup's address; the form sets it
     // from the model (data/locations.json).
     this.place = () => null;
+    // What a select shows of its list. A change to a paid order adds
+    // the delivery day it holds when the farm has moved that week
+    // (#643, lib/dates.mjs keptDelivery): on the select only, never
+    // in `lists`, so neither the countdown nor schedule() takes it for
+    // a day on offer.
+    this.shown = (method, list) => list;
     // Refreshes the lists when the earliest scheduled pickup closes.
     this.closing = null;
   }
@@ -276,13 +282,14 @@ export class DateLists {
     }
   }
 
-  fill(select, list) {
+  fill(select, offered) {
     if (select.dataset.dates === "scheduled") {
-      this.fillPickups(select, list);
+      this.fillPickups(select, offered);
 
       return;
     }
 
+    const list = this.shown(select.dataset.dates, offered);
     const current = select.dataset.want || select.value;
 
     select.textContent = "";
