@@ -4,46 +4,75 @@
 // and discounts". The same rules are unit-tested in lib/totals.mjs;
 // these check that the page says them.
 //
-// The figures come from data/delivery.json for the day the spec runs
-// (#362): on 2027-01-01 the minimum goes to $50 and the $50 tier ends,
-// and the page follows the same `moneyOn`, so nothing here is pinned.
+// The figures come from data/delivery.json for the day (#362): on
+// 2027-01-01 the minimum goes to $50 and the $50 tier ends. The tests
+// that read the money rules run once for each of DAYS
+// (support/money-day.mjs): today, on the real clock, and the first
+// day of every change still to come, with the site's clock moved to
+// it. So the rules queued for January are checked before January,
+// and once it is past the dated run drops away. Nothing is pinned:
+// each run works its expected labels, fees and totals out from the
+// tiers of its day, through the same `moneyOn` as the page.
 
-import terms from "../data/delivery.json" with { type: "json" };
-import { moneyOn } from "../assets/scripts/order/lib/money-on.mjs";
-import { today } from "../assets/scripts/order/lib/zoned.mjs";
-import { OrderPage, expect, test } from "./support/order.mjs";
-
-const money = moneyOn(terms.money, today(new Date(), terms.timeZone));
-const {
-  deliveryMinimum: MIN, deliveryFee: FEE, outsideAreaFee: AREA,
-  feeWaivedAt: WAIVED_AT, bulkTiers: TIERS,
-} = money;
+import { DAYS, TODAY, moneyFor, onDay } from "./support/money-day.mjs";
+import {
+  OrderPage, addQuery, expect, test,
+} from "./support/order.mjs";
 
 // Wings $10, eggs $7, thighs $12.
 const WINGS = 10;
 const EGGS = 7;
 
-// What the cart shows for goods worth `subtotal` by delivery: the
-// bulk tier reached (label and amount off), the fee cell and the
-// total. `area` adds the outside-area fee, which is never waived.
-const expected = (subtotal, { area = false } = {}) => {
-  const tier = [...TIERS].reverse().find((t) => subtotal >= t.threshold);
-  const off = tier ? tier.off : 0;
-  const delivery = subtotal >= WAIVED_AT ? 0 : FEE;
-  const fee = delivery + (area ? AREA : 0);
+// The tests that read the minimum or the tiers, for the rules of
+// `day`.
+const moneyTests = (day) => {
+  const {
+    deliveryMinimum: MIN, deliveryFee: FEE, outsideAreaFee: AREA,
+    feeWaivedAt: WAIVED_AT, bulkTiers: TIERS,
+  } = moneyFor(day);
 
-  return {
-    label: tier ? `Bulk discount ($${tier.threshold}+)` : null,
-    off: tier ? `−$${off}` : null,
-    fee: fee ? `+$${fee}` : "Free",
-    total: `$${subtotal - off + fee}`,
+  // What the cart shows for goods worth `subtotal` by delivery: the
+  // bulk tier reached (label and amount off), the fee cell and the
+  // total. `area` adds the outside-area fee, which is never waived.
+  const expected = (subtotal, { area = false } = {}) => {
+    const tier = [...TIERS].reverse().find((t) => subtotal >= t.threshold);
+    const off = tier ? tier.off : 0;
+    const delivery = subtotal >= WAIVED_AT ? 0 : FEE;
+    const fee = delivery + (area ? AREA : 0);
+
+    return {
+      label: tier ? `Bulk discount ($${tier.threshold}+)` : null,
+      off: tier ? `−$${off}` : null,
+      fee: fee ? `+$${fee}` : "Free",
+      total: `$${subtotal - off + fee}`,
+    };
   };
-};
 
-// The next tier above `subtotal`, as the nudge names it.
-const nextTier = (subtotal) => TIERS.find((t) => t.threshold > subtotal);
+  // The next tier above `subtotal`, as the nudge names it.
+  const nextTier = (subtotal) => TIERS.find((t) => t.threshold > subtotal);
 
-test.describe("pricing and discounts", () => {
+  test.beforeEach(({ context, baseURL }) => onDay(context, baseURL, day));
+
+  // OrderPage.open waits for the on-farm dates, its sign that the form
+  // is wired. The local build's pickup schedule reaches six weeks past
+  // the build (bin/dev-schedule.mjs), so a moved day can be beyond it
+  // and offer no pickup at all. There it waits for the delivery dates
+  // instead, which follow the delivery days and run on; the cart's
+  // figures need no pickup.
+  const later = day !== TODAY;
+  const open = async (order, cart, { method } = {}) => {
+    if (!later) return order.open(cart, { method });
+
+    await order.page.goto(`/order/?add=${addQuery(cart)}`, {
+      waitUntil: "domcontentloaded",
+    });
+    await expect(order.page.locator("#delivery-date")).toBeEnabled();
+    await order.page.evaluate(() => document.fonts.ready.then(() => {}));
+    // ?add= scrolls the cart into view after load (OrderPage.open).
+    await order.page.waitForTimeout(1_000);
+    if (method) await order.method(method);
+  };
+
   // [cart, subtotal in dollars]: one under the first tier, one at
   // each tier, one between, one past the top.
   const CARTS = [
@@ -61,7 +90,7 @@ test.describe("pricing and discounts", () => {
     async ({ page }) => {
       const order = new OrderPage(page);
 
-      await order.open(cart, { method: "delivery" });
+      await open(order, cart, { method: "delivery" });
       await expect(order.subtotal).toHaveText(`$${subtotal}`);
       if (want.label) {
         await expect(order.discountRow).toBeVisible();
@@ -75,24 +104,12 @@ test.describe("pricing and discounts", () => {
     });
   }
 
-  test("on-farm and scheduled pickup carry no fee", async ({ page }) => {
-    const order = new OrderPage(page);
-
-    await order.open({ eggs: 7 }, { method: "delivery" });
-    await order.method("onfarm");
-    await expect(order.feeRow).toBeHidden();
-    await expect(order.total).toHaveText("$49");
-    await order.method("scheduled");
-    await expect(order.feeRow).toBeHidden();
-    await expect(order.total).toHaveText("$49");
-  });
-
   test("the badges light as the tiers are reached", async ({ page }) => {
     const order = new OrderPage(page);
     const badge = (key) => order.cart.locator(`[data-badge='${key}']`);
     const reached = (t) => t.threshold <= WAIVED_AT;
 
-    await order.open({ wings: WAIVED_AT / WINGS }, { method: "delivery" });
+    await open(order, { wings: WAIVED_AT / WINGS }, { method: "delivery" });
     for (const key of ["delivery", "free-delivery",
       ...TIERS.filter(reached).map((t) => `tier-${t.threshold}`)]) {
       await expect(badge(key)).toHaveAttribute("data-on", "true");
@@ -111,7 +128,7 @@ test.describe("pricing and discounts", () => {
       const add = next.threshold - subtotal;
       const top = TIERS.at(-1);
 
-      await order.open({ wings: subtotal / WINGS }, { method: "delivery" });
+      await open(order, { wings: subtotal / WINGS }, { method: "delivery" });
       await expect(order.nudge).toHaveText(
         `Next discount: add $${add} for $${next.off} off${
           next.threshold >= WAIVED_AT && subtotal < WAIVED_AT
@@ -132,7 +149,7 @@ test.describe("pricing and discounts", () => {
     const order = new OrderPage(page);
     const want = expected(MIN);
 
-    await order.open({ wings: MIN / WINGS }, { method: "delivery" });
+    await open(order, { wings: MIN / WINGS }, { method: "delivery" });
     await expect(order.short).toBeHidden();
     await expect(order.next).toBeEnabled();
     await expect(order.fee).toHaveText(`+$${FEE}`);
@@ -146,7 +163,7 @@ test.describe("pricing and discounts", () => {
       const order = new OrderPage(page);
       const gap = MIN - 5 * EGGS;
 
-      await order.open({ eggs: 5 }, { method: "delivery" });
+      await open(order, { eggs: 5 }, { method: "delivery" });
       await expect(order.nudge).toHaveText(
         `Add $${gap} to reach the $${MIN} delivery minimum.`
       );
@@ -154,6 +171,10 @@ test.describe("pricing and discounts", () => {
         `Delivery requires $${MIN} or more after discounts. Add $${gap} more.`
       );
       await expect(order.next).toBeDisabled();
+      // That pickup takes it is no money rule, and a moved day may be
+      // past the local build's pickups (see `open`): today's run says
+      // it.
+      if (later) return;
       await order.method("scheduled");
       await expect(order.short).toBeHidden();
       await expect(order.next).toBeEnabled();
@@ -167,7 +188,7 @@ test.describe("pricing and discounts", () => {
       const big = expected(WAIVED_AT, { area: true });
       const listed = expected(WAIVED_AT);
 
-      await order.open({ wings: 5 }, { method: "delivery" });
+      await open(order, { wings: 5 }, { method: "delivery" });
       // 02830 (Harrisville) is in Rhode Island but not on the list.
       await order.zip.fill("02830");
       await expect(order.fee).toHaveText(`+$${FEE + AREA}`);
@@ -180,6 +201,76 @@ test.describe("pricing and discounts", () => {
       await expect(order.fee).toHaveText("Free");
       await expect(order.total).toHaveText(listed.total);
     });
+
+  // A code that does nothing leaves the figures where the tiers put
+  // them: with a $50 tier, $50 of wings shows it; without one, no row.
+  const unchanged = async (order) => {
+    const want = expected(50);
+
+    if (want.label) {
+      await expect(order.discountLabel).toHaveText(want.label);
+    } else {
+      await expect(order.discountRow).toBeHidden();
+    }
+    await expect(order.total).toHaveText(want.total);
+  };
+
+  test("an unknown code says so and changes nothing", async ({ page }) => {
+    const order = new OrderPage(page);
+
+    await open(order, { wings: 5 }, { method: "delivery" });
+    await order.codeOpen.click();
+    await order.codeInput.fill("nosuchcode");
+    await order.codeApply.click();
+    await expect(order.codeNote).toHaveText("That code isn't valid.");
+    await expect(order.codeInput).toHaveValue("NOSUCHCODE");
+    await unchanged(order);
+  });
+
+  test("EGGBOI counts up $40 a minute and changes no real figure",
+    async ({ page }) => {
+      const order = new OrderPage(page);
+      const joke = order.cart.locator(".order-cart-joke");
+
+      await open(order, { wings: 5 }, { method: "delivery" });
+      await order.codeOpen.click();
+      await order.codeInput.fill("eggboi");
+      await order.codeInput.press("Enter");
+      await expect(order.codeNote).toHaveText("Code applied.");
+      await expect(order.codeInput).toHaveValue("");
+      await expect(joke.locator("dt")).toHaveText(
+        "Discount (EGGBOI, $40/min)"
+      );
+      // $40 a minute is 67 cents a second: past $1 within two seconds.
+      await expect(joke.locator("dd")).toHaveText(/^−\$([1-9]|\d{2,})/, {
+        timeout: 10_000,
+      });
+      await unchanged(order);
+    });
+};
+
+for (const day of DAYS) {
+  test.describe(day === TODAY
+    ? "pricing and discounts"
+    : `pricing and discounts from ${day}`, () => moneyTests(day));
+}
+
+// The tests no change in data/delivery.json touches: the pickup
+// methods' fees, the ZIP notes and the area's edges, on the real clock.
+test.describe("pricing and discounts, any day", () => {
+  const { deliveryFee: FEE, outsideAreaFee: AREA } = moneyFor(TODAY);
+
+  test("on-farm and scheduled pickup carry no fee", async ({ page }) => {
+    const order = new OrderPage(page);
+
+    await order.open({ eggs: 7 }, { method: "delivery" });
+    await order.method("onfarm");
+    await expect(order.feeRow).toBeHidden();
+    await expect(order.total).toHaveText("$49");
+    await order.method("scheduled");
+    await expect(order.feeRow).toBeHidden();
+    await expect(order.total).toHaveText("$49");
+  });
 
   test("the unlisted-ZIP note states the fee in dollars and charges now",
     async ({ page }) => {
@@ -241,50 +332,4 @@ test.describe("pricing and discounts", () => {
       "We are only able to deliver eggs in Connecticut at this time."
     );
   });
-
-  // A code that does nothing leaves the figures where the tiers put
-  // them: with a $50 tier, $50 of wings shows it; without one, no row.
-  const unchanged = async (order) => {
-    const want = expected(50);
-
-    if (want.label) {
-      await expect(order.discountLabel).toHaveText(want.label);
-    } else {
-      await expect(order.discountRow).toBeHidden();
-    }
-    await expect(order.total).toHaveText(want.total);
-  };
-
-  test("an unknown code says so and changes nothing", async ({ page }) => {
-    const order = new OrderPage(page);
-
-    await order.open({ wings: 5 }, { method: "delivery" });
-    await order.codeOpen.click();
-    await order.codeInput.fill("nosuchcode");
-    await order.codeApply.click();
-    await expect(order.codeNote).toHaveText("That code isn't valid.");
-    await expect(order.codeInput).toHaveValue("NOSUCHCODE");
-    await unchanged(order);
-  });
-
-  test("EGGBOI counts up $40 a minute and changes no real figure",
-    async ({ page }) => {
-      const order = new OrderPage(page);
-      const joke = order.cart.locator(".order-cart-joke");
-
-      await order.open({ wings: 5 }, { method: "delivery" });
-      await order.codeOpen.click();
-      await order.codeInput.fill("eggboi");
-      await order.codeInput.press("Enter");
-      await expect(order.codeNote).toHaveText("Code applied.");
-      await expect(order.codeInput).toHaveValue("");
-      await expect(joke.locator("dt")).toHaveText(
-        "Discount (EGGBOI, $40/min)"
-      );
-      // $40 a minute is 67 cents a second: past $1 within two seconds.
-      await expect(joke.locator("dd")).toHaveText(/^−\$([1-9]|\d{2,})/, {
-        timeout: 10_000,
-      });
-      await unchanged(order);
-    });
 });

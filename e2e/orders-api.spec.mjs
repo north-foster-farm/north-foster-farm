@@ -5,22 +5,15 @@
 // deleted after the run (#463).
 // docs/qa-launch.md, "Payments".
 
-import terms from "../data/delivery.json" with { type: "json" };
-import { moneyOn } from "../assets/scripts/order/lib/money-on.mjs";
-import { today } from "../assets/scripts/order/lib/zoned.mjs";
 import {
   NONCE, eggOrder, firstScheduled, postOrder,
 } from "./support/api.mjs";
+import { DAYS, TODAY, moneyFor, onDay } from "./support/money-day.mjs";
 import { expect, test, uniqueEmail } from "./support/order.mjs";
 import {
   BACK_OFFICE_MISSING, backOffice, clearMail, closeOrder, deleteCustomer,
   nff, teardown,
 } from "./support/staging.mjs";
-
-// The minimum in force on the day the spec runs (#362): $50 from
-// 2027-01-01, as the endpoint itself reads it.
-const { deliveryMinimum: MINIMUM } = moneyOn(terms.money,
-  today(new Date(), terms.timeZone));
 
 test.describe("orders API", () => {
   const made = [];
@@ -86,26 +79,43 @@ test.describe("orders API", () => {
       expect(body.dates.length).toBeGreaterThan(0);
     });
 
-  test("bad fields answer 422, field by field", async ({ request }) => {
-    const payload = await eggOrder(request, { email: "not-an-email" });
+  // Once for each of DAYS (#362): the minimum is the one in force on
+  // the endpoint's clock, moved to the day for a change still to come.
+  for (const day of DAYS) {
+    const { deliveryMinimum: MINIMUM } = moneyFor(day);
 
-    payload.customer.firstName = "";
-    payload.fulfilment = {
-      method: "delivery", date: payload.fulfilment.date,
-      delivery: { zip: "10001" }, onfarm: {},
-    };
+    test(`bad fields answer 422, field by field${
+      day === TODAY ? "" : ` (from ${day})`}`, async ({ context, baseURL }) => {
+      await onDay(context, baseURL, day);
 
-    const { status, body } = await postOrder(request, payload);
+      const { request } = context;
+      // A delivery, on the first delivery day: the local build's pickup
+      // schedule may end before a moved day (bin/dev-schedule.mjs), but
+      // the delivery days run on. The occurrence only keeps eggOrder
+      // from looking up an on-farm date; the fulfilment replaces it.
+      const dates = await (await request.get("/api/dates")).json();
+      const payload = await eggOrder(request, {
+        email: "not-an-email", occurrence: "unused",
+      });
 
-    expect(status).toBe(422);
-    expect(body.errors).toMatchObject({
-      "customer.firstName": "Please enter your first name.",
-      "customer.email": "Please enter a valid email address.",
-      "customer.phone": "Please enter a phone number.",
-      "delivery.zip": "That's outside our delivery area.",
-      "delivery.minimum": expect.stringContaining(`$${MINIMUM} or more`),
+      payload.customer.firstName = "";
+      payload.fulfilment = {
+        method: "delivery", date: dates.delivery[0].date,
+        delivery: { zip: "10001" }, onfarm: {},
+      };
+
+      const { status, body } = await postOrder(request, payload);
+
+      expect(status).toBe(422);
+      expect(body.errors).toMatchObject({
+        "customer.firstName": "Please enter your first name.",
+        "customer.email": "Please enter a valid email address.",
+        "customer.phone": "Please enter a phone number.",
+        "delivery.zip": "That's outside our delivery area.",
+        "delivery.minimum": expect.stringContaining(`$${MINIMUM} or more`),
+      });
     });
-  });
+  }
 
   // A scheduled pickup names one occurrence (data/series.json); the
   // server derives its date and refuses any the schedule doesn't offer.
