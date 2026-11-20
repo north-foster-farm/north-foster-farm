@@ -1,12 +1,7 @@
-// Criteria copy of test/jobs.test.mjs for #616's shared label
-// (2026-11-18): the same file with every window label in the full
-// format ("9:00 AM – 12:00 PM", "between 10:00 and 11:00 AM").
-// Held out of `npm test` by its name until windowLabel takes the new
-// format; the implementer turns it on, over the live file, with
-//
-//   git mv -f test/jobs.criteria.mjs test/jobs.test.mjs
-//
-// Changed: the morning report's and the manifest's windows.
+// The windows here are in #616's full format ("9:00 AM – 12:00 PM");
+// the criteria copy that brought them in went live on 2026-11-18
+// (77e5378c), and this header stopped calling it held out on
+// 2026-11-20.
 
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";

@@ -1,15 +1,8 @@
-// Criteria copy of test/packing.test.mjs for #616's shared label
-// (2026-11-18): the same file with every window label in the full
-// format ("9:00 AM – 12:00 PM", "between 10:00 and 11:00 AM").
-// Held out of `npm test` by its name until windowLabel takes the new
-// format; the implementer turns it on, over the live file, with
-//
-//   git mv -f test/packing.criteria.mjs test/packing.test.mjs
-//
-// Changed: the windows a slip and the email print. Added at
-// the end: an old-format printed snapshot is not a change.
-
-// The daily packing slips (#292). Every order here is fake.
+// The daily packing slips (#292). Every order here is fake. The
+// windows are in #616's full format ("9:00 AM – 12:00 PM"); the
+// criteria copy that brought them in went live on 2026-11-18
+// (77e5378c), and this header stopped calling it held out on
+// 2026-11-20.
 
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
