@@ -39,12 +39,12 @@ const timed = (fn) => {
   return spent / calls;
 };
 
-// The CPU time a million characters may take. The linear rule takes
-// at most 15 ms on the Mac at load averages near 100, and about 1 ms
-// on CI; the old quadratic one passes it by about 16,000 characters
-// and would take many minutes on a million. A ratio of two sizes
-// failed instead on CI, where a call costs so little that cache
-// effects swamped it (#689).
+// The CPU time a million characters may take. The linear rule took
+// up to 20.5 ms on the Mac beside two other suites running at once,
+// and about 1 ms on CI; the old quadratic one is over it by 7,813
+// characters and would take many minutes on a million (qa, 2026-11-20).
+// A ratio of two sizes failed instead on CI, where a call costs so
+// little that cache effects swamped it (#689).
 const BUDGET_MS = 100;
 
 // The CPU time normalizing and validating `make(n)` takes, doubling n
