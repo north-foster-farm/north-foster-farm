@@ -29,29 +29,18 @@
 // test.mjs (fixtures/github/fake-gh.mjs), first on PATH, answering
 // from recordings.
 //
-// THE FAKES, NOT YET RECORDED
+// THE FAKES
 //
-// No recorded run holds a flaky test: every workflow has passed
-// `--retries=0` since the suite began, and Playwright reports "flaky"
-// only with retries on. The test reads test/fixtures/github/
-// e2e-retry.json and fails, saying so, until it is recorded. The
-// recording, proposed to the coordinator 2026-11-20, on the scratch
-// branch of test/promote-retry.criteria.mjs (its specs, titles and
-// e2e-staging.yml change are there):
-//
-// 1. That branch's copy of e2e-run.yml runs `--retries=2` in place of
-//    `--retries=0`. Two dispatches of its e2e.yml with named specs:
-//    `-f specs=e2e/zz-retry-flaky.spec.mjs` (a passed run, `flaky`),
-//    then both zz-retry specs (a failed run, `failed`).
-// 2. Each run, its jobs and every shard job's log recorded with gh,
-//    read-only (GET .../actions/runs/RUN, GET .../runs/RUN/jobs,
-//    GET .../actions/jobs/JOB/logs with --allow-escape-sequences),
-//    under `local` in e2e-retry.json, logs byte for byte beside it:
-//      "local": {
-//        "flaky":  { "run": RUN, "jobs": { "total_count": N,
-//                    "jobs": [...] },
-//                    "logs": { "JOB": "e2e-retry-local-RUN.txt", ... } },
-//        "failed": { the same } }
+// Recorded 2026-11-20, read-only with gh: e2e-retry.json and the logs
+// beside it (its `_source` lists every request), from the scratch
+// branch described in test/promote-retry.criteria.mjs, whose
+// e2e-run.yml ran `--retries=2`. Two dispatches of its e2e.yml with
+// named specs, read here under `local`:
+//   44826426456  the flaky spec alone: green, "2 flaky" (`flaky`)
+//   44827452281  both: failed, "2 failed", "2 flaky" (`failed`)
+// Runs and jobs are trimmed to e2e-exempt.json's fields, with no
+// actor; the shard logs are byte for byte, every secret masked by
+// GitHub.
 //
 // The dispatch and the queued look are e2e-dispatch.json's, recorded
 // for #610, with the recorded run's id put into them, as
@@ -59,7 +48,7 @@
 
 import assert from "node:assert/strict";
 import {
-  chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync,
+  chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -71,8 +60,10 @@ import { e2eCommand } from "../bin/e2e/dispatch.mjs";
 
 const fixture = (name) => new URL(`fixtures/github/${name}`, import.meta.url);
 const F = JSON.parse(readFileSync(fixture("e2e-dispatch.json"), "utf8"));
+const LOCAL = JSON.parse(readFileSync(fixture("e2e-retry.json"), "utf8"))
+  .local;
+const recorded = () => LOCAL;
 const FAKE_GH = fileURLToPath(fixture("fake-gh.mjs"));
-const RETRY_FILE = "e2e-retry.json";
 
 const REPO = "repos/north-foster-farm/north-foster-farm";
 const BRANCH = "lane/e2e-cmd-tests";
@@ -84,13 +75,6 @@ const FLAKY = { file: "e2e/zz-retry-flaky.spec.mjs",
 const FAILS = { file: "e2e/zz-retry-fails.spec.mjs",
   title: "fails on every try" };
 
-// The recording, or a failure that says it is still to be made.
-const recorded = () => {
-  assert.ok(existsSync(fixture(RETRY_FILE)), "test/fixtures/github/"
-    + `${RETRY_FILE} is not recorded yet: see this file's header`);
-
-  return JSON.parse(readFileSync(fixture(RETRY_FILE), "utf8")).local;
-};
 
 const answer = (value) => ({ stdout: JSON.stringify(value) });
 

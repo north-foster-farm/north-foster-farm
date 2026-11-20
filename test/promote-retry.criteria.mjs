@@ -79,38 +79,24 @@
 //
 // THE FAKES
 //
-// The staging runs are NOT YET RECORDED. No recorded run holds a flaky
-// test: every workflow has passed `--retries=0` since the suite began
-// (0d987f2b, 848be37e, d68af8b1), and Playwright reports "flaky" only
-// with retries on. The tests read test/fixtures/github/e2e-retry.json
-// and fail, saying so, until it is recorded. The recording, proposed
-// to the coordinator 2026-11-20:
-//
-// 1. A scratch branch `scratch/retry-fixture` from next, pushed and
-//    deleted after, never merged, holding two specs:
-//      e2e/zz-retry-flaky.spec.mjs, one test titled
-//        "fails on its first try and passes on a retry"
-//        that fails while testInfo.retry is 0;
-//      e2e/zz-retry-fails.spec.mjs, one test titled
-//        "fails on every try".
-//    Its copy of e2e-staging.yml (a scratch branch's own file runs on
-//    a push to it) adds the branch to `on.push.branches`, runs only the
-//    zz-retry specs with `--retries=2`, and drops the Alert step, so
-//    no ping reaches James's monitor. Two pushes: the flaky spec alone
-//    (a green run, `flaky`), then both (a failed run, `failed`).
-// 2. Each run, its jobs and the e2e-staging job's log recorded with
-//    gh, read-only, as e2e-exempt.json's `_source` lists:
-//      GET repos/.../actions/runs/RUN, GET .../runs/RUN/jobs,
-//      GET .../actions/jobs/JOB/logs (gh api --allow-escape-sequences)
-//    into e2e-retry.json, logs byte for byte beside it:
-//      { "_source": {...},
-//        "staging": {
-//          "flaky":  { "runs": { "total_count": 1,
-//                                "workflow_runs": [RUN] },
-//                      "jobs": { "total_count": 1, "jobs": [...] },
-//                      "logs": { "JOB": "e2e-retry-staging-RUN.txt" } },
-//          "failed": { the same } },
-//        "local": { see test/e2e-retry-verdict.criteria.mjs } }
+// Recorded 2026-11-20, read-only with gh: e2e-retry.json and the logs
+// beside it (its `_source` lists every request). No run before had
+// retries on, so the lane ran four on a scratch branch,
+// `scratch/retry-fixture`, never merged and deleted after, with the
+// coordinator's go. Two specs that open no page:
+// e2e/zz-retry-flaky.spec.mjs ("fails on its first try and passes on
+// a retry", failing while testInfo.retry is 0) and
+// e2e/zz-retry-fails.spec.mjs ("fails on every try"), each with
+// `test.describe.configure({ retries: 2 })`. That branch's
+// e2e-staging.yml ran on its own concurrency group with no secret in
+// reach: no deploy wait, no sweep, the Alert step `if: false`, and
+// E2E_BASE_URL at localhost, so nothing reached staging. Its Run step
+// was unchanged; the passing list held every other spec. The staging
+// runs these tests read:
+//   44828158630  the flaky spec alone: green, "2 flaky" (`flaky`)
+//   44828622221  both: failed, "2 failed", "2 flaky" (`failed`)
+// Runs and jobs are trimmed to e2e-exempt.json's fields, with no
+// actor; logs are byte for byte, every secret masked by GitHub.
 //
 // Recorded 2026-11-20, read-only: e2e-flaky-issues.json, the open
 // milestones, three open issues of Next release, issue #693 and a
@@ -129,7 +115,7 @@
 // in test/promote.test.mjs's world: no real pull request held them.
 
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
 import { promote } from "../bin/promote.mjs";
@@ -143,7 +129,8 @@ const clone = (value) => JSON.parse(JSON.stringify(value));
 const EXEMPT = JSON.parse(text("e2e-exempt.json"));
 const CHECKS = JSON.parse(text("check-runs-green.json")).response;
 const ISSUES = JSON.parse(text("e2e-flaky-issues.json"));
-const RETRY_FILE = "e2e-retry.json";
+const STAGING = JSON.parse(text("e2e-retry.json")).staging;
+const recorded = () => STAGING;
 
 const SHA = "1471cc858676dcc3bb4cad29ccc2c6ffca34f377";
 const OLD = "b".repeat(40);
@@ -157,13 +144,6 @@ const name = (t) => `${t.spec} › ${t.title}`;
 const REASON = "fails on purpose, to record the fixture (#693)";
 const HEADING = "## Failing tests shipped past";
 
-// The recording, or a failure that says it is still to be made.
-const recorded = () => {
-  assert.ok(existsSync(new URL(RETRY_FILE, DIR)), "test/fixtures/github/"
-    + `${RETRY_FILE} is not recorded yet: see this file's header`);
-
-  return JSON.parse(text(RETRY_FILE)).staging;
-};
 
 // COMPOSED: a recorded scratch run and its jobs, moved to SHA on
 // e2e/staging-full.

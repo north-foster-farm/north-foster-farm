@@ -1,0 +1,808 @@
+﻿2026-11-20T22:08:47.2517539Z Current runner version: '2.338.2'
+2026-11-20T22:08:47.2543187Z ##[group]Runner Image Provisioner
+2026-11-20T22:08:47.2544095Z Hosted Compute Agent
+2026-11-20T22:08:47.2544739Z Version: 20261111.635
+2026-11-20T22:08:47.2545802Z Commit: b8a594ea514ff44cadb5342986c68b1eac6e22ed
+2026-11-20T22:08:47.2546537Z Build Date: 2026-11-11T01:49:01Z
+2026-11-20T22:08:47.2547740Z Worker ID: {8d3ae14f-5d1f-4afe-9549-fdb3f7ae9417}
+2026-11-20T22:08:47.2548465Z Region: westus
+2026-11-20T22:08:47.2549000Z Cloud: Azure
+2026-11-20T22:08:47.2549594Z ##[endgroup]
+2026-11-20T22:08:47.2551115Z ##[group]Operating System
+2026-11-20T22:08:47.2551911Z Ubuntu
+2026-11-20T22:08:47.2552435Z 26.04.1
+2026-11-20T22:08:47.2552933Z LTS
+2026-11-20T22:08:47.2553506Z ##[endgroup]
+2026-11-20T22:08:47.2554096Z ##[group]Runner Image
+2026-11-20T22:08:47.2554717Z Image: ubuntu-26.04
+2026-11-20T22:08:47.2555497Z Version: 20261116.202.1
+2026-11-20T22:08:47.2556849Z Included Software: https://github.com/actions/runner-images/blob/ubuntu26/20261116.202/images/ubuntu/Ubuntu2604-Readme.md
+2026-11-20T22:08:47.2558486Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu26%2F20261116.202
+2026-11-20T22:08:47.2559516Z ##[endgroup]
+2026-11-20T22:08:47.2560700Z ##[group]GITHUB_TOKEN Permissions
+2026-11-20T22:08:47.2562680Z Contents: read
+2026-11-20T22:08:47.2563406Z Metadata: read
+2026-11-20T22:08:47.2564006Z ##[endgroup]
+2026-11-20T22:08:47.2566366Z Secret source: Actions
+2026-11-20T22:08:47.2567354Z Cache mode: write
+2026-11-20T22:08:47.2568139Z Prepare workflow directory
+2026-11-20T22:08:47.3036869Z Prepare all required actions
+2026-11-20T22:08:47.3086029Z Getting action download info
+2026-11-20T22:08:47.7009047Z Download action repository 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1' (SHA:3d3c42e5aac5ba805825da76410c181273ba90b1)
+2026-11-20T22:08:47.7967704Z Download action repository 'actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1' (SHA:949feb2413d6458794dcd2491c4babbbce0c15c1)
+2026-11-20T22:08:47.8610585Z Download action repository 'actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9' (SHA:cf430e030ddbb5b0abf93d22962f4752f3646cd9)
+2026-11-20T22:08:48.0480628Z Uses: north-foster-farm/north-foster-farm/.github/workflows/e2e-run.yml@refs/heads/scratch/retry-fixture (2336a6d9dd0396d61e36e57551909c112a1d5007)
+2026-11-20T22:08:48.0485654Z ##[group] Inputs
+2026-11-20T22:08:48.0486219Z   args: e2e/zz-retry-flaky.spec.mjs
+2026-11-20T22:08:48.0486763Z   pages: 
+2026-11-20T22:08:48.0487764Z   passes: 1
+2026-11-20T22:08:48.0488207Z   shards: [1]
+2026-11-20T22:08:48.0488640Z   total: 1
+2026-11-20T22:08:48.0489046Z   workers: 2
+2026-11-20T22:08:48.0489542Z   timeout: 90
+2026-11-20T22:08:48.0489996Z   specs: e2e/zz-retry-flaky.spec.mjs
+2026-11-20T22:08:48.0490556Z ##[endgroup]
+2026-11-20T22:08:48.0491011Z Complete job name: narrow / shard 1
+2026-11-20T22:08:48.1166490Z ##[group]Checking docker version
+2026-11-20T22:08:48.1179784Z ##[command]/usr/bin/docker version --format '{{.Server.APIVersion}}'
+2026-11-20T22:08:48.2146427Z '1.54'
+2026-11-20T22:08:48.2161236Z Docker daemon API version: '1.54'
+2026-11-20T22:08:48.2162085Z ##[command]/usr/bin/docker version --format '{{.Client.APIVersion}}'
+2026-11-20T22:08:48.2398542Z '1.54'
+2026-11-20T22:08:48.2416348Z Docker client API version: '1.54'
+2026-11-20T22:08:48.2421807Z ##[endgroup]
+2026-11-20T22:08:48.2425484Z ##[group]Clean up resources from previous jobs
+2026-11-20T22:08:48.2431231Z ##[command]/usr/bin/docker ps --all --quiet --no-trunc --filter "label=5796aa"
+2026-11-20T22:08:48.2606119Z ##[command]/usr/bin/docker network prune --force --filter "label=5796aa"
+2026-11-20T22:08:48.2772742Z ##[endgroup]
+2026-11-20T22:08:48.2773316Z ##[group]Create local container network
+2026-11-20T22:08:48.2784651Z ##[command]/usr/bin/docker network create --label 5796aa github_network_59dbb37274434aa699a70e1c4c78b05e
+2026-11-20T22:08:48.3292849Z c4a949d95e06b7e58aab10c17471a0da9b6a0456aadeaf8df77b4421ffcd1106
+2026-11-20T22:08:48.3319217Z ##[endgroup]
+2026-11-20T22:08:48.3345445Z ##[group]Starting job container
+2026-11-20T22:08:48.3368070Z ##[command]/usr/bin/docker pull mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e
+2026-11-20T22:08:48.4420872Z mcr.microsoft.com/playwright@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e: Pulling from playwright
+2026-11-20T22:08:48.5469812Z 782c0a3f363f: Pulling fs layer
+2026-11-20T22:08:48.5470724Z dad65d3622fa: Pulling fs layer
+2026-11-20T22:08:48.5471263Z 64112f4c67a2: Pulling fs layer
+2026-11-20T22:08:48.5471798Z 00d16ab601f6: Pulling fs layer
+2026-11-20T22:08:48.5472313Z ca2678b20700: Pulling fs layer
+2026-11-20T22:08:48.5472825Z 43f9c849a2a2: Pulling fs layer
+2026-11-20T22:08:48.5473344Z 4d796d6a8178: Pulling fs layer
+2026-11-20T22:08:48.7566828Z dad65d3622fa: Download complete
+2026-11-20T22:08:48.9581367Z ca2678b20700: Download complete
+2026-11-20T22:08:50.1573130Z 64112f4c67a2: Download complete
+2026-11-20T22:08:50.1575382Z 782c0a3f363f: Download complete
+2026-11-20T22:08:50.1577189Z 43f9c849a2a2: Download complete
+2026-11-20T22:08:51.3578921Z ca2678b20700: Pull complete
+2026-11-20T22:08:51.6563310Z 4d796d6a8178: Download complete
+2026-11-20T22:08:51.6569807Z 00d16ab601f6: Download complete
+2026-11-20T22:08:54.3560277Z dad65d3622fa: Pull complete
+2026-11-20T22:08:54.3586666Z 43f9c849a2a2: Pull complete
+2026-11-20T22:08:59.5626073Z 00d16ab601f6: Pull complete
+2026-11-20T22:09:02.6616610Z 4d796d6a8178: Pull complete
+2026-11-20T22:09:03.9569280Z 64112f4c67a2: Pull complete
+2026-11-20T22:09:05.4084330Z 782c0a3f363f: Pull complete
+2026-11-20T22:09:05.4090838Z Digest: sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e
+2026-11-20T22:09:05.4127993Z Status: Downloaded newer image for mcr.microsoft.com/playwright@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e
+2026-11-20T22:09:05.4130002Z mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e
+2026-11-20T22:09:05.4257352Z ##[command]/usr/bin/docker create --name bd145857562c43bca3760b4acdef0c5b_mcrmicrosoftcomplaywrightv1621noblesha256dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e_cf5be7 --label 5796aa --workdir /__w/north-foster-farm/north-foster-farm --network github_network_59dbb37274434aa699a70e1c4c78b05e  -e "HOME=/github/home" -e GITHUB_ACTIONS=true -e CI=true -v "/var/run/docker.sock":"/var/run/docker.sock" -v "/home/runner/work":"/__w" -v "/home/runner/actions-runner/cached/2.338.2/externals":"/__e":ro -v "/home/runner/work/_temp":"/__w/_temp" -v "/home/runner/work/_actions":"/__w/_actions" -v "/opt/hostedtoolcache":"/__t" -v "/home/runner/work/_temp/_github_home":"/github/home" -v "/home/runner/work/_temp/_github_workflow":"/github/workflow" --entrypoint "tail" mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e "-f" "/dev/null"
+2026-11-20T22:09:08.2983029Z 077941947d339a47af303c6a75eba17357869c3f953bf392c4097f2b0fc3d00a
+2026-11-20T22:09:08.3011892Z ##[command]/usr/bin/docker start 077941947d339a47af303c6a75eba17357869c3f953bf392c4097f2b0fc3d00a
+2026-11-20T22:09:08.5031483Z 077941947d339a47af303c6a75eba17357869c3f953bf392c4097f2b0fc3d00a
+2026-11-20T22:09:08.5056098Z ##[command]/usr/bin/docker ps --all --filter id=077941947d339a47af303c6a75eba17357869c3f953bf392c4097f2b0fc3d00a --filter status=running --no-trunc --format "{{.ID}} {{.Status}}"
+2026-11-20T22:09:08.5264120Z 077941947d339a47af303c6a75eba17357869c3f953bf392c4097f2b0fc3d00a Up Less than a second
+2026-11-20T22:09:08.5296239Z ##[command]/usr/bin/docker inspect --format "{{range .Config.Env}}{{println .}}{{end}}" 077941947d339a47af303c6a75eba17357869c3f953bf392c4097f2b0fc3d00a
+2026-11-20T22:09:08.5454188Z HOME=/github/home
+2026-11-20T22:09:08.5454620Z GITHUB_ACTIONS=true
+2026-11-20T22:09:08.5455192Z CI=true
+2026-11-20T22:09:08.5455699Z PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+2026-11-20T22:09:08.5456183Z LANG=C.UTF-8
+2026-11-20T22:09:08.5456407Z LC_ALL=C.UTF-8
+2026-11-20T22:09:08.5457077Z PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+2026-11-20T22:09:08.5476594Z ##[endgroup]
+2026-11-20T22:09:08.5485818Z ##[group]Waiting for all services to be ready
+2026-11-20T22:09:08.5487616Z ##[endgroup]
+2026-11-20T22:09:08.5870372Z ##[group]Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+2026-11-20T22:09:08.5871104Z with:
+2026-11-20T22:09:08.5871342Z   persist-credentials: false
+2026-11-20T22:09:08.5871603Z   fetch-depth: 0
+2026-11-20T22:09:08.5871874Z   repository: north-foster-farm/north-foster-farm
+2026-11-20T22:09:08.5874728Z   token: ***
+2026-11-20T22:09:08.5875099Z   ssh-strict: true
+2026-11-20T22:09:08.5875310Z   ssh-user: git
+2026-11-20T22:09:08.5875504Z   clean: true
+2026-11-20T22:09:08.5875722Z   sparse-checkout-cone-mode: true
+2026-11-20T22:09:08.5875980Z   fetch-tags: false
+2026-11-20T22:09:08.5876189Z   show-progress: true
+2026-11-20T22:09:08.5876412Z   lfs: false
+2026-11-20T22:09:08.5876609Z   submodules: false
+2026-11-20T22:09:08.5876825Z   set-safe-directory: true
+2026-11-20T22:09:08.5877086Z   allow-unsafe-pr-checkout: false
+2026-11-20T22:09:08.5877569Z env:
+2026-11-20T22:09:08.5877765Z   E2E_PORT: 8895
+2026-11-20T22:09:08.5878029Z   NODE_OPTIONS: --dns-result-order=ipv4first
+2026-11-20T22:09:08.5878368Z ##[endgroup]
+2026-11-20T22:09:08.5942169Z ##[command]/usr/bin/docker exec  077941947d339a47af303c6a75eba17357869c3f953bf392c4097f2b0fc3d00a sh -c "cat /etc/*release | grep ^ID"
+2026-11-20T22:09:09.0010570Z Syncing repository: north-foster-farm/north-foster-farm
+2026-11-20T22:09:09.0012567Z ##[group]Getting Git version info
+2026-11-20T22:09:09.0013039Z Working directory is '/__w/north-foster-farm/north-foster-farm'
+2026-11-20T22:09:09.0013653Z [command]/usr/bin/git version
+2026-11-20T22:09:09.0014209Z git version 2.43.0
+2026-11-20T22:09:09.0044596Z ##[endgroup]
+2026-11-20T22:09:09.0053398Z Temporarily overriding HOME='/__w/_temp/1926c15a-b98d-4a38-9cd6-5da1eda54eef' before making global git config changes
+2026-11-20T22:09:09.0055184Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-20T22:09:09.0058662Z [command]/usr/bin/git config --global --add safe.directory /__w/north-foster-farm/north-foster-farm
+2026-11-20T22:09:09.0099181Z Deleting the contents of '/__w/north-foster-farm/north-foster-farm'
+2026-11-20T22:09:09.0103578Z ##[group]Determining repository object format
+2026-11-20T22:09:09.0105978Z ##[endgroup]
+2026-11-20T22:09:09.0106870Z ##[group]Initializing the repository
+2026-11-20T22:09:09.0110793Z [command]/usr/bin/git init /__w/north-foster-farm/north-foster-farm
+2026-11-20T22:09:09.0155681Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-11-20T22:09:09.0156981Z hint: is subject to change. To configure the initial branch name to use in all
+2026-11-20T22:09:09.0157957Z hint: of your new repositories, which will suppress this warning, call:
+2026-11-20T22:09:09.0158404Z hint: 
+2026-11-20T22:09:09.0158736Z hint: 	git config --global init.defaultBranch <name>
+2026-11-20T22:09:09.0159095Z hint: 
+2026-11-20T22:09:09.0159457Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-11-20T22:09:09.0160179Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-11-20T22:09:09.0160616Z hint: 
+2026-11-20T22:09:09.0160828Z hint: 	git branch -m <name>
+2026-11-20T22:09:09.0164687Z Initialized empty Git repository in /__w/north-foster-farm/north-foster-farm/.git/
+2026-11-20T22:09:09.0176395Z [command]/usr/bin/git remote add origin https://github.com/north-foster-farm/north-foster-farm
+2026-11-20T22:09:09.0212899Z ##[endgroup]
+2026-11-20T22:09:09.0213456Z ##[group]Disabling automatic garbage collection
+2026-11-20T22:09:09.0215869Z [command]/usr/bin/git config --local gc.auto 0
+2026-11-20T22:09:09.0249886Z ##[endgroup]
+2026-11-20T22:09:09.0250602Z ##[group]Setting up auth
+2026-11-20T22:09:09.0254903Z Removing SSH command configuration
+2026-11-20T22:09:09.0257323Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-20T22:09:09.0298412Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-20T22:09:09.0584224Z Removing HTTP extra header
+2026-11-20T22:09:09.0589458Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-20T22:09:09.0632441Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-20T22:09:09.0934713Z Removing includeIf entries pointing to credentials config files
+2026-11-20T22:09:09.0941445Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-20T22:09:09.0991771Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-20T22:09:09.1274019Z [command]/usr/bin/git config --file /__w/_temp/git-credentials-aa963ea1-a582-47a9-8c9c-36729359b6b0.config http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-11-20T22:09:09.1325235Z [command]/usr/bin/git config --local includeIf.gitdir:/__w/north-foster-farm/north-foster-farm/.git.path /__w/_temp/git-credentials-aa963ea1-a582-47a9-8c9c-36729359b6b0.config
+2026-11-20T22:09:09.1378610Z [command]/usr/bin/git config --local includeIf.gitdir:/__w/north-foster-farm/north-foster-farm/.git/worktrees/*.path /__w/_temp/git-credentials-aa963ea1-a582-47a9-8c9c-36729359b6b0.config
+2026-11-20T22:09:09.1423110Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git.path /github/runner_temp/git-credentials-aa963ea1-a582-47a9-8c9c-36729359b6b0.config
+2026-11-20T22:09:09.1466382Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git/worktrees/*.path /github/runner_temp/git-credentials-aa963ea1-a582-47a9-8c9c-36729359b6b0.config
+2026-11-20T22:09:09.1507112Z ##[endgroup]
+2026-11-20T22:09:09.1507591Z ##[group]Fetching the repository
+2026-11-20T22:09:09.1514228Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules origin +refs/heads/*:refs/remotes/origin/* +refs/tags/*:refs/tags/*
+2026-11-20T22:09:15.3770085Z From https://github.com/north-foster-farm/north-foster-farm
+2026-11-20T22:09:15.3771167Z  * [new branch]        agent/relay             -> origin/agent/relay
+2026-11-20T22:09:15.3772167Z  * [new branch]        agent/wip-a11y-lang-and-link-names -> origin/agent/wip-a11y-lang-and-link-names
+2026-11-20T22:09:15.3776151Z  * [new branch]        agent/wip-eslint-10     -> origin/agent/wip-eslint-10
+2026-11-20T22:09:15.3776787Z  * [new branch]        agent/wip-nanoid-advisory -> origin/agent/wip-nanoid-advisory
+2026-11-20T22:09:15.3777541Z  * [new branch]        area-fee                -> origin/area-fee
+2026-11-20T22:09:15.3779502Z  * [new branch]        checkout                -> origin/checkout
+2026-11-20T22:09:15.3780313Z  * [new branch]        checkout-consent        -> origin/checkout-consent
+2026-11-20T22:09:15.3781157Z  * [new branch]        contact                 -> origin/contact
+2026-11-20T22:09:15.3785707Z  * [new branch]        dependabot/npm_and_yarn/npm_and_yarn-c12db4747a -> origin/dependabot/npm_and_yarn/npm_and_yarn-c12db4747a
+2026-11-20T22:09:15.3789092Z  * [new branch]        dependabot/npm_and_yarn/postcss-8.5.28 -> origin/dependabot/npm_and_yarn/postcss-8.5.28
+2026-11-20T22:09:15.3793091Z  * [new branch]        docs/agent-working-rules -> origin/docs/agent-working-rules
+2026-11-20T22:09:15.3796071Z  * [new branch]        docs/rollback-and-secrets -> origin/docs/rollback-and-secrets
+2026-11-20T22:09:15.3798300Z  * [new branch]        e2e/staging             -> origin/e2e/staging
+2026-11-20T22:09:15.3801037Z  * [new branch]        e2e/staging-full        -> origin/e2e/staging-full
+2026-11-20T22:09:15.3803060Z  * [new branch]        farm-news               -> origin/farm-news
+2026-11-20T22:09:15.3807379Z  * [new branch]        hold/114                -> origin/hold/114
+2026-11-20T22:09:15.3810384Z  * [new branch]        hold/148                -> origin/hold/148
+2026-11-20T22:09:15.3813297Z  * [new branch]        hold/149                -> origin/hold/149
+2026-11-20T22:09:15.3827211Z  * [new branch]        hold/161                -> origin/hold/161
+2026-11-20T22:09:15.3829029Z  * [new branch]        hold/165                -> origin/hold/165
+2026-11-20T22:09:15.3829734Z  * [new branch]        hold/167                -> origin/hold/167
+2026-11-20T22:09:15.3832221Z  * [new branch]        hold/182                -> origin/hold/182
+2026-11-20T22:09:15.3832932Z  * [new branch]        hold/183                -> origin/hold/183
+2026-11-20T22:09:15.3833535Z  * [new branch]        hold/191                -> origin/hold/191
+2026-11-20T22:09:15.3833948Z  * [new branch]        hold/193                -> origin/hold/193
+2026-11-20T22:09:15.3834337Z  * [new branch]        hold/215                -> origin/hold/215
+2026-11-20T22:09:15.3834723Z  * [new branch]        hold/232                -> origin/hold/232
+2026-11-20T22:09:15.3837673Z  * [new branch]        hold/235                -> origin/hold/235
+2026-11-20T22:09:15.3838524Z  * [new branch]        hold/236                -> origin/hold/236
+2026-11-20T22:09:15.3839221Z  * [new branch]        hold/240                -> origin/hold/240
+2026-11-20T22:09:15.3839885Z  * [new branch]        hold/241                -> origin/hold/241
+2026-11-20T22:09:15.3848031Z  * [new branch]        instagram-nudge         -> origin/instagram-nudge
+2026-11-20T22:09:15.3849550Z  * [new branch]        keep/cart-total-row-fold -> origin/keep/cart-total-row-fold
+2026-11-20T22:09:15.3850527Z  * [new branch]        lane/cart-foot          -> origin/lane/cart-foot
+2026-11-20T22:09:15.3851325Z  * [new branch]        lane/cart1              -> origin/lane/cart1
+2026-11-20T22:09:15.3852088Z  * [new branch]        lane/cart2              -> origin/lane/cart2
+2026-11-20T22:09:15.3852890Z  * [new branch]        lane/catalog            -> origin/lane/catalog
+2026-11-20T22:09:15.3853672Z  * [new branch]        lane/checkout           -> origin/lane/checkout
+2026-11-20T22:09:15.3856474Z  * [new branch]        lane/checkout-318       -> origin/lane/checkout-318
+2026-11-20T22:09:15.3859167Z  * [new branch]        lane/checkout-322       -> origin/lane/checkout-322
+2026-11-20T22:09:15.3877387Z  * [new branch]        lane/checkout-323       -> origin/lane/checkout-323
+2026-11-20T22:09:15.3878213Z  * [new branch]        lane/cloud-129          -> origin/lane/cloud-129
+2026-11-20T22:09:15.3878833Z  * [new branch]        lane/cloud-131          -> origin/lane/cloud-131
+2026-11-20T22:09:15.3879415Z  * [new branch]        lane/cloud-146          -> origin/lane/cloud-146
+2026-11-20T22:09:15.3879977Z  * [new branch]        lane/cloud-159          -> origin/lane/cloud-159
+2026-11-20T22:09:15.3880827Z  * [new branch]        lane/cloud-159b         -> origin/lane/cloud-159b
+2026-11-20T22:09:15.3881473Z  * [new branch]        lane/cloud-182          -> origin/lane/cloud-182
+2026-11-20T22:09:15.3882101Z  * [new branch]        lane/cloud-330          -> origin/lane/cloud-330
+2026-11-20T22:09:15.3882862Z  * [new branch]        lane/cloud-350          -> origin/lane/cloud-350
+2026-11-20T22:09:15.3883540Z  * [new branch]        lane/cloud-351          -> origin/lane/cloud-351
+2026-11-20T22:09:15.3884295Z  * [new branch]        lane/cloud-352          -> origin/lane/cloud-352
+2026-11-20T22:09:15.3884832Z  * [new branch]        lane/cloud-358          -> origin/lane/cloud-358
+2026-11-20T22:09:15.3886020Z  * [new branch]        lane/cloud-360          -> origin/lane/cloud-360
+2026-11-20T22:09:15.3886950Z  * [new branch]        lane/cloud-372          -> origin/lane/cloud-372
+2026-11-20T22:09:15.3887824Z  * [new branch]        lane/cloud-378          -> origin/lane/cloud-378
+2026-11-20T22:09:15.3888856Z  * [new branch]        lane/cloud-383          -> origin/lane/cloud-383
+2026-11-20T22:09:15.3889564Z  * [new branch]        lane/cloud-384          -> origin/lane/cloud-384
+2026-11-20T22:09:15.3891686Z  * [new branch]        lane/cloud-385          -> origin/lane/cloud-385
+2026-11-20T22:09:15.3899110Z  * [new branch]        lane/cloud-386          -> origin/lane/cloud-386
+2026-11-20T22:09:15.3900026Z  * [new branch]        lane/cloud-387          -> origin/lane/cloud-387
+2026-11-20T22:09:15.3901682Z  * [new branch]        lane/cloud-388          -> origin/lane/cloud-388
+2026-11-20T22:09:15.3902735Z  * [new branch]        lane/cloud-389          -> origin/lane/cloud-389
+2026-11-20T22:09:15.3903715Z  * [new branch]        lane/cloud-390          -> origin/lane/cloud-390
+2026-11-20T22:09:15.3904693Z  * [new branch]        lane/cloud-391          -> origin/lane/cloud-391
+2026-11-20T22:09:15.3905981Z  * [new branch]        lane/cloud-392          -> origin/lane/cloud-392
+2026-11-20T22:09:15.3908161Z  * [new branch]        lane/cloud-393          -> origin/lane/cloud-393
+2026-11-20T22:09:15.3911039Z  * [new branch]        lane/cloud-395          -> origin/lane/cloud-395
+2026-11-20T22:09:15.3917378Z  * [new branch]        lane/cloud-396          -> origin/lane/cloud-396
+2026-11-20T22:09:15.3918136Z  * [new branch]        lane/cloud-397          -> origin/lane/cloud-397
+2026-11-20T22:09:15.3918605Z  * [new branch]        lane/cloud-398          -> origin/lane/cloud-398
+2026-11-20T22:09:15.3927475Z  * [new branch]        lane/cloud-399          -> origin/lane/cloud-399
+2026-11-20T22:09:15.3928235Z  * [new branch]        lane/cloud-400          -> origin/lane/cloud-400
+2026-11-20T22:09:15.3929067Z  * [new branch]        lane/cloud-406          -> origin/lane/cloud-406
+2026-11-20T22:09:15.3929799Z  * [new branch]        lane/cloud-409          -> origin/lane/cloud-409
+2026-11-20T22:09:15.3930501Z  * [new branch]        lane/cloud-411          -> origin/lane/cloud-411
+2026-11-20T22:09:15.3931207Z  * [new branch]        lane/cloud-414          -> origin/lane/cloud-414
+2026-11-20T22:09:15.3931946Z  * [new branch]        lane/cloud-415          -> origin/lane/cloud-415
+2026-11-20T22:09:15.3933358Z  * [new branch]        lane/cloud-416          -> origin/lane/cloud-416
+2026-11-20T22:09:15.3937919Z  * [new branch]        lane/cloud-417          -> origin/lane/cloud-417
+2026-11-20T22:09:15.3939165Z  * [new branch]        lane/cloud-421          -> origin/lane/cloud-421
+2026-11-20T22:09:15.3940387Z  * [new branch]        lane/cloud-424          -> origin/lane/cloud-424
+2026-11-20T22:09:15.3941698Z  * [new branch]        lane/cloud-428          -> origin/lane/cloud-428
+2026-11-20T22:09:15.3950869Z  * [new branch]        lane/cloud-431          -> origin/lane/cloud-431
+2026-11-20T22:09:15.3951857Z  * [new branch]        lane/cloud-437          -> origin/lane/cloud-437
+2026-11-20T22:09:15.3952640Z  * [new branch]        lane/cloud-441          -> origin/lane/cloud-441
+2026-11-20T22:09:15.3953405Z  * [new branch]        lane/cloud-448          -> origin/lane/cloud-448
+2026-11-20T22:09:15.3956003Z  * [new branch]        lane/cloud-449          -> origin/lane/cloud-449
+2026-11-20T22:09:15.3956794Z  * [new branch]        lane/cloud-450          -> origin/lane/cloud-450
+2026-11-20T22:09:15.3957548Z  * [new branch]        lane/cloud-452          -> origin/lane/cloud-452
+2026-11-20T22:09:15.3959241Z  * [new branch]        lane/cloud-453          -> origin/lane/cloud-453
+2026-11-20T22:09:15.3967567Z  * [new branch]        lane/cloud-465          -> origin/lane/cloud-465
+2026-11-20T22:09:15.3968356Z  * [new branch]        lane/cloud-473          -> origin/lane/cloud-473
+2026-11-20T22:09:15.3969106Z  * [new branch]        lane/cloud-475          -> origin/lane/cloud-475
+2026-11-20T22:09:15.3969924Z  * [new branch]        lane/cloud-476          -> origin/lane/cloud-476
+2026-11-20T22:09:15.3977252Z  * [new branch]        lane/cloud-484          -> origin/lane/cloud-484
+2026-11-20T22:09:15.3978330Z  * [new branch]        lane/cloud-490          -> origin/lane/cloud-490
+2026-11-20T22:09:15.3979520Z  * [new branch]        lane/cloud-491          -> origin/lane/cloud-491
+2026-11-20T22:09:15.3980354Z  * [new branch]        lane/cloud-492          -> origin/lane/cloud-492
+2026-11-20T22:09:15.3981488Z  * [new branch]        lane/cloud-494          -> origin/lane/cloud-494
+2026-11-20T22:09:15.3982452Z  * [new branch]        lane/cloud-495          -> origin/lane/cloud-495
+2026-11-20T22:09:15.3983258Z  * [new branch]        lane/cloud-496          -> origin/lane/cloud-496
+2026-11-20T22:09:15.3984577Z  * [new branch]        lane/cloud-497          -> origin/lane/cloud-497
+2026-11-20T22:09:15.3988389Z  * [new branch]        lane/cloud-498          -> origin/lane/cloud-498
+2026-11-20T22:09:15.3991547Z  * [new branch]        lane/cloud-499          -> origin/lane/cloud-499
+2026-11-20T22:09:15.3993598Z  * [new branch]        lane/cloud-501          -> origin/lane/cloud-501
+2026-11-20T22:09:15.4007416Z  * [new branch]        lane/cloud-502          -> origin/lane/cloud-502
+2026-11-20T22:09:15.4008575Z  * [new branch]        lane/cloud-504          -> origin/lane/cloud-504
+2026-11-20T22:09:15.4009684Z  * [new branch]        lane/cloud-506          -> origin/lane/cloud-506
+2026-11-20T22:09:15.4010586Z  * [new branch]        lane/cloud-507          -> origin/lane/cloud-507
+2026-11-20T22:09:15.4011401Z  * [new branch]        lane/cloud-508          -> origin/lane/cloud-508
+2026-11-20T22:09:15.4012216Z  * [new branch]        lane/cloud-510          -> origin/lane/cloud-510
+2026-11-20T22:09:15.4012963Z  * [new branch]        lane/cloud-511          -> origin/lane/cloud-511
+2026-11-20T22:09:15.4027814Z  * [new branch]        lane/cloud-513          -> origin/lane/cloud-513
+2026-11-20T22:09:15.4031025Z  * [new branch]        lane/cloud-515          -> origin/lane/cloud-515
+2026-11-20T22:09:15.4032047Z  * [new branch]        lane/cloud-516          -> origin/lane/cloud-516
+2026-11-20T22:09:15.4033095Z  * [new branch]        lane/cloud-517          -> origin/lane/cloud-517
+2026-11-20T22:09:15.4035410Z  * [new branch]        lane/cloud-521          -> origin/lane/cloud-521
+2026-11-20T22:09:15.4036459Z  * [new branch]        lane/cloud-524          -> origin/lane/cloud-524
+2026-11-20T22:09:15.4039017Z  * [new branch]        lane/cloud-531          -> origin/lane/cloud-531
+2026-11-20T22:09:15.4040070Z  * [new branch]        lane/cloud-532          -> origin/lane/cloud-532
+2026-11-20T22:09:15.4042285Z  * [new branch]        lane/cloud-533          -> origin/lane/cloud-533
+2026-11-20T22:09:15.4043155Z  * [new branch]        lane/cloud-534          -> origin/lane/cloud-534
+2026-11-20T22:09:15.4043934Z  * [new branch]        lane/cloud-536          -> origin/lane/cloud-536
+2026-11-20T22:09:15.4044635Z  * [new branch]        lane/cloud-537          -> origin/lane/cloud-537
+2026-11-20T22:09:15.4046290Z  * [new branch]        lane/cloud-540          -> origin/lane/cloud-540
+2026-11-20T22:09:15.4048559Z  * [new branch]        lane/cloud-541          -> origin/lane/cloud-541
+2026-11-20T22:09:15.4049859Z  * [new branch]        lane/cloud-544          -> origin/lane/cloud-544
+2026-11-20T22:09:15.4050940Z  * [new branch]        lane/cloud-545          -> origin/lane/cloud-545
+2026-11-20T22:09:15.4051969Z  * [new branch]        lane/cloud-549          -> origin/lane/cloud-549
+2026-11-20T22:09:15.4055216Z  * [new branch]        lane/cloud-552          -> origin/lane/cloud-552
+2026-11-20T22:09:15.4057975Z  * [new branch]        lane/cloud-554          -> origin/lane/cloud-554
+2026-11-20T22:09:15.4060583Z  * [new branch]        lane/cloud-557          -> origin/lane/cloud-557
+2026-11-20T22:09:15.4063300Z  * [new branch]        lane/cloud-559          -> origin/lane/cloud-559
+2026-11-20T22:09:15.4065951Z  * [new branch]        lane/cloud-560          -> origin/lane/cloud-560
+2026-11-20T22:09:15.4068733Z  * [new branch]        lane/cloud-561          -> origin/lane/cloud-561
+2026-11-20T22:09:15.4071113Z  * [new branch]        lane/cloud-562          -> origin/lane/cloud-562
+2026-11-20T22:09:15.4074380Z  * [new branch]        lane/cloud-564          -> origin/lane/cloud-564
+2026-11-20T22:09:15.4076873Z  * [new branch]        lane/cloud-565          -> origin/lane/cloud-565
+2026-11-20T22:09:15.4080087Z  * [new branch]        lane/cloud-568          -> origin/lane/cloud-568
+2026-11-20T22:09:15.4083392Z  * [new branch]        lane/cloud-571          -> origin/lane/cloud-571
+2026-11-20T22:09:15.4085756Z  * [new branch]        lane/cloud-573          -> origin/lane/cloud-573
+2026-11-20T22:09:15.4087635Z  * [new branch]        lane/cloud-574          -> origin/lane/cloud-574
+2026-11-20T22:09:15.4090933Z  * [new branch]        lane/cloud-577          -> origin/lane/cloud-577
+2026-11-20T22:09:15.4093916Z  * [new branch]        lane/cloud-579          -> origin/lane/cloud-579
+2026-11-20T22:09:15.4099719Z  * [new branch]        lane/cloud-581          -> origin/lane/cloud-581
+2026-11-20T22:09:15.4100640Z  * [new branch]        lane/cloud-582          -> origin/lane/cloud-582
+2026-11-20T22:09:15.4102327Z  * [new branch]        lane/cloud-585          -> origin/lane/cloud-585
+2026-11-20T22:09:15.4104406Z  * [new branch]        lane/cloud-587          -> origin/lane/cloud-587
+2026-11-20T22:09:15.4107762Z  * [new branch]        lane/cloud-589          -> origin/lane/cloud-589
+2026-11-20T22:09:15.4109563Z  * [new branch]        lane/cloud-pulse        -> origin/lane/cloud-pulse
+2026-11-20T22:09:15.4112412Z  * [new branch]        lane/cloud-tocart       -> origin/lane/cloud-tocart
+2026-11-20T22:09:15.4115249Z  * [new branch]        lane/coop               -> origin/lane/coop
+2026-11-20T22:09:15.4117023Z  * [new branch]        lane/copy               -> origin/lane/copy
+2026-11-20T22:09:15.4119129Z  * [new branch]        lane/countdown-tests    -> origin/lane/countdown-tests
+2026-11-20T22:09:15.4121453Z  * [new branch]        lane/cover1             -> origin/lane/cover1
+2026-11-20T22:09:15.4123916Z  * [new branch]        lane/cover2             -> origin/lane/cover2
+2026-11-20T22:09:15.4127511Z  * [new branch]        lane/cover2-cancel      -> origin/lane/cover2-cancel
+2026-11-20T22:09:15.4130222Z  * [new branch]        lane/cover2-fix         -> origin/lane/cover2-fix
+2026-11-20T22:09:15.4132100Z  * [new branch]        lane/cover2-fix2        -> origin/lane/cover2-fix2
+2026-11-20T22:09:15.4134157Z  * [new branch]        lane/cover2-follow      -> origin/lane/cover2-follow
+2026-11-20T22:09:15.4136263Z  * [new branch]        lane/cover2-race        -> origin/lane/cover2-race
+2026-11-20T22:09:15.4139294Z  * [new branch]        lane/cover2-race2       -> origin/lane/cover2-race2
+2026-11-20T22:09:15.4141724Z  * [new branch]        lane/cover2-rotation    -> origin/lane/cover2-rotation
+2026-11-20T22:09:15.4144353Z  * [new branch]        lane/delivery-day-tests -> origin/lane/delivery-day-tests
+2026-11-20T22:09:15.4147661Z  * [new branch]        lane/deps               -> origin/lane/deps
+2026-11-20T22:09:15.4150069Z  * [new branch]        lane/deps-330           -> origin/lane/deps-330
+2026-11-20T22:09:15.4152853Z  * [new branch]        lane/devserver          -> origin/lane/devserver
+2026-11-20T22:09:15.4155788Z  * [new branch]        lane/e2e-cmd-tests      -> origin/lane/e2e-cmd-tests
+2026-11-20T22:09:15.4159060Z  * [new branch]        lane/e2e-tests          -> origin/lane/e2e-tests
+2026-11-20T22:09:15.4161632Z  * [new branch]        lane/email              -> origin/lane/email
+2026-11-20T22:09:15.4164379Z  * [new branch]        lane/fixtures           -> origin/lane/fixtures
+2026-11-20T22:09:15.4167350Z  * [new branch]        lane/footer             -> origin/lane/footer
+2026-11-20T22:09:15.4170194Z  * [new branch]        lane/gate               -> origin/lane/gate
+2026-11-20T22:09:15.4173238Z  * [new branch]        lane/gate-215           -> origin/lane/gate-215
+2026-11-20T22:09:15.4176495Z  * [new branch]        lane/gate-aller         -> origin/lane/gate-aller
+2026-11-20T22:09:15.4188201Z  * [new branch]        lane/gate-jan27         -> origin/lane/gate-jan27
+2026-11-20T22:09:15.4189127Z  * [new branch]        lane/gate-revoke        -> origin/lane/gate-revoke
+2026-11-20T22:09:15.4190001Z  * [new branch]        lane/gh-shot            -> origin/lane/gh-shot
+2026-11-20T22:09:15.4190824Z  * [new branch]        lane/gh-shot-hardening  -> origin/lane/gh-shot-hardening
+2026-11-20T22:09:15.4193212Z  * [new branch]        lane/group-delivery-tests -> origin/lane/group-delivery-tests
+2026-11-20T22:09:15.4194351Z  * [new branch]        lane/home               -> origin/lane/home
+2026-11-20T22:09:15.4195778Z  * [new branch]        lane/hotfix-tests       -> origin/lane/hotfix-tests
+2026-11-20T22:09:15.4197054Z  * [new branch]        lane/map                -> origin/lane/map
+2026-11-20T22:09:15.4200598Z  * [new branch]        lane/map-282            -> origin/lane/map-282
+2026-11-20T22:09:15.4203593Z  * [new branch]        lane/newsmail           -> origin/lane/newsmail
+2026-11-20T22:09:15.4206497Z  * [new branch]        lane/node-24            -> origin/lane/node-24
+2026-11-20T22:09:15.4209626Z  * [new branch]        lane/orders             -> origin/lane/orders
+2026-11-20T22:09:15.4213102Z  * [new branch]        lane/orders-268         -> origin/lane/orders-268
+2026-11-20T22:09:15.4216347Z  * [new branch]        lane/orders-284         -> origin/lane/orders-284
+2026-11-20T22:09:15.4219406Z  * [new branch]        lane/orders-292b        -> origin/lane/orders-292b
+2026-11-20T22:09:15.4221940Z  * [new branch]        lane/orders-319         -> origin/lane/orders-319
+2026-11-20T22:09:15.4224567Z  * [new branch]        lane/orders-321         -> origin/lane/orders-321
+2026-11-20T22:09:15.4227887Z  * [new branch]        lane/orders-331         -> origin/lane/orders-331
+2026-11-20T22:09:15.4230685Z  * [new branch]        lane/orders-334         -> origin/lane/orders-334
+2026-11-20T22:09:15.4232833Z  * [new branch]        lane/orders-335         -> origin/lane/orders-335
+2026-11-20T22:09:15.4236141Z  * [new branch]        lane/orders-e2e         -> origin/lane/orders-e2e
+2026-11-20T22:09:15.4239233Z  * [new branch]        lane/orders-reset       -> origin/lane/orders-reset
+2026-11-20T22:09:15.4241899Z  * [new branch]        lane/packing-tests      -> origin/lane/packing-tests
+2026-11-20T22:09:15.4244641Z  * [new branch]        lane/pages              -> origin/lane/pages
+2026-11-20T22:09:15.4247902Z  * [new branch]        lane/picker-out-tests   -> origin/lane/picker-out-tests
+2026-11-20T22:09:15.4250705Z  * [new branch]        lane/pipeline           -> origin/lane/pipeline
+2026-11-20T22:09:15.4253481Z  * [new branch]        lane/pipeline-check     -> origin/lane/pipeline-check
+2026-11-20T22:09:15.4256400Z  * [new branch]        lane/prod               -> origin/lane/prod
+2026-11-20T22:09:15.4259203Z  * [new branch]        lane/products           -> origin/lane/products
+2026-11-20T22:09:15.4261946Z  * [new branch]        lane/qa                 -> origin/lane/qa
+2026-11-20T22:09:15.4265417Z  * [new branch]        lane/release-ci-order   -> origin/lane/release-ci-order
+2026-11-20T22:09:15.4268343Z  * [new branch]        lane/release-completion -> origin/lane/release-completion
+2026-11-20T22:09:15.4271247Z  * [new branch]        lane/release-envguard   -> origin/lane/release-envguard
+2026-11-20T22:09:15.4274721Z  * [new branch]        lane/release-envs       -> origin/lane/release-envs
+2026-11-20T22:09:15.4277895Z  * [new branch]        lane/release-fixes3     -> origin/lane/release-fixes3
+2026-11-20T22:09:15.4280786Z  * [new branch]        lane/release-golive     -> origin/lane/release-golive
+2026-11-20T22:09:15.4283828Z  * [new branch]        lane/release-news-footer -> origin/lane/release-news-footer
+2026-11-20T22:09:15.4286637Z  * [new branch]        lane/release-photo      -> origin/lane/release-photo
+2026-11-20T22:09:15.4289488Z  * [new branch]        lane/release-photo-1    -> origin/lane/release-photo-1
+2026-11-20T22:09:15.4292627Z  * [new branch]        lane/release-publickey  -> origin/lane/release-publickey
+2026-11-20T22:09:15.4295834Z  * [new branch]        lane/release-specfix    -> origin/lane/release-specfix
+2026-11-20T22:09:15.4298725Z  * [new branch]        lane/release-welcome    -> origin/lane/release-welcome
+2026-11-20T22:09:15.4301115Z  * [new branch]        lane/release-where      -> origin/lane/release-where
+2026-11-20T22:09:15.4304455Z  * [new branch]        lane/skeletons          -> origin/lane/skeletons
+2026-11-20T22:09:15.4307996Z  * [new branch]        lane/square-follow-tests -> origin/lane/square-follow-tests
+2026-11-20T22:09:15.4311281Z  * [new branch]        lane/squash1            -> origin/lane/squash1
+2026-11-20T22:09:15.4314352Z  * [new branch]        lane/squash1-181        -> origin/lane/squash1-181
+2026-11-20T22:09:15.4317553Z  * [new branch]        lane/squash1-181-page   -> origin/lane/squash1-181-page
+2026-11-20T22:09:15.4320618Z  * [new branch]        lane/squash2            -> origin/lane/squash2
+2026-11-20T22:09:15.4324041Z  * [new branch]        lane/stagefix           -> origin/lane/stagefix
+2026-11-20T22:09:15.4327116Z  * [new branch]        lane/tidy               -> origin/lane/tidy
+2026-11-20T22:09:15.4330027Z  * [new branch]        lane/wording-tests      -> origin/lane/wording-tests
+2026-11-20T22:09:15.4332514Z  * [new branch]        lane/writer1            -> origin/lane/writer1
+2026-11-20T22:09:15.4336454Z  * [new branch]        lane/writer1-account-server -> origin/lane/writer1-account-server
+2026-11-20T22:09:15.4339434Z  * [new branch]        lane/writer1-chrome     -> origin/lane/writer1-chrome
+2026-11-20T22:09:15.4342482Z  * [new branch]        lane/writer1-contact    -> origin/lane/writer1-contact
+2026-11-20T22:09:15.4346326Z  * [new branch]        lane/writer1-drop-sites -> origin/lane/writer1-drop-sites
+2026-11-20T22:09:15.4349570Z  * [new branch]        lane/writer1-news       -> origin/lane/writer1-news
+2026-11-20T22:09:15.4352483Z  * [new branch]        lane/writer1-policy     -> origin/lane/writer1-policy
+2026-11-20T22:09:15.4354268Z  * [new branch]        lane/writer1-post       -> origin/lane/writer1-post
+2026-11-20T22:09:15.4357702Z  * [new branch]        lane/writer2            -> origin/lane/writer2
+2026-11-20T22:09:15.4361725Z  * [new branch]        lane/writer2-alerts     -> origin/lane/writer2-alerts
+2026-11-20T22:09:15.4363837Z  * [new branch]        lane/writer2-checkout   -> origin/lane/writer2-checkout
+2026-11-20T22:09:15.4366568Z  * [new branch]        lane/writer2-drafts     -> origin/lane/writer2-drafts
+2026-11-20T22:09:15.4369343Z  * [new branch]        lane/writer2-emails     -> origin/lane/writer2-emails
+2026-11-20T22:09:15.4372573Z  * [new branch]        lane/writer2-farm       -> origin/lane/writer2-farm
+2026-11-20T22:09:15.4374893Z  * [new branch]        lane/writer2-farm-news  -> origin/lane/writer2-farm-news
+2026-11-20T22:09:15.4378089Z  * [new branch]        lane/writer2-info       -> origin/lane/writer2-info
+2026-11-20T22:09:15.4380738Z  * [new branch]        lane/writer2-launch     -> origin/lane/writer2-launch
+2026-11-20T22:09:15.4383513Z  * [new branch]        lane/writer2-missed     -> origin/lane/writer2-missed
+2026-11-20T22:09:15.4386016Z  * [new branch]        lane/writer2-order      -> origin/lane/writer2-order
+2026-11-20T22:09:15.4389263Z  * [new branch]        lane/writer2-reports    -> origin/lane/writer2-reports
+2026-11-20T22:09:15.4391136Z  * [new branch]        lane/writer2-slip       -> origin/lane/writer2-slip
+2026-11-20T22:09:15.4393167Z  * [new branch]        launch-guide            -> origin/launch-guide
+2026-11-20T22:09:15.4395480Z  * [new branch]        main                    -> origin/main
+2026-11-20T22:09:15.4397981Z  * [new branch]        news                    -> origin/news
+2026-11-20T22:09:15.4400462Z  * [new branch]        next                    -> origin/next
+2026-11-20T22:09:15.4403416Z  * [new branch]        parked/group-delivery   -> origin/parked/group-delivery
+2026-11-20T22:09:15.4406015Z  * [new branch]        parked/pickup-picker    -> origin/parked/pickup-picker
+2026-11-20T22:09:15.4408745Z  * [new branch]        pickup-hours            -> origin/pickup-hours
+2026-11-20T22:09:15.4411243Z  * [new branch]        qa-launch               -> origin/qa-launch
+2026-11-20T22:09:15.4414842Z  * [new branch]        release/eggs-perks      -> origin/release/eggs-perks
+2026-11-20T22:09:15.4418127Z  * [new branch]        scratch/retry-fixture   -> origin/scratch/retry-fixture
+2026-11-20T22:09:15.4420739Z  * [new branch]        screenshots             -> origin/screenshots
+2026-11-20T22:09:15.4424122Z  * [new branch]        september-update        -> origin/september-update
+2026-11-20T22:09:15.4426524Z  * [new branch]        settings-name           -> origin/settings-name
+2026-11-20T22:09:15.4428431Z  * [new branch]        share-card              -> origin/share-card
+2026-11-20T22:09:15.4431919Z  * [new branch]        shots/240               -> origin/shots/240
+2026-11-20T22:09:15.4434148Z  * [new branch]        shots/267               -> origin/shots/267
+2026-11-20T22:09:15.4437279Z  * [new branch]        shots/267-review        -> origin/shots/267-review
+2026-11-20T22:09:15.4439435Z  * [new branch]        shots/267-v9            -> origin/shots/267-v9
+2026-11-20T22:09:15.4442561Z  * [new branch]        shots/272               -> origin/shots/272
+2026-11-20T22:09:15.4443696Z  * [new branch]        shots/273               -> origin/shots/273
+2026-11-20T22:09:15.4446128Z  * [new branch]        shots/274-r4            -> origin/shots/274-r4
+2026-11-20T22:09:15.4448580Z  * [new branch]        shots/274-r4b           -> origin/shots/274-r4b
+2026-11-20T22:09:15.4450487Z  * [new branch]        shots/274-r4c           -> origin/shots/274-r4c
+2026-11-20T22:09:15.4452815Z  * [new branch]        shots/274-r5            -> origin/shots/274-r5
+2026-11-20T22:09:15.4457421Z  * [new branch]        shots/275               -> origin/shots/275
+2026-11-20T22:09:15.4458187Z  * [new branch]        shots/277               -> origin/shots/277
+2026-11-20T22:09:15.4467555Z  * [new branch]        shots/280               -> origin/shots/280
+2026-11-20T22:09:15.4468733Z  * [new branch]        shots/294               -> origin/shots/294
+2026-11-20T22:09:15.4469185Z  * [new branch]        shots/303               -> origin/shots/303
+2026-11-20T22:09:15.4469618Z  * [new branch]        shots/303-show          -> origin/shots/303-show
+2026-11-20T22:09:15.4470041Z  * [new branch]        shots/303b              -> origin/shots/303b
+2026-11-20T22:09:15.4470845Z  * [new branch]        shots/303c              -> origin/shots/303c
+2026-11-20T22:09:15.4471651Z  * [new branch]        staging                 -> origin/staging
+2026-11-20T22:09:15.4472369Z  * [new branch]        staging-env             -> origin/staging-env
+2026-11-20T22:09:15.4475676Z  * [new tag]           pre-cart                -> pre-cart
+2026-11-20T22:09:15.4510783Z [command]/usr/bin/git branch --list --remote origin/scratch/retry-fixture
+2026-11-20T22:09:15.4584158Z   origin/scratch/retry-fixture
+2026-11-20T22:09:15.4592896Z [command]/usr/bin/git rev-parse refs/remotes/origin/scratch/retry-fixture
+2026-11-20T22:09:15.4628236Z 2336a6d9dd0396d61e36e57551909c112a1d5007
+2026-11-20T22:09:15.4633162Z ##[endgroup]
+2026-11-20T22:09:15.4633881Z ##[group]Determining the checkout info
+2026-11-20T22:09:15.4634822Z ##[endgroup]
+2026-11-20T22:09:15.4638750Z [command]/usr/bin/git sparse-checkout disable
+2026-11-20T22:09:15.4691058Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-11-20T22:09:15.4734627Z ##[group]Checking out the ref
+2026-11-20T22:09:15.4739266Z [command]/usr/bin/git checkout --progress --force -B scratch/retry-fixture refs/remotes/origin/scratch/retry-fixture
+2026-11-20T22:09:15.7731212Z Switched to a new branch 'scratch/retry-fixture'
+2026-11-20T22:09:15.7732145Z branch 'scratch/retry-fixture' set up to track 'origin/scratch/retry-fixture'.
+2026-11-20T22:09:15.7765643Z ##[endgroup]
+2026-11-20T22:09:15.7833607Z [command]/usr/bin/git log -1 --format=%H
+2026-11-20T22:09:15.7875796Z 2336a6d9dd0396d61e36e57551909c112a1d5007
+2026-11-20T22:09:15.7885350Z ##[group]Removing auth
+2026-11-20T22:09:15.7885840Z Removing SSH command configuration
+2026-11-20T22:09:15.7889913Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-20T22:09:15.7934831Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-20T22:09:15.8197978Z Removing HTTP extra header
+2026-11-20T22:09:15.8202715Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-20T22:09:15.8246072Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-20T22:09:15.8511292Z Removing includeIf entries pointing to credentials config files
+2026-11-20T22:09:15.8514870Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-20T22:09:15.8552507Z includeif.gitdir:/__w/north-foster-farm/north-foster-farm/.git.path
+2026-11-20T22:09:15.8553695Z includeif.gitdir:/__w/north-foster-farm/north-foster-farm/.git/worktrees/*.path
+2026-11-20T22:09:15.8554645Z includeif.gitdir:/github/workspace/.git.path
+2026-11-20T22:09:15.8555636Z includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-11-20T22:09:15.8562356Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/__w/north-foster-farm/north-foster-farm/.git.path
+2026-11-20T22:09:15.8598158Z /__w/_temp/git-credentials-aa963ea1-a582-47a9-8c9c-36729359b6b0.config
+2026-11-20T22:09:15.8608969Z [command]/usr/bin/git config --local --unset includeif.gitdir:/__w/north-foster-farm/north-foster-farm/.git.path \/__w\/_temp\/git\-credentials\-aa963ea1\-a582\-47a9\-8c9c\-36729359b6b0\.config
+2026-11-20T22:09:15.8656659Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/__w/north-foster-farm/north-foster-farm/.git/worktrees/*.path
+2026-11-20T22:09:15.8689874Z /__w/_temp/git-credentials-aa963ea1-a582-47a9-8c9c-36729359b6b0.config
+2026-11-20T22:09:15.8698807Z [command]/usr/bin/git config --local --unset includeif.gitdir:/__w/north-foster-farm/north-foster-farm/.git/worktrees/*.path \/__w\/_temp\/git\-credentials\-aa963ea1\-a582\-47a9\-8c9c\-36729359b6b0\.config
+2026-11-20T22:09:15.8742690Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git.path
+2026-11-20T22:09:15.8777816Z /github/runner_temp/git-credentials-aa963ea1-a582-47a9-8c9c-36729359b6b0.config
+2026-11-20T22:09:15.8786339Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git.path \/github\/runner_temp\/git\-credentials\-aa963ea1\-a582\-47a9\-8c9c\-36729359b6b0\.config
+2026-11-20T22:09:15.8832083Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-11-20T22:09:15.8865574Z /github/runner_temp/git-credentials-aa963ea1-a582-47a9-8c9c-36729359b6b0.config
+2026-11-20T22:09:15.8874247Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git/worktrees/*.path \/github\/runner_temp\/git\-credentials\-aa963ea1\-a582\-47a9\-8c9c\-36729359b6b0\.config
+2026-11-20T22:09:15.8922095Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-20T22:09:15.9193677Z Removing credentials config '/__w/_temp/git-credentials-aa963ea1-a582-47a9-8c9c-36729359b6b0.config'
+2026-11-20T22:09:15.9205861Z ##[endgroup]
+2026-11-20T22:09:15.9464280Z ##[group]Run git config --global --add safe.directory "$GITHUB_WORKSPACE"
+2026-11-20T22:09:15.9464881Z [36;1mgit config --global --add safe.directory "$GITHUB_WORKSPACE"[0m
+2026-11-20T22:09:15.9469081Z shell: bash --noprofile --norc -e -o pipefail {0}
+2026-11-20T22:09:15.9469409Z env:
+2026-11-20T22:09:15.9469600Z   E2E_PORT: 8895
+2026-11-20T22:09:15.9469847Z   NODE_OPTIONS: --dns-result-order=ipv4first
+2026-11-20T22:09:15.9470142Z ##[endgroup]
+2026-11-20T22:09:16.0203371Z ##[group]Run actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+2026-11-20T22:09:16.0203792Z with:
+2026-11-20T22:09:16.0203999Z   node-version-file: .nvmrc
+2026-11-20T22:09:16.0204245Z   cache: npm
+2026-11-20T22:09:16.0204439Z   check-latest: false
+2026-11-20T22:09:16.0207435Z   token: ***
+2026-11-20T22:09:16.0207892Z   package-manager-cache: true
+2026-11-20T22:09:16.0208145Z env:
+2026-11-20T22:09:16.0208326Z   E2E_PORT: 8895
+2026-11-20T22:09:16.0208557Z   NODE_OPTIONS: --dns-result-order=ipv4first
+2026-11-20T22:09:16.0208996Z ##[endgroup]
+2026-11-20T22:09:16.0216599Z ##[command]/usr/bin/docker exec  077941947d339a47af303c6a75eba17357869c3f953bf392c4097f2b0fc3d00a sh -c "cat /etc/*release | grep ^ID"
+2026-11-20T22:09:16.2542482Z Node version file is not JSON file
+2026-11-20T22:09:16.2548256Z Node version file is not TOML file
+2026-11-20T22:09:16.2556708Z Resolved .nvmrc as 24.22.1
+2026-11-20T22:09:16.2568236Z Attempting to download 24.22.1...
+2026-11-20T22:09:16.9663055Z Acquiring 24.22.1 - x64 from https://github.com/actions/node-versions/releases/download/24.22.1-39619001896/node-24.22.1-linux-x64.tar.gz
+2026-11-20T22:09:17.4597810Z Extracting ...
+2026-11-20T22:09:17.4737583Z [command]/usr/bin/tar xz --strip 1 --warning=no-unknown-keyword --overwrite -C /__w/_temp/02f800e8-3ec4-426d-add1-85d4600b80ae -f /__w/_temp/4903910a-b517-4fbd-8b16-06f216ec9ac7
+2026-11-20T22:09:18.7779236Z Adding to the cache ...
+2026-11-20T22:09:20.6629662Z ##[group]Environment details
+2026-11-20T22:09:20.8977042Z node: v24.22.1
+2026-11-20T22:09:20.8977544Z npm: 11.19.1
+2026-11-20T22:09:20.8977949Z yarn: 1.22.22
+2026-11-20T22:09:20.8978716Z ##[endgroup]
+2026-11-20T22:09:20.8993268Z [command]/__t/node/24.22.1/x64/bin/npm config get cache
+2026-11-20T22:09:21.0042275Z /github/home/.npm
+2026-11-20T22:09:21.2513640Z npm cache is not found
+2026-11-20T22:09:21.2717798Z ##[group]Run npm ci
+2026-11-20T22:09:21.2718072Z [36;1mnpm ci[0m
+2026-11-20T22:09:21.2718627Z shell: bash --noprofile --norc -e -o pipefail {0}
+2026-11-20T22:09:21.2718931Z env:
+2026-11-20T22:09:21.2719110Z   E2E_PORT: 8895
+2026-11-20T22:09:21.2719342Z   NODE_OPTIONS: --dns-result-order=ipv4first
+2026-11-20T22:09:21.2719632Z ##[endgroup]
+2026-11-20T22:09:25.2875964Z 
+2026-11-20T22:09:25.2885533Z > north-foster-farm@1.0.0 prepare
+2026-11-20T22:09:25.2886256Z > git config core.hooksPath .githooks 2>/dev/null || true
+2026-11-20T22:09:25.2886657Z 
+2026-11-20T22:09:25.3338889Z 
+2026-11-20T22:09:25.3340417Z added 299 packages, and audited 300 packages in 4s
+2026-11-20T22:09:25.3341088Z 
+2026-11-20T22:09:25.3341788Z 89 packages are looking for funding
+2026-11-20T22:09:25.3342996Z   run `npm fund` for details
+2026-11-20T22:09:25.3353282Z 
+2026-11-20T22:09:25.3353663Z found 0 vulnerabilities
+2026-11-20T22:09:25.4211107Z Prepare all required actions
+2026-11-20T22:09:25.4253059Z ##[group]Run ./.github/actions/setup-hugo
+2026-11-20T22:09:25.4253356Z env:
+2026-11-20T22:09:25.4253549Z   E2E_PORT: 8895
+2026-11-20T22:09:25.4253791Z   NODE_OPTIONS: --dns-result-order=ipv4first
+2026-11-20T22:09:25.4254080Z ##[endgroup]
+2026-11-20T22:09:25.4309692Z ##[start-action display=Install Hugo and Dart Sass;id=__self.__run]
+2026-11-20T22:09:25.4333956Z ##[group]Run set -euo pipefail
+2026-11-20T22:09:25.4334255Z [36;1mset -euo pipefail[0m
+2026-11-20T22:09:25.4334504Z [36;1mtools="$RUNNER_TEMP/tools"[0m
+2026-11-20T22:09:25.4334778Z [36;1mmkdir -p "$tools"[0m
+2026-11-20T22:09:25.4335178Z [36;1mcd "$RUNNER_TEMP"[0m
+2026-11-20T22:09:25.4335505Z [36;1mbase=https://github.com/gohugoio/hugo/releases/download[0m
+2026-11-20T22:09:25.4335940Z [36;1mhugo="hugo_extended_${HUGO_VERSION}_linux-amd64.tar.gz"[0m
+2026-11-20T22:09:25.4336342Z [36;1mcurl -fsSL -o hugo.tgz "$base/v$HUGO_VERSION/$hugo"[0m
+2026-11-20T22:09:25.4336761Z [36;1mecho "$HUGO_SHA256  hugo.tgz" | sha256sum -c -[0m
+2026-11-20T22:09:25.4337095Z [36;1mtar -xzf hugo.tgz -C "$tools" hugo[0m
+2026-11-20T22:09:25.4337465Z [36;1mbase=https://github.com/sass/dart-sass/releases/download[0m
+2026-11-20T22:09:25.4337878Z [36;1msass="dart-sass-${SASS_VERSION}-linux-x64.tar.gz"[0m
+2026-11-20T22:09:25.4338266Z [36;1mcurl -fsSL -o sass.tgz "$base/$SASS_VERSION/$sass"[0m
+2026-11-20T22:09:25.4338631Z [36;1mecho "$SASS_SHA256  sass.tgz" | sha256sum -c -[0m
+2026-11-20T22:09:25.4338934Z [36;1mtar -xzf sass.tgz[0m
+2026-11-20T22:09:25.4339180Z [36;1mcp -r dart-sass/* "$tools"[0m
+2026-11-20T22:09:25.4339659Z [36;1mecho "$tools" >> "$GITHUB_PATH"[0m
+2026-11-20T22:09:25.4340061Z shell: bash --noprofile --norc -e -o pipefail {0}
+2026-11-20T22:09:25.4340355Z env:
+2026-11-20T22:09:25.4340541Z   E2E_PORT: 8895
+2026-11-20T22:09:25.4340769Z   NODE_OPTIONS: --dns-result-order=ipv4first
+2026-11-20T22:09:25.4341052Z   HUGO_VERSION: 0.164.0
+2026-11-20T22:09:25.4341406Z   HUGO_SHA256: fea17b8c076f950bb2e9f9486667bdaa29422883888d509d63931c73e8a9b3a4
+2026-11-20T22:09:25.4341815Z   SASS_VERSION: 1.79.5
+2026-11-20T22:09:25.4342161Z   SASS_SHA256: a2a776abc777f2b8594b7410c2d057d7aa7a9090b55ed20382eea72cde6a10ce
+2026-11-20T22:09:25.4342549Z ##[endgroup]
+2026-11-20T22:09:25.8170375Z hugo.tgz: OK
+2026-11-20T22:09:26.6161277Z sass.tgz: OK
+2026-11-20T22:09:26.7021808Z ##[end-action id=__self.__run;outcome=success;conclusion=success;duration_ms=1271]
+2026-11-20T22:09:26.7096442Z Prepare all required actions
+2026-11-20T22:09:26.7148876Z ##[group]Run ./.github/actions/setup-playwright
+2026-11-20T22:09:26.7149279Z with:
+2026-11-20T22:09:26.7149661Z   browsers: chromium webkit
+2026-11-20T22:09:26.7167478Z env:
+2026-11-20T22:09:26.7167685Z   E2E_PORT: 8895
+2026-11-20T22:09:26.7167942Z   NODE_OPTIONS: --dns-result-order=ipv4first
+2026-11-20T22:09:26.7168242Z ##[endgroup]
+2026-11-20T22:09:26.7176084Z ##[start-action display=Browsers;id=__self_2.__run]
+2026-11-20T22:09:26.7192175Z ##[group]Run # shellcheck disable=SC2086
+2026-11-20T22:09:26.7192520Z [36;1m# shellcheck disable=SC2086[0m
+2026-11-20T22:09:26.7192896Z [36;1mtimeout --kill-after=15s 5m npx playwright install $BROWSERS[0m
+2026-11-20T22:09:26.7193421Z shell: bash --noprofile --norc -e -o pipefail {0}
+2026-11-20T22:09:26.7193715Z env:
+2026-11-20T22:09:26.7193898Z   E2E_PORT: 8895
+2026-11-20T22:09:26.7194133Z   NODE_OPTIONS: --dns-result-order=ipv4first
+2026-11-20T22:09:26.7194470Z   BROWSERS: chromium webkit
+2026-11-20T22:09:26.7194699Z ##[endgroup]
+2026-11-20T22:09:27.8525403Z ##[end-action id=__self_2.__run;outcome=success;conclusion=success;duration_ms=1134]
+2026-11-20T22:09:27.8531574Z ##[start-action display=Check the browsers launch;id=__self_2.launch]
+2026-11-20T22:09:27.8559613Z ##[group]Run missing=0
+2026-11-20T22:09:27.8560022Z [36;1mmissing=0[0m
+2026-11-20T22:09:27.8560414Z [36;1mfor b in $BROWSERS; do[0m
+2026-11-20T22:09:27.8560945Z [36;1m  js="require('@playwright/test')['$b'].launch()"[0m
+2026-11-20T22:09:27.8561571Z [36;1m  if node -e "$js.then(x => x.close())" \[0m
+2026-11-20T22:09:27.8562140Z [36;1m    > "$RUNNER_TEMP/launch-$b.log" 2>&1[0m
+2026-11-20T22:09:27.8562652Z [36;1m  then echo "$b launches"[0m
+2026-11-20T22:09:27.8563275Z [36;1m  else echo "$b needs system libraries"; missing=1; fi[0m
+2026-11-20T22:09:27.8563849Z [36;1mdone[0m
+2026-11-20T22:09:27.8564260Z [36;1mecho "missing=$missing" >> "$GITHUB_OUTPUT"[0m
+2026-11-20T22:09:27.8565576Z shell: bash --noprofile --norc -e -o pipefail {0}
+2026-11-20T22:09:27.8566113Z env:
+2026-11-20T22:09:27.8566431Z   E2E_PORT: 8895
+2026-11-20T22:09:27.8566817Z   NODE_OPTIONS: --dns-result-order=ipv4first
+2026-11-20T22:09:27.8567145Z   BROWSERS: chromium webkit
+2026-11-20T22:09:27.8567379Z ##[endgroup]
+2026-11-20T22:09:28.5078922Z chromium launches
+2026-11-20T22:09:29.2915829Z webkit launches
+2026-11-20T22:09:29.2974063Z ##[end-action id=__self_2.launch;outcome=success;conclusion=success;duration_ms=1444]
+2026-11-20T22:09:29.2977918Z ##[start-action display=System libraries;id=__self_2.__run_2]
+2026-11-20T22:09:29.2984494Z ##[end-action id=__self_2.__run_2;outcome=skipped;conclusion=skipped;duration_ms=0]
+2026-11-20T22:09:29.3012495Z ##[group]Run token=$(openssl rand -hex 24)
+2026-11-20T22:09:29.3012860Z [36;1mtoken=$(openssl rand -hex 24)[0m
+2026-11-20T22:09:29.3013145Z [36;1mecho "::add-mask::$token"[0m
+2026-11-20T22:09:29.3013462Z [36;1mecho "E2E_STAGING_TOKEN=$token" >> "$GITHUB_ENV"[0m
+2026-11-20T22:09:29.3014090Z shell: bash --noprofile --norc -e -o pipefail {0}
+2026-11-20T22:09:29.3014391Z env:
+2026-11-20T22:09:29.3014581Z   E2E_PORT: 8895
+2026-11-20T22:09:29.3015269Z   NODE_OPTIONS: --dns-result-order=ipv4first
+2026-11-20T22:09:29.3015600Z ##[endgroup]
+2026-11-20T22:09:29.3696339Z ##[group]Run serve() {
+2026-11-20T22:09:29.3696689Z [36;1mserve() {[0m
+2026-11-20T22:09:29.3697020Z [36;1m  node bin/e2e/serve.mjs --port "$E2E_PORT" \[0m
+2026-11-20T22:09:29.3697439Z [36;1m    > "$RUNNER_TEMP/serve-$1.log" 2>&1 &[0m
+2026-11-20T22:09:29.3697784Z [36;1m  server=$![0m
+2026-11-20T22:09:29.3698045Z [36;1m  for _ in $(seq 1 180); do[0m
+2026-11-20T22:09:29.3698433Z [36;1m    if curl -fs -o /dev/null "$E2E_BASE_URL/api/dates"[0m
+2026-11-20T22:09:29.3698835Z [36;1m    then return 0; fi[0m
+2026-11-20T22:09:29.3699125Z [36;1m    sleep 1[0m
+2026-11-20T22:09:29.3699375Z [36;1m  done[0m
+2026-11-20T22:09:29.3699657Z [36;1m  tail -n 40 "$RUNNER_TEMP/serve-$1.log"[0m
+2026-11-20T22:09:29.3700001Z [36;1m  exit 1[0m
+2026-11-20T22:09:29.3700236Z [36;1m}[0m
+2026-11-20T22:09:29.3700457Z [36;1mfailed=0[0m
+2026-11-20T22:09:29.3700722Z [36;1mfor pass in $(seq 1 "$PASSES"); do[0m
+2026-11-20T22:09:29.3701088Z [36;1m  serve "$pass"[0m
+2026-11-20T22:09:29.3701476Z [36;1m  echo "::group::Pass $pass of $PASSES, shard $SHARD"[0m
+2026-11-20T22:09:29.3701892Z [36;1m  # shellcheck disable=SC2086[0m
+2026-11-20T22:09:29.3702364Z [36;1m  if PLAYWRIGHT_HTML_OUTPUT_DIR="playwright-report/pass-$pass" \[0m
+2026-11-20T22:09:29.3702941Z [36;1m    npx playwright test --retries=2 --workers="$WORKERS" \[0m
+2026-11-20T22:09:29.3703429Z [36;1m    --shard="$SHARD" --reporter=list,html $ARGS[0m
+2026-11-20T22:09:29.3703926Z [36;1m  then result=passed; else result=failed; failed=$((failed + 1))[0m
+2026-11-20T22:09:29.3704369Z [36;1m  fi[0m
+2026-11-20T22:09:29.3704611Z [36;1m  echo "::endgroup::"[0m
+2026-11-20T22:09:29.3704915Z [36;1m  echo "Pass $pass: $result"[0m
+2026-11-20T22:09:29.3705495Z [36;1m  kill "$server"[0m
+2026-11-20T22:09:29.3705797Z [36;1m  wait "$server" 2>/dev/null || true[0m
+2026-11-20T22:09:29.3706124Z [36;1mdone[0m
+2026-11-20T22:09:29.3706387Z [36;1mif [ "$failed" -eq 0 ]; then exit 0; fi[0m
+2026-11-20T22:09:29.3706769Z [36;1mif [ "$failed" -lt "$PASSES" ]; then[0m
+2026-11-20T22:09:29.3707201Z [36;1m  echo "::error title=e2e flake::A pass and a fail on one" \[0m
+2026-11-20T22:09:29.3707740Z [36;1m    "commit. The flaky test fails the check; fix it or remove it."[0m
+2026-11-20T22:09:29.3708179Z [36;1mfi[0m
+2026-11-20T22:09:29.3708396Z [36;1mexit 1[0m
+2026-11-20T22:09:29.3708806Z shell: bash --noprofile --norc -e -o pipefail {0}
+2026-11-20T22:09:29.3709158Z env:
+2026-11-20T22:09:29.3709370Z   E2E_PORT: 8895
+2026-11-20T22:09:29.3709650Z   NODE_OPTIONS: --dns-result-order=ipv4first
+2026-11-20T22:09:29.3710401Z   E2E_STAGING_TOKEN: ***
+2026-11-20T22:09:29.3710736Z   E2E_BASE_URL: http://localhost:8895
+2026-11-20T22:09:29.3711038Z   PASSES: 1
+2026-11-20T22:09:29.3711270Z   ARGS: e2e/zz-retry-flaky.spec.mjs
+2026-11-20T22:09:29.3711552Z   E2E_PAGES: 
+2026-11-20T22:09:29.3711761Z   SHARD: 1/1
+2026-11-20T22:09:29.3711976Z   WORKERS: 2
+2026-11-20T22:09:29.3712204Z   PLAYWRIGHT_HTML_OPEN: never
+2026-11-20T22:09:29.3712475Z ##[endgroup]
+2026-11-20T22:10:03.8868461Z ##[group]Pass 1 of 1, shard 1/1
+2026-11-20T22:10:05.3497807Z 
+2026-11-20T22:10:05.3498700Z Running 2 tests using 2 workers, shard 1 of 1
+2026-11-20T22:10:05.3499415Z 
+2026-11-20T22:10:05.9362340Z   ✘  1 [phone] › e2e/zz-retry-flaky.spec.mjs:6:1 › fails on its first try and passes on a retry (8ms)
+2026-11-20T22:10:05.9497107Z   ✘  2 [desktop] › e2e/zz-retry-flaky.spec.mjs:6:1 › fails on its first try and passes on a retry (8ms)
+2026-11-20T22:10:06.5176890Z   ✓  4 [desktop] › e2e/zz-retry-flaky.spec.mjs:6:1 › fails on its first try and passes on a retry (retry #1) (6ms)
+2026-11-20T22:10:06.5186746Z   ✓  3 [phone] › e2e/zz-retry-flaky.spec.mjs:6:1 › fails on its first try and passes on a retry (retry #1) (6ms)
+2026-11-20T22:10:06.5459651Z Function calls: 0 in all.
+2026-11-20T22:10:06.5467619Z 
+2026-11-20T22:10:06.5473589Z 
+2026-11-20T22:10:06.5485606Z   1) [desktop] › e2e/zz-retry-flaky.spec.mjs:6:1 › fails on its first try and passes on a retry ────
+2026-11-20T22:10:06.5487054Z 
+2026-11-20T22:10:06.5488090Z     Error: fails on purpose on the first try
+2026-11-20T22:10:06.5488756Z 
+2026-11-20T22:10:06.5489194Z     expect(received).toBeGreaterThan(expected)
+2026-11-20T22:10:06.5489546Z 
+2026-11-20T22:10:06.5489696Z     Expected: > 0
+2026-11-20T22:10:06.5490232Z     Received:   0
+2026-11-20T22:10:06.5490669Z 
+2026-11-20T22:10:06.5491451Z        6 | test("fails on its first try and passes on a retry", () => {
+2026-11-20T22:10:06.5492411Z        7 |   expect(test.info().retry, "fails on purpose on the first try")
+2026-11-20T22:10:06.5493411Z     >  8 |     .toBeGreaterThan(0);
+2026-11-20T22:10:06.5494101Z          |      ^
+2026-11-20T22:10:06.5494596Z        9 | });
+2026-11-20T22:10:06.5495189Z       10 |
+2026-11-20T22:10:06.5495923Z         at /__w/north-foster-farm/north-foster-farm/e2e/zz-retry-flaky.spec.mjs:8:6
+2026-11-20T22:10:06.5496516Z 
+2026-11-20T22:10:06.5497466Z     Error Context: test-results/e2e/zz-retry-flaky-fails-on-its-first-try-and-passes-on-a-retry-desktop/error-context.md
+2026-11-20T22:10:06.5498492Z 
+2026-11-20T22:10:06.5499367Z     attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+2026-11-20T22:10:06.5500728Z     test-results/e2e/zz-retry-flaky-fails-on-its-first-try-and-passes-on-a-retry-desktop/trace.zip
+2026-11-20T22:10:06.5501647Z     Usage:
+2026-11-20T22:10:06.5501831Z 
+2026-11-20T22:10:06.5502783Z         npx playwright show-trace test-results/e2e/zz-retry-flaky-fails-on-its-first-try-and-passes-on-a-retry-desktop/trace.zip
+2026-11-20T22:10:06.5503735Z 
+2026-11-20T22:10:06.5504387Z     ────────────────────────────────────────────────────────────────────────────────────────────────
+2026-11-20T22:10:06.5504880Z 
+2026-11-20T22:10:06.5505812Z   2) [phone] › e2e/zz-retry-flaky.spec.mjs:6:1 › fails on its first try and passes on a retry ──────
+2026-11-20T22:10:06.5506369Z 
+2026-11-20T22:10:06.5506665Z     Error: fails on purpose on the first try
+2026-11-20T22:10:06.5506900Z 
+2026-11-20T22:10:06.5507086Z     expect(received).toBeGreaterThan(expected)
+2026-11-20T22:10:06.5507315Z 
+2026-11-20T22:10:06.5507434Z     Expected: > 0
+2026-11-20T22:10:06.5507659Z     Received:   0
+2026-11-20T22:10:06.5507786Z 
+2026-11-20T22:10:06.5508021Z        6 | test("fails on its first try and passes on a retry", () => {
+2026-11-20T22:10:06.5508527Z        7 |   expect(test.info().retry, "fails on purpose on the first try")
+2026-11-20T22:10:06.5508933Z     >  8 |     .toBeGreaterThan(0);
+2026-11-20T22:10:06.5509202Z          |      ^
+2026-11-20T22:10:06.5509407Z        9 | });
+2026-11-20T22:10:06.5509603Z       10 |
+2026-11-20T22:10:06.5509998Z         at /__w/north-foster-farm/north-foster-farm/e2e/zz-retry-flaky.spec.mjs:8:6
+2026-11-20T22:10:06.5510336Z 
+2026-11-20T22:10:06.5510817Z     Error Context: test-results/e2e/zz-retry-flaky-fails-on-its-first-try-and-passes-on-a-retry-phone/error-context.md
+2026-11-20T22:10:06.5511354Z 
+2026-11-20T22:10:06.5511782Z     attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+2026-11-20T22:10:06.5512540Z     test-results/e2e/zz-retry-flaky-fails-on-its-first-try-and-passes-on-a-retry-phone/trace.zip
+2026-11-20T22:10:06.5513048Z     Usage:
+2026-11-20T22:10:06.5513160Z 
+2026-11-20T22:10:06.5513650Z         npx playwright show-trace test-results/e2e/zz-retry-flaky-fails-on-its-first-try-and-passes-on-a-retry-phone/trace.zip
+2026-11-20T22:10:06.5514162Z 
+2026-11-20T22:10:06.5514523Z     ────────────────────────────────────────────────────────────────────────────────────────────────
+2026-11-20T22:10:06.5514812Z 
+2026-11-20T22:10:06.5514898Z   2 flaky
+2026-11-20T22:10:06.5515767Z     [desktop] › e2e/zz-retry-flaky.spec.mjs:6:1 › fails on its first try and passes on a retry ─────
+2026-11-20T22:10:06.5516572Z     [phone] › e2e/zz-retry-flaky.spec.mjs:6:1 › fails on its first try and passes on a retry ───────
+2026-11-20T22:10:06.6053111Z ##[endgroup]
+2026-11-20T22:10:06.6053514Z Pass 1: passed
+2026-11-20T22:10:06.6215575Z ##[group]Run actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+2026-11-20T22:10:06.6216050Z with:
+2026-11-20T22:10:06.6216255Z   name: e2e-pictures-1
+2026-11-20T22:10:06.6216545Z   path: test-results/**/*.png
+!test-results/e2e-site/**
+
+2026-11-20T22:10:06.6216881Z   if-no-files-found: ignore
+2026-11-20T22:10:06.6217118Z   retention-days: 3
+2026-11-20T22:10:06.6217336Z   compression-level: 6
+2026-11-20T22:10:06.6217550Z   overwrite: false
+2026-11-20T22:10:06.6217766Z   include-hidden-files: false
+2026-11-20T22:10:06.6218012Z   archive: true
+2026-11-20T22:10:06.6218206Z env:
+2026-11-20T22:10:06.6218385Z   E2E_PORT: 8895
+2026-11-20T22:10:06.6218629Z   NODE_OPTIONS: --dns-result-order=ipv4first
+2026-11-20T22:10:06.6219104Z   E2E_STAGING_TOKEN: ***
+2026-11-20T22:10:06.6219335Z ##[endgroup]
+2026-11-20T22:10:06.6222992Z ##[command]/usr/bin/docker exec  077941947d339a47af303c6a75eba17357869c3f953bf392c4097f2b0fc3d00a sh -c "cat /etc/*release | grep ^ID"
+2026-11-20T22:10:06.9211880Z No files were found with the provided path: test-results/**/*.png
+2026-11-20T22:10:06.9212809Z !test-results/e2e-site/**. No artifacts will be uploaded.
+2026-11-20T22:10:06.9507878Z Post job cleanup.
+2026-11-20T22:10:06.9514566Z ##[command]/usr/bin/docker exec  077941947d339a47af303c6a75eba17357869c3f953bf392c4097f2b0fc3d00a sh -c "cat /etc/*release | grep ^ID"
+2026-11-20T22:10:07.1894361Z [command]/usr/bin/tar --posix -cf cache.tgz --exclude cache.tgz -P -C /__w/north-foster-farm/north-foster-farm --files-from manifest.txt -z
+2026-11-20T22:10:08.9524851Z Sent 15466496 of 17205353 (89.9%), 14.8 MBs/sec
+2026-11-20T22:10:09.2176387Z Sent 17205353 of 17205353 (100.0%), 13.0 MBs/sec
+2026-11-20T22:10:09.5002140Z Cache saved with the key: node-cache-Linux-x64-npm-f6c0da84ff0a1315d2580bbbef929705a59de297e5d663110d693fdea9e79c6a
+2026-11-20T22:10:09.5199637Z Post job cleanup.
+2026-11-20T22:10:09.5209565Z ##[command]/usr/bin/docker exec  077941947d339a47af303c6a75eba17357869c3f953bf392c4097f2b0fc3d00a sh -c "cat /etc/*release | grep ^ID"
+2026-11-20T22:10:09.7180020Z [command]/usr/bin/git version
+2026-11-20T22:10:09.7237477Z git version 2.43.0
+2026-11-20T22:10:09.7317879Z Copying '/github/home/.gitconfig' to '/__w/_temp/bedfdb48-12ba-4566-8d44-a6581c7acef2/.gitconfig'
+2026-11-20T22:10:09.7319742Z Temporarily overriding HOME='/__w/_temp/bedfdb48-12ba-4566-8d44-a6581c7acef2' before making global git config changes
+2026-11-20T22:10:09.7321271Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-20T22:10:09.7346264Z [command]/usr/bin/git config --global --add safe.directory /__w/north-foster-farm/north-foster-farm
+2026-11-20T22:10:09.7397425Z Removing SSH command configuration
+2026-11-20T22:10:09.7406902Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-20T22:10:09.7468728Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-20T22:10:09.7782693Z Removing HTTP extra header
+2026-11-20T22:10:09.7786997Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-20T22:10:09.7836387Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-20T22:10:09.8140233Z Removing includeIf entries pointing to credentials config files
+2026-11-20T22:10:09.8147578Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-20T22:10:09.8194509Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-20T22:10:09.8627715Z Stop and remove container: bd145857562c43bca3760b4acdef0c5b_mcrmicrosoftcomplaywrightv1621noblesha256dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e_cf5be7
+2026-11-20T22:10:09.8633037Z ##[command]/usr/bin/docker rm --force 077941947d339a47af303c6a75eba17357869c3f953bf392c4097f2b0fc3d00a
+2026-11-20T22:10:10.0639938Z 077941947d339a47af303c6a75eba17357869c3f953bf392c4097f2b0fc3d00a
+2026-11-20T22:10:10.0678899Z Remove container network: github_network_59dbb37274434aa699a70e1c4c78b05e
+2026-11-20T22:10:10.0683372Z ##[command]/usr/bin/docker network rm github_network_59dbb37274434aa699a70e1c4c78b05e
+2026-11-20T22:10:10.1310782Z github_network_59dbb37274434aa699a70e1c4c78b05e
+2026-11-20T22:10:10.1390847Z Cleaning up orphan processes
