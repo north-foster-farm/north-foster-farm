@@ -127,6 +127,12 @@ actor's login. Each JSON file's `_source` names its requests and date.
 | `github/e2e-staging-runs.json` | the full staging runs `bin/promote.mjs` reads |
 | `github/e2e-dispatch.json`, `-failed.txt`, `-gate.txt` | a dispatch of `e2e.yml`, a queued, a passed and a failed run, their jobs and the failed jobs' logs, for `bin/nff e2e` (#610) |
 | `github/e2e-exempt.json`, `e2e-exempt-*.txt` | the two full staging runs of 2026-11-18 and three `e2e.yml` runs, their jobs and shard logs, and staging's pushes, for the staging exemption (#654); the failed `e2e.yml` run's log is `e2e-verdict-escapes.txt` |
+| `github/e2e-flaky-issues.json` | the open milestones, open issues of Next release, an issue and a comment, for filing flaky tests (#693) |
+
+`github/e2e-retry.json`, runs with Playwright's retries on that hold
+a flaky test (#693), is not recorded yet: no run with retries on has
+ever happened. How to record it is in the header of
+`test/promote-retry.criteria.mjs` (2026-11-20).
 
 ## Still to record by hand
 
