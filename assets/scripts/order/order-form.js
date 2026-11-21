@@ -741,8 +741,13 @@ export class OrderForm {
         if (target.dataset.stuck === "true") continue;
         if (column && target.id === "order-cart") continue;
         // Settled, the cart begins at its heading, above the pane.
-        const top = (target.id === "order-cart" ? cartHeading : target)
-          .getBoundingClientRect().top;
+        const box = target.id === "order-cart" ? cartHeading : target;
+
+        // A section that isn't shown (a category "In stock" hides)
+        // measures top 0, so once the sections below it had scrolled
+        // above the screen it was the lowest above the line (#702).
+        if (!box.getClientRects().length) continue;
+        const top = box.getBoundingClientRect().top;
 
         // On a tie the later link wins: a category over the catalog.
         // At the foot of the page the last section on screen wins,
