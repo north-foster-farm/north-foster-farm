@@ -13,10 +13,11 @@
 // the browser is answered with the 402 the server gives for PayPal's
 // 422, worked out from that 422 by lib/paypal.mjs itself.
 //
-// The 422 is built here in the shape of the one James's first live
-// Venmo payment got (2026-11-21). Once the recorder's copy (#708) is
-// scrubbed into test/fixtures/paypal, paypal422 gives way to it.
+// PayPal's 422 is the one James's first live Venmo payment got
+// (2026-11-21), recorded by bin/fixtures/record and scrubbed into
+// test/fixtures/paypal (#708, #744).
 
+import { recorded } from "../netlify/functions/lib/fake.mjs";
 import {
   DECLINE_MESSAGES, captureOrder,
 } from "../netlify/functions/lib/paypal.mjs";
@@ -27,29 +28,22 @@ import {
   BACK_OFFICE_MISSING, backOffice, nff, orderLimitHeaders, orderRecord,
 } from "./support/staging.mjs";
 
-const ERRORS_PAGE = "https://developer.paypal.com/api/rest/reference/" +
-  "orders/v2/errors/";
+// PayPal's answer to the capture of James's live test: 422
+// UNPROCESSABLE_ENTITY, INSTRUMENT_DECLINED.
+const DECLINED = "paypal-20261121T085555608Z-post-v2-checkout-orders-" +
+  "order-id-1-capture-1c506d";
 
-const DESCRIPTIONS = {
-  INSTRUMENT_DECLINED: "The instrument presented was either declined by " +
-    "the processor or bank, or it can't be used for this payment.",
-  TRANSACTION_REFUSED: "The request was refused.",
+// PayPal's answer to a capture refused with `issue`: the recorded 422,
+// as recorded for INSTRUMENT_DECLINED. No other refusal has been
+// recorded, so for another issue it is that same 422 with the issue
+// it names changed, which is all lib/paypal.mjs reads of it.
+const paypal422 = (issue) => {
+  const { status, response } = recorded("paypal", DECLINED);
+
+  response.details[0].issue = issue;
+
+  return { status, response };
 };
-
-// PayPal's answer to a refused capture: 422, one issue. Stands in for
-// the recorded fixture until #708's is scrubbed.
-const paypal422 = (issue, paypalOrderId) => ({
-  name: "UNPROCESSABLE_ENTITY",
-  details: [{ issue, description: DESCRIPTIONS[issue] }],
-  "debug_id": "e2e-debug-id",
-  links: [
-    {
-      href: `https://www.paypal.com/checkoutnow?token=${paypalOrderId}`,
-      rel: "redirect", method: "GET",
-    },
-    { href: `${ERRORS_PAGE}#${issue}`, rel: "information_link", method: "GET" },
-  ],
-});
 
 // What /api/orders answers the page for that 422: lib/paypal.mjs reads
 // it as a decline and its code, and orders.mjs answers 402 with the
@@ -59,11 +53,12 @@ const paypal422 = (issue, paypalOrderId) => ({
 const TOKEN = { "access_token": "e2e", "expires_in": 3600 };
 
 const declined = async (issue, paypalOrderId) => {
+  const { status, response } = paypal422(issue);
   const fetchImpl = async (url) => (
     new URL(url).pathname === "/v1/oauth2/token"
       ? new Response(JSON.stringify(TOKEN))
-      : new Response(JSON.stringify(paypal422(issue, paypalOrderId)), {
-        status: 422, headers: { "Content-Type": "application/json" },
+      : new Response(JSON.stringify(response), {
+        status, headers: { "Content-Type": "application/json" },
       })
   );
   const env = {
