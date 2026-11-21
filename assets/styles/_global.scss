@@ -211,10 +211,13 @@ h6 {
   font-weight: bold;
 }
 
-// The same aside in the yellow, for something to attend to.
+// The same aside in the yellow, for something to attend to: the
+// countdown's "soon" state, and the warnings on the sign-in and invite
+// pages (#756).
 .zip-note-warning {
   border-left-color: var(--bs-warning);
   background-color: var(--bs-warning-bg-subtle);
+  color: var(--bs-warning-text-emphasis);
 }
 
 .img-cover {

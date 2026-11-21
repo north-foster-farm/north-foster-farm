@@ -657,6 +657,19 @@
     },
     {
       "paths": [
+        "layouts/invite/**",
+        "assets/scripts/invite/**",
+        "content/invite.md"
+      ],
+      "specs": [
+        "e2e/invite-page.spec.mjs"
+      ],
+      "pages": [
+        "/invite/"
+      ]
+    },
+    {
+      "paths": [
         "content/join.md"
       ],
       "specs": [
@@ -803,6 +816,7 @@
         "e2e/header-chick.spec.mjs",
         "e2e/keyboard.spec.mjs",
         "e2e/login-layout.spec.mjs",
+        "e2e/login-warning.spec.mjs",
         "e2e/maintenance-bar.spec.mjs",
         "e2e/overflow.spec.mjs",
         "e2e/scheduled-pickup.spec.mjs",
@@ -1455,6 +1469,14 @@
     },
     {
       "paths": [
+        "e2e/invite-page.spec.mjs"
+      ],
+      "specs": [
+        "e2e/invite-page.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
         "e2e/keep-together.spec.mjs"
       ],
       "specs": [
@@ -1499,6 +1521,14 @@
       ],
       "specs": [
         "e2e/login-layout.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/login-warning.spec.mjs"
+      ],
+      "specs": [
+        "e2e/login-warning.spec.mjs"
       ]
     },
     {
