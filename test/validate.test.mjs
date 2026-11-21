@@ -1,12 +1,8 @@
-// Criteria copy of test/validate.test.mjs for #616's shared label
-// (2026-11-18): the same file with every window label in the full
-// format ("9:00 AM – 12:00 PM", "between 10:00 and 11:00 AM").
-// Held out of `npm test` by its name until windowLabel takes the new
-// format; the implementer turns it on, over the live file, with
-//
-//   git mv -f test/validate.criteria.mjs test/validate.test.mjs
-//
-// Changed: the lapsed answer's window labels.
+// The order's validation (assets/scripts/order/lib/validate.mjs), the
+// server's gate and the page's guide. Window labels are in the full
+// format of #616 ("9:00 AM – 12:00 PM"). 2026-11-21: this header
+// called the file a held-out criteria copy; it was moved over this
+// file in 77e5378c.
 
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
