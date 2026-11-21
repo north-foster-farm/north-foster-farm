@@ -69,7 +69,7 @@
 
   // Centered on the name's line.
   > .form-check-input {
-    margin: 0.25em 0 0;
+    margin: 0.125rem 0 0;
 
     &:checked {
       border-color: var(--bs-secondary);
@@ -83,10 +83,12 @@
   }
 }
 
-// Three groups, the name, the time and the address (James's revision,
-// 2026-11-21): smaller than the date heading but larger than the
-// method card's When, Where and Cost, set tighter than the page's
-// lines, with more space between the groups than inside one.
+// Three groups, the name, the time and the address (James's revisions,
+// 2026-11-21): the name in the date heading's font, the rest smaller
+// than it but larger than the method card's When, Where and Cost, set
+// tighter than the page's lines, with more space between the groups
+// than inside one. The time sits closer to the name than to the
+// address.
 .order-pickup-label {
   display: flex;
   flex-direction: column;
@@ -97,28 +99,29 @@
 }
 
 .order-pickup-name {
-  margin-bottom: 0.5rem;
-  font-weight: bold;
+  margin-bottom: 0.375rem;
+  font-family: $headings-font-family;
+  font-size: 1rem;
+  font-weight: $headings-font-weight;
+  line-height: 1.25;
 }
 
 .order-pickup-time {
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.625rem;
 }
 
+// The address group, the place name, the street and the town line,
+// has one line height. Each part's wrapped lines sit closer than the
+// next part, so a long name or street reads as one line.
 .order-pickup-place,
 .order-pickup-address {
   color: var(--bs-secondary-color);
+  line-height: 1.25;
 }
 
-// A long name's wrapped lines sit closer than the address's lines, so
-// they read as one name; the street keeps a full line below it.
-.order-pickup-place {
-  margin-bottom: 0.25rem;
-  line-height: 1.15;
-}
-
-.order-pickup-address {
-  line-height: 1.4;
+.order-pickup-place,
+.order-pickup-street {
+  margin-bottom: 0.1875rem;
 }
 
 .order-pickup-street,
@@ -132,17 +135,21 @@
   grid-column: 2;
   gap: 0.5rem 0.75rem;
 
+  // Further from the address than the card's row gap alone (James's
+  // second revision).
+  margin-top: 0.375rem;
+
   // Unfilled, so a chosen card's tint shows through: not the white
   // face outline buttons have elsewhere (_global.scss, #339). A press
-  // tints them. Shorter than a btn-sm (James's revision), the icon
-  // before the word.
+  // tints them. Between a btn-sm and the first revision's in height
+  // (James's second revision), the icon before the word.
   .btn {
     --bs-btn-bg: transparent;
     --bs-btn-hover-bg: transparent;
     --bs-btn-active-bg: color-mix(in srgb, currentcolor 12%, transparent);
-    --bs-btn-padding-x: 0.5rem;
-    --bs-btn-padding-y: 0.125rem;
-    --bs-btn-font-size: 0.8125rem;
+    --bs-btn-padding-x: 0.625rem;
+    --bs-btn-padding-y: 0.3125rem;
+    --bs-btn-font-size: 0.875rem;
     --bs-btn-line-height: 1.25;
 
     display: inline-flex;
@@ -163,10 +170,17 @@
   }
 
   // The address on one line, street then city; where both don't fit,
-  // the city goes to the next line whole.
-  .order-pickup-street,
-  .order-pickup-city {
-    display: inline-block;
+  // the city goes to the next line whole, as far below the street as
+  // a part is below the one before it, so a wrapped street still reads
+  // as one line.
+  .order-pickup-address {
+    display: flex;
+    flex-wrap: wrap;
+    row-gap: 0.1875rem;
+  }
+
+  .order-pickup-street {
+    margin-bottom: 0;
   }
 
   .order-pickup-street::after {

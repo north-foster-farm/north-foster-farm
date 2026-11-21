@@ -230,8 +230,11 @@ test.describe("pickup days, James's revision (#703)", () => {
       .toBeGreaterThan(small);
     for (const series of [DROP.series, FOSTER.series]) {
       const pickup = card(home, first(lists, series));
-      const parts = [".order-pickup-name", ".order-pickup-time",
-        ".order-pickup-street", ".order-pickup-city"];
+      // Not the name: the second revision sets it in the date
+      // heading's font ("The pickup's name line has the date heading's
+      // font family, size and weight", pickup-days-revision-2).
+      const parts = [".order-pickup-time", ".order-pickup-street",
+        ".order-pickup-city"];
 
       if (series === FOSTER.series) parts.push(".order-pickup-place");
       for (const part of parts) {
