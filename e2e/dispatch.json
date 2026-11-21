@@ -1335,6 +1335,18 @@
     },
     {
       "paths": [
+        "bin/orphans/wrap.mjs",
+        "layouts/partials/email-confirm.html",
+        "layouts/contact/single.html",
+        "assets/styles/components/_scroll-value.scss",
+        "e2e/orphan-email.spec.mjs"
+      ],
+      "specs": [
+        "e2e/orphan-email.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
         "e2e/fake-payments.spec.mjs"
       ],
       "specs": [

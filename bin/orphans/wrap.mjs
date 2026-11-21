@@ -19,7 +19,9 @@
 //   which keeps a word whole but still leaves it alone on a line).
 // - Nothing when the words are inside any other markup (a link, a
 //   span, code), or when either word is a URL or an email address
-//   (://, www. or @) or longer than 14 characters. An element of just
+//   (://, www. or @) or longer than 14 characters, or when the pair
+//   holds an inline element empty at build time: a value a script
+//   fills in, which must still wrap (#754). An element of just
 //   two words is wrapped like any other, except a table cell: there
 //   the nowrap sets the column's width, and a narrow table then runs
 //   past the screen (/delivery-policy/ at 320 px).
@@ -215,6 +217,21 @@ function oneWordSpan(tokens, open, close) {
   return 0;
 }
 
+// Whether the tail tokens at `seq` hold an inline start tag followed
+// by its close tag, with nothing but whitespace between them.
+function holdsEmpty(tokens, seq) {
+  for (let s = 0; s < seq.length; s++) {
+    const t = tokens[seq[s]];
+    if (t.type !== "open") continue;
+    let n = s + 1;
+    const between = tokens[seq[n]];
+    if (between?.type === "text" && !between.raw.trim()) n++;
+    const next = tokens[seq[n]];
+    if (next?.type === "close" && next.name === t.name) return true;
+  }
+  return false;
+}
+
 // The edit for one element, or null to leave it as it is.
 function plan(tokens, open, close) {
   const { seq, whole } = tail(tokens, open, close);
@@ -270,6 +287,11 @@ function plan(tokens, open, close) {
       at = tokens[seq[pos]].start;
     }
   }
+
+  // An inline element empty at build time inside the pair is a value a
+  // script fills in later, which the span would keep from wrapping
+  // (#754): leave the pair alone.
+  if (holdsEmpty(tokens, seq.slice(pos))) return null;
 
   // A close tag in the pair whose start tag sits before it is closed
   // ahead of the span and opened again inside.
