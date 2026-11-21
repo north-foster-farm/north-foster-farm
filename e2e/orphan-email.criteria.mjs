@@ -1,17 +1,17 @@
-// Criteria test for #754's second box: at 390 px a long email address
-// in the email-change confirmation (layouts/partials/email-confirm.html,
-// on /login/ and /account/) and in the contact page's sent message
-// (layouts/contact/single.html) stays inside its container. Both values
-// are empty at build time and filled by a script, so the deployed
-// build's orphan pass (bin/orphans/wrap.mjs) could trap them in a
-// text-nowrap pair. bin/e2e/serve.mjs runs that pass, as Netlify does.
+// Criteria tests for #754's second and third boxes: at 390 px a long
+// email address in the email-change confirmation
+// (layouts/partials/email-confirm.html, on /login/ and /account/) and
+// in the contact page's sent message (layouts/contact/single.html)
+// stays inside its container, and one with no hyphens to break at
+// stays on one line and scrolls inside its own element, the container
+// and the page never scrolling sideways. Both values are empty at
+// build time and filled by a script, so the deployed build's orphan
+// pass (bin/orphans/wrap.mjs) could trap them in a text-nowrap pair.
+// bin/e2e/serve.mjs runs that pass, as Netlify does.
 //
 // Held out of every run by its name: the config takes *.spec.mjs only,
 // so renaming it to orphan-email.spec.mjs turns it on. It runs in the
 // phone project, which is 390 px wide.
-//
-// The address breaks after its hyphens, where the browser may break
-// any line, so it fits once nothing holds it on one line.
 
 import { expect, test, uniqueEmail } from "./support/order.mjs";
 import {
@@ -22,8 +22,14 @@ import { followLink } from "./support/request-error.mjs";
 
 const SIGN_IN = "Your secure sign-in link to North Foster Farm";
 const VERIFY = /\/api\/auth\/verify\?token=/;
-const LONG = "qa-e2e-orphan-pass-long-mailbox-name"
+// Breaks after its hyphens, where the browser may break any line, so
+// it fits once nothing holds it on one line.
+const HYPHENS = "qa-e2e-orphan-pass-long-mailbox-name"
   + "@north-foster-farm-example-domain.com";
+// No hyphen anywhere, so no natural break point: it stays on one line
+// and scrolls inside its own element (James, 2026-11-21).
+const DOTS = "qa.e2e.orphan.pass.long.mailbox.name"
+  + "@north.foster.farm.example.domain.com";
 
 // Half a pixel for subpixel rounding, no more.
 const SLACK = 0.5;
@@ -44,8 +50,8 @@ const measure = (page, container, value) => page.evaluate(([c, v]) => {
 const inside = (inner, outer) =>
   inner.left >= outer.left - SLACK && inner.right <= outer.right + SLACK;
 
-const expectInside = async (page, container, value) => {
-  await expect(page.locator(`${container} ${value}`)).toHaveText(LONG);
+const expectInside = async (page, address, container, value) => {
+  await expect(page.locator(`${container} ${value}`)).toHaveText(address);
 
   const { container: box, lines } = await measure(page, container, value);
 
@@ -58,6 +64,74 @@ const expectInside = async (page, container, value) => {
       `${container}: the address's line ${JSON.stringify(line)} sits ` +
         `inside ${JSON.stringify(box)}`).toBe(true);
   }
+};
+
+// The value's text lines, and the element that scrolls it: the value
+// itself or a wrapper of its own inside the container, the nearest
+// whose overflow-x is auto or scroll. Then the container's and the
+// document's own widths against what they hold.
+const scrolling = (page, container, value) => page.evaluate(([c, v]) => {
+  const box = (r) => ({ left: r.left, right: r.right });
+  const outer = document.querySelector(c);
+  const inner = outer.querySelector(v);
+  const text = document.createRange();
+
+  text.selectNodeContents(inner);
+
+  let scroller = null;
+
+  for (let el = inner; el && el !== outer; el = el.parentElement) {
+    if (/^(auto|scroll)$/.test(getComputedStyle(el).overflowX)) {
+      scroller = el;
+      break;
+    }
+  }
+
+  const doc = document.documentElement;
+
+  return {
+    container: box(outer.getBoundingClientRect()),
+    tops: [...text.getClientRects()]
+      .filter((r) => r.width > 0 && r.height > 0).map((r) => r.top),
+    scroller: scroller && {
+      box: box(scroller.getBoundingClientRect()),
+      scrollWidth: scroller.scrollWidth,
+      clientWidth: scroller.clientWidth,
+    },
+    containerScroll: outer.scrollWidth - outer.clientWidth,
+    pageScroll: doc.scrollWidth - doc.clientWidth,
+  };
+}, [container, value]);
+
+// Line boxes on one line share a top, give or take the slack.
+const lineCount = (tops) => [...tops]
+  .sort((a, b) => a - b)
+  .filter((top, i, all) => i === 0 || top - all[i - 1] > SLACK)
+  .length;
+
+const expectScrolls = async (page, address, container, value) => {
+  await expect(page.locator(`${container} ${value}`)).toHaveText(address);
+
+  const {
+    container: box, tops, scroller, containerScroll, pageScroll,
+  } = await scrolling(page, container, value);
+
+  expect.soft(lineCount(tops), `${container}: the address stays on one ` +
+    "line, never broken mid-word").toBe(1);
+  expect.soft(scroller, `${container}: the address sits in an element ` +
+    "of its own with overflow-x auto or scroll").not.toBeNull();
+  if (scroller) {
+    expect.soft(inside(scroller.box, box),
+      `${container}: the address's element ${JSON.stringify(scroller.box)}` +
+        ` sits inside ${JSON.stringify(box)}`).toBe(true);
+    expect.soft(scroller.scrollWidth,
+      `${container}: the address's element scrolls sideways`)
+      .toBeGreaterThan(scroller.clientWidth);
+  }
+  expect.soft(containerScroll, `${container}: the container does not ` +
+    "scroll sideways").toBeLessThanOrEqual(0);
+  expect.soft(pageScroll, `${container}: the page does not scroll ` +
+    "sideways").toBeLessThanOrEqual(0);
 };
 
 test.describe("#754 a script-filled email address at 390 px", () => {
@@ -75,23 +149,21 @@ test.describe("#754 a script-filled email address at 390 px", () => {
     () => clearMail({ to: from, since }),
   ]));
 
-  test("At 390 px, a long email address in the email-change " +
-    "confirmation and in the contact page's sent message stays inside " +
-    "its container",
-  async ({ page }, testInfo) => {
-    test.skip(testInfo.project.name !== "phone", "the 390 px check");
+  // The three places, each showing `address`.
+  const everyPlace = async (page, address, check) => {
     await page.setViewportSize({ width: 390, height: 664 });
 
     // A change link that lands on the sign-in page (#345): the card
     // shows the new address from the fragment, and nothing is posted
     // until Confirm.
-    const hash = `#confirm=orphan-pass&email=${encodeURIComponent(LONG)}`;
+    const hash = `#confirm=orphan-pass&email=${encodeURIComponent(address)}`;
 
     await test.step("the confirmation on /login/", async () => {
       await clearSession(page.context());
       await page.goto(`/login/${hash}`);
       await expect(page.locator("#login-confirm")).toBeVisible();
-      await expectInside(page, "#login-confirm", "[data-confirm-email]");
+      await check(page, address, "#login-confirm",
+        "[data-confirm-email]");
     });
 
     // The same link on the account page, signed in by emailed link.
@@ -111,7 +183,8 @@ test.describe("#754 a script-filled email address at 390 px", () => {
       await page.goto("about:blank");
       await page.goto(`/account/${hash}`);
       await expect(page.locator("#account-confirm")).toBeVisible();
-      await expectInside(page, "#account-confirm", "[data-confirm-email]");
+      await check(page, address, "#account-confirm",
+        "[data-confirm-email]");
     });
 
     // The sent message, filled as assets/scripts/contact/main.js fills
@@ -125,9 +198,26 @@ test.describe("#754 a script-filled email address at 390 px", () => {
         sent.querySelector("[data-contact-email]").textContent = email;
         document.getElementById("contact-form").hidden = true;
         sent.hidden = false;
-      }, LONG);
+      }, address);
       await expect(page.locator("#contact-sent")).toBeVisible();
-      await expectInside(page, "#contact-sent", "[data-contact-email]");
+      await check(page, address, "#contact-sent",
+        "[data-contact-email]");
     });
+  };
+
+  test("At 390 px, a long email address in the email-change " +
+    "confirmation and in the contact page's sent message stays inside " +
+    "its container",
+  async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== "phone", "the 390 px check");
+    await everyPlace(page, HYPHENS, expectInside);
+  });
+
+  test("A long address with no natural break point does not break " +
+    "mid-word: the value alone scrolls horizontally inside its own " +
+    "element, while the container and the page never scroll sideways",
+  async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== "phone", "the 390 px check");
+    await everyPlace(page, DOTS, expectScrolls);
   });
 });
