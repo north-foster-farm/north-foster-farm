@@ -147,6 +147,7 @@ const config = defineConfig({
         "**/cart-tip.spec.mjs",
         "**/account-tabs.spec.mjs", "**/keep-together.spec.mjs",
         "**/membership-layout.spec.mjs", "**/contact-heading.spec.mjs",
+        "**/order-topbar-scroll.spec.mjs",
       ],
       testIgnore: held,
       use: { ...devices["iPhone 15"] },

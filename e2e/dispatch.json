@@ -410,6 +410,7 @@
         "e2e/order-layout.spec.mjs",
         "e2e/order-page.spec.mjs",
         "e2e/order-scheduled.spec.mjs",
+        "e2e/order-topbar-scroll.spec.mjs",
         "e2e/overflow.spec.mjs",
         "e2e/pay-focus.spec.mjs",
         "e2e/payment-stacking.spec.mjs",
@@ -492,6 +493,7 @@
         "e2e/order-layout.spec.mjs",
         "e2e/order-page.spec.mjs",
         "e2e/order-scheduled.spec.mjs",
+        "e2e/order-topbar-scroll.spec.mjs",
         "e2e/overflow.spec.mjs",
         "e2e/pay-focus.spec.mjs",
         "e2e/payment-stacking.spec.mjs",
@@ -1527,6 +1529,14 @@
       ],
       "specs": [
         "e2e/order-layout.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/order-topbar-scroll.spec.mjs"
+      ],
+      "specs": [
+        "e2e/order-topbar-scroll.spec.mjs"
       ]
     },
     {
