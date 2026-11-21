@@ -233,7 +233,28 @@ export const watchedFetch = (name, fetchImpl = null) =>
     }
   };
 
-export const stores = (env = process.env) => {
+// What Blobs still needs off Netlify -> the variables missing, in
+// order: [] when it is configured.
+export const blobsMissing = (env = process.env) => {
+  if (blobsConfigured(env)) return [];
+
+  return ["NETLIFY_SITE_ID", "NETLIFY_AUTH_TOKEN"]
+    .filter((key) => !env[key]);
+};
+
+// `{ memory: false }` refuses the memory fallback: the CLI under a
+// context flag, where a write that lands in memory reports success and
+// saves nothing (#713). It throws, naming what is missing, before any
+// store is made.
+export const stores = (env = process.env, options = {}) => {
+  const allowMemory = options.memory !== false;
+  const missing = blobsMissing(env);
+
+  if (!allowMemory && missing.length) {
+    throw new Error(`No ${missing.join(" or ")}: refusing memory stores, ` +
+      "which would lose every write.");
+  }
+
   const out = {};
 
   for (const name of STORES) {
