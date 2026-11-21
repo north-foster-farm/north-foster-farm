@@ -3,8 +3,8 @@
 // customer typed can become markup. Sections are tabs keyed by the
 // URL hash.
 
+import { drawPerks } from "../order/cart/perk-label.js";
 import { mergeScheduled } from "../order/lib/group.mjs";
-import { perkSentence } from "../order/lib/perks.mjs";
 import {
   scheduledChoice, scheduledChoices,
 } from "../order/lib/scheduled.mjs";
@@ -1019,25 +1019,20 @@ class Account {
     const group = c.discountGroup && groups[c.discountGroup];
     const row = document.getElementById("prof-group-row");
 
-    // And the customer's perks (#514), one line each: fragments with no
-    // end punctuation, so each takes its own line.
+    // And the customer's perks (#514) as pricing labels, each keeping
+    // its end date beside it (#717, James: the cart shows none).
+    const place = document.getElementById("prof-group");
     const perks = Array.isArray(c.perks) ? c.perks : [];
-    const lines = [
-      ...group ? [`${group.label}: ${group.percent}% off, whenever that ` +
-        "beats the bulk discount."] : [],
-      ...perks.map(perkSentence),
-    ];
 
-    row.hidden = !lines.length;
-    document.getElementById("prof-group").replaceChildren(
-      ...lines.map((text) => {
-        const line = document.createElement("span");
+    for (const tip of this.perkTips || []) tip.stop();
+    this.perkTips = drawPerks(place, perks, { dates: true });
+    if (group) {
+      const line = el("span", "d-block", `${group.label}: ` +
+        `${group.percent}% off, whenever that beats the bulk discount.`);
 
-        line.className = "d-block";
-        write(line, text);
-
-        return line;
-      }));
+      place.prepend(line);
+    }
+    row.hidden = !place.childElementCount;
   }
 
   async saveAddress() {

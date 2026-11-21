@@ -39,7 +39,13 @@ let stamps = 0;
 // sign-in takes a new stamp, so a test that signs in again with other
 // perks never reads the last answer from the session's cache
 // (session/cache.js).
+//
+// The last page goes first: its requests end there, so a cart push it
+// sent while the routes were away cannot come back a 401 that clears
+// the new stamp, and the account page loads again rather than only
+// changing its hash.
 const signIn = async (page, baseURL, perks) => {
+  await page.goto("about:blank");
   stamps += 1;
   await page.context().addCookies([
     { name: "nff_signed_in", value: `qa${stamps}`, url: baseURL },

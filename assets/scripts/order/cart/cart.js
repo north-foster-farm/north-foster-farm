@@ -13,13 +13,14 @@ import Tooltip from "bootstrap/js/dist/tooltip.js";
 import { celebrate } from "../celebrate.js";
 import { ringsCart } from "../lib/cart-scroll.mjs";
 import { packLabel } from "../lib/catalog.mjs";
-import { perkSentence } from "../lib/perks.mjs";
 import { awayFrom } from "../lib/share-away.mjs";
 import { dollars } from "../lib/totals.mjs";
 import { label } from "../lib/zoned.mjs";
 import { codeNote } from "./code-note.mjs";
 import { twoStep } from "./confirm.mjs";
+import { drawPerks } from "./perk-label.js";
 import * as state from "./state.mjs";
+import { shutTip } from "./tip.js";
 import {
   SHEET, animateFold, clearFocusUnder, moveParts, moving, pulsePill,
   revealLine, ringCart, showAdded, shutShare, swapWords, teach, toPx,
@@ -84,36 +85,6 @@ const stilled = (pane) => Promise.all(
     .map((a) => a.finished.catch(() => {}))
 );
 
-// A badge's tooltip, shut at once, with no fade (#569): one that faded
-// while the page moved was drawn away from its badge. Bootstrap has no
-// option for one hide alone, so its animation flag is set aside for
-// this one.
-//
-// A show still fading in waits on a transitionend, or Bootstrap's
-// timer standing in for one, to finish (#644). Left waiting, that end
-// came after the tooltip was gone and cancelled the next tap's show.
-// The event Bootstrap's own timer would send ends it now; it goes to
-// nothing when no show waits. Only a shown tip gets it: Bootstrap's
-// show() builds a new tip each time, so a shown tip's only pending end
-// is its show's. A hide fading out would end too, and its end drops
-// the tip, leaving nothing to hide.
-const shutTip = (tip) => {
-  if (!tip.tip) return;
-
-  const animated = tip._config.animation;
-
-  try {
-    if (tip.tip.classList.contains("show")) {
-      tip.tip.dispatchEvent(new Event("transitionend"));
-    }
-    tip._config.animation = false;
-    tip.tip?.classList.remove("fade");
-    tip.hide();
-  } finally {
-    tip._config.animation = animated;
-  }
-};
-
 export class Cart {
   // `root` is #order-cart; its parent is the slot and the heading sits
   // before the slot. `bar` is the phone's sticky top bar, if any. The
@@ -151,6 +122,8 @@ export class Cart {
     this.fingerDown = false;
     this.sheet = matchMedia(SHEET);
     this.tips = [];
+    // The perks' info buttons' tooltips (#717, setPerks).
+    this.perkTips = [];
 
     this.list = qs(root, "[data-cart-items]");
     this.pill = qs(root, "[data-cart-toggle]");
@@ -266,9 +239,14 @@ export class Cart {
     if (next !== this.state) this.fold(next);
   }
 
-  // Shuts every open badge tooltip at once (#569).
+  // The badges' tooltips and the perks' (#717).
+  allTips() {
+    return [...this.tips, ...this.perkTips.map((perk) => perk.tip)];
+  }
+
+  // Shuts every open badge or perk tooltip at once (#569).
   shutTips() {
-    for (const tip of this.tips) shutTip(tip);
+    for (const tip of this.allTips()) shutTip(tip);
   }
 
   open() {
@@ -362,7 +340,7 @@ export class Cart {
       if (e.key !== "Escape") return;
 
       // An open badge tooltip goes first (#569), and Proceed's (#706).
-      if (this.tips.some((tip) => tip.tip) || this.whyTip.tip) {
+      if (this.allTips().some((tip) => tip.tip) || this.whyTip.tip) {
         e.preventDefault();
         this.shutTips();
         this.shutWhy();
@@ -642,7 +620,7 @@ export class Cart {
 
     this.tips = tips;
     this.root.addEventListener("show.bs.tooltip", (e) => {
-      for (const tip of tips) {
+      for (const tip of this.allTips()) {
         if (tip._element !== e.target) tip.hide();
       }
     });
@@ -994,22 +972,17 @@ export class Cart {
     if (this.teaching) this.teaching.keep();
   }
 
-  // The signed-in customer's perks (#514), one line each: what the
-  // totals already apply, said so the customer knows why. The lines
-  // are fragments with no end punctuation, so each takes its own line.
+  // The signed-in customer's perks (#514): what the totals already
+  // apply, said so the customer knows why, as pricing labels with no
+  // end dates (#717, perk-label.js). A bundled perk's tooltip goes with
+  // the badges' (shutTips).
   setPerks(perks) {
     const note = qs(this.root, "[data-cart-perks]");
 
     if (!note) return;
-    note.replaceChildren(...perks.map((perk) => {
-      const line = document.createElement("span");
-
-      line.className = "d-block";
-      line.textContent = perkSentence(perk);
-
-      return line;
-    }));
-    note.hidden = !perks.length;
+    for (const tip of this.perkTips) tip.stop();
+    this.perkTips = drawPerks(note, perks);
+    note.hidden = !note.childElementCount;
   }
 
   // The outcome of a code the form applied: `text` and `tone` for the
