@@ -38,6 +38,9 @@ const WIDE = { width: 1440, height: 900 };
 // A frame's width counts as between the two words' widths when it is
 // this far from both, and a word counts as fading when its opacity is
 // this far from 0 and from 1, so rounding never passes for motion.
+// The icon's place and size may drift by PX too: the site-wide hover
+// and press lift on .btn leaves its box a fraction of a pixel off
+// while a mouse holds the button (#703).
 const PX = 1;
 const FADE = 0.05;
 
@@ -188,9 +191,11 @@ test.describe("pickup days, Copy's animation (#703)", () => {
         expect(Math.abs(s.icon.x - still.icon.x),
           `the icon keeps its place in the button, ${at}`)
           .toBeLessThanOrEqual(PX);
-        expect([s.icon.width, s.icon.height],
-          `the icon keeps its size, ${at}`)
-          .toEqual([still.icon.width, still.icon.height]);
+        const resized = Math.max(
+          Math.abs(s.icon.width - still.icon.width),
+          Math.abs(s.icon.height - still.icon.height));
+        expect(resized, `the icon keeps its size, ${at}`)
+          .toBeLessThanOrEqual(PX);
         expect(s.icon.opacity, `the icon stays fully shown, ${at}`)
           .toBeGreaterThanOrEqual(1 - FADE);
       }
