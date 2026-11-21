@@ -420,6 +420,7 @@
         "e2e/perk-label.spec.mjs",
         "e2e/perk-revision.spec.mjs",
         "e2e/picker-out.spec.mjs",
+        "e2e/pickup-copy-anim.spec.mjs",
         "e2e/pickup-days-revision-2.spec.mjs",
         "e2e/pickup-days-revision.spec.mjs",
         "e2e/pickup-days-status.spec.mjs",
@@ -512,6 +513,7 @@
         "e2e/payment-stacking.spec.mjs",
         "e2e/payment.spec.mjs",
         "e2e/picker-out.spec.mjs",
+        "e2e/pickup-copy-anim.spec.mjs",
         "e2e/pickup-days-revision-2.spec.mjs",
         "e2e/pickup-days-revision.spec.mjs",
         "e2e/pickup-days-status.spec.mjs",
@@ -599,6 +601,7 @@
         "e2e/payment-stacking.spec.mjs",
         "e2e/payment.spec.mjs",
         "e2e/picker-out.spec.mjs",
+        "e2e/pickup-copy-anim.spec.mjs",
         "e2e/pickup-days-revision-2.spec.mjs",
         "e2e/pickup-days-revision.spec.mjs",
         "e2e/pickup-days-status.spec.mjs",
@@ -691,6 +694,7 @@
         "e2e/perk-label.spec.mjs",
         "e2e/perk-revision.spec.mjs",
         "e2e/picker-out.spec.mjs",
+        "e2e/pickup-copy-anim.spec.mjs",
         "e2e/pickup-days-revision-2.spec.mjs",
         "e2e/pickup-days-revision.spec.mjs",
         "e2e/pickup-days-status.spec.mjs",
@@ -1644,9 +1648,18 @@
     },
     {
       "paths": [
+        "e2e/pickup-copy-anim.spec.mjs"
+      ],
+      "specs": [
+        "e2e/pickup-copy-anim.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
         "e2e/pickup-days.spec.mjs"
       ],
       "specs": [
+        "e2e/pickup-copy-anim.spec.mjs",
         "e2e/pickup-days-revision-2.spec.mjs",
         "e2e/pickup-days-revision.spec.mjs",
         "e2e/pickup-days-status.spec.mjs",

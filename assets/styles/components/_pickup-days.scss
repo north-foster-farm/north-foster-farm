@@ -164,6 +164,35 @@
   height: 1em;
 }
 
+// Copy's change to "Copied" and back (#703), as the fitted busy button
+// changes face (_busy-button.scss): the width eases, pinned by
+// order/pickup-days.js, the word clipped while the button is narrower,
+// and the old word fades out in the ghost over the new one fading in.
+.order-pickup-actions .order-pickup-copy {
+  position: relative;
+  overflow: hidden;
+  white-space: nowrap;
+  transition: $btn-transition, width 0.3s ease-in-out;
+}
+
+.order-pickup-copy-text,
+.order-pickup-copy-ghost {
+  transition: opacity 0.25s ease;
+}
+
+.order-pickup-copy-ghost {
+  position: absolute;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .order-pickup-actions .order-pickup-copy,
+  .order-pickup-copy-text,
+  .order-pickup-copy-ghost {
+    transition: none;
+  }
+}
+
 @container (min-width: 28rem) {
   .order-pickup {
     grid-template-columns: auto auto 1fr;

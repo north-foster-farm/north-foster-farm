@@ -4,10 +4,48 @@
 // partials/order/pickup-days.html; the parts come from
 // lib/scheduled.mjs (pickupDays).
 
+import { fit } from "../utils/busy-button.js";
 import { pickupDays } from "./lib/scheduled.mjs";
 
 // How long Copy says "Copied" before it reads Copy again.
 export const COPIED_MS = 2000;
+
+const calm = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+// Empties the ghost once its word has faded out, so the card never
+// holds both words at rest.
+const lay = (ghost) => {
+  if (ghost.style.opacity !== "0") return;
+  ghost.textContent = "";
+  ghost.style.opacity = "";
+};
+
+// Changes Copy's word as the fitted busy button changes its face
+// (#703): the width eases from the old word's to the new one's
+// (busy-button.js fit), and the old word, left in the hidden ghost
+// over the new, fades out while the new one fades in. The icon before
+// them stays put. With reduced motion the word just changes.
+const say = (button, text) => {
+  const word = button.querySelector(".order-pickup-copy-text");
+  const ghost = button.querySelector(".order-pickup-copy-ghost");
+  const was = word.textContent;
+
+  if (was === text) return;
+  fit(button, () => { word.textContent = text; });
+  if (calm()) return;
+
+  ghost.textContent = was;
+  ghost.style.left = `${word.offsetLeft}px`;
+  ghost.style.top = `${word.offsetTop}px`;
+  for (const [face, from] of [[ghost, "1"], [word, "0"]]) {
+    face.style.transition = "none";
+    face.style.opacity = from;
+  }
+  button.getBoundingClientRect();
+  for (const face of [ghost, word]) face.style.transition = "";
+  ghost.style.opacity = "0";
+  word.style.opacity = "";
+};
 
 // Puts `text` on the clipboard and says so on the button for a
 // moment, and in `status`, a visually hidden live region, so a screen
@@ -23,14 +61,11 @@ const copy = async (button, status, text, address) => {
 
     return;
   }
-  // The word only: the icon before it stays.
-  const word = button.querySelector(".order-pickup-copy-text");
-
-  word.textContent = "Copied";
+  say(button, "Copied");
   status.textContent = "Copied";
   clearTimeout(button.copiedTimer);
   button.copiedTimer = setTimeout(() => {
-    word.textContent = "Copy";
+    say(button, "Copy");
     status.textContent = "";
   }, COPIED_MS);
 };
@@ -60,8 +95,15 @@ const card = (pickup, { name, id, pick }) => {
   address.hidden = !pickup.copy;
 
   if (pickup.copy) {
+    const ghost = q(".order-pickup-copy-ghost");
+
     button.addEventListener("click",
       () => copy(button, status, pickup.copy, address));
+    // Not on transitioncancel: a change that interrupts the fade
+    // cancels it, and the ghost then holds the next word.
+    ghost.addEventListener("transitionend", (event) => {
+      if (event.propertyName === "opacity") lay(ghost);
+    });
   } else {
     button.remove();
     status.remove();
