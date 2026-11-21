@@ -164,7 +164,7 @@ itemizes the line" (both projects).
   1. Press Add on Eggs, Large.
   2. Fold the cart if it floats over the row, then press "One more".
 - **Assert:** The row's stepper is active with 1, then 2. The cart has
-  one group "Eggs" with one line "Large", "2 × $7", "$14". Count "2
+  one group "Eggs" with one line "Grade A · Large", "2 × $7", "$14". Count "2
   items", Subtotal $14, Delivery fee +$5, Total $19.
 - **Teardown:** None.
 
@@ -245,7 +245,7 @@ added and clears the query" (both projects).
 - **Test:**
   1. Open the link.
 - **Assert:** The notice reads "Added to your cart: 2 × Eggs, Grade A
-  Large. Not available: Eggs, Grade A Medium." Eggs, Large reads
+  · Large. Not available: Eggs, Grade A · Medium." Eggs, Large reads
   2. The URL is
   `/order/` with no query.
 - **Teardown:** None.
@@ -1138,9 +1138,10 @@ by paying (W11d)". Tagged `@regression`.
   3. Reload `/order/`.
 - **Assert:** `/api/orders` answers 200. "Thank you, Card. Your order is
   placed."; "$7" paid with "Visa ending 1111"; the email; an order
-  number like `NFF-2609-AB2C`; the when line "<day>, <window>, at the
-  farm.";
-  a receipt link to Square; no cart count on the header's Order link
+  number like `NFF-2609-AB2C`; under "Receiving your order" (#723),
+  Order type "On-farm pickup", the farm's street as the Pick-up
+  address, and Date and time "<day>, <window>"; a receipt link to
+  Square; no cart count on the header's Order link
   (AR-29). `bin/nff --staging orders show <id>`:
   `status` paid, `payment.via` square, `method` card, `last4` 1111,
   `square.squareOrderId` set, `fulfilment.state` agreed, `total`
@@ -1894,8 +1895,8 @@ the field".
 - **Setup:** Home page.
 - **Test:**
   1. Type `not-an-email`; press Sign me up.
-- **Assert:** "Enter a valid email address, like you@example.com." (the
-  wording since #141); no request sent.
+- **Assert:** "Please enter a valid email address." (the wording since
+  #390); no request sent.
 - **Teardown:** None.
 
 ### FN-03 The news page has the sign-up
@@ -2373,7 +2374,7 @@ three cases. The real function (c47e66d) is AR-15 and AR-16.
   order page linked; the form sits directly below; the honeypot is
 hidden and out of the tab
   order. On a phone the form sits under the ways. Empty: "Tell us your
-  name.", "Enter your email address, so we can answer.", "Write us a
+  name.", "Please enter an email address.", "Write us a
   message first.", Name focused, nothing sent. A bad address is named
   and its error clears once put right. The post carries name, message,
   an empty `orderId` and an empty `website`; the button shows the egg
@@ -2464,11 +2465,11 @@ so nobody is added; FN-01 covers the real sign-up.
   1. Press Sign me up empty; submit `nope` and `you@farm`; type a
      valid address.
   2. Submit a valid address while the answer is held; press again.
-- **Assert:** Nothing under the field at rest. "Enter your email
-  address." when empty; "Enter a valid email address, like
-  you@example.com." with the field marked invalid and focused for both
-  bad addresses; the mark clears once the address is valid. While
-  held: `data-state="busy"`, "Sending" and the egg spinner faded in,
+- **Assert:** Nothing under the field at rest. "Please enter an email
+  address." when empty; "Please enter a valid email address." with the
+  field marked invalid and focused for both bad addresses; the mark
+  clears once the address is valid. While held: `data-state="busy"`,
+  "Sending" and the egg spinner faded in,
   "Sign me up" faded out, the button's width unchanged, the line under
   the field empty, and the second press sends nothing. Then the
   "Check your email: click the link we sent you to join." answer at
@@ -2555,7 +2556,7 @@ has it", "on the order page it fills the row and the cart at once" and
   2. On `/order/?add=` 1 wing, search "wings"; Enter; Escape.
   3. With `/api/stock` held, search "eggs", press One more, then let
      the stock answer.
-- **Assert:** "Large", "In stock"; "Added 2 × Eggs, Grade A Large. 2
+- **Assert:** "Large", "In stock"; "Added 2 × Eggs, Grade A · Large. 2
   items in your cart." and the button reads "Added · 2 in cart"; the order page
   shows 2 eggs, "2 items", $14. On the order page the wings row reads
   2, "2 items", $20. The late stock answer leaves the quantity at 2.
@@ -2775,8 +2776,9 @@ market order". Tagged `@regression`. The picker is also
 - **Assert:** The list is one radio per open occurrence, by date, each
   "<day>, <hours>, <place>, <town>"; none is chosen until the customer
   chooses; the cart's way reads "Scheduled pickup: <day>, <hours>, at
-  <market>". 200. The when line ends "at <market name>." and never
-  says "the drop site". `orders show <id>`: `fulfilment.method`
+  <market>". 200. Under "Receiving your order" (#723), the Pick-up
+  address is the market's street, and nothing says "the drop site".
+  `orders show <id>`: `fulfilment.method`
   `scheduled`, `occurrence` the id chosen, `date` that day,
   `state` agreed. Outbox: "Your order is confirmed" naming the market;
   the farm's "New order <id>" with the market in its subject.
@@ -2808,8 +2810,10 @@ the drop site's pay is `payment.spec.mjs`.
 - **Setup:** 1 egg, its next Saturday.
 - **Test:**
   1. Choose Scheduled pickup and the drop site's day; pay.
-- **Assert:** The when line "<day>, 10:00 – 11:00 AM, at the drop site."
-  (never "Scituate drop site"). No reminder is sent for a scheduled
+- **Assert:** Under "Receiving your order" (#723), Order type "Pickup
+  days", the drop site's street as the Pick-up address, and Date and
+  time "<day>, 10:00 – 11:00 AM"; never "Scituate drop site". No
+  reminder is sent for a scheduled
   pickup, and the order closes the day after its date.
 - **Teardown:** As PY-01.
 
