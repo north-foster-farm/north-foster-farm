@@ -113,13 +113,14 @@
                  with Copy and Map (date-lists.js fillPickups, from the
                  templates of order/pickup-days.html, which the lapsed
                  dialog shares). Nothing is chosen until the customer does. */}}
-            {{/* Named for the radio group only: the date headings
-                 follow the rule straight away, as James's mockups
-                 draw it (#703). */}}
-            <span class="visually-hidden" id="scheduled-label">Pickup day</span>
             <div class="col-12 skeleton-slot" data-dates-region>
               {{ partial "skeleton.html" (dict "over" true) }}
               {{ partial "skeleton/status.html" (dict "quiet" true) }}
+              {{/* Named for the radio group only: the date headings
+                   follow the rule straight away, as James's mockups
+                   draw it (#703). Inside the column, since a row's
+                   children are columns only (check:grid G2). */}}
+              <span class="visually-hidden" id="scheduled-label">Pickup day</span>
               <div class="order-pickups" id="scheduled-pickups" role="radiogroup" aria-labelledby="scheduled-label" aria-describedby="err-scheduled-date" tabindex="-1" data-field="fulfilment.occurrence" data-dates="scheduled">
                 <p class="order-windows-none">Loading pickups&hellip;</p>
               </div>
