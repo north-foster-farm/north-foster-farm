@@ -54,12 +54,14 @@ test.describe("order page", () => {
           "Pickup or delivery", "Contact information", "Payment",
           "Place your order",
         ]);
-      // Farm news is in the Place your order step, above Pay (#705; it
-      // closed the pane, after the agreement, from #352). The pane's
-      // full order is e2e/place-order-pane.spec.mjs.
-      expect(await page.locator("#confirm").evaluate((el) => {
-        const optin = el.querySelector("#customer-marketing");
-        const pay = el.querySelector("#order-submit");
+      // Farm news is in its own card directly above the Place your
+      // order pane, so above Pay (#705, James's revision of
+      // 2026-11-21; the top of the pane until then, and it closed the
+      // pane, after the agreement, from #352). The full order is
+      // e2e/place-order-pane.spec.mjs, the card e2e/optin-card.spec.mjs.
+      expect(await page.evaluate(() => {
+        const optin = document.getElementById("customer-marketing");
+        const pay = document.getElementById("order-submit");
 
         return Boolean(optin && pay) &&
           Boolean(optin.compareDocumentPosition(pay) &

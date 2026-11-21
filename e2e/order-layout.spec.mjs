@@ -266,29 +266,40 @@ for (const width of [375, 390, 576, 768]) {
   });
 }
 
-// Checkout's alignment: the news question, its box and Pay's agreement
-// start at the pane's left edge at every width, as in James's mockup
-// on #705 (centered from his cart pass, 2026-10-27, until then). That
-// Pay spans the pane is e2e/place-order-pane.spec.mjs.
-test("the question, the opt-in and the agreement start at the pane's " +
-  "left at every width", async ({ page }) => {
+// Checkout's alignment: the news question and its box start at the
+// left edge of their card, and Pay's agreement at the pane's, at every
+// width, as in James's mockup on #705 (centered from his cart pass,
+// 2026-10-27, until then; the question and the box were in the pane
+// until his revision of 2026-11-21 gave them a card of their own above
+// it). That Pay spans the pane is e2e/place-order-pane.spec.mjs.
+test("the question and the opt-in start at their card's left, the " +
+  "agreement at the pane's, at every width", async ({ page }) => {
   const order = new OrderPage(page);
 
   for (const size of [PHONE, MD]) {
     await page.setViewportSize(size);
     await order.open({ eggs: 1 });
 
-    const seen = await page.locator("#confirm").evaluate((el) => {
-      const pay = el.querySelector("#order-submit");
-      let pane = pay.parentElement;
+    const seen = await page.evaluate(() => {
+      const pay = document.getElementById("order-submit");
+      const tick = document.getElementById("customer-marketing");
+      const framed = (el) => {
+        let node = el.parentElement;
 
-      while (pane && getComputedStyle(pane).boxShadow === "none") {
-        pane = pane.parentElement;
-      }
+        while (node && getComputedStyle(node).boxShadow === "none") {
+          node = node.parentElement;
+        }
 
-      const c = getComputedStyle(pane);
-      const edge = pane.getBoundingClientRect().left
-        + parseFloat(c.borderLeftWidth) + parseFloat(c.paddingLeft);
+        return node;
+      };
+      const pane = framed(pay);
+      const card = framed(tick);
+      const edge = (frame) => {
+        const c = getComputedStyle(frame);
+
+        return frame.getBoundingClientRect().left
+          + parseFloat(c.borderLeftWidth) + parseFloat(c.paddingLeft);
+      };
       const words = (node) => {
         const range = document.createRange();
 
@@ -297,24 +308,23 @@ test("the question, the opt-in and the agreement start at the pane's " +
         return Math.min(...[...range.getClientRects()]
           .filter((r) => r.width > 0).map((r) => r.left));
       };
-      const byText = (text) => [...pane.querySelectorAll("*")]
+      const byText = (root, text) => [...root.querySelectorAll("*")]
         .filter((n) => n.textContent.replace(/\s+/g, " ").trim() === text)
         .at(-1);
-      const off = (left) => Math.abs(left - edge);
 
       return {
-        question: off(words(byText(
-          "Interested in pasture-raised news and updates?"))),
-        optin: off(el.querySelector("#customer-marketing")
-          .getBoundingClientRect().left),
-        agree: off(words(byText(
-          "By placing an order you agree to our delivery policy."))),
+        question: Math.abs(words(byText(card,
+          "Interested in pasture-raised news and updates?")) - edge(card)),
+        optin: Math.abs(tick.getBoundingClientRect().left - edge(card)),
+        agree: Math.abs(words(byText(pane,
+          "By placing an order you agree to our delivery policy."))
+          - edge(pane)),
       };
     });
 
     for (const [part, off] of Object.entries(seen)) {
-      expect(off, `${size.width}px: the ${part}'s offset from the pane's ` +
-        "left edge").toBeLessThanOrEqual(1);
+      expect(off, `${size.width}px: the ${part}'s offset from its ` +
+        "frame's left edge").toBeLessThanOrEqual(1);
     }
   }
 });

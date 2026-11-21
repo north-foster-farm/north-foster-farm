@@ -411,6 +411,7 @@
         "e2e/missed-delivery.spec.mjs",
         "e2e/news-hide.spec.mjs",
         "e2e/onfarm-times.spec.mjs",
+        "e2e/optin-card.spec.mjs",
         "e2e/order-draft-date.spec.mjs",
         "e2e/order-layout.spec.mjs",
         "e2e/order-page.spec.mjs",
@@ -508,6 +509,7 @@
         "e2e/missed-delivery.spec.mjs",
         "e2e/news-hide.spec.mjs",
         "e2e/onfarm-times.spec.mjs",
+        "e2e/optin-card.spec.mjs",
         "e2e/order-draft-date.spec.mjs",
         "e2e/order-layout.spec.mjs",
         "e2e/order-page.spec.mjs",
@@ -596,6 +598,7 @@
         "e2e/missed-delivery.spec.mjs",
         "e2e/news-hide.spec.mjs",
         "e2e/onfarm-times.spec.mjs",
+        "e2e/optin-card.spec.mjs",
         "e2e/order-draft-date.spec.mjs",
         "e2e/order-layout.spec.mjs",
         "e2e/order-page.spec.mjs",
@@ -904,6 +907,7 @@
         "e2e/news-hide.spec.mjs",
         "e2e/news-page.spec.mjs",
         "e2e/news.spec.mjs",
+        "e2e/optin-card.spec.mjs",
         "e2e/overflow.spec.mjs",
         "e2e/place-order-pane.spec.mjs",
         "e2e/restock.spec.mjs",
@@ -1661,6 +1665,14 @@
         "e2e/group-code.spec.mjs",
         "e2e/group-credit.spec.mjs",
         "e2e/group-orders.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/optin-card.spec.mjs"
+      ],
+      "specs": [
+        "e2e/optin-card.spec.mjs"
       ]
     },
     {

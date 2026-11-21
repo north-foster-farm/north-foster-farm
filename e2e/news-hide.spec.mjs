@@ -119,7 +119,10 @@ for (const { name, path, block } of PAGES) {
 }
 
 test.describe("the order page's farm news opt-in (#391)", () => {
-  const block = "#confirm [data-farm-list-block]";
+  // Its own card above the Place your order pane since James's
+  // revision (#705, 2026-11-21), so it is the block in main, wherever
+  // the card sits; the footer's is outside main.
+  const block = "main [data-farm-list-block]";
 
   // The question replaced the subheading Farm News and updates (#705).
   const question = (page) => page.locator(block)

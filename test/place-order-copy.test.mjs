@@ -3,13 +3,14 @@
 // "Done when" list and James's mockup before the change. The words are
 // James's and pinned word for word; "up to date" stays unhyphenated
 // (James, 2026-11-21: an adverbial phrase here). Order, layout and
-// hiding are e2e/place-order-pane.criteria.mjs.
+// hiding are e2e/place-order-pane.spec.mjs, the opt-in's own card
+// e2e/optin-card.spec.mjs. Since James's revision (in chat,
+// 2026-11-21 16:23 ET) the question and the checkbox sit in a card
+// above the pane, so the words are read off the page's main, not
+// only the Place your order fieldset.
 //
 // Where Hugo is not installed (CI's test job), CI's build job builds
 // the page and this is skipped.
-//
-// Held out of npm test by its name: rename it to
-// place-order-copy.test.mjs to turn it on.
 
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
@@ -49,10 +50,8 @@ describe("the Place your order pane's wording (#705)",
 
       const html = readFileSync(join(out, "order", "index.html"), "utf8");
 
-      pane = html.match(
-        /<fieldset[^>]*\bid="?confirm"?[\s>][\s\S]*?<\/fieldset>/,
-      )?.[0];
-      assert.ok(pane, "the order page has its Place your order fieldset");
+      pane = html.match(/<main\b[\s\S]*?<\/main>/)?.[0];
+      assert.ok(pane, "the order page has its main");
     });
 
     after(() => rmSync(out, { recursive: true, force: true }));
@@ -67,7 +66,7 @@ describe("the Place your order pane's wording (#705)",
       const words = text(pane);
 
       assert.ok(words.includes(QUESTION),
-        `the pane asks "${QUESTION}"; it reads: ${words}`);
+        `the page asks "${QUESTION}"; it reads: ${words}`);
       assert.ok(label, "the checkbox has its label");
       assert.equal(text(label[1]), CHECKBOX);
       assert.ok(!words.includes("Farm News and updates"),

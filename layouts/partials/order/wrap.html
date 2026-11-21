@@ -3,27 +3,29 @@
   <input type="text" id="order-website" name="website" tabindex="-1" autocomplete="off">
 </div>
 
-{{/* The last section (#352), in a framed pane like the contact card
-     (#391), as James's mockup has it (#705): the news opt-in, then
-     the button the width of the pane, then the agreement. */}}
+{{/* The last section (#352): the news opt-in in a card of its own,
+     then the framed pane with the button the width of the pane and
+     the agreement, both framed like the contact card (#391), as
+     James's mockup and his revision have it (#705). */}}
 <fieldset class="order-section order-confirm mb-5" id="confirm">
   <legend class="h2" tabindex="-1">Place your order</legend>
-<div class="order-pane">
 {{/* Farm news is opt-in only: the box starts unticked, a ticked box
      joins the list when the order is placed, with no confirmation
      email (#303), and an unticked box changes nothing on a record that
      already says yes. The account page's settings tab has the same
-     box. It opens the pane, above the button (#705; it closed the
-     pane, under the agreement, from #352). A customer already on the
-     list is not shown the block, question and box together:
-     news/hide.js hides it, as it does the footer's sign-up (#391). */}}
-<div class="order-farm-list" data-farm-list-block>
+     box. It is a card of its own directly above the pane (James,
+     2026-11-21, #705; it opened the pane, and closed it from #352).
+     A customer already on the list is not shown the card, question
+     and box together: news/hide.js hides it, as it does the footer's
+     sign-up (#391), so the frame is on the block itself. */}}
+<div class="order-farm-list order-optin-card" data-farm-list-block>
 <h3 class="order-optin-title" id="order-optin-title">Interested in pasture-raised news and updates?</h3>
 <div class="form-check order-optin">
   <input class="form-check-input" type="checkbox" id="customer-marketing" name="customer.marketing" data-field="customer.marketing">
   <label class="form-check-label" for="customer-marketing">Sign up and stay up to date with {{ hugo.Data.company.name }}.</label>
 </div>
 </div>
+<div class="order-pane">
 <div class="order-submit">
   <div class="alert alert-danger" role="alert" data-form-error hidden></div>
   {{/* The policy covers pickup, cancellation and refunds as well as

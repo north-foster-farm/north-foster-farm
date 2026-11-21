@@ -573,18 +573,19 @@
     display: none;
   }
 
-  // The farm-news question and box open the Place your order pane,
-  // above the button (#705; #352 had them under the agreement, #228
-  // under the email). The question is bold, a step above the box's
-  // words, as in James's mockup.
+  // The farm-news question and box, in their own card above the Place
+  // your order pane (James, 2026-11-21, #705; they opened the pane,
+  // #352 had them under the agreement, #228 under the email). The
+  // question is bold, a step above the box's words, as in James's
+  // mockup. The card's padding is the space around them.
   .order-optin-title {
-    margin: 0.5rem 0;
+    margin: 0 0 0.5rem;
     font-size: 1.125rem;
     font-weight: 700;
   }
 
   .order-optin {
-    margin: 0 0 1.75rem;
+    margin: 0;
   }
 
   // Phones and tablets: the list is a plain column of hairline rows,
@@ -721,8 +722,10 @@
   // pane's: its border, radius, padding and shadow (#352). The contact
   // card frames only the fields, its heading and sign-in line above it
   // as Place your order's heading is above its pane (#704; #666 had
-  // them inside).
+  // them inside). The news opt-in's card above the pane is framed the
+  // same (#705).
   .order-details .order-contact-card,
+  .order-confirm .order-optin-card,
   .order-confirm .order-pane {
     padding: 1rem var(--order-gutter);
     border: 1px solid var(--bs-border-color-translucent);
@@ -737,7 +740,9 @@
 
   // The cart's shadow at each width: the lighter one alone from xl,
   // below it the one off its back edge. The contact card keeps the
-  // lighter one at every width, as the cards above it do (#666).
+  // lighter one at every width, as the cards above it do (#666). The
+  // opt-in card shares the pane's column and its shadow (#705).
+  .order-confirm .order-optin-card,
   .order-confirm .order-pane {
     @media (max-width: 1199.98px) {
       box-shadow:
@@ -753,7 +758,19 @@
     clear: left;
   }
 
-  // The news box and its words as one line, at the pane's left edge
+  // The same in Place your order: the opt-in card is the legend's next
+  // sibling, and hidden for a customer on the list it cleared nothing,
+  // so the pane began beside the heading (#705).
+  .order-confirm .order-pane {
+    clear: left;
+  }
+
+  // The opt-in card stands a rem above the pane (#705).
+  .order-confirm .order-optin-card {
+    margin-bottom: 1rem;
+  }
+
+  // The news box and its words as one line, at the card's left edge
   // under the question, as in James's mockup (#705; centered from his
   // cart pass, 2026-10-27).
   .order-confirm .order-optin {

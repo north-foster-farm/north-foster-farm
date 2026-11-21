@@ -9,8 +9,13 @@
 // In the mockup the pane holds, top to bottom: the bold question
 // "Interested in pasture-raised news and updates?", the news checkbox,
 // the Place your order button the full width of the pane, then the
-// delivery policy line. The pane is the shadowed frame that holds the
-// button, whichever element draws it.
+// delivery policy line. James's revision (in chat, 2026-11-21 16:23
+// ET) moved the question and the checkbox into a card of their own
+// directly above the pane, so they are read in that card, in the same
+// order, and the pane keeps the button and the policy line
+// (e2e/optin-card.spec.mjs checks the card). The pane is the shadowed
+// frame that holds the button, the card the one that holds the
+// checkbox, whichever element draws each.
 //
 // Held out of every run by its name: rename it to
 // place-order-pane.spec.mjs to turn it on.
@@ -40,15 +45,21 @@ test.describe("the Place your order pane (#705)", () => {
 
       const m = await page.evaluate(({ question, policy }) => {
         const pay = document.getElementById("order-submit");
-        let pane = pay.parentElement;
+        const tick = document.getElementById("customer-marketing");
+        const framed = (el) => {
+          let node = el.parentElement;
 
-        while (pane && getComputedStyle(pane).boxShadow === "none") {
-          pane = pane.parentElement;
-        }
+          while (node && getComputedStyle(node).boxShadow === "none") {
+            node = node.parentElement;
+          }
 
-        // The innermost element in the pane whose words are exactly
-        // these.
-        const byText = (text) => [...pane.querySelectorAll("*")]
+          return node;
+        };
+        const pane = framed(pay);
+        const card = framed(tick);
+
+        // The innermost element in root whose words are exactly these.
+        const byText = (root, text) => [...root.querySelectorAll("*")]
           .filter((el) => el.textContent.replace(/\s+/g, " ").trim()
             === text)
           .find((el) => ![...el.children].some((child) =>
@@ -60,9 +71,8 @@ test.describe("the Place your order pane (#705)", () => {
           return { top: r.top, bottom: r.bottom, left: r.left,
             right: r.right, width: r.width };
         };
-        const asked = byText(question);
-        const agree = byText(policy);
-        const tick = document.getElementById("customer-marketing");
+        const asked = card && byText(card, question);
+        const agree = byText(pane, policy);
         const tickLabel = document.querySelector(
           "label[for='customer-marketing']",
         );
@@ -78,7 +88,9 @@ test.describe("the Place your order pane (#705)", () => {
 
         return {
           found: {
-            question: Boolean(asked), checkbox: pane.contains(tick),
+            question: Boolean(asked),
+            checkbox: Boolean(card) && card !== pane
+              && !card.contains(pay),
             policy: Boolean(agree),
           },
           inDocumentOrder: order.every(Boolean) && order.slice(1)
@@ -93,10 +105,9 @@ test.describe("the Place your order pane (#705)", () => {
         };
       }, { question: QUESTION, policy: POLICY });
 
-      expect(m.found, "the question, the checkbox and the policy line " +
-        "are in the pane").toEqual({
-        question: true, checkbox: true, policy: true,
-      });
+      expect(m.found, "the question and the checkbox are in their card, " +
+        "apart from the pane, and the policy line is in the pane")
+        .toEqual({ question: true, checkbox: true, policy: true });
       expect.soft(m.inDocumentOrder, "question, checkbox, button, " +
         "policy line, in that order").toBe(true);
 
@@ -104,7 +115,7 @@ test.describe("the Place your order pane (#705)", () => {
       expect.soft(m.weight, "the question's font weight")
         .toBeGreaterThanOrEqual(600);
 
-      // Down the pane in that order.
+      // Down the card and the pane in that order.
       expect.soft(m.question.bottom, "the question above the checkbox")
         .toBeLessThanOrEqual(m.tick.top);
       expect.soft(m.tick.bottom, "the checkbox above the button")
