@@ -2003,9 +2003,16 @@ export class OrderForm {
       || "We couldn't start the Venmo payment.");
   }
 
-  venmoCapture(payload, paypalOrderId) {
+  // `restart`: the capture after the Venmo sheet was reopened on the
+  // same PayPal order (#721). The payload is the one the PayPal order
+  // was made from, so its attempt is that order's. -> the outcome.
+  venmoCapture(payload, paypalOrderId, { restart = false } = {}) {
     return this.deliver({
-      ...payload, payment: { method: "venmo", stage: "capture", paypalOrderId },
+      ...payload,
+      payment: {
+        method: "venmo", stage: "capture", paypalOrderId,
+        ...(restart ? { restart: true } : {}),
+      },
     });
   }
 
@@ -2063,6 +2070,7 @@ export class OrderForm {
 
   // A send that can't get through goes once more, under the same keys,
   // so it can't pay twice. If that one can't either, it stops.
+  // -> the outcome, already acted on.
   async deliver(payload) {
     this.setBusy(true);
     this.draft.markAttempted();
@@ -2088,6 +2096,8 @@ export class OrderForm {
     default:
       this.settle(outcome, payload);
     }
+
+    return outcome;
   }
 
   // The order is paid: the draft goes, and the page says so.
