@@ -6,7 +6,9 @@ import {
   draftOccurrence, dropSeriesCode, fulfilmentDate, locationCount,
   locationsLabel,
 } from "./lib/scheduled.mjs";
-import { groupFromQuery, withPlaces } from "./lib/group.mjs";
+import {
+  groupFromQuery, nextRoundOpens, ordersClose, roundsWhen, withPlaces,
+} from "./lib/group.mjs";
 import { perkEffects } from "./lib/perks.mjs";
 import { postedDelivery } from "./lib/posted.mjs";
 import { linkedMethod, withoutParam } from "./lib/query.mjs";
@@ -155,6 +157,10 @@ export class OrderForm {
     // model from the answer (`raw` is what the page embeds).
     this.raw = { locations: data.locations, series: data.series };
     this.member = null;
+    // The group whose rounds Group orders offers (#749): the member's,
+    // or the one a code unlocked. A change to a paid order sets it
+    // alone, its prices and credit staying as the order has them.
+    this.roundGroup = null;
     this.groupCode = null;
     // Group codes the customer has said Join to (#495, decision 5): a
     // draft's, and any confirmed here. Applied again, they don't ask.
@@ -467,6 +473,8 @@ export class OrderForm {
     this.saveButton.addEventListener("click", (e) => this.submit(e));
 
     this.dates.load();
+    // A member's change is offered the group's rounds (#749).
+    if (customer.memberGroup) this.editRounds();
     this.applyCode({ quiet: true });
     this.refresh();
     this.stock.start();
@@ -896,7 +904,9 @@ export class OrderForm {
   // restored draft's way. An unknown value is ignored. The query is
   // cleared, as ?add= is.
   methodFromQuery() {
-    const radios = all(this.form, "[name='method']");
+    // Group orders is no link's to choose: it is a member's alone.
+    const radios = all(this.form, "[name='method']")
+      .filter((radio) => radio.value !== "group");
     const link = linkedMethod(
       location.search, radios.map((radio) => radio.value), this.dropSeries
     );
@@ -906,7 +916,7 @@ export class OrderForm {
     if (!link) return;
 
     this.wantedSeries = link.series;
-    if (link.method === this.method()) {
+    if (link.method === this.way()) {
       this.chooseSeries();
 
       return;
@@ -927,7 +937,7 @@ export class OrderForm {
     const first = lists.scheduled.find((c) => c.series === this.wantedSeries);
 
     this.wantedSeries = null;
-    if (!first || this.method() !== "scheduled") return;
+    if (!first || this.way() !== "scheduled") return;
     this.dates.choose(first.value);
     this.draft.save(this.collect());
   }
@@ -1061,10 +1071,20 @@ export class OrderForm {
   }
 
 
-  method() {
+  // The way chosen, as its card's radio names it: onfarm, scheduled,
+  // delivery or group (#749).
+  way() {
     const checked = qs(this.form, "[name='method']:checked");
 
     return checked ? checked.value : "";
+  }
+
+  // The way as the order is priced and posted: Group orders is a
+  // pickup day at the group's round, as the server stores one.
+  method() {
+    const way = this.way();
+
+    return way === "group" ? "scheduled" : way;
   }
 
   lines() {
@@ -1266,13 +1286,41 @@ export class OrderForm {
     this.member = data.group;
     this.groupCode = code;
     this.credit = Number(data.credit) || 0;
+    this.offerRounds(data);
+    this.draft.save(this.collect());
+  }
+
+  // The group's place and series join the model and its rounds Group
+  // orders (#749). A draft's or a paid order's round, waiting for
+  // them, is chosen there, under Group orders.
+  offerRounds(data) {
+    this.roundGroup = data.group;
     this.terms = withPlaces(this.terms, this.raw, data.group);
-    this.dates.addScheduled(data.dates || []);
-    if (this.wantedOccurrence && this.dates.choose(this.wantedOccurrence)) {
+    this.dates.addRounds(data.dates || [], data.group.series);
+
+    const wanted = this.wantedOccurrence;
+
+    this.refresh();
+    if (wanted && String(wanted).startsWith(`${data.group.series}-`)) {
+      // Chosen now if the lists are here, or as they come (want).
+      this.wantedOccurrence = null;
+      this.dates.want("group", wanted);
+      qs(this.form, "#method-group").checked = true;
+      this.refresh();
+    } else if (wanted && this.dates.choose(wanted)) {
       this.wantedOccurrence = null;
     }
-    this.refresh();
-    this.draft.save(this.collect());
+  }
+
+  // A change to a member's paid order (#749): the group's rounds are
+  // offered under Group orders, as on a new order, while the prices and
+  // credit stay as the order has them (startEdit).
+  async editRounds() {
+    const { ok, data } = await api("/api/group", {
+      method: "POST", body: {},
+    }).catch(() => ({ ok: false, data: null }));
+
+    if (ok && data && data.group) this.offerRounds(data);
   }
 
   // The member price while it holds (#471): through its last
@@ -1328,13 +1376,24 @@ export class OrderForm {
   // words go by the code box, as for a pass.
   dropGroup(message) {
     this.member = null;
+    this.roundGroup = null;
     this.groupCode = null;
     this.credit = this.ownCredit || 0;
     this.terms = withPlaces(this.terms, this.raw);
     this.dates.dropExtra();
-    this.cart.codeResult({ text: message });
+    if (message) this.cart.codeResult({ text: message });
     this.refresh();
     this.draft.save(this.collect());
+  }
+
+  // A group's round refused as the customer isn't in the group (#749
+  // item 9): Group orders comes off, as the account no longer offers
+  // it, and the words go by Pay, where the customer is. Under a field
+  // they would go at the next revalidate, whose check has no such
+  // error.
+  notMember(errors) {
+    this.dropGroup();
+    this.payment.fail(errors["fulfilment.method"]);
   }
 
   // The money rules the page holds the order to: a pass or a perk
@@ -1371,8 +1430,10 @@ export class OrderForm {
     // First: an empty list unchooses scheduled pickup, and the rest
     // reads the way that leaves.
     this.renderScheduledCard();
+    this.renderGroupCard();
 
     const method = this.method();
+    const way = this.way();
     const totals = this.totals();
 
     this.renderWindows();
@@ -1393,7 +1454,7 @@ export class OrderForm {
     }
 
     for (const body of all(this.form, "[data-method-body]")) {
-      body.toggleAttribute("inert", body.dataset.methodBody !== method);
+      body.toggleAttribute("inert", body.dataset.methodBody !== way);
     }
 
     // Delivery needs a phone for the driver; the rest can do without.
@@ -1417,10 +1478,15 @@ export class OrderForm {
       totals, method, money: this.rules(), count, lines, index: this.index,
     });
 
+    // The cart's switch has the three ways everyone has; Group orders,
+    // chosen on its card, is named on the switch's button (#749).
+    const way = this.way();
+
     this.cart.render(s, {
-      method,
+      method: way,
       ways: {
         scheduled: !!this.dates.lists && this.dates.lists.scheduled.length > 0,
+        name: way === "group" ? "Group orders" : "",
       },
       edit: this.editing ? { ...this.editing, total: totals.total } : null,
       locked: !!(this.stock && this.stock.locked),
@@ -1469,6 +1535,78 @@ export class OrderForm {
     radio.disabled = none;
     if (none && radio.checked) qs(this.form, "#method-onfarm").checked = true;
     this.chooseSeries();
+  }
+
+  // The Group orders card (#749): shown only while a group's rounds
+  // are offered, its When and Where from the group's series and place
+  // in the model, never typed into the page. A round open: "Every
+  // other Sunday, 8:30 – 9:00 AM" and the earliest round's orders-close
+  // line atop its body. None open: "· no open group order" on its
+  // heading, the day the next opens (or "Not currently scheduled") for
+  // its When, and it can't be chosen. Until the lists come it reads as
+  // open, its body saying "Loading group orders…".
+  renderGroupCard() {
+    const g = this.roundGroup;
+    let wrap = qs(this.form, "[data-group-way]");
+
+    if (!g) {
+      if (wrap) {
+        if (qs(wrap, "#method-group").checked) {
+          qs(this.form, "#method-onfarm").checked = true;
+        }
+        wrap.remove();
+      }
+
+      return;
+    }
+    if (!wrap) {
+      const tpl = document.getElementById("tpl-group-way");
+
+      if (!tpl) return;
+      qs(this.form, ".order-methods").appendChild(tpl.content.cloneNode(true));
+      wrap = qs(this.form, "[data-group-way]");
+      if (this.dates.lists) {
+        this.dates.fill(qs(wrap, "[data-dates='group']"),
+          this.dates.lists.group || []);
+      }
+    }
+
+    const radio = qs(wrap, "#method-group");
+
+    const lists = this.dates.lists;
+    const rounds = lists ? lists.group || [] : null;
+    const open = rounds ? rounds.length > 0 : true;
+    const { model, timeZone } = this.terms;
+    const series = g.series && model.seriesOf(g.series);
+    const loc = model.location(g.location);
+    const title = qs(wrap, ".order-method-title");
+    const when = open && series ? roundsWhen(series)
+      : nextRoundOpens(series, this.dates.now(), timeZone);
+    const where = loc ? loc.short || [loc.name, loc.city]
+      .filter(Boolean).join(", ") : "";
+    const close = qs(wrap, "[data-group-close]");
+    const closing = open && rounds && rounds[0] && rounds[0].cutoff
+      ? ordersClose(rounds[0].cutoff, timeZone) : "";
+    const set = (el, text) => {
+      if (el.textContent !== text) el.textContent = text;
+    };
+
+    const heading = `Group orders${open ? "" : " · no open group order"}`;
+
+    if (title.textContent !== heading) title.textContent = "Group orders";
+    if (title.textContent !== heading) {
+      const note = document.createElement("span");
+
+      note.className = "order-method-closed";
+      note.textContent = " · no open group order";
+      title.appendChild(note);
+    }
+    set(qs(wrap, "[data-group-when]"), when);
+    set(qs(wrap, "[data-group-where]"), where);
+    set(close, closing);
+    close.hidden = !closing;
+    radio.disabled = !open;
+    if (!open && radio.checked) qs(this.form, "#method-onfarm").checked = true;
   }
 
   // The chosen pickup day's windows, one radio each, from the farm's
@@ -1524,23 +1662,26 @@ export class OrderForm {
   useLapsed({ method, date, window }) {
     const select = qs(this.form, `[data-dates="${method}"]`);
     const status = document.querySelector("[data-lapsed-status]");
-    const place = method === "scheduled" && this.pickupAt({ occurrence: date });
+    // A group's round (#749) is a pickup at its place, as a pickup
+    // day's is.
+    const pickup = method === "scheduled" || method === "group";
+    const place = pickup && this.pickupAt({ occurrence: date });
 
-    if (method === "scheduled") this.dates.choose(date);
+    if (pickup) this.dates.choose(date);
     else if (select) select.value = date;
     if (window) this.wantedWindow = window;
     this.refresh();
     this.errors.clear();
     this.draft.save(this.collect());
 
-    const chosen = method === "scheduled" && this.dates.occurrence(date);
+    const chosen = pickup && this.dates.occurrence(date);
     const day = label(chosen ? chosen.date : date);
     const times = window && windowLabel(pickupTimes({ window }));
 
     if (status) {
       status.textContent = `${method === "onfarm"
         ? `Pickup is now ${day}, ${times}`
-        : method === "scheduled" ? `Pickup is now ${day}, ${place}`
+        : pickup ? `Pickup is now ${day}, ${place}`
           : `Delivery is now ${day}`}. Pay again to place your order.`;
       status.hidden = false;
     }
@@ -1563,17 +1704,23 @@ export class OrderForm {
 
   // A 409: what was chosen lapsed. The fresh list goes on the form and
   // the dialog offers it (U1, U3).
-  lapse(stored, dates) {
-    const method = stored;
-    const list = method === "scheduled" ? this.dates.scheduled(dates) : dates;
+  // `way` is the form's: a group's round lapsed is offered the group's
+  // rounds still open (#749), a pickup day the other pickups.
+  lapse(way, dates) {
+    const method = way;
 
     this.dates.replace(method, dates);
+
+    const lists = this.dates.lists;
+    const list = ["scheduled", "group"].includes(method)
+      ? (lists && lists[method]) || this.dates.scheduled(dates) : dates;
+
     this.lapsed.open(method, list, this.submitButton.hidden ? null
       : this.submitButton);
   }
 
   revealMethod() {
-    const body = qs(this.form, `[data-method-body="${this.method()}"]`);
+    const body = qs(this.form, `[data-method-body="${this.way()}"]`);
 
     if (!body) return;
 
@@ -1635,11 +1782,13 @@ export class OrderForm {
 
       return el.value;
     };
+    // Group orders posts as a pickup day at its round (#749).
+    const chosen = this.way();
     const way = this.method();
     const dateSelect = qs(this.form, `[data-dates="${way}"]`);
     // Scheduled pickup stores its occurrence, which holds the date; the
     // picker's value is the occurrence id.
-    const picked = way === "scheduled" ? this.dates.scheduledValue()
+    const picked = way === "scheduled" ? this.dates.scheduledValue(chosen)
       : dateSelect ? dateSelect.value : "";
 
     return {
@@ -1810,8 +1959,14 @@ export class OrderForm {
       this.dates.want(way, draftOccurrence(f, this.dropSeries),
         f.method === "scituate" ? this.dropSeries : "");
       // A round of a buying group is not in the lists until the group
-      // is unlocked (#471); it is chosen then.
+      // is unlocked (#471); it is chosen then, under Group orders
+      // (#749), or now, if the group's rounds are here already.
       this.wantedOccurrence = f.occurrence || null;
+      if (f.occurrence && this.roundGroup
+        && f.occurrence.startsWith(`${this.roundGroup.series}-`)) {
+        this.dates.want("group", f.occurrence);
+        set("fulfilment.method", "group");
+      }
     } else if (way && f.date) {
       this.dates.want(way, f.date);
     }
@@ -1912,7 +2067,7 @@ export class OrderForm {
       // Only the day or time lapsed: the dialog. Before the lists have
       // come there is nothing to offer, so the errors say it.
       if (check.status === 409 && this.dates.lists) {
-        this.lapse(payload.fulfilment.method, check.dates);
+        this.lapse(this.way(), check.dates);
 
         return null;
       }
@@ -1963,7 +2118,7 @@ export class OrderForm {
       const again = this.check(payload);
 
       if (!again.ok && again.status === 409 && !this.bookedClosed(payload)) {
-        this.lapse(payload.fulfilment.method, again.dates);
+        this.lapse(this.way(), again.dates);
 
         return null;
       }
@@ -2157,7 +2312,10 @@ export class OrderForm {
       }
       break;
     case "stale":
-      this.lapse(payload.fulfilment.method, outcome.dates);
+      this.lapse(this.way(), outcome.dates);
+      break;
+    case "notMember":
+      this.notMember(outcome.errors);
       break;
     case "declined":
       // The next try is a new attempt: fresh keys for the processor.
@@ -2255,6 +2413,12 @@ export class OrderForm {
   // as its card on the form shows it; a draft saved before scheduled
   // pickup (`scituate`) is a pickup day.
   orderType(f) {
+    // A group's round is a Group order (#749 item 10).
+    const round = f.method === "scheduled" && this.roundGroup
+      && String(f.occurrence).startsWith(`${this.roundGroup.series}-`);
+
+    if (round) return "Group orders";
+
     const way = f.method === "scituate" ? "scheduled" : f.method;
     const title = document.getElementById(`method-${way}-title`);
 

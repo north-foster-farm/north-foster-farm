@@ -2,11 +2,10 @@
 // server on load, and the clock is anchored to the server's, so a
 // visitor's wrong clock cannot offer a closed date.
 
-import { mergeScheduled } from "./lib/group.mjs";
 import {
   earliestCutoff, fallbackChoice, scheduledChoices, stillOpen,
 } from "./lib/scheduled.mjs";
-import { drawPickupDays } from "./pickup-days.js";
+import { drawPickupDays, drawRounds } from "./pickup-days.js";
 import { setKept } from "../utils/keep-together.mjs";
 import { clear, whileLoading } from "../utils/skeleton.js";
 
@@ -49,8 +48,12 @@ export class DateLists {
     this.occurrences = new Map();
     // A buying group's rounds (#471), from /api/group once its code is
     // accepted: /api/dates never lists them, so every load of the
-    // lists joins them back in.
+    // lists keeps them, as `lists.group`. They are Group orders'
+    // alone, never Pick-up days' (#749).
     this.extra = [];
+    // The series codes of the rounds the page knows: an entry of one
+    // goes to Group orders, whichever list it came in.
+    this.rounds = new Set();
     // A location by its code, for a pickup's address; the form sets it
     // from the model (data/locations.json).
     this.place = () => null;
@@ -92,9 +95,10 @@ export class DateLists {
   schedule() {
     const windows = ((this.lists && this.lists.onfarm) || []).flatMap((d) =>
       (d.windows || []).map((w) => ({ date: d.date, ...w })));
-    const lines = ((this.lists && this.lists.scheduled) || []).map((d) => ({
-      date: d.date, code: d.series, action: "pickup",
-    }));
+    const lines = [
+      ...((this.lists && this.lists.scheduled) || []),
+      ...((this.lists && this.lists.group) || []),
+    ].map((d) => ({ date: d.date, code: d.series, action: "pickup" }));
     const deliveries = ((this.lists && this.lists.delivery) || [])
       .map((d) => ({ date: d.date }));
 
@@ -145,7 +149,8 @@ export class DateLists {
     this.extra = stillOpen(this.extra, this.now().getTime());
     this.lists = {
       ...data,
-      scheduled: this.scheduled(mergeScheduled(data.scheduled, this.extra)),
+      scheduled: this.scheduled(this.notRounds(data.scheduled)),
+      group: this.scheduled(this.extra),
     };
 
     for (const select of this.form.querySelectorAll("[data-dates]")) {
@@ -171,28 +176,37 @@ export class DateLists {
     return this.occurrences.get(id) || null;
   }
 
-  // A buying group's rounds (#471), joined to the scheduled list now
-  // and on every load after; `dropExtra` takes them out again when
-  // the code is dropped. The pickup chosen stays chosen.
-  addScheduled(entries) {
+  // The entries of a list that are not a group's rounds.
+  notRounds(list) {
+    return (list || []).filter((d) => !this.rounds.has(d.series));
+  }
+
+  // A buying group's rounds (#471), Group orders' list now and on
+  // every load after (#749); `series` is the group's series code, so a
+  // round in any other list goes there too. `dropExtra` takes them
+  // away again when the group comes off. The round chosen stays
+  // chosen.
+  addRounds(entries, series) {
+    if (series) this.rounds.add(series);
+    for (const e of entries || []) this.rounds.add(e.series);
     this.setExtra(entries || []);
   }
 
   dropExtra() {
+    this.rounds.clear();
     this.setExtra([]);
   }
 
   setExtra(entries) {
-    const gone = new Set(this.extra.map((e) => e.occurrence));
-
     this.extra = stillOpen(entries, this.now().getTime());
     if (!this.lists) return;
 
-    const base = this.lists.scheduled.filter((d) => !gone.has(d.occurrence));
-
-    this.lists.scheduled = this.scheduled(mergeScheduled(base, this.extra));
-    this.fill(this.form.querySelector("[data-dates='scheduled']"),
-      this.lists.scheduled);
+    this.lists.scheduled = this.notRounds(this.lists.scheduled);
+    this.lists.group = this.scheduled(this.extra);
+    for (const method of ["scheduled", "group"]) {
+      this.fill(this.form.querySelector(`[data-dates='${method}']`),
+        this.lists[method]);
+    }
     this.watchClosing();
     this.onChange();
   }
@@ -211,17 +225,22 @@ export class DateLists {
     if (this.lists) this.fill(select, this.lists[method] || []);
   }
 
-  // The occurrence id of the pickup chosen, "" while none is.
-  scheduledValue() {
-    const box = this.form.querySelector("[data-dates='scheduled']");
+  // The occurrence id of the pickup chosen, "" while none is; `method`
+  // "group" for Group orders' round.
+  scheduledValue(method = "scheduled") {
+    const box = this.form.querySelector(`[data-dates='${method}']`);
     const on = box && box.querySelector("input:checked");
 
     return on ? on.value : "";
   }
 
-  // Chooses a pickup in the list, if it is there.
+  // Chooses a pickup in the list, if it is there: a group's round in
+  // Group orders', any other in Pick-up days'.
   choose(value) {
-    const box = this.form.querySelector("[data-dates='scheduled']");
+    const round = this.rounds.has(String(value).split("-")[0]);
+    const box = this.form.querySelector(
+      `[data-dates='${round ? "group" : "scheduled"}']`
+    );
     const radio = box && Array.from(box.querySelectorAll("input"))
       .find((input) => input.value === value);
 
@@ -264,7 +283,29 @@ export class DateLists {
     });
   }
 
+  // Group orders' rounds as their cards (#749, pickup-days.js
+  // drawRounds). Nothing is chosen but what the customer chose, or a
+  // draft or a change named. With none open the card can't be chosen,
+  // and says so on its heading (order-form.js renderGroupCard).
+  fillRounds(box, list) {
+    const current = box.dataset.want || this.scheduledValue("group");
+
+    delete box.dataset.want;
+    drawRounds(box, list, {
+      place: (code) => this.place(code),
+      name: "group.date",
+      id: "group",
+      pick: list.some((d) => d.value === current) ? current : "",
+    });
+  }
+
   fill(select, offered) {
+    if (!select) return;
+    if (select.dataset.dates === "group") {
+      this.fillRounds(select, offered);
+
+      return;
+    }
     if (select.dataset.dates === "scheduled") {
       this.fillPickups(select, offered);
 
@@ -302,14 +343,20 @@ export class DateLists {
   }
 
   // The 409 answer carries a fresh list for the way that went stale.
+  // A scheduled list holds a member's rounds too: they go to Group
+  // orders, the rest to Pick-up days (#749).
   replace(method, list) {
     const select = this.form.querySelector(`[data-dates="${method}"]`);
-    const fresh = method === "scheduled" ? this.scheduled(list) : list;
+    const rounds = (list || []).filter((d) => this.rounds.has(d.series));
+    const fresh = method === "group"
+      ? this.scheduled(rounds)
+      : method === "scheduled" ? this.scheduled(this.notRounds(list)) : list;
 
+    if (method === "group") this.extra = rounds;
     if (this.lists) this.lists[method] = fresh;
     if (select) this.fill(select, fresh);
     if (method === "delivery" && this.lists) this.tick();
-    if (method === "scheduled") this.watchClosing();
+    if (method === "scheduled" || method === "group") this.watchClosing();
     this.onChange();
   }
 
@@ -336,7 +383,9 @@ export class DateLists {
   watchClosing() {
     clearTimeout(this.closing);
 
-    const at = this.lists && earliestCutoff(this.lists.scheduled);
+    const at = this.lists && earliestCutoff([
+      ...this.lists.scheduled, ...(this.lists.group || []),
+    ]);
 
     if (at === null || at === undefined) return;
 

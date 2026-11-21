@@ -6,32 +6,43 @@
 
 import { windowLabel } from "./lib/schedule.mjs";
 import { appendWhole } from "../utils/keep-together.mjs";
-import { drawPickupDays } from "./pickup-days.js";
+import { drawPickupDays, drawRounds } from "./pickup-days.js";
 
 // Keyed by the form's way: `scheduled` is scheduled pickup, the drop site
-// and every market or pop-up in one list.
+// and every market or pop-up in one list; `group` a buying group's
+// rounds, Group orders (#749 item 8, James's words, 2026-11-21).
 const NOUN = {
   onfarm: "pick-up time",
   scheduled: "pickup",
   delivery: "delivery day",
+  group: "group order date",
 };
 const NONE = {
   onfarm: "No pick-up times are open right now",
   scheduled: "No pick-up days are open right now",
   delivery: "No delivery days are open right now",
+  group: "No group orders are open right now",
 };
 const OTHER = {
   onfarm: "Choose a pick-up day or delivery instead",
   scheduled: "Choose on-farm pickup or delivery instead",
   delivery: "Choose on-farm pickup or a pick-up day instead",
+  group: "Choose on-farm pickup, a pick-up day or delivery instead",
+};
+// What the choice is called in the lead: "Pay again once you've
+// chosen another time".
+const CHOSEN = {
+  onfarm: "time", scheduled: "pickup", delivery: "day", group: "date",
 };
 const LEGEND = {
   onfarm: "Pick-up times", scheduled: "Pick-up days", delivery: "Days",
+  group: "Group order date",
 };
 const USE = {
   onfarm: "Use this time",
   scheduled: "Use this pickup",
   delivery: "Use this day",
+  group: "Use this date",
 };
 
 export class Lapsed {
@@ -65,7 +76,7 @@ export class Lapsed {
       // A scheduled pickup's value is its occurrence id, which the
       // form's picker takes whole; an on-farm time's is its date and
       // window.
-      const [date, window] = this.method === "scheduled"
+      const [date, window] = ["scheduled", "group"].includes(this.method)
         ? [picked.value] : picked.value.split("|");
 
       this.close();
@@ -109,8 +120,7 @@ export class Lapsed {
       : NONE[method];
     this.lead.textContent = some
       ? `Nothing has been charged. Pay again once you've chosen another ${
-        method === "onfarm" ? "time" : method === "scheduled" ? "pickup" : "day"
-      }.`
+        CHOSEN[method]}.`
       : "Nothing has been charged. You can still choose another way to " +
         "get your order.";
     this.legend.textContent = LEGEND[method];
@@ -119,6 +129,10 @@ export class Lapsed {
     // (#703). The first offered is chosen.
     if (method === "scheduled") {
       drawPickupDays(this.list, dates, {
+        place: this.place, name: "lapsed", id: "order-lapsed",
+      });
+    } else if (method === "group") {
+      drawRounds(this.list, dates, {
         place: this.place, name: "lapsed", id: "order-lapsed",
       });
     } else {
@@ -143,8 +157,9 @@ export class Lapsed {
     this.choices.hidden = !some;
     this.use.hidden = !some;
     this.use.textContent = USE[method];
-    // With nothing left of this way, the other ways are the way on.
-    this.other.textContent = some ? OTHER[method]
+    // With nothing left of this way, the other ways are the way on;
+    // Group orders keeps its approved words whole (#749 item 8).
+    this.other.textContent = some || method === "group" ? OTHER[method]
       : OTHER[method].replace(/ instead$/, "");
     this.other.classList.toggle("btn-primary", !some);
     this.other.classList.toggle("btn-link", some);

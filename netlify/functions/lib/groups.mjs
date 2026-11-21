@@ -46,6 +46,20 @@ export const groupKey = (key) => `group/${key}`;
 // of whether a code exists, or what it would unlock.
 export const INVALID_CODE = "That code isn't valid.";
 
+// What a customer in no group, or no longer in this one, is told when
+// they order at its round (#749 item 9, James, 2026-11-21).
+export const NOT_MEMBER = "We couldn't complete your group order. " +
+  "Please try again.";
+
+// The group whose round an occurrence id names ("36TS-261122"), by
+// its series in data/series.json, or null for any other pickup.
+export const roundGroupOf = (occurrence) => {
+  const code = String(occurrence || "").split("-")[0];
+  const s = seriesData.series.find((x) => x.code === code);
+
+  return (s && s.group) || null;
+};
+
 // What the customer typed, as compared: upper case, letters and
 // digits. A code shorter than six characters is not worth a lookup.
 export const groupCodeOf = (value) => {

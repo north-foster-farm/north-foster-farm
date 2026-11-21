@@ -4,7 +4,7 @@
 // partials/order/pickup-days.html; the parts come from
 // lib/scheduled.mjs (pickupDays).
 
-import { pickupDays } from "./lib/scheduled.mjs";
+import { pickupDays, roundCard } from "./lib/scheduled.mjs";
 
 // How long Copy says "Copied" before it reads Copy again.
 export const COPIED_MS = 2000;
@@ -35,8 +35,8 @@ const copy = async (button, status, text, address) => {
   }, COPIED_MS);
 };
 
-const card = (pickup, { name, id, pick }) => {
-  const node = document.getElementById("tpl-pickup").content
+const card = (pickup, { name, id, pick, template = "tpl-pickup" }) => {
+  const node = document.getElementById(template).content
     .cloneNode(true);
   const q = (s) => node.querySelector(s);
   const input = q("input");
@@ -71,6 +71,26 @@ const card = (pickup, { name, id, pick }) => {
   if (!pickup.copy && !pickup.map) q(".order-pickup-actions").remove();
 
   return node;
+};
+
+// Draws a buying group's rounds (#749) into `box`, one card each and
+// no heading over them, since each card says its own date: the date,
+// the place, the hours and the address, with Copy (lib/scheduled.mjs
+// roundCard, partials/order/pickup-days.html's tpl-round). The rest as
+// for drawPickupDays.
+export const drawRounds = (box, choices, {
+  place = () => null, name, id, pick = "",
+}) => {
+  const list = document.createElement("div");
+
+  box.textContent = "";
+  list.className = "order-pickup-list";
+  for (const entry of choices) {
+    list.appendChild(card(roundCard(entry, place(entry.location)), {
+      name, id, pick, template: "tpl-round",
+    }));
+  }
+  box.appendChild(list);
 };
 
 // Draws `choices` (lib/scheduled.mjs scheduledChoices) into `box`,

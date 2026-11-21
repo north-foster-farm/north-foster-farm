@@ -25,7 +25,7 @@ import {
 } from "../../../assets/scripts/order/lib/validate.mjs";
 import { cancelOrder as cancelAndRefund } from "./admin.mjs";
 import { holderOf } from "./amend.mjs";
-import { placeOf } from "./describe.mjs";
+import { isGroupRound, placeOf } from "./describe.mjs";
 import {
   groupOf, memberKeyOf, memberTerms, offeredGroup, retag,
 } from "./groups.mjs";
@@ -111,6 +111,9 @@ const pickupOf = (order) => {
     name, place, window, occurrence: occurrence || null,
     series: site || null,
     gone: !orderOccurrence(terms, f),
+    // A buying group's round (#749): the account reads it as a Group
+    // order.
+    group: isGroupRound(f),
   };
 };
 

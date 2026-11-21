@@ -32,3 +32,23 @@
     </span>
   </div>
 </template>
+{{/* A buying group's round (#749 item 5): its date, the place, its
+     hours and its address, with Copy and no Map (the place is
+     private). The order page's Group orders and the lapsed dialog draw
+     it, by pickup-days.js drawRounds. */}}
+<template id="tpl-round">
+  <div class="order-pickup">
+    <input class="form-check-input" type="radio">
+    <label class="order-pickup-label">
+      <span class="order-pickup-name"></span>
+      <span class="order-pickup-place"></span>
+      <span class="order-pickup-time"></span>
+      <span class="order-pickup-address"><span class="order-pickup-street"></span><span class="order-pickup-city"></span></span>
+    </label>
+    <span class="order-pickup-actions">
+      <button type="button" class="btn btn-sm btn-outline-primary order-pickup-copy">{{ partial "svg.html" (dict "src" "icons/copy" "class" "order-pickup-icon" "aria-hidden" "true") }}<span class="order-pickup-copy-text">Copy</span></button>
+      <span class="visually-hidden order-pickup-copied" role="status"></span>
+      <a class="btn btn-sm btn-outline-primary order-pickup-map" target="_blank" rel="noopener">{{ partial "svg.html" (dict "src" "icons/external-link" "class" "order-pickup-icon" "aria-hidden" "true") }}Map<span class="visually-hidden"> (opens in a new tab)</span></a>
+    </span>
+  </div>
+</template>

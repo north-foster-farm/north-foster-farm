@@ -163,6 +163,16 @@ export const pickupCard = (entry, loc) => {
   };
 };
 
+// A buying group's round as its card's parts (#749 item 5): as a
+// pickup's, but its first line is its date ("Sunday, November 22")
+// and the next the place's name, since a round is always the group's
+// one place. A private place has no map.
+export const roundCard = (entry, loc) => ({
+  ...pickupCard(entry, loc),
+  name: entry.label,
+  place: (loc && loc.name) || entry.name || "",
+});
+
 // The pickups grouped by date (#703): one group per date, dates in
 // order, each headed by its day and date ("Saturday, November 21")
 // and holding that date's cards in the list's order. `place` takes a

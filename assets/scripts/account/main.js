@@ -102,7 +102,9 @@ const when = (order) => {
   const p = order.pickup;
 
   if (p) {
-    return `${METHOD.scheduled}, ${day}${p.gone ? "" : `, ${at(p)}`}`;
+    // A group's round reads as a Group order (#749 item 10).
+    return `${p.group ? METHOD.group : METHOD.scheduled}, ${day}${
+      p.gone ? "" : `, ${at(p)}`}`;
   }
 
   return `${METHOD[f.method] || f.method}, ${day}`;

@@ -1,7 +1,10 @@
 // #626 takes the "Deliver to <group>" option off the order page, but
 // production may hold orders placed with it (#471). Criterion 3 of
-// #626: such an order still displays, emails and edits as before. The
-// stored order comes from group-delivery-stored.mjs.
+// #626, and #749's box "Existing round and toGroup orders keep working
+// as today": such an order still displays, emails and edits as
+// before. The page side, a change opened on the order page, is in
+// e2e/group-orders.criteria.mjs. The stored order comes from
+// group-delivery-stored.mjs.
 
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";

@@ -1,9 +1,11 @@
 // A buying group's code (#471): typed into the code box, it unlocks
-// the group's pickup, which the page lists nowhere until then, and the
-// order is placed at it and paid. The group's place never appears in
-// the page source. Runs on the local build with fake payments
-// (bin/e2e/serve.mjs), where the back office mints the group's code
-// if none is set; on staging it uses the code in force.
+// the group's rounds, which the page lists nowhere until then, and the
+// order is placed at one and paid. The rounds are under Group orders,
+// their own fulfillment type, never under Pick-up days (#749; this
+// chose the round under Pick-up days until then). The group's place
+// never appears in the page source. Runs on the local build with fake
+// payments (bin/e2e/serve.mjs), where the back office mints the
+// group's code if none is set; on staging it uses the code in force.
 
 import { normalizeCode } from "../assets/scripts/order/lib/validate.mjs";
 import {
@@ -11,10 +13,12 @@ import {
   placedRow, seriesStreet, test, uniqueEmail,
 } from "./support/order.mjs";
 import { backOffice, op } from "./support/staging.mjs";
+import {
+  GROUP_ORDERS, choose, pick, radioValues, way,
+} from "./support/vff.mjs";
 
 const GROUP = "vff";
 const SERIES = "36TS";
-const GYM = "The Village Family Fitness";
 
 test.describe("a buying group's code (#471)", () => {
   test("unlocks the gym pickup and pays an order there",
@@ -36,6 +40,7 @@ test.describe("a buying group's code (#471)", () => {
       expect(source).not.toContain("Venturi");
       expect(await pickupValues(page))
         .not.toContainEqual(expect.stringMatching(`^${SERIES}-`));
+      await expect(way(page, GROUP_ORDERS)).toHaveCount(0);
 
       // A wrong code says only that it isn't valid. /api/group holds an
       // address after 10 misses in 10 minutes (group.mjs, RATE), and
@@ -76,11 +81,19 @@ test.describe("a buying group's code (#471)", () => {
       await expect(order.codeNote)
         .toHaveText("Code applied. Welcome to the group!");
 
-      const round = await order.scheduled(SERIES);
+      // The round is under Group orders, and not under Pick-up days.
+      expect(await pickupValues(page))
+        .not.toContainEqual(expect.stringMatching(`^${SERIES}-`));
 
-      const chosen = `label[for='scheduled-${round.toLowerCase()}']`;
+      const group = await choose(order, GROUP_ORDERS);
 
-      await expect(page.locator(chosen)).toContainText(GYM);
+      await expect.poll(async () => (await radioValues(group))
+        .some((v) => v.startsWith(`${SERIES}-`))).toBe(true);
+
+      const round = (await radioValues(group))
+        .find((v) => v.startsWith(`${SERIES}-`));
+
+      await pick(page, group.locator(`input[value='${round}']`));
       // Priced at retail today: the member prices are the retail ones.
       await expect(order.discountLabel).toContainText("Bulk discount");
 

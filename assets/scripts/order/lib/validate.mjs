@@ -4,7 +4,7 @@
 
 import { archived } from "./catalog.mjs";
 import {
-  cutoffFor, datesFor, isDeliveryDay, occurrenceFor,
+  cutoffFor, datesFor, graceRound, isDeliveryDay, occurrenceFor,
 } from "./dates.mjs";
 import { legacyOccurrence } from "./events.mjs";
 import { moneyOn } from "./money-on.mjs";
@@ -319,6 +319,10 @@ export const validateOrder = (payload, {
     // customer's own edit of it, though no longer offered to choose.
     const holding = method === "scheduled" && occurrence === kept
       ? occurrenceFor(terms, occurrence) : null;
+    // A buying group's round takes orders until 6:00 AM after its
+    // cutoff (#749): a member paying as it closes is not turned away.
+    const grace = method === "scheduled" && !farm && occurrence
+      ? graceRound(now, terms, schedule, occurrence) : null;
     // So does a delivery Thursday the schedule has since replaced, until
     // its cutoff (#640): a placed order's date never moves by itself.
     const replaced = method === "delivery" && keptDate && date === keptDate
@@ -326,7 +330,7 @@ export const validateOrder = (payload, {
       && now.getTime() <= cutoffFor(date, terms).getTime();
     const day = method === "scheduled"
       ? (dates.find((d) => d.occurrence === occurrence)
-        || (holding && { date: holding.date }))
+        || (holding && { date: holding.date }) || grace)
       : dates.find((d) => d.date === date) || (replaced && { date });
     // A date sent with an occurrence must be the occurrence's own.
     const mismatch = method === "scheduled" && day && date

@@ -32,8 +32,8 @@ import {
 import { GUIDE, RUNBOOK_ALERTS } from "./alerts-guide.mjs";
 import { company } from "./company.mjs";
 import {
-  between, methodName, packingGroup, packingKind, pickupWindow, placeOf,
-  shortDay, streetAddress,
+  between, methodName, orderTypeName, packingGroup, packingKind,
+  pickupWindow, placeOf, shortDay, streetAddress,
 } from "./describe.mjs";
 import { now as clock } from "./clock.mjs";
 import {
@@ -426,7 +426,7 @@ const orderType = (order) => {
           `${company.address.state} ${company.address.zip}`,
       ];
 
-  return [p(`Order type: **${methodName(f.method)}**`), list(items)];
+  return [p(`Order type: **${orderTypeName(f)}**`), list(items)];
 };
 
 // The pickup window for a labelled line: "Thursday, October 8,
@@ -1335,7 +1335,7 @@ const farmOrderType = (order) => {
     const w = placeOf(order);
 
     // The customer reads "Scheduled pickup"; the farm reads which one.
-    return [p(`Order type: **${methodName(f.method)}**`), list([
+    return [p(`Order type: **${orderTypeName(f)}**`), list([
       `Pickup: ${w.name}`,
       `When: ${label(f.date)}${w.window ? `, between ${
         between(w.window)}` : ""}`,
@@ -1356,7 +1356,7 @@ const farmOrderType = (order) => {
 
   if (notes) items.push(`Notes: ${notes}`);
 
-  return [p(`Order type: **${methodName(f.method)}**`), list(items)];
+  return [p(`Order type: **${orderTypeName(f)}**`), list(items)];
 };
 
 // How the money came, for the farm: "$55 by Visa ending 4242", "$55

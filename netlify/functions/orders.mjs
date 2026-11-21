@@ -48,8 +48,8 @@ import { sendMail } from "./lib/mail.mjs";
 import { gate } from "./lib/maintenance.mjs";
 import { DECLINE_MESSAGES as PAYPAL_DECLINES } from "./lib/paypal.mjs";
 import {
-  INVALID_CODE, findGroupByCode, groupCodeOf, groupOf, memberKeyOf,
-  memberTerms, roundFor,
+  INVALID_CODE, NOT_MEMBER, findGroupByCode, groupCodeOf, groupOf,
+  memberKeyOf, memberTerms, roundFor, roundGroupOf,
 } from "./lib/groups.mjs";
 import {
   PASS_MESSAGES, getPass, holdPass, passCodeOf, passProblem, releasePass,
@@ -297,6 +297,20 @@ export const handle = async (req, {
 
   if (groupCode && !buying) {
     return json(422, { errors: { groupCode: INVALID_CODE } });
+  }
+
+  // A group's round is its members' alone (#749): to anyone else,
+  // one removed since the page loaded among them, it is refused
+  // before anything is priced or charged, and the page takes Group
+  // orders away.
+  const fulfilment = payload.fulfilment || {};
+  const round = fulfilment.method === "scheduled"
+    ? roundGroupOf(fulfilment.occurrence) : null;
+
+  if (round && (!buying || buying.key !== round)) {
+    return json(409, {
+      errors: { "fulfilment.method": NOT_MEMBER }, notMember: true,
+    });
   }
   // Credit (#471) spends only when signed in: the account
   // is what says the credit is theirs. As much as the order needs

@@ -878,7 +878,9 @@ export class Cart {
       way.disabled = ways[way.dataset.way] === false;
       if (on) wayName = way.textContent.trim();
     }
-    qs(this.root, "[data-way-name]").textContent = wayName
+    // A way the switch doesn't hold, Group orders (#749), is named by
+    // the form.
+    qs(this.root, "[data-way-name]").textContent = wayName || ways.name
       || "Pickup or delivery";
   }
 

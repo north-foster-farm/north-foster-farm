@@ -10,6 +10,8 @@ export const METHOD = {
   delivery: "Delivery",
   scheduled: "Pick-up days",
   onfarm: "On-farm pickup",
+  // A buying group's round (#749 item 10), past ones included.
+  group: "Group orders",
 };
 
 const STATUS = {
@@ -70,8 +72,9 @@ export const howOf = (order) => {
   const f = order.fulfilment || {};
   const p = order.pickup;
 
-  if (p) return p.gone || !p.name ? METHOD.scheduled
-    : `${METHOD.scheduled}, ${p.name}`;
+  const type = p && p.group ? METHOD.group : METHOD.scheduled;
+
+  if (p) return p.gone || !p.name ? type : `${type}, ${p.name}`;
 
   return METHOD[f.method] || f.method || "";
 };

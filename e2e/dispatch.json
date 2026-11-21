@@ -401,6 +401,7 @@
         "e2e/group-code.spec.mjs",
         "e2e/group-credit.spec.mjs",
         "e2e/group-delivery-removed.spec.mjs",
+        "e2e/group-orders.spec.mjs",
         "e2e/kept-thursday.spec.mjs",
         "e2e/keyboard.spec.mjs",
         "e2e/maintenance-bar.spec.mjs",
@@ -495,6 +496,7 @@
         "e2e/group-code.spec.mjs",
         "e2e/group-credit.spec.mjs",
         "e2e/group-delivery-removed.spec.mjs",
+        "e2e/group-orders.spec.mjs",
         "e2e/kept-thursday.spec.mjs",
         "e2e/keyboard.spec.mjs",
         "e2e/llms.spec.mjs",
@@ -1172,6 +1174,14 @@
     },
     {
       "paths": [
+        "e2e/group-orders.spec.mjs"
+      ],
+      "specs": [
+        "e2e/group-orders.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
         "e2e/perk-label.spec.mjs"
       ],
       "specs": [
@@ -1628,6 +1638,16 @@
       ],
       "specs": [
         "e2e/place-order-pane.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/support/vff.mjs"
+      ],
+      "specs": [
+        "e2e/group-code.spec.mjs",
+        "e2e/group-credit.spec.mjs",
+        "e2e/group-orders.spec.mjs"
       ]
     },
     {

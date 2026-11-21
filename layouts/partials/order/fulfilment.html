@@ -209,5 +209,47 @@
       </div>
     </div>
 
+    {{/* Group orders (#749): a buying group's rounds, for its members
+         alone. The page carries nothing of a group (#471), so the card
+         stays hidden, its When and Where empty, until /api/group
+         answers for a member; order-form.js renderGroupCard fills them
+         from the group's series and place. Its radio posts as a pickup
+         day, at the round's occurrence. The orders-close line is the
+         first thing its body shows, as Delivery's is, above the round
+         cards and in none (#749 item 5); the body is the reveal's one
+         child, so it carries `data-method-body`. The card is a
+         template, put among the ways only while a group's rounds are
+         offered, so no one else's page holds a fourth way. */}}
+    <template id="tpl-group-way">
+    <div class="order-method" data-group-way>
+      <input class="form-check-input" type="radio" name="method" id="method-group" value="group" data-field="fulfilment.method" aria-labelledby="method-group-title">
+      <label class="order-method-label" for="method-group">
+        <span class="order-method-title" id="method-group-title">Group orders</span>
+        <dl class="order-method-facts">
+          <dt>When</dt>
+          <dd data-group-when></dd>
+          <dt>Where</dt>
+          <dd data-group-where></dd>
+          <dt>Cost</dt>
+          <dd>No minimum, no fee</dd>
+        </dl>
+      </label>
+      <div class="order-method-reveal">
+        <div class="order-method-body order-hform" data-method-body="group" inert>
+          <p class="zip-note zip-note-strong order-countdown" data-group-close hidden></p>
+          <div class="row">
+            <div class="col-12">
+              <span class="visually-hidden" id="group-label">Group order date</span>
+              <div class="order-pickups" id="group-pickups" role="radiogroup" aria-labelledby="group-label" aria-describedby="err-group-date" tabindex="-1" data-dates="group">
+                <p class="order-windows-none">Loading group orders&hellip;</p>
+              </div>
+              <div class="invalid-feedback" id="err-group-date" data-error-for="fulfilment.occurrence"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    </template>
+
   </div>
 </fieldset>

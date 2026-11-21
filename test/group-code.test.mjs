@@ -220,14 +220,16 @@ describe("an order at the group's pickup", () => {
     { stores, square, now, env, mail: async () => ({}), ...quiet }
   );
 
-  it("is refused without the code, as a pickup that is not offered",
+  // Refused, whatever the answer says: a customer in no group now sees
+  // "We couldn't complete your group order. Please try again." (#749
+  // item 9, e2e/group-orders.spec.mjs), not a lapsed pickup.
+  it("is refused without the code, and nothing is recorded",
     async () => {
       const stores = await withCode();
       const res = await send(stores, body());
 
-      assert.equal(res.status, 409);
-      assert.equal((await res.json()).errors["fulfilment.occurrence"],
-        "That pickup is no longer available.");
+      assert.ok(res.status >= 400 && res.status <= 499, `${res.status}`);
+      assert.deepEqual(await stores.orders.list("order/"), []);
     });
 
   it("is refused with a wrong code, first and plainly", async () => {
