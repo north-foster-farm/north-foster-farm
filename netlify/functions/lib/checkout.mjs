@@ -472,8 +472,13 @@ export const startVenmo = async (stores, order, { key, attempt = 1 }, {
 // -> the paid record.
 // throws PayPalError { declined, code } or { retryable }; a
 // CheckoutError when the checkout and the order disagree.
+// `restart` marks the capture that follows the page's one restart of
+// the Venmo sheet after INSTRUMENT_DECLINED (#721). PayPal may answer
+// a repeated request id with its first answer, the decline, so that
+// capture goes under a request id of its own. Square's keys and the
+// record are as for any other capture.
 export const finishVenmo = async (stores, order, {
-  key, attempt = 1, paypalOrderId,
+  key, attempt = 1, paypalOrderId, restart = false,
 }, {
   paypal = paypalApi,
   square = squareApi,
@@ -511,8 +516,9 @@ export const finishVenmo = async (stores, order, {
 
   const k = attemptKey(key, checkout.attempt || attempt);
   const { deadline } = options;
+  const captureKey = restart ? `${k}-restart` : k;
   const capture = await retry(
-    () => paypal.captureOrder(paypalOrderId, k, {
+    () => paypal.captureOrder(paypalOrderId, captureKey, {
       env, fetchImpl, now, deadline,
     }),
     { sleep, until: deadline || 0 }

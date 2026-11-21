@@ -440,6 +440,7 @@
         "e2e/top-bar.spec.mjs",
         "e2e/typed-address.spec.mjs",
         "e2e/venmo-paid.spec.mjs",
+        "e2e/venmo-restart.spec.mjs",
         "e2e/wallets.spec.mjs",
         "e2e/window-label.spec.mjs",
         "e2e/wording.spec.mjs"
@@ -1860,6 +1861,14 @@
       ],
       "specs": [
         "e2e/venmo-paid.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/venmo-restart.spec.mjs"
+      ],
+      "specs": [
+        "e2e/venmo-restart.spec.mjs"
       ]
     },
     {
