@@ -1,10 +1,11 @@
 // Criteria tests for #730 (Scrub: a bare id key and any-case Token as
 // id keys), one per box of its "Done when" but the last two: every
 // existing scrub test is its own check, and the run on the live
-// recordings is the fixtures-tests lane's.
+// recordings is the fixtures-tests lane's. The link-forms box and the
+// two after it are security's, from its review of #735 (2026-11-21).
 //
-// Held out of npm test (*.criteria.mjs) until the change lands. Every
-// value below is crafted: none comes from a real recording. The records
+// Every value below is crafted: none comes from a real recording. The
+// records
 // take netlify/functions/lib/recorder.mjs's shape, { name, service:
 // "paypal", status, request: { method, path, headers, body }, response,
 // at }, plus the `recorded` date bin/fixtures/scrub's main() adds.
@@ -19,7 +20,10 @@
 // api.paypal.com in the cert URL) and expects "production" or "live".
 // Where the spec leaves a placeholder's kind open, the tests ask only
 // for a placeholder; the one-name box asks for ORDER_ID_n, the name a
-// path gives an order today.
+// path gives an order today. A checkoutnow token survives raw only when
+// it is too short to swap (under six characters, as today), so the
+// tests' raw token is four. A doc link holds no id, so it comes out as
+// it went in.
 
 // PayPal's keys are snake_case, as in test/scrub-paypal.test.mjs.
 /* eslint camelcase: ["error", { "properties": "never" }] */
@@ -153,9 +157,12 @@ describe("#730: bin/fixtures/scrub's id keys and PayPal's safe fields", () => {
     assert.deepEqual(named.review, ["request.path"]);
   });
 
-  it("PayPal's links (rel, and href on a PayPal API host) are not listed "
-    + "for review, with ids in href swapped; an href on any other host is "
-    + "listed", () => {
+  it("PayPal's links (rel, and href in one of PayPal's own link forms: an "
+    + "API URL on api.paypal.com, api-m.paypal.com or a sandbox host, the "
+    + "checkoutnow approve link with a placeholder token, a "
+    + "developer.paypal.com doc link) are not listed for review, with ids "
+    + "in href swapped; an href on any other host, or a checkoutnow link "
+    + "whose token is not a placeholder, is listed", () => {
     const order = "CraftedOrd7301";
     const capture = "CraftedCap7301";
     const hook = "WH-CRAFTED7301-0730";
@@ -198,7 +205,8 @@ describe("#730: bin/fixtures/scrub's id keys and PayPal's safe fields", () => {
     });
     const isLink = (path) => /(^|\.)links\.(rel|href)$/.test(path);
 
-    for (const host of [LIVE, SANDBOX]) {
+    for (const host of [LIVE, SANDBOX, "https://api.paypal.com",
+      "https://api.sandbox.paypal.com"]) {
       const made = scrubAll([
         record("POST", `/v2/checkout/orders/${order}/capture`,
           { body: {}, status: 201, response: answer(host) }),
@@ -238,6 +246,65 @@ describe("#730: bin/fixtures/scrub's id keys and PayPal's safe fields", () => {
 
     assert.ok(elsewhere.review.includes("links.href"),
       JSON.stringify(elsewhere.review));
+
+    // The approve link carries the order id as its token, and an error
+    // answer links to PayPal's docs.
+    for (const site of ["https://www.paypal.com",
+      "https://www.sandbox.paypal.com"]) {
+      const approve = `${site}/checkoutnow?token=${order}`;
+      const docs = "https://developer.paypal.com/docs/api/orders/v2/"
+        + "#error-INSTRUMENT_DECLINED";
+      const [created, declined] = scrubAll([
+        record("POST", "/v2/checkout/orders", {
+          body: { intent: "CAPTURE" },
+          status: 201,
+          response: {
+            id: order,
+            status: "PAYER_ACTION_REQUIRED",
+            links: [
+              { href: `${LIVE}/v2/checkout/orders/${order}`, rel: "self",
+                method: "GET" },
+              { href: approve, rel: "payer-action", method: "GET" },
+            ],
+          },
+        }),
+        record("POST", `/v2/checkout/orders/${order}/capture`, {
+          body: {},
+          status: 422,
+          response: {
+            ...failed,
+            links: [{ href: docs, rel: "information_link",
+              method: "GET" }],
+          },
+        }),
+      ]);
+      const [, link] = created.json.response.links;
+
+      assert.deepEqual(created.review.filter(isLink), [],
+        `${site}: ${JSON.stringify(created.review)}`);
+      assert.equal(link.href,
+        `${site}/checkoutnow?token=${created.json.response.id}`, site);
+      assert.match(link.href.split("?token=")[1], PLACEHOLDER, link.href);
+      assert.deepEqual(declined.review.filter(isLink), [],
+        `${site}: ${JSON.stringify(declined.review)}`);
+      assert.equal(declined.json.response.links[0].href, docs,
+        "a doc link holds no id");
+    }
+
+    // A token too short to swap survives raw, so its link is listed.
+    const [raw] = scrubAll([record("GET", `/v2/checkout/orders/${order}`, {
+      response: {
+        id: order,
+        status: "PAYER_ACTION_REQUIRED",
+        links: [{ href: "https://www.paypal.com/checkoutnow?token=Q7X2",
+          rel: "payer-action", method: "GET" }],
+      },
+    })]);
+
+    const kept = raw.json.response.links[0].href.split("?token=")[1];
+
+    assert.ok(!PLACEHOLDER.test(kept), `the case needs a raw token: ${kept}`);
+    assert.ok(raw.review.includes("links.href"), JSON.stringify(raw.review));
   });
 
   it("brand_name, a webhook's summary and an error's details.description "
@@ -385,6 +452,68 @@ describe("#730: bin/fixtures/scrub's id keys and PayPal's safe fields", () => {
     }
   });
 
+  it("a note_to_payer whose text is exactly an order's <company name> "
+    + "order <order id> reads as that form with the id swapped, in the note "
+    + "and in the order's description alike", () => {
+    const ours = "NFF-2611-QZXN";
+    const form = `${COMPANY} order ${ours}`;
+    const order = record("POST", "/v2/checkout/orders", {
+      body: {
+        intent: "CAPTURE",
+        purchase_units: [{ reference_id: ours, custom_id: ours,
+          description: form,
+          amount: { currency_code: "USD", value: "1.00" } }],
+      },
+      status: 201,
+      response: { id: "CraftedOrd7308", status: "CREATED" },
+    });
+    const refunded = {
+      id: "WH-CRAFTED7308-0730",
+      event_version: "1.0",
+      create_time: "2026-11-21T14:01:00Z",
+      resource_type: "refund",
+      event_type: "PAYMENT.CAPTURE.REFUNDED",
+      resource: { id: "CraftedRef7308", status: "COMPLETED",
+        note_to_payer: form,
+        amount: { currency_code: "USD", value: "1.00" } },
+    };
+    const refund = record("POST", "/v2/payments/captures/CraftedCap7308/"
+      + "refund", {
+      body: { amount: { currency_code: "USD", value: "1.00" },
+        note_to_payer: form },
+      status: 201,
+      response: { id: "CraftedRef7308", status: "COMPLETED",
+        note_to_payer: form },
+    });
+
+    // Whichever the scrubber meets first, the order or the note.
+    for (const files of [[order, refund, webhook(refunded),
+      verify(refunded)], [refund, webhook(refunded), verify(refunded),
+      order]]) {
+      const made = scrubAll(files);
+      const placed = made.find((f) => f.json.request.path
+        === "/v2/checkout/orders");
+      const [refundOut, hookOut, verifyOut] = made
+        .filter((f) => f !== placed);
+      const unit = placed.json.request.body.purchase_units[0];
+      const swapped = `${COMPANY} order ${unit.custom_id}`;
+
+      assert.match(unit.custom_id, PLACEHOLDER);
+      assert.equal(unit.description, swapped, "the description");
+      for (const [file, path] of [
+        [refundOut, "request.body.note_to_payer"],
+        [refundOut, "response.note_to_payer"],
+        [hookOut, "request.body.resource.note_to_payer"],
+        [verifyOut, "request.body.webhook_event.resource.note_to_payer"],
+      ]) {
+        assert.equal(at(file.json, path), swapped, path);
+      }
+      for (const file of made) {
+        assert.ok(!text(file).includes(ours), file.name);
+      }
+    }
+  });
+
   it("a PayPal order id gets one name everywhere, whether a top-level id "
     + "or a path shows it first", () => {
     const raw = "CraftedOrd7306";
@@ -454,4 +583,108 @@ describe("#730: bin/fixtures/scrub's id keys and PayPal's safe fields", () => {
           file.name);
       }
     });
+
+  it("an href counts as safe only in PayPal's exact link forms, each with "
+    + "a crafted negative test", () => {
+    const order = "CraftedOrd7309";
+    const linked = (href) => one(record("GET",
+      `/v2/checkout/orders/${order}`, {
+        response: { id: order, status: "APPROVED",
+          links: [{ href, rel: "self", method: "GET" }] },
+      }));
+    const docs = "https://developer.paypal.com";
+
+    for (const href of [
+      // API hosts: a fragment, a query key not PayPal's, a route word
+      // not PayPal's.
+      `${LIVE}/v2/checkout/orders/${order}#Quill-Zanzibrook`,
+      `${SANDBOX}/v2/checkout/orders/${order}#crafted`,
+      `${LIVE}/v2/checkout/orders/${order}?payer=janedoe`,
+      `https://api.paypal.com/v2/checkout/orders/${order}?payer=janedoe`,
+      `${SANDBOX}/v1/janedoe/${order}`,
+      `https://api.sandbox.paypal.com/v1/janedoe/${order}`,
+      // On www, any path but /checkoutnow, another query key, a raw token.
+      "https://www.paypal.com/paypalme/quillzanzibrook",
+      "https://www.sandbox.paypal.com/myaccount/summary",
+      `https://www.paypal.com/checkoutnow?token=${order}&payer=janedoe`,
+      `https://www.paypal.com/checkoutnow?token=${order}#crafted`,
+      "https://www.paypal.com/checkoutnow?token=Q7X2",
+      // On developer, a path outside /docs/ and /api/, a query, a fragment
+      // holding text.
+      `${docs}/community/janedoe`,
+      `${docs}/docs/api/orders/v2/?payer=janedoe`,
+      `${docs}/docs/api/orders/v2/#Quill%20Zanzibrook`,
+      `${docs}/api/rest/#note=janedoe`,
+    ]) {
+      const made = linked(href);
+
+      assert.ok(made.review.includes("links.href"),
+        `${href}: ${JSON.stringify(made.review)}`);
+    }
+  });
+
+  it("rel, summary and details.description are safe only at PayPal's own "
+    + "paths and shapes", () => {
+    const free = "Quill Zanzibrook asked for the barn door";
+    const [answer] = scrubAll([record("GET",
+      "/v2/checkout/orders/CraftedOrd7310", {
+        response: {
+          id: "CraftedOrd7310",
+          status: "APPROVED",
+          payer: { rel: free, summary: free, details: { description: free } },
+          links: [{ href: `${LIVE}/v2/checkout/orders/CraftedOrd7310`,
+            rel: free, method: "GET" }],
+        },
+      })]);
+
+    for (const path of ["payer.rel", "payer.summary",
+      "payer.details.description", "links.rel"]) {
+      assert.ok(answer.review.includes(path),
+        `${path}: ${JSON.stringify(answer.review)}`);
+    }
+
+    const event = {
+      id: "WH-CRAFTED7310-0730",
+      event_version: "1.0",
+      create_time: "2026-11-21T14:01:00Z",
+      resource_type: "checkout-order",
+      event_type: "CHECKOUT.ORDER.APPROVED",
+      summary: "An order has been approved by buyer",
+      resource: { id: "CraftedOrd7310", status: "APPROVED", summary: free },
+    };
+    const [hook, check] = scrubAll([webhook(event), verify(event)]);
+
+    assert.ok(hook.review.includes("request.body.resource.summary"),
+      JSON.stringify(hook.review));
+    assert.ok(check.review
+      .includes("request.body.webhook_event.resource.summary"),
+    JSON.stringify(check.review));
+  });
+
+  it("a note_to_payer echoed elsewhere with different whitespace, or "
+    + "truncated, is still taken out (or listed), never left raw in a safe "
+    + "key such as message", () => {
+    const typed = "Sorry Quill  Zanzibrook,\nwe were short a loaf";
+    const refund = (message) => record("POST",
+      "/v2/payments/captures/CraftedCap7311/refund", {
+        body: { amount: { currency_code: "USD", value: "1.00" },
+          note_to_payer: typed },
+        status: 422,
+        response: { name: "UNPROCESSABLE_ENTITY", message, details: [] },
+      });
+
+    for (const echo of [
+      "Sorry Quill Zanzibrook, we were short a loaf",
+      "Sorry Quill Zanzibrook,\twe were  short a loaf",
+      "Sorry Quill Zanzibrook, we were sh",
+    ]) {
+      const made = one(refund(echo));
+      const out = made.json.response.message;
+
+      assert.ok(!/Zanzibrook|short a loaf/.test(out)
+        || made.review.includes("message"),
+      `${JSON.stringify(echo)} -> ${JSON.stringify(out)}: ${
+        JSON.stringify(made.review)}`);
+    }
+  });
 });

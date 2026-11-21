@@ -69,7 +69,20 @@ const FIXED = {
   "statement_description_identifier": "STATEMENT",
   from: "Farm <farm@example.com>",
   "reply_to": "reply@example.com",
+  // Free text the farm types at a refund, which may name a person (#730).
+  "note_to_payer": "Note to payer",
 };
+
+// Keys whose text is also taken out of every other string that quotes it.
+const QUOTED = new Set(["note_to_payer"]);
+// Keys whose value is a path or a link, never free text a note could sit
+// in (#730).
+const NOT_TEXT = new Set(["path", "href"]);
+
+// Our name, which PayPal echoes as brand_name and in an order's
+// description (lib/paypal.mjs).
+const COMPANY = JSON.parse(readFileSync(
+  new URL("../../data/company.json", import.meta.url), "utf8")).name;
 
 // Keys that hold a secret or a one-off string: each distinct value gets
 // the next number of its kind.
@@ -104,6 +117,75 @@ const TIME = /^\d{4}-\d{2}-\d{2}([T ]|$)/;
 const NUMBER = /^-?\d+(\.\d+)?$/;
 const SQUARE_URL =
   /^https:\/\/([a-z0-9-]+\.)*(squareup|squareupsandbox)\.com\//;
+// PayPal's own hosts in a HATEOAS link's href: its API, the approve page
+// and its docs (#730).
+const PAYPAL_API = /^api(-m)?\.(sandbox\.)?paypal\.com$/;
+const PAYPAL_WWW = /^www\.(sandbox\.)?paypal\.com$/;
+const PAYPAL_DOCS = "developer.paypal.com";
+// The words of PayPal's API routes; any other word in an API link's path
+// is listed.
+const ROUTE_WORDS = new Set([
+  "v1", "v2", "v3", "checkout", "orders", "payments", "captures",
+  "authorizations", "refunds", "capture", "authorize", "reauthorize",
+  "void", "refund", "confirm-payment-source", "track", "trackers",
+  "notifications", "webhooks", "webhooks-events", "webhook-event-types",
+  "resend", "certs", "verify-webhook-signature", "simulate-event",
+  "reporting", "transactions", "balances", "vault", "payment-tokens",
+  "setup-tokens", "invoicing", "invoices", "billing", "subscriptions",
+  "plans", "disputes", "identity", "oauth2", "token", "userinfo",
+]);
+// The query keys an API link may carry, with what each value may be.
+const LINK_QUERY = new Map([
+  ["token", PLACEHOLDER], ["page", NUMBER], ["page_size", NUMBER],
+  ["total_required", /^(true|false)$/], ["fields", /^[a-z_]+(,[a-z_]+)*$/],
+]);
+const urlOf = (href) => {
+  try {
+    const url = new URL(href);
+
+    return url.protocol === "https:" && !url.username && !url.password
+      && !url.port ? url : null;
+  } catch {
+    return null;
+  }
+};
+// An href whose ids the first pass swaps: one on PayPal's API or www host.
+const paypalHref = (href) => {
+  const url = urlOf(href);
+
+  return Boolean(url && (PAYPAL_API.test(url.hostname)
+    || PAYPAL_WWW.test(url.hostname)));
+};
+// Whether a scrubbed href is exactly one of PayPal's link forms: an API
+// route with every id a placeholder, the approve link with a placeholder
+// token, or a doc link. No fragment but a doc link's error name.
+const paypalLink = (href) => {
+  const url = urlOf(href);
+
+  if (!url) return false;
+  const query = [...url.searchParams];
+  const fragment = href.includes("#");
+
+  if (PAYPAL_API.test(url.hostname)) {
+    return !fragment && url.pathname.split("/").filter(Boolean)
+      .every((word) => ROUTE_WORDS.has(word) || PLACEHOLDER.test(word))
+      && query.every(([key, value]) => LINK_QUERY.has(key)
+        && LINK_QUERY.get(key).test(value));
+  }
+  if (PAYPAL_WWW.test(url.hostname)) {
+    return !fragment && url.pathname === "/checkoutnow"
+      && query.length === 1 && query[0][0] === "token"
+      && PLACEHOLDER.test(query[0][1]);
+  }
+
+  return url.hostname === PAYPAL_DOCS && !href.includes("?")
+    && /^\/(docs|api)\//.test(url.pathname)
+    && (!url.hash || /^#[A-Za-z0-9_-]+$/.test(url.hash));
+};
+// Which PayPal a record talked to, from the hosts it names: links on
+// api-m, a webhook's signing cert on api.
+const PAYPAL_LIVE = /https:\/\/api(-m)?\.paypal\.com\//;
+const PAYPAL_SANDBOX = /https:\/\/api(-m)?\.sandbox\.paypal\.com\//;
 const SAFE_KEYS = new Set([
   "currency", "country", "type", "status", "state", "code", "category",
   "source_type", "entry_method", "card_brand", "card_type", "prepaid_type",
@@ -119,6 +201,37 @@ const SAFE_KEYS = new Set([
   "by", "squareVersion", "payment_ids", "kind", "content-type",
   "paypal-auth-algo", "auth_algo", "event_type", "resource_type",
 ]);
+
+// Paths whose text is PayPal's or ours, by the whole path from "request"
+// or "response" -> whether the value is safe there. PayPal's fixed text
+// is safe only where PayPal puts it (#730).
+const escaped = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const companyOrder = new RegExp(
+  `^${escaped(COMPANY)} order [A-Z][A-Z0-9_]*_\\d+$`);
+// The same form before its id is swapped -> [, id].
+const companyOrderRaw = new RegExp(`^${escaped(COMPANY)} order (\\S+)$`);
+const SAFE_PATHS = [
+  [/(^|\.)brand_name$/, (value) => value === COMPANY],
+  // A link's relation, from PayPal's vocabulary.
+  [/(^|\.)links\.rel$/, (value) => /^[a-z_-]+$/.test(value)],
+  // A webhook event's summary, at the event's top level.
+  [/^request\.body\.(webhook_event\.)?summary$/, () => true],
+  // An error answer's details.
+  [/^(response|request\.body)\.details\.description$/, () => true],
+  // Ours, once its order id is swapped: a description, or a note that is
+  // one.
+  [/(^|\.)(purchase_units\.description|note_to_payer)$/,
+    (value) => companyOrder.test(value)],
+];
+const safeAt = (keys, value) => {
+  const path = keys.join(".");
+
+  return SAFE_PATHS.some(([at, ok]) => at.test(path) && ok(value));
+};
+
+// What a PayPal resource is, from its event's resource_type.
+const RESOURCE = { "checkout-order": "ORDER", capture: "CAPTURE",
+  refund: "REFUND" };
 
 const singular = (key) => key.replace(/s$/, "");
 const upper = (key) => key.toUpperCase();
@@ -149,15 +262,17 @@ const EMAIL = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
 // CAPTURE_ID, PayerID= gives PAYER_ID, token= gives TOKEN):
 // - a route word that is neither lowercase (v2, checkout, a short
 //   number) nor a placeholder is an id, all digits or all letters too;
-// - a query value under an id key (token, PayerID, order_id, orderId)
-//   is always one;
+// - a query value under an id key (id, token or Token, PayerID,
+//   order_id, orderId) is always one;
 // - any other query value is one only with a letter and a digit and
 //   not a time: an enum (COMPLETED), a time or a number is a query's
 //   ordinary value, and swapping it would rewrite every response that
 //   holds it.
 // -> [[word, kind]].
 const PATH_WORD = /^([a-z]+\d?([-_.][a-z]+\d?)*|\d{1,3})$/;
-const ID_KEY = /(^|_)token$|_id$|I[dD]$/;
+// Any case for a whole word (id, Token, ORDER_ID), but camelCase only as
+// Id or ID, so paid and valid stay plain words.
+const isIdKey = (key) => /(^|_)(token|id)$/i.test(key) || /I[dD]$/.test(key);
 const decoded = (word) => {
   try {
     return decodeURIComponent(word);
@@ -186,7 +301,7 @@ const pathIds = (path) => {
   const words = [
     ...route.map((word) => [word, "route"]),
     ...query.flatMap(([key, value = ""]) => [
-      [key, "key"], [value, ID_KEY.test(key) ? "id" : "value"],
+      [key, "key"], [value, isIdKey(key) ? "id" : "value"],
     ]),
   ].filter(([word]) => word);
   const isId = (word, role) => {
@@ -221,12 +336,42 @@ const pathIds = (path) => {
 
 // Whether a scrubbed path still holds something to look at: a word
 // pathIds takes for an id (one too short to swap), or a query value that
-// is not lowercase, an enum, a time, a number or a kept value.
+// is not lowercase, an enum, a time, a number or a kept value (each item
+// of a comma list judged alone).
+const plainValue = (value) => PATH_WORD.test(value) || ENUM.test(value)
+  || TIME.test(decoded(value)) || NUMBER.test(value) || keepValue(value);
 const pathLeft = (path) => pathIds(path).length > 0
   || pathParts(path).query.some(([, value = ""]) => value
-    && !(PATH_WORD.test(value) || ENUM.test(value)
-      || TIME.test(decoded(value)) || NUMBER.test(value)
-      || keepValue(value)));
+    && !(plainValue(value) || decoded(value).split(",")
+      .every((item) => !item || plainValue(item))));
+
+// A URL's path and query, so its host is not taken for an id.
+const urlPath = (url) => {
+  try {
+    const { pathname, search } = new URL(url);
+
+    return `${pathname}${search}`;
+  } catch {
+    return url;
+  }
+};
+
+// What a PayPal answer's top-level id is, from the request's path: the
+// thing the path's last id names (orders/X/capture answers with the
+// order), a refund for a refund, or else the path's last word (POST
+// /v2/checkout/orders makes an order).
+const topKind = (path) => {
+  const { route } = pathParts(path);
+  const last = route[route.length - 1] || "";
+
+  if (last === "refund") return "REFUND_ID";
+  const ids = pathIds(`/${route.join("/")}`);
+
+  if (ids.length) return ids[ids.length - 1][1];
+  if (!/^[a-z][a-z-]*$/.test(last)) return null;
+
+  return `${upper(singular(last)).replace(/-/g, "_")}_ID`;
+};
 
 // Walks every leaf string of a value: visit(value, key, keys) where
 // keys is the path of object keys (array positions left out).
@@ -277,10 +422,26 @@ export const scrubAll = (files) => {
   };
   const own = (file) => ({ request: file.request, response: file.response });
   const people = new Set();
+  const quotes = new Map();
+  // Notes of the form "<company> order <id>" -> [id, fixed text].
+  const forms = new Map();
+  // Too short to swap safely in every other string: left for the review
+  // list instead.
+  const votePath = (path) => {
+    for (const [word, kind] of pathIds(path)) {
+      if (word.length >= 6) vote(word, kind, false);
+    }
+  };
 
   // First pass: what is an id, and what kind.
   for (const file of files) {
     const top = file.service === "resend" ? "email" : "";
+    const paypal = file.service === "paypal";
+    const body = (file.request && file.request.body) || {};
+    // A webhook delivery's body is the event; the verify call carries it.
+    const event = body.event_type ? body : body.webhook_event;
+    const resource = event && RESOURCE[event.resource_type];
+    const answer = paypal && topKind(file.request && file.request.path);
     // Keys[0] is "request" or "response": a parent starts at keys[1].
 
     walk(own(file), (value, keys) => {
@@ -289,17 +450,28 @@ export const scrubAll = (files) => {
       }
       const key = leafKey(keys);
       const parent = keys.length > 2 ? keys[keys.length - 2] : undefined;
-      const found = idKind(key, parent, top || "id");
+      let found = idKind(key, parent, top || "id");
 
-      if (found) vote(value, found[0], found[1]);
-      if (keys.join(".") === "request.path") {
-        // Too short to swap safely in every other string: left for the
-        // review list instead.
-        for (const [word, kind] of pathIds(value)) {
-          if (word.length >= 6) vote(word, kind, false);
+      // One name per PayPal thing, whichever key shows it first (#730).
+      if (found && key === "id" && paypal) {
+        if (keys.length === 2 && answer) found = [answer, false];
+        else if (keys.join(".") === "request.body.id" && body.event_type) {
+          found = ["WEBHOOK_EVENT_ID", false];
+        } else if (parent === "resource" && resource) {
+          found = [`${resource}_ID`, false];
         }
       }
+      if (found) vote(value, found[0], found[1]);
+      if (keys.join(".") === "request.path") votePath(value);
+      if (key === "href" && paypalHref(value)) votePath(urlPath(value));
       if (PERSONAL.has(key) && value.length >= 3) people.add(value);
+      // A note that is our description form keeps it (#730).
+      const form = QUOTED.has(key) && companyOrderRaw.exec(value);
+
+      if (form) forms.set(value, [form[1], FIXED[key]]);
+      else if (QUOTED.has(key) && value.trim().length >= 3) {
+        quotes.set(value, FIXED[key]);
+      }
       for (const [pattern, kind] of NUMBERED) {
         if (pattern.test(key)) vote(value, kind, true);
       }
@@ -308,6 +480,14 @@ export const scrubAll = (files) => {
     });
     // An array of ids (payment_ids, refund_ids) is walked leaf by leaf
     // with its own key, which idKind reads.
+  }
+
+  // A form note whose id no record names is free text after all.
+  const kept = new Set();
+
+  for (const [value, [id, to]] of forms) {
+    if (votes.has(id)) kept.add(value);
+    else quotes.set(value, to);
   }
 
   // Numbering: in the order the values first appear.
@@ -368,7 +548,9 @@ export const scrubAll = (files) => {
           return FIXED[key] || "REDACTED";
         }
       }
-      if (key in FIXED) return FIXED[key];
+      if (key in FIXED && !(QUOTED.has(key) && kept.has(value))) {
+        return FIXED[key];
+      }
       if (votes.has(value)) return nameOf(value);
       if (/email/.test(key) && !/^(from|reply_to)$/.test(key)) {
         return emailOf(value);
@@ -394,9 +576,26 @@ export const scrubAll = (files) => {
   // Any case: a handle or a shout quotes a name in its own case.
   const named = [...people].sort((a, b) => b.length - a.length)
     .map((value) => new RegExp(`(?<!\\w)${quoted(value)}(?!\\w)`, "gi"));
-  const mop = (text) => {
+  // A note is taken out whole, before an id inside it is swapped, with
+  // any run of whitespace between its words, as PayPal may echo it.
+  const notes = [...quotes].sort((a, b) => b[0].length - a[0].length)
+    .map(([value, to]) => [new RegExp(`(?<!\\w)${value.trim().split(/\s+/)
+      .map(quoted).join("\\s+")}(?!\\w)`, "gi"), to, value]);
+  // Free text only: never a path or a link, and never a one-word value
+  // (an enum such as resource_type "refund") unless it is the note itself.
+  const freeText = (value, key) => !NOT_TEXT.has(key) && /\s/.test(value);
+  // Every word of four or more letters in a note, for the review list.
+  const words = [...new Set([...quotes.keys()].flatMap((value) => value
+    .toLowerCase().match(/[a-z]{4,}/g) || []))];
+  const noteWords = words.length ? new RegExp(
+    `(?<![A-Za-z])(${words.join("|")})(?![A-Za-z])`, "i") : null;
+  const mop = (text, key) => {
     let out = text;
 
+    for (const [pattern, to, value] of notes) {
+      if (out === value) out = to;
+      else if (freeText(out, key)) out = out.replace(pattern, to);
+    }
     for (const [from, to] of swaps) out = out.split(from).join(to);
     for (const pattern of named) out = out.replace(pattern, "NAME");
 
@@ -404,10 +603,29 @@ export const scrubAll = (files) => {
       ? m : emailOf(m)));
   };
 
+  // A PayPal record's environment, from its own hosts or else the run's.
+  const hostOf = (file) => {
+    if (file.service !== "paypal") return null;
+    const text = JSON.stringify(own(file));
+    const live = PAYPAL_LIVE.test(text);
+    const sandbox = PAYPAL_SANDBOX.test(text);
+
+    if (live === sandbox) return null;
+
+    return live ? "production" : "sandbox";
+  };
+  const hosts = new Set(files.map(hostOf).filter(Boolean));
+  const environment = (file) => {
+    if (file.service === "square") return "sandbox";
+    if (file.service !== "paypal") return "test address";
+
+    return hostOf(file) || (hosts.size === 1 ? [...hosts][0] : "unknown");
+  };
+
   return replaced.map(({ file, scrubbed }) => {
-    const clean = walk(scrubbed, (value) => (
+    const clean = walk(scrubbed, (value, keys) => (
       typeof value === "string" && !keepValue(value)
-        && !PLACEHOLDER.test(value) ? mop(value) : value));
+        && !PLACEHOLDER.test(value) ? mop(value, leafKey(keys)) : value));
     const version = file.request.headers
       && file.request.headers["Square-Version"];
 
@@ -417,7 +635,7 @@ export const scrubAll = (files) => {
       json: {
         _source: {
           service: file.service,
-          environment: file.service === "square" ? "sandbox" : "test address",
+          environment: environment(file),
           recorded: file.recorded,
           ...(version ? { squareVersion: version } : {}),
           by: "bin/fixtures/record, scrubbed by bin/fixtures/scrub",
@@ -429,8 +647,9 @@ export const scrubAll = (files) => {
       // A webhook's request is PayPal's event, so it is looked at too.
       // Response paths stay bare; request paths say so.
       review: [
-        ...review(clean.response),
-        ...review(clean.request).map((path) => `request.${path}`),
+        ...review(clean.response, "response", noteWords),
+        ...review(clean.request, "request", noteWords)
+          .map((path) => `request.${path}`),
         // Path is a safe key, so a word the path rule missed is named.
         ...(pathLeft(clean.request && clean.request.path)
           ? ["request.path"] : []),
@@ -450,16 +669,24 @@ export const isPlaceholder = (value) => typeof value === "string"
 
 // Paths of a request's or a response's strings that no rule covered and
 // that do not look harmless. Paths only, so the report leaks nothing.
-const review = (side) => {
+// root is "request" or "response"; noteWords, if any, matches a word of
+// a note, which free text under a safe key must not hold (a note echoed
+// cut short).
+const review = (side, root, noteWords) => {
   const found = [];
 
   walk(side, (value, keys) => {
     if (typeof value !== "string" || !value) return value;
     const key = leafKey(keys);
+    const echo = noteWords && !isPlaceholder(value)
+      && !NOT_TEXT.has(key) && /\s/.test(value) && noteWords.test(value);
 
-    if (keepValue(value) || PLACEHOLDER.test(value) || ENUM.test(value)
-      || TIME.test(value) || NUMBER.test(value) || SQUARE_URL.test(value)
-      || SAFE_KEYS.has(key) || isPlaceholder(value)) {
+    if (!echo && (keepValue(value) || PLACEHOLDER.test(value)
+      || ENUM.test(value) || TIME.test(value) || NUMBER.test(value)
+      || SQUARE_URL.test(value) || SAFE_KEYS.has(key) || isPlaceholder(value)
+      || safeAt([root, ...keys], value)
+      // A link in one of PayPal's own forms, every id in it swapped.
+      || (key === "href" && paypalLink(value)))) {
       return value;
     }
     found.push(keys.join("."));
