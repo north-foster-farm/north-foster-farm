@@ -4,9 +4,10 @@
 // and sends a sign-in link to it. Following that link signs in, or
 // makes the account, and puts the perk on it. The token leaves the
 // address bar at once and stays in this tab only (join/token.mjs). The
-// answer is the same for any address typed (#521). Draft wording.
+// answer is the same for any address typed (#521). James's wording,
+// approved 2026-11-21 (#733).
 
-import { perkSentence } from "../order/lib/perks.mjs";
+import { perkName } from "../order/lib/perks.mjs";
 import { api } from "../utils/api.js";
 import { failBusy, isBusy, whileBusy } from "../utils/busy-button.js";
 import { say } from "../utils/contact-link.js";
@@ -16,13 +17,12 @@ import { dropToken, takeToken, tokenDead } from "../join/token.mjs";
 
 const KEY = "nff_invite_token";
 
-// The server's own words for a dead link, when it gave none.
-// "[contact us]" becomes a link to sales@ (contact-link.js).
-const INVALID = "That invite link isn't valid. If you already used " +
-  "it, the invite is on your account. If not, [contact us] for a new one.";
-// Draft, for James: the check didn't get an answer.
-const UNCHECKED = "We couldn't open your invite just now. Check your " +
-  "connection and reload the page.";
+// The check didn't get an answer. "[contact us]" becomes a link to
+// sales@ (contact-link.js). A dead link shows the page's own block,
+// #invite-dead, in place of the server's one-line message.
+const UNCHECKED = "Something went wrong when we tried to load your " +
+  "invitation. Try again in a minute or two, or [contact us] if the " +
+  "issue persists.";
 
 const start = async () => {
   const form = document.getElementById("invite-form");
@@ -36,9 +36,15 @@ const start = async () => {
   const email = form.querySelector("#invite-email");
   const tab = { storage: () => window.sessionStorage, key: KEY };
   const token = takeToken({ location, history, ...tab });
+  const dead = document.getElementById("invite-dead");
   const tell = (message) => {
     say(notice, message);
     notice.hidden = false;
+  };
+  const showDead = () => {
+    dropToken(tab);
+    ask.hidden = true;
+    dead.hidden = false;
   };
 
   const { ok, status, data } = token
@@ -48,8 +54,7 @@ const start = async () => {
 
   if (!ok || !data || !data.perk) {
     if (tokenDead(status)) {
-      dropToken(tab);
-      tell((data && data.message) || INVALID);
+      showDead();
     } else {
       // The token stays in this tab, so a reload tries again.
       tell(UNCHECKED);
@@ -58,18 +63,18 @@ const start = async () => {
     return;
   }
 
-  document.querySelector("[data-invite-perk]").textContent =
-    perkSentence({ type: data.perk.type, end: data.perk.end });
-
+  // A bundled perk lists its parts; a standalone one is its own line,
+  // "Free delivery".
+  const type = data.perk.type;
   const parts = document.getElementById("invite-parts");
 
-  for (const part of data.perk.parts || []) {
+  for (const part of data.perk.parts ||
+    [data.perk.name || perkName(type)]) {
     const item = document.createElement("li");
 
     item.textContent = part;
     parts.append(item);
   }
-  parts.hidden = !(data.perk.parts || []).length;
   ask.hidden = false;
 
   const showError = (message) => {
@@ -103,9 +108,7 @@ const start = async () => {
       if (r.data && r.data.errors && r.data.errors.email) {
         showError(r.data.errors.email);
       } else if (tokenDead(r.status)) {
-        dropToken(tab);
-        ask.hidden = true;
-        tell((r.data && r.data.message) || INVALID);
+        showDead();
       } else {
         failBusy(submit, (r.data && r.data.message) || undefined);
       }

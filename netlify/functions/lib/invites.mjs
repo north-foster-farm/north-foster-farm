@@ -44,12 +44,16 @@ export const INVITE_PATH = "/invite/";
 // Where following the link lands: the account page names the perks.
 export const INVITED_PATH = "/account/";
 
-// Draft wording for James. Every dead link says the same: used,
-// expired, revoked or never made. "[contact us]" becomes a link to
-// the support address on the page (contact-link.js, #240).
-export const INVALID_INVITE = "That invite link isn't valid. If you " +
-  "already used it, the invite is on your account. If not, " +
-  "[contact us] for a new one.";
+// Every dead link says the same: used, expired, revoked or never
+// made. James's words (#718, approved 2026-11-21), the page's
+// warning and its two sentences in one. The page shows its own copy
+// of them (layouts/invite/single.html), where "contact us" links to
+// the support address; here "[contact us]" marks that link
+// (contact-link.js, #240).
+export const INVALID_INVITE = "Your invite link isn't valid. The link " +
+  "you opened is no longer valid. If you already finished signing " +
+  "up, your account is ready and waiting for you when you sign in. " +
+  "If you didn't already sign up, then [contact us] for a new invite.";
 
 const hash = (value) => createHash("sha256").update(String(value))
   .digest("hex");

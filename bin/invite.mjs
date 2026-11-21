@@ -69,7 +69,7 @@ export const inviteCommand = async (action, rest, {
 
     out(`Made invite ${made.id} for ${rest[0]}, open until ${
       made.expires.slice(0, 10)}.`);
-    out("Send this link yourself. It works for one account:");
+    out("Send this invite link yourself. It's good for one use only:");
 
     return out(made.url);
   }
