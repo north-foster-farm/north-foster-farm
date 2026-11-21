@@ -475,6 +475,25 @@ send customer-update-reference square "$(pick set-member-reference \
   "$ARGS" 1 \
   | jq -c --arg c "$CUSTOMER_ID" '.path |= sub("__CUSTOMER_ID__"; $c)')"
 
+# ---- The customer read before an invite links it (#718) -----------------
+# GET /v2/customers/{id} has no body to build. First the profile with its
+# email address, then one made without any: the shape of a customer known
+# only to Square. That profile's create and delete are the recorder's own
+# and not kept.
+send customer-get square "$(sq GET "/v2/customers/$CUSTOMER_ID")"
+send customer-create-no-email square "$(jq -nc --arg v "$VERSION" \
+  --arg k "$K-no-email" \
+  '{method: "POST", path: "/v2/customers",
+    headers: {"Square-Version": $v, "Content-Type": "application/json"},
+    body: {idempotency_key: $k, given_name: "Given",
+      family_name: "Family"}}')"
+NO_EMAIL_ID="$(got .response.customer.id)"
+rm -f "$OUT"
+send customer-get-no-email square "$(sq GET "/v2/customers/$NO_EMAIL_ID")"
+send customer-delete-no-email square \
+  "$(sq DELETE "/v2/customers/$NO_EMAIL_ID")"
+rm -f "$OUT"
+
 # ---- The customer: renamed, deleted, deleted again ----------------------
 ARGS="$(margs --arg from "$EMAIL" --arg to "renamed-$EMAIL" \
   --argjson found true)"

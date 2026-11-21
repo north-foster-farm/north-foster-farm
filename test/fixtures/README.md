@@ -81,6 +81,7 @@ same value has the same placeholder in every file, so the payment in
 | `customers-search-email-refused` | the search for an address Square refuses: 400 INVALID_VALUE on `email` (#678). The recorder keeps the first of its candidates the sandbox refuses; on 2026-11-19 that was two periods in a row before the `@`. Recorded in the sandbox 2026-11-19. |
 | `customer-create`, `customer-create-replay` | creates the profile; the same key again |
 | `customer-update`, `customer-delete`, `customer-delete-gone` | `renameCustomerEmail`, `deleteCustomer` (404 once gone) |
+| `customer-get`, `customer-get-no-email` | an invite reads its Square customer before linking it (#718): the profile with its email address, and one made with none, as a customer known only to Square. The recorder makes and deletes that second profile itself. Recorded in the sandbox 2026-11-21. |
 | `customer-update-reference` | `setCustomerReference`: a member's code as the profile's `reference_id` (#131). Recorded in the sandbox 2026-11-12. |
 | `order-create-pickup`, `-delivery`, `-external`, `-cash` | `createOrder` (`buildOrder`) |
 | `order-create-catalog` | a line by `catalog_object_id`; only if the sandbox has a catalog |

@@ -1,0 +1,32 @@
+{
+  "_source": {
+    "service": "square",
+    "environment": "sandbox",
+    "recorded": "2026-11-21",
+    "squareVersion": "2026-09-16",
+    "by": "bin/fixtures/record, scrubbed by bin/fixtures/scrub"
+  },
+  "status": 200,
+  "request": {
+    "method": "GET",
+    "path": "/v2/customers/CUSTOMER_ID_189",
+    "headers": {
+      "Square-Version": "2026-09-16"
+    },
+    "body": null
+  },
+  "response": {
+    "customer": {
+      "id": "CUSTOMER_ID_189",
+      "created_at": "2026-11-21T14:09:30.244Z",
+      "updated_at": "2026-11-21T14:09:30Z",
+      "given_name": "NAME",
+      "family_name": "NAME",
+      "preferences": {
+        "email_unsubscribed": false
+      },
+      "creation_source": "THIRD_PARTY",
+      "version": 0
+    }
+  }
+}
