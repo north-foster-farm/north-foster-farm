@@ -1112,7 +1112,7 @@ function) and calls `lib/jobs.mjs`, which decides in
 | 18:00 the day before a delivery        | cooler reminder             |
 | the day after fulfillment               | `fulfilled`, and complete in Square |
 | every run                              | checkouts older than a day swept |
-| 8:00 daily, always                     | "Morning report"            |
+| 8:00 daily, when a vital sign is off or something waits on the farm (#697, 2026-11-21) | "Morning report" |
 | 18:00 daily, when an order is due tomorrow | "Tomorrow", the manifest |
 | once a day from 5:00                   | farm-news audience sync     |
 | every run                              | invariants, ledger, heartbeat |

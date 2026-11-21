@@ -32,10 +32,14 @@
 //               whose payment never succeeded, is reported after a day,
 //               in the morning report too, and deleted unless the
 //               same kill switch is set (#236)
-//   morning     8:00 daily, always: the day in numbers, the on-farm
-//               orders within two days still waiting on the customer,
-//               a warning when the pickup schedule runs short, and the
-//               messages to the farm not yet marked answered
+//   morning     8:00 daily, only when a vital sign is outside its
+//               healthy limits or something waits on the farm: the day
+//               in numbers, the on-farm orders within two days still
+//               waiting on the customer, a warning when the pickup
+//               schedule runs short, and the messages to the farm not
+//               yet marked answered; no email on a calm morning, and
+//               the alert check pinged well either way (#697,
+//               2026-11-21; it went every morning before)
 //   tomorrow    18:00 daily: every order due tomorrow, by method, with
 //               what to pack and where it goes, and no email when
 //               nothing is due (#697, 2026-11-20; it went every day
@@ -129,7 +133,7 @@ import * as squareApi from "./square.mjs";
 import { deletionsPaused } from "./square-pause.mjs";
 import { ORDER_ID } from "./square.mjs";
 import {
-  deliveryReminder, farmMorningReport, farmTomorrow,
+  deliveryReminder, farmMorningReport, farmTomorrow, morningReportNeeded,
 } from "./templates.mjs";
 
 const MINUTE = 60_000;
@@ -1179,12 +1183,13 @@ export const funnel = async (stores, now, { since } = {}) => {
 
 // A once-a-day farm email, recorded in the jobs store under `key`
 // once it has gone (or once there was nothing to send). `build`
-// returns the message. With `always` the email goes even when `list`
-// is empty, so its absence means something. A mail failure leaves no
-// record, so the next run tries again. -> what `list` returned, or
-// null when nothing was done this run.
+// returns the message. No email goes when `list` is empty. A mail
+// failure leaves no record, so the next run tries again. `onDone`
+// runs once the day's work is done, sent or nothing to send, and
+// never after a failed send. -> what `list` returned, or null when
+// nothing was done this run.
 const dailyReport = async (stores, {
-  key, hour, list, build, onSent, always = false, env, mail, now,
+  key, hour, list, build, onDone, env, mail, now,
 }) => {
   const to = farmEmails(env);
 
@@ -1193,7 +1198,7 @@ const dailyReport = async (stores, {
 
   const items = await list();
 
-  if (items.length || always) {
+  if (items.length) {
     try {
       await mail({ to, idempotencyKey: key, ...build(items) }, { env });
     } catch (error) {
@@ -1205,8 +1210,8 @@ const dailyReport = async (stores, {
       // see a report that never went out.
       throw error;
     }
-    if (onSent) await onSent(items);
   }
+  if (onDone) await onDone(items);
   await stores.jobs.set(key, { at: now.toISOString(), count: items.length });
 
   return items;
@@ -1220,10 +1225,6 @@ export const pickupsDue = (orders, day) => orders.filter((o) =>
   && questionOpen(o)
   && o.fulfilment.date <= addDays(day, PICKUPS_REPORT_DAYS));
 
-// 8:00 daily, always: the day in numbers, then the pickups waiting
-// on a decision. Its going out well pings the alert channel's check,
-// so a morning without it is itself an alert. -> the pickup ids
-// reported this run.
 // How far the pickup schedule reaches, against how far it must.
 const coverage = (env, now) => {
   const { windows } = parseSchedule(env.PICKUP_SCHEDULE);
@@ -1234,6 +1235,14 @@ const coverage = (env, now) => {
   };
 };
 
+// 8:00 daily, only when needed (#697, 2026-11-21; it went every
+// morning before): the day in numbers, then what waits on the farm,
+// sent when a vital sign is outside its healthy limits or something
+// waits (`morningReportNeeded`). A calm morning sends nothing and is
+// still recorded as done. Either way the run pings the alert
+// channel's check well, so the check proves the 8:00 run happened,
+// not that an email went; a report that fails to send pings nothing.
+// -> the pickup ids reported this run.
 const morningReport = async (stores, {
   env, mail, now, fetchImpl, catalogIndex,
 }) => {
@@ -1241,28 +1250,31 @@ const morningReport = async (stores, {
   const sent = await dailyReport(stores, {
     key: `report/morning/${day}`,
     hour: PICKUPS_REPORT_HOUR,
-    always: true,
-    list: async () => [{
-      stats: await funnel(stores, now),
-      pickups: pickupsDue(await openOrders(stores), day),
-      archived: await archivedOnHand(stores, { catalogIndex, env }),
-      messages: await listMessages(stores),
-      square: {
-        ...await squareFinds(stores, day),
-        paused: await deletionsPaused(stores, env),
-      },
-    }],
-    build: ([{
-      stats, pickups, archived, messages, square,
-    }]) => farmMorningReport(stats, pickups, {
-      date: day, links: mailLinks(env), now, schedule: coverage(env, now),
-      archived, messages, square, reminders: remindersOn(day),
+    list: async () => {
+      const stats = await funnel(stores, now);
+      const pickups = pickupsDue(await openOrders(stores), day);
+      const rest = {
+        schedule: coverage(env, now),
+        archived: await archivedOnHand(stores, { catalogIndex, env }),
+        messages: await listMessages(stores),
+        square: {
+          ...await squareFinds(stores, day),
+          paused: await deletionsPaused(stores, env),
+        },
+        reminders: remindersOn(day),
+      };
+
+      return morningReportNeeded(stats, pickups, rest)
+        ? [{ stats, pickups, rest }] : [];
+    },
+    build: ([{ stats, pickups, rest }]) => farmMorningReport(stats, pickups, {
+      date: day, links: mailLinks(env), now, ...rest,
     }),
-    onSent: () => ping(env.HEALTHCHECKS_ALERT_URL, { ok: true, fetchImpl }),
+    onDone: () => ping(env.HEALTHCHECKS_ALERT_URL, { ok: true, fetchImpl }),
     env, mail, now,
   });
 
-  return sent ? sent[0].pickups.map((o) => o.id) : [];
+  return sent && sent.length ? sent[0].pickups.map((o) => o.id) : [];
 };
 
 // 18:00 daily: every order due tomorrow, by method, with what the

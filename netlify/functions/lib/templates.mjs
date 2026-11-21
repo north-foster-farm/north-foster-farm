@@ -1964,9 +1964,10 @@ export const rotationReminder = ({
   };
 };
 
-// Every morning at 8:00: the site's vital signs for the last day, then
-// whatever waits on the farm. Sent even when nothing does, so its
-// absence is a signal.
+// At 8:00: the site's vital signs for the last day, then whatever
+// waits on the farm. The jobs send it only on a morning
+// `morningReportNeeded` says has something to show (#697, 2026-11-21;
+// it went every morning before, so that its absence was a signal).
 // Each vital sign: the figure, and whether a healthy day looks like
 // this. GOOD is within limits, BAD outside them, PLAIN a number with
 // no limits, just worth knowing.
@@ -2006,6 +2007,29 @@ export const age = (iso, now) => {
 // and `bin/nff messages` lists them all (#167, security review).
 const MESSAGES_SHOWN = 30;
 
+// The schedule offers no windows, or stops short of where it must
+// reach. `schedule`: { last, until }, or null when it is not checked.
+const scheduleShort = (schedule) =>
+  !!schedule && (!schedule.last || schedule.last < schedule.until);
+
+// Whether a morning has anything for the farm: a vital sign outside
+// its healthy limits, or something that waits on the farm (a section
+// of the report below: a short schedule, reminders, archived items in
+// stock, what the Square sweep found, pickups to confirm, unanswered
+// messages). On a calm morning no report goes (#697, 2026-11-21).
+// Takes what `farmMorningReport` takes.
+export const morningReportNeeded = (stats, pickups, {
+  schedule = null, archived = [], messages = [], square = null,
+  reminders = [],
+} = {}) =>
+  VITALS.some(([, , judge]) => judge(stats) === BAD)
+  || scheduleShort(schedule)
+  || reminders.length > 0
+  || archived.length > 0
+  || !!(square && (square.open || square.profiles))
+  || pickups.length > 0
+  || messages.length > 0;
+
 export const farmMorningReport = (stats, pickups, {
   date, links, now = clock(), schedule = null, archived = [], messages = [],
   square = null, reminders = [],
@@ -2022,7 +2046,7 @@ export const farmMorningReport = (stats, pickups, {
 
   // The schedule running short is the farm's to fix, before the
   // next deploy fails on it (W11d). `schedule`: { last, until }.
-  if (schedule && (!schedule.last || schedule.last < schedule.until)) {
+  if (scheduleShort(schedule)) {
     blocks.push(
       heading("Pickup schedule"),
       p(`**${schedule.last
@@ -2149,7 +2173,9 @@ export const farmMorningReport = (stats, pickups, {
 
 // Every evening at 6:00: every order due tomorrow, by method, with
 // what the driver or the packer needs. The manifest the farm would
-// otherwise rebuild if anything broke overnight. Sent even when empty.
+// otherwise rebuild if anything broke overnight. The jobs send none
+// when nothing is due (#697; 2026-11-21: this said "Sent even when
+// empty").
 export const farmTomorrow = (orders, { date, links } = {}) => {
   const day = label(date);
   const title = `Tomorrow, ${day}: ${orders.length} order${

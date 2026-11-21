@@ -1023,7 +1023,9 @@ describe("runJobs", () => {
       "the fixture's schedule reaches far enough");
     assert.doesNotMatch(report[0].text, /\nB\s+Pat|\nC\s+Pat/);
 
-    // Nothing to decide: the report still goes, and says so.
+    // No pickup to decide, but a new store's first run is far short of
+    // 90 in a day, so the report still goes (#697), and says there is
+    // none.
     const quiet = testStores();
 
     await saveOrder(quiet, far, placed);
