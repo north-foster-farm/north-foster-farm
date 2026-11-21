@@ -48,10 +48,28 @@ const walk = (page, step) => page.evaluate(async (by) => {
   const confirm = document.getElementById("confirm");
   const start = catalog.getBoundingClientRect().top + scrollY;
   const foot = document.documentElement.scrollHeight - innerHeight;
-  const stops = [];
+  const at = (el) => {
+    const r = el.getBoundingClientRect();
 
-  for (let y = start; y < foot; y += by) stops.push(Math.round(y));
-  stops.push(foot);
+    return { top: r.top + scrollY, height: r.height };
+  };
+  const pay = at(payment);
+  const conf = at(confirm);
+  // The stop that puts the middle of Payment at the stuck bar's lower
+  // edge, and the one that puts the middle of Place your order at the
+  // middle of the screen. The grid of `by` px steps is laid so one of
+  // its stops is the first, so a fast walk still lands in Payment with
+  // a full step either side; the second is added to the grid.
+  const payMid = pay.top + pay.height / 2
+    - bar.getBoundingClientRect().height;
+  const confMid = conf.top + conf.height / 2 - innerHeight / 2;
+  const clamp = (y) => Math.round(Math.min(Math.max(y, start), foot));
+  const ys = new Set([clamp(start), clamp(payMid), clamp(confMid), foot]);
+
+  for (let y = payMid; y > start; y -= by) ys.add(clamp(y));
+  for (let y = payMid; y < foot; y += by) ys.add(clamp(y));
+
+  const stops = [...ys].sort((a, b) => a - b);
 
   const wrong = [];
   let past = 0;
