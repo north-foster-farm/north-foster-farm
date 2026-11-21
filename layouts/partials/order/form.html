@@ -118,11 +118,18 @@
       <p>
         A confirmation is on its way to <strong data-out="email"></strong>.
         {{- if site.Params.features.accounts }}
-        {{- /* Hidden for a customer signed in. */}}
+        {{- /* Hidden for a customer signed in, who sees the line
+             after it instead (#723, James, 2026-11-21). The account
+             page opens a tab, not one order, so the link opens the
+             Orders tab. */}}
         <span data-out="signIn">
           To view or change your order,
           <a href="{{ relURL "login/" }}">sign in</a> using your email
           address.
+        </span>
+        <span data-out="signedIn" hidden>
+          View or change your order on
+          <a href="{{ relURL "account/" }}#orders">your account page</a>.
         </span>
         {{- end }}
       </p>

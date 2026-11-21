@@ -2517,6 +2517,10 @@ export class OrderForm {
 
       if (signIn) signIn.hidden = this.isSignedIn;
 
+      const signedIn = qs(node, "[data-out='signedIn']");
+
+      if (signedIn) signedIn.hidden = !this.isSignedIn;
+
       const receipt = qs(node, "[data-out='receiptUrl']");
 
       if (data.payment && data.payment.receiptUrl) {
