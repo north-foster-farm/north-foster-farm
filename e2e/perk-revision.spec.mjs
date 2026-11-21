@@ -153,8 +153,11 @@ const openCart = async (page, baseURL, perks, extra = {}) => {
 
   await expect(badge).toBeVisible();
 
+  // `has` looks inside each list item, so its locator names the badge
+  // from there: one that starts at #order-cart, above the item, finds
+  // nothing.
   const beside = page.locator("#order-cart li")
-    .filter({ has: badge })
+    .filter({ has: page.locator("[data-badge='free-delivery']") })
     .locator("button:not([data-badge]), [role='button']:not([data-badge])");
 
   return {

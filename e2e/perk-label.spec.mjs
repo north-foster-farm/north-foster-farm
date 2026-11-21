@@ -13,21 +13,26 @@
 //   account page's "Your pricing" row holds its lines in `#prof-group`;
 // - a bundled perk's info button is a button inside that note or row,
 //   apart from the label's own text;
-// - its tooltip has role="tooltip" and lists each part as a list item;
-// - the badges' separator is the "·" of `.order-cart-badges li + li`.
+// - its tooltip has role="tooltip" and lists each part as a list item.
 // The words are the issue's, pinned word for word; the family wording
-// is approved (James, 2026-11-21).
+// is approved (James, 2026-11-21), and "No delivery minimum" replaced
+// "No order minimum" in James's revision (#717, 2026-11-21). The test
+// for the cart's "Free delivery · No order minimum" went with it: the
+// cart's badge now shows free delivery, so the two never share the
+// cart's line.
 
 import { CUSTOMER, cannedDates } from "./support/canned.mjs";
 import { OrderPage, expect, settleCart, test } from "./support/order.mjs";
 
 const FRIENDS = "Friends and family pricing";
 const FRIENDS_PARTS = [
-  "Friends and family discount", "Free delivery", "No order minimum",
+  "Friends and family discount", "Free delivery", "No delivery minimum",
 ];
 const FAMILY = "Family pricing";
-const FAMILY_PARTS = ["Family discount", "Free delivery", "No order minimum"];
-const BOTH = "Free delivery · No order minimum";
+const FAMILY_PARTS = [
+  "Family discount", "Free delivery", "No delivery minimum",
+];
+const BOTH = "Free delivery · No delivery minimum";
 
 // Perks as /api/me sends them (lib/perks.mjs publicPerk).
 const perk = (type, end = null) => ({ type, start: "2026-11-01", end });
@@ -147,11 +152,6 @@ const shown = (el) => {
 
 const shownText = async (locator) => (await locator.evaluate(shown)).text;
 
-// The color of the discount badges' own separator.
-const badgeDot = (page) => page.locator(
-  "#order-cart .order-cart-badges li + li"
-).first().evaluate((li) => getComputedStyle(li, "::before").color);
-
 // A tap where the project has touch, a click where it has a mouse.
 const tap = (locator, testInfo) => (testInfo.project.use.hasTouch
   ? locator.tap() : locator.click());
@@ -186,7 +186,7 @@ const expectBundle = async (page, place, label, bullets, testInfo) => {
 test.describe("perks as one pricing label (#717)", () => {
   test("A customer with `friends` sees \"Friends and family pricing\" " +
     "with an info button in the cart note, and its tooltip lists " +
-    "\"Friends and family discount\", \"Free delivery\" and \"No order " +
+    "\"Friends and family discount\", \"Free delivery\" and \"No delivery " +
     "minimum\" as bullets", async ({ page, baseURL }, testInfo) => {
     const { note } = await openCart(page, baseURL, [perk("friends")]);
 
@@ -201,46 +201,23 @@ test.describe("perks as one pricing label (#717)", () => {
     await expectBundle(page, note, FAMILY, FAMILY_PARTS, testInfo);
   });
 
-  test("A customer with `free-delivery` and `minimum-waived` sees " +
-    "\"Free delivery · No order minimum\" with the badges' separator; " +
-    "with one of them, that one alone", async ({ page, baseURL }) => {
-    const { note } = await openCart(page, baseURL, [
-      perk("free-delivery"), perk("minimum-waived"),
-    ]);
-    const both = await note.evaluate(shown);
-
-    expect(both.text, "both perks").toBe(BOTH);
-    expect(both.dots, "one separator, the badges' own")
-      .toEqual([await badgeDot(page)]);
-    await expect(note.getByRole("button"), "no info button")
-      .toHaveCount(0);
-
-    for (const [type, alone] of [
-      ["free-delivery", "Free delivery"],
-      ["minimum-waived", "No order minimum"],
-    ]) {
-      await page.unrouteAll({ behavior: "ignoreErrors" });
-
-      const one = (await openCart(page, baseURL, [perk(type)])).note;
-      const got = await one.evaluate(shown);
-
-      expect(got.text, `${type} alone`).toBe(alone);
-      expect(got.dots, `${type} alone: no separator`).toEqual([]);
-    }
-  });
-
   // The cart shows no end dates and the account page keeps each beside
   // its label (James, on #717, 2026-11-21): without an end date the two
   // read the same; with one, the row adds it after the cart's words.
+  // In the cart the free delivery badge shows free delivery, so the
+  // cart's line leaves it out (#717, revised; that side is
+  // e2e/perk-revision.spec.mjs). The account page has no badge, so the
+  // row keeps it, beside "No delivery minimum" with one separator.
   test("The account page's \"Your pricing\" row shows the same as the " +
-    "cart", async ({ page, baseURL }, testInfo) => {
+    "cart, and free delivery, which the cart's badge shows",
+  async ({ page, baseURL }, testInfo) => {
     const cases = [
       { perks: [perk("friends")], label: FRIENDS, bullets: FRIENDS_PARTS },
       { perks: [perk("family")], label: FAMILY, bullets: FAMILY_PARTS },
       { perks: [perk("free-delivery"), perk("minimum-waived")],
         label: BOTH },
       { perks: [perk("free-delivery")], label: "Free delivery" },
-      { perks: [perk("minimum-waived")], label: "No order minimum" },
+      { perks: [perk("minimum-waived")], label: "No delivery minimum" },
     ];
 
     for (const { perks, label, bullets } of cases) {
@@ -259,6 +236,8 @@ test.describe("perks as one pricing label (#717)", () => {
           .toHaveCount(0);
         if (perks.length > 1) {
           expect(got.dots, `${name}: one separator`).toHaveLength(1);
+        } else {
+          expect(got.dots, `${name}: no separator`).toEqual([]);
         }
       }
     }

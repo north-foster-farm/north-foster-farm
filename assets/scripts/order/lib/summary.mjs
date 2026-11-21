@@ -3,6 +3,7 @@
 // might read is pinned by a test. Money is integer cents.
 
 import { short } from "./catalog.mjs";
+import { perkEffects } from "./perks.mjs";
 import { dollars, meetsMinimum, toCents } from "./totals.mjs";
 
 // Badges in the order they are shown. Each is on or off, never a
@@ -25,10 +26,12 @@ export const badges = (totals, money) => {
     });
   }
 
+  // Lit too for an account whose perks lift the fee, so it shows the
+  // free delivery the perk line no longer repeats (#717, revised).
   list.push({
     key: "free-delivery",
     label: "Free delivery",
-    on: s >= toCents(money.feeWaivedAt),
+    on: s >= toCents(money.feeWaivedAt) || perkEffects(totals.perks).fee,
   });
 
   return list;

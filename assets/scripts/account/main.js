@@ -1020,12 +1020,15 @@ class Account {
     const row = document.getElementById("prof-group-row");
 
     // And the customer's perks (#514) as pricing labels, each keeping
-    // its end date beside it (#717, James: the cart shows none).
+    // its end date beside it (#717, James: the cart shows none), after
+    // a buying group's member line (#717, revised).
     const place = document.getElementById("prof-group");
     const perks = Array.isArray(c.perks) ? c.perks : [];
 
     for (const tip of this.perkTips || []) tip.stop();
-    this.perkTips = drawPerks(place, perks, { dates: true });
+    this.perkTips = drawPerks(place, perks, {
+      dates: true, member: this.member,
+    });
     if (group) {
       const line = el("span", "d-block", `${group.label}: ` +
         `${group.percent}% off, whenever that beats the bulk discount.`);

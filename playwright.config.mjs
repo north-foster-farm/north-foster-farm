@@ -138,7 +138,7 @@ const config = defineConfig({
     // and a badge's tooltip after a scroll (#644), and the order page's
     // Contact information card (#666, #704), and the tooltip on
     // Proceed to checkout (#706), and a perk's tooltip on a tap and a
-    // scroll (#717).
+    // scroll (#717), the free delivery badge's info button too.
     // cart-motion skips itself in the other projects.
     {
       name: "iphone",
@@ -147,6 +147,7 @@ const config = defineConfig({
         "**/payment-stacking.spec.mjs", "**/cart-keyboard.spec.mjs",
         "**/cart-a11y.spec.mjs", "**/cart-motion.spec.mjs",
         "**/cart-tip.spec.mjs", "**/perk-label.spec.mjs",
+        "**/perk-revision.spec.mjs",
         "**/account-tabs.spec.mjs", "**/keep-together.spec.mjs",
         "**/membership-layout.spec.mjs", "**/contact-card.spec.mjs",
         "**/order-topbar-scroll.spec.mjs", "**/checkout-go.spec.mjs",

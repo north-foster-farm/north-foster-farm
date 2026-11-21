@@ -104,7 +104,10 @@
           <ul class="place-facts list-unstyled"{{ if eq $way.method "scheduled" }} data-scheduled-facts{{ end }}>
             {{ range $facts }}
               {{ if index $way (.field | default .key) }}
-              <li class="place-fact place-{{ .key }}"{{ if and (eq $way.method "scheduled") (in (slice "when" "where") .key) }} data-scheduled-static{{ end }}>
+              {{/* The Delivery card's fee and minimum, in its last
+                   span, which home/main.js adapts to a signed-in
+                   account's perks (#717). */}}
+              <li class="place-fact place-{{ .key }}"{{ if and (eq $way.method "scheduled") (in (slice "when" "where") .key) }} data-scheduled-static{{ end }}{{ if and (eq $way.method "delivery") (eq .key "note") }} data-delivery-terms="last" data-fee="{{ $money.deliveryFee }}" data-minimum="{{ $money.deliveryMinimum }}"{{ end }}>
                 <span class="place-fact-icon" aria-hidden="true">
                   {{ partial "svg.html" (printf "icons/%s" .icon) }}
                 </span>
@@ -124,6 +127,8 @@
     </ul>
   </div>
 </div>
+{{/* The info button and tooltip of the Delivery card's terms (#717). */}}
+{{ partial "order/perk-label.html" . }}
 {{/* One place open for scheduled pickup, filled by schedule.js. */}}
 <template data-scheduled-open>
   <li class="place-fact place-open">

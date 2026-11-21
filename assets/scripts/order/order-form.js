@@ -24,6 +24,7 @@ import {
 } from "./lib/schedule.mjs";
 import { label, today } from "./lib/zoned.mjs";
 import { Cart, JOKE_CODE } from "./cart/cart.js";
+import { drawTerms } from "./cart/perk-label.js";
 import { celebrate } from "./celebrate.js";
 import { DateLists } from "./date-lists.js";
 import { Draft } from "./draft.js";
@@ -227,6 +228,10 @@ export class OrderForm {
     // The signed-in customer's perks (#514), from /api/me: [{ type,
     // start, end }]. The server reads them again from the record.
     this.perks = [];
+    // The buying group whose member line the cart shows (#717), and the
+    // tooltips of the Delivery choice's terms, as the account has them.
+    this.shownMember = null;
+    this.termTips = [];
     // Whether /api/me said so: the thank-you card then leaves out the
     // line about the account the order made (#114).
     this.isSignedIn = false;
@@ -327,12 +332,20 @@ export class OrderForm {
     }
 
     const perks = Array.isArray(who.customer.perks) ? who.customer.perks : [];
+    // A buying group's member has the group's line with the perks
+    // (#717, revised).
+    const member = who.member || null;
 
     // A change keeps the perks its order was priced with (startEdit), so
     // the account's own are not laid over them.
-    if (!this.editing && (perks.length || this.perks.length)) {
+    if (!this.editing
+      && (perks.length || this.perks.length || member || this.shownMember)) {
       this.perks = perks;
-      this.cart.setPerks(perks);
+      this.shownMember = member;
+      this.cart.setPerks(perks, { member });
+      // The Delivery choice's fee and minimum, as the account has them.
+      for (const tip of this.termTips) tip.stop();
+      this.termTips = drawTerms(perks, this.form);
       this.refresh();
     }
     // A buying group's member (#471) needs no code: the account's

@@ -18,7 +18,7 @@ import { dollars } from "../lib/totals.mjs";
 import { label } from "../lib/zoned.mjs";
 import { codeNote } from "./code-note.mjs";
 import { twoStep } from "./confirm.mjs";
-import { drawPerks } from "./perk-label.js";
+import { drawBadgeInfo, drawPerks } from "./perk-label.js";
 import * as state from "./state.mjs";
 import { shutTip } from "./tip.js";
 import {
@@ -673,6 +673,8 @@ export class Cart {
     const root = this.root;
     const count = s.count;
 
+    this.summary = s;
+
     const draw = () => {
       this.renderItems(s);
       for (const button of all(root, "[data-remove]")) button.hidden = fixed;
@@ -738,7 +740,9 @@ export class Cart {
       // from where it is seen, and mid-ease it may lie past the pane's
       // old edge. A render that follows at once cancels this ease and
       // starts its own, and the ease it cancels resolves early: only
-      // the latest render's end counts.
+      // the latest render's end counts. A render with nothing to ease
+      // may come before it ends (a sign-in's perks, #717): the badges
+      // follow the latest summary, not this one.
       const seq = this.renders = (this.renders || 0) + 1;
 
       this.motion(() => {
@@ -749,7 +753,7 @@ export class Cart {
         this.dropRows();
         this.placement.refresh();
         this.lines.sync();
-        this.renderBadges(s);
+        this.renderBadges(this.summary);
       });
     } else {
       this.state = next;
@@ -974,15 +978,22 @@ export class Cart {
 
   // The signed-in customer's perks (#514): what the totals already
   // apply, said so the customer knows why, as pricing labels with no
-  // end dates (#717, perk-label.js). A bundled perk's tooltip goes with
-  // the badges' (shutTips).
-  setPerks(perks) {
+  // end dates (#717, perk-label.js). Free delivery shows on its badge,
+  // with an info button when no bundle's tooltip explains it, and a
+  // buying group's `member` (/api/me's) has its line (#717, revised).
+  // The info buttons' tooltips go with the badges' (shutTips).
+  setPerks(perks, { member = null } = {}) {
     const note = qs(this.root, "[data-cart-perks]");
 
     if (!note) return;
     for (const tip of this.perkTips) tip.stop();
-    this.perkTips = drawPerks(note, perks);
+    this.perkTips = drawPerks(note, perks, { freeBadge: true, member });
     note.hidden = !note.childElementCount;
+
+    const badge = qs(this.root, "[data-badge='free-delivery']");
+    const info = badge && drawBadgeInfo(badge.closest("li"), perks);
+
+    if (info) this.perkTips.push(info);
   }
 
   // The outcome of a code the form applied: `text` and `tone` for the

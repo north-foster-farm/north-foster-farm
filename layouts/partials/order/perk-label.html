@@ -1,12 +1,20 @@
 {{/* A customer's perks as pricing labels (#717): the parts
-     order/cart/perk-label.js clones into the cart note and the account
-     page's "Your pricing" row. Here, not in the script, so PurgeCSS
-     keeps their classes. A bundled perk's line holds its label and an
-     info button; the standalone perks share a list, between the
-     discount badges' dots; a tooltip lists a bundle's parts. Once a
+     order/cart/perk-label.js clones into the cart note, the account
+     page's "Your pricing" row and the delivery terms. Here, not in the
+     script, so PurgeCSS keeps their classes. A bundled perk's line
+     holds its label and an info button; the standalone perks share a
+     list, between the discount badges' dots; a tooltip lists a
+     bundle's parts, or says its lines. `data-members` holds each buying
+     group's member line and tooltip (data/groups.json `perk`). Once a
      page. */}}
-<template id="perk-label-template">
+{{ $members := dict }}
+{{ range hugo.Data.groups.groups }}
+  {{ $key := .key }}
+  {{ with .perk }}{{ $members = merge $members (dict $key .) }}{{ end }}
+{{ end }}
+<template id="perk-label-template" data-members="{{ $members | jsonify }}">
   <span class="perk-bundle d-block" data-perk-bundle><span data-perk-name></span> <button type="button" class="perk-info">{{ partial "svg.html" (dict "src" "icons/info" "class" "perk-info-icon" "aria-hidden" "true" "focusable" "false") }}</button></span>
   <ul class="perk-labels" data-perk-labels><li class="perk-label" data-perk-label></li></ul>
   <ul class="perk-parts" data-perk-parts></ul>
+  <span class="perk-lines" data-perk-lines></span>
 </template>

@@ -143,7 +143,8 @@
           <dt>Where</dt>
           <dd>Check our delivery area {{ partial "order/map-link.html" "map" }}</dd>
           <dt>Cost</dt>
-          <dd>${{ $money.deliveryMinimum }} minimum, ${{ $money.deliveryFee }} delivery fee</dd>
+          {{/* Adapted to a signed-in account's perks (#717). */}}
+          <dd data-delivery-terms data-fee="{{ $money.deliveryFee }}" data-minimum="{{ $money.deliveryMinimum }}">${{ $money.deliveryMinimum }} minimum, ${{ $money.deliveryFee }} delivery fee</dd>
         </dl>
       </label>
       <p class="order-method-warn" data-delivery-short data-error-for="delivery.minimum" role="status" hidden></p>

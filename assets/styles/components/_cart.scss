@@ -1619,9 +1619,21 @@ $teach-starts: 0, 400, 1800, 2200, 3600, 4000;
   color: var(--bs-primary);
   vertical-align: -0.125em;
 
+  // In rem, so the button is the same size and shape wherever it
+  // sits, the delivery terms included (#717, revised).
   .perk-info-icon {
-    width: 1.0625em;
-    height: 1.0625em;
+    width: 1.0625rem;
+    height: 1.0625rem;
+  }
+
+  // On the home page's dark band, the band's own color.
+  .ways & {
+    color: inherit;
+  }
+
+  // Clear of the free delivery badge's italic last letter.
+  .order-cart-badges & {
+    margin-left: 0.125rem;
   }
 }
 
@@ -1657,4 +1669,16 @@ $teach-starts: 0, 400, 1800, 2200, 3600, 4000;
   line-height: 1.3;
   text-align: start;
   white-space: nowrap;
+}
+
+// A tooltip's lines, each on its own: the delivery terms, the member
+// line's and the free delivery badge's (#717, revised).
+.perk-lines {
+  display: block;
+  line-height: 1.3;
+  text-align: start;
+
+  > span {
+    display: block;
+  }
 }

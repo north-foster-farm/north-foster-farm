@@ -19,27 +19,41 @@ describe("perkLines", () => {
     }]);
   });
 
-  it("puts the standalone perks on one line, after the bundles", () => {
+  // The account row's call: in the cart the free delivery badge shows
+  // free delivery instead (#717, revised; e2e/perk-label.spec.mjs).
+  it("puts the standalone perks on one line", () => {
     assert.deepEqual(perkLines([
-      perk("free-delivery"), perk("family"), perk("minimum-waived"),
-    ]).map((line) => line.labels || line.text), [
-      "Family pricing", ["Free delivery", "No order minimum"],
+      perk("free-delivery"), perk("minimum-waived"),
+    ], { dates: true }).map((line) => line.labels || line.text), [
+      ["Free delivery", "No delivery minimum"],
     ]);
   });
 
+  // Its tooltip already lists them (#717, revised).
+  it("drops a standalone perk its bundle lists", () => {
+    assert.deepEqual(perkLines([
+      perk("free-delivery"), perk("family"), perk("minimum-waived"),
+    ]).map((line) => line.labels || line.text), ["Family pricing"]);
+  });
+
   it("keeps the end dates only when asked", () => {
-    const perks = [perk("family", "2027-12-31"), perk("free-delivery",
-      "2027-03-03")];
+    const perks = [perk("family", "2027-12-31")];
+    const alone = [perk("minimum-waived", "2027-03-03")];
 
     assert.deepEqual(perkLines(perks).map((l) => l.labels || l.text),
-      ["Family pricing", ["Free delivery"]]);
+      ["Family pricing"]);
     assert.deepEqual(
       perkLines(perks, { dates: true }).map((l) => l.labels || l.text),
-      ["Family pricing through the end of 2027",
-        ["Free delivery through March 3, 2027"]]
+      ["Family pricing through the end of 2027"]
     );
     assert.equal(perkLines(perks, { dates: true })[0].name,
       "Family pricing");
+    assert.deepEqual(perkLines(alone).map((l) => l.labels),
+      [["No delivery minimum"]]);
+    assert.deepEqual(
+      perkLines(alone, { dates: true }).map((l) => l.labels),
+      [["No delivery minimum through March 3, 2027"]]
+    );
   });
 
   it("shows nothing for no perks or an unknown one", () => {

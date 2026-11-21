@@ -418,6 +418,7 @@
         "e2e/payment-stacking.spec.mjs",
         "e2e/payment.spec.mjs",
         "e2e/perk-label.spec.mjs",
+        "e2e/perk-revision.spec.mjs",
         "e2e/picker-out.spec.mjs",
         "e2e/pickup-days-revision.spec.mjs",
         "e2e/pickup-days-status.spec.mjs",
@@ -684,6 +685,7 @@
         "e2e/onfarm-times.spec.mjs",
         "e2e/overflow.spec.mjs",
         "e2e/perk-label.spec.mjs",
+        "e2e/perk-revision.spec.mjs",
         "e2e/picker-out.spec.mjs",
         "e2e/pickup-days-revision.spec.mjs",
         "e2e/pickup-days-status.spec.mjs",
@@ -1165,6 +1167,14 @@
       ],
       "specs": [
         "e2e/perk-label.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/perk-revision.spec.mjs"
+      ],
+      "specs": [
+        "e2e/perk-revision.spec.mjs"
       ]
     },
     {

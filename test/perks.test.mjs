@@ -230,12 +230,12 @@ describe("perk wording (approved, 2026-11-21)", () => {
     assert.equal(perkSentence({ type: "free-delivery", end: null }),
       "Free delivery");
     assert.equal(perkSentence({ type: "minimum-waived", end: "2027-03-03" }),
-      "No order minimum through March 3, 2027");
+      "No delivery minimum through March 3, 2027");
   });
 
   it("names each perk as approved, with no end punctuation", () => {
     assert.equal(perkSentence({ type: "minimum-waived" }),
-      "No order minimum");
+      "No delivery minimum");
     assert.equal(perkSentence({ type: "friends" }),
       "Friends and family pricing");
     assert.equal(perkSentence({ type: "family" }), "Family pricing");

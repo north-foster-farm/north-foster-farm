@@ -83,17 +83,18 @@ export const publicPerk = (perk) => ({
 // parts; a later group that adds several discounts takes the same
 // form, with its own name and parts. A standalone perk is a badge of
 // its own.
+// "No delivery minimum" is from James's revision (#717, 2026-11-21).
 const NAMES = {
   "free-delivery": "Free delivery",
-  "minimum-waived": "No order minimum",
+  "minimum-waived": "No delivery minimum",
   friends: "Friends and family pricing",
   family: "Family pricing",
 };
 
 const PARTS = {
   friends: ["Friends and family discount", "Free delivery",
-    "No order minimum"],
-  family: ["Family discount", "Free delivery", "No order minimum"],
+    "No delivery minimum"],
+  family: ["Family discount", "Free delivery", "No delivery minimum"],
 };
 
 // A perk type's label, with no date: "Friends and family pricing".
@@ -124,21 +125,83 @@ export const perkSentence = (perk) => {
     : name;
 };
 
+const knownPerks = (perks) => (Array.isArray(perks) ? perks : [])
+  .filter((p) => p && PERKS[p.type]);
+
+// What the held bundles already lift, so their tooltips list it.
+const bundled = (known) => new Set(known
+  .filter((p) => perkParts(p.type)).flatMap((p) => PERKS[p.type].lifts));
+
+// A standalone perk a held bundle lists says nothing new (#717,
+// revised).
+const isCovered = (p, lifted) => PERKS[p.type].lifts
+  .every((lift) => lifted.has(lift));
+
 // What a customer's perks show as (#717), in the cart note and the
 // account page's "Your pricing" row: one line per bundled perk,
 // `{ text, name, parts }`, then the standalone perks on one line,
 // `{ labels }`, which the page separates with the discount badges'
-// dot. `dates` keeps each end date beside its label, as the account
-// row does; the cart shows none (James, on #717). Unknown types show
-// nothing.
-export const perkLines = (perks, { dates = false } = {}) => {
-  const known = (Array.isArray(perks) ? perks : [])
-    .filter((p) => p && PERKS[p.type]);
+// dot. A standalone perk a bundle lists is left out, and `freeBadge`
+// leaves out free delivery, which the cart's badge shows (James's
+// revision of #717). `dates` keeps each end date beside its label, as
+// the account row does; the cart shows none (James, on #717). Unknown
+// types show nothing.
+export const perkLines = (perks, {
+  dates = false, freeBadge = false,
+} = {}) => {
+  const known = knownPerks(perks);
+  const lifted = bundled(known);
   const text = (p) => (dates ? perkSentence(p) : perkName(p.type));
   const bundles = known.filter((p) => perkParts(p.type)).map((p) => ({
     text: text(p), name: perkName(p.type), parts: perkParts(p.type),
   }));
-  const labels = known.filter((p) => !perkParts(p.type)).map(text);
+  const labels = known.filter((p) => !perkParts(p.type))
+    .filter((p) => !isCovered(p, lifted))
+    .filter((p) => !(freeBadge && p.type === "free-delivery"))
+    .map(text);
 
   return labels.length ? [...bundles, { labels }] : bundles;
+};
+
+// What the info button beside the cart's free delivery badge says,
+// when free delivery is the account's and no bundle's tooltip
+// explains it (#717, revised; wording James's, approved final), or
+// null for no button.
+export const BADGE_TIP = "Your account receives free delivery on all orders.";
+
+export const freeBadgeTip = (perks) => {
+  const known = knownPerks(perks);
+
+  return known.some((p) => p.type === "free-delivery")
+    && !bundled(known).has("fee") ? BADGE_TIP : null;
+};
+
+// The delivery terms for an account whose perks change the fee or the
+// minimum, where the site states the two together (#717, "Delivery
+// terms for perk customers"; wording James's, approved final), or
+// null when they change neither and the page stays as built. `fee` and
+// `minimum` are the dollar amounts the page states, from
+// data/delivery.json. -> { text, tip }: the terms that apply, and the
+// tooltip's lines, the usual terms first.
+export const deliveryTerms = (perks, { fee, minimum }) => {
+  const lifts = perkEffects(knownPerks(perks).map((p) => p.type));
+
+  if (!lifts.fee && !lifts.minimum) return null;
+
+  const usually = `Usually $${fee} fee, $${minimum} minimum.`;
+
+  if (lifts.fee && lifts.minimum) {
+    return {
+      text: "Free delivery, no minimum",
+      tip: [usually, "Your account receives free delivery with no minimum."],
+    };
+  }
+
+  return lifts.fee ? {
+    text: `Free delivery, $${minimum} minimum`,
+    tip: [usually, "Your account receives free delivery."],
+  } : {
+    text: `$${fee} delivery, no minimum`,
+    tip: [usually, "Your account has no delivery minimum."],
+  };
 };
