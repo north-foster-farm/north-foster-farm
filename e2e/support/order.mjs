@@ -2,6 +2,8 @@
 // starts from a fresh browser context, so the draft in localStorage
 // never leaks between tests, and with its own stock pins (#507).
 
+import { readFileSync } from "node:fs";
+
 import { recorded } from "../../netlify/functions/lib/fake.mjs";
 import { test as base, expect } from "./counted.mjs";
 import { orderLimitHeaders } from "./staging.mjs";
@@ -209,6 +211,37 @@ export const pickupValues = (page) => pickupRadios(page)
 export const pickupChosen = (page) => page.locator(
   "#scheduled-pickups input:checked"
 );
+
+// The order placed panel's lists (#723): the list after a section's
+// label ("Order summary", "Receiving your order"), and its one row
+// whose label matches `name` ("Order number", /pick-?up address/i).
+export const placedList = (card, name) => card
+  .getByText(new RegExp(`^\\s*${name}:?\\s*$`, "i"))
+  .locator("xpath=(following::ul | following::ol)[1]");
+export const placedRow = (list, name) => list.locator("li")
+  .filter({ hasText: name });
+
+const readJson = (name) => JSON.parse(readFileSync(
+  new URL(`../../data/${name}.json`, import.meta.url), "utf8"
+));
+
+// A place's street as a pattern: in full ("46 Institute Lane") or as
+// the first part of its short form ("46 Institute Ln").
+export const streetOf = (place) => {
+  const escape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const forms = [place.street, (place.short || "").split(",")[0]]
+    .filter(Boolean);
+
+  return new RegExp(forms.map(escape).join("|"));
+};
+
+// A series' street, from data/series.json and data/locations.json.
+export const seriesStreet = (code) => {
+  const series = readJson("series").series.find((s) => s.code === code);
+
+  return streetOf(readJson("locations").locations
+    .find((l) => l.code === series.location));
+};
 
 export class OrderPage {
   constructor(page) {

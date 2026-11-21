@@ -2228,6 +2228,50 @@ export class OrderForm {
     return `${entry.window}, at ${place}`;
   }
 
+  // The placed panel's rows (#723). The order type is the way's title
+  // as its card on the form shows it; a draft saved before scheduled
+  // pickup (`scituate`) is a pickup day.
+  orderType(f) {
+    const way = f.method === "scituate" ? "scheduled" : f.method;
+    const title = document.getElementById(`method-${way}-title`);
+
+    return title ? title.textContent.trim() : "";
+  }
+
+  // "Saturday, November 22, 10:00 – 11:00 AM": the day, then the
+  // pickup's window or the delivery's.
+  dateTime(f) {
+    const date = fulfilmentDate(f, (id) => this.dates.occurrence(id));
+    const entry = f.method === "scheduled"
+      && this.dates.occurrence(f.occurrence);
+    const times = f.method === "onfarm" && f.onfarm
+      && pickupTimes(f.onfarm);
+    const time = {
+      delivery: this.terms.delivery && this.terms.delivery.window,
+      onfarm: times && windowLabel(times),
+      scheduled: entry && entry.window,
+      scituate: this.drop.window,
+    }[f.method];
+
+    return [date && label(date), time].filter(Boolean).join(", ");
+  }
+
+  // Where a pickup is handed over: the farm's address (from the row,
+  // data/company.json) or the occurrence's location's street. None
+  // for a delivery.
+  pickupAddress(f, row) {
+    if (f.method === "onfarm") return row.dataset.farm;
+
+    const entry = f.method === "scheduled"
+      ? this.dates.occurrence(f.occurrence)
+      : f.method === "scituate" && this.drop;
+    const loc = entry && this.terms.model.location(entry.location);
+
+    if (loc) return [loc.street, loc.city, loc.state].join(", ");
+
+    return entry ? entry.short || entry.place || "" : "";
+  }
+
   summaryText(payload) {
     const totals = this.totals();
     const lines = payload.lines.map((line) => {
@@ -2269,11 +2313,22 @@ export class OrderForm {
       fill("total", dollars(data.totals.total));
       fill("orderId", data.orderId);
       fill("how", this.paidWith(data.payment));
-      fill("when", this.when(data.fulfilment));
+      fill("type", this.orderType(data.fulfilment));
+      fill("dateTime", this.dateTime(data.fulfilment));
 
-      const account = qs(node, "[data-out='account']");
+      // A delivery has no pick-up address: the row goes, not hidden.
+      const row = qs(node, "[data-out='addressRow']");
+      const address = row && this.pickupAddress(data.fulfilment, row);
 
-      if (account) account.hidden = this.isSignedIn;
+      if (address) {
+        fill("address", address);
+      } else if (row) {
+        row.remove();
+      }
+
+      const signIn = qs(node, "[data-out='signIn']");
+
+      if (signIn) signIn.hidden = this.isSignedIn;
 
       const receipt = qs(node, "[data-out='receiptUrl']");
 

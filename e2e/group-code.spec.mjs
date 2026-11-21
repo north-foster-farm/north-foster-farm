@@ -7,8 +7,8 @@
 
 import { normalizeCode } from "../assets/scripts/order/lib/validate.mjs";
 import {
-  OrderPage, expect, paymentFakes as fakes, pickupValues, test,
-  uniqueEmail,
+  OrderPage, expect, paymentFakes as fakes, pickupValues, placedList,
+  placedRow, seriesStreet, test, uniqueEmail,
 } from "./support/order.mjs";
 import { backOffice, op } from "./support/staging.mjs";
 
@@ -93,7 +93,11 @@ test.describe("a buying group's code (#471)", () => {
       expect(status, JSON.stringify(body)).toBe(200);
       expect(body.fulfilment.occurrence).toBe(round);
       await expect(order.result).toBeVisible();
-      await expect(order.result).toContainText(GYM);
+      // The panel gives the gym's street as the pick-up address (#723).
+      await expect(placedRow(
+        placedList(order.result, "Receiving your order"),
+        /pick-?\s?up address/i
+      )).toContainText(seriesStreet(SERIES));
 
       // The record carries the tag.
       const { order: placed } = await op("orderShow", { id: body.orderId });

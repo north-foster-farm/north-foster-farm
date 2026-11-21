@@ -1531,15 +1531,39 @@
     margin-bottom: 1rem;
   }
 
+  // The check on an egg (#723): the figure's egg (_figure.scss), wide
+  // at the top and narrow at the foot, upright beside the headline.
   .order-result-mark {
     flex: none;
     display: grid;
     place-items: center;
     width: 2.5rem;
-    height: 2.5rem;
-    border-radius: 50%;
+    aspect-ratio: 3 / 4;
+    border-radius: 50% / 58% 58% 42% 42%;
     background-color: var(--bs-success);
     color: #fff;
+  }
+
+  // "Order summary" and "Receiving your order", each over its list.
+  .order-result-label {
+    margin-bottom: 0.375rem;
+    font-size: 1rem;
+    font-weight: bold;
+  }
+
+  .order-result-list {
+    margin-bottom: 1rem;
+    padding-left: 1.25rem;
+
+    li + li {
+      margin-top: 0.25rem;
+    }
+  }
+
+  // The Instagram line, after the questions line and quieter than it.
+  .order-result-follow {
+    font-size: 0.875rem;
+    color: var(--bs-secondary-color);
   }
 
   .order-result-failed {

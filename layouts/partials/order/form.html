@@ -106,37 +106,53 @@
       <div class="order-result-mark" aria-hidden="true">
         {{ partial "svg.html" (dict "src" "icons/check" "width" "28" "height" "28") }}
       </div>
-      <h2 class="h3 mb-0">Thank you, <span data-out="name"></span>. Your order is placed.</h2>
+      <h2 class="h3 my-0">Thank you, <span data-out="name"></span>. Your order is placed.</h2>
     </div>
+    {{- /* Draft wording, James's (#723); communications tightens it.
+         The section labels and the rows are labels: no end
+         punctuation (#400). */}}
     <div data-out="details">
       <p>
-        <strong data-out="total"></strong> paid with
-        <strong data-out="how"></strong>.
         A confirmation is on its way to <strong data-out="email"></strong>.
+        {{- if site.Params.features.accounts }}
+        {{- /* Hidden for a customer signed in. */}}
+        <span data-out="signIn">
+          To view or change your order,
+          <a href="{{ relURL "login/" }}">sign in</a> using your email
+          address.
+        </span>
+        {{- end }}
       </p>
-      {{- if site.Params.features.accounts }}
-      {{- /* Wording approved (#114). Hidden for a customer signed in. */}}
-      <p data-out="account">
-        Your email address is your account with us.
-        <a href="{{ relURL "login/" }}">Sign in</a> any time with a link we
-        email you. There's no password.
-      </p>
-      {{- end }}
-      <p data-out="when"></p>
-      <p>
-        Your order number is <strong data-out="orderId"></strong>.
-        Have it handy if you need to ask us about this order.
-      </p>
-      <p>
-        <a data-out="receiptUrl" href="#" target="_blank" rel="noopener">View your receipt</a>
-      </p>
+      <h3 class="order-result-label">Order summary</h3>
+      <ul class="order-result-list">
+        <li>Order number: <strong data-out="orderId"></strong></li>
+        <li>
+          Payment details: <strong data-out="total"></strong> paid with
+          <strong data-out="how"></strong>
+        </li>
+        <li>
+          <a data-out="receiptUrl" href="#" target="_blank" rel="noopener">View your receipt</a>
+        </li>
+      </ul>
+      <h3 class="order-result-label">Receiving your order</h3>
+      <ul class="order-result-list">
+        <li>Order type: <strong data-out="type"></strong></li>
+        {{- /* Pickups only; the farm's own address for an on-farm
+             pickup, the occurrence's location's otherwise. */}}
+        {{- with hugo.Data.company.address }}
+        <li data-out="addressRow" data-farm="{{ .street }}, {{ .city }}, {{ .state }}">
+          Pick-up address: <strong data-out="address"></strong>
+        </li>
+        {{- end }}
+        <li>Date and time: <strong data-out="dateTime"></strong></li>
+      </ul>
     </div>
     <p>
+      Questions? Email us at <a href="mailto:{{ hugo.Data.company.email }}">{{ hugo.Data.company.email }}</a>.
+    </p>
+    <p class="order-result-follow mb-0">
       Follow us on <a href="{{ hugo.Data.socialMedia.instagram.url }}" target="_blank" rel="noopener">Instagram</a>
       for news from the farm between orders.
-    </p>
-    <p class="mb-0 text-body-secondary">
-      Questions? Email us at <a href="mailto:{{ hugo.Data.company.email }}">{{ hugo.Data.company.email }}</a>
     </p>
   </div>
 </template>

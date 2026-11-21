@@ -6,8 +6,10 @@
 // Square sandbox test cards: 4111 1111 1111 1111 is approved;
 // 4000 0000 0000 0002 is declined.
 
+import company from "../data/company.json" with { type: "json" };
 import {
-  OrderPage, TEST_CARD, expect, paidCard, test, uniqueEmail,
+  OrderPage, TEST_CARD, expect, paidCard, placedList, placedRow,
+  seriesStreet, streetOf, test, uniqueEmail,
 } from "./support/order.mjs";
 import {
   BACK_OFFICE_MISSING, backOffice, clearMail, closeOrder, deleteCustomer,
@@ -73,15 +75,21 @@ test.describe("payments", () => {
       .toHaveText(paid.how);
     await expect(card.locator("[data-out='email']")).toHaveText(email);
     await expect(card.locator("[data-out='orderId']")).toHaveText(ORDER_ID);
-    await expect(card.locator("[data-out='when']")).toHaveText(
-      /, \d{1,2}:\d{2}( AM| PM)? – \d{1,2}:\d{2} (AM|PM), at the farm\.$/
+    // Receiving your order (#723): the date and the window, and the
+    // farm's street as the pick-up address.
+    const receiving = placedList(card, "Receiving your order");
+
+    await expect(placedRow(receiving, /date and time/i)).toHaveText(
+      /\d{1,2}:\d{2}( AM| PM)? – \d{1,2}:\d{2} (AM|PM)$/
     );
+    await expect(placedRow(receiving, /pick-?\s?up address/i))
+      .toContainText(streetOf(company.address));
     // The fake driver has no receipt, and the sandbox's opens Page not
     // found, so the card shows none (#441).
     await expect(card.locator("[data-out='receiptUrl']")).toBeHidden();
-    // Signed out, the card says the email is an account (#114).
-    await expect(card.locator("[data-out='account']")).toBeVisible();
-    await expect(card.locator("[data-out='account'] a"))
+    // The confirmation line links to sign in (#723, was #114's
+    // account paragraph).
+    await expect(card.getByRole("link", { name: /^sign in$/i }))
       .toHaveAttribute("href", /\/login\/$/);
     // The header's cart count goes with the cart (#166).
     await expect(page.locator(".site-order [data-cart-badge]")).toBeHidden();
@@ -155,10 +163,12 @@ test.describe("payments", () => {
 
     expect(status, JSON.stringify(body)).toBe(200);
     made.push(body.orderId);
-    await expect(order.result.locator("[data-out='when']"))
-      .toContainText(`at ${entry.name}.`);
-    await expect(order.result.locator("[data-out='when']"))
-      .not.toContainText("the drop site");
+    // The panel gives the market's street, not the drop site (#723).
+    const receiving = placedList(order.result, "Receiving your order");
+
+    await expect(placedRow(receiving, /pick-?\s?up address/i))
+      .toContainText(seriesStreet(entry.series));
+    await expect(receiving).not.toContainText("the drop site");
 
     const record = await orderRecord(body.orderId);
 
@@ -223,10 +233,15 @@ test.describe("payments", () => {
       const out = (name) => order.result.locator(`[data-out='${name}']`);
 
       await expect(out("total")).toHaveText("$50");
-      await expect(out("when")).toHaveText(
-        /, delivered to 12 Test Road\.$/
-      );
-      await expect(out("account")).toBeHidden();
+      // A delivery lists no pick-up address (#723).
+      const receiving = placedList(order.result, "Receiving your order");
+
+      await expect(placedRow(receiving, /order type/i))
+        .toContainText("Delivery");
+      await expect(placedRow(receiving, /pick-?\s?up address/i))
+        .toHaveCount(0);
+      await expect(placedRow(receiving, /date and time/i))
+        .toContainText(/\d{1,2}:\d{2}/);
 
       const record = await orderRecord(body.orderId);
 
