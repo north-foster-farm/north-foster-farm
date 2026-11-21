@@ -1,0 +1,112 @@
+{
+  "_source": {
+    "service": "paypal",
+    "environment": "production",
+    "recorded": "2026-11-21",
+    "by": "bin/fixtures/record, scrubbed by bin/fixtures/scrub"
+  },
+  "status": 201,
+  "request": {
+    "method": "POST",
+    "path": "/v2/checkout/orders/ORDER_ID_3/capture",
+    "headers": {
+      "content-type": "application/json",
+      "paypal-request-id": "PAYPAL_REQUEST_ID_4"
+    },
+    "body": {}
+  },
+  "response": {
+    "id": "ORDER_ID_3",
+    "status": "COMPLETED",
+    "payment_source": {
+      "venmo": {
+        "email_address": "customer-2@example.com",
+        "account_id": "ACCOUNT_ID_1",
+        "name": {
+          "given_name": "Given",
+          "surname": "Surname"
+        },
+        "address": {
+          "country_code": "US"
+        }
+      }
+    },
+    "purchase_units": [
+      {
+        "reference_id": "CUSTOM_ID_1",
+        "payments": {
+          "captures": [
+            {
+              "id": "CAPTURE_ID_1",
+              "status": "COMPLETED",
+              "amount": {
+                "currency_code": "USD",
+                "value": "5.00"
+              },
+              "final_capture": true,
+              "seller_protection": {
+                "status": "ELIGIBLE",
+                "dispute_categories": [
+                  "ITEM_NOT_RECEIVED",
+                  "UNAUTHORIZED_TRANSACTION"
+                ]
+              },
+              "seller_receivable_breakdown": {
+                "gross_amount": {
+                  "currency_code": "USD",
+                  "value": "5.00"
+                },
+                "paypal_fee": {
+                  "currency_code": "USD",
+                  "value": "0.66"
+                },
+                "net_amount": {
+                  "currency_code": "USD",
+                  "value": "4.34"
+                }
+              },
+              "custom_id": "CUSTOM_ID_1",
+              "links": [
+                {
+                  "href": "https://api.paypal.com/v2/payments/captures/CAPTURE_ID_1",
+                  "rel": "self",
+                  "method": "GET"
+                },
+                {
+                  "href": "https://api.paypal.com/v2/payments/captures/CAPTURE_ID_1/refund",
+                  "rel": "refund",
+                  "method": "POST"
+                },
+                {
+                  "href": "https://api.paypal.com/v2/checkout/orders/ORDER_ID_3",
+                  "rel": "up",
+                  "method": "GET"
+                }
+              ],
+              "create_time": "2026-11-21T09:04:12Z",
+              "update_time": "2026-11-21T09:04:12Z"
+            }
+          ]
+        }
+      }
+    ],
+    "payer": {
+      "name": {
+        "given_name": "Given",
+        "surname": "Surname"
+      },
+      "email_address": "customer-2@example.com",
+      "payer_id": "ACCOUNT_ID_1",
+      "address": {
+        "country_code": "US"
+      }
+    },
+    "links": [
+      {
+        "href": "https://api.paypal.com/v2/checkout/orders/ORDER_ID_3",
+        "rel": "self",
+        "method": "GET"
+      }
+    ]
+  }
+}
