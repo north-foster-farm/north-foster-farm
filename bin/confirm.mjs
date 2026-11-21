@@ -38,6 +38,9 @@ const DESTRUCTIVE = {
   // What a customer pays from now on (#514).
   "perks add": { does: "grant a perk to" },
   "perks remove": { does: "end a perk of" },
+  // A link that grants a perk to whoever follows it (#718).
+  "invite add": { does: "make an invite link for the perk" },
+  "invite revoke": { does: "revoke the invite" },
   // Replacing the code kills the link the host handed out (#471).
   "groups code": { does: "replace the code of the group" },
   "groups set": { does: "change the host of the group" },

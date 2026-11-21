@@ -169,6 +169,9 @@ const SQUARE_CALLS = {
     email: "customer@example.com", firstName: "Pat", lastName: "Fixture",
     phone: "",
   }, "NFM-ABCD-EFGH", o),
+  setCustomerEmail: (o) => square.setCustomerEmail(
+    "CUSTOMER_ID_1", "customer@example.com", o
+  ),
 };
 
 const PAYPAL_CALLS = {

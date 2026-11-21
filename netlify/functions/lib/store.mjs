@@ -25,8 +25,10 @@ import { ORDER_ID } from "./order-id.mjs";
 
 // `recordings` holds the PayPal recorder's window and records (#708,
 // lib/recorder.mjs): private, never backed up, and pruned after 7 days.
+// `invites` holds the farm's invite links (#718, lib/invites.mjs).
 export const STORES = [
   "orders", "customers", "auth", "stock", "jobs", "gate", "recordings",
+  "invites",
 ];
 
 // Netlify sets CONTEXT at build time only; a function sees nothing of

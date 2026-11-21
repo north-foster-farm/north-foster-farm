@@ -306,6 +306,19 @@ Square as a zero order, with no payment on the record.
 holds the Friends and Fam amounts, and the Square order's metadata
 carries `perk`.
 
+A customer the farm knows only from Square gets a perk through an
+invite link (#718): `bin/nff invite add <perk>` prints a single-use
+link to /invite/, open 14 days, which James sends himself. The page
+asks for an email address and mails a sign-in link there; following
+it puts the perk on that account, new or existing, if the invite is
+still open at that moment, and uses it up. The link is the proof, so
+a typed address still grants nothing (#521). `--square <id>` puts the
+account's address on that Square customer when the invite is used,
+so the site's orders find the profile, and keeps the id on the record
+as `squareCustomerId`. Invites live in the `invites` store
+(`lib/invites.mjs`), each with only a hash of its token; `invite
+list` and `invite revoke` manage them.
+
 A buying group's member price (#471, `priceLock` in `data/groups.json`)
 is not a discount today: the member prices are the retail prices of
 the day they were set. A member pays the lower of the member price

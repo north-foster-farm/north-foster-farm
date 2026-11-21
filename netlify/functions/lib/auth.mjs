@@ -11,6 +11,8 @@
 //   rate/<email>            { times: [...] }             link requests
 //   rate/join/<email>       { times: [...] }    join-link requests, kept
 //                           apart so they never stop a sign-in (#495)
+//   rate/invite/<email>     { times: [...] }    invite-link requests, the
+//                           same (#718)
 //
 // Links and sessions are written and deleted through lib/auth-records,
 // which keeps each one's index key under its address (#508).
@@ -135,6 +137,7 @@ export const requestLink = async (stores, { email, next, cart }, {
   ttl = LINK_TTL,
   changeFrom = null,
   join = null,
+  invite = null,
 } = {}) => {
   const address = normalizeEmail(email);
 
@@ -144,9 +147,10 @@ export const requestLink = async (stores, { email, next, cart }, {
     // Real time: a tester's clock must not reopen the limit. A group's
     // sign-up page counts in its own bucket: anyone with the QR code
     // can ask for links to an address, and that must never use up the
-    // owner's sign-in links (#495).
+    // owner's sign-in links (#495). An invite page's, the same (#718).
     const at = real(now).getTime();
-    const bucket = join ? `rate/join/${address}` : `rate/${address}`;
+    const bucket = join ? `rate/join/${address}`
+      : invite ? `rate/invite/${address}` : `rate/${address}`;
     const limited = await hit(stores, bucket, at, {
       windowMs: LINK_WINDOW, max: LINKS_PER_WINDOW,
     });
@@ -155,8 +159,9 @@ export const requestLink = async (stores, { email, next, cart }, {
   }
 
   const token = secret();
-  // A change of address or a group's sign-up carries no cart.
-  const carried = changeFrom || join ? null : carryOf(cart);
+  // A change of address, a group's sign-up or an invite carries no
+  // cart.
+  const carried = changeFrom || join || invite ? null : carryOf(cart);
 
   await putAuth(stores, `token/${hash(token)}`, {
     email: address,
@@ -167,6 +172,10 @@ export const requestLink = async (stores, { email, next, cart }, {
     // A group's sign-up page (#495): following the link joins the
     // group, by lib/join.mjs. Its `group` is the key, never the token.
     ...(join ? { join: join.record } : {}),
+    // An invite (#718): its id and the hash of its token, never the
+    // token. Following the link gives the perk if the invite is still
+    // open then (lib/invites.mjs finishInvite).
+    ...(invite ? { invite } : {}),
     ...(carried ? { cart: carried } : {}),
   });
 
@@ -216,6 +225,7 @@ const tokenResult = (found) => ({
   next: found.next || "/account/",
   changeFrom: found.changeFrom || null,
   ...(found.join ? { join: found.join } : {}),
+  ...(found.invite ? { invite: found.invite } : {}),
   ...(found.cart ? { cart: found.cart } : {}),
 });
 

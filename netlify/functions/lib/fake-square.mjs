@@ -444,6 +444,15 @@ export const inventoryCounts = async () => null;
 // No customers here to rename.
 export const renameCustomerEmail = async () => [];
 
+// An invite's Square customer given the account's address (#718): the
+// recording of exactly that PUT (sandbox, 2026-10-29), with the id
+// asked about put in.
+export const setCustomerEmail = async (customerId) => {
+  const shape = answer("customer-update").response.customer;
+
+  return { customerId: customerView({ ...shape, id: customerId }).customerId };
+};
+
 // A member's code on their profile (#131). The fake keeps no profiles
 // but the references it has been told, by address, in this process: an
 // address it has not seen has no profile yet, so the first call makes
