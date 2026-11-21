@@ -95,8 +95,9 @@ const PLACES = [
 // line (#717, "Village Family Fitness member", wording approved final).
 const VFF = groupData.groups.find((g) => g.key === "vff");
 const VFF_LINE = "Village Family Fitness member";
-const VFF_TIP = "Member pricing through 2027, access to group orders, " +
-  "and pickup at the gym on delivery days.";
+// Revised for #749 (James, 2026-11-21 14:38 ET): gym delivery left the
+// release, so the tip names group orders only.
+const VFF_TIP = "Member pricing through 2027 and access to group orders.";
 // What /api/me adds for a member (netlify/functions/auth.mjs).
 const MEMBER = {
   member: { key: VFF.key, name: VFF.name, credit: 0 }, membership: true,
@@ -511,8 +512,8 @@ test.describe("perks, revised (#717, James, 2026-11-21)", () => {
 
   test("A Village Family Fitness member sees the perk line \"Village " +
     "Family Fitness member\" with the info button, whose tooltip reads " +
-    "\"Member pricing through 2027, access to group orders, and pickup " +
-    "at the gym on delivery days.\"; a non-member does not", async ({
+    "\"Member pricing through 2027 and access to group orders.\" in " +
+    "the cart and on the account page; a non-member does not", async ({
     page, baseURL,
   }, testInfo) => {
     const places = [
