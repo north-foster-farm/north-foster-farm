@@ -99,10 +99,11 @@ let stamps = 0;
 // Signed in with `me` as /api/me's answer (signed out with null), the
 // dates canned (`lists`, canned.mjs `dates()` by default) and, for a
 // member, /api/group answered for `now`. `orders` is the account's
-// list. Each sign-in takes a new session stamp, as #717's spec does,
-// so the session's cache never answers with the last test's account.
+// list, and `group` /api/group's answer (groupAnswer(now) by default).
+// Each sign-in takes a new session stamp, as #717's spec does, so the
+// session's cache never answers with the last test's account.
 export const signIn = async (page, baseURL, me, {
-  orders = [], lists = dates(), now = new Date(),
+  orders = [], lists = dates(), now = new Date(), group = groupAnswer(now),
 } = {}) => {
   await page.goto("about:blank");
   await page.unrouteAll({ behavior: "ignoreErrors" });
@@ -122,7 +123,7 @@ export const signIn = async (page, baseURL, me, {
   }));
   if (me.customer && me.customer.memberGroup) {
     await page.route("**/api/group", (route) => route.fulfill({
-      json: groupAnswer(now),
+      json: group,
     }));
   }
 };
