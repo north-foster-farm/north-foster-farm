@@ -30,8 +30,12 @@
 //   page's: on /login/, the same kind of form (the field and button in
 //   one row, then nothing) on the same section and container. The gap
 //   is measured from the bottom of the field and button's row to the
-//   top of the footer, on both pages at the same width, within 4 px
-//   (an empty error line under the row, 0.25 rem, may sit on either);
+//   bottom of main's first section (`main section`), on both pages at
+//   the same width, within 4 px (an empty error line under the row,
+//   0.25 rem, may sit on either). Not to the footer: both pages sit on
+//   main's minimum height (#343), so the space above the footer holds
+//   filler that differs with each page's length (2026-11-21, the
+//   invite lane's finding on #718 box 2);
 // - "in view and focused" after a send: #invite-sent's border box lies
 //   inside the viewport, and document.activeElement is #invite-sent or
 //   inside it. Before the send the page is scrolled to its bottom, as
@@ -109,14 +113,14 @@ const measure = (el) => {
 
 const center = (b) => (b.top + b.bottom) / 2;
 
-// The gap from the bottom of a field and its button's row to the top
-// of the footer.
+// The gap from the bottom of a field and its button's row to the
+// bottom of main's first section.
 const gapBelow = (field, button) => field.evaluate((el, btn) => {
   const rowBottom = Math.max(el.getBoundingClientRect().bottom,
     btn.getBoundingClientRect().bottom);
-  const footer = document.querySelector("footer.site-footer");
+  const section = document.querySelector("main section");
 
-  return footer.getBoundingClientRect().top - rowBottom;
+  return section.getBoundingClientRect().bottom - rowBottom;
 }, button);
 
 test.describe("invite page staging review changes (#718)", () => {
