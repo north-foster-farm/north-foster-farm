@@ -18,9 +18,6 @@
 //
 // Fixtures are found by what they recorded (method, path, status), not
 // by file name, since the scrubber names them.
-//
-// Held out of `npm test` (the glob is *.test.mjs) until the swap lands:
-//   node --import ./test/setup.mjs --test test/fake-paypal.criteria.mjs
 
 import assert from "node:assert/strict";
 import {

@@ -323,7 +323,12 @@ export const createOrder = async (order, key, {
   return { paypalOrderId: data.id };
 };
 
-const captureOf = (data) => {
+// PayPal's answers, read into ours. Exported for fake-paypal.mjs, which
+// reads its recordings of PayPal through the same code (#708).
+
+// A captured order -> { paypalOrderId, paypalCaptureId, status, amount,
+// payer }, or null when it holds no capture.
+export const captureOf = (data) => {
   const unit = (data.purchase_units || [])[0] || {};
   const capture = ((unit.payments || {}).captures || [])[0] || null;
   const payer = data.payer || {};
@@ -346,6 +351,21 @@ const captureOf = (data) => {
     : null;
 };
 
+// An order read -> { status, updatedAt, capture }.
+export const orderOf = (data) => ({
+  status: data.status,
+  updatedAt: data.update_time || data.create_time || null,
+  capture: captureOf(data),
+});
+
+// A refund made or read -> { paypalRefundId, status, amount }, the
+// amount asked for when PayPal's answer gives none.
+export const refundOf = (data, asked) => ({
+  paypalRefundId: data.id,
+  status: data.status,
+  amount: data.amount ? Math.round(Number(data.amount.value) * 100) : asked,
+});
+
 export const getOrder = async (paypalOrderId, {
   env = process.env,
   fetchImpl = globalThis.fetch,
@@ -362,11 +382,7 @@ export const getOrder = async (paypalOrderId, {
       recordings: recordingsFor(env, recordings) }
   );
 
-  return {
-    status: data.status,
-    updatedAt: data.update_time || data.create_time || null,
-    capture: captureOf(data),
-  };
+  return orderOf(data);
 };
 
 // Takes the money the customer approved. An order already captured
@@ -439,11 +455,7 @@ export const refundCapture = async ({
     }, { fetchImpl, now, requestId: `${key}-refund`,
       recordings: recordingsFor(env, recordings) });
 
-  return {
-    paypalRefundId: data.id,
-    status: data.status,
-    amount: data.amount ? Math.round(Number(data.amount.value) * 100) : amount,
-  };
+  return refundOf(data, amount);
 };
 
 // One refund, by id, for the check that every refund settled (#215).
@@ -461,11 +473,7 @@ export const getRefund = async (paypalRefundId, {
     null, { fetchImpl, now, method: "GET",
       recordings: recordingsFor(env, recordings) });
 
-  return {
-    paypalRefundId: data.id,
-    status: data.status,
-    amount: data.amount ? Math.round(Number(data.amount.value) * 100) : 0,
-  };
+  return refundOf(data, 0);
 };
 
 // PayPal signs each webhook delivery; the verification is a call back

@@ -20,10 +20,6 @@
 // recording's: the same keys, nesting and header names, and its values
 // where the fake has no reason to differ (an amount breakdown may be
 // any money string).
-//
-// Held out of `npm test` (the glob is *.test.mjs) until the swap lands:
-//   node --import ./test/setup.mjs --test \
-//     test/fake-paypal-webhook.criteria.mjs
 
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";

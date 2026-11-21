@@ -13,10 +13,6 @@
 // to no hand-written PayPal answer: no literal PayPal order, capture or
 // refund id (paypalOrderId, paypalCaptureId, paypalRefundId) set to a
 // quoted string.
-//
-// Held out of `npm test` (the glob is *.test.mjs) until the swap lands:
-//   node --import ./test/setup.mjs --test \
-//     test/venmo-paid-fixtures.criteria.mjs
 
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";

@@ -14,10 +14,6 @@
 // and digits, or an EC- token). The test cannot know the payer's real
 // values, and must never hold them; reading each file by eye before it
 // is committed covers those.
-//
-// Held out of `npm test` (the glob is *.test.mjs) until the fixtures
-// land:
-//   node --import ./test/setup.mjs --test test/paypal-fixtures.criteria.mjs
 
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";

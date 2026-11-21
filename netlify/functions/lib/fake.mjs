@@ -12,7 +12,7 @@
 // orders without money.
 
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
 import { deployContext } from "./store.mjs";
@@ -69,4 +69,27 @@ export const recorded = (service, name) => {
     throw new Error(`No recorded ${service} answer "${name}" (${
       error.code}); run bin/fixtures/record`, { cause: error });
   }
+};
+
+// The first recorded exchange of a service that `matches`, found by
+// what it recorded rather than by name, since the recorder names its
+// files for the time and path (#708). Only files with a request count.
+// -> a fresh copy of the whole file, as recorded() gives.
+export const recordedWhere = (service, what, matches) => {
+  const dir = process.env.FIXTURES_DIR
+    ? join(process.env.FIXTURES_DIR, service)
+    : new URL(`../../../test/fixtures/${service}/`, import.meta.url);
+  let names = [];
+
+  try {
+    names = readdirSync(dir);
+  } catch {
+    // No folder: the same answer as no match.
+  }
+  for (const name of names.filter((n) => n.endsWith(".json")).sort()) {
+    const json = recorded(service, name.slice(0, -".json".length));
+
+    if (json.request && matches(json)) return json;
+  }
+  throw new Error(`No recorded ${service} ${what}; run bin/fixtures/record`);
 };
