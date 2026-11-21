@@ -337,15 +337,17 @@ test.describe("a scheduled pickup on the account page", () => {
     const form = page.locator(".account-panel-form");
     const radio = (d) => form.locator(`input[type='radio'][value='${
       d.occurrence}']`);
-    const booked = form.locator(".order-pickup")
-      .filter({ has: radio(m) });
+    const booked = form.locator(
+      `.order-pickup:has(input[value='${m.occurrence}'])`
+    );
 
     await expect(radio(m)).toBeChecked();
     for (const d of dates().scheduled) {
       await expect(radio(d)).toHaveCount(1);
     }
-    await expect(form.locator(".order-pickup-day").filter({ has: booked })
-      .getByRole("heading")).toHaveText(m.label);
+    await expect(form.locator(
+      `.order-pickup-day:has(input[value='${m.occurrence}'])`
+    ).getByRole("heading")).toHaveText(m.label);
     await expect(booked.locator(".order-pickup-time")).toHaveText(m.window);
     await expect(booked.locator(".order-pickup-name"))
       .toContainText("Canned Market");
