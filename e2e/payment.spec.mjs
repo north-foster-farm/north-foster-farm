@@ -233,6 +233,10 @@ test.describe("payments", () => {
       const out = (name) => order.result.locator(`[data-out='${name}']`);
 
       await expect(out("total")).toHaveText("$50");
+      // Signed in, the confirmation line leaves out its "sign in" link
+      // (#723, was #114's account paragraph).
+      await expect(order.result.getByRole("link", { name: /^sign in$/i }))
+        .toBeHidden();
       // A delivery lists no pick-up address (#723).
       const receiving = placedList(order.result, "Receiving your order");
 
