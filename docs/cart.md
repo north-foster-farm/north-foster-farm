@@ -305,9 +305,18 @@ issues. Wording below is today's, approved under #400.
   and the server has never heard of it.
 - **Stock.** `stock.js` lowers or removes lines when stock changes and
   the notice over the catalog says so (`stock-notice.mjs`); a locked
-  stock gate disables Proceed to checkout.
-- **Proceed to checkout** scrolls to Pickup or delivery and focuses its
-  legend; disabled when empty, locked, or delivery under the minimum.
+  stock gate stops Proceed to checkout.
+- **Proceed to checkout** (#706) goes to the next thing the order
+  needs: the way's own fields with their messages ("Please select a
+  pickup time." on the farm, which chooses no time by itself), then
+  Contact information with its messages, then Payment until the card
+  is entered, then Place your order (`order-form.js` proceed). Empty,
+  stock locked, or a delivery under the minimum, it looks disabled
+  (`aria-disabled`, never `disabled`) and a press says why in a
+  tooltip; under the minimum the pane opens too and the way's button
+  pulses as the pill does (`cart.js` wireCheckout). (2026-11-21: this
+  said it always went to the Pickup or delivery legend and was
+  disabled.)
 - **The first Add of a browser session** (sessionStorage) opens the
   floating pane on the new line, shuts it after `TEACH_DWELL` (3500 ms)
   and pulses the pill in three pairs; a tap, focus or key in the pane

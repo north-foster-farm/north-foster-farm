@@ -1112,7 +1112,7 @@ function) and calls `lib/jobs.mjs`, which decides in
 | 18:00 the day before a delivery        | cooler reminder             |
 | the day after fulfillment               | `fulfilled`, and complete in Square |
 | every run                              | checkouts older than a day swept |
-| 8:00 daily, always                     | "Morning report"            |
+| 8:00 daily, when a vital sign is off or something waits on the farm (#697, 2026-11-21) | "Morning report" |
 | 18:00 daily, when an order is due tomorrow | "Tomorrow", the manifest |
 | once a day from 5:00                   | farm-news audience sync     |
 | every run                              | invariants, ledger, heartbeat |
@@ -1224,7 +1224,10 @@ flag it reads `.env`, linked locally
 to `.env.development`, and acts on the `dev-` stores: only
 `--production` reaches production's records, whatever a file holds.
 The commands below act on production when given `--production`.
-Without the Netlify pair it runs against memory and says so; without
+With no flag and no Netlify pair it runs against memory and says so.
+A context flag never does: with no env file for that context, or no
+`NETLIFY_SITE_ID` in it, the command stops, names what is missing and
+says to run it from the main checkout (#713). Without
 a mail driver it logs every email to the terminal instead of sending
 it, and says that too. `bin/nff` with no arguments prints the commands:
 customers (list, show, set, delete), address (approve, deny), orders

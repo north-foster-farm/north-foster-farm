@@ -109,12 +109,14 @@ test.describe("a market order, moved to the drop site", () => {
     await page.getByRole("button", { name: /^Change (delivery|pickup)$/ })
       .first().click();
 
-    const select = page.locator("[data-dates]");
+    // A radio per pickup in the pickup-days layout (#703).
+    const form = page.locator(".account-panel-form");
+    const radio = (value) => form.locator(`input[type='radio'][value='${
+      value}']`);
 
-    await expect(select).toHaveValue(chosen);
-    await expect(select.locator(`option[value='${drop.occurrence}']`))
-      .toHaveCount(1);
-    await select.selectOption(drop.occurrence);
+    await expect(radio(chosen)).toBeChecked();
+    await expect(radio(drop.occurrence)).toHaveCount(1);
+    await radio(drop.occurrence).check();
     await page.getByRole("button", { name: "Save changes" }).click();
     await expect(when).toContainText("at the drop site");
     await expect(when).not.toContainText(market.name);

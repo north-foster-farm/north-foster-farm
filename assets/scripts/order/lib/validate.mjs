@@ -248,7 +248,8 @@ export const validateOrder = (payload, {
     const f = fulfilment.onfarm || {};
     const window = text(f.window, 20);
 
-    if (!window) errors["onfarm.window"] = "Choose a pickup time.";
+    // James's wording (#706), as Proceed to checkout shows it.
+    if (!window) errors["onfarm.window"] = "Please select a pickup time.";
     out.onfarm = { window };
   }
 

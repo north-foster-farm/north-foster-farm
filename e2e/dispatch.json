@@ -383,7 +383,8 @@
         "e2e/cart-tip.spec.mjs",
         "e2e/cart-way.spec.mjs",
         "e2e/catalog-visibility.spec.mjs",
-        "e2e/contact-heading.spec.mjs",
+        "e2e/checkout-go.spec.mjs",
+        "e2e/contact-card.spec.mjs",
         "e2e/contact-send.spec.mjs",
         "e2e/contact.spec.mjs",
         "e2e/countdown-date.spec.mjs",
@@ -410,12 +411,17 @@
         "e2e/order-layout.spec.mjs",
         "e2e/order-page.spec.mjs",
         "e2e/order-scheduled.spec.mjs",
+        "e2e/order-topbar-scroll.spec.mjs",
         "e2e/overflow.spec.mjs",
         "e2e/pay-focus.spec.mjs",
         "e2e/payment-stacking.spec.mjs",
         "e2e/payment.spec.mjs",
+        "e2e/perk-label.spec.mjs",
         "e2e/picker-out.spec.mjs",
+        "e2e/pickup-days-status.spec.mjs",
+        "e2e/pickup-days.spec.mjs",
         "e2e/pickup-horizon.spec.mjs",
+        "e2e/place-order-pane.spec.mjs",
         "e2e/pricing.spec.mjs",
         "e2e/rate-limit.spec.mjs",
         "e2e/recovery.spec.mjs",
@@ -464,7 +470,8 @@
         "e2e/cart-tip.spec.mjs",
         "e2e/cart-way.spec.mjs",
         "e2e/catalog-visibility.spec.mjs",
-        "e2e/contact-heading.spec.mjs",
+        "e2e/checkout-go.spec.mjs",
+        "e2e/contact-card.spec.mjs",
         "e2e/contact-send.spec.mjs",
         "e2e/contact.spec.mjs",
         "e2e/countdown-date.spec.mjs",
@@ -492,12 +499,16 @@
         "e2e/order-layout.spec.mjs",
         "e2e/order-page.spec.mjs",
         "e2e/order-scheduled.spec.mjs",
+        "e2e/order-topbar-scroll.spec.mjs",
         "e2e/overflow.spec.mjs",
         "e2e/pay-focus.spec.mjs",
         "e2e/payment-stacking.spec.mjs",
         "e2e/payment.spec.mjs",
         "e2e/picker-out.spec.mjs",
+        "e2e/pickup-days-status.spec.mjs",
+        "e2e/pickup-days.spec.mjs",
         "e2e/pickup-horizon.spec.mjs",
+        "e2e/place-order-pane.spec.mjs",
         "e2e/pricing.spec.mjs",
         "e2e/rate-limit.spec.mjs",
         "e2e/recovery.spec.mjs",
@@ -548,7 +559,8 @@
         "e2e/cart-tip.spec.mjs",
         "e2e/cart-way.spec.mjs",
         "e2e/catalog-visibility.spec.mjs",
-        "e2e/contact-heading.spec.mjs",
+        "e2e/checkout-go.spec.mjs",
+        "e2e/contact-card.spec.mjs",
         "e2e/contact-send.spec.mjs",
         "e2e/contact.spec.mjs",
         "e2e/countdown-date.spec.mjs",
@@ -578,7 +590,10 @@
         "e2e/payment-stacking.spec.mjs",
         "e2e/payment.spec.mjs",
         "e2e/picker-out.spec.mjs",
+        "e2e/pickup-days-status.spec.mjs",
+        "e2e/pickup-days.spec.mjs",
         "e2e/pickup-horizon.spec.mjs",
+        "e2e/place-order-pane.spec.mjs",
         "e2e/pricing.spec.mjs",
         "e2e/rate-limit.spec.mjs",
         "e2e/recovery.spec.mjs",
@@ -662,7 +677,10 @@
         "e2e/missed-delivery.spec.mjs",
         "e2e/onfarm-times.spec.mjs",
         "e2e/overflow.spec.mjs",
+        "e2e/perk-label.spec.mjs",
         "e2e/picker-out.spec.mjs",
+        "e2e/pickup-days-status.spec.mjs",
+        "e2e/pickup-days.spec.mjs",
         "e2e/scheduled-pickup.spec.mjs",
         "e2e/sign-in-order.spec.mjs",
         "e2e/skeletons.spec.mjs",
@@ -866,6 +884,7 @@
         "e2e/news-page.spec.mjs",
         "e2e/news.spec.mjs",
         "e2e/overflow.spec.mjs",
+        "e2e/place-order-pane.spec.mjs",
         "e2e/restock.spec.mjs",
         "e2e/search.spec.mjs",
         "e2e/sign-in-order.spec.mjs",
@@ -1135,6 +1154,14 @@
     },
     {
       "paths": [
+        "e2e/perk-label.spec.mjs"
+      ],
+      "specs": [
+        "e2e/perk-label.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
         "e2e/cart-one.spec.mjs"
       ],
       "specs": [
@@ -1167,10 +1194,10 @@
     },
     {
       "paths": [
-        "e2e/contact-heading.spec.mjs"
+        "e2e/contact-card.spec.mjs"
       ],
       "specs": [
-        "e2e/contact-heading.spec.mjs"
+        "e2e/contact-card.spec.mjs"
       ]
     },
     {
@@ -1531,6 +1558,14 @@
     },
     {
       "paths": [
+        "e2e/order-topbar-scroll.spec.mjs"
+      ],
+      "specs": [
+        "e2e/order-topbar-scroll.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
         "e2e/order-page.spec.mjs"
       ],
       "specs": [
@@ -1539,10 +1574,26 @@
     },
     {
       "paths": [
+        "e2e/checkout-go.spec.mjs"
+      ],
+      "specs": [
+        "e2e/checkout-go.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
         "e2e/onfarm-times.spec.mjs"
       ],
       "specs": [
         "e2e/onfarm-times.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/place-order-pane.spec.mjs"
+      ],
+      "specs": [
+        "e2e/place-order-pane.spec.mjs"
       ]
     },
     {
@@ -1567,6 +1618,23 @@
       ],
       "specs": [
         "e2e/order-scheduled.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/pickup-days.spec.mjs"
+      ],
+      "specs": [
+        "e2e/pickup-days-status.spec.mjs",
+        "e2e/pickup-days.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/pickup-days-status.spec.mjs"
+      ],
+      "specs": [
+        "e2e/pickup-days-status.spec.mjs"
       ]
     },
     {

@@ -127,14 +127,63 @@ export const pickupName = (town, name) => {
   return [town, name].filter(Boolean).join(" · ");
 };
 
-// A pickup as its card's parts: the day, the hours, the subtitle and
-// the address of the place it is at.
-export const pickupParts = (entry, loc) => ({
-  date: entry.label,
-  time: entry.window,
-  name: pickupName(entry.town || (loc || {}).town, entry.name),
-  address: addressLines(loc),
-});
+// Hugo's urlize, as layouts/partials/map.html names a pin from a
+// location's name: lowercase, punctuation dropped, runs of spaces and
+// hyphens made one hyphen.
+const urlize = (text) => String(text).toLowerCase()
+  .replace(/[^a-z0-9 _-]/g, "")
+  .replace(/[\s_-]+/g, "-")
+  .replace(/^-|-$/g, "");
+
+// A pickup as its card's parts (#703): the radio's value, the
+// subtitle, the hours, the place's name when it is not its street,
+// the street (with its second line) and "City, ST 02857". `copy` is
+// what Copy puts on the clipboard, the street address on one line
+// without the place's name; `map` is the home page's map open at the
+// location's card on the Places tab (map.html's data-map-slug). A
+// place it does not know gives no address and no map, and a private
+// one (a buying group's) no map, since the home map never pins it.
+export const pickupCard = (entry, loc) => {
+  const at = loc || {};
+  const street = [at.street, at.street2].filter(Boolean).join(", ");
+  const state = [at.state, at.zip].filter(Boolean).join(" ");
+  const city = [at.city, state].filter(Boolean).join(", ");
+  const slug = at.private ? ""
+    : at.slug || (at.name ? urlize(at.name) : "");
+
+  return {
+    value: entry.value || entry.occurrence,
+    name: pickupName(entry.town || at.town, entry.name),
+    time: entry.window || "",
+    place: at.name && at.name !== at.street ? at.name : "",
+    street,
+    city,
+    copy: [street, city].filter(Boolean).join(", "),
+    map: slug ? `/#place-${slug}` : "",
+  };
+};
+
+// The pickups grouped by date (#703): one group per date, dates in
+// order, each headed by its day and date ("Saturday, November 21")
+// and holding that date's cards in the list's order. `place` takes a
+// location's code and gives the location, or nothing.
+// -> [{ date, heading, pickups }]
+export const pickupDays = (choices, place = () => null) => {
+  const days = new Map();
+
+  for (const entry of choices || []) {
+    if (!days.has(entry.date)) {
+      days.set(entry.date, {
+        date: entry.date, heading: entry.label, pickups: [],
+      });
+    }
+    days.get(entry.date).pickups
+      .push(pickupCard(entry, place(entry.location)));
+  }
+
+  return [...days.values()].sort((a, b) => (a.date < b.date ? -1
+    : a.date > b.date ? 1 : 0));
+};
 
 // The earliest cutoff in a list, as epoch milliseconds, for the timer
 // that refreshes the lists when that pickup closes; null when none has

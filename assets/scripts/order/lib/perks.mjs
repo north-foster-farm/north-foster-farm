@@ -78,14 +78,29 @@ export const publicPerk = (perk) => ({
   type: perk.type, start: perk.start || null, end: perk.end || null,
 });
 
-// Approved by James (#514, 2026-11-02).
+// What the customer reads (#717, James, 2026-11-21). A bundled perk
+// is one pricing label with an info button, whose tooltip lists its
+// parts; a later group that adds several discounts takes the same
+// form, with its own name and parts. A standalone perk is a badge of
+// its own.
 const NAMES = {
   "free-delivery": "Free delivery",
-  "minimum-waived": "No delivery minimum",
-  friends: "Friends and family pricing, with free delivery and no " +
-    "delivery minimum",
-  family: "Family orders, with nothing to pay",
+  "minimum-waived": "No order minimum",
+  friends: "Friends and family pricing",
+  family: "Family pricing",
 };
+
+const PARTS = {
+  friends: ["Friends and family discount", "Free delivery",
+    "No order minimum"],
+  family: ["Family discount", "Free delivery", "No order minimum"],
+};
+
+// A perk type's label, with no date: "Friends and family pricing".
+export const perkName = (type) => NAMES[type] || type;
+
+// A bundled perk's parts, or null for a standalone one.
+export const perkParts = (type) => PARTS[type] || null;
 
 const MONTHS = ["January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December"];
@@ -103,8 +118,27 @@ const through = (end) => {
 // through the end of 2027" or "Free delivery". A fragment, so no end
 // punctuation (#514, 2026-11-02).
 export const perkSentence = (perk) => {
-  const name = NAMES[perk.type] || perk.type;
+  const name = perkName(perk.type);
 
   return perk.end && DAY.test(perk.end) ? `${name} ${through(perk.end)}`
     : name;
+};
+
+// What a customer's perks show as (#717), in the cart note and the
+// account page's "Your pricing" row: one line per bundled perk,
+// `{ text, name, parts }`, then the standalone perks on one line,
+// `{ labels }`, which the page separates with the discount badges'
+// dot. `dates` keeps each end date beside its label, as the account
+// row does; the cart shows none (James, on #717). Unknown types show
+// nothing.
+export const perkLines = (perks, { dates = false } = {}) => {
+  const known = (Array.isArray(perks) ? perks : [])
+    .filter((p) => p && PERKS[p.type]);
+  const text = (p) => (dates ? perkSentence(p) : perkName(p.type));
+  const bundles = known.filter((p) => perkParts(p.type)).map((p) => ({
+    text: text(p), name: perkName(p.type), parts: perkParts(p.type),
+  }));
+  const labels = known.filter((p) => !perkParts(p.type)).map(text);
+
+  return labels.length ? [...bundles, { labels }] : bundles;
 };

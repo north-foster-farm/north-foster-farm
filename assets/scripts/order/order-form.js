@@ -183,6 +183,7 @@ export class OrderForm {
     this.lapsed = new Lapsed(document.getElementById("order-lapsed"), {
       onUse: (choice) => this.useLapsed(choice),
       onOther: (method) => this.otherWay(method),
+      place: (code) => this.terms.model.location(code),
     });
     this.submitter = new Submitter(this.editId
       ? { url: `/api/account/orders/${this.editId}/edit` }
@@ -205,7 +206,11 @@ export class OrderForm {
       onClear: () => this.clear(),
       onWay: (method) => this.pickWay(method),
       onCode: () => this.applyCode(),
-      onCheckout: () => this.toPickup(),
+      onCheckout: () => this.proceed(),
+      // Stock not known: the notice comes into view, as for Pay.
+      onBlocked: (reason) => {
+        if (reason === "locked") this.stock.warn();
+      },
     });
     // A change to a paid order keeps the prices of its day.
     if (!this.editId) this.cart.setMoney(this.money);
@@ -544,12 +549,63 @@ export class OrderForm {
     this.quietMethod = false;
   }
 
-  // Proceed to checkout: to Pickup or delivery, its legend focused.
-  toPickup() {
-    const target = document.getElementById("pickup");
+  // Proceed to checkout (#706): to the next thing the order still
+  // needs, in the page's order. The way's own fields first, with their
+  // messages, the same for all three ways; then Contact information,
+  // with its messages; then Payment, until the card is entered (or
+  // nothing is left to pay); then Place your order. The cart says why
+  // when the button cannot go on, and never calls this.
+  async proceed() {
+    const check = this.check(this.collect());
+    const errors = check.ok ? {} : check.errors;
+    const only = (test) => Object.fromEntries(
+      Object.entries(errors).filter(([key]) => test(key))
+    );
+    const way = only((key) => /^(fulfilment|onfarm|delivery)\./.test(key));
+    const contact = only((key) => key.startsWith("customer."));
 
-    target.scrollIntoView({ behavior: "smooth", block: "start" });
-    qs(target, "legend").focus({ preventScroll: true });
+    if (Object.keys(way).length) {
+      this.showErrors(way);
+
+      return;
+    }
+    if (Object.keys(contact).length) {
+      this.showErrors(contact);
+
+      return;
+    }
+    if (!await this.payment.complete()) {
+      this.goTo(document.getElementById("payment"), "legend");
+
+      return;
+    }
+
+    const place = [this.submitButton, this.saveButton]
+      .find((button) => !button.hidden && !button.disabled);
+
+    this.goTo(document.getElementById("confirm"), place || "legend");
+  }
+
+  // The errors on the page, brought into view: the first field focused,
+  // or, for a group with no focus of its own (the pickup times), its
+  // first choice.
+  showErrors(errors) {
+    this.errors.show(errors);
+
+    const field = this.errors.find("data-field", Object.keys(errors)[0]);
+
+    if (field && document.activeElement !== field) {
+      qs(field, "input:not([disabled])")?.focus({ preventScroll: true });
+    }
+  }
+
+  // A section brought into view, smoothly, and `focus` focused in it: a
+  // selector or an element.
+  goTo(section, focus) {
+    const el = typeof focus === "string" ? qs(section, focus) : focus;
+
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    el.focus({ preventScroll: true });
   }
 
   // Name, email and phone from the customer's record, filled in as
@@ -690,6 +746,8 @@ export class OrderForm {
       .filter(({ target }) => target.classList.contains("order-cat"))
       .map(({ link, target }) => [target, link]));
     const rows = all(catalog, ".order-item");
+    const catalogLink = sections
+      .find(({ target }) => target === catalog)?.link;
     const cartHeading = document.getElementById("order-cart-heading");
     let shown = null;
     let tick = null;
@@ -741,8 +799,13 @@ export class OrderForm {
         if (target.dataset.stuck === "true") continue;
         if (column && target.id === "order-cart") continue;
         // Settled, the cart begins at its heading, above the pane.
-        const top = (target.id === "order-cart" ? cartHeading : target)
-          .getBoundingClientRect().top;
+        const box = target.id === "order-cart" ? cartHeading : target;
+
+        // A section that isn't shown (a category "In stock" hides)
+        // measures top 0, so once the sections below it had scrolled
+        // above the screen it was the lowest above the line (#702).
+        if (!box.getClientRects().length) continue;
+        const top = box.getBoundingClientRect().top;
 
         // On a tie the later link wins: a category over the catalog.
         // At the foot of the page the last section on screen wins,
@@ -768,6 +831,12 @@ export class OrderForm {
 
         if (row && row.getBoundingClientRect().top < window.innerHeight) {
           current = cats.get(row.closest(".order-cat")) || current;
+        } else if (!row) {
+          // Every row has gone above the bar, but the section after the
+          // catalog has yet to reach the line: the last category was
+          // kept, chevron and all, over the gap (#702). Past its rows
+          // the catalog names no category.
+          current = catalogLink || current;
         }
       }
 
@@ -1342,6 +1411,7 @@ export class OrderForm {
       },
       edit: this.editing ? { ...this.editing, total: totals.total } : null,
       locked: !!(this.stock && this.stock.locked),
+      down: !!(this.stock && this.stock.down),
       adding: !!this.adding,
     });
     this.total = totals.total;
@@ -1391,7 +1461,7 @@ export class OrderForm {
   // The chosen pickup day's windows, one radio each, from the farm's
   // schedule (W11d), each on its own line with its times in full
   // (#616). The time chosen carries over to a new day that has it;
-  // otherwise the day's first is chosen.
+  // otherwise none is chosen until the customer chooses one (#706).
   renderWindows() {
     const box = qs(this.form, "[data-windows]");
     const select = qs(this.form, "[data-dates='onfarm']");
@@ -1408,8 +1478,7 @@ export class OrderForm {
 
     const checked = qs(box, "input:checked");
     const current = this.wantedWindow || (checked && checked.value);
-    const pick = windows.some((w) => w.id === current) ? current
-      : windows[0] && windows[0].id;
+    const pick = windows.some((w) => w.id === current) ? current : null;
 
     box.dataset.key = key;
     box.textContent = "";

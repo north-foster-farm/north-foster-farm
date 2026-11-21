@@ -3,13 +3,17 @@
 // customer typed can become markup. Sections are tabs keyed by the
 // URL hash.
 
+import { drawPerks } from "../order/cart/perk-label.js";
 import { mergeScheduled } from "../order/lib/group.mjs";
-import { perkSentence } from "../order/lib/perks.mjs";
+import {
+  scheduledChoice, scheduledChoices,
+} from "../order/lib/scheduled.mjs";
 import {
   pickupTimes, windowLabel,
 } from "../order/lib/schedule.mjs";
 import { dollars } from "../order/lib/totals.mjs";
 import { forgetCustomer } from "../order/draft.js";
+import { drawPickupDays } from "../order/pickup-days.js";
 import { label } from "../order/lib/zoned.mjs";
 import { forgetJoined, remember } from "../news/hide.js";
 import { forget, showChick, signOut } from "../session/session.js";
@@ -130,6 +134,9 @@ class Account {
 
     this.avatars = data.avatars;
     this.terms = data.terms;
+    // The public places, for a scheduled pickup's address; a buying
+    // group's own place joins them from /api/group (dateList).
+    this.locations = data.locations || [];
     dropSeries = ((data.series || []).find((x) => x.kind === "drop-site")
       || {}).code || "";
     this.app = document.getElementById("account-app");
@@ -1012,25 +1019,20 @@ class Account {
     const group = c.discountGroup && groups[c.discountGroup];
     const row = document.getElementById("prof-group-row");
 
-    // And the customer's perks (#514), one line each: fragments with no
-    // end punctuation, so each takes its own line.
+    // And the customer's perks (#514) as pricing labels, each keeping
+    // its end date beside it (#717, James: the cart shows none).
+    const place = document.getElementById("prof-group");
     const perks = Array.isArray(c.perks) ? c.perks : [];
-    const lines = [
-      ...group ? [`${group.label}: ${group.percent}% off, whenever that ` +
-        "beats the bulk discount."] : [],
-      ...perks.map(perkSentence),
-    ];
 
-    row.hidden = !lines.length;
-    document.getElementById("prof-group").replaceChildren(
-      ...lines.map((text) => {
-        const line = document.createElement("span");
+    for (const tip of this.perkTips || []) tip.stop();
+    this.perkTips = drawPerks(place, perks, { dates: true });
+    if (group) {
+      const line = el("span", "d-block", `${group.label}: ` +
+        `${group.percent}% off, whenever that beats the bulk discount.`);
 
-        line.className = "d-block";
-        write(line, text);
-
-        return line;
-      }));
+      place.prepend(line);
+    }
+    row.hidden = !place.childElementCount;
   }
 
   async saveAddress() {
@@ -1527,6 +1529,11 @@ class Account {
     p.hidden = true;
   }
 
+  // A location by its code, or null.
+  place(code) {
+    return this.locations.find((l) => l.code === code) || null;
+  }
+
   async dateList(method) {
     if (!this.dates) {
       const { ok, data } = await api("/api/dates");
@@ -1542,6 +1549,8 @@ class Account {
         if (mine.ok && mine.data && mine.data.dates) {
           this.dates.scheduled = mergeScheduled(this.dates.scheduled,
             mine.data.dates);
+          this.locations = [...this.locations,
+            ...((mine.data.group || {}).places || {}).locations || []];
         }
       }
     }
@@ -1560,31 +1569,33 @@ class Account {
     const dates = await this.dateList(
       scheduled ? "scheduled" : order.fulfilment.method
     );
-    // A scheduled pickup chooses an occurrence: any open date at any
-    // place. The others choose a date.
-    const keyOf = (d) => (scheduled ? d.occurrence : d.date);
-    const textOf = (d) => (scheduled
-      ? `${d.label}, ${at(d)}` : d.label);
-    const held = scheduled ? order.pickup.occurrence : order.fulfilment.date;
 
-    if (scheduled) qs(form, "[data-dates-label]").textContent = "Pickup day";
-    for (const d of dates) {
-      const option = document.createElement("option");
+    // A scheduled pickup chooses an occurrence, any open date at any
+    // place, in the order page's layout (#703). The others choose a
+    // date.
+    if (scheduled) {
+      this.drawPickups(form, order, dates);
+    } else {
+      const held = order.fulfilment.date;
 
-      option.value = keyOf(d);
-      option.textContent = textOf(d);
-      select.appendChild(option);
+      for (const d of dates) {
+        const option = document.createElement("option");
+
+        option.value = d.date;
+        option.textContent = d.label;
+        select.appendChild(option);
+      }
+      if (!dates.some((d) => d.date === held)) {
+        const option = document.createElement("option");
+
+        option.value = held;
+        option.textContent = `${when(order).replace(
+          `${METHOD.scheduled}, `, ""
+        )} (as booked)`;
+        select.prepend(option);
+      }
+      select.value = held;
     }
-    if (!dates.some((d) => keyOf(d) === held)) {
-      const option = document.createElement("option");
-
-      option.value = held;
-      option.textContent = `${when(order).replace(
-        `${METHOD.scheduled}, `, ""
-      )} (as booked)`;
-      select.prepend(option);
-    }
-    select.value = held;
     qs(form, "[name='notes']").value = order.notes || "";
 
     if (isDelivery) {
@@ -1597,6 +1608,8 @@ class Account {
       for (const part of all(form, "[data-onfarm]")) {
         part.hidden = order.fulfilment.method !== "onfarm";
       }
+      qs(form, "[data-day]").hidden = scheduled;
+      qs(form, "[data-scheduled]").hidden = !scheduled;
       if (order.fulfilment.method === "onfarm") {
         const draw = () => this.drawWindows(form, order, dates, select.value);
 
@@ -1615,7 +1628,8 @@ class Account {
 
       if (scheduled) {
         body.method = "scheduled";
-        body.occurrence = select.value;
+        body.occurrence = (qs(form, "[data-pickups] input:checked")
+          || {}).value || "";
       } else {
         body.date = select.value;
       }
@@ -1647,7 +1661,34 @@ class Account {
     });
 
     this.panel(card).appendChild(node);
-    select.focus();
+    (scheduled ? qs(form, "[data-pickups] input:checked") : select).focus();
+  }
+
+  // Every open scheduled pickup as the order page shows it, grouped
+  // under its date (#703, order/pickup-days.js), the booked one
+  // chosen. A booked pickup no longer open is offered too, marked as
+  // booked, so the notes can change without moving it.
+  drawPickups(form, order, dates) {
+    const p = order.pickup;
+    const f = order.fulfilment;
+    const held = p.occurrence || f.occurrence;
+    const box = qs(form, "[data-pickups]");
+    const name = qs(form, "[data-pickups-label]");
+    const id = `change-${order.id}`;
+    const choices = scheduledChoices(dates);
+
+    if (!choices.some((d) => d.value === held)) {
+      choices.push(scheduledChoice({
+        occurrence: held, date: f.date, label: label(f.date),
+        series: p.series, name: p.name, location: p.location,
+        window: [p.window, "(as booked)"].filter(Boolean).join(" "),
+      }));
+    }
+    name.id = `${id}-label`;
+    box.setAttribute("aria-labelledby", name.id);
+    drawPickupDays(box, choices, {
+      place: (code) => this.place(code), name: "occurrence", id, pick: held,
+    });
   }
 
   // The chosen day's pickup times, from the farm's schedule (W11d),

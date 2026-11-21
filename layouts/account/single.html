@@ -1,5 +1,7 @@
 {{ define "main" }}
-  {{ $data := dict "avatars" hugo.Data.avatars "terms" hugo.Data.delivery "series" (partial "lib/public-places.html" .).series }}
+  {{ $public := partial "lib/public-places.html" . }}
+  {{/* The public places' addresses, for Change pickup's cards (#703). */}}
+  {{ $data := dict "avatars" hugo.Data.avatars "terms" hugo.Data.delivery "series" $public.series "locations" $public.locations }}
   {{/* The chickens' sprite comes with the header on every page. */}}
   <section class="{{ .Type }}">
     <script type="application/json" id="account-data">{{ $data | jsonify | safeJS }}</script>
@@ -258,7 +260,8 @@
                   </div>
                   <div class="col-12" id="prof-group-row" hidden>
                     <span class="form-label d-block">Your pricing</span>
-                    <p class="mb-0" id="prof-group"></p>
+                    <div id="prof-group"></div>
+                    {{ partial "order/perk-label.html" . }}
                   </div>
                 </div>
               </section>
@@ -608,11 +611,18 @@
     <form class="account-panel-form" novalidate>
       <p class="account-panel-title">Change this pickup</p>
       <div class="row g-3">
-        <div class="col-md-6">
-          <label class="form-label"><span data-dates-label>Pickup day</span>
+        <div class="col-md-6" data-day>
+          <label class="form-label">Pickup day
             <select class="form-select" name="date" data-dates></select>
           </label>
           <div class="invalid-feedback" data-error-for="date"></div>
+        </div>
+        {{/* A scheduled pickup moves in the order page's layout, every
+             open pickup grouped under its date (#703, the templates
+             of order/pickup-days.html below), drawn by main.js. */}}
+        <div class="col-12" data-scheduled>
+          <span class="visually-hidden" data-pickups-label>Pickup day</span>
+          <div class="order-pickups" role="radiogroup" data-field="occurrence" tabindex="-1" data-pickups></div>
           <div class="invalid-feedback" data-error-for="occurrence"></div>
         </div>
         <div class="col-md-6" data-onfarm>
@@ -638,6 +648,7 @@
       </div>
     </form>
   </template>
+  {{ partial "order/pickup-days.html" . }}
 
   <template id="tpl-return">
     <form class="account-panel-form" novalidate>

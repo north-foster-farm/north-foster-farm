@@ -18,7 +18,8 @@
 //
 //   HEALTHCHECKS_JOBS_URL    the jobs run's heartbeat check
 //   HEALTHCHECKS_ALERT_URL   the alert channel check (period: a day;
-//                            the morning report pings it well)
+//                            the 8:00 jobs run pings it well, whether
+//                            or not a morning report went, #697)
 
 import terms from "../../../data/delivery.json" with { type: "json" };
 import { today } from "../../../assets/scripts/order/lib/zoned.mjs";

@@ -1,0 +1,161 @@
+// The pickup-days layout (#703): the order page's Pickup days card,
+// the lapsed dialog and the account's Change pickup share it, so it
+// stands outside `.order` (partials/order/pickup-days.html). Each date
+// heads its pickups, which sit indented under it like list items. A
+// pickup is a radio card, white until chosen (#323), in the secondary
+// color so it reads apart from the card's own (primary) radio. Narrow,
+// its address is street then city, with Copy and Map below; wide, the
+// address is one line with Copy and Map to its right.
+
+.order-pickups {
+  display: grid;
+  gap: 1.25rem;
+  padding-top: 0.25rem;
+
+  &:focus {
+    outline: 0;
+  }
+
+  &.is-invalid {
+    border-radius: var(--bs-border-radius);
+    outline: 1px solid var(--bs-form-invalid-border-color);
+    outline-offset: 0.25rem;
+  }
+}
+
+.order-pickup-day {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.order-pickup-day-heading {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: bold;
+  line-height: 1.5;
+}
+
+// The width the cards' query reads.
+.order-pickup-list {
+  container-type: inline-size;
+  display: grid;
+  gap: 0.5rem;
+  padding-inline-start: 1.5rem;
+}
+
+.order-pickup {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.5rem 0.625rem;
+  padding: 0.625rem 0.875rem;
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius);
+  background-color: var(--bs-white);
+  transition:
+    border-color 70ms ease,
+    background-color 70ms ease;
+
+  &:hover {
+    border-color: var(--bs-secondary);
+  }
+
+  &:has(> input:checked) {
+    border-color: var(--bs-secondary);
+    background-color: var(--bs-secondary-bg-subtle);
+  }
+
+  // Centered on the name's line.
+  > .form-check-input {
+    margin: 0.25em 0 0;
+
+    &:checked {
+      border-color: var(--bs-secondary);
+      background-color: var(--bs-secondary);
+    }
+
+    &:focus {
+      border-color: var(--bs-secondary);
+      box-shadow: 0 0 0 0.25rem rgb(var(--bs-secondary-rgb) / 25%);
+    }
+  }
+}
+
+.order-pickup-label {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.order-pickup-name {
+  font-weight: bold;
+}
+
+.order-pickup-time {
+  font-size: 0.875em;
+}
+
+.order-pickup-place,
+.order-pickup-address {
+  color: var(--bs-secondary-color);
+}
+
+// A long name's wrapped lines sit closer than the address's lines, so
+// they read as one name; the street keeps a full line below it.
+.order-pickup-place {
+  margin: 0.25rem 0;
+  line-height: 1.25;
+}
+
+.order-pickup-address {
+  line-height: 1.625;
+}
+
+.order-pickup-street,
+.order-pickup-city {
+  display: block;
+}
+
+.order-pickup-actions {
+  display: flex;
+  flex-wrap: wrap;
+  grid-column: 2;
+  gap: 0.5rem 0.75rem;
+
+  // Unfilled, so a chosen card's tint shows through: not the white
+  // face outline buttons have elsewhere (_global.scss, #339). A press
+  // tints them.
+  .btn {
+    --bs-btn-bg: transparent;
+    --bs-btn-hover-bg: transparent;
+    --bs-btn-active-bg: color-mix(in srgb, currentcolor 12%, transparent);
+  }
+}
+
+@container (min-width: 28rem) {
+  .order-pickup {
+    grid-template-columns: auto auto 1fr;
+  }
+
+  // The address on one line, street then city; where both don't fit,
+  // the city goes to the next line whole.
+  .order-pickup-street,
+  .order-pickup-city {
+    display: inline-block;
+  }
+
+  .order-pickup-street::after {
+    margin-right: 0.3em;
+    content: ",";
+  }
+
+  // Beside the address's line, the last of the label.
+  .order-pickup-actions {
+    flex-wrap: nowrap;
+    grid-column: 3;
+    grid-row: 1;
+    align-self: end;
+    margin: 0 0 -0.2rem 0.75rem;
+  }
+}

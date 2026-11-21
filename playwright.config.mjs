@@ -136,7 +136,9 @@ const config = defineConfig({
     // row (#592), and the width of the spaces the account page keeps
     // in a pair (#598), and the Membership tab's layout (#602, #601),
     // and a badge's tooltip after a scroll (#644), and the order page's
-    // Contact information heading (#666).
+    // Contact information card (#666, #704), and the tooltip on
+    // Proceed to checkout (#706), and a perk's tooltip on a tap and a
+    // scroll (#717).
     // cart-motion skips itself in the other projects.
     {
       name: "iphone",
@@ -144,9 +146,10 @@ const config = defineConfig({
         "**/overflow.spec.mjs", "**/a11y.spec.mjs", "**/keyboard.spec.mjs",
         "**/payment-stacking.spec.mjs", "**/cart-keyboard.spec.mjs",
         "**/cart-a11y.spec.mjs", "**/cart-motion.spec.mjs",
-        "**/cart-tip.spec.mjs",
+        "**/cart-tip.spec.mjs", "**/perk-label.spec.mjs",
         "**/account-tabs.spec.mjs", "**/keep-together.spec.mjs",
-        "**/membership-layout.spec.mjs", "**/contact-heading.spec.mjs",
+        "**/membership-layout.spec.mjs", "**/contact-card.spec.mjs",
+        "**/order-topbar-scroll.spec.mjs", "**/checkout-go.spec.mjs",
       ],
       testIgnore: held,
       use: { ...devices["iPhone 15"] },

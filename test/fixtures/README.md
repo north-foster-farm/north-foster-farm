@@ -141,7 +141,10 @@ These need a person; none is scripted.
    `bin/nff orders refund <id> --record --production`, check it with
    `bin/nff refunds check --record --production`, wait for both
    webhooks, then `bin/nff record pull --production` and
-   `bin/fixtures/scrub`. Pull writes `.ignored/fixtures-raw/` in the
+   `bin/fixtures/scrub --strict`, which fails while any string in a
+   request or a response is still to review (2026-11-21: was bare
+   `scrub`, which let a webhook's payer through unlisted). Pull writes
+   `.ignored/fixtures-raw/` in the
    envelope shape above, `service: "paypal"`; records never pulled are
    deleted after 7 days.
 2. **Square webhooks (R4).** One real `refund.updated`, one

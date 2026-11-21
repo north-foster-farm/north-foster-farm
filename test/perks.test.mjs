@@ -218,7 +218,10 @@ describe("a perk's dates", () => {
   });
 });
 
-describe("perk wording (approved, 2026-11-02)", () => {
+// The labels are #717's (James, 2026-11-21); the end dates are
+// 867afaaf's, which the account page keeps beside the label (#717,
+// Decided). The cart shows the label alone: e2e/perk-label.spec.mjs.
+describe("perk wording (approved, 2026-11-21)", () => {
   it("says the end date, or nothing for an open perk", () => {
     assert.equal(perkSentence({ type: "free-delivery", end: "2027-12-31" }),
       "Free delivery through the end of 2027");
@@ -227,16 +230,14 @@ describe("perk wording (approved, 2026-11-02)", () => {
     assert.equal(perkSentence({ type: "free-delivery", end: null }),
       "Free delivery");
     assert.equal(perkSentence({ type: "minimum-waived", end: "2027-03-03" }),
-      "No delivery minimum through March 3, 2027");
+      "No order minimum through March 3, 2027");
   });
 
   it("names each perk as approved, with no end punctuation", () => {
     assert.equal(perkSentence({ type: "minimum-waived" }),
-      "No delivery minimum");
+      "No order minimum");
     assert.equal(perkSentence({ type: "friends" }),
-      "Friends and family pricing, with free delivery and no delivery " +
-      "minimum");
-    assert.equal(perkSentence({ type: "family" }),
-      "Family orders, with nothing to pay");
+      "Friends and family pricing");
+    assert.equal(perkSentence({ type: "family" }), "Family pricing");
   });
 });

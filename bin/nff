@@ -6,11 +6,15 @@
 // staging's sandbox, so there is no .env.preview). Off Netlify the
 // records live in the site's Blobs stores only with a context flag (or
 // --scratch) and a NETLIFY_SITE_ID; the token is read from the macOS
-// Keychain (bin/env/keychain.mjs), never an env file. Otherwise
-// everything is in memory and lost on exit, which the banner says.
+// Keychain (bin/env/keychain.mjs), never an env file. A context flag
+// with no env file or site ID stops before anything runs (#713).
+// Otherwise everything is in memory and lost on exit, which the banner
+// says.
 
 import { spawn } from "node:child_process";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  existsSync, mkdirSync, readFileSync, writeFileSync,
+} from "node:fs";
 import { randomInt } from "node:crypto";
 import { userInfo } from "node:os";
 import { dirname, join } from "node:path";
@@ -590,6 +594,37 @@ if (reportRun) {
 
 loadEnv(join(root, context ? ENV_FILES[context] : ".env"));
 
+// A context flag reaches that context's Blobs stores or nothing: a
+// missing env file or site ID stops here, before the Keychain is asked
+// or a store opened, rather than falling back to memory stores that
+// report success and save nothing (#713). A worktree has neither the
+// env files nor the link; the main checkout has both. `env` reads and
+// checks the files itself, so it says what is wrong in its own words.
+const contextRefusal = () => {
+  if (!context || process.argv[2] === "env") return null;
+
+  const file = ENV_FILES[context];
+  const fix = "Run it from the main checkout, which has the env files " +
+    "and the Netlify link, not from a worktree. Nothing was done.";
+
+  if (!existsSync(join(root, file))) {
+    return `--${context} reads ${file}, and there is none in ${root}. ${
+      fix}`;
+  }
+  if (!process.env.NETLIFY_SITE_ID) {
+    return `--${context} needs NETLIFY_SITE_ID, the site's id from its ` +
+      `Netlify link, and ${file} sets none. ${fix}`;
+  }
+
+  return null;
+};
+const refused = contextRefusal();
+
+if (refused) {
+  console.error(`[nff] ${refused}`);
+  process.exit(1);
+}
+
 // The Netlify token comes from the Keychain and nowhere else (#267):
 // not from an env file, not from the shell. Development runs on
 // memory stores and never looks; a context, or --scratch's stores in
@@ -725,7 +760,21 @@ if (!["resend", "outbox", "file"].includes(process.env.MAIL_DRIVER || "")) {
     + " .env.staging (outbox).");
 }
 
-const stores = makeStores();
+// The check above should leave nothing for this to catch; under a
+// context it refuses memory stores all the same (#713). No `env`
+// command opens a store, so `env` keeps the fallback: `env filled` is
+// offline and needs no token, and the others name a missing site ID in
+// their own words.
+let stores;
+
+try {
+  stores = makeStores(process.env, {
+    memory: !context || process.argv[2] === "env",
+  });
+} catch (error) {
+  console.error(`[nff] ${error.message} Nothing was done.`);
+  process.exit(1);
+}
 const flags = {};
 const words = [];
 
