@@ -1608,6 +1608,10 @@ $teach-starts: 0, 400, 1800, 2200, 3600, 4000;
 // the account page's "Your pricing" row (order/cart/perk-label.js,
 // partials/order/perk-label.html).
 .perk-info {
+  // In rem, so the button is the same size and shape wherever it
+  // sits, the delivery terms included (#717, revised).
+  --perk-info-size: 1.0625rem;
+
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1617,13 +1621,18 @@ $teach-starts: 0, 400, 1800, 2200, 3600, 4000;
   background: none;
   line-height: 1;
   color: var(--bs-primary);
-  vertical-align: -0.125em;
 
-  // In rem, so the button is the same size and shape wherever it
-  // sits, the delivery terms included (#717, revised).
+  // On the text's center line wherever it sits (#717, revised): the
+  // icon's bottom rests on the baseline, inline or as a flex item
+  // aligned on it, then drops by half its height less the height of
+  // Aller's center line above the baseline, 0.36em of the text's size.
+  // A translate, so it moves the same in both layouts.
+  vertical-align: baseline;
+  translate: 0 calc(var(--perk-info-size) / 2 - 0.36em);
+
   .perk-info-icon {
-    width: 1.0625rem;
-    height: 1.0625rem;
+    width: var(--perk-info-size);
+    height: var(--perk-info-size);
   }
 
   // On the home page's dark band, the band's own color.

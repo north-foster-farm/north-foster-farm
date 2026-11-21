@@ -146,6 +146,7 @@
         "e2e/footer.spec.mjs",
         "e2e/gate.spec.mjs",
         "e2e/home.spec.mjs",
+        "e2e/info-align.spec.mjs",
         "e2e/keyboard.spec.mjs",
         "e2e/map-link.spec.mjs",
         "e2e/map.spec.mjs",
@@ -153,6 +154,7 @@
         "e2e/news-footer.spec.mjs",
         "e2e/news.spec.mjs",
         "e2e/overflow.spec.mjs",
+        "e2e/perk-revision.spec.mjs",
         "e2e/search.spec.mjs",
         "e2e/sign-in-order.spec.mjs",
         "e2e/skip-link.spec.mjs",
@@ -419,6 +421,7 @@
         "e2e/payment.spec.mjs",
         "e2e/perk-label.spec.mjs",
         "e2e/perk-revision.spec.mjs",
+        "e2e/info-align.spec.mjs",
         "e2e/picker-out.spec.mjs",
         "e2e/pickup-days-revision-2.spec.mjs",
         "e2e/pickup-days-revision.spec.mjs",
@@ -690,6 +693,7 @@
         "e2e/overflow.spec.mjs",
         "e2e/perk-label.spec.mjs",
         "e2e/perk-revision.spec.mjs",
+        "e2e/info-align.spec.mjs",
         "e2e/picker-out.spec.mjs",
         "e2e/pickup-days-revision-2.spec.mjs",
         "e2e/pickup-days-revision.spec.mjs",
@@ -1180,6 +1184,14 @@
       ],
       "specs": [
         "e2e/perk-revision.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/info-align.spec.mjs"
+      ],
+      "specs": [
+        "e2e/info-align.spec.mjs"
       ]
     },
     {
