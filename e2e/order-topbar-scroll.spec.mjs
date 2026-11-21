@@ -29,12 +29,12 @@ const PHONE = { width: 390, height: 664 };
 
 test.use({ stockPins: { ...SUITE_STOCK, [SKU.sausage]: 0 } });
 
-// Walks the page from the top of the catalog to its foot in steps of
-// `step` px, waiting two frames at each stop (the bar is written on
-// the frame after the scroll event, order-form.js watchSections). At
-// every stop where the catalog has scrolled away, no row showing below
-// the stuck bar's lower edge by any amount, the bar must be blank and
-// carry no chevron (#327). Returns what it saw.
+// Walks the page from just above the catalog's last row to its foot in
+// steps of `step` px, waiting two frames at each stop (the bar is
+// written on the frame after the scroll event, order-form.js
+// watchSections). At every stop where the catalog has scrolled away, no
+// row showing below the stuck bar's lower edge by any amount, the bar
+// must be blank and carry no chevron (#327). Returns what it saw.
 const walk = (page, step) => page.evaluate(async (by) => {
   const frames = () => new Promise((done) => requestAnimationFrame(
     () => requestAnimationFrame(done)
@@ -46,7 +46,14 @@ const walk = (page, step) => page.evaluate(async (by) => {
   const title = bar.querySelector("[data-topbar-title]");
   const payment = document.getElementById("payment");
   const confirm = document.getElementById("confirm");
-  const start = catalog.getBoundingClientRect().top + scrollY;
+  // A stop above the last row's foot less the bar's height still shows
+  // a row below the bar, so counts for nothing: the walk starts a step
+  // above the first that can count, not at the catalog's top. WebKit
+  // in Actions takes near a second a stop (#716).
+  const lastRow = Math.max(...rows.map((el) => el.getBoundingClientRect()
+    .bottom)) + scrollY;
+  const start = Math.max(catalog.getBoundingClientRect().top + scrollY,
+    lastRow - bar.getBoundingClientRect().height - by);
   const foot = document.documentElement.scrollHeight - innerHeight;
   const at = (el) => {
     const r = el.getBoundingClientRect();
@@ -110,6 +117,10 @@ test("on a phone, the top bar never shows a category once the catalog "
   page, browserName,
 }) => {
   test.skip(browserName !== "webkit", "the box is WebKit's, at 390 px");
+  // WebKit in Actions draws a frame in near half a second, and the slow
+  // walk waits two at each of some 60 stops: about a minute and a half
+  // in all, too near the default 120 s (#716).
+  test.setTimeout(240_000);
   await page.setViewportSize(PHONE);
 
   const order = new OrderPage(page);
