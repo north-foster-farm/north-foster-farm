@@ -261,6 +261,20 @@ const USAGE = `Usage:
   bin/nff perks list [<email>]        every perk and its state: active,
                                       future, ended or removed
   bin/nff perks remove <email> <type> ends the perk today, logged
+  bin/nff invite add <perk> [--end YYYY-MM-DD] [--note "..."]
+                     [--square <customer id>] [--owner]
+                                      a single-use link for the perk
+                                      (#718), open 14 days, printed
+                                      here: send it yourself. Whoever
+                                      signs up through it gets the perk,
+                                      through --end if given. --note is
+                                      your own reminder, never shown or
+                                      logged; --square joins the account
+                                      to that Square customer, unless
+                                      it has another address. Logged
+  bin/nff invite list                 every invite: open, used, expired
+                                      or revoked
+  bin/nff invite revoke <id>          ends an invite, logged
   bin/nff groups list                 the buying groups (#471) and
                                       whether each has a code
   bin/nff groups show <key>           the group, its code, the link
@@ -704,6 +718,7 @@ const [
   { membersCommand },
   { recordCommand },
   { recordInto, windowOpen },
+  { inviteCommand },
 ] = await Promise.all([
   import("../netlify/functions/lib/terms.mjs"),
   import("../netlify/functions/lib/admin.mjs"),
@@ -738,6 +753,7 @@ const [
   import("./members.mjs"),
   import("./recorder.mjs"),
   import("../netlify/functions/lib/recorder.mjs"),
+  import("./invite.mjs"),
 ]);
 
 // Who acts in a group's audit log when it is this CLI (#495).
@@ -786,7 +802,7 @@ const VALUED = ["reason", "amount", "note", "at", "until", "n", "since",
   "zip", "cooler", "gate", "delivery-notes", "notes", "key", "site",
   "market", "captured-by", "evidence", "first", "last", "line", "code",
   "occurrence", "paid", "ref", "preview", "set", "start", "end", "base",
-  "minutes"];
+  "minutes", "square"];
 // Flags given more than once keep every value, in order: `--line`.
 const REPEATED = ["line"];
 const args = process.argv.slice(2);
@@ -1322,6 +1338,16 @@ const run = async () => {
   }
   if (group === "supply") {
     return supplyCommand(action, rest, { flags, out, root });
+  }
+  // Invite links (#718, bin/invite.mjs). Making and revoking one ask
+  // on production, as granting a perk does; listing only reads.
+  if (group === "invite") {
+    return inviteCommand(action, rest, {
+      stores, flags, out,
+      confirm: (command) => confirmed(command, {
+        context, flags, ask: process.stdin.isTTY ? askLine : null,
+      }),
+    });
   }
   if (group === "messages") return messages();
   if (group === "library") return libraryReview();

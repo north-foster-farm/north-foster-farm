@@ -79,8 +79,8 @@ const squareHost = () => async (url, { method }) => {
   const path = new URL(url).pathname;
   const answers = [
     [/^\/v2\/customers\/search$/, "customers-search-found"],
-    [/^\/v2\/customers\//, method === "DELETE"
-      ? "customer-delete" : "customer-update"],
+    [/^\/v2\/customers\//, { DELETE: "customer-delete",
+      GET: "customer-get" }[method] || "customer-update"],
     [/^\/v2\/orders\/[^/]+\/pay$/, "order-pay-zero"],
     [/^\/v2\/orders\/search$/, "orders-search-customer"],
     [/^\/v2\/locations$/, "locations-list"],
@@ -169,6 +169,10 @@ const SQUARE_CALLS = {
     email: "customer@example.com", firstName: "Pat", lastName: "Fixture",
     phone: "",
   }, "NFM-ABCD-EFGH", o),
+  customerEmail: (o) => square.customerEmail("CUSTOMER_ID_1", o),
+  setCustomerEmail: (o) => square.setCustomerEmail(
+    "CUSTOMER_ID_1", "customer@example.com", o
+  ),
 };
 
 const PAYPAL_CALLS = {

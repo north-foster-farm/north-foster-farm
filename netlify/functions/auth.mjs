@@ -19,6 +19,7 @@ import { getCart, saveCart } from "./lib/account.mjs";
 import { finishEmailChange } from "./lib/email-change.mjs";
 import { creditBalance } from "./lib/credit.mjs";
 import { groupOf, memberKeyOf, namedGroup } from "./lib/groups.mjs";
+import { finishInvite } from "./lib/invites.mjs";
 import { finishJoin } from "./lib/join.mjs";
 import { roleOf } from "./lib/membership.mjs";
 import { cartKey, cartOwner } from "./lib/records.mjs";
@@ -159,6 +160,15 @@ export const handle = async (req, {
       now, session: session.id,
     });
     await carryCart(stores, session.email, result.cart, now);
+
+    // A link from an invite page (#718) puts the invite's perk on the
+    // account if the invite is still open now, and uses it up; one it
+    // can't use signs in all the same.
+    if (result.invite) {
+      await finishInvite(stores, session.email, result.invite, {
+        now, env, fetchImpl,
+      });
+    }
 
     // A link from a group's sign-up page (#495) joins the group too,
     // and lands on Membership, or on the account when it joined none.

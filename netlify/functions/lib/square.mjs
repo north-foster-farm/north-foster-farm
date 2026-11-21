@@ -1379,6 +1379,43 @@ export const renameCustomerEmail = async (from, to, {
   return ids;
 };
 
+// The email address on a Square customer, read before an invite puts
+// the account's there (#718, security on #733): a forwarded link must
+// not take over someone else's profile. -> { customerId, email }, the
+// address as Square holds it or null for none.
+export const customerEmail = async (customerId, {
+  env = process.env,
+  fetchImpl = globalThis.fetch,
+} = {}) => {
+  if (isFake(env)) return fake.customerEmail(customerId);
+
+  const data = await call(settings(env), `/v2/customers/${
+    encodeURIComponent(customerId)}`, null, fetchImpl, "GET");
+  const customer = data.customer || {};
+
+  return {
+    customerId: customer.id || customerId,
+    email: customer.email_address || null,
+  };
+};
+
+// One Square customer's address set to `email`, for an invite that
+// names the person's profile (#718): the site's orders find a profile
+// by its address, so this joins the new account to their Square
+// history. -> { customerId }.
+export const setCustomerEmail = async (customerId, email, {
+  env = process.env,
+  fetchImpl = globalThis.fetch,
+} = {}) => {
+  if (isFake(env)) return fake.setCustomerEmail(customerId, email);
+
+  const data = await call(settings(env), `/v2/customers/${
+    encodeURIComponent(customerId)}`, { email_address: email }, fetchImpl,
+  "PUT");
+
+  return { customerId: (data.customer && data.customer.id) || customerId };
+};
+
 // Every location on the account, closed ones too: a sale at the market
 // is at another location than the site's. -> ids, the site's first.
 const allLocations = async (cfg, fetchImpl) => {

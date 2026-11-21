@@ -24,10 +24,17 @@
 // - GET /api/auth/verify?token=<that link's token>, auth.mjs's
 //   handle(req, { stores, env, now, fetchImpl }): signs in, then
 //   attaches the perk to the account if the invite is still open at
-//   that moment, and uses the invite up. With `square`, it also puts
-//   the account's address on that Square customer (PUT
-//   /v2/customers/<id>, the recorded customer-update) and keeps the id
-//   on the customer record as `squareCustomerId`.
+//   that moment, and uses the invite up. With `square`, it first reads
+//   that Square customer (GET /v2/customers/<id>, the recorded
+//   customer-get and customer-get-no-email). Only when the customer has
+//   no email address, or already has the account's in any case, does it
+//   put the account's address there (PUT /v2/customers/<id>, the
+//   recorded customer-update) and keep the id on the customer record as
+//   `squareCustomerId`. Otherwise it writes nothing to Square, keeps no
+//   id, still grants the perk, and logs `invite.square-skipped` with
+//   both addresses masked (security on #733, 2026-11-21).
+// - An invite whose perk `end` has passed is dead, as an expired one is
+//   (qa on #733, 2026-11-21).
 // - bin/nff invite add <perk> [--end YYYY-MM-DD] [--note "..."]
 //   [--square <id>] prints the link; `invite list`; `invite revoke
 //   <id>`.
@@ -60,7 +67,7 @@ import {
   getCustomer, saveCustomer,
 } from "../netlify/functions/lib/records.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
-import { serve } from "./recorded.mjs";
+import { body, serve } from "./recorded.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const invites = () => import("../netlify/functions/lib/invites.mjs");
@@ -417,43 +424,178 @@ describe("invite links (#718)", () => {
       "followed after its 14 days");
   });
 
-  it("with --square, the account is linked to that Square customer",
-    async (t) => {
-      quiet(t);
+  it("with --square, the account is linked to that Square customer when "
+    + "its email address is empty or already the follower's, and otherwise "
+    + "left alone with invite.square-skipped logged", async (t) => {
+    const lines = capture(t);
+    const { addInvite } = await invites();
+    // The Square customer as the sandbox answered for it (test/fixtures/
+    // square/customer-get.json and customer-get-no-email.json, sandbox,
+    // 2026-11-21): one with an email address, one without.
+    const ON_FILE = body("square", "customer-get").customer.email_address;
 
-      const { addInvite } = await invites();
+    assert.ok(ON_FILE, "the recording has an address");
+    assert.equal(body("square", "customer-get-no-email").customer
+      .email_address, undefined, "the recording has none");
+
+    // Follows an invite naming the customer in `fixture` as `typed`.
+    // Square answers from `answers` in turn, and every request is held
+    // to the one it was recorded from.
+    const follower = async (fixture, typed, answers) => {
       const stores = testStores();
+      const id = body("square", fixture).customer.id;
       const made = await addInvite(stores, "friends", {
-        square: SQUARE_ID, by: "james", now, env: SANDBOX,
+        square: id, by: "james", now, env: SANDBOX,
       });
-      // Square answers from its recording (test/fixtures/square/
-      // customer-update.json, sandbox, 2026-10-29), and every request is
-      // held to the one it was recorded from.
-      const net = serve("square", "customer-update");
+      const net = serve("square", ...answers);
       const sent = [];
       const fetchImpl = async (url, init) => {
         sent.push({
-          method: init.method, path: new URL(url).pathname,
+          method: init.method || "GET", path: new URL(url).pathname,
           body: init.body ? JSON.parse(init.body) : null,
         });
 
         return net.impl(url, init);
       };
-
-      assert.deepEqual(await signUp(stores, made.url, PAT, {
+      const mark = lines.length;
+      const perks = await signUp(stores, made.url, typed, {
         env: SANDBOX, fetchImpl,
-      }), ["friends"]);
-      assert.deepEqual(net.problems, []);
-      assert.deepEqual(net.left(), [], "Square was told");
-      assert.equal(sent.length, 1, "one call to Square");
-      assert.equal(sent[0].method, "PUT");
-      assert.equal(sent[0].path, `/v2/customers/${SQUARE_ID}`);
-      assert.deepEqual(Object.keys(sent[0].body), ["email_address"]);
-      assert.equal(sent[0].body.email_address, PAT,
-        "the account's address on that Square customer");
-      assert.equal((await getCustomer(stores, PAT)).squareCustomerId,
-        SQUARE_ID);
+      });
+      const logged = lines.slice(mark)
+        .filter((l) => /"event":"invite\./.test(l));
+
+      assert.deepEqual(net.problems, [], typed);
+      assert.deepEqual(net.left(), [], `${typed}: every answer asked for`);
+      assert.equal(sent[0].method, "GET", `${typed}: Square read first`);
+      assert.equal(sent[0].path, `/v2/customers/${id}`);
+
+      return {
+        id, perks, sent, logged,
+        account: await getCustomer(stores, typed),
+      };
+    };
+
+    const linked = (r, typed, before) => {
+      assert.deepEqual(r.perks, ["friends"], `${typed}: the perk`);
+      assert.equal(r.sent.length, 2, `${typed}: a read, then one write`);
+      assert.equal(r.sent[1].method, "PUT");
+      assert.equal(r.sent[1].path, `/v2/customers/${r.id}`);
+      assert.deepEqual(Object.keys(r.sent[1].body), ["email_address"]);
+      assert.equal(r.sent[1].body.email_address, typed.toLowerCase(),
+        `${typed}: the account's address on that Square customer`);
+      assert.equal(r.account.squareCustomerId, r.id, `${typed}: linked`);
+
+      const write = r.logged.filter((l) => l.includes(r.id)
+        && l.includes(maskEmail(typed)));
+
+      assert.ok(write.length,
+        `${typed}: the write logged, naming the customer, address masked`);
+      if (before) {
+        assert.ok(write.some((l) => l.includes(maskEmail(before))),
+          `${typed}: the address before, masked`);
+      }
+    };
+
+    // Empty: the customer known only to Square gets the address.
+    linked(await follower("customer-get-no-email", PAT,
+      ["customer-get-no-email", "customer-update"]), PAT, null);
+
+    // Already the follower's, typed in another case: written, linked.
+    const shouting = ON_FILE.toUpperCase();
+
+    assert.notEqual(shouting, ON_FILE);
+    linked(await follower("customer-get", shouting,
+      ["customer-get", "customer-update"]), shouting, ON_FILE);
+
+    // Someone else's: the forwarded link writes nothing to Square, keeps
+    // no id, and still grants the perk.
+    const other = await follower("customer-get", PAT, ["customer-get"]);
+
+    assert.deepEqual(other.perks, ["friends"], "the perk is still granted");
+    assert.equal(other.sent.length, 1, "only the read; no write to Square");
+    assert.equal(other.account.squareCustomerId, undefined, "not linked");
+
+    const skipped = other.logged.map((l) => JSON.parse(l))
+      .filter((l) => l.event === "invite.square-skipped");
+
+    assert.equal(skipped.length, 1, "invite.square-skipped logged");
+
+    const [line] = skipped.map((l) => JSON.stringify(l));
+
+    assert.ok(line.includes(maskEmail(PAT)), "the follower's, masked");
+    assert.ok(line.includes(maskEmail(ON_FILE)), "Square's, masked");
+    for (const full of [PAT, ON_FILE, shouting]) {
+      assert.ok(!lines.some((l) => l.includes(full)),
+        `no line has ${full} in full`);
+    }
+  });
+
+  it("an invite whose perk end date has passed is dead like an expired "
+    + "one: it grants nothing and shows the plain message, and changes "
+    + "nothing in Square", async (t) => {
+    quiet(t);
+
+    const { addInvite } = await invites();
+    const stores = testStores();
+    const zone = "America/New_York";
+    // The perk's last day is 2026-10-10, well inside the invite's 14 days.
+    const lastDay = instant("2026-10-10", 20, 0, zone);
+    const after = instant("2026-10-11", 9, 0, zone);
+    const make = () => addInvite(stores, "friends", {
+      end: "2026-10-10", square: SQUARE_ID, by: "james", now, env: SANDBOX,
     });
+    const sent = [];
+    const fetchImpl = async (url, init) => {
+      sent.push(`${init.method || "GET"} ${new URL(url).pathname}`);
+
+      return new Response("{}", { status: 500 });
+    };
+
+    // The message an invite past its 14 days shows.
+    const aged = await addInvite(stores, "friends", {
+      by: "james", now, env: ENV,
+    });
+    const expired = await check(stores, tokenOf(aged.url), {
+      when: at(15 * DAY),
+    });
+
+    assert.equal(expired.status, 404);
+
+    const ended = await make();
+
+    assert.equal((await check(stores, tokenOf(ended.url), {
+      when: lastDay,
+    })).status, 200, "open on the perk's last day");
+
+    const looked = await check(stores, tokenOf(ended.url), { when: after });
+    const asked = await ask(stores, tokenOf(ended.url), SAM, { when: after });
+
+    assert.equal(looked.status, 404, "dead once the perk's end has passed");
+    assert.equal(looked.data.ok, false);
+    assert.equal(looked.data.message, expired.data.message,
+      "the plain message an expired invite shows");
+    assert.equal(asked.status, 404);
+    assert.equal(asked.data.message, expired.data.message);
+    assert.equal(asked.sent.length, 0, "no link mailed");
+    assert.notEqual(await stateOf(stores, ended.id, after), "open",
+      "not listed as open");
+
+    // Asked for on the perk's last day, followed the day after.
+    const late = await make();
+    const early = await ask(stores, tokenOf(late.url), PAT, {
+      when: lastDay,
+    });
+
+    assert.ok(early.link, "asked in time");
+    await follow(stores, early.link, { when: after, env: SANDBOX, fetchImpl });
+
+    assert.deepEqual(await holds(stores, PAT, lastDay), [],
+      "nothing granted, not even for the day it was asked");
+    assert.deepEqual(await holds(stores, SAM, lastDay), []);
+    assert.equal((await getCustomer(stores, PAT) || {}).squareCustomerId,
+      undefined, "not linked");
+    assert.deepEqual(sent, [], "nothing asked of or sent to Square");
+  });
 
   // #521's tests stand as they are (test/perk-checkout.test.mjs,
   // e2e/typed-address.spec.mjs). This holds the same for a perk an
@@ -567,10 +709,13 @@ describe("invite links (#718)", () => {
 
     assert.ok(invite(mark).length, "making is logged");
 
-    // Using it, with the Square link (recorded customer-update).
+    // Using it, with the Square link: a customer with no address
+    // (recorded customer-get-no-email), then the write (customer-update).
     mark = lines.length;
     await signUp(stores, made.url, PAT, {
-      env: SANDBOX, fetchImpl: serve("square", "customer-update").impl,
+      env: SANDBOX,
+      fetchImpl: serve("square", "customer-get-no-email", "customer-update")
+        .impl,
     });
 
     const use = invite(mark);
