@@ -425,6 +425,7 @@
         "e2e/pickup-days.spec.mjs",
         "e2e/pickup-horizon.spec.mjs",
         "e2e/place-order-pane.spec.mjs",
+        "e2e/placed-overflow.spec.mjs",
         "e2e/placed-panel.spec.mjs",
         "e2e/pricing.spec.mjs",
         "e2e/rate-limit.spec.mjs",
