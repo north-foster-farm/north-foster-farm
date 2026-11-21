@@ -29,9 +29,11 @@
 // aria-disabled button: the press is forced, as a customer's tap is.
 
 import {
-  OrderPage, expect, foldCart, test,
+  OrderPage, addQuery, expect, foldCart, test,
 } from "./support/order.mjs";
-import { DAYS, moneyFor, onDay } from "./support/money-day.mjs";
+import {
+  DAYS, TODAY, moneyFor, onDay,
+} from "./support/money-day.mjs";
 
 const SECTION = {
   contact: "#details", payment: "#payment", confirm: "#confirm",
@@ -158,7 +160,23 @@ test.describe("Proceed to checkout says why, and goes to what is " +
           await test.step(`${eggs} dozen eggs`, async () => {
             const order = new OrderPage(page);
 
-            await order.open({ eggs }, { method: "delivery" });
+            // OrderPage.open waits for the on-farm dates, and the local
+            // build's pickup schedule reaches six weeks past the build
+            // (bin/dev-schedule.mjs), so a later day may offer none:
+            // there it waits for the delivery dates, as pricing.spec
+            // does.
+            if (day === TODAY) {
+              await order.open({ eggs }, { method: "delivery" });
+            } else {
+              await page.goto(`/order/?add=${addQuery({ eggs })}`, {
+                waitUntil: "domcontentloaded",
+              });
+              await expect(page.locator("#delivery-date")).toBeEnabled();
+              await page.evaluate(() => document.fonts.ready.then(() => {}));
+              // ?add= scrolls the cart into view after load.
+              await page.waitForTimeout(1_000);
+              await order.method("delivery");
+            }
 
             const total = (await order.total.textContent()).trim();
 
