@@ -142,6 +142,9 @@ const openPickups = async (page, lists = grouped()) => {
   await order.open({ eggs: 1 }, { method: "scheduled" });
   await expect(page.locator("#scheduled-pickups .order-pickup").first())
     .toBeVisible();
+  // Opening the card scrolls its first field into view, smoothly
+  // (order-form.js revealMethod): the boxes are measured once it stops.
+  await order.scrollSettled();
 
   return order;
 };
@@ -307,13 +310,15 @@ test.describe("pickup days grouped by date (#703)", () => {
   test("a location with a place name shows it on the first line, above " +
     "the street", async ({ page }) => {
     const lists = grouped();
-
-    await openPickups(page, lists);
+    const order = await openPickups(page, lists);
 
     const home = page.locator("#scheduled-pickups");
 
     for (const size of [WIDE, NARROW]) {
       await page.setViewportSize(size);
+      // The new width reflows the page, which can scroll it: measured
+      // mid-scroll, each box comes from a different frame.
+      await order.scrollSettled();
 
       const foster = card(home, first(lists, FOSTER.series));
       const place = foster.locator(".order-pickup-place");

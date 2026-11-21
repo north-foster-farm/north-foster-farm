@@ -1,0 +1,30 @@
+{{/* The pickup-days layout (#703), one for every place a customer
+     chooses a scheduled pickup: the order page's Pickup days card, the
+     lapsed dialog and the account's Change pickup (James: "one layout
+     for this purpose, not two"). Each date is a group under its day
+     and date; each pickup a radio card of its name, hours, place name
+     and address, with Copy and Map beside it, outside the radio's
+     label so neither chooses it. order/pickup-days.js draws them from
+     these templates, which the page carries once. */}}
+<template id="tpl-pickup-day">
+  <div class="order-pickup-day" role="group">
+    <h3 class="order-pickup-day-heading"></h3>
+    <div class="order-pickup-list"></div>
+  </div>
+</template>
+<template id="tpl-pickup">
+  <div class="order-pickup">
+    <input class="form-check-input" type="radio">
+    <label class="order-pickup-label">
+      <span class="order-pickup-name"></span>
+      <span class="order-pickup-time"></span>
+      <span class="order-pickup-place"></span>
+      <span class="order-pickup-address"><span class="order-pickup-street"></span><span class="order-pickup-city"></span></span>
+    </label>
+    <span class="order-pickup-actions">
+      <button type="button" class="btn btn-sm btn-outline-primary order-pickup-copy">Copy</button>
+      <span class="visually-hidden order-pickup-copied" role="status"></span>
+      <a class="btn btn-sm btn-outline-primary order-pickup-map" target="_blank" rel="noopener">Map<span class="visually-hidden"> (opens in a new tab)</span></a>
+    </span>
+  </div>
+</template>

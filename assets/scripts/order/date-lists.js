@@ -4,8 +4,9 @@
 
 import { mergeScheduled } from "./lib/group.mjs";
 import {
-  earliestCutoff, fallbackChoice, pickupParts, scheduledChoices, stillOpen,
+  earliestCutoff, fallbackChoice, scheduledChoices, stillOpen,
 } from "./lib/scheduled.mjs";
+import { drawPickupDays } from "./pickup-days.js";
 import { setKept } from "../utils/keep-together.mjs";
 import { clear, whileLoading } from "../utils/skeleton.js";
 
@@ -229,8 +230,8 @@ export class DateLists {
     return Boolean(radio);
   }
 
-  // The scheduled pickups as a vertical list of radios, one line each,
-  // from the template (#tpl-pickup). Nothing is chosen but what the
+  // The scheduled pickups as radio cards grouped under their dates
+  // (#703, pickup-days.js). Nothing is chosen but what the
   // customer chose, or a draft or link named; a draft's closed
   // occurrence of the old drop site falls to that series' next.
   fillPickups(box, list) {
@@ -255,31 +256,12 @@ export class DateLists {
     const pick = kept ? current
       : series && (fallbackChoice(list, series) || {}).value;
 
-    for (const entry of list) {
-      const node = document.getElementById("tpl-pickup").content
-        .cloneNode(true);
-      const input = node.querySelector("input");
-      const label = node.querySelector("label");
-      const parts = pickupParts(entry, this.place(entry.location));
-
-      input.id = `scheduled-${entry.value.toLowerCase()}`;
-      input.value = entry.value;
-      input.checked = entry.value === pick;
-      label.htmlFor = input.id;
-      label.querySelector(".order-pickup-date").textContent = parts.date;
-      label.querySelector(".order-pickup-time").textContent = parts.time;
-      label.querySelector(".order-pickup-name").textContent = parts.name;
-
-      const address = label.querySelector(".order-pickup-address");
-
-      for (const line of parts.address) {
-        const part = document.createElement("span");
-
-        part.textContent = line;
-        address.appendChild(part);
-      }
-      box.appendChild(node);
-    }
+    drawPickupDays(box, list, {
+      place: (code) => this.place(code),
+      name: "scheduled.date",
+      id: "scheduled",
+      pick: pick || "",
+    });
   }
 
   fill(select, offered) {

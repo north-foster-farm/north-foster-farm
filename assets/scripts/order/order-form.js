@@ -183,6 +183,7 @@ export class OrderForm {
     this.lapsed = new Lapsed(document.getElementById("order-lapsed"), {
       onUse: (choice) => this.useLapsed(choice),
       onOther: (method) => this.otherWay(method),
+      place: (code) => this.terms.model.location(code),
     });
     this.submitter = new Submitter(this.editId
       ? { url: `/api/account/orders/${this.editId}/edit` }

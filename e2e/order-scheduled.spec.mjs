@@ -50,7 +50,9 @@ test.describe("scheduled pickup", () => {
       expect(dates).toEqual([...dates].sort());
     });
 
-  test("each entry is a card: day and hours, name, then address",
+  // The day is the heading over its pickups since #703
+  // (e2e/pickup-days.spec.mjs); the card keeps the rest.
+  test("each entry is a card: hours, name, then address",
     async ({ page }) => {
       await cannedScheduled(page);
 
@@ -58,26 +60,24 @@ test.describe("scheduled pickup", () => {
 
       await order.open({ eggs: 1 }, { method: "scheduled" });
       await listed(page);
-      await expect(part(page, FOSTER.series, "date"))
-        .toHaveText(/^\w+, \w+ \d+$/);
       await expect(part(page, FOSTER.series, "time"))
         .toHaveText("9:00 AM – 1:00 PM");
       await expect(part(page, FOSTER.series, "name"))
         .toHaveText("Foster Farmers’ Market");
-      // The parts joined by commas, a line breaking only between two
-      // (#439).
-      await expect(part(page, FOSTER.series, "address").locator("span"))
-        .toHaveText([
-          "Shady Acres Diner", "164 Danielson Pike", "Foster, RI 02825",
-        ]);
+      await expect(part(page, FOSTER.series, "place"))
+        .toHaveText("Shady Acres Diner");
+      await expect(part(page, FOSTER.series, "street"))
+        .toHaveText("164 Danielson Pike");
+      await expect(part(page, FOSTER.series, "city"))
+        .toHaveText("Foster, RI 02825");
       await expect(part(page, DROP.series, "time"))
         .toHaveText("10:00 – 11:00 AM");
       await expect(part(page, DROP.series, "name"))
         .toHaveText("North Scituate · Drop site");
-      await expect(part(page, DROP.series, "address").locator("span"))
-        .toHaveText([
-          "46 Institute Lane", "North Scituate, RI 02857",
-        ]);
+      await expect(part(page, DROP.series, "street"))
+        .toHaveText("46 Institute Lane");
+      await expect(part(page, DROP.series, "city"))
+        .toHaveText("North Scituate, RI 02857");
     });
 
   test("an unchosen card is white and a chosen one is not",
@@ -346,7 +346,8 @@ test.describe("a lapsed scheduled pickup", () => {
       // Take the other Saturday, not the first offered.
       const market = lists.scheduled.at(-1);
 
-      await dialog.getByLabel(new RegExp(market.label)).check();
+      // Its day is the heading over it (#703), not in its label.
+      await dialog.locator(`input[value='${market.occurrence}']`).check();
       await dialog.getByRole("button", { name: "Use this pickup" }).click();
       await expect(pickupChosen(page)).toHaveValue(market.occurrence);
       await expect(page.locator("[data-lapsed-status]")).toHaveText(

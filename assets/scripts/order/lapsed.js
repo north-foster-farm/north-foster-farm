@@ -6,6 +6,7 @@
 
 import { windowLabel } from "./lib/schedule.mjs";
 import { appendWhole } from "../utils/keep-together.mjs";
+import { drawPickupDays } from "./pickup-days.js";
 
 // Keyed by the form's way: `scheduled` is scheduled pickup, the drop site
 // and every market or pop-up in one list.
@@ -34,10 +35,12 @@ const USE = {
 };
 
 export class Lapsed {
-  constructor(dialog, { onUse, onOther }) {
+  constructor(dialog, { onUse, onOther, place = () => null }) {
     this.dialog = dialog;
     this.onUse = onUse;
     this.onOther = onOther;
+    // A location by its code, for a scheduled pickup's address.
+    this.place = place;
     this.method = null;
     this.returnTo = null;
 
@@ -112,20 +115,31 @@ export class Lapsed {
         "get your order.";
     this.legend.textContent = LEGEND[method];
     this.list.textContent = "";
-    choices.forEach((choice, i) => {
-      const node = document.getElementById("tpl-lapsed-choice").content
-        .cloneNode(true);
-      const input = node.querySelector("input");
-      const label = node.querySelector("label");
+    // Scheduled pickups in the order page's layout, grouped by date
+    // (#703). The first offered is chosen.
+    if (method === "scheduled") {
+      drawPickupDays(this.list, dates, {
+        place: this.place, name: "lapsed", id: "order-lapsed",
+      });
+    } else {
+      choices.forEach((choice, i) => {
+        const node = document.getElementById("tpl-lapsed-choice").content
+          .cloneNode(true);
+        const input = node.querySelector("input");
+        const label = node.querySelector("label");
 
-      input.id = `order-lapsed-${i}`;
-      input.value = choice.value;
-      input.checked = i === 0;
-      label.htmlFor = input.id;
-      label.textContent = choice.text;
-      if (choice.kept) appendWhole(label, choice.kept);
-      this.list.appendChild(node);
-    });
+        input.id = `order-lapsed-${i}`;
+        input.value = choice.value;
+        label.htmlFor = input.id;
+        label.textContent = choice.text;
+        if (choice.kept) appendWhole(label, choice.kept);
+        this.list.appendChild(node);
+      });
+    }
+
+    const first = this.list.querySelector("input");
+
+    if (first) first.checked = true;
     this.choices.hidden = !some;
     this.use.hidden = !some;
     this.use.textContent = USE[method];

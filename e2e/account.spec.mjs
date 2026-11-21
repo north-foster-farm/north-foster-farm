@@ -332,16 +332,24 @@ test.describe("a scheduled pickup on the account page", () => {
     await page.getByRole("button", { name: /^Change (delivery|pickup)$/ })
       .first().click();
 
-    const select = page.locator("[data-dates]");
+    // Each a radio in the pickup-days layout (#703), the booked one
+    // chosen, under its day's heading.
+    const form = page.locator(".account-panel-form");
+    const radio = (d) => form.locator(`input[type='radio'][value='${
+      d.occurrence}']`);
+    const booked = form.locator(".order-pickup")
+      .filter({ has: radio(m) });
 
-    await expect(select).toHaveValue(m.occurrence);
+    await expect(radio(m)).toBeChecked();
     for (const d of dates().scheduled) {
-      await expect(select.locator(`option[value='${d.occurrence}']`))
-        .toHaveCount(1);
+      await expect(radio(d)).toHaveCount(1);
     }
-    await expect(select.locator(`option[value='${m.occurrence}']`))
-      .toHaveText(`${m.label}, ${m.window}, at Canned Market`);
-    await select.selectOption(drop.occurrence);
+    await expect(form.locator(".order-pickup-day").filter({ has: booked })
+      .getByRole("heading")).toHaveText(m.label);
+    await expect(booked.locator(".order-pickup-time")).toHaveText(m.window);
+    await expect(booked.locator(".order-pickup-name"))
+      .toContainText("Canned Market");
+    await radio(drop).check();
     await page.getByRole("button", { name: "Save changes" }).click();
 
     expect(posted.method).toBe("scheduled");

@@ -416,6 +416,8 @@
         "e2e/payment-stacking.spec.mjs",
         "e2e/payment.spec.mjs",
         "e2e/picker-out.spec.mjs",
+        "e2e/pickup-days-status.spec.mjs",
+        "e2e/pickup-days.spec.mjs",
         "e2e/pickup-horizon.spec.mjs",
         "e2e/place-order-pane.spec.mjs",
         "e2e/pricing.spec.mjs",
@@ -500,6 +502,8 @@
         "e2e/payment-stacking.spec.mjs",
         "e2e/payment.spec.mjs",
         "e2e/picker-out.spec.mjs",
+        "e2e/pickup-days-status.spec.mjs",
+        "e2e/pickup-days.spec.mjs",
         "e2e/pickup-horizon.spec.mjs",
         "e2e/place-order-pane.spec.mjs",
         "e2e/pricing.spec.mjs",
@@ -582,6 +586,8 @@
         "e2e/payment-stacking.spec.mjs",
         "e2e/payment.spec.mjs",
         "e2e/picker-out.spec.mjs",
+        "e2e/pickup-days-status.spec.mjs",
+        "e2e/pickup-days.spec.mjs",
         "e2e/pickup-horizon.spec.mjs",
         "e2e/place-order-pane.spec.mjs",
         "e2e/pricing.spec.mjs",
@@ -668,6 +674,8 @@
         "e2e/onfarm-times.spec.mjs",
         "e2e/overflow.spec.mjs",
         "e2e/picker-out.spec.mjs",
+        "e2e/pickup-days-status.spec.mjs",
+        "e2e/pickup-days.spec.mjs",
         "e2e/scheduled-pickup.spec.mjs",
         "e2e/sign-in-order.spec.mjs",
         "e2e/skeletons.spec.mjs",
@@ -1589,6 +1597,23 @@
       ],
       "specs": [
         "e2e/order-scheduled.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/pickup-days.spec.mjs"
+      ],
+      "specs": [
+        "e2e/pickup-days-status.spec.mjs",
+        "e2e/pickup-days.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/pickup-days-status.spec.mjs"
+      ],
+      "specs": [
+        "e2e/pickup-days-status.spec.mjs"
       ]
     },
     {
