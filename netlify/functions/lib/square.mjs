@@ -1379,6 +1379,23 @@ export const renameCustomerEmail = async (from, to, {
   return ids;
 };
 
+// One Square customer's address set to `email`, for an invite that
+// names the person's profile (#718): the site's orders find a profile
+// by its address, so this joins the new account to their Square
+// history. -> { customerId }.
+export const setCustomerEmail = async (customerId, email, {
+  env = process.env,
+  fetchImpl = globalThis.fetch,
+} = {}) => {
+  if (isFake(env)) return fake.setCustomerEmail(customerId, email);
+
+  const data = await call(settings(env), `/v2/customers/${
+    encodeURIComponent(customerId)}`, { email_address: email }, fetchImpl,
+  "PUT");
+
+  return { customerId: (data.customer && data.customer.id) || customerId };
+};
+
 // Every location on the account, closed ones too: a sale at the market
 // is at another location than the site's. -> ids, the site's first.
 const allLocations = async (cfg, fetchImpl) => {

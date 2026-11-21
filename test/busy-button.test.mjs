@@ -44,6 +44,7 @@ const REQUEST_BUTTONS = [
   ["layouts/login/single.html", "Send a sign-in link"],
   ["layouts/join/single.html", "Send my link"],
   ["layouts/join/single.html", "Join the group"],
+  ["layouts/invite/single.html", "Send my link"],
   ["layouts/partials/email-confirm.html", "Confirm new email address"],
   ["layouts/account/single.html", "Sign out"],
   ["layouts/account/single.html", "Confirm"],
