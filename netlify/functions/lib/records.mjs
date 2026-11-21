@@ -423,6 +423,44 @@ export const saveCheckout = async (stores, checkout) => {
   return checkout;
 };
 
+// A stored checkout with `fields` set, where it lives now: the latest,
+// or an earlier attempt's archive. `checkout` may be stale: a new
+// attempt that started since it was read has moved it to its archive
+// and taken the latest slot. So the write is a swap on the key read,
+// made only while that key still holds this PayPal order, and when it
+// no longer does, the checkout is looked for where its PayPal order's
+// index points. -> the checkout as saved, or null when it is gone or
+// keeps changing (the jobs' backstop covers it then).
+export const markCheckout = async (stores, checkout, fields) => {
+  const { paypalOrderId } = checkout;
+  let holder = holderOf(checkout);
+
+  for (let tries = 0; tries < WRITE_TRIES; tries += 1) {
+    const found = await stores.orders.getTagged(checkoutKey(holder));
+    const stored = found && found.value;
+
+    if (stored && stored.paypalOrderId === paypalOrderId
+      && holderOf(stored) === holder) {
+      const marked = { ...stored, ...fields };
+
+      if (await stores.orders.swap(checkoutKey(holder), marked, found.etag)) {
+        return marked;
+      }
+      continue;
+    }
+
+    // Moved: its PayPal order's index says where to, if anywhere.
+    const ref = await stores.orders.get(byPayPalKey(paypalOrderId));
+    const moved = ref && ref.key === checkout.key
+      ? ref.holder || ref.key : null;
+
+    if (!moved || moved === holder) return null;
+    holder = moved;
+  }
+
+  return null;
+};
+
 // The latest checkout of a submission, or the one that made this
 // PayPal order when `paypalOrderId` names an earlier attempt's.
 export const getCheckout = async (stores, key, paypalOrderId = null) => {

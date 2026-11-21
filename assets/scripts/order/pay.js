@@ -588,6 +588,7 @@ export class Payment {
             : "Check the form and try again.");
         }
         this.venmoPayload = payload;
+        this.venmoRestarted = false;
         this.clearError();
 
         const id = await this.form.venmoCreate(payload);
@@ -601,11 +602,28 @@ export class Payment {
 
         return id;
       },
-      onApprove: async (data) => {
+      // Venmo refused the funding source the buyer picked (#721): the
+      // sheet opens again on the same PayPal order, once, so they can
+      // pick another, as PayPal advises. The decline is settled first,
+      // so a buyer who closes the sheet is where any decline leaves
+      // them. A second decline, or any other failure, stops there.
+      onApprove: async (data, actions) => {
         crumb("venmo.approve");
         this.setBusy(true);
         try {
-          await this.form.venmoCapture(this.venmoPayload, data.orderID);
+          const restart = !!this.venmoRestarted;
+          const outcome = await this.form.venmoCapture(
+            this.venmoPayload, data.orderID, { restart }
+          );
+
+          if (!restart && outcome && outcome.kind === "declined"
+            && outcome.code === "INSTRUMENT_DECLINED" && actions
+            && typeof actions.restart === "function") {
+            this.venmoRestarted = true;
+            crumb("venmo.restart");
+
+            return await actions.restart();
+          }
         } catch (error) {
           this.fail(error.message || "The Venmo payment didn't go through.");
         } finally {

@@ -35,8 +35,8 @@ import { announcePaid } from "./payments.mjs";
 import { pickupSchedule } from "./pickups.mjs";
 import {
   amendOrder, belongsTo, checkoutsFor, deleteCheckout, getCheckout,
-  getCustomer, getOrder, moneyPatch, noteMadeCustomer, paymentsOf,
-  saveCheckout, saveOrder, touchCustomer,
+  getCustomer, getOrder, markCheckout, moneyPatch, noteMadeCustomer,
+  paymentsOf, saveCheckout, saveOrder, touchCustomer,
 } from "./records.mjs";
 import * as squareApi from "./square.mjs";
 import { adjust } from "./stock.mjs";
@@ -472,8 +472,14 @@ export const startVenmo = async (stores, order, { key, attempt = 1 }, {
 // -> the paid record.
 // throws PayPalError { declined, code } or { retryable }; a
 // CheckoutError when the checkout and the order disagree.
+// `restart` marks the capture that follows the page's one restart of
+// the Venmo sheet after INSTRUMENT_DECLINED (#721). PayPal may answer
+// a repeated request id with its first answer, the decline, so that
+// capture, and any after the first decline (the checkout is marked
+// `restarted`), goes under a request id of its own. Square's keys and
+// the record are as for any other capture.
 export const finishVenmo = async (stores, order, {
-  key, attempt = 1, paypalOrderId,
+  key, attempt = 1, paypalOrderId, restart = false,
 }, {
   paypal = paypalApi,
   square = squareApi,
@@ -511,12 +517,45 @@ export const finishVenmo = async (stores, order, {
 
   const k = attemptKey(key, checkout.attempt || attempt);
   const { deadline } = options;
-  const capture = await retry(
-    () => paypal.captureOrder(paypalOrderId, k, {
+  const captureUnder = (captureKey) => retry(
+    () => paypal.captureOrder(paypalOrderId, captureKey, {
       env, fetchImpl, now, deadline,
     }),
     { sleep, until: deadline || 0 }
   );
+  // After the first capture's INSTRUMENT_DECLINED the checkout is
+  // marked, so every later capture, the page's after its restart or
+  // the jobs' when the tab closed first, goes under the restart's id.
+  const restarted = restart || checkout.restarted === true;
+  let capture;
+
+  try {
+    capture = await captureUnder(restarted ? `${k}-restart` : k);
+  } catch (error) {
+    if (restarted || !(error && error.declined
+      && error.code === "INSTRUMENT_DECLINED")) throw error;
+
+    try {
+      // Gone, or moved and moving: the jobs' backstop below covers it.
+      if (!(await markCheckout(stores, checkout, { restarted: true }))) {
+        log.warn({
+          event: "checkout.mark_skipped", id: order.id, paypalOrderId,
+        });
+      }
+    } catch (markError) {
+      log.warn({
+        event: "checkout.mark_failed", id: order.id, paypalOrderId,
+        error: String(markError && markError.message),
+      });
+    }
+    if (!options.rescue) throw error;
+
+    // The jobs' backstop, for a checkout the mark never reached: the
+    // buyer may have approved again in the restarted sheet. PayPal
+    // captures an order once, so a second try cannot charge twice.
+    log.warn({ event: "venmo.rescue_restart", id: order.id, paypalOrderId });
+    capture = await captureUnder(`${k}-restart`);
+  }
 
   if (capture.amount !== null && capture.amount !== order.totals.total) {
     // Money moved, and not the right amount. Keep the order (the
@@ -760,7 +799,7 @@ export const rescueCheckout = async (stores, checkout, {
     : await finishVenmo(stores, checkout.order, {
       key: checkout.key, attempt: checkout.attempt,
       paypalOrderId: checkout.paypalOrderId,
-    }, { paypal, ...rest });
+    }, { paypal, rescue: true, ...rest });
 
   log.warn({ event: "venmo.rescued", id: saved.id, status: current.status });
 

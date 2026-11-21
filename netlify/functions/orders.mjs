@@ -584,8 +584,9 @@ export const handle = async (req, {
           });
         }
 
+        // The capture after the page restarted the Venmo sheet (#721).
         return own(await announce(await finishVenmo(stores, order, {
-          key, attempt, paypalOrderId,
+          key, attempt, paypalOrderId, restart: payment.restart === true,
         }, options)));
       }
 
@@ -618,6 +619,7 @@ export const handle = async (req, {
     if (declined) {
       log.info({
         event: "payment.declined", id: order.id, method, code, attempt,
+        ...(payment.restart === true ? { restart: true } : {}),
       });
       await count(stores, "declined", now);
 
