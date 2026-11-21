@@ -203,7 +203,7 @@ describe("on-farm pickup", () => {
     const r = validateOrder(p, ctx);
 
     assert.equal(r.status, 422);
-    assert.equal(r.errors["onfarm.window"], "Please select a pickup time.");
+    assert.equal(r.errors["onfarm.window"], "Please select a pick-up time.");
 
     p.fulfilment.onfarm = { window: AFTERNOON };
     const ok = validateOrder(p, ctx);
@@ -223,7 +223,7 @@ describe("on-farm pickup", () => {
 
     assert.equal(r.status, 409);
     assert.equal(r.errors["onfarm.window"],
-      "That pickup time is no longer available.");
+      "That pick-up time is no longer available.");
     assert.equal(r.dates[0].date, "2026-10-07");
     assert.deepEqual(r.dates[0].windows.map((w) => w.label),
       ["9:00 AM – 12:00 PM", "1:00 – 5:00 PM"]);
@@ -377,7 +377,7 @@ describe("delivery rules", () => {
 
     assert.equal(r.status, 422);
     assert.match(r.errors["delivery.minimum"],
-      /On-farm pickup and our pickup days have no minimum/);
+      /On-farm pickup and our pick-up days have no minimum/);
   });
 
   it("records the state and takes eggs to Connecticut", () => {

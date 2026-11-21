@@ -62,11 +62,11 @@ for (const size of SIZES) {
 
         await order.open({ wings: 2 }, { method: "scheduled" });
         await expect(order.cart.locator("[data-way-name]"))
-          .toHaveText("Pickup days");
+          .toHaveText("Pick-up days");
         await page.reload();
         await expect(page.locator("#onfarm-date")).toBeEnabled();
         await expect(order.cart.locator("[data-way-name]"))
-          .toHaveText("Pickup days");
+          .toHaveText("Pick-up days");
 
         // ?method= from the home page's links beats the remembered way.
         await page.goto("/order/?method=delivery");

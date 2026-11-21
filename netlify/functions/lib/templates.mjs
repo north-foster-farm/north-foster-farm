@@ -464,7 +464,7 @@ export const orderConfirmed = (order, {
   const blocks = [
     order.fulfilment.method === "onfarm"
       ? p(`Thanks, ${firstName(order.customer)}. We received your payment ` +
-        `of ${total}, and your pickup time is set. Your order is ` +
+        `of ${total}, and your pick-up time is set. Your order is ` +
         "confirmed.")
       : p(`Thanks, ${firstName(order.customer)}. Your payment of ${total} ` +
         "came through and your order is confirmed."),
@@ -681,7 +681,7 @@ export const missedDelivery = (order, {
         `Deliver it ${next}, for another ` +
           "delivery fee " +
           `of ${dollars(fee)}`,
-        "Have it ready for on-farm pickup or one of our pickup days, at " +
+        "Have it ready for on-farm pickup or one of our pick-up days, at " +
           "no charge",
         `Cancel it, and we'll refund ${items} for your items`,
       ]),
@@ -696,7 +696,7 @@ export const missedDelivery = (order, {
       p("Please choose what you'd like us to do:"),
       list([
         `Deliver it ${next}, at no extra charge`,
-        "Have it ready for on-farm pickup or one of our pickup days",
+        "Have it ready for on-farm pickup or one of our pick-up days",
         `Cancel it for a full refund of ${dollars(order.totals.total)}`,
       ]),
       p(`We'll hold your order until ${hold}. If you haven't chosen by ` +
@@ -736,7 +736,7 @@ export const movedDelivery = (order, {
     p(`${why}, so we've moved your delivery to ${when}, ${
       dayAfter(date, 0)}. You don't need to do anything.`),
     p(`If ${next ? when : "that day"} doesn't work for you, you can ` +
-      "choose another day, switch to on-farm pickup or one of our pickup " +
+      "choose another day, switch to on-farm pickup or one of our pick-up " +
       `days, or cancel for a full refund of ${dollars(order.totals.total)}, ` +
       "delivery fee included."),
   ];
@@ -839,7 +839,7 @@ export const addressDecision = (customer, decision, { links } = {}) => {
     }
   } else {
     blocks.push(p(`Unfortunately, ${where} is outside our delivery ` +
-      "area. On-farm pickup and our pickup days are open to everyone, " +
+      "area. On-farm pickup and our pick-up days are open to everyone, " +
       "with no minimum and no fee."));
   }
   blocks.push(customerFooter(links));

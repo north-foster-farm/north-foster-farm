@@ -298,7 +298,7 @@ test.describe("a scheduled pickup on the account page", () => {
       const when = page.locator("[data-out='when']").first();
 
       await expect(when).toContainText(
-        `Pickup days, ${m.label}, 10:00 AM – 12:00 PM, at Canned Market`
+        `Pick-up days, ${m.label}, 10:00 AM – 12:00 PM, at Canned Market`
       );
       await expect(when).not.toContainText("scheduled,");
       await expect(when).not.toContainText("scituate");
@@ -392,7 +392,7 @@ test.describe("a scheduled pickup on the account page", () => {
       await page.goto("/account/#address");
 
       await expect(page.locator("body")).toContainText(
-        "On-farm pickup and our pickup days are open to everyone."
+        "On-farm pickup and our pick-up days are open to everyone."
       );
     });
 });

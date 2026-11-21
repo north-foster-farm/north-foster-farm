@@ -113,7 +113,7 @@ test.describe("payments", () => {
     });
 
     expect(receipt.text).toContain("We received your payment of $7, and " +
-      "your pickup time is set");
+      "your pick-up time is set");
     expect(receipt.text).toContain("When:");
     // A first order says once that the email is an account (#114).
     expect(receipt.text).toContain("Your email address is your account " +

@@ -124,7 +124,7 @@ test.describe("scheduled pickup", () => {
       await order.card();
       await order.submit.click();
       await expect(page.locator("[data-error-for='fulfilment.occurrence']"))
-        .toHaveText("Choose a pickup day and place.");
+        .toHaveText("Choose a pick-up day and place.");
       await expect(page.locator("#scheduled-pickups"))
         .toHaveClass(/is-invalid/);
       await expect(page.locator("#order-lapsed")).toBeHidden();
@@ -137,11 +137,11 @@ test.describe("scheduled pickup", () => {
 
     await order.open({ eggs: 1 }, { method: "scheduled" });
     await expect(page.locator("[data-way-name]"))
-      .toHaveText("Pickup days");
+      .toHaveText("Pick-up days");
 
     await order.scheduled(FOSTER.series);
     await expect(page.locator("[data-way-name]"))
-      .toHaveText("Pickup days");
+      .toHaveText("Pick-up days");
   });
 
   test("an occurrence the list lacks is not offered",
@@ -218,7 +218,7 @@ test.describe("scheduled pickup", () => {
 
     await order.open({ eggs: 1 });
     await expect(page.locator("[data-scheduled-none]")).toHaveText(
-      "No pickup days are open right now."
+      "No pick-up days are open right now."
     );
     await expect(page.locator("#method-scheduled")).toBeDisabled();
     await expect(pickupRadios(page)).toHaveCount(0);
@@ -336,7 +336,7 @@ test.describe("a lapsed scheduled pickup", () => {
 
       await expect(dialog).toBeVisible();
       await expect(dialog.locator("[data-lapsed-legend]"))
-        .toHaveText("Pickup days");
+        .toHaveText("Pick-up days");
       await expect(dialog.getByRole("button", { name: "Use this pickup" }))
         .toBeVisible();
       await expect(dialog.getByRole("button", {
@@ -358,8 +358,8 @@ test.describe("a lapsed scheduled pickup", () => {
 
   for (const [way, instead] of [
     ["scheduled", "Choose on-farm pickup or delivery instead"],
-    ["onfarm", "Choose a pickup day or delivery instead"],
-    ["delivery", "Choose on-farm pickup or a pickup day instead"],
+    ["onfarm", "Choose a pick-up day or delivery instead"],
+    ["delivery", "Choose on-farm pickup or a pick-up day instead"],
   ]) {
     test(`a lapsed ${way} way offers "${instead}"`, async ({ page }) => {
       const lists = payable();

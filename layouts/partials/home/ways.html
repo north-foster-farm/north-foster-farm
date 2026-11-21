@@ -52,13 +52,13 @@
   (dict
     "method" "scheduled"
     "icon" "lot-location"
-    "name" "Pickup days"
+    "name" "Pick-up days"
     "badge" $dropBadge
     "line" "Order in advance and get your order at any upcoming market, pop-up, or drop site"
     "when" (printf "%ss, <span class=\"text-nowrap\">%s</span>" $drop.day (htmlEscape $drop.window) | safeHTML)
     "where" $drop.short
     "cost" "No minimum, no fee"
-    "cta" "Shop for pickup days")
+    "cta" "Shop for pick-up days")
   (dict
     "method" "delivery"
     "icon" "delivery"

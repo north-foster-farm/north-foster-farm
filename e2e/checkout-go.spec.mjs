@@ -268,11 +268,11 @@ test.describe("Proceed to checkout says why, and goes to what is " +
     const ways = [
       {
         way: "onfarm", slot: "onfarm.window",
-        text: "Please select a pickup time.",
+        text: "Please select a pick-up time.",
       },
       {
         way: "scheduled", slot: "fulfilment.occurrence",
-        text: "Choose a pickup day and place.",
+        text: "Choose a pick-up day and place.",
       },
       {
         way: "delivery", slot: "delivery.address1",

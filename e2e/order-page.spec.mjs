@@ -39,7 +39,7 @@ test.describe("order page", () => {
 
     await order.open();
     await expect(page.locator(".order-method-title")).toHaveText([
-      "On-farm pickup", "Pickup days", "Delivery",
+      "On-farm pickup", "Pick-up days", "Delivery",
     ]);
     await expect(page.locator("#method-onfarm")).toBeChecked();
   });
@@ -232,7 +232,7 @@ test.describe("order page", () => {
       await expect(order.next).toBeEnabled();
       await order.next.focus();
       await page.keyboard.press("Enter");
-      await expect(message).toHaveText("Please select a pickup time.");
+      await expect(message).toHaveText("Please select a pick-up time.");
       await expect.poll(() => message.evaluate((el) => {
         const r = el.getBoundingClientRect();
 

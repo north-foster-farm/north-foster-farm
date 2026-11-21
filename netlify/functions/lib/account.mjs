@@ -339,8 +339,8 @@ export const planChange = (order, changes, {
     const to = c.method !== undefined ? text(c.method, 20) : method;
 
     if (!wasScheduled || !isScheduled({ method: to })) {
-      errors.method = "Only an order for a pickup day can move to " +
-        "another pickup day.";
+      errors.method = "Only an order for a pick-up day can move to " +
+        "another pick-up day.";
     } else if (c.occurrence !== undefined) {
       target = text(c.occurrence, 20);
     } else {
@@ -411,7 +411,7 @@ export const planChange = (order, changes, {
     if (w) {
       f.onfarm = { window: w.id, from: w.from, to: w.to };
     } else {
-      errors["onfarm.window"] = "That pickup time isn't available.";
+      errors["onfarm.window"] = "That pick-up time isn't available.";
     }
   }
 

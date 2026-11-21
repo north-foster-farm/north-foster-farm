@@ -151,7 +151,7 @@ test.describe("pickup days, James's revision (#703)", () => {
     const message = page.locator("#err-scheduled-date");
 
     await expect(pickups).toHaveClass(/\bis-invalid\b/);
-    await expect(message).toHaveText("Choose a pickup day and place.");
+    await expect(message).toHaveText("Choose a pick-up day and place.");
     await expect(message).toBeVisible();
     await order.scrollSettled();
 

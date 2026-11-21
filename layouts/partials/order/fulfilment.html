@@ -39,7 +39,7 @@
       <div class="order-method-reveal" data-method-body="onfarm" inert>
         <div class="order-method-body order-hform">
           <div class="row">
-            <label class="col-sm-4 col-form-label" for="onfarm-date">Pickup day</label>
+            <label class="col-sm-4 col-form-label" for="onfarm-date">Pick-up day</label>
             <div class="col-sm-8 skeleton-slot" data-dates-region>
               {{ partial "skeleton.html" (dict "over" true "fit" "field") }}
               <select class="form-select" id="onfarm-date" name="onfarm.date" data-dates="onfarm" data-field="fulfilment.date" disabled aria-describedby="err-onfarm-date">
@@ -50,7 +50,7 @@
             </div>
           </div>
           <div class="row">
-            <span class="col-sm-4 col-form-label" id="onfarm-window-label">Pickup time</span>
+            <span class="col-sm-4 col-form-label" id="onfarm-window-label">Pick-up time</span>
             <div class="col-sm-8 skeleton-slot" data-dates-region>
               {{ partial "skeleton.html" (dict "over" true) }}
               {{ partial "skeleton/status.html" (dict "quiet" true) }}
@@ -89,7 +89,7 @@
         {{ $dropStart := time.AsTime $drop.start $terms.timeZone }}
         {{ $dropEnd := $dropStart.AddDate 0 0 1 }}
         <span class="d-flex flex-wrap align-items-baseline column-gap-2">
-          <span class="order-method-title" id="method-scheduled-title">Pickup days</span>
+          <span class="order-method-title" id="method-scheduled-title">Pick-up days</span>
           <span class="badge rounded-pill bg-success-subtle text-success-emphasis" data-hide-from="{{ $dropEnd.Format "2006-01-02T15:04:05-07:00" }}"{{ if le $dropEnd.Unix now.Unix }} hidden data-expiry="hid"{{ end }}>Starting {{ $dropStart.Format "January 2" }}</span>
         </span>
         {{/* Where counts the locations and links to the Places list.
@@ -104,7 +104,7 @@
           <dd>No minimum, no fee</dd>
         </dl>
       </label>
-      <p class="order-method-warn" data-scheduled-none role="status" hidden>No pickup days are open right now.</p>
+      <p class="order-method-warn" data-scheduled-none role="status" hidden>No pick-up days are open right now.</p>
       <div class="order-method-reveal" data-method-body="scheduled" inert>
         <div class="order-method-body order-hform">
           <div class="row">
@@ -120,7 +120,7 @@
                    follow the rule straight away, as James's mockups
                    draw it (#703). Inside the column, since a row's
                    children are columns only (check:grid G2). */}}
-              <span class="visually-hidden" id="scheduled-label">Pickup day</span>
+              <span class="visually-hidden" id="scheduled-label">Pick-up day</span>
               <div class="order-pickups" id="scheduled-pickups" role="radiogroup" aria-labelledby="scheduled-label" aria-describedby="err-scheduled-date" tabindex="-1" data-field="fulfilment.occurrence" data-dates="scheduled">
                 <p class="order-windows-none">Loading pickups&hellip;</p>
               </div>

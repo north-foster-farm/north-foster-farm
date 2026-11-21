@@ -33,7 +33,7 @@ receive whatever you choose to send us.
 You don't need an account to order. To sign in, you enter your email address
 and we email you a link. There is no password. The link works once, within
 {{< fact "accounts" "signInLinkMinutes" >}} minutes. A link we send about a
-particular order, such as one asking you to pick a new pickup time, works
+particular order, such as one asking you to pick a new pick-up time, works
 for {{< fact "accounts" "orderLinkDays" >}} days.
 
 Signing in keeps you signed in on that browser for

@@ -612,7 +612,7 @@
       <p class="account-panel-title">Change this pickup</p>
       <div class="row g-3">
         <div class="col-md-6" data-day>
-          <label class="form-label">Pickup day
+          <label class="form-label">Pick-up day
             <select class="form-select" name="date" data-dates></select>
           </label>
           <div class="invalid-feedback" data-error-for="date"></div>
@@ -621,14 +621,14 @@
              open pickup grouped under its date (#703, the templates
              of order/pickup-days.html below), drawn by main.js. */}}
         <div class="col-12" data-scheduled>
-          <span class="visually-hidden" data-pickups-label>Pickup day</span>
+          <span class="visually-hidden" data-pickups-label>Pick-up day</span>
           <div class="order-pickups" role="radiogroup" data-field="occurrence" tabindex="-1" data-pickups></div>
           <div class="invalid-feedback" data-error-for="occurrence"></div>
         </div>
         <div class="col-md-6" data-onfarm>
           {{/* The chosen day's times from the farm's schedule (W11d),
                drawn by main.js from the template below. */}}
-          <span class="form-label d-block">Pickup time</span>
+          <span class="form-label d-block">Pick-up time</span>
           <div data-windows></div>
           <template id="tpl-change-window">
             <label class="d-block"><input class="form-check-input" type="radio" name="window"> <span></span></label>

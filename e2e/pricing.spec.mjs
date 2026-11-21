@@ -309,7 +309,7 @@ test.describe("pricing and discounts, any day", () => {
     await order.open({ wings: 5 }, { method: "delivery" });
     await order.zip.fill("10001");
     await expect(order.zipNote).toHaveText(
-      "That's outside our delivery area. On-farm pickup and our pickup " +
+      "That's outside our delivery area. On-farm pickup and our pick-up " +
       "days are open to everyone."
     );
     await expect(order.fee).toHaveText(`+$${FEE}`);

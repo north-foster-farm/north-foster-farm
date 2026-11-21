@@ -79,8 +79,8 @@ const pageText = (html) => {
     /\s(?:title|alt|aria-label|placeholder|content|value)="([^"]*)"/g,
   )].map((m) => m[1]);
   const body = html
-    .replace(/<script[\s\S]*?<\/script>/g, " ")
-    .replace(/<style[\s\S]*?<\/style>/g, " ")
+    .replace(/<script\b[\s\S]*?<\/script\b[^>]*>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
     .replace(/<[^>]+>/g, " ");
 
   return decode([body, ...attrs, ...ld].join("\n"));

@@ -102,7 +102,7 @@ describe("the order details block", () => {
     o.fulfilment.date = "2026-10-17";
     const drop = orderConfirmed(o, { links });
 
-    assert.match(drop.text, /Order type: Pickup days\n/);
+    assert.match(drop.text, /Order type: Pick-up days\n/);
     assert.match(drop.text,
       /- When: Saturday, October 17, between 10:00 and 11:00 AM/);
     assert.match(drop.text, /- Where: 46 Institute Lane/);
@@ -243,7 +243,7 @@ describe("order confirmed", () => {
     const m = orderConfirmed(order("onfarm"), { orderUrl: url, links });
 
     has(m.text, "Thanks, Pat. We received your payment of $62, and your " +
-      "pickup time is set. Your order is confirmed.");
+      "pick-up time is set. Your order is confirmed.");
     assert.match(m.text,
       /- When: Thursday, October 8, 9:00 AM – 12:00 PM\n/);
     assert.doesNotMatch(m.text, /not a booking|Requested:/);
@@ -294,7 +294,7 @@ describe("scheduled pickup emails", () => {
       const { market } = await library;
       const m = orderConfirmed(market(), { links });
 
-      has(m.text, "Order type: Pickup days");
+      has(m.text, "Order type: Pick-up days");
       has(m.text, "- When: Sunday, October 25, between 9:00 AM and " +
         "1:00 PM");
       has(m.text, `- Where: ${FOSTER_NAME}, Shady Acres Diner, ` +
@@ -796,7 +796,7 @@ describe("order changed and canceled", () => {
     assert.equal(m.subject, "We couldn't deliver your order");
     has(m.text, "- Deliver it next Thursday, October 15, for " +
       "another delivery fee of $5");
-    has(m.text, "- Have it ready for on-farm pickup or one of our pickup " +
+    has(m.text, "- Have it ready for on-farm pickup or one of our pick-up " +
       "days, at no charge");
     has(m.text, "- Cancel it, and we'll refund $62 for your items");
     has(m.text, "Today's delivery fee of $5 isn't refunded, whichever " +
@@ -871,7 +871,7 @@ describe("order changed and canceled", () => {
       "we've moved your delivery to next Thursday, October 15.");
     has(f.text, "We weren't able to deliver your order today, so");
     has(f.text, "you can choose another day, switch to on-farm pickup or " +
-      "one of our pickup days, or cancel for a full refund of $67");
+      "one of our pick-up days, or cancel for a full refund of $67");
     has(f.text, "cancel for a full refund of $67, delivery fee included.");
     // A holiday a week on: the day is named, not "next".
     assert.equal(h.subject, "Your delivery has moved to Thursday, October 22");

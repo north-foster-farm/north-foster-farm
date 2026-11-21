@@ -11,22 +11,22 @@ import { drawPickupDays } from "./pickup-days.js";
 // Keyed by the form's way: `scheduled` is scheduled pickup, the drop site
 // and every market or pop-up in one list.
 const NOUN = {
-  onfarm: "pickup time",
+  onfarm: "pick-up time",
   scheduled: "pickup",
   delivery: "delivery day",
 };
 const NONE = {
-  onfarm: "No pickup times are open right now",
-  scheduled: "No pickup days are open right now",
+  onfarm: "No pick-up times are open right now",
+  scheduled: "No pick-up days are open right now",
   delivery: "No delivery days are open right now",
 };
 const OTHER = {
-  onfarm: "Choose a pickup day or delivery instead",
+  onfarm: "Choose a pick-up day or delivery instead",
   scheduled: "Choose on-farm pickup or delivery instead",
-  delivery: "Choose on-farm pickup or a pickup day instead",
+  delivery: "Choose on-farm pickup or a pick-up day instead",
 };
 const LEGEND = {
-  onfarm: "Pickup times", scheduled: "Pickup days", delivery: "Days",
+  onfarm: "Pick-up times", scheduled: "Pick-up days", delivery: "Days",
 };
 const USE = {
   onfarm: "Use this time",

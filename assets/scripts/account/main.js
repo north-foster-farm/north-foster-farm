@@ -981,7 +981,7 @@ class Account {
       tone = "wait";
     } else if (a && a.status === "denied") {
       text = "We can't deliver to this address. On-farm pickup and " +
-        "our pickup days are open to everyone.";
+        "our pick-up days are open to everyone.";
       tone = "no";
     }
     write(status, text);
@@ -1355,7 +1355,7 @@ class Account {
     }
 
     if (q && !q.answeredAt && q.kind === "window") {
-      write(pickup, "We can't make that pickup time" +
+      write(pickup, "We can't make that pick-up time" +
         `${q.reason ? `: ${q.reason}` : "."} Please choose another day and ` +
         "time with Change pickup, or cancel the order.");
       pickup.hidden = false;

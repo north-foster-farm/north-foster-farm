@@ -63,6 +63,12 @@ decisions James made on GitHub. The issue numbers point to the source.
     email link (a sign-in, join, new email address or Farm news
     link); the contact form, which sends a message, is the exception
     and says "Sending" (James, 2026-11-18, #558);
+  - "pick-up", hyphenated, when it modifies another word ("Pick-up
+    days", "pick-up time", "pick-up location"), and "pickup", one
+    word, as the noun ("On-farm pickup", "pickup or delivery"); "Pick-up
+    days" names the days in the aggregate and "Pick-up day" one day.
+    Identifiers, keys, classes, ids, URLs and log events keep "pickup"
+    (James, 2026-11-21, #737; `test/pickup-hyphen.test.mjs`);
   - an approved wording applies everywhere the same text appears;
   - step-by-step instructions only for what the reader may not know
     how to do, never for the obvious ("choose, say how you want it,

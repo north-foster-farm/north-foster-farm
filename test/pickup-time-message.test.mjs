@@ -40,7 +40,7 @@ const order = (onfarm) => ({
 });
 
 it("On submit, the order form's own validation (validate.mjs) says " +
-  "\"Please select a pickup time.\" too, not \"Choose a pickup time.\"",
+  "\"Please select a pick-up time.\" too, not \"Choose a pick-up time.\"",
 () => {
   // No time, an empty one and no on-farm part at all: each is a
   // pickup time not chosen.
@@ -48,7 +48,7 @@ it("On submit, the order form's own validation (validate.mjs) says " +
     const r = validateOrder(order(onfarm), ctx);
 
     assert.equal(r.ok, false);
-    assert.equal(r.errors["onfarm.window"], "Please select a pickup time.",
+    assert.equal(r.errors["onfarm.window"], "Please select a pick-up time.",
       `onfarm ${JSON.stringify(onfarm)}`);
   }
 });

@@ -249,14 +249,14 @@ export const validateOrder = (payload, {
     const window = text(f.window, 20);
 
     // James's wording (#706), as Proceed to checkout shows it.
-    if (!window) errors["onfarm.window"] = "Please select a pickup time.";
+    if (!window) errors["onfarm.window"] = "Please select a pick-up time.";
     out.onfarm = { window };
   }
 
   // Nothing is chosen for the customer: a scheduled pickup without its
   // occurrence is incomplete, like an on-farm pickup without its time.
   if (method === "scheduled" && posted === "scheduled" && !occurrence) {
-    errors["fulfilment.occurrence"] = "Choose a pickup day and place.";
+    errors["fulfilment.occurrence"] = "Choose a pick-up day and place.";
   }
 
   if (method === "delivery") {
@@ -268,7 +268,7 @@ export const validateOrder = (payload, {
     } else if (!meetsMinimum(totals, money)) {
       errors["delivery.minimum"] =
         `Delivery requires $${money.deliveryMinimum} or more after ` +
-        "discounts. On-farm pickup and our pickup days have no " +
+        "discounts. On-farm pickup and our pick-up days have no " +
         "minimum.";
     }
 
@@ -344,7 +344,7 @@ export const validateOrder = (payload, {
         status,
         errors: {
           ...errors,
-          "onfarm.window": "That pickup time is no longer available.",
+          "onfarm.window": "That pick-up time is no longer available.",
         },
         dates,
       };

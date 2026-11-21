@@ -482,7 +482,7 @@ describe("changeOrder", () => {
 
     assert.equal(gone.status, 422);
     assert.equal(gone.errors["onfarm.window"],
-      "That pickup time isn't available.");
+      "That pick-up time isn't available.");
 
     const moved = await changeOrder(stores, customerOf(), "A", {
       onfarm: { window: AFTERNOON },

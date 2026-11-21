@@ -119,7 +119,7 @@ describe("an order for a scheduled pickup", () => {
 
       assert.equal(res.status, 422, JSON.stringify(fulfilment));
       assert.equal(body.errors["fulfilment.occurrence"],
-        "Choose a pickup day and place.");
+        "Choose a pick-up day and place.");
     }
   });
 
@@ -290,7 +290,7 @@ describe("a customer's move within scheduled pickup", () => {
     const r = await move(stores, id, { occurrence: FOSTER });
 
     assert.equal(r.ok, false);
-    assert.match(r.errors.method, /Only an order for a pickup day/);
+    assert.match(r.errors.method, /Only an order for a pick-up day/);
   });
 
   it("moves an order stored the Stage 1 way, and rewrites its shape",

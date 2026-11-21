@@ -8,7 +8,7 @@ import { today } from "../../order/lib/zoned.mjs";
 
 export const METHOD = {
   delivery: "Delivery",
-  scheduled: "Pickup days",
+  scheduled: "Pick-up days",
   onfarm: "On-farm pickup",
 };
 

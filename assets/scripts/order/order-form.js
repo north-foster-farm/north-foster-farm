@@ -1486,7 +1486,7 @@ export class OrderForm {
       const none = document.createElement("p");
 
       none.className = "order-windows-none";
-      none.textContent = lists ? "No pickup times on this day."
+      none.textContent = lists ? "No pick-up times on this day."
         : "Loading times…";
       box.appendChild(none);
     }
@@ -1584,7 +1584,7 @@ export class OrderForm {
 
     if (info.status === "outside") {
       note.textContent = "That's outside our delivery area. On-farm pickup " +
-        "and our pickup days are open to everyone.";
+        "and our pick-up days are open to everyone.";
       note.classList.add("text-danger-emphasis");
     } else if (info.status === "unlisted") {
       note.textContent = "A little outside our usual area: delivery is " +

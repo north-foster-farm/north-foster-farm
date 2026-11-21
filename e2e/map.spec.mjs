@@ -451,7 +451,7 @@ test.describe("map (#138, #214)", () => {
       await expect(drop).toContainText(/Saturdays, 10:00 – 11:00 AM/);
       await expect(drop).toContainText(/Ongoing|Starting|to /);
       await expect(card.locator("a[href*='/order/']")).toHaveCount(0);
-      await expect(card.getByText("Shop for pickup")).toHaveCount(0);
+      await expect(card.getByText(/Shop for pick-?up/)).toHaveCount(0);
       await expect(card.locator("[data-series-dates]")).toHaveCount(0);
       // A market there, while its season runs, shares the card.
       const market = card.locator("[data-series='2MPW']");

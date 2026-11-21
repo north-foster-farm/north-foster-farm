@@ -64,7 +64,7 @@ test.describe("home", () => {
       await expect(steps).toHaveCount(4);
       await expect(how.locator(".how-step-copy")).toHaveText([
         "Browse what we have in stock, or check out our whole catalog.",
-        "Pick up on our farm, at one of our pickup days, or get it "
+        "Pick up on our farm, at one of our pick-up days, or get it "
           + "delivered to your door.",
         "Sign in with your email address and update your order, pickup, "
           + "or delivery.",
@@ -761,12 +761,12 @@ test.describe("home", () => {
         cost: "No minimum, no fee", cta: "Shop for pickup",
       },
       {
-        method: "scheduled", name: "Pickup days",
+        method: "scheduled", name: "Pick-up days",
         when: "Saturdays, 10:00 – 11:00 AM",
         line: "Order in advance and get your order at any upcoming " +
           "market, pop-up, or drop site",
         where: "46 Institute Ln, N Scituate, RI",
-        cost: "No minimum, no fee", cta: "Shop for pickup days",
+        cost: "No minimum, no fee", cta: "Shop for pick-up days",
       },
       {
         method: "delivery", name: "Delivery",

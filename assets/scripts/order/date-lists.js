@@ -246,7 +246,7 @@ export class DateLists {
       const none = document.createElement("p");
 
       none.className = "order-windows-none";
-      none.textContent = "No pickup days are open right now.";
+      none.textContent = "No pick-up days are open right now.";
       box.appendChild(none);
 
       return;
