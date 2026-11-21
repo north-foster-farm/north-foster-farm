@@ -116,8 +116,13 @@ const start = async () => {
       return;
     }
 
+    // A phone's keyboard leaves the page scrolled down, past where the
+    // form stood: bring the message into view and focus it (James's
+    // staging review, #718).
     ask.hidden = true;
     sent.hidden = false;
+    sent.focus({ preventScroll: true });
+    sent.scrollIntoView({ block: "center" });
   });
 
   document.getElementById("invite-again").addEventListener("click", () => {

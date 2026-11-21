@@ -12,11 +12,13 @@
       <div class="account-wide mb-5" data-support="{{ $support }}">
         {{ partial "page-heading.html" . }}
 
-        <div class="alert alert-warning" role="alert" id="invite-notice" hidden></div>
+        {{/* Warnings take the order page's cutoff banner (.zip-note,
+             #756). */}}
+        <div class="zip-note zip-note-strong zip-note-warning" role="alert" id="invite-notice" hidden></div>
 
         <div id="invite-dead" hidden>
-          <blockquote class="border-start border-4 border-warning ps-3 py-1 mb-3" role="alert">
-            <p class="mb-0 fw-semibold">Your invite link isn't valid.</p>
+          <blockquote class="zip-note zip-note-strong zip-note-warning mb-3" role="alert">
+            <p class="mb-0">Your invite link isn't valid.</p>
           </blockquote>
           <p>The link you opened is no longer valid. If you already finished signing up, your account is ready and waiting for you when you sign in.</p>
           <p class="mb-0">If you didn't already sign up, then <a href="mailto:{{ $support }}">contact us</a> for a new invite.</p>
@@ -27,26 +29,27 @@
           <ul class="mb-3" id="invite-parts"></ul>
           <p class="mb-2">Enter your email address and we'll send you a link. If you already have an account, use that email address.</p>
           <p class="mb-3">Open the link to finish signing up. This link is good for one use only.</p>
-          <form class="account-form invite-form" id="invite-form" novalidate>
-            <div class="row g-3">
-              <div class="col-12">
-                <label class="form-label" for="invite-email">Email address</label>
-                <input class="form-control" type="email" id="invite-email" name="email" autocomplete="email" inputmode="email" required aria-describedby="err-invite-email">
-                <div class="invalid-feedback" id="err-invite-email" data-error-for="email"></div>
-              </div>
-              <div class="col-12">
-                {{ partial "busy-button.html" (dict "label" "Send my link" "busy" "Sending" "class" "btn-primary" "id" "invite-submit") }}
-              </div>
+          {{/* The farm news form's markup and styles (partials/farm-list
+               .html), as on the sign-in page: the field and its button
+               in one row (James's staging review, #718). Nothing
+               follows it. */}}
+          <form class="farm-list-form invite-form" id="invite-form" novalidate>
+            <label class="visually-hidden" for="invite-email">Email address</label>
+            <div class="input-group">
+              <input class="form-control" type="email" id="invite-email" name="email" placeholder="Email address" autocomplete="email" inputmode="email" enterkeyhint="send" required aria-describedby="err-invite-email">
+              {{ partial "busy-button.html" (dict "label" "Send my link" "busy" "Sending" "class" "btn-primary" "id" "invite-submit" "fit" true) }}
             </div>
+            <div class="invalid-feedback d-block" id="err-invite-email" data-error-for="email"></div>
             <div class="order-hp" aria-hidden="true">
               <label for="invite-website">Website</label>
               <input type="text" id="invite-website" name="website" tabindex="-1" autocomplete="off">
             </div>
           </form>
-          <p class="mt-4 mb-0">Welcome to the flock!</p>
         </div>
 
-        <div id="invite-sent" role="status" aria-live="polite" hidden>
+        {{/* Focused and scrolled into view once the link is sent
+             (invite/main.js). */}}
+        <div id="invite-sent" role="status" aria-live="polite" tabindex="-1" hidden>
           <p>Check your email for a link to finish signing up.</p>
           <p class="mb-0 text-body-secondary">
             Nothing after a few minutes? Check your spam folder or
