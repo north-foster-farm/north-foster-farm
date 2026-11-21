@@ -338,7 +338,8 @@ export class OrderPage {
     if (phone) await this.page.locator("#customer-phone").fill(phone);
   }
 
-  // The first offered date for the chosen method.
+  // The first offered date for the chosen method; on the farm, its
+  // first time too, which the page no longer chooses (#706).
   async firstDate(method) {
     const select = this.page.locator(`#${method}-date`);
 
@@ -349,8 +350,20 @@ export class OrderPage {
     );
 
     await select.selectOption(value);
+    if (method === "onfarm") await this.pickupTime();
 
     return value;
+  }
+
+  // The chosen day's first on-farm time, chosen as a customer would:
+  // none is chosen until one is (#706).
+  async pickupTime() {
+    const first = this.page.locator(
+      "[data-windows] [name='onfarm.window']"
+    ).first();
+
+    await first.check();
+    await expect(first).toBeChecked();
   }
 
   // Chooses scheduled pickup and the first occurrence of a series

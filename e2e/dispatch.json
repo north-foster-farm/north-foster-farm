@@ -383,6 +383,7 @@
         "e2e/cart-tip.spec.mjs",
         "e2e/cart-way.spec.mjs",
         "e2e/catalog-visibility.spec.mjs",
+        "e2e/checkout-go.spec.mjs",
         "e2e/contact-card.spec.mjs",
         "e2e/contact-send.spec.mjs",
         "e2e/contact.spec.mjs",
@@ -468,6 +469,7 @@
         "e2e/cart-tip.spec.mjs",
         "e2e/cart-way.spec.mjs",
         "e2e/catalog-visibility.spec.mjs",
+        "e2e/checkout-go.spec.mjs",
         "e2e/contact-card.spec.mjs",
         "e2e/contact-send.spec.mjs",
         "e2e/contact.spec.mjs",
@@ -556,6 +558,7 @@
         "e2e/cart-tip.spec.mjs",
         "e2e/cart-way.spec.mjs",
         "e2e/catalog-visibility.spec.mjs",
+        "e2e/checkout-go.spec.mjs",
         "e2e/contact-card.spec.mjs",
         "e2e/contact-send.spec.mjs",
         "e2e/contact.spec.mjs",
@@ -1557,6 +1560,14 @@
       ],
       "specs": [
         "e2e/order-page.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/checkout-go.spec.mjs"
+      ],
+      "specs": [
+        "e2e/checkout-go.spec.mjs"
       ]
     },
     {

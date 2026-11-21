@@ -215,37 +215,29 @@ test.describe("order page", () => {
     await expect(order.total).toHaveText("$45");
   });
 
-  test("Proceed to checkout takes the customer to Pickup or delivery",
-    async ({ page }) => {
-      const order = new OrderPage(page);
-
-      await order.open({ wings: 5 });
-      await expect(order.next).toBeEnabled();
-      await order.next.click();
-      await expect(page.locator("#pickup legend")).toBeFocused();
-      await expect(page.locator("#pickup legend")).toBeInViewport();
-    });
-
   // From the keyboard at 1280 the cart is a column and Pickup or
-  // delivery far below the foot. The legend's focus matches
-  // :focus-visible, and the keyboard's lift of #549 must not cut the
-  // smooth scroll short and leave it at the foot (#549 qa).
-  test("Enter on Proceed at 1280 brings Pickup or delivery to the top",
+  // delivery far below the foot. The keyboard's lift of #549 must not
+  // cut the smooth scroll short and leave it at the foot (#549 qa).
+  // With no pickup time chosen, Proceed goes to the on-farm times
+  // (#706; e2e/checkout-go.spec.mjs holds where it goes).
+  test("Enter on Proceed at 1280 brings the pickup time into view",
     async ({ page }) => {
       await page.setViewportSize({ width: 1280, height: 900 });
 
       const order = new OrderPage(page);
-      const legend = page.locator("#pickup legend");
+      const message = page.locator("[data-error-for='onfarm.window']");
 
       await order.open({ wings: 5 });
       await expect(order.cart).toHaveAttribute("data-placement", "column");
       await expect(order.next).toBeEnabled();
       await order.next.focus();
       await page.keyboard.press("Enter");
-      await expect(legend).toBeFocused();
-      await expect.poll(() => legend.evaluate(
-        (el) => Math.round(el.getBoundingClientRect().top)
-      ), { timeout: 5_000 }).toBeLessThan(300);
+      await expect(message).toHaveText("Please select a pickup time.");
+      await expect.poll(() => message.evaluate((el) => {
+        const r = el.getBoundingClientRect();
+
+        return r.top >= 0 && r.bottom <= innerHeight;
+      }), { timeout: 5_000 }).toBe(true);
     });
 
   test("the site's own scripts log no errors", async ({ page, baseURL }) => {

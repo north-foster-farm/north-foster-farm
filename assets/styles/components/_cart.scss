@@ -882,6 +882,16 @@ $cart-nudge-line: $cart-nudge-gap + $cart-nudge-size * $cart-line-height;
     }
   }
 
+  // It cannot go on, so it looks disabled, as Bootstrap draws one, but
+  // still takes the press to say why (#706, cart.js wireCheckout).
+  .order-cart-next[aria-disabled="true"] {
+    border-color: var(--bs-btn-disabled-border-color);
+    color: var(--bs-btn-disabled-color);
+    background-color: var(--bs-btn-disabled-bg);
+    opacity: var(--bs-btn-disabled-opacity);
+    cursor: default;
+  }
+
   .order-cart-nudge {
     flex: 1 0 100%;
     margin: $cart-nudge-gap 0 0;
@@ -941,9 +951,17 @@ $cart-nudge-line: $cart-nudge-gap + $cart-nudge-size * $cart-line-height;
     animation: order-pill-teach 4400ms linear;
   }
 
+  // The way's button pulses as the pill does while Proceed to checkout
+  // says a delivery is short of the minimum (#706), its own colors
+  // kept.
+  .order-cart-way[data-pulse="teach"] {
+    animation: order-pill-way 4400ms linear;
+  }
+
   // Reduced motion: no pulse, a still emphasis for a moment. More
   // specific than the global rule, which would cut it to 1ms.
   @media (prefers-reduced-motion: reduce) {
+    .order-cart-way[data-pulse],
     .order-cart-toggle[data-pulse] {
       animation: none !important;
       background-color: var(--bs-primary-bg-subtle);
@@ -1551,6 +1569,23 @@ $teach-starts: 0, 400, 1800, 2200, 3600, 4000;
       box-shadow: $pill-ring;
       background-color: var(--bs-primary-bg-subtle);
       transform: scale(1.16);
+    }
+  }
+}
+
+// The same pulses on the way's button (#706), without the pill's
+// background.
+@keyframes order-pill-way {
+  @each $start in $teach-starts {
+    #{math.percentage(math.div($start, $teach-ms))},
+    #{math.percentage(math.div($start + 400, $teach-ms))} {
+      box-shadow: 0 0 0 0 transparent;
+      transform: scale(1);
+    }
+
+    #{math.percentage(math.div($start + 160, $teach-ms))} {
+      box-shadow: $pill-ring;
+      transform: scale(1.06);
     }
   }
 }

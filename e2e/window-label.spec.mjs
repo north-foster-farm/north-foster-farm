@@ -78,6 +78,7 @@ test.describe("the shared window label (#616)", () => {
 
       await order.open({ eggs: 1 }, { method: "onfarm" });
       await page.locator("#onfarm-date").selectOption(day());
+      await order.pickupTime();
       await order.contact({ email: "window-label@example.com" });
       await order.openCard();
       await order.card();

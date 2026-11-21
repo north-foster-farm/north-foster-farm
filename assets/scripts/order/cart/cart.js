@@ -67,6 +67,15 @@ const CLEAR_ASK = "Clear cart?";
 const CLEAR_HINT = "Press again to remove every item from your cart.";
 const CLEAR_DONE = "Your cart is empty.";
 
+// Why Proceed to checkout cannot go on (#706), said in a tooltip on
+// the press. Drafts for comms, except stock's, which are the notices'
+// own approved words (order-form.js prepare, catalog.html).
+const WHY_EMPTY = "Your cart is empty. Add something to check out.";
+const WHY_CHECKING = "We're still checking what's in stock. Please try " +
+  "again in a moment.";
+const WHY_DOWN = "Ordering isn't available right now. We can't check " +
+  "what's in stock, so we're not taking orders yet.";
+
 // Resolves once nothing animates the pane or moves its parts: an ease
 // that another ease cancelled resolves early, while the newer one
 // still runs.
@@ -110,14 +119,20 @@ export class Cart {
   // before the slot. `bar` is the phone's sticky top bar, if any. The
   // readouts are the form's [data-total-bar-count], [data-total-bar-total]
   // and [data-to-cart], found from `form`.
+  // `onBlocked(reason)` hears a press of Proceed to checkout that
+  // cannot go on ("empty", "locked" or "minimum"), after the cart has
+  // said why.
   constructor(root, {
     form, bar = null, onRemove, onClear, onWay, onCode, onCheckout,
+    onBlocked = () => {},
   }) {
     this.root = root;
     this.form = form;
     this.slot = root.parentElement;
     this.heading = document.getElementById("order-cart-heading");
-    this.on = { onRemove, onClear, onWay, onCode, onCheckout };
+    this.on = { onRemove, onClear, onWay, onCode, onCheckout, onBlocked };
+    // Why Proceed to checkout cannot go on, or null (#706).
+    this.why = null;
     this.state = state.initial();
     this.lastCount = null;
     this.lastTotal = null;
@@ -319,7 +334,11 @@ export class Cart {
     // and any scroll shuts a badge's tooltip before it moves (#569).
     this.scrolls = watchScroll(root, {
       look: (seen) => this.scrolled(seen),
-      onMove: () => this.shutTips(),
+      // Proceed's tooltip stays through the pane's own ease (#706).
+      onMove: () => {
+        this.shutTips();
+        if (!this.easing) this.shutWhy();
+      },
     });
     // The pane changes form: the stay-open choice goes with the old
     // one.
@@ -342,10 +361,11 @@ export class Cart {
     root.addEventListener("keydown", (e) => {
       if (e.key !== "Escape") return;
 
-      // An open badge tooltip goes first (#569).
-      if (this.tips.some((tip) => tip.tip)) {
+      // An open badge tooltip goes first (#569), and Proceed's (#706).
+      if (this.tips.some((tip) => tip.tip) || this.whyTip.tip) {
         e.preventDefault();
         this.shutTips();
+        this.shutWhy();
 
         return;
       }
@@ -389,10 +409,7 @@ export class Cart {
       if (button) this.on.onRemove(button.dataset.remove);
     });
 
-    qs(root, "[data-checkout]").addEventListener("click", () => {
-      this.on.onCheckout();
-    });
-
+    this.wireCheckout();
     this.wireClear();
     this.wireShare();
     this.wireBadges();
@@ -400,6 +417,71 @@ export class Cart {
     // The readouts in the bars go back to the cart.
     for (const button of all(this.form, "[data-to-cart]")) {
       button.addEventListener("click", () => this.show({ smooth: true }));
+    }
+  }
+
+  // Proceed to checkout (#706). When it cannot go on it only looks
+  // disabled (aria-disabled), so a press still lands and says why in a
+  // tooltip; for a delivery short of the minimum the pane opens too and
+  // the way's button pulses as the pill does. The tooltip goes on the
+  // next press elsewhere, Escape, a scroll of the page, or once the
+  // reason is gone. Otherwise the form takes the press.
+  wireCheckout() {
+    const button = qs(this.root, "[data-checkout]");
+
+    this.checkout = button;
+    this.whyTip = new Tooltip(button, {
+      title: () => (this.why ? this.why.text : ""),
+      trigger: "manual",
+      placement: "top",
+    });
+    button.addEventListener("click", () => {
+      if (this.why) this.explain();
+      else this.on.onCheckout();
+    });
+    document.addEventListener("click", (e) => {
+      if (!button.contains(e.target)) this.shutWhy();
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && !this.root.contains(e.target)) {
+        this.shutWhy();
+      }
+    });
+  }
+
+  // Says why the press cannot go on. The pane opens first, so the
+  // tooltip is drawn where the button comes to rest.
+  explain() {
+    const { reason } = this.why;
+    const open = reason === "minimum" ? this.open() : Promise.resolve();
+
+    this.on.onBlocked(reason);
+    open.then(() => {
+      if (!this.why) return;
+      shutTip(this.whyTip);
+      this.whyTip.show();
+      this.shownWhy = this.why.text;
+      if (reason === "minimum") {
+        pulsePill(qs(this.root, "[data-way-toggle]"), "teach");
+      }
+    });
+  }
+
+  shutWhy() {
+    this.shownWhy = null;
+    if (this.whyTip) shutTip(this.whyTip);
+  }
+
+  // The button's state from a render: aria-disabled, never disabled,
+  // with the reason kept for a press. A tooltip showing a reason that
+  // has changed or gone is shut.
+  setWhy(why) {
+    this.why = why;
+    this.checkout.disabled = false;
+    if (why) this.checkout.setAttribute("aria-disabled", "true");
+    else this.checkout.removeAttribute("aria-disabled");
+    if (this.shownWhy && (!why || why.text !== this.shownWhy)) {
+      this.shutWhy();
     }
   }
 
@@ -604,10 +686,11 @@ export class Cart {
   // paid order being changed ({ held, kept, keptDate, total }) or null;
   // `locked`, the stock gate; `adding`, that an Add caused this render;
   // `fixed`, that the lines cannot change (an unpaid order being paid,
-  // #181): no remove icon on a line and no Clear cart.
+  // #181): no remove icon on a line and no Clear cart; `down`, that the
+  // stock gate is shut because stock could not be checked.
   render(s, {
     method, ways = {}, edit = null, locked = false, adding = false,
-    fixed = false,
+    fixed = false, down = false,
   }) {
     const root = this.root;
     const count = s.count;
@@ -649,8 +732,13 @@ export class Cart {
       "aria-label", `${s.countText}, total ${s.total}. Show or hide the cart.`
     );
 
-    qs(root, "[data-checkout]").disabled = count === 0 || locked
-      || (method === "delivery" && !s.eligible);
+    this.setWhy(count === 0 ? { reason: "empty", text: WHY_EMPTY }
+      : locked ? {
+        reason: "locked", text: down ? WHY_DOWN : WHY_CHECKING,
+      }
+        : method === "delivery" && !s.eligible
+          ? { reason: "minimum", text: s.minimumTip }
+          : null);
 
     // The lines came or went, or the cart emptied or filled: the fold
     // rule decides, and the pane eases to its new height (the column's

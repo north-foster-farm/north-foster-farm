@@ -203,7 +203,7 @@ describe("on-farm pickup", () => {
     const r = validateOrder(p, ctx);
 
     assert.equal(r.status, 422);
-    assert.equal(r.errors["onfarm.window"], "Choose a pickup time.");
+    assert.equal(r.errors["onfarm.window"], "Please select a pickup time.");
 
     p.fulfilment.onfarm = { window: AFTERNOON };
     const ok = validateOrder(p, ctx);

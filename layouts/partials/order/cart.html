@@ -157,7 +157,7 @@
         {{ partial "order/cart-chevrons.html" . }}
         <span class="order-cart-words"><span data-cart-word>Hide</span></span>
       </button>
-      <button type="button" class="btn btn-primary order-cart-next" data-checkout disabled>Proceed to checkout</button>
+      <button type="button" class="btn btn-primary order-cart-next" data-checkout aria-disabled="true">Proceed to checkout</button>
       <p class="order-cart-nudge" data-nudge aria-live="polite" hidden></p>
     </div>
     {{/* The feedback for an Add (#267): the strip says what was added

@@ -34,6 +34,20 @@ const VENMO = "nff-venmo";
 // fields gives up at 10 s with Try again; this is the backstop.
 const INIT_TIMEOUT_MS = 20_000;
 
+// The card's fields, and the events in which Square's card form says
+// how each stands (CardInputEvent: detail.field, detail.currentState).
+// Proceed to checkout asks whether all are complete (#706).
+const CARD_FIELDS = ["cardNumber", "expirationDate", "cvv", "postalCode"];
+const CARD_EVENTS = [
+  "focusClassRemoved", "errorClassAdded", "errorClassRemoved",
+  "cardBrandChanged", "postalCodeChanged",
+];
+
+// Square's frame sends a field's state a moment after the focus leaves
+// it, so a press that took the focus from the last field waits this
+// long for its word.
+const CARD_SETTLE_MS = 200;
+
 // Whether the Venmo button works in this browser (lib/venmo.mjs).
 const venmoEnabled = (hidden) => {
   let remembered = false;
@@ -117,6 +131,8 @@ export class Payment {
     this.config = null;
     this.ready = false;
     this.starting = null;
+    // Which of the card's fields Square calls complete (CARD_FIELDS).
+    this.cardFields = {};
     this.error = qs(root, "[data-error-for='payment']");
     this.state = qs(root, "[data-pay]");
     this.cardButton = qs(root, "[data-card-choose]");
@@ -297,6 +313,10 @@ export class Payment {
         },
       });
       await this.card.attach(qs(this.root, "[data-card]"));
+      // A stand-in with no events (a spec's) leaves every field unknown.
+      for (const type of CARD_EVENTS) {
+        this.card.addEventListener?.(type, (e) => this.cardInput(e));
+      }
       crumb("card.ready");
       this.setCardAvailable(true);
       this.cardButton.addEventListener("click", () => {
@@ -324,6 +344,31 @@ export class Payment {
     ]);
     crumb("wallets.ready");
     this.showWallets();
+  }
+
+  // A field of the card form says how it stands.
+  cardInput(e) {
+    const d = (e && e.detail) || e || {};
+
+    if (d.field && d.currentState) {
+      this.cardFields[d.field] = !!d.currentState.isCompletelyValid;
+    }
+  }
+
+  cardDone() {
+    return CARD_FIELDS.every((field) => this.cardFields[field]);
+  }
+
+  // Whether the section needs nothing more (#706): nothing to charge,
+  // or the card chosen and every field of it complete. A wallet or
+  // Venmo pays in its own step, so this section still needs it.
+  async complete() {
+    if (this.covered || this.form.amount() === 0) return true;
+    if (!this.card || this.state.dataset.cardOpen !== "true") return false;
+    if (this.cardDone()) return true;
+    await new Promise((resolve) => { setTimeout(resolve, CARD_SETTLE_MS); });
+
+    return this.cardDone();
   }
 
   showWallets() {
