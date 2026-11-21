@@ -266,43 +266,58 @@ for (const width of [375, 390, 576, 768]) {
   });
 }
 
-// Checkout's alignment: Pay, its agreement and the news opt-in stand
-// centered in the pane at every width (James's cart pass, 2026-10-27;
-// #274 round 5 had them right on a phone and left from md).
-test("Pay, its agreement and the opt-in sit centered at every width",
-  async ({ page }) => {
-    const order = new OrderPage(page);
+// Checkout's alignment: the news question, its box and Pay's agreement
+// start at the pane's left edge at every width, as in James's mockup
+// on #705 (centered from his cart pass, 2026-10-27, until then). That
+// Pay spans the pane is e2e/place-order-pane.spec.mjs.
+test("the question, the opt-in and the agreement start at the pane's " +
+  "left at every width", async ({ page }) => {
+  const order = new OrderPage(page);
 
-    for (const size of [PHONE, MD]) {
-      await page.setViewportSize(size);
-      await order.open({ eggs: 1 });
+  for (const size of [PHONE, MD]) {
+    await page.setViewportSize(size);
+    await order.open({ eggs: 1 });
 
-      const seen = await page.locator("#confirm").evaluate((el) => {
-        const pay = el.querySelector("#order-submit");
+    const seen = await page.locator("#confirm").evaluate((el) => {
+      const pay = el.querySelector("#order-submit");
+      let pane = pay.parentElement;
 
-        pay.hidden = false;
+      while (pane && getComputedStyle(pane).boxShadow === "none") {
+        pane = pane.parentElement;
+      }
 
-        const mid = (r) => (r.left + r.right) / 2;
-        const box = el.querySelector(".order-submit").getBoundingClientRect();
-        const centered = (node) => Math.abs(
-          mid(node.getBoundingClientRect()) - mid(box)
-        ) < 2;
+      const c = getComputedStyle(pane);
+      const edge = pane.getBoundingClientRect().left
+        + parseFloat(c.borderLeftWidth) + parseFloat(c.paddingLeft);
+      const words = (node) => {
+        const range = document.createRange();
 
-        return {
-          pay: centered(pay),
-          optin: centered(el.querySelector(".order-optin")),
-          agree: getComputedStyle(el.querySelector(".order-agree")).textAlign,
-          title: getComputedStyle(el.querySelector(".order-optin-title"))
-            .textAlign,
-        };
-      });
+        range.selectNodeContents(node);
 
-      expect(seen.pay, `${size.width}px`).toBe(true);
-      expect(seen.optin, `${size.width}px`).toBe(true);
-      expect(seen.agree, `${size.width}px`).toBe("center");
-      expect(seen.title, `${size.width}px`).toBe("center");
+        return Math.min(...[...range.getClientRects()]
+          .filter((r) => r.width > 0).map((r) => r.left));
+      };
+      const byText = (text) => [...pane.querySelectorAll("*")]
+        .filter((n) => n.textContent.replace(/\s+/g, " ").trim() === text)
+        .at(-1);
+      const off = (left) => Math.abs(left - edge);
+
+      return {
+        question: off(words(byText(
+          "Interested in pasture-raised news and updates?"))),
+        optin: off(el.querySelector("#customer-marketing")
+          .getBoundingClientRect().left),
+        agree: off(words(byText(
+          "By placing an order you agree to our delivery policy."))),
+      };
+    });
+
+    for (const [part, off] of Object.entries(seen)) {
+      expect(off, `${size.width}px: the ${part}'s offset from the pane's ` +
+        "left edge").toBeLessThanOrEqual(1);
     }
-  });
+  }
+});
 
 test("every date dropdown is as wide as the fields", async ({ page }) => {
   const order = new OrderPage(page);

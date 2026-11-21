@@ -383,7 +383,7 @@
         "e2e/cart-tip.spec.mjs",
         "e2e/cart-way.spec.mjs",
         "e2e/catalog-visibility.spec.mjs",
-        "e2e/contact-heading.spec.mjs",
+        "e2e/contact-card.spec.mjs",
         "e2e/contact-send.spec.mjs",
         "e2e/contact.spec.mjs",
         "e2e/countdown-date.spec.mjs",
@@ -417,6 +417,7 @@
         "e2e/payment.spec.mjs",
         "e2e/picker-out.spec.mjs",
         "e2e/pickup-horizon.spec.mjs",
+        "e2e/place-order-pane.spec.mjs",
         "e2e/pricing.spec.mjs",
         "e2e/rate-limit.spec.mjs",
         "e2e/recovery.spec.mjs",
@@ -465,7 +466,7 @@
         "e2e/cart-tip.spec.mjs",
         "e2e/cart-way.spec.mjs",
         "e2e/catalog-visibility.spec.mjs",
-        "e2e/contact-heading.spec.mjs",
+        "e2e/contact-card.spec.mjs",
         "e2e/contact-send.spec.mjs",
         "e2e/contact.spec.mjs",
         "e2e/countdown-date.spec.mjs",
@@ -500,6 +501,7 @@
         "e2e/payment.spec.mjs",
         "e2e/picker-out.spec.mjs",
         "e2e/pickup-horizon.spec.mjs",
+        "e2e/place-order-pane.spec.mjs",
         "e2e/pricing.spec.mjs",
         "e2e/rate-limit.spec.mjs",
         "e2e/recovery.spec.mjs",
@@ -550,7 +552,7 @@
         "e2e/cart-tip.spec.mjs",
         "e2e/cart-way.spec.mjs",
         "e2e/catalog-visibility.spec.mjs",
-        "e2e/contact-heading.spec.mjs",
+        "e2e/contact-card.spec.mjs",
         "e2e/contact-send.spec.mjs",
         "e2e/contact.spec.mjs",
         "e2e/countdown-date.spec.mjs",
@@ -581,6 +583,7 @@
         "e2e/payment.spec.mjs",
         "e2e/picker-out.spec.mjs",
         "e2e/pickup-horizon.spec.mjs",
+        "e2e/place-order-pane.spec.mjs",
         "e2e/pricing.spec.mjs",
         "e2e/rate-limit.spec.mjs",
         "e2e/recovery.spec.mjs",
@@ -868,6 +871,7 @@
         "e2e/news-page.spec.mjs",
         "e2e/news.spec.mjs",
         "e2e/overflow.spec.mjs",
+        "e2e/place-order-pane.spec.mjs",
         "e2e/restock.spec.mjs",
         "e2e/search.spec.mjs",
         "e2e/sign-in-order.spec.mjs",
@@ -1169,10 +1173,10 @@
     },
     {
       "paths": [
-        "e2e/contact-heading.spec.mjs"
+        "e2e/contact-card.spec.mjs"
       ],
       "specs": [
-        "e2e/contact-heading.spec.mjs"
+        "e2e/contact-card.spec.mjs"
       ]
     },
     {
@@ -1553,6 +1557,14 @@
       ],
       "specs": [
         "e2e/onfarm-times.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/place-order-pane.spec.mjs"
+      ],
+      "specs": [
+        "e2e/place-order-pane.spec.mjs"
       ]
     },
     {

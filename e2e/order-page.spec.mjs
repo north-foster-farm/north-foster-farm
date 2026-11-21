@@ -54,14 +54,15 @@ test.describe("order page", () => {
           "Pickup or delivery", "Contact information", "Payment",
           "Place your order",
         ]);
-      // Farm news closes the Place your order pane, after the agreement
-      // (#352).
+      // Farm news is in the Place your order step, above Pay (#705; it
+      // closed the pane, after the agreement, from #352). The pane's
+      // full order is e2e/place-order-pane.spec.mjs.
       expect(await page.locator("#confirm").evaluate((el) => {
-        const agree = el.querySelector(".order-agree");
-        const optin = el.querySelector(".order-optin");
+        const optin = el.querySelector("#customer-marketing");
+        const pay = el.querySelector("#order-submit");
 
-        return Boolean(optin?.querySelector("#customer-marketing")) &&
-          Boolean(agree.compareDocumentPosition(optin) &
+        return Boolean(optin && pay) &&
+          Boolean(optin.compareDocumentPosition(pay) &
             Node.DOCUMENT_POSITION_FOLLOWING);
       })).toBe(true);
     });

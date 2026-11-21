@@ -573,15 +573,18 @@
     display: none;
   }
 
-  // The farm-news box closes the Place your order pane, under the
-  // agreement (#352; #228 had it under the email).
+  // The farm-news question and box open the Place your order pane,
+  // above the button (#705; #352 had them under the agreement, #228
+  // under the email). The question is bold, a step above the box's
+  // words, as in James's mockup.
   .order-optin-title {
-    margin: 1.5rem 0 0.5rem;
-    text-align: center;
+    margin: 0.5rem 0;
+    font-size: 1.125rem;
+    font-weight: 700;
   }
 
   .order-optin {
-    margin: 0.25rem 0 0;
+    margin: 0 0 1.75rem;
   }
 
   // Phones and tablets: the list is a plain column of hairline rows,
@@ -714,12 +717,12 @@
     max-width: 24rem;
   }
 
-  // The contact section and the last pane in a frame like the cart
+  // The contact fields and the last pane in a frame like the cart
   // pane's: its border, radius, padding and shadow (#352). The contact
-  // frame is the fieldset itself, so its heading and sign-in line sit
-  // inside with the fields (#666). Bootstrap floats a legend, which is
-  // what puts it inside the fieldset's padding and not on its border.
-  .order-details,
+  // card frames only the fields, its heading and sign-in line above it
+  // as Place your order's heading is above its pane (#704; #666 had
+  // them inside).
+  .order-details .order-contact-card,
   .order-confirm .order-pane {
     padding: 1rem var(--order-gutter);
     border: 1px solid var(--bs-border-color-translucent);
@@ -733,7 +736,7 @@
   }
 
   // The cart's shadow at each width: the lighter one alone from xl,
-  // below it the one off its back edge. The contact frame keeps the
+  // below it the one off its back edge. The contact card keeps the
   // lighter one at every width, as the cards above it do (#666).
   .order-confirm .order-pane {
     @media (max-width: 1199.98px) {
@@ -750,12 +753,11 @@
     clear: left;
   }
 
-  // The news opt-in closes the Place your order pane, under the agreement
-  // (#352), centered under its subheading like the button above: the
-  // box and its words as one line, wrapped to the words' width.
+  // The news box and its words as one line, at the pane's left edge
+  // under the question, as in James's mockup (#705; centered from his
+  // cart pass, 2026-10-27).
   .order-confirm .order-optin {
     display: flex;
-    justify-content: center;
     gap: 0.5rem;
     margin-top: 0;
     padding-left: 0;
@@ -1210,27 +1212,21 @@
   // The agreement: one plain sentence under the Pay button, smaller
   // than the page's text, for every way to get an order (#196, #274).
   .order-agree {
-    margin: 0.75rem 0 2rem;
+    margin: 0.75rem 0 0.5rem;
     font-size: 0.875rem;
-    text-align: center;
 
     a {
       text-decoration: underline;
     }
   }
 
-  // Pay and the agreement stand centered in the pane at every width,
-  // as a card's button does (James's cart pass, 2026-10-27; #274
-  // round 5 had them right on a phone and left from md). The notices
-  // around them keep the pane's full width.
+  // Pay spans the pane at every width, the agreement under it at the
+  // pane's left edge, as in James's mockup (#705; centered from his
+  // cart pass, 2026-10-27, and #274 round 5 before that had them right
+  // on a phone and left from md).
   .order-submit {
     display: flex;
     flex-direction: column;
-    align-items: center;
-
-    > :not(.btn) {
-      align-self: stretch;
-    }
   }
 
   // What the order says after the lapsed-time dialog, by Pay.
