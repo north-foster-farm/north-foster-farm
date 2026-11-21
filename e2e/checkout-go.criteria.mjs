@@ -8,7 +8,8 @@
 // - the cart, #order-cart: its button [data-checkout], its fold
 //   (data-fold, open or closed) and its pill [data-cart-toggle], the
 //   way's button [data-way-toggle] (the pickup method button), the
-//   total [data-total='total'] (layouts/partials/order/cart.html);
+//   subtotal [data-total='subtotal'] and the discount's row
+//   [data-total-row='discount'] (layouts/partials/order/cart.html);
 // - Pickup or delivery, #pickup: one .order-method per way, holding
 //   its radio [name='method'] and its body [data-method-body]; the
 //   on-farm day #onfarm-date and times [name='onfarm.window'] in
@@ -178,15 +179,21 @@ test.describe("Proceed to checkout says why, and goes to what is " +
               await order.method("delivery");
             }
 
-            const total = (await order.total.textContent()).trim();
+            // The current order is what the minimum is measured on:
+            // the goods after discounts, never the delivery fee (the
+            // cart's Total adds it). Eggs alone take no discount, so
+            // it is the cart's Subtotal.
+            await expect(order.discountRow).toBeHidden();
 
-            expect(Number(total.replace(/\D/g, "")),
+            const current = (await order.subtotal.textContent()).trim();
+
+            expect(Number(current.replace(/\D/g, "")),
               "the cart is below the minimum").toBeLessThan(MIN);
             await press(order.next);
             await expect.poll(async () => (await described(order.next))
               .tips, { timeout: 5_000 }).toEqual([
               `Delivery orders have a $${MIN} minimum (current order ` +
-              `is ${total}). Please add more to your cart or choose a ` +
+              `is ${current}). Please add more to your cart or choose a ` +
               "different pick-up option.",
             ]);
           });
