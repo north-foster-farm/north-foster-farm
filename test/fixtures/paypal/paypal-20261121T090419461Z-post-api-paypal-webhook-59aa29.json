@@ -1,0 +1,106 @@
+{
+  "_source": {
+    "service": "paypal",
+    "environment": "production",
+    "recorded": "2026-11-21",
+    "by": "bin/fixtures/record, scrubbed by bin/fixtures/scrub"
+  },
+  "status": 200,
+  "request": {
+    "method": "POST",
+    "path": "/api/paypal/webhook",
+    "headers": {
+      "content-type": "application/json",
+      "paypal-auth-algo": "SHA256withRSA",
+      "paypal-cert-url": "https://api.paypal.com/v1/notifications/certs/CERT-ID",
+      "paypal-transmission-id": "PAYPAL_TRANSMISSION_ID_1",
+      "paypal-transmission-sig": "SIGNATURE_1",
+      "paypal-transmission-time": "2026-11-21T09:04:17Z"
+    },
+    "body": {
+      "id": "WEBHOOK_EVENT_ID_1",
+      "event_version": "1.0",
+      "create_time": "2026-11-21T09:04:17.855Z",
+      "resource_type": "capture",
+      "resource_version": "2.0",
+      "event_type": "PAYMENT.CAPTURE.COMPLETED",
+      "summary": "Payment completed for $ 5.0 USD",
+      "resource": {
+        "id": "CAPTURE_ID_1",
+        "amount": {
+          "currency_code": "USD",
+          "value": "5.00"
+        },
+        "final_capture": true,
+        "seller_protection": {
+          "status": "ELIGIBLE",
+          "dispute_categories": [
+            "ITEM_NOT_RECEIVED",
+            "UNAUTHORIZED_TRANSACTION"
+          ]
+        },
+        "seller_receivable_breakdown": {
+          "gross_amount": {
+            "currency_code": "USD",
+            "value": "5.00"
+          },
+          "paypal_fee": {
+            "currency_code": "USD",
+            "value": "0.66"
+          },
+          "net_amount": {
+            "currency_code": "USD",
+            "value": "4.34"
+          }
+        },
+        "custom_id": "CUSTOM_ID_1",
+        "status": "COMPLETED",
+        "supplementary_data": {
+          "related_ids": {
+            "order_id": "ORDER_ID_3"
+          }
+        },
+        "payee": {
+          "email_address": "customer@example.com",
+          "merchant_id": "MERCHANT_ID_1"
+        },
+        "create_time": "2026-11-21T09:04:12Z",
+        "update_time": "2026-11-21T09:04:12Z",
+        "links": [
+          {
+            "href": "https://api.paypal.com/v2/payments/captures/CAPTURE_ID_1",
+            "rel": "self",
+            "method": "GET"
+          },
+          {
+            "href": "https://api.paypal.com/v2/payments/captures/CAPTURE_ID_1/refund",
+            "rel": "refund",
+            "method": "POST"
+          },
+          {
+            "href": "https://api.paypal.com/v2/checkout/orders/ORDER_ID_3",
+            "rel": "up",
+            "method": "GET"
+          }
+        ]
+      },
+      "links": [
+        {
+          "href": "https://api.paypal.com/v1/notifications/webhooks-events/WEBHOOK_EVENT_ID_1",
+          "rel": "self",
+          "method": "GET"
+        },
+        {
+          "href": "https://api.paypal.com/v1/notifications/webhooks-events/WEBHOOK_EVENT_ID_1/resend",
+          "rel": "resend",
+          "method": "POST"
+        }
+      ]
+    }
+  },
+  "response": {
+    "handled": true,
+    "id": "CUSTOM_ID_1",
+    "repeat": true
+  }
+}

@@ -1,7 +1,7 @@
 # Recorded fixtures
 
-Each file under `square/` and `resend/` is a real answer from the
-vendor, recorded once and replayed by the tests. A fake that stands in
+Each file under `square/`, `resend/` and `paypal/` is a real answer
+from the vendor, recorded once and replayed by the tests. A fake that stands in
 for a vendor returns these, never an object written by hand (James,
 2026-10-26, #471).
 
@@ -118,6 +118,33 @@ same value has the same placeholder in every file, so the payment in
 | `resend-send-refused` | the same send from a sender the key may not use |
 | `resend-send-invalid` | a send Resend rejects with 422 |
 
+## PayPal
+
+James's live $5 Venmo test in production on 2026-11-21, 08:55 to
+09:27 UTC (#708), saved by the recorder (`bin/nff record open
+--production`, then `record pull`), scrubbed with `bin/fixtures/scrub
+--strict`. Each file is named for its time, method and path; look one
+up by what it recorded (`test/recorded.mjs`), not by name. Three
+orders: `ORDER_ID_1` was approved and declined, `ORDER_ID_2` an older
+one left unpaid, and `ORDER_ID_3` the one paid, as `CAPTURE_ID_1`, and
+refunded as `REFUND_ID_1`. The first and third both carry our
+`CUSTOM_ID_1`. The merchant's own address became
+`customer@example.com` with the rest: it is the payee, and the
+refund event's `payer`. Two later reads of `ORDER_ID_1` and
+`ORDER_ID_2`, identical to the ones kept, were left out. No refund
+read (`refunds check`) was recorded.
+
+| Recorded | What our code does |
+| --- | --- |
+| `POST /v2/checkout/orders` (two, 201) | `createOrder` |
+| `GET /v2/checkout/orders/ORDER_ID_1`, `ORDER_ID_2` | `getOrder`: approved with its payer, and never approved |
+| `POST .../ORDER_ID_1/capture` (422) | `captureOrder` declined: INSTRUMENT_DECLINED |
+| `POST .../ORDER_ID_3/capture` (201) | `captureOrder` paid |
+| `POST /v2/payments/captures/CAPTURE_ID_1/refund` (201) | `refundCapture` |
+| `POST /api/paypal/webhook`, PAYMENT.CAPTURE.COMPLETED and .REFUNDED | the deliveries as our webhook got them, with its reply |
+| `POST /v1/notifications/verify-webhook-signature` (two) | `verifyWebhook` for each delivery: SUCCESS |
+| `refund-422-insufficient-funds` | a refused Venmo refund; posted by James on 2026-10-27 for #490 |
+
 ## GitHub
 
 Recorded with `gh api` and scrubbed of author names, emails and the
@@ -133,21 +160,20 @@ actor's login. Each JSON file's `_source` names its requests and date.
 
 ## Still to record by hand
 
-These need a person; none is scripted.
+These need a person; none is scripted. (2026-11-21: PayPal, the
+first item here, was recorded; see "PayPal" above.)
 
-1. **PayPal, Venmo and their webhooks (#708; replaces the by-hand
-   steps here, 2026-11-21).** The recorder saves them as they happen:
-   `bin/nff record open --production` (or `--staging` for the
-   sandbox), pay with Venmo on the order page, refund with
+1. **PayPal again, when its shapes change.** The recorder saves calls
+   as they happen: `bin/nff record open --production` (or `--staging`
+   for the sandbox), pay with Venmo on the order page, refund with
    `bin/nff orders refund <id> --record --production`, check it with
    `bin/nff refunds check --record --production`, wait for both
    webhooks, then `bin/nff record pull --production` and
    `bin/fixtures/scrub --strict`, which fails while any string in a
-   request or a response is still to review (2026-11-21: was bare
-   `scrub`, which let a webhook's payer through unlisted). Pull writes
-   `.ignored/fixtures-raw/` in the
-   envelope shape above, `service: "paypal"`; records never pulled are
-   deleted after 7 days.
+   request or a response is still to review. Pull writes
+   `.ignored/fixtures-raw/` in the envelope shape above,
+   `service: "paypal"`; records never pulled are deleted after 7
+   days.
 2. **Square webhooks (R4).** One real `refund.updated`, one
    `order.updated` and one `payment.updated` delivery, with the
    `x-square-hmacsha256-signature` header and the notification URL it

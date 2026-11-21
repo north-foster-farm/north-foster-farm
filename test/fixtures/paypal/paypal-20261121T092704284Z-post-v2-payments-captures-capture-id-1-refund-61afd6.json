@@ -1,0 +1,40 @@
+{
+  "_source": {
+    "service": "paypal",
+    "environment": "production",
+    "recorded": "2026-11-21",
+    "by": "bin/fixtures/record, scrubbed by bin/fixtures/scrub"
+  },
+  "status": 201,
+  "request": {
+    "method": "POST",
+    "path": "/v2/payments/captures/CAPTURE_ID_1/refund",
+    "headers": {
+      "content-type": "application/json",
+      "paypal-request-id": "PAYPAL_REQUEST_ID_5"
+    },
+    "body": {
+      "amount": {
+        "currency_code": "USD",
+        "value": "5.00"
+      },
+      "note_to_payer": "North Foster Farm order CUSTOM_ID_1"
+    }
+  },
+  "response": {
+    "id": "REFUND_ID_1",
+    "status": "COMPLETED",
+    "links": [
+      {
+        "href": "https://api.paypal.com/v2/payments/refunds/REFUND_ID_1",
+        "rel": "self",
+        "method": "GET"
+      },
+      {
+        "href": "https://api.paypal.com/v2/payments/captures/CAPTURE_ID_1",
+        "rel": "up",
+        "method": "GET"
+      }
+    ]
+  }
+}
