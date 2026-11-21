@@ -25,13 +25,82 @@
 //   tooltip has role="tooltip".
 // The words are the issue's, pinned word for word.
 
+import groupData from "../data/groups.json" with { type: "json" };
 import { CUSTOMER, cannedDates } from "./support/canned.mjs";
+import { TODAY, moneyFor } from "./support/money-day.mjs";
 import { OrderPage, expect, settleCart, test } from "./support/order.mjs";
 
 const FRIENDS = "Friends and family pricing";
 const FAMILY = "Family pricing";
 const NO_MINIMUM = "No delivery minimum";
 const BADGE_TIP = "Your account receives free delivery on all orders.";
+
+// The delivery terms (#717, "Delivery terms for perk customers"), with
+// the amounts the site states today from data/delivery.json.
+const MONEY = moneyFor(TODAY);
+const FEE = `$${MONEY.deliveryFee}`;
+const MINIMUM = `$${MONEY.deliveryMinimum}`;
+const USUALLY = `Usually ${FEE} fee, ${MINIMUM} minimum.`;
+// What a perk does to the terms: the main text, then the tooltip's
+// line after USUALLY.
+const TERMS = {
+  both: {
+    text: "Free delivery, no minimum",
+    tip: "Your account receives free delivery with no minimum.",
+  },
+  minimum: {
+    text: `${FEE} delivery, no minimum`,
+    tip: "Your account has no delivery minimum.",
+  },
+  fee: {
+    text: `Free delivery, ${MINIMUM} minimum`,
+    tip: "Your account receives free delivery.",
+  },
+};
+// The friends and family perks lift the fee and the minimum both
+// (lib/perks.mjs PERKS), so their terms are "both".
+const TERM_CASES = [
+  { perks: ["free-delivery"], terms: TERMS.fee },
+  { perks: ["minimum-waived"], terms: TERMS.minimum },
+  { perks: ["free-delivery", "minimum-waived"], terms: TERMS.both },
+  { perks: ["friends"], terms: TERMS.both },
+  { perks: ["family"], terms: TERMS.both },
+];
+
+// Where the site states the fee and the minimum, and what each says
+// today: the home page's "Three ways to get your order" Delivery card
+// (partials/home/ways.html) and the order page's Delivery choice
+// (partials/order/fulfilment.html). The delivery policy states each
+// amount alone, in its own sentence, and stays as it is.
+const PLACES = [
+  {
+    name: "the home page's Delivery card",
+    path: "/",
+    today: `${MINIMUM} minimum, ${FEE} fee`,
+    terms: (page) => page.locator(".ways li.place-way")
+      .filter({ has: page.getByRole("heading", { name: "Delivery" }) })
+      .locator("li.place-note"),
+  },
+  {
+    name: "the order page's Delivery choice",
+    path: "/order/",
+    today: `${MINIMUM} minimum, ${FEE} delivery fee`,
+    terms: (page) => page.locator(
+      "label[for='method-delivery'] dt:text-is('Cost') + dd"
+    ),
+  },
+];
+
+// The Village Family Fitness group (data/groups.json) and its perk
+// line (#717, "Village Family Fitness member", wording approved final).
+const VFF = groupData.groups.find((g) => g.key === "vff");
+const VFF_LINE = "Village Family Fitness member";
+const VFF_TIP = "Member pricing through 2027, access to group orders, " +
+  "and pickup at the gym on delivery days.";
+// What /api/me adds for a member (netlify/functions/auth.mjs).
+const MEMBER = {
+  member: { key: VFF.key, name: VFF.name, credit: 0 }, membership: true,
+};
 
 // Perks as /api/me sends them (lib/perks.mjs publicPerk).
 const perk = (type, end = null) => ({ type, start: "2026-11-01", end });
@@ -41,14 +110,15 @@ let stamps = 0;
 // Signed in as the canned customer, holding `perks`; as in
 // e2e/perk-label.spec.mjs, each sign-in takes a new session stamp so
 // the session's cache never answers with the last test's perks.
-const signIn = async (page, baseURL, perks) => {
+// `extra` adds to /api/me's answer (a member's `member`).
+const signIn = async (page, baseURL, perks, extra = {}) => {
   await page.goto("about:blank");
   stamps += 1;
   await page.context().addCookies([
     { name: "nff_signed_in", value: `qr${stamps}`, url: baseURL },
   ]);
   await page.route("**/api/me", (route) => route.fulfill({
-    json: { signedIn: true, customer: { ...CUSTOMER, perks } },
+    json: { signedIn: true, customer: { ...CUSTOMER, perks }, ...extra },
   }));
   // Unanswered, the cart request gets a 401 that clears the stamp.
   await page.route("**/api/account/cart", (route) => route.fulfill({
@@ -62,9 +132,9 @@ const signIn = async (page, baseURL, perks) => {
 // The order page, signed in with `perks`, its cart open and settled.
 // -> { order, note, badge, beside }: the perk line, the free delivery
 // badge, and the buttons in the badge's list item but the badge.
-const openCart = async (page, baseURL, perks) => {
+const openCart = async (page, baseURL, perks, extra = {}) => {
   await page.unrouteAll({ behavior: "ignoreErrors" });
-  await signIn(page, baseURL, perks);
+  await signIn(page, baseURL, perks, extra);
   await page.addInitScript(() => {
     try {
       sessionStorage.setItem("nff-cart-first-add", "1");
@@ -93,18 +163,95 @@ const openCart = async (page, baseURL, perks) => {
   };
 };
 
-// The account page's "Your pricing" row, signed in with `perks`.
-const openPricing = async (page, baseURL, perks) => {
+// The account page's "Your pricing" row, signed in with `perks`. A
+// customer with nothing to show there may have no row in sight, so
+// with no perk and no group it waits for the account alone.
+const openPricing = async (page, baseURL, perks, extra = {}) => {
   await page.unrouteAll({ behavior: "ignoreErrors" });
-  await signIn(page, baseURL, perks);
+  await signIn(page, baseURL, perks, extra);
   await cannedDates(page);
   await page.goto("/account/#settings");
 
   const row = page.locator("#prof-group");
 
-  await expect(row).toBeVisible();
+  if (perks.length || extra.member) await expect(row).toBeVisible();
+  else await expect(page.locator("#account-app")).toBeVisible();
 
   return row;
+};
+
+// `place` (one of PLACES) for a customer holding `perks`, or signed
+// out for null. -> { terms }: the terms as the page states them.
+// On the home page the "Three ways" band waits hidden through a
+// market season (home.spec.mjs owns that swap); it is shown here so
+// its Delivery card can be read in any season.
+const openPlace = async (page, baseURL, place, perks) => {
+  await page.unrouteAll({ behavior: "ignoreErrors" });
+  await page.context().clearCookies();
+  if (perks) await signIn(page, baseURL, perks);
+  else await page.goto("about:blank");
+  if (perks) {
+    // The page asks /api/me once it loads; wait for its answer.
+    const me = page.waitForResponse((r) => r.url().includes("/api/me"));
+
+    await page.goto(place.path);
+    await me;
+  } else {
+    await page.goto(place.path);
+  }
+  await page.evaluate(() => {
+    for (const el of document.querySelectorAll("[data-season-ways]")) {
+      el.hidden = false;
+    }
+  });
+
+  const terms = place.terms(page);
+
+  await expect(terms, place.name).toBeVisible();
+
+  return { terms };
+};
+
+// Runs in the page: how a fact's words are set, read from the element
+// that holds its text.
+const typeOf = (el) => {
+  const text = [...el.querySelectorAll("*")].reverse()
+    .find((n) => [...n.childNodes].some((c) => c.nodeType === Node.TEXT_NODE
+      && c.textContent.trim())) || el;
+  const s = getComputedStyle(text);
+
+  return {
+    color: s.color, fontFamily: s.fontFamily, fontSize: s.fontSize,
+    fontWeight: s.fontWeight, fontStyle: s.fontStyle,
+    lineHeight: s.lineHeight, textDecoration: s.textDecorationLine,
+    textTransform: s.textTransform,
+  };
+};
+
+const looks = (locator) => locator.evaluate(typeOf);
+
+// Runs in the page: an info button's size and shape.
+const shapeOf = (el) => {
+  const r = el.getBoundingClientRect();
+  const s = getComputedStyle(el);
+
+  return {
+    width: Math.round(r.width), height: Math.round(r.height),
+    radius: s.borderRadius,
+  };
+};
+
+const shape = (locator) => locator.evaluate(shapeOf);
+
+// The perk line's info button's size and shape, as the account row
+// draws it for `friends`.
+const perkButton = async (page, baseURL) => {
+  const row = await openPricing(page, baseURL, [perk("friends")]);
+  const info = row.getByRole("button");
+
+  await expect(info).toHaveCount(1);
+
+  return shape(info);
 };
 
 // Runs in the page: what `el` shows, as one line of words, its
@@ -258,6 +405,141 @@ test.describe("perks, revised (#717, James, 2026-11-21)", () => {
       const row = await openPricing(page, baseURL, perks);
 
       expect(await shownText(row), `the account row, ${name}`).toBe(line);
+    }
+  });
+
+  test("Where the site states the $5 fee and $40 minimum, a customer " +
+    "with no perk sees exactly today's text and styling", async ({
+    page, baseURL, browser,
+  }, testInfo) => {
+    // Today's styling is the page as built, before any script runs
+    // (and so before any account is read), in this project's device.
+    const { viewport, deviceScaleFactor, isMobile, hasTouch, userAgent } =
+      testInfo.project.use;
+    const built = await browser.newContext({
+      baseURL, viewport, deviceScaleFactor, isMobile, hasTouch, userAgent,
+      javaScriptEnabled: false,
+    });
+    const today = {};
+
+    for (const place of PLACES) {
+      const plain = await built.newPage();
+
+      await plain.goto(place.path);
+      await plain.evaluate(() => {
+        for (const el of document.querySelectorAll("[data-season-ways]")) {
+          el.hidden = false;
+        }
+      });
+      today[place.path] = await looks(place.terms(plain));
+    }
+    await built.close();
+
+    // Signed out, and signed in holding no perk.
+    for (const perks of [null, []]) {
+      const who = perks ? "signed in, no perk" : "signed out";
+
+      for (const place of PLACES) {
+        const { terms } = await openPlace(page, baseURL, place, perks);
+
+        await expect.poll(() => shownText(terms), `${place.name}, ${who}`)
+          .toBe(place.today);
+        await expect(terms.getByRole("button"),
+          `${place.name}, ${who}: no info button`).toHaveCount(0);
+        expect(await looks(terms), `${place.name}, ${who}: its styling`)
+          .toEqual(today[place.path]);
+      }
+    }
+  });
+
+  test("A customer with free delivery, the minimum waived, or both sees " +
+    "the terms that apply (\"Free delivery, no minimum\", \"$5 " +
+    "delivery, no minimum\", \"Free delivery, $40 minimum\") with the " +
+    "perk line's info button beside them", async ({ page, baseURL }) => {
+    const model = await perkButton(page, baseURL);
+
+    for (const { perks, terms: applies } of TERM_CASES) {
+      const name = perks.join(" and ");
+
+      for (const place of PLACES) {
+        const { terms } = await openPlace(page, baseURL, place,
+          perks.map((t) => perk(t)));
+        const info = terms.getByRole("button");
+
+        await expect.poll(() => shownText(terms), `${place.name}, ${name}`)
+          .toBe(applies.text);
+        await expect(info, `${place.name}, ${name}: one info button`)
+          .toHaveCount(1);
+        await expect(info).toBeVisible();
+        await expect(info, `${place.name}, ${name}: its name`)
+          .toHaveAccessibleName(/\S/);
+        expect(await shape(info), `${place.name}, ${name}: the perk ` +
+          "line's button, same size and shape").toEqual(model);
+      }
+    }
+  });
+
+  test("That info button's tooltip reads \"Usually $5 fee, $40 " +
+    "minimum.\" and then the one line that applies, never the word " +
+    "\"perks\"", async ({ page, baseURL }, testInfo) => {
+    for (const { perks, terms: applies } of TERM_CASES) {
+      const name = perks.join(" and ");
+
+      for (const place of PLACES) {
+        const { terms } = await openPlace(page, baseURL, place,
+          perks.map((t) => perk(t)));
+        const info = terms.getByRole("button");
+
+        await expect(info, `${place.name}, ${name}`).toHaveCount(1);
+        await tap(info, testInfo);
+        await expect(openTip(page), `${place.name}, ${name}: its tooltip`)
+          .toHaveCount(1);
+
+        const text = (await openTip(page).innerText())
+          .replace(/\s+/g, " ").trim();
+
+        expect(text, `${place.name}, ${name}`)
+          .toBe(`${USUALLY} ${applies.tip}`);
+        expect(text, `${place.name}, ${name}: never "perks"`)
+          .not.toMatch(/perks/i);
+      }
+    }
+  });
+
+  test("A Village Family Fitness member sees the perk line \"Village " +
+    "Family Fitness member\" with the info button, whose tooltip reads " +
+    "\"Member pricing through 2027, access to group orders, and pickup " +
+    "at the gym on delivery days.\"; a non-member does not", async ({
+    page, baseURL,
+  }, testInfo) => {
+    const places = [
+      ["the cart", async (perks, extra) => (await openCart(page, baseURL,
+        perks, extra)).note],
+      ["the account row", (perks, extra) => openPricing(page, baseURL,
+        perks, extra)],
+    ];
+
+    for (const [where, open] of places) {
+      const line = await open([], MEMBER);
+      const info = line.getByRole("button");
+
+      await expect(line, `${where}: a member`).toBeVisible();
+      await expect.poll(() => shownText(line),
+        `${where}: a member's perk line`).toBe(VFF_LINE);
+      await expect(info, `${where}: one info button`).toHaveCount(1);
+      await expect(info, `${where}: its name`).toHaveAccessibleName(/\S/);
+      await tap(info, testInfo);
+      await expect(openTip(page), `${where}: its tooltip`).toHaveCount(1);
+      await expect(openTip(page)).toHaveText(VFF_TIP);
+
+      // A non-member, with no perk and with one.
+      for (const perks of [[], [perk("friends")]]) {
+        const other = await open(perks, {});
+
+        expect(await shownText(other), `${where}: a non-member, ` +
+          `${perks.map((p) => p.type).join(" ") || "no perk"}`)
+          .not.toContain("Village Family Fitness");
+      }
     }
   });
 });
