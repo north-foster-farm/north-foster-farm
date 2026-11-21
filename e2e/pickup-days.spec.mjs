@@ -211,34 +211,10 @@ test.describe("pickup days grouped by date (#703)", () => {
     }
   });
 
-  test("the choices are indented slightly under their heading, like " +
-    "list items", async ({ page }) => {
-    await openPickups(page);
-
-    for (const size of [WIDE, NARROW]) {
-      await page.setViewportSize(size);
-
-      const days = page.locator("#scheduled-pickups .order-pickup-day");
-
-      // A heading per date, so the loop below has something to measure.
-      await expect(days).toHaveCount(3);
-      for (const day of await days.all()) {
-        const head = await box(day.getByRole("heading"));
-        const pickups = day.locator(".order-pickup");
-
-        await expect(pickups.first()).toBeVisible();
-        for (const pickup of await pickups.all()) {
-          const at = await box(pickup);
-          const indent = at.x - head.x;
-
-          expect(indent, `indent at ${size.width}px`)
-            .toBeGreaterThanOrEqual(8);
-          expect(indent, `indent at ${size.width}px`)
-            .toBeLessThanOrEqual(48);
-        }
-      }
-    }
-  });
+  // The indent the first spec drew is gone: James's revision of
+  // 2026-11-21 sets the choices flush, which
+  // e2e/pickup-days-revision.spec.mjs checks ("The choices sit flush
+  // under their date heading, with no left indent").
 
   test("on narrow displays the address is street on the first line and " +
     "city, state and zip on the second", async ({ page }) => {

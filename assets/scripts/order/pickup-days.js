@@ -23,11 +23,14 @@ const copy = async (button, status, text, address) => {
 
     return;
   }
-  button.textContent = "Copied";
+  // The word only: the icon before it stays.
+  const word = button.querySelector(".order-pickup-copy-text");
+
+  word.textContent = "Copied";
   status.textContent = "Copied";
   clearTimeout(button.copiedTimer);
   button.copiedTimer = setTimeout(() => {
-    button.textContent = "Copy";
+    word.textContent = "Copy";
     status.textContent = "";
   }, COPIED_MS);
 };

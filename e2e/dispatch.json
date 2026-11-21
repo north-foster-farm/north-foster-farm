@@ -363,6 +363,7 @@
         "layouts/partials/order/**",
         "assets/scripts/order/**",
         "assets/styles/components/_order.scss",
+        "assets/styles/components/_pickup-days.scss",
         "assets/styles/components/_cart.scss"
       ],
       "specs": [
@@ -418,6 +419,7 @@
         "e2e/payment.spec.mjs",
         "e2e/perk-label.spec.mjs",
         "e2e/picker-out.spec.mjs",
+        "e2e/pickup-days-revision.spec.mjs",
         "e2e/pickup-days-status.spec.mjs",
         "e2e/pickup-days.spec.mjs",
         "e2e/pickup-horizon.spec.mjs",
@@ -507,6 +509,7 @@
         "e2e/payment-stacking.spec.mjs",
         "e2e/payment.spec.mjs",
         "e2e/picker-out.spec.mjs",
+        "e2e/pickup-days-revision.spec.mjs",
         "e2e/pickup-days-status.spec.mjs",
         "e2e/pickup-days.spec.mjs",
         "e2e/pickup-horizon.spec.mjs",
@@ -592,6 +595,7 @@
         "e2e/payment-stacking.spec.mjs",
         "e2e/payment.spec.mjs",
         "e2e/picker-out.spec.mjs",
+        "e2e/pickup-days-revision.spec.mjs",
         "e2e/pickup-days-status.spec.mjs",
         "e2e/pickup-days.spec.mjs",
         "e2e/pickup-horizon.spec.mjs",
@@ -681,6 +685,7 @@
         "e2e/overflow.spec.mjs",
         "e2e/perk-label.spec.mjs",
         "e2e/picker-out.spec.mjs",
+        "e2e/pickup-days-revision.spec.mjs",
         "e2e/pickup-days-status.spec.mjs",
         "e2e/pickup-days.spec.mjs",
         "e2e/scheduled-pickup.spec.mjs",
@@ -1627,8 +1632,17 @@
         "e2e/pickup-days.spec.mjs"
       ],
       "specs": [
+        "e2e/pickup-days-revision.spec.mjs",
         "e2e/pickup-days-status.spec.mjs",
         "e2e/pickup-days.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/pickup-days-revision.spec.mjs"
+      ],
+      "specs": [
+        "e2e/pickup-days-revision.spec.mjs"
       ]
     },
     {
