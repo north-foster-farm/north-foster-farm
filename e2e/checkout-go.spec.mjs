@@ -210,10 +210,10 @@ test.describe("Proceed to checkout says why, and goes to what is " +
 
     await order.open({ eggs: 1 }, { method: "delivery" });
     // Folded first wherever it folds, so expanding it is the press's.
-    if (await pill.isVisible()) {
-      await order.scrollSettled();
-      await foldCart(page, order.cart);
-    }
+    // Looked for once the page is still: on an iPhone the scroll to
+    // the cart ends with it settled, its pill gone.
+    await order.scrollSettled();
+    if (await pill.isVisible()) await foldCart(page, order.cart);
     await press(order.next);
 
     // One look at all three at once: the tooltip up, the pane open
