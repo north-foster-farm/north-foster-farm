@@ -68,11 +68,12 @@ export const maskKey = (key) => {
 };
 
 // A conditional write (`onlyIfMatch` or `onlyIfNew`) -> whether the
-// store took it (#677). Blobs' client calls the write refused only on a
-// 412: any other refusal (a 409), or a 5xx it has stopped retrying,
-// comes back `modified: true` (@netlify/blobs 11.1.0, Store#setJSON).
-// The status it got is on the trace span a caller may pass it (its
-// typed `span` option), so a 200 is a write made. Any other answer is
+// store took it (#677). Blobs' client calls a 412 or a 409 refused and
+// throws a BlobsInternalError, carrying the status, on a 5xx it has
+// stopped retrying (@netlify/blobs 11.1.9, Store#setJSON); a 5xx is
+// caught here and settled like any other answer. The status it got is
+// on the trace span a caller may pass it (its typed `span` option), so
+// a 200 is a write made. Any other answer is
 // settled by reading the key back: this write's own value there means
 // the store took it and only the answer was lost (a 5xx after storing
 // it, or the 412 the client's retry of it met), so the caller does not
@@ -88,7 +89,14 @@ const conditional = async (blobs, key, value, condition) => {
     },
   };
 
-  await blobs.setJSON(key, value, { ...condition, span });
+  try {
+    await blobs.setJSON(key, value, { ...condition, span });
+  } catch (error) {
+    if (error.name !== "BlobsInternalError" || !(error.status >= 500)) {
+      throw error;
+    }
+    status = error.status;
+  }
   if (status === 200) return { made: true };
 
   const stored = await blobs.get(key, { type: "json" });

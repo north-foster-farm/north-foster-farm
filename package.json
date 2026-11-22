@@ -53,7 +53,7 @@
     "svgo": "4.1.0"
   },
   "dependencies": {
-    "@netlify/blobs": "11.1.0",
+    "@netlify/blobs": "11.1.9",
     "age-encryption": "0.3.1",
     "bootstrap": "5.3.3",
     "qrcode-generator": "2.0.4"
