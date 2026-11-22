@@ -1680,12 +1680,12 @@ $teach-starts: 0, 400, 1800, 2200, 3600, 4000;
   white-space: nowrap;
 }
 
-// A tooltip's lines, each on its own: the delivery terms, the member
-// line's and the free delivery badge's (#717, revised).
+// A tooltip's lines, each on its own and centered: the delivery terms,
+// the member line's and the free delivery badge's (#717, revised).
 .perk-lines {
   display: block;
   line-height: 1.3;
-  text-align: start;
+  text-align: center;
 
   > span {
     display: block;

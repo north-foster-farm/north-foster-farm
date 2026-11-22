@@ -147,6 +147,7 @@
         "e2e/gate.spec.mjs",
         "e2e/home.spec.mjs",
         "e2e/info-align.spec.mjs",
+        "e2e/tooltip-center.spec.mjs",
         "e2e/keyboard.spec.mjs",
         "e2e/map-link.spec.mjs",
         "e2e/map.spec.mjs",
@@ -424,6 +425,7 @@
         "e2e/perk-label.spec.mjs",
         "e2e/perk-revision.spec.mjs",
         "e2e/info-align.spec.mjs",
+        "e2e/tooltip-center.spec.mjs",
         "e2e/picker-out.spec.mjs",
         "e2e/pickup-copy-anim.spec.mjs",
         "e2e/pickup-days-revision-2.spec.mjs",
@@ -716,6 +718,7 @@
         "e2e/perk-label.spec.mjs",
         "e2e/perk-revision.spec.mjs",
         "e2e/info-align.spec.mjs",
+        "e2e/tooltip-center.spec.mjs",
         "e2e/picker-out.spec.mjs",
         "e2e/pickup-copy-anim.spec.mjs",
         "e2e/pickup-days-revision-2.spec.mjs",
@@ -1225,6 +1228,14 @@
       ],
       "specs": [
         "e2e/info-align.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/tooltip-center.spec.mjs"
+      ],
+      "specs": [
+        "e2e/tooltip-center.spec.mjs"
       ]
     },
     {
