@@ -24,7 +24,7 @@
 import { windowLabel } from "../assets/scripts/order/lib/schedule.mjs";
 import { rangeWindow } from "../assets/scripts/order/lib/events.mjs";
 import { MAX_WORD } from "../assets/scripts/utils/keep-together.mjs";
-import { cannedDates } from "./support/canned.mjs";
+import { CANNED, cannedDates } from "./support/canned.mjs";
 import { FULL_CART, OrderPage, expect, test } from "./support/order.mjs";
 
 // U+00A0 and U+202F.
@@ -74,7 +74,7 @@ const walk = async (page, look = async () => {}) => {
   await order.firstDate("onfarm");
   await order.scrollSettled();
   await look();
-  await order.scheduled();
+  await order.scheduled(CANNED.market);
   await order.scrollSettled();
   await look();
   await order.delivery();
