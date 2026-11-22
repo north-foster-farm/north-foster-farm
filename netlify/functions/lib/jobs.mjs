@@ -214,6 +214,9 @@ export const runJobs = async (stores, {
   // Those read every record, and on staging's stores ran the e2e call
   // past the function's 30 s (#516).
   orderIds = null,
+  // Who ran it: an old twin a list cleans is logged as them (#794).
+  // The CLI passes its user; the scheduled function leaves "site".
+  by = "site",
 } = {}) => {
   // Real time, for the member codes step's budget.
   const started = Date.now();
@@ -429,7 +432,7 @@ export const runJobs = async (stores, {
   report.scrubbed = (await step("retention",
     () => scrubDaily(stores, realNow))) || [];
   report.quiet = await step("quietAccounts",
-    () => quietDaily(stores, { env, mail, now: realNow }));
+    () => quietDaily(stores, { env, mail, now: realNow, by }));
   // Square's orders are shared data: the sweep reads the real time.
   report.squareOpen = (await step("squareSweep",
     () => squareDaily(stores, "open", realNow, () => sweepSquareOrders(
@@ -464,7 +467,7 @@ export const runJobs = async (stores, {
   // Farm news: once a day the audience in Resend and the records are
   // made to agree. Null when there is no audience to sync.
   report.audience = await step("audienceSync",
-    () => audienceSyncDaily(stores, { env, now, fetchImpl }));
+    () => audienceSyncDaily(stores, { env, now, fetchImpl, by }));
   report.refunds = await step("refundCheck",
     () => refundCheckDaily(stores, {
       env, mail, now, square, paypal, fetchImpl, fail,
@@ -491,7 +494,7 @@ export const runJobs = async (stores, {
   // Credit a submission spent a day ago and never settled goes back
   // to its member (lib/credit.mjs). Every run; nothing twice.
   report.creditSwept = (await step("creditSweep",
-    () => sweepStrandedCredit(stores, { now }))) || [];
+    () => sweepStrandedCredit(stores, { now, by }))) || [];
 
   const hidden = (await step("stockHidden", () =>
     stockHiddenDaily(stores, { env, now, catalogIndex, inventory })))
@@ -630,12 +633,12 @@ const scrubDaily = async (stores, now) => {
 // once (lib/retention.mjs). Never a deletion. At most QUIET_PER_RUN a
 // day; those left over, and a notice that failed, go the next day.
 // -> the counts, or null when this day has run.
-const quietDaily = async (stores, { env, mail, now }) => {
+const quietDaily = async (stores, { env, mail, now, by }) => {
   const key = `quiet/${today(now, tz)}`;
 
   if (await stores.jobs.get(key)) return null;
 
-  const r = await quietAccounts(stores, { env, mail, now });
+  const r = await quietAccounts(stores, { env, mail, now, by });
   const counts = {
     noticed: r.noticed.length, failed: r.failed.length, left: r.left,
   };
@@ -653,7 +656,7 @@ const quietDaily = async (stores, { env, mail, now }) => {
 // when nothing was done this run.
 const AUDIENCE_SYNC_HOUR = 5;
 
-const audienceSyncDaily = async (stores, { env, now, fetchImpl }) => {
+const audienceSyncDaily = async (stores, { env, now, fetchImpl, by }) => {
   if (!audienceConfigured(env)) return null;
   if (parts(now, tz).hour < AUDIENCE_SYNC_HOUR) return null;
 
@@ -661,7 +664,7 @@ const audienceSyncDaily = async (stores, { env, now, fetchImpl }) => {
 
   if (await stores.jobs.get(key)) return null;
 
-  const r = await syncAudience(stores, { env, now, fetchImpl });
+  const r = await syncAudience(stores, { env, now, fetchImpl, by });
 
   await stores.jobs.set(key, { at: now.toISOString() });
 

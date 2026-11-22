@@ -82,8 +82,9 @@ const USAGE = `Usage:
                                       Final. A dry run unless --apply
   bin/nff customers quiet             who is due the quiet-account
                                       notice, a year without
-                                      interaction. Read only: the
-                                      daily jobs send it
+                                      interaction. Sends nothing (the
+                                      daily jobs do), but may clean up
+                                      old copies of records (#758)
   bin/nff customers rekey [--apply]    move records still keyed by an
                                       address (or a "+" read as a
                                       space) to its hash (#758):
@@ -276,7 +277,9 @@ const USAGE = `Usage:
                                       customer who has never ordered
                                       online. Logged
   bin/nff perks list [<email>]        every perk and its state: active,
-                                      future, ended or removed
+                                      future, ended or removed. May
+                                      clean up old copies of records
+                                      (#758)
   bin/nff perks remove <email> <type> ends the perk today, logged
   bin/nff invite add <perk> [--end YYYY-MM-DD] [--note "..."]
                      [--square <customer id>] [--owner]
@@ -424,7 +427,9 @@ const USAGE = `Usage:
                                       who has since opted out; a rerun
                                       sends nothing twice. On
                                       production it asks for the typed
-                                      confirmation, like any send
+                                      confirmation, like any send. Any
+                                      run, a dry one too, may clean up
+                                      old copies of records (#758)
   bin/nff audience remove <email> [--dry-run]
                                       a stale or duplicate address the
                                       import brought in, taken out: an
@@ -1432,7 +1437,9 @@ const run = async () => {
     }));
   }
   case "customers quiet": {
-    const list = await admin.quietCustomers(stores);
+    const list = await admin.quietCustomers(stores, new Date(), {
+      by: userInfo().username,
+    });
 
     for (const c of list) {
       out(`${c.email}  last ${c.lastInteraction}${
@@ -1915,6 +1922,7 @@ const run = async () => {
     return out(await sendOwedWelcomes(stores, {
       email: flags.email || null,
       dryRun: !!flags["dry-run"],
+      by: userInfo().username,
     }));
   }
   case "audience remove":
@@ -2042,7 +2050,9 @@ const run = async () => {
       r.made ? ". Made their customer record" : ""}.`);
   }
   case "perks list": {
-    const list = await perks.listPerks(stores, { email: rest[0] || null });
+    const list = await perks.listPerks(stores, {
+      email: rest[0] || null, by: userInfo().username,
+    });
 
     for (const p of list) {
       out(`${p.email}  ${p.type}  ${p.state}  ${p.start || "-"} to ${
@@ -2422,7 +2432,7 @@ const run = async () => {
   case "members sync":
     return membersCommand(action, rest, { stores, flags, out });
   case "jobs run":
-    return out(await runJobs(stores));
+    return out(await runJobs(stores, { by: userInfo().username }));
   case "jobs square": {
     const apply = !!flags.apply;
     const paused = await square.deletionsPaused(stores);

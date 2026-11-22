@@ -334,16 +334,17 @@ export const STRANDED_MS = 24 * 60 * 60_000;
 // would have retried, then a closed tab; security re-review,
 // 6426747224): the spend stays on the ledger for an order id that
 // has no record. Once it is a day old it goes back, so the member
-// loses nothing. For the jobs; every ledger is read.
+// loses nothing. For the jobs; every ledger is read, and an old twin
+// cleaned on the way is logged as `by` (#794).
 // -> [{ email, orderId, restored }]
 export const sweepStrandedCredit = async (stores, {
-  now = new Date(),
+  now = new Date(), by = "site",
 } = {}) => {
   const out = [];
 
   // One ledger per address: a hashed one wins over an old twin (#758).
   for (const { value: ledger } of await listLatest(
-    stores.customers, "credit"
+    stores.customers, "credit", { by }
   )) {
     if (!ledger || !Array.isArray(ledger.entries)) continue;
 

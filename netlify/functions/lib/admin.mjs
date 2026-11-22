@@ -64,8 +64,11 @@ export { forgetCustomer };
 
 // Quiet accounts due their notice (#189, lib/retention.mjs), for
 // `bin/nff customers quiet`. Read only: the daily jobs act on them.
-export const quietCustomers = async (stores, now = new Date()) =>
-  (await allCustomers(stores)).filter((c) => quietDue(c, now))
+// An old twin the list cleans is logged as `by` (#794).
+export const quietCustomers = async (stores, now = new Date(), {
+  by = "site",
+} = {}) =>
+  (await allCustomers(stores, { by })).filter((c) => quietDue(c, now))
     .map((c) => ({
       email: c.email,
       lastInteraction: lastInteraction(c),

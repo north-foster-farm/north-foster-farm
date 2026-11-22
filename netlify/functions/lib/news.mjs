@@ -542,6 +542,8 @@ export const importSubscribers = async (stores, rows, {
 export const sendOwedWelcomes = async (stores, {
   email = null,
   dryRun = false,
+  // Who ran it, for an old twin the list cleans (#794).
+  by = "site",
   now = clock(),
   env = process.env,
   mail = sendMail,
@@ -554,7 +556,7 @@ export const sendOwedWelcomes = async (stores, {
   const holding = (c) => c && c.welcome && c.welcome.state !== "sent";
   const candidates = named
     ? [await getCustomer(stores, named)]
-    : await allCustomers(stores);
+    : await allCustomers(stores, { by });
   const owing = candidates.filter(holding)
     .sort((a, b) => a.email.localeCompare(b.email));
 
@@ -862,6 +864,8 @@ export const syncAudience = async (stores, {
   now = clock(),
   pace = 550,
   dryRun = false,
+  // Who ran it, for an old twin the list cleans (#794).
+  by = "site",
 } = {}) => {
   if (!audienceConfigured(env)) return { ok: false, reason: "unconfigured" };
 
@@ -882,7 +886,7 @@ export const syncAudience = async (stores, {
   const contactPath = (email) =>
     `/audiences/${id}/contacts/${encodeURIComponent(email)}`;
 
-  for (const c of await allCustomers(stores)) {
+  for (const c of await allCustomers(stores, { by })) {
     const email = normalizeEmail(c.email);
     const contact = byEmail.get(email);
     const consented = c.marketing === true;

@@ -939,9 +939,10 @@ export const touchCustomer = async (
 };
 
 // In address order, as when the key was the address, and one record
-// per address: a hashed record wins over an old twin (#758).
-export const allCustomers = async (stores) => {
-  const customers = (await listLatest(stores.customers, "customer"))
+// per address: a hashed record wins over an old twin (#758), which is
+// deleted and logged as `by` (#794: the CLI passes who ran it).
+export const allCustomers = async (stores, { by = "site" } = {}) => {
+  const customers = (await listLatest(stores.customers, "customer", { by }))
     .map(({ value }) => value);
 
   return customers.filter(Boolean).sort((a, b) =>

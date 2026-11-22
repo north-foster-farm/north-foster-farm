@@ -141,14 +141,15 @@ export const removePerk = async (stores, email, type, {
 };
 
 // Every customer's perks, or one customer's, each with its state on
-// the day: active, ended (past its end), removed or future. Read only.
+// the day: active, ended (past its end), removed or future. Read only,
+// but for an old twin the list cleans, logged as `by` (#794).
 export const listPerks = async (stores, {
-  email = null, now = clock(),
+  email = null, now = clock(), by = "site",
 } = {}) => {
   const day = dayOf(now);
   const people = email
     ? [await getCustomer(stores, normalizeEmail(email))].filter(Boolean)
-    : await allCustomers(stores);
+    : await allCustomers(stores, { by });
   const state = (p) => (p.removedAt ? "removed"
     : perkActive(p, day) ? "active"
       : p.start && p.start > day ? "future" : "ended");
