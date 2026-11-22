@@ -19,13 +19,14 @@
 // existing perk and invite tests do. On staging the sign-in writes
 // through the functions' Blobs client (the edge URL) and the commands
 // read through the CLI's (the API's signed URL), and the record the
-// sign-in made for james+dog@... answers only to "james dog@..." there
-// (the coordinator's read-only check, 2026-11-21, on #758): the "+" in
-// the key went into the URL path raw, and one route read it as a space.
-// The third test holds lib/store.mjs to naming every key the same way on
-// both routes: each "/" segment percent-encoded in the request path.
-// It spies on fetch and throws before any answer, so no response is
-// faked.
+// sign-in made for james+dog@... is stored as "james dog@..." (the
+// read-only checks on staging, 2026-11-21, on #758): the edge route
+// reads a raw "+" in the path as a space. The third test holds
+// lib/store.mjs to naming that same stored key on both routes, and a
+// plain key unchanged on both (corrected 2026-11-21: it held both
+// routes to percent-encoding every segment, which the API route
+// rejects for plain addresses). It spies on fetch and throws before
+// any answer, so no response is faked.
 
 import assert from "node:assert/strict";
 import { Buffer } from "node:buffer";
@@ -167,22 +168,34 @@ describe("#758 perks on invite-made customers", () => {
     }
   });
 
-  it("The store percent-encodes each key segment in the request path, "
-    + "on the functions' route and the CLI's alike", async (t) => {
+  it("The CLI's route and the functions' route name the same stored "
+    + "key for any valid address, a \"+\" included, while plain "
+    + "addresses keep resolving on both (test)", async (t) => {
     quiet(t);
 
-    // Keys with every character a URL path reads otherwise: "+" (a
-    // space to some servers), a space, "%", "#" and "?".
-    const keys = [
-      customerKey(PLUS), "customer/pat dog@example.com",
-      "customer/50%off@example.com", "customer/a#b@example.com",
-      "customer/a?b@example.com",
-    ];
+    // What the real Blobs server answered on staging, read-only,
+    // 2026-11-21 (#758): the functions' edge route reads a raw "+" in
+    // the path as a space, so the record the invite sign-in made for
+    // james+dog@... is stored as "james dog@...". The CLI's API route
+    // finds that record only by "%20" (a raw "+" and "%2B" miss), and
+    // finds a plain address only with "@" raw ("%40" misses). So for
+    // a+b@... both routes must name the stored key "customer/a b@...":
+    // the edge route sends the key raw, the API route sends the "+" as
+    // "%20" and the "@" raw. A plain key goes out unchanged on both.
+    //
+    // "%", "#" and "?" are left out on purpose: how the real server
+    // reads them is unproven, and proving it needs a staging write,
+    // which nobody does.
     const SITE = "site-id-1";
     const CONTEXT = "branch-deploy";
     const store = storeName("customers", { SITE_CONTEXT: CONTEXT });
-    const encoded = (key) => key.split("/").map(encodeURIComponent)
-      .join("/");
+    const PLAIN = "customer/pat@example.com";
+    // The path each route must send for a key, by route.
+    const cases = [
+      { key: customerKey(PLUS), cli: "customer/pat%20dog@example.com",
+        functions: "customer/pat+dog@example.com" },
+      { key: PLAIN, cli: PLAIN, functions: PLAIN },
+    ];
 
     // The first request either route makes for a call, then a refusal
     // before any answer. The client retries a refused request after a
@@ -247,7 +260,7 @@ describe("#758 perks on invite-made customers", () => {
     for (const [route, make] of Object.entries(routes)) {
       const { customers } = make();
 
-      for (const key of keys) {
+      for (const { key, [route]: path } of cases) {
         for (const [op, call] of [
           ["get", () => customers.get(key)],
           ["set", () => customers.set(key, { email: "x" })],
@@ -256,12 +269,8 @@ describe("#758 perks on invite-made customers", () => {
           const where = `${route} ${op} ${JSON.stringify(key)}`;
 
           // The client names the store `site:<name>` in the path.
-          assert.ok(url.pathname.endsWith(`${store}/${encoded(key)}`),
-            `${where}: path ${url.pathname} names the key encoded`);
-          assert.equal(url.hash, "", `${where}: no part of the key is a `
-            + "fragment");
-          assert.ok(!url.search.includes(key.split("/").pop()),
-            `${where}: no part of the key is a query`);
+          assert.ok(url.pathname.endsWith(`${store}/${path}`),
+            `${where}: path ${url.pathname} ends ${store}/${path}`);
         }
       }
     }
