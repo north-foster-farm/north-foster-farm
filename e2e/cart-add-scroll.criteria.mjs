@@ -134,7 +134,8 @@ test.describe("opening the cart from ?add= (#619)", () => {
         });
         const height = page.viewportSize().height;
 
-        await expect(heading).toBeInViewport();
+        // From xl the heading is display: none (the pane carries its
+        // own title, _cart.scss), so only the pane's place is checked.
         expect(pane.top, "the pane's top in view").toBeGreaterThanOrEqual(0);
         expect(pane.top < height && pane.bottom > 0, "the pane in view")
           .toBe(true);
