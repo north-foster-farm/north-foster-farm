@@ -41,16 +41,20 @@
 // and no money moved again (no refund asked of Square or PayPal for
 // it, and no refund added to the record beyond the one delivered).
 //
-// Square may refuse the fulfillment close of an order it has refunded
-// in full: it did so in production on 2026-11-21 (the issue's
-// comment). That answer means already closed: the order still closes,
-// no alert goes out (no "Site alert" email), and the record is not
-// flagged `squareOutOfSync`. The refusal is a recording,
-// test/fixtures/square/fulfillment-cancel-refunded.json, of the PUT
-// lib/square.mjs's cancelFulfillment sends for a sandbox order paid
-// and then refunded in full. It does not exist yet: the coordinator
-// records it (bin/fixtures/record), and until then that case fails on
-// its missing recording, saying so.
+// Square's answer to the fulfillment close (the issue's "Square's
+// answer" paragraph, 2026-11-21; this said a refusal meant already
+// closed and raised no alert until the coordinator's answer of 23:20
+// ET corrected it). In the sandbox, closing the fulfillment of an
+// order refunded in full succeeds, for a card payment and for a Venmo
+// external tender: those cases replay the recordings
+// (fulfillment-cancel-refunded-card and -external, each after the
+// order-get-refunded-full read lib/square.mjs makes first) through
+// lib/square.mjs's own cancelFulfillment, and the close counts as done:
+// no alert, no `squareOutOfSync` flag. Production's 400 has no
+// recording, so a refusal is the recorded one that exists
+// (order-cancel-refused): the order still closes, and the farm gets
+// exactly one alert ("Site alert") naming the order and Square. No
+// case treats a 400 specially.
 //
 // The notice (box 3): one email to FARM_NOTIFICATIONS_EMAIL that names
 // the order's id in its subject or text, per order closed, however
@@ -68,9 +72,7 @@
 // holds, is built as test/payments.test.mjs builds it.
 
 import assert from "node:assert/strict";
-import { existsSync } from "node:fs";
 import { describe, it } from "node:test";
-import { fileURLToPath } from "node:url";
 
 import { listOrders } from "../netlify/functions/lib/admin.mjs";
 import { webhookDelivery } from "../netlify/functions/lib/fake-paypal.mjs";
@@ -82,9 +84,14 @@ import { getCounts, setCount } from "../netlify/functions/lib/stock.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
 import { handle as paypalHook } from "../netlify/functions/paypal-webhook.mjs";
 import {
+  cancelFulfillment as squareCancel,
+} from "../netlify/functions/lib/square.mjs";
+import {
   handle as squareHook, signature,
 } from "../netlify/functions/square-webhook.mjs";
-import { body as recordedBody } from "./recorded.mjs";
+import {
+  body as recordedBody, differences, recorded, reply,
+} from "./recorded.mjs";
 import { refusal } from "./version-conflict.mjs";
 
 // Saturday 21 November 2026, 04:27 ET, when the issue's refund was
@@ -107,9 +114,41 @@ const env = {
   PAYPAL_WEBHOOK_ID: "WH", PAYPAL_ENV: "sandbox",
 };
 
-const REFUSED = "fulfillment-cancel-refunded";
-const REFUSED_FILE = fileURLToPath(new URL(
-  `./fixtures/square/${REFUSED}.json`, import.meta.url));
+// The closest recorded refusal of an order PUT: Square's 400
+// INVALID_VALUE. Production's own 400 was never logged.
+const REFUSED = "order-cancel-refused";
+
+// The settings lib/square.mjs reads, for the replayed sandbox answers.
+const SANDBOX = {
+  SQUARE_ENV: "sandbox", SQUARE_ACCESS_TOKEN: "token",
+  SQUARE_LOCATION_ID: "LOCATION_ID_1",
+};
+
+// Square's sandbox closing the fulfillment of an order refunded in
+// full, `kind` "card" or "external": lib/square.mjs's cancelFulfillment
+// run on the recorded read and the recorded 200 to its PUT. Each PUT
+// sent is kept in `puts`, each answer in `answers`.
+const replayClose = (kind) => {
+  const puts = [];
+  const answers = [];
+  const fetchImpl = async (url, init = {}) => {
+    if ((init.method || "GET") === "GET") {
+      return reply("square", `order-get-refunded-full-${kind}`);
+    }
+    puts.push(JSON.parse(init.body));
+
+    return reply("square", `fulfillment-cancel-refunded-${kind}`);
+  };
+  const close = async (id) => {
+    const answer = await squareCancel(id, { env: SANDBOX, fetchImpl });
+
+    answers.push(answer);
+
+    return answer;
+  };
+
+  return { close, puts, answers };
+};
 
 // A paid order, as the site saves one: two dozen eggs, $14, paid by
 // card through Square or by Venmo through PayPal, for on-farm pickup
@@ -148,16 +187,19 @@ const order = (id, { via = "square", method = "onfarm",
 });
 
 // Square at lib/square.mjs's surface. `fail.cancelFulfillment`, when
-// set, answers the Square order id with the error to throw.
+// set, answers the Square order id with the error to throw;
+// `answer.cancelFulfillment`, when set, answers it in the stub's place.
 const stubSquare = () => {
   const calls = [];
   const fail = {};
+  const answer = {};
   const square = {
     cancelFulfillment: async (id) => {
       calls.push(["cancelFulfillment", id]);
       const error = fail.cancelFulfillment && fail.cancelFulfillment(id);
 
       if (error) throw error;
+      if (answer.cancelFulfillment) return answer.cancelFulfillment(id);
 
       return { id, cancelled: true };
     },
@@ -189,7 +231,7 @@ const stubSquare = () => {
     },
   };
 
-  return { square, calls, fail };
+  return { square, calls, fail, answer };
 };
 
 const called = (calls, name) => calls.filter((c) => c[0] === name)
@@ -292,6 +334,10 @@ const OFF = { open: false, listOpen: false, due: false };
 
 const alerts = (sent) => sent.filter((m) => /^Site alert/.test(m.subject));
 
+// The alerts that name the order.
+const alertsFor = (sent, id) => alerts(sent)
+  .filter((m) => `${m.subject}\n${m.text}`.includes(id));
+
 const toFarm = (m) => [].concat(m.to).includes(FARM);
 
 // The farm's notices naming the order: emails to the farm that are not
@@ -353,25 +399,54 @@ describe("#775: a full refund made elsewhere closes the order", () => {
         "Square is asked only for the copy of PayPal's refund");
     });
 
-    await t.test("Square refuses the fulfillment close of the order it " +
-      "refunded: the order still closes and no alert fires", async (s) => {
-      assert.ok(existsSync(REFUSED_FILE), `no recording of Square's ` +
-        `refusal at test/fixtures/square/${REFUSED}.json: the ` +
-        "coordinator records it with bin/fixtures/record");
+    await t.test("Square closes the fulfillment of the order it " +
+      "refunded, a card payment and a Venmo external tender: the order " +
+      "closes and no alert fires", async (s) => {
+      const cases = [
+        { id: "NFF-K", kind: "card", via: "square" },
+        { id: "NFF-L", kind: "external", via: "venmo" },
+      ];
 
+      for (const { id, kind, via } of cases) {
+        const w = await world(s, [order(id, { via })]);
+        const sandbox = replayClose(kind);
+        const deliver = via === "venmo" ? paypalRefund : squareRefund;
+
+        w.answer.cancelFulfillment = sandbox.close;
+        await deliver(w, { orderId: id, refundId: `REF-${id}`,
+          amount: TOTAL });
+
+        const saved = await assertClosed(w, id, kind);
+
+        assert.equal(sandbox.puts.length, 1, `${kind}: one close sent`);
+        assert.deepEqual(differences(recorded("square",
+          `fulfillment-cancel-refunded-${kind}`).request.body,
+        sandbox.puts[0]), [], `${kind}: the close Square answered 200`);
+        assert.deepEqual(sandbox.answers.map((a) => a.cancelled), [true],
+          `${kind}: Square's fulfillment counts as closed`);
+        assert.deepEqual(alerts(w.sent).map((m) => m.subject), [],
+          `${kind}: no alert`);
+        assert.ok(!(saved.flags && saved.flags.squareOutOfSync),
+          `${kind}: not flagged out of sync with Square`);
+      }
+    });
+
+    await t.test("Square refuses the fulfillment close of the order it " +
+      "refunded: the order still closes and the farm gets one alert " +
+      "naming it", async (s) => {
       const w = await world(s, [order("NFF-C")]);
 
       w.fail.cancelFulfillment = (id) => refusal(REFUSED, `/v2/orders/${id}`);
       await squareRefund(w, {
         orderId: "NFF-C", refundId: "SQ-REF-C", amount: TOTAL,
       });
+      await assertClosed(w, "NFF-C", "refused");
 
-      const saved = await assertClosed(w, "NFF-C", "refused");
+      const named = alertsFor(w.sent, "NFF-C");
 
-      assert.deepEqual(alerts(w.sent).map((m) => m.subject), [],
-        "no alert");
-      assert.ok(!(saved.flags && saved.flags.squareOutOfSync),
-        "not flagged out of sync with Square");
+      assert.equal(named.length, 1, "exactly one alert naming the order");
+      assert.match(`${named[0].subject}\n${named[0].text}`, /square/i,
+        "the alert says it was Square");
     });
   });
 
