@@ -27,7 +27,7 @@ import { cancelOrder as cancelAndRefund } from "./admin.mjs";
 import { holderOf } from "./amend.mjs";
 import { isGroupRound, placeOf } from "./describe.mjs";
 import {
-  groupOf, memberKeyOf, memberTerms, offeredGroup, retag,
+  buyingGroupOf, groupOf, memberTerms, offeredGroup, retag,
 } from "./groups.mjs";
 import { AUTOPLAY } from "./auth.mjs";
 import { cutoffAt } from "./jobs.mjs";
@@ -529,7 +529,7 @@ export const changeOrder = async (stores, customer, id, changes, {
   }
 
   const plan = planChange(order, changes, {
-    now, env, member: groupOf(memberKeyOf(customer)),
+    now, env, member: await buyingGroupOf(stores, customer),
   });
 
   if (plan.errors) return fail(422, plan.errors);

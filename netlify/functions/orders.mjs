@@ -48,8 +48,8 @@ import { sendMail } from "./lib/mail.mjs";
 import { gate } from "./lib/maintenance.mjs";
 import { DECLINE_MESSAGES as PAYPAL_DECLINES } from "./lib/paypal.mjs";
 import {
-  INVALID_CODE, NOT_MEMBER, findGroupByCode, groupCodeOf, groupOf,
-  memberKeyOf, memberTerms, roundFor, roundGroupOf,
+  INVALID_CODE, NOT_MEMBER, buyingGroupOf, findGroupByCode, groupCodeOf,
+  hostsGroup, memberTerms, roundFor, roundGroupOf,
 } from "./lib/groups.mjs";
 import {
   PASS_MESSAGES, getPass, holdPass, passCodeOf, passProblem, releasePass,
@@ -293,7 +293,9 @@ export const handle = async (req, {
   const groupCode = groupCodeOf(payload.groupCode);
   const buying = groupCode
     ? await findGroupByCode(stores, groupCode)
-    : (session ? groupOf(memberKeyOf(session.customer)) : null);
+    : (session
+      ? await buyingGroupOf(stores, session.customer, session.email)
+      : null);
 
   if (groupCode && !buying) {
     return json(422, { errors: { groupCode: INVALID_CODE } });
@@ -468,6 +470,10 @@ export const handle = async (req, {
         // The code came by the group's link, not typed: the join log's
         // path (#495). Only ever true, so other tags are as they were.
         ...(groupCode && payload.groupLink === true ? { viaLink: true } : {}),
+        // Placed by the group's host (#772): a member by the group's
+        // record, so paying it joins no one, whoever hosts by then.
+        ...(await hostsGroup(stores, result.order.customer.email,
+          buying.key) ? { byHost: true } : {}),
       }
       : null,
     // Whose credit the order spends (security review, 6425904452):

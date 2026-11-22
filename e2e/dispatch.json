@@ -404,6 +404,7 @@
         "e2e/group-credit.spec.mjs",
         "e2e/group-delivery-removed.spec.mjs",
         "e2e/group-orders.spec.mjs",
+        "e2e/host-member.spec.mjs",
         "e2e/info-align.spec.mjs",
         "e2e/kept-thursday.spec.mjs",
         "e2e/keyboard.spec.mjs",
@@ -1228,6 +1229,14 @@
     },
     {
       "paths": [
+        "e2e/host-member.spec.mjs"
+      ],
+      "specs": [
+        "e2e/host-member.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
         "e2e/perk-label.spec.mjs"
       ],
       "specs": [
@@ -1739,6 +1748,7 @@
         "e2e/group-code.spec.mjs",
         "e2e/group-credit.spec.mjs",
         "e2e/group-orders.spec.mjs",
+        "e2e/host-member.spec.mjs",
         "e2e/round-card-ring.spec.mjs"
       ]
     },

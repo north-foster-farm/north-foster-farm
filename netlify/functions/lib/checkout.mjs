@@ -152,8 +152,11 @@ export const completeOrder = async (stores, order, { square, payment }, {
       }
     }
     // An order placed with a buying group's code makes its customer a
-    // member (#471): the next order needs no code when signed in.
-    if (order.group && order.group.key) {
+    // member (#471): the next order needs no code when signed in. The
+    // group's host is one already, by the group's record (#772): an
+    // order tagged `byHost` when placed joins no one, whoever hosts
+    // by the time it is paid.
+    if (order.group && order.group.key && !order.group.byHost) {
       await joinGroup(stores, order.customer.email, order.group.key, {
         now,
         via: order.group.viaCode

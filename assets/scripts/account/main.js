@@ -440,12 +440,14 @@ class Account {
   }
 
   // A member's own Leave group (#495), asked first. Gone, the page
-  // starts again without the tab.
+  // starts again without the tab. A host who is a member only by
+  // hosting (#772) has nothing to leave.
   renderLeave(view) {
     const box = this.ownParts[1];
+    const leaves = view.member && !view.member.byHost;
 
-    box.hidden = !view.member;
-    if (!view.member || this.leaveWired) return;
+    box.hidden = !leaves;
+    if (!leaves || this.leaveWired) return;
     this.leaveWired = true;
 
     const open = document.getElementById("mem-leave");
@@ -1551,8 +1553,9 @@ class Account {
       // A buying group's member (#471) moves a round order among the
       // group's open rounds, which /api/dates never lists: the
       // account's group is asked for them. They are Group orders'
-      // (#749, #762), never among the pick-up days.
-      if (ok && this.customer && this.customer.memberGroup) {
+      // (#749, #762), never among the pick-up days. A host is a member
+      // that /api/me names but the record never does (#772).
+      if (ok && this.customer && (this.customer.memberGroup || this.member)) {
         const mine = await api("/api/group", { method: "POST", body: {} })
           .catch(() => ({ ok: false, data: null }));
 

@@ -60,7 +60,7 @@ import { now as clock } from "./clock.mjs";
 import { completeInSquare } from "./complete.mjs";
 import { KEY } from "./edit.mjs";
 import {
-  groupOf, joinGroup, memberKeyOf, memberTerms, roundFor,
+  buyingGroupOf, hostsGroup, joinGroup, memberTerms, roundFor,
 } from "./groups.mjs";
 import { alert, mark } from "./health.mjs";
 import { retry } from "./http.mjs";
@@ -306,7 +306,7 @@ export const planFarmOrder = async (stores, body, {
   const b = body && typeof body === "object" ? body : {};
   const email = String((b.customer || {}).email || "").trim().toLowerCase();
   const customer = email ? await getCustomer(stores, email) : null;
-  const buying = group || groupOf(memberKeyOf(customer));
+  const buying = group || await buyingGroupOf(stores, customer, email);
   // The page drops a SKU it does not know; the farm typed it, so it
   // hears.
   const unknown = (Array.isArray(b.lines) ? b.lines : [])
@@ -360,6 +360,8 @@ export const planFarmOrder = async (stores, body, {
           round: roundFor(buying, terms, result.order.fulfilment.date),
           viaCode: false,
           ...(walkIn ? { walkIn: true } : {}),
+          ...(await hostsGroup(stores, result.order.customer.email,
+            buying.key) ? { byHost: true } : {}),
         }
         : null,
     },
@@ -438,8 +440,10 @@ export const createFarmOrder = async (stores, body, {
 
   await touchCustomer(stores, order.customer, now, { orderId: id });
   // A buying group's order makes its customer a member (#471), as a
-  // paid order with the code does.
-  if (order.group && order.group.key) {
+  // paid order with the code does; its host is one by the group's
+  // record (#772), never by an order: one tagged `byHost` when placed
+  // joins no one.
+  if (order.group && order.group.key && !order.group.byHost) {
     await joinGroup(stores, order.customer.email, order.group.key, {
       now, via: walkIn ? "walk-in" : "farm",
     });
