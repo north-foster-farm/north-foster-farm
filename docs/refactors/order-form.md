@@ -417,7 +417,9 @@ Rules for every phase:
   4.1 in `docs/cart.md`.
 
 Before phase 1, #812 (scroll once when `?add=` opens the cart) lands.
-It edits `addFromQuery`.
+It edits `addFromQuery`. Before phase 4, the fix for #814 (the
+`order.undeliverable` console line never carries its idempotency key)
+lands. It edits `fail()`.
 
 ### Phase 1: helpers and the section spy
 
@@ -890,18 +892,20 @@ one.
 
 ## 5. Where the stall valve is needed
 
+The coordinator ruled on the first three on 2026-11-22.
+
 - **`order-form.js`, phases 1 to 13.** Each phase edits a file that
-  stays over the limits until phase 14. One standing entry on #791
-  (the rule exceptions log) for the series is better than thirteen.
-  The file can only shrink under it.
+  stays over the limits until phase 14. One entry on #791 (the rule
+  exceptions log) covers the whole series, logged when phase 1's
+  pull request opens. The file can only shrink under it.
 - **Phase 5's renames** fall inside functions that are still too
   long. If the gate counts a function's length against a pull
   request that changed a line inside it, phase 5 cannot pass on
-  modified lines alone and needs the same standing entry.
+  modified lines alone. The same entry covers it.
 - **Spec comments, phase 14.** Seven e2e files change by a comment
   each. Under the whole-file rule each would have to meet the
-  Playwright rules in full. Holding only the modified lines is right
-  there.
+  Playwright rules in full. They are held to their modified lines
+  only, logged on #791 with that pull request.
 - **Nothing else.** No function in the target needs a disabled rule
   on paper. If one does, the likeliest are the spy's measuring loop,
   which reads layout for each section, and `buildPayload`, whose
@@ -916,8 +920,9 @@ None of these is fixed inside a move.
 
 - `fail()` logs `payload.meta.idempotencyKey`. The payload carries
   `idempotencyKey` at its top level and nothing on the page sets
-  `meta`, so the `order.undeliverable` line never has its key. A
-  small fix with a test, in its own commit before phase 4.
+  `meta`, so the `order.undeliverable` line never has its key. Filed
+  as #814 (the `order.undeliverable` console line never carries its
+  idempotency key). Its fix, with a test, lands before phase 4.
 - `eligible()` has no caller (deleted in phase 6).
 - `settle()` handles `declined` and `checkout` with the same three
   lines (one handler in phase 13).
