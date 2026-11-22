@@ -41,9 +41,10 @@ const HOLD_FRAMES = 5;
 // The least time after the answer is applied before the page may
 // count as settled, so a scroll that starts on the answer is seen.
 const AFTER_MS = 2_500;
-// The first load gets, in stock.js, up to 60 s of retries before it
-// shuts the page; the cart must be in view by then and a little after.
-const GIVE_UP_MS = 75_000;
+// With no stock answer, the cart must be in view within 5 s of the
+// page loading (#892, box 3, as the coordinator settled it on
+// 2026-11-22), give or take the scroll's own run: 7 s in all.
+const SEEN_MS = 7_000;
 // How long a shown explanation must stay up.
 const KEEP_MS = 3_000;
 
@@ -152,14 +153,24 @@ const cartPlace = (order) => order.page.evaluate(() => {
   };
 });
 
-// Whether the cart has been brought into view at all.
-const cartSeen = (order) => order.page.evaluate(() => {
-  const pane = document.getElementById("order-cart");
-  const el = pane.dataset.placement === "column" ? pane
-    : document.getElementById("order-cart-heading");
-  const box = el.getBoundingClientRect();
+// The first moment, in ms from the page's navigation, that the cart
+// was on screen: the heading below xl, the pane from xl. Checked on
+// every frame, as window.qaSeenAt.
+const watchSeen = (page) => page.addInitScript(() => {
+  const look = () => {
+    const pane = document.getElementById("order-cart");
+    const el = pane?.dataset.placement === "column" ? pane
+      : document.getElementById("order-cart-heading");
+    const box = el?.getBoundingClientRect();
 
-  return box.bottom > 0 && box.top < innerHeight;
+    if (box && box.height > 0 && box.bottom > 0 && box.top < innerHeight) {
+      window.qaSeenAt = performance.now();
+    } else {
+      requestAnimationFrame(look);
+    }
+  };
+
+  requestAnimationFrame(look);
 });
 
 const tipsOf = (button) => button.evaluate((el) => (
@@ -195,8 +206,9 @@ test.describe("a late stock answer after ?add= (#892)", () => {
   }
 
   test("When the live stock answer never arrives or fails, the cart is "
-    + "still brought into view", async ({ page }) => {
-    test.setTimeout(2 * GIVE_UP_MS + 30_000);
+    + "still brought into view, within 5 seconds of the page loading",
+  async ({ page }) => {
+    await watchSeen(page);
 
     const ways = {
       "never arrives": () => {},
@@ -216,9 +228,14 @@ test.describe("a late stock answer after ?add= (#892)", () => {
         const order = new OrderPage(page);
 
         await order.open(CART);
-        await expect.poll(() => cartSeen(order), {
-          message: `${name}: the cart in view`, timeout: GIVE_UP_MS,
-        }).toBe(true);
+        await expect.poll(() => page.evaluate(() => window.qaSeenAt), {
+          message: `${name}: the cart in view`, timeout: SEEN_MS,
+        }).toBeDefined();
+
+        const at = await page.evaluate(() => window.qaSeenAt);
+
+        expect(at, `${name}: in view ${Math.round(at)} ms after load`)
+          .toBeLessThanOrEqual(SEEN_MS);
       });
     }
   });
