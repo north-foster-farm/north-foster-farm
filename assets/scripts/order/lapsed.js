@@ -5,7 +5,7 @@
 // customer pays again with the same button. Draft wording.
 
 import { windowLabel } from "./lib/schedule.mjs";
-import { appendWhole } from "../utils/keep-together.mjs";
+import { appendWhole, setKept } from "../utils/keep-together.mjs";
 import { drawPickupDays, drawRounds } from "./pickup-days.js";
 
 // Keyed by the form's way: `scheduled` is scheduled pickup, the drop site
@@ -115,15 +115,17 @@ export class Lapsed {
 
     this.method = method;
     this.returnTo = returnTo || document.activeElement;
-    this.title.textContent = some
+    // Each line through setKept, so its last two words share a line on
+    // a phone (#596).
+    setKept(this.title, some
       ? `That ${NOUN[method]} is no longer available`
-      : NONE[method];
-    this.lead.textContent = some
+      : NONE[method]);
+    setKept(this.lead, some
       ? `Nothing has been charged. Pay again once you've chosen another ${
         CHOSEN[method]}.`
       : "Nothing has been charged. You can still choose another way to " +
-        "get your order.";
-    this.legend.textContent = LEGEND[method];
+        "get your order.");
+    setKept(this.legend, LEGEND[method]);
     this.list.textContent = "";
     // Scheduled pickups in the order page's layout, grouped by date
     // (#703). The first offered is chosen.
@@ -145,7 +147,8 @@ export class Lapsed {
         input.id = `order-lapsed-${i}`;
         input.value = choice.value;
         label.htmlFor = input.id;
-        label.textContent = choice.text;
+        if (choice.kept) label.textContent = choice.text;
+        else setKept(label, choice.text);
         if (choice.kept) appendWhole(label, choice.kept);
         this.list.appendChild(node);
       });
@@ -159,8 +162,8 @@ export class Lapsed {
     this.use.textContent = USE[method];
     // With nothing left of this way, the other ways are the way on;
     // Group orders keeps its approved words whole (#749 item 8).
-    this.other.textContent = some || method === "group" ? OTHER[method]
-      : OTHER[method].replace(/ instead$/, "");
+    setKept(this.other, some || method === "group" ? OTHER[method]
+      : OTHER[method].replace(/ instead$/, ""));
     this.other.classList.toggle("btn-primary", !some);
     this.other.classList.toggle("btn-link", some);
 
