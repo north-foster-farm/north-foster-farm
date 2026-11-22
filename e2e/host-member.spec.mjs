@@ -92,6 +92,13 @@ const serve = (handler, { stores, cookie, now }) => async (route) => {
 // Signed in as the host, the server answering for them; the dates and
 // the account's cart and orders canned as vff.mjs `signIn` cans them.
 const signInHost = async (page, baseURL, host) => {
+  // The member's cart, which had no owner, would carry into the host's
+  // page as any signed-out cart does, under the host's own ?add=: the
+  // site's storage starts empty, as it would in the host's browser.
+  await page.evaluate(() => {
+    localStorage.clear();
+    sessionStorage.clear();
+  });
   await page.goto("about:blank");
   await page.unrouteAll({ behavior: "ignoreErrors" });
   await page.context().clearCookies();
