@@ -3,6 +3,8 @@
 // same records and rules as the customer-facing functions, with the
 // farm's authority. bin/nff is the thin front.
 
+import { isDeepStrictEqual } from "node:util";
+
 import terms from "../../../data/delivery.json" with { type: "json" };
 import { dollars } from "../../../assets/scripts/order/lib/totals.mjs";
 import {
@@ -351,6 +353,20 @@ const address = (value) => {
 const openPerk = (perk, day) => !perk.removedAt
   && (!perk.end || perk.end >= day);
 
+// A perk as it stood when it was granted, to match a source's perk with
+// its moved copy: the merge mark aside, and its removal too, since
+// `perks remove` on either record between a crash and the rerun dates
+// one copy removed and leaves the other as it was (qa, PR #885).
+const unmarked = (perk) => {
+  const rest = { ...perk };
+
+  delete rest.mergedFrom;
+  delete rest.removedAt;
+  delete rest.removedBy;
+
+  return rest;
+};
+
 // One customer folded into another, from the CLI (#776): `from`'s
 // orders (their ids, statuses and money untouched), perks, credit,
 // help messages and links move onto `into`, which keeps everything of
@@ -392,12 +408,19 @@ export const mergeCustomer = async (stores, from, into, {
   const day = today(now, siteTerms.timeZone);
   const held = new Set(perksOf(keeper).filter((p) => openPerk(p, day))
     .map((p) => p.type));
-  // A perk the target already holds open is not doubled. A rerun
-  // copies none twice because the source's perks are cleared as soon
-  // as they move, not because the target holds one that looks the
-  // same (security, PR #780).
+  // A perk the target already holds open is not doubled. Each moved
+  // perk is marked `mergedFrom`, the hash of the source's address, as
+  // moved grants are (lib/credit.mjs mergeLedger), and only a perk so
+  // marked counts as already moved: a rerun after a crash before the
+  // source's perks were cleared moves nothing twice (#793), while the
+  // target's own perk, never marked, is never mistaken for one that
+  // looks the same (security, PR #780).
+  const ref = refOf(source);
+  const moved = perksOf(keeper).filter((p) => p.mergedFrom === ref)
+    .map(unmarked);
   const perks = perksOf(customer).filter((p) => !(openPerk(p, day)
-    && held.has(p.type)));
+    && held.has(p.type))
+    && !moved.some((m) => isDeepStrictEqual(m, unmarked(p))));
   const group = memberKeyOf(keeper) ? null : memberKeyOf(customer);
   // The source's membership, when the target keeps a group of its own.
   const dropped = group ? null : memberKeyOf(customer);
@@ -460,7 +483,8 @@ export const mergeCustomer = async (stores, from, into, {
 
   await saveCustomer(stores, {
     ...keeper,
-    perks: [...perksOf(keeper), ...perks],
+    perks: [...perksOf(keeper),
+      ...perks.map((p) => ({ ...p, mergedFrom: ref }))],
     ...(group ? { memberGroup: customer.memberGroup } : {}),
   });
   if (perksOf(customer).length) await saveCustomer(stores, {
@@ -469,7 +493,6 @@ export const mergeCustomer = async (stores, from, into, {
   // The source's removal from its group is logged once: a rerun finds
   // the entry it wrote, for this address, since the source joined.
   const removalLogged = async (key) => {
-    const ref = refOf(source);
     const since = (customer.memberGroup && customer.memberGroup.joinedAt)
       || "";
 

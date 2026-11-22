@@ -41,6 +41,7 @@ import {
 import {
   creditBalance, getLedger, grantCredit,
 } from "../netlify/functions/lib/credit.mjs";
+import { refOf } from "../netlify/functions/lib/group-log.mjs";
 import { maskEmail } from "../netlify/functions/lib/mask.mjs";
 import { addPerk } from "../netlify/functions/lib/perks.mjs";
 import {
@@ -259,7 +260,10 @@ describe("customers merge (#776)", () => {
       const target = await getCustomer(stores, into);
 
       assert.equal(target.name, "Pat Into", "the target keeps its own");
-      assert.deepEqual(perksOf(target), perks);
+      // Each arrives with every field it had, marked with its source
+      // so a rerun skips it (#793).
+      assert.deepEqual(perksOf(target),
+        perks.map((p) => ({ ...p, mergedFrom: refOf(from) })));
       assert.equal(await creditBalance(stores, into, now), 800);
       assert.deepEqual((await getLedger(stores, from)).entries, []);
       assert.equal(target.memberGroup && target.memberGroup.id, "vff",
