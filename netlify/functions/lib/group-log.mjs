@@ -155,9 +155,9 @@ export const auditLog = (stores, key) => listAll(stores, `group-log/${key}/`);
 // The group's members as they stand: each customer whose record says
 // they are in it, with how they came, oldest first. The record is the
 // truth; the join log only says how a member came when the record
-// does not.
-export const groupMembers = async (stores, key) => {
-  const customers = (await allCustomers(stores)).filter((c) =>
+// does not. An old twin the list cleans is logged as `by` (#794).
+export const groupMembers = async (stores, key, { by = "site" } = {}) => {
+  const customers = (await allCustomers(stores, { by })).filter((c) =>
     c.memberGroup && typeof c.memberGroup === "object"
     && c.memberGroup.id === key);
   const joins = new Map();
@@ -188,8 +188,11 @@ export const groupMembers = async (stores, key) => {
 // A join line for each member on record with none: those who joined
 // before the log. Dated as they joined, and marked. With `apply`
 // false, only says who would be added. -> the members added.
-export const backfillJoins = async (stores, key, { apply = false } = {}) => {
-  const missing = (await groupMembers(stores, key)).filter((m) => !m.logged);
+export const backfillJoins = async (stores, key, {
+  apply = false, by = "site",
+} = {}) => {
+  const missing = (await groupMembers(stores, key, { by }))
+    .filter((m) => !m.logged);
 
   if (apply) {
     for (const m of missing) {

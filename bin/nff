@@ -65,7 +65,8 @@ const USAGE = `Usage:
   farm's own notices still go. It does not cover the retention and
   farm-news emails, so jobs run, audience import and audience welcome
   refuse it.
-  bin/nff customers list
+  bin/nff customers list              every customer. May clean up old
+                                      copies of records (#758)
   bin/nff customers show <email>
   bin/nff customers set <email> name=.. phone=.. group=friends|none
                                 member=vff|none   (a buying group, #471)
@@ -324,7 +325,9 @@ const USAGE = `Usage:
                                       date joined and how (code, link,
                                       qr, walk-in, farm, host, invite).
                                       --backfill logs the members from
-                                      before the join log, once
+                                      before the join log, once. May
+                                      clean up old copies of records
+                                      (#758)
   bin/nff groups remove <key> <email> take a member out of the group,
                                       logged: open orders stand as
                                       placed, credit stays theirs,
@@ -378,7 +381,8 @@ const USAGE = `Usage:
                                       Logged in the group's log
   bin/nff members sync <key> [--dry-run]
                                       the same for every member of the
-                                      group
+                                      group. May clean up old copies of
+                                      records (#758)
   bin/nff refunds check               every refund not yet settled,
                                       asked of Square or PayPal: the
                                       jobs do it daily; alerts as they
@@ -447,7 +451,8 @@ const USAGE = `Usage:
                                       forget --apply. Prints each row
                                       with the address masked
   bin/nff audience sync [--dry-run]   the Resend audience and the
-                                      records, made to agree
+                                      records, made to agree. May clean
+                                      up old copies of records (#758)
   bin/nff schedule check <file>       the pickup schedule, checked as a
                                       deploy checks it (W11d)
   bin/nff schedule set <file> --staging|--production
@@ -1398,7 +1403,9 @@ const run = async () => {
 
   switch (`${group} ${action}`) {
   case "customers list": {
-    const list = await admin.listCustomers(stores);
+    const list = await admin.listCustomers(stores, {
+      by: userInfo().username,
+    });
 
     for (const c of list) {
       out(`${c.email}  ${c.name || "-"}  ${c.discountGroup || ""}  ${
@@ -1953,7 +1960,9 @@ const run = async () => {
       || "No rows."}`);
   }
   case "audience sync":
-    return out(await syncAudience(stores, { dryRun: !!flags["dry-run"] }));
+    return out(await syncAudience(stores, {
+      dryRun: !!flags["dry-run"], by: userInfo().username,
+    }));
   case "schedule check": {
     const checked = scheduleFile(rest[0]);
 
@@ -2192,13 +2201,15 @@ const run = async () => {
     if (!g) throw new Error(`Unknown group "${rest[0]}".`);
     if (flags.backfill) {
       const added = await groupLog.backfillJoins(stores, g.key, {
-        apply: true,
+        apply: true, by: userInfo().username,
       });
 
       out(`Backfilled ${added.length} join${added.length === 1 ? "" : "s"}.`);
     }
 
-    const list = await groupLog.groupMembers(stores, g.key);
+    const list = await groupLog.groupMembers(stores, g.key, {
+      by: userInfo().username,
+    });
 
     for (const m of list) {
       out(`${m.email}  ${m.name || "-"}  ${(m.joinedAt || "-").slice(0, 10)}  ${

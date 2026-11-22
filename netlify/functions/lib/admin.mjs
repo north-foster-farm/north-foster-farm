@@ -83,7 +83,8 @@ const need = (thing, what) => {
 
 // Customers
 
-export const listCustomers = (stores) => allCustomers(stores);
+export const listCustomers = (stores, { by = "site" } = {}) =>
+  allCustomers(stores, { by });
 
 export const showCustomer = async (stores, email) => ({
   customer: need(await getCustomer(stores, email), "customer"),

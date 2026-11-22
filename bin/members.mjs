@@ -5,6 +5,7 @@
 // (bin/confirm.mjs), and `--dry-run` writes nothing.
 
 import { writeFileSync } from "node:fs";
+import { userInfo } from "node:os";
 
 import { groupMembers } from "../netlify/functions/lib/group-log.mjs";
 import { groupOf, memberKeyOf } from "../netlify/functions/lib/groups.mjs";
@@ -121,7 +122,9 @@ export const membersCommand = async (action, rest, {
     const g = groupOf(rest[0]);
 
     if (!g) throw new Error(`Unknown group "${rest[0] || ""}".`);
-    emails = (await groupMembers(stores, g.key)).map((m) => m.email);
+    emails = (await groupMembers(stores, g.key, {
+      by: userInfo().username,
+    })).map((m) => m.email);
   }
 
   // Codes Square refused for good, read before this run may end them.
