@@ -94,22 +94,33 @@ const leftover = (old, twin) => {
 };
 
 // -> { apply, moved: [{ store, from, to }], cleaned: [{ store, from,
-// to }], refused: [{ ..., why }] }. `cleaned` is an old record whose
-// hashed twin replaced it (#758, qa on #787): deleted, not moved.
+// to }], refused: [{ ..., why }], vanished: [{ ..., why }] }.
+// `cleaned` is an old record whose hashed twin replaced it (#758, qa
+// on #787): deleted, not moved. `vanished` is one deleted between the
+// plan and its move, by a run elsewhere: skipped, so no empty record
+// lands at its hashed key (#794).
 export const rekeyRecords = async (stores, {
   apply = false, by = "cli",
 } = {}) => {
   const moved = [];
   const cleaned = [];
   const refused = [];
+  const vanished = [];
   const held = "the hashed key holds a record";
+  const gone = "deleted since the plan";
 
   for (const m of await plannedMoves(stores)) {
     const store = stores[m.store];
     const twin = await store.get(m.to);
 
     if (twin !== null) {
-      if (!leftover(await store.get(m.from), twin)) {
+      const old = await store.get(m.from);
+
+      if (old === null) {
+        vanished.push({ ...m, why: gone });
+        continue;
+      }
+      if (!leftover(old, twin)) {
         refused.push({ ...m, why: held });
         continue;
       }
@@ -126,6 +137,10 @@ export const rekeyRecords = async (stores, {
     if (apply) {
       const value = await store.get(m.from);
 
+      if (value === null) {
+        vanished.push({ ...m, why: gone });
+        continue;
+      }
       if (!await store.create(m.to, value)) {
         refused.push({ ...m, why: held });
         continue;
@@ -139,5 +154,5 @@ export const rekeyRecords = async (stores, {
     moved.push(m);
   }
 
-  return { apply, moved, cleaned, refused };
+  return { apply, moved, cleaned, refused, vanished };
 };
