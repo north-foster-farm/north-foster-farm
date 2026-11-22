@@ -6,8 +6,10 @@ The third design under #782 (quality gates in the build), read from
 and why each of its rules exists, is in `docs/cart.md` 4.1 to 4.8.
 This document changes none of that.
 
-`assets/scripts/order/cart/view.mjs` is 1,188 lines, 750 of them
-code: 36 exported names and no class. It is everything about the
+`assets/scripts/order/cart/view.mjs` is 1,207 lines, about 760 of
+them code: 37 exported names and no class (2026-11-22: it was 1,188
+lines and 36 names until #812, scroll once when ?add= opens the cart,
+added `focusAfterScroll`). It is everything about the
 cart that touches the viewport, the clock or the pane's own motion.
 Nine functions run past 25 lines, and one, `moveParts`, is 97 lines
 long. Unlike the other big files it is already a set of separate
@@ -74,9 +76,12 @@ e2e: `cart-fold`, `cart-motion`, `order-page` (the ring).
 Unit: `cart-touch.test.mjs` (`strayed`, `touchKind`).
 e2e: `cart-fold`.
 
-**Focus kept clear of the pane.** `clearFocusUnder`.
+**Focus kept clear of the pane.** `clearFocusUnder`, and
+`focusAfterScroll`, the focus a script gives after its own scroll,
+which `clearFocusUnder` leaves alone (#619). The two share one
+`WeakSet`, so they move together.
 Unit: `cart-scroll.test.mjs` (`clearBy`).
-e2e: `cart-a11y`, `keyboard`, `checkout-go`.
+e2e: `cart-a11y`, `keyboard`, `checkout-go`, `cart-add-scroll`.
 
 ### State
 
@@ -186,7 +191,8 @@ view/share.js        shutShare                        motion      25
 view/list.js         watchList, revealLine            watcher     95
 view/cues.js         pulsePill, ringCart, showAdded   cue         40
 view/teach.js        teach                            watcher     70
-view/focus.js        clearFocusUnder                  watcher     60
+view/focus.js        clearFocusUnder,
+                     focusAfterScroll                 watcher     70
 view.mjs             the re-exports                               25
 ```
 
@@ -218,7 +224,7 @@ The order of reads and writes in those steps is the design of
 
 ### What stays as it is
 
-`view.mjs`'s 36 exports, by name; `cart.js`; `state.mjs`;
+`view.mjs`'s 37 exports, by name; `cart.js`; `state.mjs`;
 `lib/cart-scroll.mjs` and `lib/cart-touch.mjs`; the properties left
 on elements; every clock.
 
@@ -275,7 +281,8 @@ e2e: `cart-keyboard`, `cart-float`, `cart-fold`, `cart-motion`,
 
 Moves `watchList` and `revealLine` to `view/list.js`; `pulsePill`,
 `ringCart` and `showAdded` to `view/cues.js`; `teach` to
-`view/teach.js`; `clearFocusUnder` to `view/focus.js`; `shutShare`
+`view/teach.js`; `clearFocusUnder` and `focusAfterScroll` to
+`view/focus.js`; `shutShare`
 to `view/share.js`; `animateFold` to `view/fold.js`.
 
 Criteria:
@@ -329,7 +336,7 @@ e2e: the eleven cart specs.
 
 ## 4. What must not change
 
-- **The 36 exports of `view.mjs`,** by name and behavior.
+- **The 37 exports of `view.mjs`,** by name and behavior.
 - **What the specs read:** the animation id `cart-move`, the count
   `pane.eases`, the attributes `data-pulse`, `data-show`,
   `data-scroll`, `data-top`, `data-more`, the classes `is-ringed`
