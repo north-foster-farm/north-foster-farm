@@ -519,6 +519,15 @@ to CSS. Its surface, which the Cart class imports:
   in `style.js`. Two pure rules came out of them: `scrollKey`, which
   keys scroll the page, in `own-scroll.mjs`, and `closedHeight`, the
   lift-off threshold's closed height, in `plan.mjs`.
+- So do the rest of the view's parts but the sheet's motion
+  (2026-11-22, #845): `watchList` and `revealLine` in `list.js`;
+  `pulsePill`, `ringCart` and `showAdded` in `cues.js`; `teach` in
+  `teach.js`; `clearFocusUnder` and `focusAfterScroll`, which share
+  one `WeakSet`, in `focus.js`; `shutShare` in `share.js`;
+  `animateFold` in `fold.js`. Three pure rules came out of them:
+  `glideSpan` and `glideAt`, the glide's length and curve, in
+  `more.mjs`, and `focusRoom`, the band a focused control is kept
+  within, in `plan.mjs`.
 
 ### 4.2 Structure
 

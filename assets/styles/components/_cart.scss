@@ -182,7 +182,7 @@ $cart-nudge-line: $cart-nudge-gap + $cart-nudge-size * $cart-line-height;
 
     // The rail's Cart link rings the whole pane (#337): the pill's
     // green ring, on a layer of its own so the pane keeps its shadow.
-    // cart/view.mjs ringCart sets the class and takes it off.
+    // cart/view/cues.js ringCart sets the class and takes it off.
     &::after {
       position: absolute;
       inset: -1px;
@@ -767,7 +767,7 @@ $cart-nudge-line: $cart-nudge-gap + $cart-nudge-size * $cart-line-height;
 
   // Shut, the row shows its two buttons; open, one side takes the
   // whole row. The code field folds back the way it came, the opening
-  // run backwards (cart.js shutCode, view.mjs shutShare).
+  // run backwards (cart.js shutCode, view/share.js shutShare).
   .order-cart-ways,
   .order-cart-code {
     display: none;
@@ -942,7 +942,7 @@ $cart-nudge-line: $cart-nudge-gap + $cart-nudge-size * $cart-line-height;
 
   // Once the pane has shut itself, or on a later Add, the pill pulses
   // to say where the cart went: three pairs the first time (#278),
-  // once after (cart/view.mjs pulsePill times them).
+  // once after (cart/view/cues.js pulsePill times them).
   .order-cart-toggle[data-pulse="once"] {
     animation: order-pill 520ms var(--order-ease);
   }
