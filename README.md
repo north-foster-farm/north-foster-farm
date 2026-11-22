@@ -147,8 +147,9 @@ The script prints nothing else, so sourcing it never shows a message.
 
 ```bash
 npm run check           # lint:code, then the tests
-npm run lint            # lint:code
-npm run lint:code       # ESLint and Stylelint
+npm run lint            # lint:code, then the gates' own tests
+npm run lint:code       # ShellCheck, ESLint and Stylelint
+npm run lint:shell      # ShellCheck, every tracked shell script
 npm run lint:scripts    # ESLint, every tracked script
 npm run lint:styles     # Stylelint, every tracked stylesheet
 npm test                # node:test: functions, CLI and build checks

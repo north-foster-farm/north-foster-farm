@@ -9,8 +9,9 @@
   "private": true,
   "browserslist": "defaults",
   "scripts": {
-    "lint": "npm run lint:code && npm run test:analysis",
-    "lint:code": "npm run lint:scripts && npm run lint:styles && npm run lint:copies && npm run lint:unused",
+    "lint": "npm run lint:code && npm run test:gates && npm run test:analysis",
+    "lint:code": "npm run lint:shell && npm run lint:scripts && npm run lint:styles && npm run lint:copies && npm run lint:unused",
+    "lint:shell": "node bin/lint-shell.mjs",
     "lint:scripts": "eslint --max-warnings 0 .",
     "lint:styles": "stylelint --max-warnings 0 \"**/*.{scss,css}\"",
     "lint:unused": "knip --no-progress",

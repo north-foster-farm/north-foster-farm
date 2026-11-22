@@ -125,8 +125,9 @@ npm start
 npm run start:bind
 
 # Run linters over every tracked file (#782); a warning fails them
-npm run lint                # lint:code (CI runs this)
-npm run lint:code           # The two linters below
+npm run lint                # lint:code, then test:gates (CI runs this)
+npm run lint:code           # The three linters below
+npm run lint:shell          # ShellCheck, every tracked shell script
 npm run lint:scripts        # ESLint, every tracked script
 npm run lint:styles         # Stylelint, every tracked stylesheet
 npm run test:gates          # The gates' own tests: what lint reads
@@ -327,7 +328,7 @@ Site data stored in JSON files under `data/`, plus
 - **Sass**: Production builds require Dart Sass (auto-installed by `bin/prod`)
 - **Images**: Use Hugo's image processing in templates; originals go in `assets/images/`
 - **Content**: Markdown files in `content/` are processed by Hugo
-- **Linting**: Must pass ESLint (JS) and Stylelint (SCSS
+- **Linting**: Must pass ShellCheck, ESLint (JS) and Stylelint (SCSS
   and CSS) over every tracked file, with no warning and no unused
   disable directive (2026-11-22, #782), before
   promotion to `staging` and `main`, which require `lint-and-test`;

@@ -58,5 +58,7 @@
   "ignoreDependencies": ["postcss-cli"],
   // Hugo is Homebrew's, not an npm package (CLAUDE.md), and Inkscape
   // is a desktop app bin/logos/build.mjs calls when run by hand.
-  "ignoreBinaries": ["hugo", "inkscape"]
+  // ShellCheck, which bin/lint-shell.mjs runs, comes from PATH: Homebrew
+  // on the Mac, preinstalled on GitHub's runners.
+  "ignoreBinaries": ["hugo", "inkscape", "shellcheck"]
 }

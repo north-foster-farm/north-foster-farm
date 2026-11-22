@@ -154,7 +154,7 @@ send() {
       request: $request, response: $response[0]}' > "$OUT"
   rm -f "$tmp.raw" "$tmp.err" "$tmp.body"
 
-  if [ "$want" != any ] && [ "${STATUS%${STATUS#?}}" != "$want" ]; then
+  if [ "$want" != any ] && [ "${STATUS%"${STATUS#?}"}" != "$want" ]; then
     flag="  <-- expected a ${want}xx"
     FAILED=$((FAILED + 1))
   fi
@@ -268,7 +268,7 @@ LONG="$(printf 'x%.0s' $(seq 1 64))"
 REFUSED=""
 for candidate in "fixture..$RUN@example.com" ".fixture-$RUN@example.com" \
   "fixture-$RUN.@example.com" "fixture-$RUN,x@example.com" \
-  "fixture-$RUN(x)@example.com" "fixture-$RUN[x]@example.com" \
+  "fixture-$RUN(x)@example.com" "fixture-${RUN}[x]@example.com" \
   "fixture-$RUN-$LONG@example.com" "fixture-$RUN@$LONG.com" \
   "fixture-$RUN@example.com."; do
   ARGS="$(jq -nc --arg locationId "$LOC" --arg email "$candidate" \
@@ -562,7 +562,7 @@ if [ -n "$RS_TOKEN" ] && [ -n "$MAIL_FROM" ]; then
   ARGS="$(jq -nc --arg from "$MAIL_FROM" --arg replyTo "$MAIL_REPLY_TO" \
     --argjson message "$message" '$ARGS.named')"
   send resend-send resend "$(pick resend-send "$ARGS" 0)" 2
-  if [ "${STATUS%${STATUS#?}}" != "2" ]; then
+  if [ "${STATUS%"${STATUS#?}"}" != "2" ]; then
     # MAIL_FROM is not a sender the key may use; Resend's own may be.
     mv "$OUT" "$RAW/resend-send-refused.json"
     ARGS="$(jq -nc --arg from "onboarding@resend.dev" \
@@ -580,7 +580,8 @@ else
 fi
 
 echo
-echo "Recorded $(ls "$RAW"/*.json | wc -l | tr -d ' ') responses in"
+echo "Recorded $(find "$RAW" -maxdepth 1 -name '*.json' ! -name '.*' |
+  wc -l | tr -d ' ') responses in"
 echo "$RAW"
 if [ "$FAILED" -gt 0 ]; then
   echo "$FAILED answered with an unexpected class of status (flagged above);"
