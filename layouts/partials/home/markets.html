@@ -44,7 +44,9 @@
               {{ .name }}
             {{ end }}
           </h3>
-          <p class="place-when">{{ .when }}</p>
+          {{/* The hours hold together, so a phone never starts a line
+               with AM or PM: the day may wrap, the hours do not. */}}
+          <p class="place-when">{{ replaceRE `^([^,]+, )(.+)$` `${1}<span class="text-nowrap">${2}</span>` (htmlEscape .when) | safeHTML }}</p>
           <p class="place-where">{{ with .venue }}<span class="place-line">{{ . }}</span>{{ end }}<span class="place-line"><span class="text-nowrap">{{ .street }},</span> <span class="text-nowrap">{{ .city }},</span> <span class="text-nowrap">{{ .state }} {{ .zip }}</span></span></p>
           <p class="place-note">{{ partial "market/season.html" . }}</p>
           <p class="place-pickup" data-pickup-for="{{ .code }}" hidden>
