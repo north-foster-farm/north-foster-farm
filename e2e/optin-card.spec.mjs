@@ -10,9 +10,15 @@
 // its checkbox, the contact card the one around the first name, the
 // pane the one around the button. "Framed like the other cards" is the
 // frame the contact card and the pane share: border, radius and
-// background, with the shadow of either. "Directly above" is the
-// card's box ending above the pane's with nothing shown between them
-// in the pane's column, across a gap of half a rem to three.
+// background, with the shadow of either.
+//
+// James's second revision (2026-11-21, in the code chat) made the
+// opt-in its own section above the "Place your order" heading: the
+// question is a heading over the card, not in it, and the card holds
+// the checkbox (e2e/optin-section.spec.mjs checks the section). So the
+// card ends above the "Place your order" heading, and that heading is
+// all that is shown between the card and the pane in the pane's
+// column.
 //
 // Held out of every run by its name: the config takes *.spec.mjs only,
 // so renaming it to optin-card.spec.mjs turns it on. It runs in the
@@ -26,12 +32,15 @@ const QUESTION = "Interested in pasture-raised news and updates?";
 const POLICY = "By placing an order you agree to our delivery policy.";
 const WIDTHS = [390, 1440];
 
-// Half a pixel for subpixel rounding; the gap in px (16 to the rem).
+const PLACE = "Place your order";
+
+// Half a pixel for subpixel rounding.
 const SLACK = 0.5;
-const GAP = { min: 8, max: 48 };
 
 // What the page shows of the three cards.
-const measure = (page) => page.evaluate(({ question, policy, slack }) => {
+const measure = (page) => page.evaluate(({
+  question, policy, place, slack,
+}) => {
   // The nearest ancestor of el that draws a shadow.
   const framed = (el) => {
     let node = el && el.parentElement;
@@ -109,6 +118,11 @@ const measure = (page) => page.evaluate(({ question, policy, slack }) => {
   const pay = document.getElementById("order-submit");
   const asked = byText(question);
   const agree = byText(policy);
+  // The section heading, not the button's label or a link.
+  const heading = [...document.body.querySelectorAll("*")]
+    .filter((el) => words(el) === place && !el.closest("a, button"))
+    .find((el) => ![...el.children].some((c) => words(c) === place))
+    ?? null;
   const card = framed(tick);
   const contact = framed(document.getElementById("customer-first-name"));
   const pane = framed(pay);
@@ -141,6 +155,7 @@ const measure = (page) => page.evaluate(({ question, policy, slack }) => {
       pane: frame(pane) },
     card: cardBox,
     pane: paneBox,
+    heading: heading && box(heading.getBoundingClientRect()),
     // Anything shown in the pane's column between the card and it.
     between: shown(document.body).filter((r) =>
       r.top >= cardBox.bottom - slack && r.bottom <= paneBox.top + slack
@@ -150,7 +165,7 @@ const measure = (page) => page.evaluate(({ question, policy, slack }) => {
     abovePay: shown(pane, pay).filter((r) => r.top < payTop - slack)
       .map((r) => r.text),
   };
-}, { question: QUESTION, policy: POLICY, slack: SLACK });
+}, { question: QUESTION, policy: POLICY, place: PLACE, slack: SLACK });
 
 // Whether the opt-in's card is shown: the checkbox's nearest framed
 // ancestor, as measure finds it, which may be hidden itself or inside
@@ -169,7 +184,7 @@ const cardShown = (page) => page.evaluate(() => {
 
 test.describe("#705 the Farm News opt-in in a card of its own", () => {
   test("The Farm News opt-in is a card of its own, framed like the " +
-    "other cards, directly above the Place your order pane; the pane " +
+    "other cards, above the Place your order heading and pane; the pane " +
     "holds the Place your order button and the policy line, and a " +
     "customer already on the list sees no opt-in card",
   async ({ page, context, baseURL }, info) => {
@@ -196,7 +211,7 @@ test.describe("#705 the Farm News opt-in in a card of its own", () => {
       expect.soft(m.own, `${at}: the opt-in's card is not the pane, ` +
         "and neither holds the other").toBe(true);
       expect.soft(m.holds, `${at}: what the opt-in's card holds`)
-        .toEqual({ question: true, checkbox: true, button: false,
+        .toEqual({ question: false, checkbox: true, button: false,
           policy: false });
       expect.soft(m.paneHolds, `${at}: what the pane holds`)
         .toEqual({ question: false, checkbox: false, button: true,
@@ -215,15 +230,17 @@ test.describe("#705 the Farm News opt-in in a card of its own", () => {
         `card's shadow (${shadow}) is the contact card's or the pane's`)
         .toContain(shadow);
 
-      // Directly above the pane, with the gap between cards.
-      const gap = m.pane.top - m.card.bottom;
-      const said = `${at}: the gap from the opt-in card's bottom ` +
-        `(${m.card.bottom}) to the pane's top (${m.pane.top})`;
-
-      expect.soft(gap, said).toBeGreaterThanOrEqual(GAP.min);
-      expect.soft(gap, said).toBeLessThanOrEqual(GAP.max);
-      expect.soft(m.between, `${at}: nothing shown between the card ` +
-        "and the pane").toEqual([]);
+      // Above the Place your order heading, which is all that stands
+      // between the card and the pane.
+      expect(m.heading, `${at}: the ${PLACE} heading`).not.toBeNull();
+      expect.soft(m.card.bottom, `${at}: the opt-in card's bottom ` +
+        `against the ${PLACE} heading's top (${m.heading.top})`)
+        .toBeLessThanOrEqual(m.heading.top + SLACK);
+      expect.soft(m.heading.bottom, `${at}: the ${PLACE} heading's ` +
+        `bottom against the pane's top (${m.pane.top})`)
+        .toBeLessThanOrEqual(m.pane.top + SLACK);
+      expect.soft(m.between, `${at}: only the ${PLACE} heading shown ` +
+        "between the card and the pane").toEqual([PLACE]);
 
       // The pane opens with the button.
       expect.soft(m.abovePay, `${at}: what the pane shows above the ` +

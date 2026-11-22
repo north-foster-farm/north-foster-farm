@@ -266,14 +266,17 @@ for (const width of [375, 390, 576, 768]) {
   });
 }
 
-// Checkout's alignment: the news question and its box start at the
-// left edge of their card, and Pay's agreement at the pane's, at every
-// width, as in James's mockup on #705 (centered from his cart pass,
-// 2026-10-27, until then; the question and the box were in the pane
-// until his revision of 2026-11-21 gave them a card of their own above
-// it). That Pay spans the pane is e2e/place-order-pane.spec.mjs.
-test("the question and the opt-in start at their card's left, the " +
-  "agreement at the pane's, at every width", async ({ page }) => {
+// Checkout's alignment: the news box starts at the left edge of its
+// card, and Pay's agreement at the pane's, at every width, as in
+// James's mockup on #705 (centered from his cart pass, 2026-10-27,
+// until then; the question and the box were in the pane until his
+// revision of 2026-11-21 gave them a card of their own above it). His
+// second revision that day made the question a section heading over
+// the card, so it starts where the Place your order heading does. That
+// Pay spans the pane is e2e/place-order-pane.spec.mjs.
+test("the question starts with the Place your order heading, the " +
+  "opt-in at its card's left, the agreement at the pane's, at every " +
+  "width", async ({ page }) => {
   const order = new OrderPage(page);
 
   for (const size of [PHONE, MD]) {
@@ -312,9 +315,17 @@ test("the question and the opt-in start at their card's left, the " +
         .filter((n) => n.textContent.replace(/\s+/g, " ").trim() === text)
         .at(-1);
 
+      // The question heads its own section, so it starts where the
+      // Place your order heading does.
+      const place = [...document.querySelectorAll("main *")]
+        .filter((n) => n.textContent.replace(/\s+/g, " ").trim()
+          === "Place your order" && !n.closest("a, button"))
+        .at(-1);
+
       return {
-        question: Math.abs(words(byText(card,
-          "Interested in pasture-raised news and updates?")) - edge(card)),
+        question: Math.abs(words(byText(document.querySelector("main"),
+          "Interested in pasture-raised news and updates?"))
+          - words(place)),
         optin: Math.abs(tick.getBoundingClientRect().left - edge(card)),
         agree: Math.abs(words(byText(pane,
           "By placing an order you agree to our delivery policy."))
@@ -323,8 +334,8 @@ test("the question and the opt-in start at their card's left, the " +
     });
 
     for (const [part, off] of Object.entries(seen)) {
-      expect(off, `${size.width}px: the ${part}'s offset from its ` +
-        "frame's left edge").toBeLessThanOrEqual(1);
+      expect(off, `${size.width}px: the ${part}'s offset from where ` +
+        "it starts").toBeLessThanOrEqual(1);
     }
   }
 });

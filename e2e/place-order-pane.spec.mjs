@@ -13,12 +13,13 @@
 // ET) moved the question and the checkbox into a card of their own
 // directly above the pane, so they are read in that card, in the same
 // order, and the pane keeps the button and the policy line
-// (e2e/optin-card.spec.mjs checks the card). The pane is the shadowed
-// frame that holds the button, the card the one that holds the
-// checkbox, whichever element draws each.
-//
-// Held out of every run by its name: rename it to
-// place-order-pane.spec.mjs to turn it on.
+// (e2e/optin-card.spec.mjs checks the card). His second revision
+// (2026-11-21, in the code chat) made the question the heading of a
+// section of its own over that card, so the question is read in the
+// page's main, still in the same order (e2e/optin-section.spec.mjs
+// checks the section). The pane is the shadowed frame that holds the
+// button, the card the one that holds the checkbox, whichever element
+// draws each.
 
 import { CUSTOMER } from "./support/canned.mjs";
 import { signIn } from "./support/membership.mjs";
@@ -71,7 +72,8 @@ test.describe("the Place your order pane (#705)", () => {
           return { top: r.top, bottom: r.bottom, left: r.left,
             right: r.right, width: r.width };
         };
-        const asked = card && byText(card, question);
+        // The question heads the opt-in's section, over its card.
+        const asked = byText(document.querySelector("main"), question);
         const agree = byText(pane, policy);
         const tickLabel = document.querySelector(
           "label[for='customer-marketing']",
@@ -105,8 +107,8 @@ test.describe("the Place your order pane (#705)", () => {
         };
       }, { question: QUESTION, policy: POLICY });
 
-      expect(m.found, "the question and the checkbox are in their card, " +
-        "apart from the pane, and the policy line is in the pane")
+      expect(m.found, "the question is on the page, the checkbox in its " +
+        "card apart from the pane, and the policy line in the pane")
         .toEqual({ question: true, checkbox: true, policy: true });
       expect.soft(m.inDocumentOrder, "question, checkbox, button, " +
         "policy line, in that order").toBe(true);
