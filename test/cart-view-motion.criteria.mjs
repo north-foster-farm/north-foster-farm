@@ -44,12 +44,12 @@
 // 2: plan.mjs is listed as pure), not from a box.
 
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
 import {
   holds, lifting, movePlan, pillMoves,
 } from "../assets/scripts/order/cart/view/plan.mjs";
+import { assertPure } from "./pure-module.mjs";
 
 const PLAN = new URL(
   "../assets/scripts/order/cart/view/plan.mjs", import.meta.url
@@ -167,19 +167,12 @@ describe("holds", () => {
 
 describe("design, section 2", () => {
   it("keeps view/plan.mjs pure", () => {
-    const dom = new RegExp(`\\b(${[
+    const banned = [
       "document", "window", "getComputedStyle", "matchMedia",
       "requestAnimationFrame", "cancelAnimationFrame", "performance",
       "ResizeObserver", "Element", "Node",
-    ].join("|")})\\b`);
-    const code = readFileSync(PLAN, "utf8")
-      .replace(/\/\/.*$/gm, "")
-      .replace(/\/\*[\s\S]*?\*\//g, "");
+    ];
 
-    assert.doesNotMatch(code, dom, "plan.mjs reaches the DOM");
-    for (const [, from] of code.matchAll(/\bfrom\s+["']([^"']+)["']/g)) {
-      assert.match(from, /\.mjs$/, `plan.mjs imports ${from}`);
-      assert.doesNotMatch(from, /\/view\.mjs$/, "plan.mjs imports the door");
-    }
+    assertPure(PLAN, { banned, door: /\/view\.mjs$/ });
   });
 });
