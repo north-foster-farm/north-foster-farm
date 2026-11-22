@@ -25,12 +25,32 @@ import { maskKey } from "./store.mjs";
 const CUSTOMER = "customer/";
 const BY_EMAIL = "by-email/";
 
+// A listed key -> { key, value } as stored, or null. @netlify/blobs
+// hands back the key the server lists, verbatim (Store
+// formatListResultBlob, 11.1.0), and staging lists a record that
+// answers only to "james dog@..." as "james+dog@..." (the
+// coordinator's read-only check, 2026-11-21, #758). So the listed key
+// is not always the stored one: when it misses, its "+"s read as
+// spaces name the record.
+export const storedAs = async (store, listed) => {
+  const value = await store.get(listed);
+
+  if (value !== null) return { key: listed, value };
+
+  const decoded = listed.replaceAll("+", " ");
+  const found = decoded === listed ? null : await store.get(decoded);
+
+  return found === null ? null : { key: decoded, value: found };
+};
+
 // The customer records under a wrong key -> [{ from, to, wrong, right }]
 // with `wrong` the address the key names and `right` the record's.
 const misplacedCustomers = async (stores) => {
   const keys = (await stores.customers.list(CUSTOMER)).map((e) => e.key);
-  const found = await inBatches(keys, async (key) => {
-    const record = await stores.customers.get(key);
+  const found = await inBatches(keys, async (listed) => {
+    const stored = await storedAs(stores.customers, listed);
+    const record = stored && stored.value;
+    const key = stored && stored.key;
 
     if (!record || !record.email) return null;
 
@@ -48,8 +68,10 @@ const misplacedCustomers = async (stores) => {
 // The order index entries under a wrong address -> [{ from, to }].
 const misplacedOrderIndex = async (stores) => {
   const keys = (await stores.orders.list(BY_EMAIL)).map((e) => e.key);
-  const found = await inBatches(keys, async (key) => {
-    const order = await getOrder(stores, key.split("/").pop());
+  const found = await inBatches(keys, async (listed) => {
+    const stored = await storedAs(stores.orders, listed);
+    const key = stored && stored.key;
+    const order = key && await getOrder(stores, key.split("/").pop());
     const email = order && order.customer && order.customer.email;
 
     if (!email) return null;
@@ -79,9 +101,12 @@ export const plannedMoves = async (stores) => {
         moves.push({ store: "customers", from, to });
       }
     }
-    for (const { key } of await stores.customers.list(
+    for (const { key: listed } of await stores.customers.list(
       `support/${c.wrong}/`
     )) {
+      const stored = await storedAs(stores.customers, listed);
+      const key = stored ? stored.key : listed;
+
       moves.push({
         store: "customers", from: key,
         to: `support/${c.right}/${key.split("/").pop()}`,

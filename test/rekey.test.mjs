@@ -104,6 +104,35 @@ describe("customers rekey", () => {
       assert.deepEqual(again.moved, []);
     });
 
+  // The client hands back the server's listed key verbatim (Store
+  // formatListResultBlob, @netlify/blobs 11.1.0), and staging listed
+  // the record stored as "james dog@..." as "james+dog@..." (the
+  // coordinator's read-only check, 2026-11-21, #758). Each store here
+  // lists that way: a stored space shows as a "+".
+  it("finds a record the list names with a \"+\" for its stored space",
+    async (t) => {
+      const lines = capture(t);
+      const stores = seeded();
+
+      for (const name of ["customers", "orders"]) {
+        const store = stores[name];
+        const list = store.list;
+
+        store.list = async (prefix) => (await list(prefix))
+          .map(({ key }) => ({ key: key.replaceAll(" ", "+") }));
+      }
+
+      const report = await rekeyRecords(stores, { apply: true });
+
+      assert.deepEqual(report.moved, EXPECTED);
+      assert.deepEqual(await stores.customers.get(`customer/${PLUS}`),
+        { email: PLUS, name: "Pat" });
+      assert.equal(await stores.customers.get(`customer/${WRONG}`), null);
+      assert.equal(await stores.orders.get(`by-email/${WRONG}/${ID}`), null);
+      assert.equal(lines.filter((l) => l.includes("store.rekeyed")).length,
+        EXPECTED.length, "one line per move");
+    });
+
   it("refuses a move onto a key that holds a record", async (t) => {
     capture(t);
     const stores = seeded();
