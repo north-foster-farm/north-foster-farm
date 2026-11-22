@@ -476,9 +476,9 @@ test.describe("home", () => {
       await expect(card.getByRole("heading", { level: 4, name: "Spring" }))
         .toHaveCSS("font-size", "19.2px");
 
-      // The archive button closes the post, below the card in the
-      // section (#483): the small outline one, found by its name, since
-      // the sign-up above it has "news" in its own.
+      // The archive button, in the section under the thumbnails since
+      // #566 (#483): the small outline one, found by its name, since
+      // the card's sign-up has "news" in its own.
       const news = page.locator(".home-update")
         .getByRole("link", { name: "More from the farm" });
 
