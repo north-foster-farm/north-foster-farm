@@ -34,6 +34,7 @@ import { describe, it } from "node:test";
 import { confirmation, confirmed } from "../bin/confirm.mjs";
 import { perksOf } from "../assets/scripts/order/lib/perks.mjs";
 import * as admin from "../netlify/functions/lib/admin.mjs";
+import { addressHash } from "../netlify/functions/lib/address-key.mjs";
 import {
   authRecordsFor, putAuth,
 } from "../netlify/functions/lib/auth-records.mjs";
@@ -269,7 +270,8 @@ describe("customers merge (#776)", () => {
 
       // Support messages move; the target's stay.
       assert.equal(await stores.customers.get(`support/${from}/m1`), null);
-      assert.deepEqual(await stores.customers.get(`support/${into}/m1`),
+      assert.deepEqual(
+        await stores.customers.get(`support/${addressHash(into)}/m1`),
         { message: "Hi" });
       assert.deepEqual(await stores.customers.get(`support/${into}/m0`),
         { message: "Hello" });
