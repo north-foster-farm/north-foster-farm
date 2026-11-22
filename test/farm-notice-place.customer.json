@@ -1,0 +1,98 @@
+{
+  "orderConfirmed/onfarm": {
+    "subject": "Your order is confirmed",
+    "text": "Your order is confirmed\n\nThanks, Pat. We received your payment of $62, and your pick-up time is set. Your order is confirmed.\n\nOrder details\nOrder number: NFF-2610-ABCD\n- 2 × Whole Chicken, 3.5 – 3.9 lbs\n- 1 × Eggs (per dozen), Large\nOrder type: On-farm pickup\n- When: Thursday, October 8, 9:00 AM – 12:00 PM\n- Where: 99 East Killingly Road, Foster, RI 02825\nView or edit this order: https://x/account/orders/NFF-2610-ABCD/\nReschedule pickup: https://x/account/orders/NFF-2610-ABCD/\n\nYour orders: https://x/account/\nContact us: mailto:sales@northfosterfarm.com\n\nNorth Foster Farm\n99 E Killingly Rd, Foster, RI 02825\nsales@northfosterfarm.com\n(401) 578-3713"
+  },
+  "orderChanged/onfarm": {
+    "subject": "Your order is updated",
+    "text": "Your order is updated\n\nPat, your order has been updated.\nOrder number: NFF-2610-ABCD\n- 2 × Whole Chicken, 3.5 – 3.9 lbs\n- 1 × Eggs (per dozen), Large\nOrder type: On-farm pickup\n- When: Thursday, October 8, 9:00 AM – 12:00 PM\n- Where: 99 East Killingly Road, Foster, RI 02825\nView or edit this order: https://x/account/orders/NFF-2610-ABCD/\n\nYour orders: https://x/account/\nContact us: mailto:sales@northfosterfarm.com\n\nNorth Foster Farm\n99 E Killingly Rd, Foster, RI 02825\nsales@northfosterfarm.com\n(401) 578-3713"
+  },
+  "orderCancelled/onfarm": {
+    "subject": "Your order is canceled",
+    "text": "Your order is canceled\n\nHi Pat,\nWe canceled your order for on-farm pickup on Thursday, October 8, as requested.\nA refund of $62 is on its way.\nMost refunds arrive within a few business days.\nOrder number: NFF-2610-ABCD\n\nYour orders: https://x/account/\nContact us: mailto:sales@northfosterfarm.com\n\nNorth Foster Farm\n99 E Killingly Rd, Foster, RI 02825\nsales@northfosterfarm.com\n(401) 578-3713"
+  },
+  "orderConfirmed/delivery": {
+    "subject": "Your order is confirmed",
+    "text": "Your order is confirmed\n\nThanks, Pat. Your payment of $67 came through and your order is confirmed.\n\nOrder details\nOrder number: NFF-2610-ABCD\n- 2 × Whole Chicken, 3.5 – 3.9 lbs\n- 1 × Eggs (per dozen), Large\nOrder type: Delivery\n- Arrives: Thursday, October 8, between 10:00 AM and 4:00 PM\n- Address: 1 Main St, Foster, RI 02825\nView or edit this order: https://x/account/orders/NFF-2610-ABCD/\n\nYour orders: https://x/account/\nContact us: mailto:sales@northfosterfarm.com\n\nNorth Foster Farm\n99 E Killingly Rd, Foster, RI 02825\nsales@northfosterfarm.com\n(401) 578-3713"
+  },
+  "orderChanged/delivery": {
+    "subject": "Your order is updated",
+    "text": "Your order is updated\n\nPat, your order has been updated.\nOrder number: NFF-2610-ABCD\n- 2 × Whole Chicken, 3.5 – 3.9 lbs\n- 1 × Eggs (per dozen), Large\nOrder type: Delivery\n- Arrives: Thursday, October 8, between 10:00 AM and 4:00 PM\n- Address: 1 Main St, Foster, RI 02825\nWhere will we find your cooler? Side porch\nGate or door code: 1234\nView or edit this order: https://x/account/orders/NFF-2610-ABCD/\n\nYour orders: https://x/account/\nContact us: mailto:sales@northfosterfarm.com\n\nNorth Foster Farm\n99 E Killingly Rd, Foster, RI 02825\nsales@northfosterfarm.com\n(401) 578-3713"
+  },
+  "orderCancelled/delivery": {
+    "subject": "Your order is canceled",
+    "text": "Your order is canceled\n\nHi Pat,\nWe canceled your order for delivery on Thursday, October 8, as requested.\nA refund of $62 is on its way.\nMost refunds arrive within a few business days.\nOrder number: NFF-2610-ABCD\n\nYour orders: https://x/account/\nContact us: mailto:sales@northfosterfarm.com\n\nNorth Foster Farm\n99 E Killingly Rd, Foster, RI 02825\nsales@northfosterfarm.com\n(401) 578-3713"
+  },
+  "orderConfirmed/dropSite": {
+    "subject": "Your order is confirmed",
+    "text": "Your order is confirmed\n\nThanks, Pat. Your payment of $62 came through and your order is confirmed.\n\nOrder details\nOrder number: NFF-2610-ABCD\n- 2 × Whole Chicken, 3.5 – 3.9 lbs\n- 1 × Eggs (per dozen), Large\nOrder type: Pick-up days\n- When: Saturday, November 21, between 10:00 and 11:00 AM\n- Where: 46 Institute Lane, North Scituate, RI 02857\nView or edit this order: https://x/account/orders/NFF-2610-ABCD/\n\nYour orders: https://x/account/\nContact us: mailto:sales@northfosterfarm.com\n\nNorth Foster Farm\n99 E Killingly Rd, Foster, RI 02825\nsales@northfosterfarm.com\n(401) 578-3713"
+  },
+  "orderChanged/dropSite": {
+    "subject": "Your order is updated",
+    "text": "Your order is updated\n\nPat, your order has been updated.\nOrder number: NFF-2610-ABCD\n- 2 × Whole Chicken, 3.5 – 3.9 lbs\n- 1 × Eggs (per dozen), Large\nOrder type: Pick-up days\n- When: Saturday, November 21, between 10:00 and 11:00 AM\n- Where: 46 Institute Lane, North Scituate, RI 02857\nView or edit this order: https://x/account/orders/NFF-2610-ABCD/\n\nYour orders: https://x/account/\nContact us: mailto:sales@northfosterfarm.com\n\nNorth Foster Farm\n99 E Killingly Rd, Foster, RI 02825\nsales@northfosterfarm.com\n(401) 578-3713"
+  },
+  "orderCancelled/dropSite": {
+    "subject": "Your order is canceled",
+    "text": "Your order is canceled\n\nHi Pat,\nWe canceled your order for pickup on Saturday, November 21, as requested.\nA refund of $62 is on its way.\nMost refunds arrive within a few business days.\nOrder number: NFF-2610-ABCD\n\nYour orders: https://x/account/\nContact us: mailto:sales@northfosterfarm.com\n\nNorth Foster Farm\n99 E Killingly Rd, Foster, RI 02825\nsales@northfosterfarm.com\n(401) 578-3713"
+  },
+  "orderConfirmed/market": {
+    "subject": "Your order is confirmed",
+    "text": "Your order is confirmed\n\nThanks, Pat. Your payment of $62 came through and your order is confirmed.\n\nOrder details\nOrder number: NFF-2610-ABCD\n- 2 × Whole Chicken, 3.5 – 3.9 lbs\n- 1 × Eggs (per dozen), Large\nOrder type: Pick-up days\n- When: Tuesday, November 24, between 12:00 and 4:00 PM\n- Where: Pawtucket Farmers Market, Inside of Jordan's Jungle, 545 Pawtucket Ave, Pawtucket\nView or edit this order: https://x/account/orders/NFF-2610-ABCD/\n\nYour orders: https://x/account/\nContact us: mailto:sales@northfosterfarm.com\n\nNorth Foster Farm\n99 E Killingly Rd, Foster, RI 02825\nsales@northfosterfarm.com\n(401) 578-3713"
+  },
+  "orderChanged/market": {
+    "subject": "Your order is updated",
+    "text": "Your order is updated\n\nPat, your order has been updated.\nOrder number: NFF-2610-ABCD\n- 2 × Whole Chicken, 3.5 – 3.9 lbs\n- 1 × Eggs (per dozen), Large\nOrder type: Pick-up days\n- When: Tuesday, November 24, between 12:00 and 4:00 PM\n- Where: Pawtucket Farmers Market, Inside of Jordan's Jungle, 545 Pawtucket Ave, Pawtucket\nView or edit this order: https://x/account/orders/NFF-2610-ABCD/\n\nYour orders: https://x/account/\nContact us: mailto:sales@northfosterfarm.com\n\nNorth Foster Farm\n99 E Killingly Rd, Foster, RI 02825\nsales@northfosterfarm.com\n(401) 578-3713"
+  },
+  "orderCancelled/market": {
+    "subject": "Your order is canceled",
+    "text": "Your order is canceled\n\nHi Pat,\nWe canceled your order for pickup on Tuesday, November 24, as requested.\nA refund of $62 is on its way.\nMost refunds arrive within a few business days.\nOrder number: NFF-2610-ABCD\n\nYour orders: https://x/account/\nContact us: mailto:sales@northfosterfarm.com\n\nNorth Foster Farm\n99 E Killingly Rd, Foster, RI 02825\nsales@northfosterfarm.com\n(401) 578-3713"
+  },
+  "orderConfirmed/popUp": {
+    "subject": "Your order is confirmed",
+    "text": "Your order is confirmed\n\nThanks, Pat. Your payment of $62 came through and your order is confirmed.\n\nOrder details\nOrder number: NFF-2610-ABCD\n- 2 × Whole Chicken, 3.5 – 3.9 lbs\n- 1 × Eggs (per dozen), Large\nOrder type: Pick-up days\n- When: Saturday, November 21, between 12:00 and 5:00 PM\n- Where: Thanksgiving Prep, Inside of Jordan's Jungle, 545 Pawtucket Ave, Pawtucket\nView or edit this order: https://x/account/orders/NFF-2610-ABCD/\n\nYour orders: https://x/account/\nContact us: mailto:sales@northfosterfarm.com\n\nNorth Foster Farm\n99 E Killingly Rd, Foster, RI 02825\nsales@northfosterfarm.com\n(401) 578-3713"
+  },
+  "orderChanged/popUp": {
+    "subject": "Your order is updated",
+    "text": "Your order is updated\n\nPat, your order has been updated.\nOrder number: NFF-2610-ABCD\n- 2 × Whole Chicken, 3.5 – 3.9 lbs\n- 1 × Eggs (per dozen), Large\nOrder type: Pick-up days\n- When: Saturday, November 21, between 12:00 and 5:00 PM\n- Where: Thanksgiving Prep, Inside of Jordan's Jungle, 545 Pawtucket Ave, Pawtucket\nView or edit this order: https://x/account/orders/NFF-2610-ABCD/\n\nYour orders: https://x/account/\nContact us: mailto:sales@northfosterfarm.com\n\nNorth Foster Farm\n99 E Killingly Rd, Foster, RI 02825\nsales@northfosterfarm.com\n(401) 578-3713"
+  },
+  "orderCancelled/popUp": {
+    "subject": "Your order is canceled",
+    "text": "Your order is canceled\n\nHi Pat,\nWe canceled your order for pickup on Saturday, November 21, as requested.\nA refund of $62 is on its way.\nMost refunds arrive within a few business days.\nOrder number: NFF-2610-ABCD\n\nYour orders: https://x/account/\nContact us: mailto:sales@northfosterfarm.com\n\nNorth Foster Farm\n99 E Killingly Rd, Foster, RI 02825\nsales@northfosterfarm.com\n(401) 578-3713"
+  },
+  "orderConfirmed/groupRound": {
+    "subject": "Your order is confirmed",
+    "text": "Your order is confirmed\n\nThanks, Pat. Your payment of $62 came through and your order is confirmed.\n\nOrder details\nOrder number: NFF-2610-ABCD\n- 2 × Whole Chicken, 3.5 – 3.9 lbs\n- 1 × Eggs (per dozen), Large\nOrder type: Group orders\n- When: Sunday, November 22, between 8:30 and 9:00 AM\n- Where: The Village Family Fitness, 53 Venturi Ave, Warwick\nView or edit this order: https://x/account/orders/NFF-2610-ABCD/\n\nYour orders: https://x/account/\nContact us: mailto:sales@northfosterfarm.com\n\nNorth Foster Farm\n99 E Killingly Rd, Foster, RI 02825\nsales@northfosterfarm.com\n(401) 578-3713"
+  },
+  "orderChanged/groupRound": {
+    "subject": "Your order is updated",
+    "text": "Your order is updated\n\nPat, your order has been updated.\nOrder number: NFF-2610-ABCD\n- 2 × Whole Chicken, 3.5 – 3.9 lbs\n- 1 × Eggs (per dozen), Large\nOrder type: Group orders\n- When: Sunday, November 22, between 8:30 and 9:00 AM\n- Where: The Village Family Fitness, 53 Venturi Ave, Warwick\nView or edit this order: https://x/account/orders/NFF-2610-ABCD/\n\nYour orders: https://x/account/\nContact us: mailto:sales@northfosterfarm.com\n\nNorth Foster Farm\n99 E Killingly Rd, Foster, RI 02825\nsales@northfosterfarm.com\n(401) 578-3713"
+  },
+  "orderCancelled/groupRound": {
+    "subject": "Your order is canceled",
+    "text": "Your order is canceled\n\nHi Pat,\nWe canceled your order for pickup on Sunday, November 22, as requested.\nA refund of $62 is on its way.\nMost refunds arrive within a few business days.\nOrder number: NFF-2610-ABCD\n\nYour orders: https://x/account/\nContact us: mailto:sales@northfosterfarm.com\n\nNorth Foster Farm\n99 E Killingly Rd, Foster, RI 02825\nsales@northfosterfarm.com\n(401) 578-3713"
+  },
+  "orderConfirmed/gone": {
+    "subject": "Your order is confirmed",
+    "text": "Your order is confirmed\n\nThanks, Pat. Your payment of $62 came through and your order is confirmed.\n\nOrder details\nOrder number: NFF-2610-ABCD\n- 2 × Whole Chicken, 3.5 – 3.9 lbs\n- 1 × Eggs (per dozen), Large\nOrder type: Pick-up days\n- When: Saturday, November 21, between \n- Where: Pickup, ZZZZ-261121\nView or edit this order: https://x/account/orders/NFF-2610-ABCD/\n\nYour orders: https://x/account/\nContact us: mailto:sales@northfosterfarm.com\n\nNorth Foster Farm\n99 E Killingly Rd, Foster, RI 02825\nsales@northfosterfarm.com\n(401) 578-3713"
+  },
+  "orderChanged/gone": {
+    "subject": "Your order is updated",
+    "text": "Your order is updated\n\nPat, your order has been updated.\nOrder number: NFF-2610-ABCD\n- 2 × Whole Chicken, 3.5 – 3.9 lbs\n- 1 × Eggs (per dozen), Large\nOrder type: Pick-up days\n- When: Saturday, November 21, between \n- Where: Pickup, ZZZZ-261121\nView or edit this order: https://x/account/orders/NFF-2610-ABCD/\n\nYour orders: https://x/account/\nContact us: mailto:sales@northfosterfarm.com\n\nNorth Foster Farm\n99 E Killingly Rd, Foster, RI 02825\nsales@northfosterfarm.com\n(401) 578-3713"
+  },
+  "orderCancelled/gone": {
+    "subject": "Your order is canceled",
+    "text": "Your order is canceled\n\nHi Pat,\nWe canceled your order for pickup on Saturday, November 21, as requested.\nA refund of $62 is on its way.\nMost refunds arrive within a few business days.\nOrder number: NFF-2610-ABCD\n\nYour orders: https://x/account/\nContact us: mailto:sales@northfosterfarm.com\n\nNorth Foster Farm\n99 E Killingly Rd, Foster, RI 02825\nsales@northfosterfarm.com\n(401) 578-3713"
+  },
+  "deliveryReminder/delivery": {
+    "subject": "Your delivery is tomorrow",
+    "text": "Your delivery is tomorrow\n\nTomorrow is delivery day! Your order will arrive between 10:00 AM and 4:00 PM.\nPlease remember to:\n- Leave your cooler with ice outside in the morning\n- Provide gate or door codes, if needed\nWe'll look for your cooler here: Side porch.\nGate or door code you gave us: 1234\n\nOrder details\nOrder number: NFF-2610-ABCD\n- 2 × Whole Chicken, 3.5 – 3.9 lbs\n- 1 × Eggs (per dozen), Large\nOrder type: Delivery\n- Arrives: Thursday, October 8, between 10:00 AM and 4:00 PM\n- Address: 1 Main St, Foster, RI 02825\nView or edit this order: https://x/account/orders/NFF-2610-ABCD/\nTurn off delivery reminders: https://x/account/#settings\n\nYour orders: https://x/account/\nContact us: mailto:sales@northfosterfarm.com\n\nNorth Foster Farm\n99 E Killingly Rd, Foster, RI 02825\nsales@northfosterfarm.com\n(401) 578-3713"
+  },
+  "missedDelivery/delivery": {
+    "subject": "We couldn't deliver your order",
+    "text": "We couldn't deliver your order\n\nHi Pat,\nWe came by today with your order but couldn't leave it: there was no cooler out, and we couldn't reach you. Your order is back at the farm.\nPlease choose what you'd like us to do:\n- Deliver it next Thursday, October 15, at no extra charge\n- Have it ready for on-farm pickup or one of our pick-up days\n- Cancel it for a full refund of $67\nWe'll hold your order until Thursday, October 15. If you haven't chosen by then, we'll cancel it and refund it in full.\nReschedule or cancel: https://x/account/orders/NFF-2610-ABCD/pick/\n\nOrder details\nOrder number: NFF-2610-ABCD\n- 2 × Whole Chicken, 3.5 – 3.9 lbs\n- 1 × Eggs (per dozen), Large\nOrder type: Delivery\n- Arrives: Thursday, October 8, between 10:00 AM and 4:00 PM\n- Address: 1 Main St, Foster, RI 02825\n\nYour orders: https://x/account/\nContact us: mailto:sales@northfosterfarm.com\n\nNorth Foster Farm\n99 E Killingly Rd, Foster, RI 02825\nsales@northfosterfarm.com\n(401) 578-3713"
+  },
+  "movedDelivery/delivery": {
+    "subject": "Your delivery has moved to next Thursday",
+    "text": "Your delivery has moved to next Thursday\n\nHi Pat,\nWe weren't able to deliver your order on Thursday, October 1, so we've moved your delivery to next Thursday, October 8. You don't need to do anything.\nIf next Thursday doesn't work for you, you can choose another day, switch to on-farm pickup or one of our pick-up days, or cancel for a full refund of $67, delivery fee included.\nReschedule or cancel: https://x/account/orders/NFF-2610-ABCD/pick/\n\nOrder details\nOrder number: NFF-2610-ABCD\n- 2 × Whole Chicken, 3.5 – 3.9 lbs\n- 1 × Eggs (per dozen), Large\nOrder type: Delivery\n- Arrives: Thursday, October 8, between 10:00 AM and 4:00 PM\n- Address: 1 Main St, Foster, RI 02825\n\nYour orders: https://x/account/\nContact us: mailto:sales@northfosterfarm.com\n\nNorth Foster Farm\n99 E Killingly Rd, Foster, RI 02825\nsales@northfosterfarm.com\n(401) 578-3713"
+  }
+}
