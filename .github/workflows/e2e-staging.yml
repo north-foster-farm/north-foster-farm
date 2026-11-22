@@ -53,7 +53,7 @@ jobs:
     # Every browser's system libraries, so no apt runs (#556). Keep
     # the tag and digest in step with @playwright/test, as in
     # e2e-run.yml (test/workflows.test.mjs checks the tag).
-    container: mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e # v1.62.1-noble
+    container: mcr.microsoft.com/playwright:v1.65.1-noble@sha256:1507cbfc550a63a6b7396791ca4f00df17beb56342d2447b3f106c306f525579 # v1.65.1-noble
     timeout-minutes: 120
     # A container job runs run: steps with sh (dash on this image) unless
     # a shell is declared, and Run and Alert are bash (#648). bash runs
