@@ -330,6 +330,13 @@ phases 2 to 9 move code that no test would catch breaking.
 11. A member's credit shows beside Sign out, and credit kept after
     leaving a group does too.
 
+One behavior is left out on purpose. Help's Send and the Change,
+Cancel and Report forms say nothing when the connection is lost.
+That is a bug, #831 (Account page: Help, Change, Cancel and Report
+say nothing when the connection is lost), and pinning it would pin
+the fault. Its fix brings its own tests and lands before phases 4
+and 7, which move those four handlers.
+
 ### Phase 1: helpers and an order's words
 
 Moves `qs`, `all`, `el`, `clone`, `write`, `busyButton` to `dom.js`;
@@ -616,7 +623,9 @@ None of these is fixed inside a move.
 - Four forms have no catch for a lost connection: Help's Send, and
   the Change, Cancel and Report forms. `api()` rejects, the button
   goes idle, and the customer is told nothing. Leave, Remove, the
-  email change and Delete all catch it.
+  email change and Delete all catch it. Filed as #831 (Account page:
+  Help, Change, Cancel and Report say nothing when the connection is
+  lost).
 - `post()` has no caller (deleted in phase 2).
 - `this.avatars` is assigned and never read.
 - `dropSeries` is a module variable the constructor sets (an
