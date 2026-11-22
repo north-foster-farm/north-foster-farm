@@ -1056,7 +1056,7 @@ $cart-nudge-line: $cart-nudge-gap + $cart-nudge-size * $cart-line-height;
   }
 
   // On the sheet the pane's padding and borders ease with its parts,
-  // on their clock (cart/view.mjs moveParts, #559 round 3), so they
+  // on their clock (cart/view/move.js moveParts, #559 round 3), so they
   // are not eased here. Where the floating sheet rests eases instead: a
   // change in the safe area or the toolbar's gap while the page
   // scrolled moved a minimized pane 23px in one frame (James's phone,
