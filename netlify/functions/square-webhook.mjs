@@ -5,7 +5,8 @@
 //
 // Payments are taken on the page, synchronously, so two kinds of event
 // have work behind them: a refund made in the Square dashboard rather
-// than the CLI (`refund.updated`), which is noted on the order, and an
+// than the CLI (`refund.updated`), which is noted on the order and, if
+// it covers everything paid, closes an unfulfilled one (#775), and an
 // order changed there (`order.updated`, `order.fulfillment.updated`),
 // which is compared with the record and flagged to the farm, never
 // copied into it (lib/drift.mjs, #293). Every
@@ -16,6 +17,7 @@
 
 import { createHmac, timingSafeEqual } from "node:crypto";
 
+import { closeRefunded } from "./lib/admin.mjs";
 import { applyOrderEvent } from "./lib/drift.mjs";
 import { mark } from "./lib/health.mjs";
 import { json } from "./lib/http.mjs";
@@ -107,7 +109,19 @@ export const handle = async (req, {
     return json(200, { handled: false, reason: "ignored" });
   }
 
-  const result = await applyRefundEvent(stores, event, { now });
+  const result = await applyRefundEvent(stores, event, {
+    now, env, ...(mail ? { mail } : {}),
+  });
+
+  // A refund made in Square's dashboard that covers everything paid
+  // closes the order (#775). One the CLI made, or a repeat, is
+  // already the CLI's or was closed the first time.
+  if (result.handled && result.id && !result.repeat && !result.failed) {
+    await closeRefunded(stores, result.id, {
+      now, env, fetchImpl, source: "square", ...(mail ? { mail } : {}),
+      ...(square ? { square } : {}),
+    });
+  }
 
   log.info({ event: "square.webhook", type: event.type, ...result });
 

@@ -388,6 +388,50 @@ send fulfillment-cancel square "$CANCEL_REQUEST"
 # The same version a second time: stale.
 send order-update-stale-version square "$CANCEL_REQUEST" 4
 
+# ---- Pickups refunded in full, then their fulfillment cancelled -------
+# What Square answers cancelFulfillment for an order it refunded in
+# full (#775). refunded_cancel SUFFIX SOURCE_JSON REASON CANCEL WANT pays
+# a new pickup, refunds the whole payment as REASON says, waits for the
+# refund to finish (the close follows a finished one, as in
+# production), reads the order back and records the cancel as CANCEL.
+refunded_cancel() {
+  local suffix="$1" source="$2" reason="$3" cancel="$4" want="$5"
+  local order payment refund args
+
+  new_order "refunded-$suffix" pickup
+  order="$ORDER_ID"
+  pay "refund-$suffix" "$source"
+  payment="$(got .response.payment.id)"
+  args="$(margs --arg paymentId "$payment" --argjson amount "$ORDER_TOTAL" \
+    --arg key "$K-refund-full-$suffix" --arg reason "$reason")"
+  send "refund-create-full-$suffix" square "$(pick refund "$args" 0)"
+  refund="$(got .response.refund.id)"
+  for _ in 1 2 3 4 5 6; do
+    send "refund-get-full-$suffix" square "$(sq GET "/v2/refunds/$refund")"
+    [ "$(jq -r '.response.refund.status // empty' "$OUT")" = COMPLETED ] \
+      && break
+    sleep 2
+  done
+  send "order-get-refunded-full-$suffix" square \
+    "$(sq GET "/v2/orders/$order")"
+  args="$(margs --arg orderId "$order" \
+    --argjson current "$(jq -c .response.order "$OUT")")"
+  send "$cancel" square "$(pick cancel-fulfillment "$args" 0)" "$want"
+}
+
+# Paid by card and refunded in Square: the sandbox closes it (200).
+refunded_cancel card '{"sourceId": "cnon:card-nonce-ok"}' \
+  "Fixture full refund" fulfillment-cancel-refunded-card 2
+
+# A Venmo payment as the site records it on Square (an EXTERNAL
+# tender), refunded in PayPal and repeated on Square as the PayPal
+# webhook's refundOnSquare repeats it. Production refused this cancel
+# with a 400 on 2026-11-21 (NFF-2611-DT349B), but the sandbox closes
+# it (200, 2026-11-22), so the 400 is not reproduced.
+refunded_cancel external '{"external": {"source": "Venmo",
+  "sourceId": "FIXTURE-VENMO-2", "type": "SOCIAL"}}' \
+  "Refunded in PayPal" fulfillment-cancel-refunded-external 2
+
 # ---- A pickup paid in cash (the farm's own, #181) -----------------------
 new_order cash pickup
 pay cash '{"cash": true}'

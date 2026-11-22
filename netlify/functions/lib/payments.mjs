@@ -191,12 +191,31 @@ export const recordRefund = async (
   // refunds recorded together both stay. A refund the processor
   // already gave an id that the record holds (an edit retried by its
   // key, or a webhook for a refund the CLI is recording) is recorded
-  // once.
+  // once. What the entry lacks is merged onto it: the other
+  // processor's id, so a repeat is known by either, and the source
+  // when Square's webhook recorded it first, knowing only Square's
+  // side of a refund the CLI or PayPal made (#783).
   const same = (r, field) => !!refund[field] && r[field] === refund[field];
   const saved = await amendOrder(stores, order.id, (current) => {
-    if (refundsOf(current).some((r) => same(r, "squareRefundId")
-      || same(r, "paypalRefundId"))) {
-      return null;
+    const list = refundsOf(current);
+    const at = list.findIndex((r) => same(r, "squareRefundId")
+      || same(r, "paypalRefundId"));
+
+    if (at >= 0) {
+      const was = list[at];
+      const merged = {
+        ...was,
+        squareRefundId: was.squareRefundId || refund.squareRefundId || null,
+        paypalRefundId: was.paypalRefundId || refund.paypalRefundId || null,
+        source: was.source === "square" ? source : was.source,
+      };
+
+      if (["squareRefundId", "paypalRefundId", "source"]
+        .every((f) => merged[f] === was[f])) return null;
+
+      return moneyPatch(current, {
+        refunds: list.map((r, i) => (i === at ? merged : r)),
+      });
     }
 
     return moneyPatch(current, {
@@ -288,6 +307,17 @@ export const applyRefundEvent = async (stores, event, {
 
   if (!order) return { handled: false, reason: "unknown payment" };
 
+  const from = paymentsOf(order)
+    .find((x) => x.squarePaymentId === refund.payment_id);
+
+  // An unknown refund on a Venmo payment's Square copy is the copy
+  // PayPal's handler or the CLI is making of a PayPal refund, landed
+  // before their write. It moved no money: PayPal's handler records
+  // the refund, with both ids, so it is never counted twice (#783).
+  if (known < 0 && from && from.paypalCaptureId) {
+    return { handled: true, id: order.id, repeat: true, reason: "paypal" };
+  }
+
   if (known >= 0) {
     // A refund the CLI made is recorded PENDING; Square's word on how
     // it ended is the one change worth noting.
@@ -305,9 +335,6 @@ export const applyRefundEvent = async (stores, event, {
   // A refund made elsewhere that failed moved no money: the alert is
   // all there is to it.
   if (failed) return { handled: true, id: order.id, failed: true };
-
-  const from = paymentsOf(order)
-    .find((x) => x.squarePaymentId === refund.payment_id);
 
   await recordRefund(stores, order, {
     amount: refund.amount_money ? refund.amount_money.amount : 0,

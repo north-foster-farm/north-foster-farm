@@ -281,11 +281,9 @@ export const updateOrder = async (stores, id, change) => {
   throw new Error(`Order ${id} is being changed too fast to save.`);
 };
 
-// Moves an order to a new status with a history line, keeping the
-// open index in step. Returns the updated record, or null if unknown.
-export const setStatus = async (
-  stores, id, status, now = clock(), extra
-) => updateOrder(stores, id, (order) => {
+// The record moved to a new status with a history line, or the record
+// itself when the move is refused or already made.
+const toStatus = (order, status, now, extra) => {
   if (order.status === status) return order;
   // A cancel or a handover is never undone by a late write that still
   // thinks the order is paid, and only a paid order is handed over: the
@@ -309,7 +307,37 @@ export const setStatus = async (
   if (status === "fulfilled") patch.fulfilledAt = at;
 
   return stamp({ ...order, ...patch }, status, now, extra);
-});
+};
+
+// Moves an order to a new status with a history line, keeping the
+// open index in step. Returns the updated record, or null if unknown.
+export const setStatus = async (
+  stores, id, status, now = clock(), extra
+) => updateOrder(stores, id, (order) => toStatus(order, status, now, extra));
+
+// Like setStatus, saying whether this write made the move (`moved`), so
+// that of two writers who both see the new status, only the one that
+// wrote it does what follows: restocks, closes Square, sends notices.
+// `when`, if given, is asked of the record as the write finds it, and
+// the move is made only if it answers true. `before` is the status
+// the move was made from. -> { order, moved, before }.
+export const moveStatus = async (stores, id, status, now = clock(), {
+  extra, when,
+} = {}) => {
+  let moved = false;
+  let before = null;
+  const order = await updateOrder(stores, id, (found) => {
+    const next = when && !when(found)
+      ? found : toStatus(found, status, now, extra);
+
+    moved = next !== found;
+    before = found.status;
+
+    return next;
+  });
+
+  return { order, moved: !!order && moved, before };
+};
 
 // Any patch that is not a status change, with a history line. `patch`
 // may be a function of the record as it is when the write lands, for a

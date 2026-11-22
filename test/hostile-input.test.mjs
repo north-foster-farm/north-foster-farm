@@ -154,6 +154,8 @@ const CASES = {
     customer(), { links }), true],
   farmSquareNotCompleted: [() => templates.farmSquareNotCompleted(order(),
     { links }), false],
+  farmRefundedClosed: [() => templates.farmRefundedClosed(order(),
+    { where: "Square", links }), false],
   farmReturnRequest: [() => templates.farmReturnRequest(order(), customer(),
     { id: "r1", reason: HOSTILE, skus: [HOSTILE] }, { links }), true],
   farmSupport: [() => templates.farmSupport(customer(), {

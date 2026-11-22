@@ -27,21 +27,22 @@ import { devEmails, sendMail } from "./mail.mjs";
 import { maskEmail, maskIn } from "./mask.mjs";
 import * as newsApi from "./news.mjs";
 import {
-  customerEmailWithheld, recordRefund, sendForOrder,
+  customerEmailWithheld, notifyFarm, recordRefund, sendForOrder,
 } from "./payments.mjs";
 import * as paypalApi from "./paypal.mjs";
 import {
   OPEN, allCustomers, allOrders, amendOrder, answerQuestion, byEmailKey,
   cartKey, deleteCustomer, deleteOrder, dueOn, getCustomer, getOrder, keptFee,
-  listCheckouts, ordersFor, paidByHand, paidTotal, paymentRef, paymentsOf,
-  questionOpen, refundedTotal, saveCustomer, setStatus, settledRefunds,
+  listCheckouts, moveStatus, ordersFor, paidByHand, paidTotal, paymentRef,
+  paymentsOf, questionOpen, refundedTotal, saveCustomer, setStatus,
+  settledRefunds,
 } from "./records.mjs";
 import { paymentPending } from "./farm-orders.mjs";
 import { mailLinks, orderUrlFor } from "./site.mjs";
 import * as squareApi from "./square.mjs";
 import {
-  addressDecision, age, devMailTest as devMailTestMessage, missedDelivery,
-  movedDelivery, orderCancelled, orderChanged, sessionsEnded,
+  addressDecision, age, devMailTest as devMailTestMessage, farmRefundedClosed,
+  missedDelivery, movedDelivery, orderCancelled, orderChanged, sessionsEnded,
 } from "./templates.mjs";
 import { lastInteraction, quietDue } from "./retention.mjs";
 import siteTerms from "./terms.mjs";
@@ -516,6 +517,51 @@ export const refundOrder = async (stores, id, {
     throw new Error(`The refund must be between $0.01 and ${dollars(left)}.`);
   }
 
+  const stamp = now.getTime();
+  const marker = { key: base || `refund-${id}-${stamp}`,
+    at: now.toISOString() };
+
+  // Marked as the CLI's before any processor is asked, so a webhook
+  // for this refund that beats the write below is not taken for one
+  // made elsewhere, which would close the order (#783).
+  await stores.orders.set(refundingKey(id), marker);
+
+  try {
+    return await refundPayments(stores, order, {
+      now, env, reason, square, paypal, fetchImpl, base, source, edit,
+      cents, payments, stamp,
+    });
+  } finally {
+    const held = await stores.orders.get(refundingKey(id));
+
+    if (held && held.key === marker.key && held.at === marker.at) {
+      await stores.orders.delete(refundingKey(id));
+    }
+  }
+};
+
+// A refund the CLI is making stands marked this long at most: one
+// that died midway never keeps a refund made elsewhere from closing
+// an order for good.
+export const REFUNDING_MS = 10 * 60_000;
+
+const refundingKey = (id) => `refunding/${id}`;
+
+// Whether the CLI is refunding the order this minute (refundOrder).
+const refunding = async (stores, id, now) => {
+  const held = await stores.orders.get(refundingKey(id));
+
+  return !!held && Math.abs(now.getTime() - Date.parse(held.at))
+    < REFUNDING_MS;
+};
+
+// The calls refundOrder makes, newest payment first, each recorded as
+// it is made. -> the order.
+const refundPayments = async (stores, order, {
+  now, env, reason, square, paypal, fetchImpl, base, source, edit, cents,
+  payments, stamp,
+}) => {
+  const { id } = order;
   // What each payment still holds: its amount less the refunds out of
   // it. A refund from before refunds named their payment came out of
   // the first.
@@ -524,7 +570,6 @@ export const refundOrder = async (stores, id, {
   const holds = (p) => p.amount - refunds
     .filter((r) => outOf(r) === paymentRef(p))
     .reduce((s, r) => s + (r.amount || 0), 0);
-  const stamp = now.getTime();
   let owed = cents;
   let saved = order;
 
@@ -597,6 +642,10 @@ const holdersToCancel = (order) => {
     holderOf(order), sq.oldFulfilmentOrderId, sq.squareOrderId,
   ])].filter(Boolean);
 };
+
+// Whether everything paid on the order has gone back.
+const refundedInFull = (order) => paidTotal(order) > 0
+  && refundedTotal(order) >= paidTotal(order);
 
 // Cancels the fulfillment on each holder of a cancelled order (#662).
 // One that fails stops none of the others: it is logged, and the
@@ -703,9 +752,8 @@ export const cancelOrder = async (stores, id, {
     });
   }
 
-  const cancelled = await setStatus(stores, id, "cancelled", now, {
-    source,
-  });
+  const { order: cancelled, moved } = await moveStatus(stores, id,
+    "cancelled", now, { extra: { source } });
 
   // Lost to a close (the jobs' or the farm's): the order was handed
   // over, so nothing of a cancel follows, not Square, stock or email.
@@ -715,6 +763,9 @@ export const cancelOrder = async (stores, id, {
       refundNow ? ", after its refund was made, so check it with " +
         "bin/nff orders show" : ""}.`);
   }
+  // Cancelled meanwhile by another writer (a customer's cancel, or a
+  // refund closed elsewhere), which did the rest: done once (#783).
+  if (!moved) return cancelled;
 
   if (!order.cancelRequested) await adjust(stores, order.lines, 1);
 
@@ -738,6 +789,61 @@ export const cancelOrder = async (stores, id, {
         reason, reasonText, links: mailLinks(env),
       }), { mail, env, now });
   }
+
+  return getOrder(stores, id);
+};
+
+const WHERE = { square: "Square", paypal: "PayPal" };
+
+// A refund made elsewhere (Square's dashboard, PayPal) that brings an
+// unfulfilled order's refunds up to everything paid closes the order
+// as `orders cancel --no-refund` does (#775): cancelled, stock back,
+// its Square fulfillment closed, off every list. No money moves and
+// the customer is not emailed (James, 2026-11-21: Square's or PayPal's
+// own receipt tells them). The farm gets one notice, since someone
+// refunded the order without cancelling it. A fulfilled order, or one
+// partly refunded, is left as it is. `source` is the webhook that
+// recorded the refund. Safe to run again: only the run that cancels
+// the order does the rest. A refund the CLI is making is the CLI's
+// (refundOrder), and an unpaid order being paid this minute is left
+// as cancelOrder leaves it. -> the order.
+export const closeRefunded = async (stores, id, {
+  now = new Date(), env = process.env, mail = sendMail,
+  square = squareApi, fetchImpl, source,
+} = {}) => {
+  const order = await getOrder(stores, id);
+  const closes = (o) => OPEN.includes(o.status) && refundedInFull(o);
+
+  if (!order || !closes(order)) return order;
+  if (await refunding(stores, id, now)) return order;
+  if (order.status === "unpaid" && await paymentPending(stores, id, now)) {
+    return order;
+  }
+
+  // Decided on the record as the write finds it: a payment recorded
+  // since the read above keeps the order open.
+  const reason = "refunded in full";
+  const { order: cancelled, moved, before } = await moveStatus(stores, id,
+    "cancelled", now, { extra: { source, reason }, when: closes });
+
+  // Another writer got there first: a cancel, a close, or this same
+  // refund delivered twice at once.
+  if (!moved) return cancelled;
+
+  log.info({
+    event: "order.cancelled", id, by: source, field: "status",
+    before, after: "cancelled", reason,
+  });
+
+  if (!cancelled.cancelRequested) await adjust(stores, cancelled.lines, 1);
+
+  await cancelHolders(stores, cancelled, {
+    now, env, fetchImpl, mail, square, source,
+  });
+  await notifyFarm(stores, cancelled, "farmRefundedClosed",
+    farmRefundedClosed(cancelled, {
+      where: WHERE[source] || "Square", links: mailLinks(env),
+    }), { mail, env, now });
 
   return getOrder(stores, id);
 };
