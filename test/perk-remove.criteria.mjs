@@ -21,18 +21,19 @@
 // read through the CLI's (the API's signed URL), and the record the
 // sign-in made for james+dog@... is stored as "james dog@..." (the
 // read-only checks on staging, 2026-11-21, on #758): the edge route
-// reads a raw "+" in the path as a space. The third test holds
-// lib/store.mjs to percent-encoding each key segment on both routes
-// (James, 2026-11-21, after two other readings were tried and
-// dropped the same evening). It spies on fetch and throws before any
-// answer, so no response is faked. The fourth holds every address a
-// function or the CLI takes to one decode, cleaning and validation,
-// and the fifth the CLI step that moves a record from its decoded key
-// to its exact one.
+// reads a raw "+" in the path as a space, and the two routes disagree
+// on an encoded one. So address-keyed records move to a hash of the
+// address (#758's key scheme, James, 2026-11-21). The third test holds
+// both routes to that key, from the request each sends: it spies on
+// fetch and throws before any answer, so no response is faked. The
+// fourth holds every address a function or the CLI takes to one
+// decode, cleaning and validation, and the fifth the CLI step that
+// moves a record from the key it sits under today to its hashed one.
 
 import assert from "node:assert/strict";
 import { Buffer } from "node:buffer";
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -45,12 +46,13 @@ import { addInvite } from "../netlify/functions/lib/invites.mjs";
 import {
   listPerks, removePerk,
 } from "../netlify/functions/lib/perks.mjs";
-import { creditKey } from "../netlify/functions/lib/credit.mjs";
+import { creditKey, getLedger } from "../netlify/functions/lib/credit.mjs";
+import { maskEmail } from "../netlify/functions/lib/mask.mjs";
 import {
-  cartKey, customerKey,
+  cartKey, getCustomer, saveCustomer,
 } from "../netlify/functions/lib/records.mjs";
 import {
-  maskKey, storeName, stores as makeStores, testStores,
+  storeName, stores as makeStores, testStores,
 } from "../netlify/functions/lib/store.mjs";
 
 const now = instant("2026-11-21", 9, 0, "America/New_York");
@@ -60,6 +62,11 @@ const PERK = "free-delivery";
 // A plus address and a mixed-case one, as the person types them.
 const PLUS = "pat+dog@example.com";
 const MIXED = "Sam.Example@Example.COM";
+
+// The key segment of an address-keyed record, from #758's definition:
+// base64url(SHA-256(normalized address)), no padding.
+const hashed = (email) => createHash("sha256")
+  .update(String(email).trim().toLowerCase()).digest("base64url");
 
 const quiet = (t) => {
   for (const level of ["log", "info", "warn", "error"]) {
@@ -175,34 +182,49 @@ describe("#758 perks on invite-made customers", () => {
     }
   });
 
-  it("Every key segment is fully URL-encoded in the request path on "
-    + "both the CLI's route and the functions' route (\"+\" as %2B, "
-    + "\"@\" as %40), and every record is stored and found under its "
-    + "address exactly, plain addresses included (test)", async (t) => {
+  it("Every address-keyed record is stored and found under "
+    + "base64url(SHA-256(normalized address)) on both the CLI's route "
+    + "and the functions' route, plain and plus addresses alike, and "
+    + "every key segment sent is URL-encoded (a no-op for these keys) "
+    + "(test)", async (t) => {
     quiet(t);
 
-    // James, 2026-11-21: "any strings passed as query string args
-    // should be url encoded for requests like this". Each "/" segment
-    // goes through encodeURIComponent, the "/" between them kept, on
-    // both routes: "+" as %2B, "@" as %40, and "%", "#" and "?", which
-    // a raw path reads as an escape, a fragment and a query. Where the
-    // real server misses an encoded key (staging missed "%40" on the
-    // API route), the route below the store is to be fixed, never the
-    // encoding skipped (#758).
+    // The key scheme (James, 2026-11-21, #758): the two Blobs routes
+    // disagree on an encoded path, so an address-keyed record sits
+    // under a URL-safe hash of its address, the same form in every
+    // address-keyed store. The expected key is worked out here from
+    // that definition, never by the code under test. Each "/" segment
+    // still goes through encodeURIComponent, a no-op for these keys.
     const SITE = "site-id-1";
     const CONTEXT = "branch-deploy";
     const store = storeName("customers", { SITE_CONTEXT: CONTEXT });
     const encoded = (key) => key.split("/").map(encodeURIComponent)
       .join("/");
-    const keys = [
-      customerKey(PLUS), "customer/pat@example.com",
-      "customer/pat dog@example.com", "customer/50%off@example.com",
-      "customer/a#b@example.com", "customer/a?b@example.com",
-    ];
-    // The path each route must send for a key, by route.
-    const cases = keys.map((key) => ({
-      key, cli: encoded(key), functions: encoded(key),
-    }));
+
+    assert.equal(hashed("  Pat+Dog@Example.com "),
+      "AMHJL0NpSgypWjP7ZvFu2gI3Hkwk2WSW5957fBpZ6LA",
+      "the test's hash is the issue's example");
+
+    // Each call names an address; the key it must send, by kind.
+    const cases = [PLUS, "pat@example.com"].flatMap((email) => [
+      ["customer get", `customer/${hashed(email)}`,
+        (s) => getCustomer(s, email)],
+      ["customer set", `customer/${hashed(email)}`,
+        (s) => saveCustomer(s, { email, consent: [] })],
+      ["cart get", `cart/${hashed(email)}`,
+        (s) => s.customers.get(cartKey(email))],
+      ["cart set", `cart/${hashed(email)}`,
+        (s) => s.customers.set(cartKey(email), { lines: [] })],
+      ["credit get", `credit/${hashed(email)}`,
+        (s) => getLedger(s, email)],
+      ["credit set", `credit/${hashed(email)}`,
+        (s) => s.customers.set(creditKey(email), { entries: [] })],
+    ].map(([op, key, call]) => ({ email, op, key, call })));
+
+    for (const { key } of cases) {
+      assert.match(key.split("/").pop(), /^[A-Za-z0-9_-]{43}$/,
+        `${key}: 43 URL-safe characters`);
+    }
 
     // The first request either route makes for a call, then a refusal
     // before any answer. The client retries a refused request after a
@@ -265,24 +287,16 @@ describe("#758 perks on invite-made customers", () => {
     };
 
     for (const [route, make] of Object.entries(routes)) {
-      const { customers } = make();
+      const made = make();
 
-      for (const { key, [route]: path } of cases) {
-        for (const [op, call] of [
-          ["get", () => customers.get(key)],
-          ["set", () => customers.set(key, { email: "x" })],
-        ]) {
-          const url = await firstUrl(call);
-          const where = `${route} ${op} ${JSON.stringify(key)}`;
+      for (const { email, op, key, call } of cases) {
+        const url = await firstUrl(() => call(made));
+        const where = `${route} ${op} ${email}`;
+        const path = encoded(key);
 
-          // The client names the store `site:<name>` in the path.
-          assert.ok(url.pathname.endsWith(`${store}/${path}`),
-            `${where}: path ${url.pathname} ends ${store}/${path}`);
-          assert.equal(url.hash, "", `${where}: no part of the key is a `
-            + "fragment");
-          assert.ok(!url.search.includes(key.split("/").pop()),
-            `${where}: no part of the key is a query`);
-        }
+        // The client names the store `site:<name>` in the path.
+        assert.ok(url.pathname.endsWith(`${store}/${path}`),
+          `${where}: path ${url.pathname} ends ${store}/${path}`);
       }
     }
   });
@@ -298,22 +312,24 @@ describe("#758 perks on invite-made customers", () => {
     // A function: the invite page's POST /api/invite/request, the
     // endpoint that made the staging record. Encoded once, or padded
     // and in capitals, the address is decoded, cleaned and used: the
-    // record the sign-in makes is under its exact key.
+    // record the sign-in makes is under its hashed key.
+    const plusKey = `customer/${hashed(PLUS)}`;
+
     for (const typed of ["pat%2Bdog%40example.com",
       "  Pat+Dog@Example.COM "]) {
       const stores = testStores();
 
       await signUpByInvite(stores, typed);
 
-      const record = await stores.customers.get(customerKey(PLUS));
+      const record = await stores.customers.get(plusKey);
 
       assert.equal(record && record.email, PLUS,
-        `${JSON.stringify(typed)}: stored as ${customerKey(PLUS)}`);
+        `${JSON.stringify(typed)}: stored as ${plusKey}`);
 
       const keys = (await stores.customers.list("customer/"))
         .map((e) => e.key);
 
-      assert.deepEqual(keys, [customerKey(PLUS)],
+      assert.deepEqual(keys, [plusKey],
         `${JSON.stringify(typed)}: no record under another key`);
     }
 
@@ -380,9 +396,12 @@ describe("#758 perks on invite-made customers", () => {
     }
   });
 
-  it("Records now stored under a decoded key (a space for a \"+\") are "
-    + "moved to their exact key by a CLI step, dry run first, one log "
-    + "line per move (test)", async (t) => {
+  it("Every existing address-keyed record (customers, carts, credit, "
+    + "support messages, the orders-by-address index), whatever key it "
+    + "sits under today (the raw address, or a space for a \"+\"), is "
+    + "moved to its hashed key by a CLI step, dry run first, one masked "
+    + "log line per move, refusing when the new key already holds a "
+    + "record (test)", async (t) => {
     // The CLI step is `bin/nff customers rekey [--apply]`, which calls
     // lib/rekey.mjs rekeyRecords(stores, { apply, by }) and prints what
     // it returns: a dry run unless `apply`, and the moves it refused
@@ -398,35 +417,38 @@ describe("#758 perks on invite-made customers", () => {
       lines.push(String(text));
     });
 
-    // The record as staging holds it: under the decoded key, its own
-    // email exact, with a cart, credit and a support message keyed by
-    // the same decoded address.
-    const DECODED = "pat dog@example.com";
-    const moves = [
-      [`customer/${DECODED}`, customerKey(PLUS),
-        { email: PLUS, perks: [{ type: PERK }] }],
-      [`cart/${DECODED}`, cartKey(PLUS), { lines: [{ sku: "egg" }] }],
-      [`credit/${DECODED}`, creditKey(PLUS), { cents: 500 }],
-      [`support/${DECODED}/m1`, `support/${PLUS}/m1`, { text: "hi" }],
-    ];
+    // Two customers as staging may hold them today: one under the
+    // space its "+" became, one under its raw address, each with a
+    // cart and a support message keyed the same way.
+    const SPACED = "pat dog@example.com";
+    const RAW = "sam@example.com";
+    const moves = [[SPACED, PLUS], [RAW, RAW]].flatMap(([today, email]) => [
+      [`customer/${today}`, `customer/${hashed(email)}`,
+        { email, perks: [{ type: PERK }] }],
+      [`cart/${today}`, `cart/${hashed(email)}`,
+        { lines: [{ sku: "egg" }] }],
+      [`support/${today}/m1`, `support/${hashed(email)}/m1`, { text: "hi" }],
+    ]);
     const seed = async (stores) => {
       for (const [from, , value] of moves) {
         await stores.customers.set(from, value);
       }
     };
-    const masked = maskKey(customerKey(PLUS)).split("/").pop();
-    const moveLines = () => lines.filter((l) => l.includes(masked));
+    const masks = [SPACED, RAW].map(maskEmail);
+    const moveLines = () => lines.filter((l) => masks.some((m) => l
+      .includes(m)));
 
-    // A dry run finds the record and moves nothing, logging nothing.
+    // A dry run finds every record and moves nothing, logging nothing.
     const stores = testStores();
 
     await seed(stores);
 
     const dry = await rekeyRecords(stores, { apply: false, by: "cli" });
+    const reported = JSON.stringify(dry);
 
-    assert.match(JSON.stringify(dry), /customer\/pat/,
-      "the dry run reports the customer record it would move");
     for (const [from, to, value] of moves) {
+      assert.ok(reported.includes(JSON.stringify(from).slice(1, -1)),
+        `the dry run reports ${from}`);
       assert.deepEqual(await stores.customers.get(from), value,
         `dry run: ${from} is still where it was`);
       assert.equal(await stores.customers.get(to), null,
@@ -434,7 +456,8 @@ describe("#758 perks on invite-made customers", () => {
     }
     assert.equal(moveLines().length, 0, "a dry run logs no move");
 
-    // Applied, each record goes to its exact key, one log line each.
+    // Applied, each record goes to its hashed key, one masked log line
+    // each.
     await rekeyRecords(stores, { apply: true, by: "cli" });
 
     for (const [from, to, value] of moves) {
@@ -446,27 +469,29 @@ describe("#758 perks on invite-made customers", () => {
     assert.equal(moveLines().length, moves.length,
       "one log line per move");
     for (const l of moveLines()) {
-      assert.ok(!l.includes(PLUS) && !l.includes(DECODED),
+      assert.ok(![PLUS, SPACED, RAW].some((a) => l.includes(a)),
         `the log line masks the address: ${l}`);
     }
 
-    // A record already at the exact key is never overwritten.
+    // A record already at the hashed key is never overwritten.
     const taken = testStores();
+    const takenKey = `customer/${hashed(PLUS)}`;
     const kept = { email: PLUS, perks: [] };
 
     await seed(taken);
-    await taken.customers.set(customerKey(PLUS), kept);
+    await taken.customers.set(takenKey, kept);
     lines.length = 0;
 
     const refused = await rekeyRecords(taken, { apply: true, by: "cli" });
 
-    assert.deepEqual(await taken.customers.get(customerKey(PLUS)), kept,
-      "the record at the exact key is kept");
-    assert.deepEqual(await taken.customers.get(`customer/${DECODED}`),
-      moves[0][2], "the decoded record is left where it was");
-    assert.match(JSON.stringify(refused.refused), /customer\/pat/,
+    assert.deepEqual(await taken.customers.get(takenKey), kept,
+      "the record at the hashed key is kept");
+    assert.deepEqual(await taken.customers.get(`customer/${SPACED}`),
+      moves[0][2], "the old record is left where it was");
+    assert.ok(JSON.stringify(refused.refused).includes(`customer/${SPACED}`),
       "the step reports the move it refused");
-    assert.ok(!lines.some((l) => l.includes(maskKey(customerKey(PLUS)))),
-      "a refused move logs no move");
+    assert.ok(!lines.some((l) => l.includes(masks[0])
+      && l.includes("customer/")),
+    "a refused move logs no move");
   });
 });
