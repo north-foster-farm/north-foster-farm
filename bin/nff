@@ -83,6 +83,12 @@ const USAGE = `Usage:
                                       notice, a year without
                                       interaction. Read only: the
                                       daily jobs send it
+  bin/nff customers rekey [--apply]    move records stored under a key
+                                      that names another address than
+                                      their own (#758: a "+" read as a
+                                      space): customers, their carts,
+                                      credit and messages, and order
+                                      indexes. A dry run unless --apply
   bin/nff customers rename <old> <new> [--apply]
                                       a customer's email changed: the
                                       record, orders, links, the Resend
@@ -719,6 +725,7 @@ const [
   { recordCommand },
   { recordInto, windowOpen },
   { inviteCommand },
+  rekey,
 ] = await Promise.all([
   import("../netlify/functions/lib/terms.mjs"),
   import("../netlify/functions/lib/admin.mjs"),
@@ -754,6 +761,7 @@ const [
   import("./recorder.mjs"),
   import("../netlify/functions/lib/recorder.mjs"),
   import("./invite.mjs"),
+  import("../netlify/functions/lib/rekey.mjs"),
 ]);
 
 // Who acts in a group's audit log when it is this CLI (#495).
@@ -1415,6 +1423,10 @@ const run = async () => {
 
     return undefined;
   }
+  case "customers rekey":
+    return out(await rekey.rekeyRecords(stores, {
+      apply: !!flags.apply, by: userInfo().username,
+    }));
   case "customers rename":
     return out(await admin.renameCustomer(stores, rest[0], rest[1], {
       apply: !!flags.apply,
