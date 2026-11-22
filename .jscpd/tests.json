@@ -1,0 +1,19 @@
+{
+  "path": [
+    "../test",
+    "../e2e"
+  ],
+  "format": [
+    "javascript"
+  ],
+  "threshold": 3.85,
+  "reporters": [
+    "console",
+    "threshold"
+  ],
+  "noTips": true,
+  "failOnEmpty": true,
+  "ignore": [
+    "**/*.criteria.mjs"
+  ]
+}
