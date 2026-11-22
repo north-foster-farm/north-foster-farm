@@ -7,8 +7,8 @@ Your report is a comment on the issue.
 
 Read `CLAUDE.md` for how the site is built, then the issue the run
 started from, with its comments, and do what it says. The runner has
-Node 24.22.1 (from `.nvmrc`), `npm ci` already run, Hugo extended 0.164.0 and Dart Sass
-1.79.5 on the PATH.
+Node 24.22.1 (from `.nvmrc`), `npm ci` already run, Hugo 0.170.0 and Dart Sass
+1.108.2 on the PATH.
 
 ## Execute the spec
 

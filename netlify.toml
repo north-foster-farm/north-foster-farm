@@ -3,7 +3,7 @@ publish = "public"
 command = "npm run check:node && npm run check:env && npm run check:schedule && npm run check:events && bin/prod && HUGO_BUILD_SHA=$COMMIT_REF hugo --gc && npm run build:orphans && npm run check:grid && npm run check:schema && npm run check:fresh && npm run check:news"
 
 [build.environment]
-HUGO_VERSION = "0.164.0"
+HUGO_VERSION = "0.170.0"
 HUGO_ENV = "production"
 HUGO_ENABLEGITINFO = "true"
 

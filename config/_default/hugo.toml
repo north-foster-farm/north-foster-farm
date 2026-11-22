@@ -45,7 +45,6 @@ timeZone = "America/New_York"
 
 [module]
   [module.hugoVersion]
-    extended = true
     min = "0.164.0"
 
   [[module.mounts]]

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-North Foster Farm website - a static site built with Hugo (v0.164.0) and hosted on Netlify. The site uses Bootstrap 5.3.9, custom SCSS styling, and vanilla JavaScript with ES modules.
+North Foster Farm website - a static site built with Hugo (v0.170.0) and hosted on Netlify. The site uses Bootstrap 5.3.9, custom SCSS styling, and vanilla JavaScript with ES modules.
 
 ## Working rules for agents (James, 2026-10-25)
 
@@ -201,7 +201,8 @@ Configuration is environment-specific using Hugo's layered config system:
 Key Hugo settings:
 - Uses Hugo Pipes for asset processing
 - Mounts `hugo_stats.json` to assets for PurgeCSS
-- Requires extended Hugo >= 0.164.0
+- Requires Hugo >= 0.164.0 (0.170.0 dropped the extended edition;
+  any edition from 0.170 on builds the site)
 - Timezone: America/New_York
 
 ### Directory Structure
@@ -301,7 +302,10 @@ Deployment configured in `netlify.toml`:
   CI's `build` job repeats the Hugo build, `check:grid`, `check:schema`,
   `check:fresh` and `check:news` on every push, so a template error
   shows on the commit.
-- Hugo version: 0.164.0 (pinned); Node 24.22.1 from `.nvmrc` (see
+- Hugo version: 0.170.0, held exactly in `netlify.toml` and the CI
+  action, because Netlify installs only a named version and CI
+  checks the tarball's SHA-256; raise both to each new release
+  once it clears the 7-day cooldown. Node 24.22.1 from `.nvmrc` (see
   Node above; `NODE_VERSION` is gone from `netlify.toml`)
 - Deploy previews and branch deploys (`staging`) build
   drafts/future/expired content and run `bin/install-gate.mjs`

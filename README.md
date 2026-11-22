@@ -12,9 +12,10 @@ and hosted on [Netlify][netlify].
 
 ## Prerequisites
 
-- **Hugo 0.164.0, extended.** The extended build is the one that can
-  compile SCSS; the standard build cannot. Pinned in `netlify.toml`,
-  floored in `config/_default/hugo.toml`.
+- **Hugo 0.170.0.** From 0.170 there is one edition, and it compiles
+  SCSS through Dart Sass; before it, only the extended edition could.
+  Named in `netlify.toml` and the CI action, floored at 0.164.0 in
+  `config/_default/hugo.toml`.
 - **Node 24.22.1.** Pinned in `.nvmrc`, the only pin, which GitHub
   Actions and Netlify read. `npm install` refuses any other Node. On a
   Mac whose system Node differs, mise gives the repo its own (see
@@ -209,7 +210,7 @@ Note what is missing there. **Do not run `bin/prod` locally**: it
 installs Dart Sass into `/opt/build/repo`, a path that exists only on
 the Netlify build image, so locally it dies at `mkdir`. Install Dart
 Sass yourself (`brew install sass/sass/sass`) and Hugo will find it on
-`PATH`. If it is absent, Hugo 0.164 stops with
+`PATH`. If it is absent, Hugo stops with
 `TOCSS-DART: failed to transform "/styles/main.scss"` instead of
 silently falling back to LibSass the way older versions did.
 
