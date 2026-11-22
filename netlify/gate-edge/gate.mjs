@@ -10,17 +10,19 @@
 
 import { getStore } from "@netlify/blobs";
 
+import { keyPath } from "../functions/lib/blob-key.mjs";
 import { gateRequest } from "../functions/lib/gate-edge.mjs";
 
 // The same store the functions and the CLI use: the gate's, named for
-// the deploy context (lib/store.mjs, storeName).
+// the deploy context (lib/store.mjs, storeName), each key encoded as
+// lib/store.mjs encodes it (lib/blob-key.mjs, #758).
 const blobs = (deploy) => {
   const store = getStore({ name: `${deploy}-gate`, consistency: "strong" });
 
   return {
-    get: (key) => store.get(key, { type: "json" }),
-    set: (key, value) => store.setJSON(key, value),
-    delete: (key) => store.delete(key),
+    get: (key) => store.get(keyPath(key), { type: "json" }),
+    set: (key, value) => store.setJSON(keyPath(key), value),
+    delete: (key) => store.delete(keyPath(key)),
     list: async (prefix) => {
       const { blobs: found } = await store.list({ prefix });
 

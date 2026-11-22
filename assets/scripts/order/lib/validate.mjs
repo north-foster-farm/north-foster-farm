@@ -14,7 +14,7 @@ import { today } from "./zoned.mjs";
 import {
   enterField, fieldError,
 } from "../../utils/field-errors.mjs";
-import { looksLikeEmail, normalizeEmail } from "../../utils/email.js";
+import { normalizeEmail, receivedEmail } from "../../utils/email.js";
 
 export const METHODS = ["onfarm", "scheduled", "delivery"];
 export const CONTACT = ["text", "call"];
@@ -134,7 +134,10 @@ export const validateOrder = (payload, {
   const name = [firstName, lastName].filter(Boolean).join(" ");
   // Normalized before it is checked, so the record and Square carry
   // the address without a trailing period (#678).
-  const email = normalizeEmail(text(customer.email, 254));
+  // Decoded once, cleaned and checked first (#758).
+  const typed = text(customer.email, 254);
+  const checked = receivedEmail(typed);
+  const email = checked || normalizeEmail(typed);
   const phone = text(customer.phone, 40);
   const contact = text(customer.contact, 10);
   // The farm-news box. Only a ticked box means anything: it opts the
@@ -145,7 +148,7 @@ export const validateOrder = (payload, {
     errors["customer.firstName"] = "Please enter your first name.";
   }
   if (!lastName) errors["customer.lastName"] = "Please enter your last name.";
-  if (!looksLikeEmail(email)) {
+  if (!checked) {
     errors["customer.email"] = fieldError("email", email);
   }
   // Delivery needs a phone for the driver; pickup and the drop site

@@ -25,6 +25,7 @@ import registry from "../data/registry.json" with { type: "json" };
 import { newCode } from "../assets/scripts/order/lib/events.mjs";
 import { loadEnv } from "../netlify/functions/lib/env.mjs";
 import { postMailFromBuild } from "../netlify/functions/lib/post-mail.mjs";
+import { addressArgs } from "./address-args.mjs";
 import { USAGE as BREAKER_USAGE, breakerCommand } from "./breaker.mjs";
 import { noEmailRefusal } from "./no-email.mjs";
 import { confirmed } from "./confirm.mjs";
@@ -83,6 +84,12 @@ const USAGE = `Usage:
                                       notice, a year without
                                       interaction. Read only: the
                                       daily jobs send it
+  bin/nff customers rekey [--apply]    move records stored under a key
+                                      that names another address than
+                                      their own (#758: a "+" read as a
+                                      space): customers, their carts,
+                                      credit and messages, and order
+                                      indexes. A dry run unless --apply
   bin/nff customers rename <old> <new> [--apply]
                                       a customer's email changed: the
                                       record, orders, links, the Resend
@@ -719,6 +726,7 @@ const [
   { recordCommand },
   { recordInto, windowOpen },
   { inviteCommand },
+  rekey,
 ] = await Promise.all([
   import("../netlify/functions/lib/terms.mjs"),
   import("../netlify/functions/lib/admin.mjs"),
@@ -754,6 +762,7 @@ const [
   import("./recorder.mjs"),
   import("../netlify/functions/lib/recorder.mjs"),
   import("./invite.mjs"),
+  import("../netlify/functions/lib/rekey.mjs"),
 ]);
 
 // Who acts in a group's audit log when it is this CLI (#495).
@@ -857,7 +866,10 @@ if (flags["no-email"] && flags["no-email"] !== "false") {
 // A flag given and not `=false`.
 const flagOn = (value) => !!value && value !== "false";
 
-const [group, action, ...rest] = words;
+const [group, givenAction, ...givenRest] = words;
+// Each address given is checked as run() starts (bin/address-args.mjs).
+let action = givenAction;
+let rest = givenRest;
 const out = (value) => console.log(
   typeof value === "string" ? value : JSON.stringify(value, null, 2)
 );
@@ -1295,6 +1307,11 @@ const messages = async () => {
 };
 
 const run = async () => {
+  const given = addressArgs(group, action, rest, flags);
+
+  ({ action, rest } = given);
+  Object.assign(flags, given.flags);
+
   if (group === "env") return envCommand();
   if (group === "breaker") {
     return breakerCommand(action, { stores, flags, out, root });
@@ -1415,6 +1432,10 @@ const run = async () => {
 
     return undefined;
   }
+  case "customers rekey":
+    return out(await rekey.rekeyRecords(stores, {
+      apply: !!flags.apply, by: userInfo().username,
+    }));
   case "customers rename":
     return out(await admin.renameCustomer(stores, rest[0], rest[1], {
       apply: !!flags.apply,

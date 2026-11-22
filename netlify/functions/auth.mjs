@@ -11,7 +11,7 @@ import {
 } from "../../assets/scripts/utils/field-errors.mjs";
 import {
   clearCookieHeader, clearStampHeader, cookieHeader, createSession,
-  endSession, hasStamp, normalizeEmail, peekToken, publicCustomer,
+  endSession, hasStamp, peekToken, publicCustomer, receivedEmail,
   requestLink, safeNext, sameSite, sessionFrom, stampHeader, tokenEmail,
   verifyToken,
 } from "./lib/auth.mjs";
@@ -95,7 +95,10 @@ export const handle = async (req, {
     // An admin address may still ask for a link, so an admin with no
     // session can get in to test; the link goes only to that mailbox.
     const body = await readJson(req);
-    const admin = body && isAdminAddress(normalizeEmail(body.email), env);
+    // Decoded once, cleaned and checked (#758): "" when it fails, which
+    // requestLink refuses as invalid.
+    const email = (body && receivedEmail(body.email)) || "";
+    const admin = isAdminAddress(email, env);
     const closed = admin ? null : await gate(stores);
 
     if (closed) return closed;
@@ -108,7 +111,9 @@ export const handle = async (req, {
       return json(200, { ok: true });
     }
 
-    const result = await requestLink(stores, body, { now, env, mail });
+    const result = await requestLink(stores, { ...body, email }, {
+      now, env, mail,
+    });
 
     if (!result.ok && result.reason === "invalid") {
       return json(422, {

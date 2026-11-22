@@ -37,7 +37,7 @@ import {
 } from "../../../assets/scripts/order/lib/perks.mjs";
 import { today } from "../../../assets/scripts/order/lib/zoned.mjs";
 import {
-  looksLikeEmail, normalizeEmail,
+  looksLikeEmail, normalizeEmail, receivedEmail,
 } from "../../../assets/scripts/utils/email.js";
 
 const MINUTE = 60_000;
@@ -57,7 +57,7 @@ export const AUTOPLAY = ["on", "off"];
 
 // The one email rule (assets/scripts/utils/email.js, #678), under the
 // names this module's callers use.
-export { normalizeEmail };
+export { normalizeEmail, receivedEmail };
 
 export const validEmail = (email) => looksLikeEmail(email);
 
