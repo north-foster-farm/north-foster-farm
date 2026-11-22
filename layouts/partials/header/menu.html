@@ -63,12 +63,15 @@
           {{ partial "header/account-menu.html" (dict "ctx" $ctx "compact" true) }}
         </div>
       {{ end }}
-      {{/* Product search: the icon turns into its closed twin while
-           the palette is open. */}}
-      <button class="site-search" type="button" aria-controls="search-palette" aria-expanded="false" aria-keyshortcuts="Meta+K Control+K" aria-label="Search products" data-search-open>
+      {{/* Search (#402): below 992 px the magnifier opens the bar
+           under the header, and turns into its closed twin while the
+           bar is open; from 992 px the field sits here in the row and
+           the magnifier is gone. */}}
+      <button class="site-search" type="button" aria-controls="site-find" aria-expanded="false" aria-label="Search" data-search-open>
         <span class="site-search-icon site-search-open" aria-hidden="true">{{ partial "svg.html" "icons/search" }}</span>
         <span class="site-search-icon site-search-shut" aria-hidden="true">{{ partial "svg.html" "icons/search-close" }}</span>
       </button>
+      {{ partial "search/field.html" . }}
       {{/* On the order page Order stays a link, as every link in the
            row does on its own page, in its usual style with its word
            underlined as the page you are on (#303). */}}

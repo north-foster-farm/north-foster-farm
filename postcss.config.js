@@ -117,9 +117,6 @@ const plugins = [
         "role",
         "option",
         "aria-selected",
-        "data-search-qty-state",
-        "data-search-cart",
-        "full",
         "aria-pressed",
         "data-layer",
         // The map's list row and pin lit by each other (#214).
@@ -169,12 +166,9 @@ const plugins = [
         "sq-card-message",
         // The account page marks the order an email linked to.
         "is-linked",
-        // The search palette's JavaScript: open, and a real photo.
+        // The site search's bar below 992 px, opened by its script
+        // (#402).
         "is-open",
-        "is-photo",
-        // Its result rows, built by the script (#267).
-        "search-palette-row-name",
-        "search-palette-row-price",
         // Applied by session.js: the header's account slot settles.
         "is-ready",
         "order-busy",

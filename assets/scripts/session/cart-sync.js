@@ -13,7 +13,7 @@
 import { announceCart } from "../cart-badge/announce.js";
 import { Draft, forgetCustomer } from "../order/draft.js";
 import { cartOf, settle, stray } from "../order/lib/cart-sync.mjs";
-import { cartCount } from "../search/cart.js";
+import { cartCount } from "../cart-badge/count.js";
 import { api } from "../utils/api.js";
 import { stampFrom } from "./cache.js";
 

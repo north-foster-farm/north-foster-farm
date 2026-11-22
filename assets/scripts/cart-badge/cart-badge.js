@@ -6,7 +6,7 @@
 // the saved draft, read again when another tab changes storage or the
 // page returns from the back button's cache.
 
-import { cartCount } from "../search/cart.js";
+import { cartCount } from "./count.js";
 
 const MAX = 99;
 

@@ -458,22 +458,6 @@ test.describe("loading skeletons (#271)", () => {
         .toBeGreaterThan(before);
     });
 
-  test("search: the stock badges wait under bars", async ({ page }) => {
-    const release = await hold(page, "**/api/stock", STOCK);
-
-    await page.goto("/about/");
-    await page.locator("[data-search-open]").click();
-
-    const body = page.locator(".search-palette-body");
-    const price = page.locator(".search-palette-row-price").first();
-
-    await loading(body);
-    await expect(price.locator(".skeleton")).toBeVisible();
-    release();
-    await settled(body);
-    await expect(price).toHaveText(/^\$/);
-  });
-
   test("the bars are still when motion is reduced", async ({ page }) => {
     await page.emulateMedia({ reducedMotion: "reduce" });
     await cannedDates(page);

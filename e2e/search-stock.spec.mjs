@@ -76,8 +76,10 @@ const find = async (page, query, sku) => {
   }
   await expect(field).toBeFocused();
   await field.fill(query);
-  await expect(region.getByRole("option").first()).toBeVisible();
+  // The panel shows once the index is in and the query rendered, with
+  // results or with none: a hidden product out of stock may leave none.
   await expect(region).toHaveAttribute("data-stock", "ready");
+  await expect(region.locator("[data-find-panel]")).toBeVisible();
 
   return region.getByRole("option")
     .and(page.locator(`[data-sku="${sku}"]`));

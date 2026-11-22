@@ -2,15 +2,15 @@
 // the `soon` amendment 6303183573 and the control in 6303649455).
 // "In stock", the default, shows what is in stock; "Full catalog"
 // also shows the rest, with a restock label and no way to add
-// it. Search shows every product but an archived one, with its label,
-// whatever the page shows. Stock wins over every type but archived.
+// it. Search's index, written at build time (#402), holds every
+// product but an archived one (test/search-index.test.mjs). Stock
+// wins over every type but archived.
 // docs/qa-launch.md OP-26.
 
 import { readFileSync } from "node:fs";
 
 import {
-  OrderPage, SKU, SUITE_STOCK, expect, searchStockApplied, stockApplied,
-  test,
+  OrderPage, SKU, SUITE_STOCK, expect, stockApplied, test,
 } from "./support/order.mjs";
 import { PLENTY } from "./support/stock.mjs";
 
@@ -238,21 +238,21 @@ test.describe("restock types (#267)", () => {
     await open(page);
     await expect(page.locator(".site-account-chick:visible")).toHaveCount(1);
 
-    const gaps = await page.evaluate(() => {
-      const edge = (el) => {
-        const r = el.getBoundingClientRect();
+    // #402: the search glyph is the magnifier's icon.
+    const edge = async (locator) => {
+      const r = await locator.boundingBox();
 
-        return [r.left, r.right];
-      };
-      const glyphs = [
-        ".site-account-chick", ".site-search-open", ".site-order",
-      ].map((q) => [...document.querySelectorAll(q)]
-        .find((el) => el.getClientRects().length)).map(edge);
-
-      return [
-        glyphs[1][0] - glyphs[0][1], glyphs[2][0] - glyphs[1][1],
-      ];
-    });
+      return [r.x, r.x + r.width];
+    };
+    const glyphs = [
+      await edge(page.locator(".site-account-chick:visible").first()),
+      await edge(page.getByRole("banner")
+        .getByRole("button", { name: /search/i }).locator("svg").first()),
+      await edge(page.locator(".site-order:visible").first()),
+    ];
+    const gaps = [
+      glyphs[1][0] - glyphs[0][1], glyphs[2][0] - glyphs[1][1],
+    ];
 
     expect(Math.abs(gaps[0] - gaps[1])).toBeLessThan(2);
   });
@@ -518,28 +518,13 @@ test.describe("restock types (#267)", () => {
     });
 
   // #492: a boundary tier only shows while Square counts some, under
-  // either choice, in search and in the Product markup alike.
+  // either choice and in the Product markup alike. Search's index is
+  // written at build time (#402) and reads no live stock.
   test("a hidden product shows only while in stock", async ({
     page, stock,
   }) => {
     const ld = async () => JSON.parse(await page.locator("#ld-json")
       .textContent())["@graph"].map((n) => n.sku);
-    const found = async () => {
-      const answered = page.waitForResponse("**/api/stock");
-
-      await page.locator("[data-search-open]").click();
-      await page.locator("#search-palette-input").fill("whole");
-      await answered.catch(() => null);
-      await searchStockApplied(page);
-
-      const n = await page.locator(
-        `#search-palette-list [role='option'][data-sku="${HIDDEN}"]`
-      ).count();
-
-      await page.keyboard.press("Escape");
-
-      return n;
-    };
 
     await stock.pin({ [HIDDEN]: 0 });
     await open(page);
@@ -548,7 +533,6 @@ test.describe("restock types (#267)", () => {
       await expect(row(page, HIDDEN), name).toBeHidden();
     }
     await expect.poll(ld).not.toContain(HIDDEN);
-    expect(await found()).toBe(0);
 
     await stock.pin({ [HIDDEN]: 4 });
     await open(page);
@@ -556,7 +540,6 @@ test.describe("restock types (#267)", () => {
     await expect(row(page, HIDDEN)).toBeVisible();
     await expect(row(page, HIDDEN).locator(".order-qty-add")).toBeEnabled();
     await expect.poll(ld).toContain(HIDDEN);
-    expect(await found()).toBe(1);
   });
 
   // The server never sells an archived product, whatever its count, so
@@ -567,8 +550,10 @@ test.describe("restock types (#267)", () => {
         .map((sku) => [sku, { inStock: true, available: 9 }])));
       await open(page);
 
-      const products = JSON.parse(await page
-        .locator("[data-search-products]").textContent());
+      // #402: search's products are /search.json's.
+      const index = await (await page.request.get("/search.json")).json();
+      const products = (Array.isArray(index) ? index : index.entries)
+        .filter((e) => e.kind === "product");
 
       expect(products).toHaveLength(items.length - archived.length);
       for (const on of [true, false]) {
@@ -585,9 +570,9 @@ test.describe("restock types (#267)", () => {
       }
     });
 
-  // Nothing is archived yet, so one is stubbed (qa, after 3f10e84): the
+  // An in-stock product is stubbed archived (qa, after 3f10e84): the
   // order page is served as the build makes it for an archived item,
-  // with no row and no search entry, its catalog entry marked so, and
+  // with no row, its catalog entry marked so, and
   // /api/stock saying it is on hand (pinned at 5: the server's catalog
   // has it unarchived), as when a restock leaves the flag on. Nothing
   // may bring it back, and ?add= of it is refused by name.
@@ -627,14 +612,6 @@ test.describe("restock types (#267)", () => {
             return `${open}${JSON.stringify(data)}${close}`;
           }
         );
-        // Search's products leave it out.
-        html = html.replace(
-          /(data-search-products>)([\s\S]*?)(<\/script>)/,
-          (all, open, json, close) => `${open}${JSON.stringify(
-            JSON.parse(json).filter((p) => p.sku !== sku)
-          )}${close}`
-        );
-
         return route.fulfill({ response: res, body: html });
       });
     };
@@ -654,24 +631,6 @@ test.describe("restock types (#267)", () => {
         }
       });
 
-    test("is not in search", async ({ page, stock }) => {
-      await archive(page, stock);
-      await open(page);
-
-      const answered = page.waitForResponse("**/api/stock");
-
-      await page.locator("[data-search-open]").click();
-      await page.locator("#search-palette-input").fill("wings");
-      await answered.catch(() => null);
-      await searchStockApplied(page);
-
-      const rows = page.locator("#search-palette-list [role='option']");
-
-      await expect(rows).toHaveCount(2);
-      await expect(rows.and(page.locator(`[data-sku="${sku}"]`)))
-        .toHaveCount(0);
-    });
-
     test("is refused by ?add=, named", async ({ page, stock }) => {
       await archive(page, stock);
       await page.goto(`/order/?add=${sku}:2,${SKU.eggs}:1`);
@@ -681,99 +640,5 @@ test.describe("restock types (#267)", () => {
       );
       await expect(new OrderPage(page).count).toHaveText("1 item");
     });
-  });
-});
-
-test.describe("search and restock types (#267)", () => {
-  // As above: a stub never outlives its test.
-  test.afterEach(({ page }) => page.unrouteAll({
-    behavior: "ignoreErrors",
-  }));
-
-  const palette = (page) => {
-    const dialog = page.locator("#search-palette");
-
-    return {
-      dialog,
-      input: dialog.locator("#search-palette-input"),
-      rows: dialog.locator("#search-palette-list [role='option']"),
-      add: dialog.locator("[data-search-add]"),
-      restock: dialog.locator("[data-search-restock]"),
-    };
-  };
-  const find = async (page, query) => {
-    const p = palette(page);
-    const stock = page.waitForResponse("**/api/stock");
-
-    await page.locator("[data-search-open]").click();
-    await p.input.fill(query);
-    await stock;
-    await searchStockApplied(page);
-
-    return p;
-  };
-
-  test("lists every non-archived product with its label", async ({
-    page,
-  }) => {
-    await page.goto("/about/");
-
-    const p = await find(page, "sausage");
-
-    await expect(p.rows).toHaveCount(2);
-
-    const sweet = p.rows.and(page.locator(`[data-sku="${OUT.hiatus}"]`));
-
-    await expect(sweet).toContainText("On hiatus");
-    await expect(sweet).toHaveAttribute("data-stock", "out");
-    await sweet.click();
-    await expect(p.restock).toHaveText("On hiatus");
-    await expect(p.add).toBeDisabled();
-
-    // Cornish hens are archived (2026-v9).
-    await p.input.fill("cornish");
-    await expect(p.rows).toHaveCount(0);
-
-    await p.input.fill("eggs");
-    await expect(p.rows).toHaveCount(3);
-    await expect(p.rows.and(page.locator(`[data-sku="${SKU.eggs}"]`)))
-      .toContainText("$7");
-
-    // Flagged out, Large eggs say they are returning soon.
-    await stubStock(page, SOON_OUT);
-    await page.reload();
-
-    const q = await find(page, "eggs");
-
-    await expect(q.rows.and(page.locator(`[data-sku="${OUT.soon}"]`)))
-      .toContainText("Returning soon");
-  });
-
-  test("ignores what the order page shows", async ({ page }) => {
-    for (const on of [true, false]) {
-      await open(page);
-      if (!on) await show(page, "Full catalog");
-      await expect(choice(page, "In stock")).toBeChecked({ checked: on });
-
-      const p = await find(page, "sweet");
-
-      await expect(p.rows.and(page.locator(`[data-sku="${OUT.hiatus}"]`)))
-        .toContainText("On hiatus");
-    }
-  });
-
-  // As "stock wins over soon and hiatus": the server never counts a
-  // product the catalog has out, so only a stub can.
-  test("stock wins in search too", async ({ page }) => {
-    await stubStock(page, { [OUT.hiatus]: { inStock: true, available: 4 } });
-    await page.goto("/about/");
-
-    const p = await find(page, "sweet");
-    const sweet = p.rows.and(page.locator(`[data-sku="${OUT.hiatus}"]`));
-
-    await expect(sweet).not.toHaveAttribute("data-stock", "out");
-    await expect(sweet).toContainText("$");
-    await expect(p.restock).toBeHidden();
-    await expect(p.add).toBeEnabled();
   });
 });

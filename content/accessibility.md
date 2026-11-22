@@ -20,9 +20,10 @@ at level A. The site has not been formally assessed.
 
 ## How the site works
 
-- **Product search.** It opens with the Search products button, or
-  Command-K or Control-K. The arrow keys move through the results,
-  Enter adds one to your cart and Escape closes it.
+- **Search.** The search field is in the header, or behind its
+  Search button on a narrow screen. Command-K or Control-K goes to it.
+  A screen reader hears how many results there are, the arrow keys
+  move through them, Enter opens one and Escape closes them.
 - **The order page.** Every field has a label. If something needs
   fixing when you place your order, we say what and move you to it.
   The delivery cutoff countdown stays quiet for screen readers.

@@ -68,6 +68,22 @@ const text = (entry) => JSON.stringify(entry).toLowerCase();
 
 // The `##` and `###` headings of a page's Markdown, as built: each
 // one's anchor, read from the built page so Hugo's own ids are used.
+// A heading's text from its built HTML: tags stripped until none is
+// left, then entities decoded once, `&amp;` last, so that none is
+// decoded twice.
+const plainText = (html) => {
+  let text = html;
+  let was;
+
+  do {
+    was = text;
+    text = text.replace(/<[^>]*>/g, "");
+  } while (text !== was);
+
+  return text.replace(/&rsquo;|&#39;|&#x27;/g, "'")
+    .replace(/&amp;/g, "&").trim();
+};
+
 const headings = (out, page) => {
   const md = read("content", `${page}.md`);
   const titles = [...md.matchAll(/^#{2,3} +(.+?)(?: +\{#[^}]+\})? *$/gm)]
@@ -76,8 +92,7 @@ const headings = (out, page) => {
   const built = [...html.matchAll(
     /<h[23] id="([^"]+)"[^>]*>([\s\S]*?)<\/h[23]>/g)]
     .map(([, id, inner]) => ({
-      id, title: inner.replace(/<[^>]+>/g, "").replace(/&amp;/g, "&")
-        .replace(/&rsquo;|&#39;|&#x27;/g, "'").trim(),
+      id, title: plainText(inner),
     }));
 
   return titles.map((title) => {

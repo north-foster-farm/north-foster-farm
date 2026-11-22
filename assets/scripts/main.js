@@ -11,7 +11,7 @@ import { followClock } from "./expiry/expiry.js";
 import { wireHeroVideo } from "./hero/hero.js";
 import { wireFarmList } from "./news/farm-list.js";
 import { wireSchedule } from "./schedule/schedule.js";
-import { wireSearch } from "./search/palette.js";
+import { wireSiteSearch } from "./search/site-search.js";
 import { followAccount } from "./video/follow.js";
 import { wireVideos } from "./video/video.js";
 import { wireCartSync } from "./session/cart-sync.js";
@@ -110,6 +110,6 @@ document.addEventListener("DOMContentLoaded", () => {
   wireDotLists();
   wireVideos();
   wireHeroVideo();
-  wireSearch();
+  wireSiteSearch();
   hoverMenus();
 });

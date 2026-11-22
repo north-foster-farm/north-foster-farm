@@ -320,6 +320,9 @@
     padding: 0.625rem 0.75rem 0.625rem 1rem;
     border: 1px solid var(--bs-border-color-translucent);
     border-radius: var(--order-radius);
+
+    // A search result's link lands it clear of the sticky bar (#402).
+    scroll-margin-top: calc(var(--order-topbar-h) + 0.75rem);
     background-color: var(--bs-body-bg);
     box-shadow: var(--order-shadow);
     outline: none;

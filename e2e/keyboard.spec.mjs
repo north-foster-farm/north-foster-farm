@@ -607,16 +607,31 @@ for (const width of WIDTHS) {
         }
       });
 
+    // #402: from 992 px Escape closes the field's results and leaves
+    // the focus in it (ARIA 1.2 combobox); below, it closes the
+    // magnifier's bar and gives the focus back to the magnifier.
     test("Escape closes search", async ({ page, browserName }) => {
-      const dialog = page.locator("#search-palette");
+      const field = page.getByRole("combobox", { name: /search/i });
+      const region = page.getByRole("search").filter({ has: field });
 
       await page.goto("/about/");
-      await escapes(page, tabKey(browserName), {
-        opener: page.locator("[data-search-open]:visible").first(),
-        isOpen: () => dialog.evaluate((d) => d.classList.contains("is-open")),
-        inside: dialog,
-        modal: true,
-      });
+      if (width >= 992) {
+        const list = region.getByRole("listbox");
+
+        await field.focus();
+        await page.keyboard.type("eggs");
+        await expect(list, "it opens from the keyboard").toBeVisible();
+        await page.keyboard.press("Escape");
+        await expect(list, "Escape closes it").toBeHidden();
+        await expect.soft(field, "the focus stays in the field")
+          .toBeFocused();
+      } else {
+        await escapes(page, tabKey(browserName), {
+          opener: page.getByRole("banner")
+            .getByRole("button", { name: /search/i }),
+          isOpen: () => field.isVisible(),
+        });
+      }
     });
 
     test("Escape closes the site menu", async ({ page, browserName }) => {

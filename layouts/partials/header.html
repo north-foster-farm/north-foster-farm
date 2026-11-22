@@ -2,4 +2,6 @@
   {{ partial "header/menu.html" . }}
   <div class="site-stripe" aria-hidden="true"></div>
 </header>
-{{ partial "search/palette.html" . }}
+{{/* Dims the page under search's bar below 992 px (#402). */}}
+<div class="site-find-scrim" data-find-scrim hidden></div>
+{{ partial "cart-catalog.html" . }}

@@ -1,0 +1,52 @@
+# Site search (#402): the words people search by that the site's own
+# text doesn't use. layouts/index.search.json reads this file into
+# /search.json, and assets/scripts/search/match.js matches on what it
+# finds there, so every synonym and keyword is written once, here.
+
+# By catalog group key: words for every product in the group.
+products:
+  eggs: egg dozen
+  whole: chicken bird roaster roasting
+  cornish: chicken hen game
+  breasts: chicken breast boneless
+  thighs: chicken thigh bone
+  tenders: chicken tender tenderloin
+  drums: chicken drumstick drum leg
+  wings: chicken wing
+  ground: chicken ground mince
+  sausage: chicken sausage link breakfast
+  other: chicken offal soup stock broth
+
+# By path, a page or one of its sections: what someone may type for it.
+pages:
+  /order/: buy shop purchase cart checkout pay
+  /about/: farm story family pasture raised
+  /about/#where-to-find-us: where hours open visit address directions
+    location markets market
+  /contact/: hours phone call email message question reach
+  /delivery-policy/#when-we-deliver: delivery days schedule
+  /delivery-policy/#what-it-costs: delivery fee price minimum cost
+  /delivery-policy/#on-farm-pickup: hours open address directions farm
+  /delivery-policy/#pickup-days: pickup drop site market pop-up
+  /delivery-policy/#refunds: refund money back return
+  /delivery-policy/#changing-or-canceling-an-order: cancel change edit
+    status
+  /privacy/: data personal information delete
+  /account/: order status track my orders sign in log in account
+    receipt
+  /login/: sign in log in account
+  /news/: news updates blog
+
+# Sections a template builds, which no Markdown heading names.
+sections:
+  - page: /order/
+    anchor: pickup
+    title: Pickup or delivery
+    words: pickup delivery drop site
+
+# The quick answers: the phone number, the email address, the drop
+# site. Their values come from data/company.json and data/series.json.
+facts:
+  phone: phone call telephone number contact
+  email: email address contact write
+  drop: pickup drop site when where

@@ -267,7 +267,11 @@ test.describe("#402 site search", () => {
       const at = `${width} px`;
 
       await atWidth(page, width);
-      await page.goto("/about/");
+      // The contact page, not /about/: at 1280 the about page's column
+      // leaves the patch beside the panel blank, with no page in it to
+      // compare (the implementer, 2026-11-21; how it runs, not what it
+      // expects).
+      await page.goto("/contact/");
 
       const s = ui(page);
       const brand = s.banner.getByRole("link", { name: /, home$/ });

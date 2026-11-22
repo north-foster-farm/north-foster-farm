@@ -72,8 +72,16 @@ timeZone = "America/New_York"
     mediaType = "application/json"
     notAlternative = true
 
+# /search.json is the site search's index (#402); see
+# layouts/index.search.json.
+  [outputFormats.search]
+    baseName = "search"
+    isPlainText = true
+    mediaType = "application/json"
+    notAlternative = true
+
 [outputs]
-  home = ["html", "llms", "version"]
+  home = ["html", "llms", "version", "search"]
 
 # A post's address is its title, never its file's date: the title
 # makes the slug unless the post sets `slug`, and bin/check-news.mjs

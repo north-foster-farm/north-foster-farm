@@ -64,28 +64,6 @@ test.describe("cart count on the Order link (#166)", () => {
       )).toBeCloseTo(width, 0);
     });
 
-  // #208: search's Add puts one in the cart and becomes the stepper;
-  // each step counts in the header at once.
-  test("search's Add and stepper count at once", async ({ page }) => {
-    await page.goto("/about/");
-
-    const dialog = page.locator("#search-palette");
-    const stock = page.waitForResponse("**/api/stock");
-
-    await page.locator("[data-search-open]").click();
-    await stock;
-    await dialog.locator("#search-palette-input").fill("eggs");
-    await expect(dialog.locator("[data-search-card] [data-search-name]"))
-      .toHaveText("Large");
-    await dialog.locator("[data-search-add]").click();
-    await expect(rowBadge(page)).toHaveText("1");
-    await dialog.locator("[data-search-step='1']").click();
-    await expect(dialog.locator("[data-search-added]")).toContainText(
-      "2 items in all"
-    );
-    await expect(rowBadge(page)).toHaveText("2");
-  });
-
   test("another tab's change arrives without a reload", async ({
     page, context,
   }) => {
@@ -149,7 +127,11 @@ test.describe("cart count on the Order link (#166)", () => {
       });
     });
     await page.goto("/about/");
-    await expect(page.locator("#search-palette")).toBeAttached();
+    // The page built. Below 992 px the field is hidden until the
+    // magnifier opens it, so a hidden one counts.
+    await expect(page.getByRole("combobox", {
+      name: /search/i, includeHidden: true,
+    })).toBeAttached();
     await expect(rowBadge(page)).toBeHidden();
     expect(errors).toEqual([]);
   });

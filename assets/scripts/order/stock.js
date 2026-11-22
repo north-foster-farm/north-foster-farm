@@ -10,7 +10,7 @@
 // and the customer is told.
 
 import { clear, whileLoading } from "../utils/skeleton.js";
-import { showRows } from "./restock.js";
+import { settle, showRows } from "./restock.js";
 import { ATTEMPT_MS, StockGate, withBackoff } from "./lib/stock-gate.mjs";
 import { stockNotice } from "./lib/stock-notice.mjs";
 import { syncSchema } from "./schema.js";
@@ -281,6 +281,7 @@ export class Stock {
     }
 
     showRows(this.form, this.inStockOnly());
+    settle();
 
     if (changed.length) this.onChange(stockNotice(changed));
   }

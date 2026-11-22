@@ -11,6 +11,8 @@
     "layouts/partials/staging-toolbar.html",
     "layouts/partials/staging/**",
     "layouts/partials/search/**",
+    "layouts/partials/cart-catalog.html",
+    "layouts/index.search.json",
     "layouts/partials/debug/**",
     "layouts/partials/skeleton.html",
     "layouts/partials/skeleton/**",
@@ -158,6 +160,8 @@
         "e2e/overflow.spec.mjs",
         "e2e/perk-revision.spec.mjs",
         "e2e/search.spec.mjs",
+        "e2e/site-search.spec.mjs",
+        "e2e/search-stock.spec.mjs",
         "e2e/sign-in-order.spec.mjs",
         "e2e/skip-link.spec.mjs",
         "e2e/staging-toolbar.spec.mjs",
@@ -191,6 +195,8 @@
         "e2e/news.spec.mjs",
         "e2e/overflow.spec.mjs",
         "e2e/search.spec.mjs",
+        "e2e/site-search.spec.mjs",
+        "e2e/search-stock.spec.mjs",
         "e2e/sign-in-order.spec.mjs",
         "e2e/skip-link.spec.mjs",
         "e2e/staging-toolbar.spec.mjs",
@@ -228,6 +234,8 @@
         "e2e/policies.spec.mjs",
         "e2e/pricing.spec.mjs",
         "e2e/search.spec.mjs",
+        "e2e/site-search.spec.mjs",
+        "e2e/search-stock.spec.mjs",
         "e2e/sign-in-order.spec.mjs",
         "e2e/skip-link.spec.mjs",
         "e2e/staging-toolbar.spec.mjs",
@@ -264,6 +272,8 @@
         "e2e/overflow.spec.mjs",
         "e2e/rate-limit.spec.mjs",
         "e2e/search.spec.mjs",
+        "e2e/site-search.spec.mjs",
+        "e2e/search-stock.spec.mjs",
         "e2e/sign-in-order.spec.mjs",
         "e2e/skeletons.spec.mjs",
         "e2e/skip-link.spec.mjs",
@@ -301,6 +311,8 @@
         "e2e/overflow.spec.mjs",
         "e2e/restock.spec.mjs",
         "e2e/search.spec.mjs",
+        "e2e/site-search.spec.mjs",
+        "e2e/search-stock.spec.mjs",
         "e2e/skeletons.spec.mjs",
         "e2e/skip-link.spec.mjs",
         "e2e/staging-toolbar.spec.mjs",
@@ -354,6 +366,8 @@
         "e2e/pricing.spec.mjs",
         "e2e/report-privacy.spec.mjs",
         "e2e/search.spec.mjs",
+        "e2e/site-search.spec.mjs",
+        "e2e/search-stock.spec.mjs",
         "e2e/top-bar-places.spec.mjs",
         "e2e/top-bar.spec.mjs",
         "e2e/wording.spec.mjs"
@@ -453,6 +467,8 @@
         "e2e/round-card-ring.spec.mjs",
         "e2e/scheduled-pickup.spec.mjs",
         "e2e/search.spec.mjs",
+        "e2e/site-search.spec.mjs",
+        "e2e/search-stock.spec.mjs",
         "e2e/sign-in-order.spec.mjs",
         "e2e/skeletons.spec.mjs",
         "e2e/skip-link.spec.mjs",
@@ -549,6 +565,8 @@
         "e2e/round-card-ring.spec.mjs",
         "e2e/scheduled-pickup.spec.mjs",
         "e2e/search.spec.mjs",
+        "e2e/site-search.spec.mjs",
+        "e2e/search-stock.spec.mjs",
         "e2e/sign-in-order.spec.mjs",
         "e2e/skeletons.spec.mjs",
         "e2e/skip-link.spec.mjs",
@@ -641,6 +659,8 @@
         "e2e/round-card-ring.spec.mjs",
         "e2e/scheduled-pickup.spec.mjs",
         "e2e/search.spec.mjs",
+        "e2e/site-search.spec.mjs",
+        "e2e/search-stock.spec.mjs",
         "e2e/sign-in-order.spec.mjs",
         "e2e/skeletons.spec.mjs",
         "e2e/skip-link.spec.mjs",
@@ -697,6 +717,8 @@
         "e2e/membership.spec.mjs",
         "e2e/overflow.spec.mjs",
         "e2e/search.spec.mjs",
+        "e2e/site-search.spec.mjs",
+        "e2e/search-stock.spec.mjs",
         "e2e/wording.spec.mjs"
       ],
       "pages": [
@@ -776,6 +798,8 @@
         "e2e/overflow.spec.mjs",
         "e2e/scheduled-pickup.spec.mjs",
         "e2e/search.spec.mjs",
+        "e2e/site-search.spec.mjs",
+        "e2e/search-stock.spec.mjs",
         "e2e/sign-in-order.spec.mjs",
         "e2e/skeletons.spec.mjs",
         "e2e/sku-alias.spec.mjs",
@@ -870,6 +894,8 @@
         "e2e/overflow.spec.mjs",
         "e2e/scheduled-pickup.spec.mjs",
         "e2e/search.spec.mjs",
+        "e2e/site-search.spec.mjs",
+        "e2e/search-stock.spec.mjs",
         "e2e/top-bar-places.spec.mjs",
         "e2e/top-bar.spec.mjs",
         "e2e/wording.spec.mjs"
@@ -913,6 +939,8 @@
         "e2e/overflow.spec.mjs",
         "e2e/rate-limit.spec.mjs",
         "e2e/search.spec.mjs",
+        "e2e/site-search.spec.mjs",
+        "e2e/search-stock.spec.mjs",
         "e2e/skeletons.spec.mjs",
         "e2e/top-bar-places.spec.mjs",
         "e2e/top-bar.spec.mjs",
@@ -951,6 +979,8 @@
         "e2e/place-order-pane.spec.mjs",
         "e2e/restock.spec.mjs",
         "e2e/search.spec.mjs",
+        "e2e/site-search.spec.mjs",
+        "e2e/search-stock.spec.mjs",
         "e2e/sign-in-order.spec.mjs",
         "e2e/skeletons.spec.mjs",
         "e2e/skip-link.spec.mjs",
@@ -989,6 +1019,8 @@
         "e2e/overflow.spec.mjs",
         "e2e/restock.spec.mjs",
         "e2e/search.spec.mjs",
+        "e2e/site-search.spec.mjs",
+        "e2e/search-stock.spec.mjs",
         "e2e/sign-in-order.spec.mjs",
         "e2e/skeletons.spec.mjs",
         "e2e/skip-link.spec.mjs",
@@ -1026,6 +1058,8 @@
         "e2e/llms.spec.mjs",
         "e2e/overflow.spec.mjs",
         "e2e/search.spec.mjs",
+        "e2e/site-search.spec.mjs",
+        "e2e/search-stock.spec.mjs",
         "e2e/wording.spec.mjs"
       ],
       "pages": [
@@ -1976,7 +2010,26 @@
         "e2e/search.spec.mjs"
       ],
       "specs": [
-        "e2e/search.spec.mjs"
+        "e2e/search.spec.mjs",
+        "e2e/site-search.spec.mjs",
+        "e2e/search-stock.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/site-search.spec.mjs"
+      ],
+      "specs": [
+        "e2e/site-search.spec.mjs",
+        "e2e/search-stock.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/search-stock.spec.mjs"
+      ],
+      "specs": [
+        "e2e/search-stock.spec.mjs"
       ]
     },
     {

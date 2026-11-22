@@ -1,0 +1,43 @@
+{{/*
+  The site search (#402): a light field in the header row from 992 px
+  up, its results in a light panel under it; below that the header's
+  magnifier opens it as a full-width bar under the header, with Cancel,
+  over a scrim. The field is an ARIA 1.2 combobox; its listbox holds a
+  group per kind (scripts/search/match.js), and a polite status line
+  says how many were found. The index, /search.json, is fetched the
+  first time the field is opened or focused
+  (scripts/search/site-search.js).
+
+  The words here and in results are drafts for James. The no-match
+  links are the main paths: Order, Delivery policy, Contact.
+*/}}
+<div class="site-find" id="site-find" role="search" aria-label="Site" data-site-find data-index="{{ relURL "search.json" }}">
+  <div class="site-find-bar">
+    <div class="site-find-field">
+      <span class="site-find-glass" aria-hidden="true">{{ partial "svg.html" "icons/search" }}</span>
+      <label class="visually-hidden" for="site-find-input">Search the site</label>
+      <input class="site-find-input" id="site-find-input" type="text" role="combobox" aria-expanded="false" aria-controls="site-find-list" aria-autocomplete="list" aria-keyshortcuts="Meta+K Control+K" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="go" placeholder="Search">
+      <button class="site-find-clear" type="button" aria-label="Clear search" data-find-clear hidden>{{ partial "svg.html" "icons/x" }}</button>
+    </div>
+    <button class="site-find-cancel" type="button" data-find-cancel>Cancel</button>
+  </div>
+  <div class="site-find-panel" data-find-panel hidden>
+    <div class="site-find-list" id="site-find-list" role="listbox" aria-label="Search results" data-find-list></div>
+    <div class="site-find-none" data-find-none hidden>
+      <p class="site-find-none-text">Nothing matches &ldquo;<span data-find-query></span>&rdquo;.</p>
+      <ul class="site-find-paths list-unstyled">
+        <li><a href="{{ relURL "order/" }}">Order</a></li>
+        <li><a href="{{ relURL "delivery-policy/" }}">Delivery policy</a></li>
+        <li><a href="{{ relURL "contact/" }}">Contact</a></li>
+      </ul>
+    </div>
+  </div>
+  <p class="visually-hidden" aria-live="polite" data-find-status></p>
+  {{/* The script fills these in, so their classes survive PurgeCSS. */}}
+  <template data-find-group>
+    <div class="site-find-group" role="group"><div class="site-find-group-name" role="presentation"></div></div>
+  </template>
+  <template data-find-option>
+    <div class="site-find-option" role="option" aria-selected="false"><span class="site-find-title"></span><span class="site-find-detail"></span></div>
+  </template>
+</div>

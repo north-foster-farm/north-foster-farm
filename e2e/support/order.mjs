@@ -157,11 +157,6 @@ export const stockApplied = (page) => expect(
   page.locator("#order-catalog")
 ).not.toHaveAttribute("data-load", /./);
 
-// The same for the search palette's own read of /api/stock.
-export const searchStockApplied = (page) => expect(
-  page.locator("#search-palette .search-palette-body")
-).not.toHaveAttribute("data-load", /./);
-
 // Which payment drivers are the fakes here: none on any Netlify deploy,
 // both on a local run (SQUARE_ENV and PAYPAL_ENV fake work only where
 // SITE_CONTEXT is dev; netlify/functions/lib/fake.mjs).
