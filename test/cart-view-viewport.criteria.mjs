@@ -35,8 +35,9 @@
 // 2: both modules are listed as pure), not from a box.
 
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
+
+import { assertPure } from "./pure-module.mjs";
 
 import { closedHeight } from "../assets/scripts/order/cart/view/plan.mjs";
 import {
@@ -98,22 +99,14 @@ describe("scrollKey", () => {
 
 describe("design, section 2", () => {
   it("keeps view/plan.mjs and view/own-scroll.mjs pure", () => {
-    const dom = new RegExp(`\\b(${[
+    const banned = [
       "document", "window", "getComputedStyle", "matchMedia",
       "requestAnimationFrame", "cancelAnimationFrame", "performance",
       "ResizeObserver", "Element", "Node",
-    ].join("|")})\\b`);
+    ];
 
     for (const name of ["plan.mjs", "own-scroll.mjs"]) {
-      const code = readFileSync(new URL(name, VIEW), "utf8")
-        .replace(/\/\/.*$/gm, "")
-        .replace(/\/\*[\s\S]*?\*\//g, "");
-
-      assert.doesNotMatch(code, dom, `${name} reaches the DOM`);
-      for (const [, from] of code.matchAll(/\bfrom\s+["']([^"']+)["']/g)) {
-        assert.match(from, /\.mjs$/, `${name} imports ${from}`);
-        assert.doesNotMatch(from, /\/view\.mjs$/, `${name} imports the door`);
-      }
+      assertPure(new URL(name, VIEW), { banned, door: /\/view\.mjs$/ });
     }
   });
 });
