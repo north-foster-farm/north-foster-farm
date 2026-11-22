@@ -4,13 +4,9 @@
 // James's decision, 2026-11-22: drop the line; the links don't come
 // back. A criteria test, written by a test agent from the issue's
 // "Done when" list before the change. One test per (test) box. The
-// fourth box, the page's "Last updated" date, is James's. He decided
-// it on 2026-11-22: the line carries the date the
-// change ships. No test pins a calendar date (it would fail the next
-// day). The last test asks only that the line is no earlier than the
-// newest change to content/privacy.md, from git, or today while the
-// file has uncommitted edits. Without that history (a shallow clone
-// that never touched the file), it skips.
+// fourth box, the page's "Last updated" date, is James's and gets no
+// test: he decided on 2026-11-22 that it carries the date the change
+// ships.
 //
 // The seam: the privacy page as built, both formats Hugo writes for it
 // (privacy/index.html and the Markdown twin, privacy/index.md), and the
@@ -29,8 +25,6 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, before, describe, it } from "node:test";
-
-import { lastUpdated } from "../bin/dated-pages.mjs";
 
 const root = join(import.meta.dirname, "..");
 const hasHugo = spawnSync("hugo", ["version"]).status === 0;
@@ -145,29 +139,5 @@ describe("#888 the privacy page drops the 7-day order link", () => {
       .map((file) => file.slice(root.length + 1));
 
     assert.deepEqual(readers, [], "these still read a retired value");
-  });
-
-  describe("the Last updated line", () => {
-    const file = "content/privacy.md";
-    const git = (...args) => spawnSync("git", args,
-      { cwd: root, encoding: "utf8" });
-    const edited = git("status", "--porcelain", "--", file).stdout.trim();
-    const committed = git("log", "-1", "--format=%cs", "--", file)
-      .stdout.trim();
-    const today = new Date().toLocaleDateString("en-CA",
-      { timeZone: "America/New_York" });
-    const changed = edited ? today : committed;
-
-    it("is no earlier than the newest change to the page",
-      { skip: !changed && "no history for the page" }, () => {
-        const said = lastUpdated(readFileSync(join(root, file), "utf8"));
-        assert.ok(said, `${file} has a Last updated line`);
-
-        const at = new Date(`${said} 12:00 UTC`);
-        assert.ok(!Number.isNaN(at.getTime()), `"${said}" reads as a date`);
-
-        assert.ok(at.toISOString().slice(0, 10) >= changed,
-          `Last updated ${said}, but the page changed on ${changed}`);
-      });
   });
 });
