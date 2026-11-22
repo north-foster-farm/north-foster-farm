@@ -92,6 +92,42 @@
   }
 }
 
+// The picture, or a card of the same shape in the pale green with the
+// farm's mark (#222): a post's thumbnail on the news page and in the
+// home page's previews (#566).
+.news-thumb {
+  display: grid;
+  aspect-ratio: 4 / 3;
+  place-items: center;
+  overflow: hidden;
+  border-radius: var(--bs-border-radius-lg);
+  background-color: var(--bs-success-bg-subtle);
+
+  @include news-image-link;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+// The farm's mark in the dark green, the same on every card, about a
+// third of it: it marks a post without a picture and recedes.
+.news-mark {
+  width: 28%;
+
+  svg {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
+  .black {
+    fill: var(--bs-primary);
+  }
+}
+
 .news {
   .text-column {
     max-width: 700px;
@@ -168,43 +204,8 @@
     }
   }
 
-  // The picture, or a card of the same shape in the pale green with
-  // the farm's mark (#222).
-  .news-thumb {
-    display: grid;
-    aspect-ratio: 4 / 3;
-    place-items: center;
-    overflow: hidden;
-    border-radius: var(--bs-border-radius-lg);
-    background-color: var(--bs-success-bg-subtle);
-
-    @include news-image-link;
-
-    img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-  }
-
   .news-item:has(a:focus-visible) .news-thumb {
     @include news-image-lifted;
-  }
-
-  // The farm's mark in the dark green, the same on every card, about
-  // a third of it: it marks a post without a picture and recedes.
-  .news-mark {
-    width: 28%;
-
-    svg {
-      display: block;
-      width: 100%;
-      height: auto;
-    }
-
-    .black {
-      fill: var(--bs-primary);
-    }
   }
 
   .news-lead-image .news-mark {

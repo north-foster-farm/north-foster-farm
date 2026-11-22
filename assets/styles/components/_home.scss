@@ -301,6 +301,99 @@ $hero-text-shadow: 0 1px 3px rgb(0 0 0 / 50%);
     }
   }
 
+  // The band's layout (#566): one column below lg, the title, the
+  // card, then the previews; from lg the card spans the right column
+  // and the title and the previews stack in the left, on the grid's
+  // column widths (4 and 8 of 12, then 3 and 8, centered).
+  .home-update-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+
+    @include media-breakpoint-up(lg) {
+      grid-template:
+        "intro lead" auto
+        "more lead" 1fr / minmax(0, 4fr) minmax(0, 8fr);
+      column-gap: $grid-gutter-width;
+      align-items: start;
+
+      .home-update-intro {
+        grid-area: intro;
+      }
+
+      .home-update-lead {
+        grid-area: lead;
+      }
+
+      .home-update-more {
+        grid-area: more;
+      }
+    }
+
+    @include media-breakpoint-up(xl) {
+      grid-template-columns: minmax(0, 3fr) minmax(0, 8fr);
+      margin-inline: 4.1667%; // half a column of 12 each side
+    }
+  }
+
+  // The previews: below lg a row each, the thumbnail beside the title
+  // and date, in the card's measure; from lg the thumbnail fills the
+  // column and the title and date sit under it, as James drew them.
+  .home-news-previews {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    width: 100%;
+    max-width: 40rem;
+  }
+
+  .home-news-preview {
+    display: grid;
+    grid-template-columns: 6.5rem minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+    column-gap: 1rem;
+
+    // The band is the news page's pale green, so the thumbnail takes
+    // the card's off white and the mark stays on a tile of its own.
+    .news-thumb {
+      grid-row: span 2;
+      background-color: #fcfcfc;
+    }
+
+    @include media-breakpoint-up(sm) {
+      grid-template-columns: 9rem minmax(0, 1fr);
+      column-gap: 1.5rem;
+    }
+
+    @include media-breakpoint-up(lg) {
+      grid-template-rows: none;
+      grid-template-columns: minmax(0, 1fr);
+
+      .news-thumb {
+        grid-row: auto;
+        margin-bottom: 0.75rem;
+      }
+    }
+  }
+
+  .home-news-preview:has(a:focus-visible) .news-thumb {
+    transform: translateY(-2px);
+    box-shadow: $btn-lift-shadow;
+  }
+
+  .home-news-preview-title {
+    margin: 0 0 0.25rem;
+    font-size: $h5-font-size;
+  }
+
+  .home-news-preview-link {
+    text-decoration: none;
+
+    &:hover,
+    &:focus-visible {
+      text-decoration: underline;
+    }
+  }
+
   .home-icon {
     position: relative;
     display: grid;

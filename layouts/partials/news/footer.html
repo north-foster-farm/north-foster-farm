@@ -8,10 +8,15 @@
   browser, apart. scripts/news/farm-list.js scrolls the link to the
   footer's field. The wording is James's (#483). Nothing here goes
   into the post's Markdown, so none of it reaches the email.
+
+  On the home page (the excerpt) the archive button leaves the card for
+  the section, under the previews of the posts after it (#566).
 */}}
 <div class="news-footer">
   <div data-farm-list-block>
     <a class="btn btn-primary" href="#farm-list-footer-email" data-farm-list-jump>Sign up for news like this.</a>
   </div>
-  <a class="btn btn-outline-primary btn-sm" href="{{ relURL "news/" }}">More from the farm</a>
+  {{ if not .excerpt }}
+    {{ partial "news/more.html" . }}
+  {{ end }}
 </div>

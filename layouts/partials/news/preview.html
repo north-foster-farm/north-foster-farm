@@ -1,0 +1,25 @@
+{{/*
+  A post's preview on the home page (#566): its thumbnail, as on the
+  news page (news/row.html), or the farm's mark for a post with none,
+  then its title, as its own page heads it, and its date. The picture
+  links to the post too, skipped by keyboards like the news page's.
+*/}}
+{{ $featured := partial "news/featured.html" . }}
+{{ $title := .Title }}
+{{ with .Params.heading }}{{ $title = . | safeHTML }}{{ end }}
+<article class="home-news-preview" data-news-preview>
+  <a class="news-thumb" href="{{ .RelPermalink }}" tabindex="-1" aria-hidden="true">
+    {{ with $featured }}
+      {{ $thumb := .Fill "480x360 webp q80 Smart" }}
+      <img src="{{ $thumb.RelPermalink }}" width="{{ $thumb.Width }}" height="{{ $thumb.Height }}" alt="" loading="lazy" decoding="async">
+    {{ else }}
+      {{ partial "news/mark.html" . }}
+    {{ end }}
+  </a>
+  <h3 class="home-news-preview-title">
+    <a class="home-news-preview-link" href="{{ .RelPermalink }}">{{ $title }}</a>
+  </h3>
+  <time class="news-date" datetime="{{ .Date.Format "2006-01-02" }}">
+    {{- .Date | time.Format "January 2, 2006" -}}
+  </time>
+</article>

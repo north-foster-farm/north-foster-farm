@@ -1,22 +1,31 @@
 {{/* News and updates: the post marked home: true, or else the newest,
      as its excerpt (#537), with "Continue reading" to the rest on the
      post's own page, its canonical home, which the title links to too.
-     The post's footer (sign-up, and the way to more news) closes the
-     card (#483). The eyebrow and the section's title stand above the
-     card, and beside it from lg, left-aligned there (#537). */}}
+     The sign-up closes the card (#483). From lg the eyebrow and the
+     section's title stand left of the card, left-aligned, and under
+     them previews of the three newest published posts after it, then
+     the way to more news (#566); below lg the title leads, then the
+     card, then the previews. Drafts and future posts never preview,
+     though staging builds them. */}}
 {{ $news := where site.RegularPages "Section" "news" }}
 {{ $post := index (where $news "Params.home" true).ByDate.Reverse 0 }}
 {{ with $post }}{{ else }}{{ $post = index $news.ByDate.Reverse 0 }}{{ end }}
 
 {{ with $post }}
+  {{ $published := slice }}
+  {{ range $news.ByDate.Reverse }}
+    {{ if and (not .Draft) (le .Date now) (ne .RelPermalink $post.RelPermalink) }}
+      {{ $published = $published | append . }}
+    {{ end }}
+  {{ end }}
   <div class="home-update border-bottom border-light">
     <div class="container">
-      <div class="row justify-content-center py-3 py-md-5">
-        <div class="col-12 col-lg-4 col-xl-3 home-update-intro pt-3">
+      <div class="home-update-grid py-3 py-md-5">
+        <div class="home-update-intro pt-3">
           <p class="home-eyebrow">Learn more</p>
           <h2 class="home-title">Farm news and updates</h2>
         </div>
-        <div class="col-12 col-lg-8 d-flex flex-column align-items-center align-items-lg-start pb-3 pt-lg-3">
+        <div class="home-update-lead d-flex flex-column align-items-center align-items-lg-start pb-3 pt-lg-3">
           <article class="home-update-card border border-1 border-success border-opacity-50 rounded-4 py-3 py-sm-5">
             <div class="fmw-600 w-100">
               {{/* The post's header and body, shared with its own
@@ -26,6 +35,16 @@
               {{ partial "news/body.html" (dict "page" . "level" 3 "excerpt" true) }}
             </div>
           </article>
+        </div>
+        <div class="home-update-more d-flex flex-column align-items-center gap-4 pt-3 pt-lg-0 pb-3">
+          {{ with first 3 $published }}
+            <div class="home-news-previews">
+              {{ range . }}
+                {{ partial "news/preview.html" . }}
+              {{ end }}
+            </div>
+          {{ end }}
+          {{ partial "news/more.html" . }}
         </div>
       </div>
     </div>
