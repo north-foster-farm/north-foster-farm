@@ -109,6 +109,21 @@ const perk = (type, end = null) => ({ type, start: "2026-11-01", end });
 
 let stamps = 0;
 
+// What signIn answers, by route. Unanswered, the cart request gets a
+// 401 that clears the stamp.
+const signInAnswers = (perks, extra) => ({
+  "**/api/me": {
+    signedIn: true, customer: { ...CUSTOMER, perks }, ...extra,
+  },
+  "**/api/account/cart": { ok: true, cart: null },
+  "**/api/account/orders": { orders: [] },
+});
+
+// The routes signIn adds, so a later sign-in can drop them alone and
+// keep the suite's own (hideToolbar's stub of /api/staging/**, the
+// stock pins).
+const SIGN_IN_ROUTES = Object.keys(signInAnswers([], {}));
+
 // Signed in as the canned customer, holding `perks`; as in
 // e2e/perk-label.spec.mjs, each sign-in takes a new session stamp so
 // the session's cache never answers with the last test's perks.
@@ -119,23 +134,16 @@ const signIn = async (page, baseURL, perks, extra = {}) => {
   await page.context().addCookies([
     { name: "nff_signed_in", value: `qr${stamps}`, url: baseURL },
   ]);
-  await page.route("**/api/me", (route) => route.fulfill({
-    json: { signedIn: true, customer: { ...CUSTOMER, perks }, ...extra },
-  }));
-  // Unanswered, the cart request gets a 401 that clears the stamp.
-  await page.route("**/api/account/cart", (route) => route.fulfill({
-    json: { ok: true, cart: null },
-  }));
-  await page.route("**/api/account/orders", (route) => route.fulfill({
-    json: { orders: [] },
-  }));
+  await Promise.all(Object.entries(signInAnswers(perks, extra)).map(
+    ([url, json]) => page.route(url, (route) => route.fulfill({ json }))
+  ));
 };
 
 // The order page, signed in with `perks`, its cart open and settled.
 // -> { order, note, badge, beside }: the perk line, the free delivery
 // badge, and the buttons in the badge's list item but the badge.
 const openCart = async (page, baseURL, perks, extra = {}) => {
-  await page.unrouteAll({ behavior: "ignoreErrors" });
+  await Promise.all(SIGN_IN_ROUTES.map((url) => page.unroute(url)));
   await signIn(page, baseURL, perks, extra);
   await page.addInitScript(() => {
     try {
