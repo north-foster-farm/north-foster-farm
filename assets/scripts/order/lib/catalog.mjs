@@ -107,6 +107,3 @@ export const archived = (item) => !!item && item.restock === "archived";
 // capped and no order is refused for stock, whatever Square counts.
 // Its restock type still labels it when the flag is off.
 export const uncounted = (item) => !!item && item.alwaysInStock === true;
-
-export const inStock = (catalog) => [...indexCatalog(catalog).values()]
-  .filter((item) => item.inStock && !archived(item));
