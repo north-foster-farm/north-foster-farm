@@ -32,6 +32,8 @@ import { pathToFileURL } from "node:url";
 // removes them, and any data migration. A directory ends in "/".
 export const SHAPE_PATHS = [
   "netlify/functions/lib/store.mjs",
+  "netlify/functions/lib/blob-key.mjs",
+  "netlify/functions/lib/rekey.mjs",
   "netlify/functions/lib/records.mjs",
   "netlify/functions/lib/auth-records.mjs",
   "netlify/functions/lib/news.mjs",

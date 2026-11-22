@@ -19,6 +19,7 @@
 
 import { getStore } from "@netlify/blobs";
 
+import { keyPath } from "./blob-key.mjs";
 import { log } from "./log.mjs";
 import { maskEmail } from "./mask.mjs";
 import { ORDER_ID } from "./order-id.mjs";
@@ -88,10 +89,10 @@ const conditional = async (blobs, key, value, condition) => {
     },
   };
 
-  await blobs.setJSON(key, value, { ...condition, span });
+  await blobs.setJSON(keyPath(key), value, { ...condition, span });
   if (status === 200) return { made: true };
 
-  const stored = await blobs.get(key, { type: "json" });
+  const stored = await blobs.get(keyPath(key), { type: "json" });
   const made = stored !== null
     && JSON.stringify(stored) === JSON.stringify(value);
 
@@ -104,9 +105,13 @@ const conditional = async (blobs, key, value, condition) => {
   return { made, stored, status };
 };
 
+// Every keyed call names its key by keyPath (#758): the key goes
+// into the request path, which the client leaves raw. `list` sends
+// its prefix as a query parameter, which the client encodes, and hands
+// back the keys as stored, so they need no decoding.
 export const wrap = (blobs) => ({
-  get: (key) => blobs.get(key, { type: "json" }),
-  set: (key, value) => blobs.setJSON(key, value),
+  get: (key) => blobs.get(keyPath(key), { type: "json" }),
+  set: (key, value) => blobs.setJSON(keyPath(key), value),
   // A create refused by anything but a 412 while the key is still
   // empty is no lost race: nobody else holds the key, so it throws
   // rather than say somebody does.
@@ -122,13 +127,15 @@ export const wrap = (blobs) => ({
     return made;
   },
   getTagged: async (key) => {
-    const found = await blobs.getWithMetadata(key, { type: "json" });
+    const found = await blobs.getWithMetadata(keyPath(key), {
+      type: "json",
+    });
 
     return found ? { value: found.data, etag: found.etag } : null;
   },
   swap: async (key, value, etag) =>
     (await conditional(blobs, key, value, { onlyIfMatch: etag })).made,
-  delete: (key) => blobs.delete(key),
+  delete: (key) => blobs.delete(keyPath(key)),
   // -> [{ key }] with the prefix kept, sorted by key.
   list: async (prefix) => {
     const { blobs: found } = await blobs.list({ prefix });
