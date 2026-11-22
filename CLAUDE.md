@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-North Foster Farm website - a static site built with Hugo (v0.164.0) and hosted on Netlify. The site uses Bootstrap 5.3.3, custom SCSS styling, and vanilla JavaScript with ES modules.
+North Foster Farm website - a static site built with Hugo (v0.164.0) and hosted on Netlify. The site uses Bootstrap 5.3.9, custom SCSS styling, and vanilla JavaScript with ES modules.
 
 ## Working rules for agents (James, 2026-10-25)
 
@@ -248,7 +248,7 @@ docs/              # Runbooks and design notes
 
 ### Styling Architecture
 
-Bootstrap 5.3.3 forms the foundation with extensive customization:
+Bootstrap 5.3.9 forms the foundation with extensive customization:
 - Custom variables in `_variables.scss` override Bootstrap defaults
 - Component styles organized by feature in `components/`
 - Utility classes extend Bootstrap utilities
