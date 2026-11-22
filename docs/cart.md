@@ -512,6 +512,13 @@ to CSS. Its surface, which the Cart class imports:
   `FADE_IN`) in `frames.mjs`; `OWN_MS` and `ownScroll` in
   `own-scroll.mjs`; `moreShown` in `more.mjs`. The design of the
   split is `docs/refactors/cart-view.md`.
+- The viewport's watchers live there too (2026-11-22, #844), each in
+  its own module: `watchKeyboard` in `keyboard.js`, `watchPlacement`
+  in `placement.js`, `watchScroll` in `scroll.js`, and what they read
+  and write of the styles (`reduced`, `rootFont`, `prop`, `setProp`)
+  in `style.js`. Two pure rules came out of them: `scrollKey`, which
+  keys scroll the page, in `own-scroll.mjs`, and `closedHeight`, the
+  lift-off threshold's closed height, in `plan.mjs`.
 
 ### 4.2 Structure
 

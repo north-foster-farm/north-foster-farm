@@ -23,7 +23,7 @@
 //
 // A person's scroll is a touch on the catalog and the page moving
 // under it a frame at a time: Playwright's WebKit has no touch drag,
-// and the cart reads only where the touch began (view.mjs
+// and the cart reads only where the touch began (cart/view/scroll.js
 // watchScroll). Safari's toolbar is a visual viewport made shorter.
 // Runs in the iphone project only.
 
