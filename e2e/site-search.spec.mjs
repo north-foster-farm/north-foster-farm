@@ -36,6 +36,9 @@ const PHONE_HEIGHT = 664;
 const DESKTOP_HEIGHT = 900;
 const OUT = "NFF-CHK-EGG-MD";
 const WINGS = /^NFF-CHK-WNG-/;
+// A dialog of the site's own: every <dialog> on the page but the one
+// marked data-staging-card-dialog.
+const SITE_DIALOG = "dialog:not([data-staging-card-dialog])";
 
 const widthsFor = (project, widths) => (project === "desktop"
   ? widths : [null]);
@@ -176,7 +179,10 @@ test.describe("#402 site search", () => {
 
       const at = label(width);
 
-      expect(await page.locator("dialog").count(), `${at}: no dialog`)
+      // Not the staging toolbar's card overlay
+      // (layouts/partials/staging-toolbar.html), which only staging
+      // renders, beside #staging rather than inside it.
+      expect(await page.locator(SITE_DIALOG).count(), `${at}: no dialog`)
         .toBe(0);
       expect(await page.locator("[id*='search-palette'], "
         + "[class*='search-palette'], [data-search-palette]").count(),
