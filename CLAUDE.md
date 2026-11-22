@@ -147,7 +147,7 @@ To check a production build locally, run the linters and then
 
 ### Node
 
-Node 24.22.1, pinned in `.nvmrc`, the only pin (#504). GitHub's
+Node 24.22.3, pinned in `.nvmrc`, the only pin (#504). GitHub's
 workflows set Node up from it and Netlify reads it.
 `npm run check:node` (`bin/check-node.mjs`) fails on any other Node and
 runs first in `npm run check` and every Netlify build, and
@@ -305,7 +305,7 @@ Deployment configured in `netlify.toml`:
 - Hugo version: 0.170.0, held exactly in `netlify.toml` and the CI
   action, because Netlify installs only a named version and CI
   checks the tarball's SHA-256; raise both to each new release
-  once it clears the 7-day cooldown. Node 24.22.1 from `.nvmrc` (see
+  once it clears the 7-day cooldown. Node 24.22.3 from `.nvmrc` (see
   Node above; `NODE_VERSION` is gone from `netlify.toml`)
 - Deploy previews and branch deploys (`staging`) build
   drafts/future/expired content and run `bin/install-gate.mjs`

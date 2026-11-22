@@ -110,7 +110,7 @@ part updates faster than another.
 
 1. **Exact versions.** No `^` or `~` in any `package.json`; `.npmrc`
    sets `save-exact=true`. Lockfiles are committed and CI installs
-   with `npm ci`. `.nvmrc` alone pins Node 24.22.1 (held by
+   with `npm ci`. `.nvmrc` alone pins Node 24.22.3 (held by
    `check:node` and `devEngines`), and `HUGO_VERSION` pins Hugo. Actions are pinned to full commit SHAs
    with the version in a comment, and so is the e2e container image,
    by index digest (#556; Dependabot cannot bump it, and a test holds
