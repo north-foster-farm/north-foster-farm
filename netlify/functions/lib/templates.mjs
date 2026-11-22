@@ -1604,9 +1604,30 @@ export const farmContactMessage = (message, { order = null, links } = {}) => {
 // rest. `links` gives them their Admin link (and, once the dashboard
 // shows them, the View order and View customer buttons).
 
-// "delivery on Thursday, October 8".
-const methodOn = (f) =>
-  `${methodName(f.method).toLowerCase()} on ${label(f.date)}`;
+// The kinds of place named as a common noun, which take "the": "the
+// North Scituate drop site", "the Thanksgiving Prep pop-up". A market
+// or a group's round is a proper name and takes none.
+const COMMON_PLACES = new Set(["drop-site", "pop-up"]);
+
+// The fulfillment by the farm's name for the place, the packing
+// email's (#790): "pickup at the farm", "pickup at Pawtucket Farmers
+// Market", "delivery". An occurrence gone from the data reads by its
+// id, "pickup ZZZZ-261121", since its place can't be known.
+const placeFor = (f) => {
+  if (f.method === "onfarm") return "pickup at the farm";
+  if (!isScheduled(f)) return methodName(f.method).toLowerCase();
+
+  const o = orderOccurrence(terms, f);
+
+  if (!o) return f.occurrence ? `pickup ${f.occurrence}` : "pickup";
+
+  const the = COMMON_PLACES.has(o.kind) ? "the " : "";
+
+  return `pickup at ${the}${packingGroup(f).place}`;
+};
+
+// "delivery on Thursday, October 8", "pickup at the farm on ...".
+const methodOn = (f) => `${placeFor(f)} on ${label(f.date)}`;
 
 const farmCard = (title, tag, blocks, links, { orderId, customer } = {}) => {
   const order = orderId ? orderAdminUrl(links, orderId) : null;
@@ -1692,7 +1713,7 @@ export const farmOrderCancelled = (order, customer, { links } = {}) => {
 export const farmRefundedClosed = (order, { where, links } = {}) =>
   farmCard(`Canceled: ${order.id}, refunded in full`, "Order canceled", [
     p(`Order ${order.id}, ${methodOn(order.fulfilment)}, was refunded in ` +
-      `full in ${where} without being canceled, so we canceled it. Its ` +
+      `full in ${where} without being canceled, so the site canceled it. Its ` +
       "stock is back and it is off the pickup and delivery lists. The " +
       "customer was not emailed. Don't pack it."),
   ], links, { orderId: order.id });

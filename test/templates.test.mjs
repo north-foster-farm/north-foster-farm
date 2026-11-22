@@ -1,14 +1,8 @@
-// Criteria copy of test/templates.test.mjs for #616's shared label
-// (2026-11-18): the same file with every window label in the full
-// format ("9:00 AM – 12:00 PM", "between 10:00 and 11:00 AM").
-// Held out of `npm test` by its name until windowLabel takes the new
-// format; the implementer turns it on, over the live file, with
-//
-//   git mv -f test/templates.criteria.mjs test/templates.test.mjs
-//
-// Changed: every pickup and delivery window, "between"
-// lines included. The confirmed hours of a pre-W11d record
-// ("11 AM – 1 PM", "9 – 11 AM") stay out of scope.
+// The emails in netlify/functions/lib/templates.mjs, customer and farm.
+// Every window label is in the full format since #616's shared label
+// (2026-11-18): "9:00 AM – 12:00 PM", "between 10:00 and 11:00 AM".
+// The confirmed hours of a pre-W11d record ("11 AM – 1 PM", "9 – 11
+// AM") keep their short form.
 
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
