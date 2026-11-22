@@ -239,7 +239,7 @@ docs/              # Runbooks and design notes
 - Template metrics and debug output enabled
 
 **Production** (`bin/prod` + `hugo --gc`):
-1. Installs Dart Sass v1.79.5 to `node_modules/.bin` (all `bin/prod`
+1. Installs Dart Sass v1.108.2 to `node_modules/.bin` (all `bin/prod`
    does; lint and tests run in GitHub Actions)
 2. Hugo processes SCSS via Dart Sass Embedded
 3. PostCSS runs autoprefixer and PurgeCSS
