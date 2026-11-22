@@ -81,7 +81,8 @@ e2e: `cart-fold`.
 which `clearFocusUnder` leaves alone (#619). The two share one
 `WeakSet`, so they move together.
 Unit: `cart-scroll.test.mjs` (`clearBy`).
-e2e: `cart-a11y`, `keyboard`, `checkout-go`, `cart-add-scroll`.
+e2e: `cart-a11y`, `keyboard`, `checkout-go`, `cart-add-scroll`,
+`cart-total-keyboard`.
 
 ### State
 
@@ -298,7 +299,9 @@ Criteria:
 Stay green: `cart-code.test.mjs`, `cart-touch.test.mjs`,
 `cart-scroll.test.mjs`.
 e2e: `cart-lines`, `cart-a11y`, `cart-fold`, `cart-way`,
-`cart-motion`, `keyboard`, `checkout-go`, `order-page`.
+`cart-motion`, `keyboard`, `checkout-go`, `order-page`, and, for
+`focusAfterScroll` (2026-11-22, #845: added after #812),
+`cart-add-scroll` and `cart-total-keyboard`.
 
 ### Phase 4: the sheet's motion
 
