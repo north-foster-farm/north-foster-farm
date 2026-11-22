@@ -74,15 +74,18 @@ test.describe("a post's footer (#483)", () => {
         { name: MORE })).toBeVisible();
     });
 
+  // #566: on the home page the archive link moved out of the card, to
+  // under the thumbnails beside it; the sign-up still closes the post.
   test("closes the latest post on the home page, once",
     async ({ page }) => {
       await page.goto("/");
 
-      const footer = page.locator(".home-update .news-footer");
+      const footer = page.locator(".home-update-card .news-footer");
 
       await expect(footer.getByRole("link", { name: SIGN_UP }))
         .toHaveAttribute("href", "#farm-list-footer-email");
-      await expect(footer.getByRole("link", { name: MORE }))
+      await expect(page.locator(".home-update")
+        .getByRole("link", { name: MORE }))
         .toHaveJSProperty("pathname", "/news/");
       await expect(page.getByRole("link", { name: MORE })).toHaveCount(1);
       await expect(page.getByRole("link", { name: "More news and updates" }))
