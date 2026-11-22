@@ -216,7 +216,6 @@
     height: 1px;
     margin: 0;
     overflow: hidden;
-    clip: rect(0 0 0 0);
     clip-path: inset(50%);
   }
 
@@ -600,18 +599,13 @@
   // the cart is a distinct floating panel with an accent along its
   // top. From lg the cards, chevron and column layout come back.
   @media (max-width: 991.98px) {
-    & {
-      --order-topbar-h: 3.5rem;
-      --order-gutter: 1.25rem;
+    --order-topbar-h: 3.5rem;
+    --order-gutter: 1.25rem;
 
-      // A phone turned sideways: clear of the notch and the Dynamic
-      // Island (viewport-fit=cover), the bar still bleeding to the
-      // glass.
-      --order-edge-l: max(var(--order-gutter), env(safe-area-inset-left, 0px));
-      --order-edge-r: max(
-        var(--order-gutter), env(safe-area-inset-right, 0px)
-      );
-    }
+    // A phone turned sideways: clear of the notch and the Dynamic
+    // Island (viewport-fit=cover), the bar still bleeding to the glass.
+    --order-edge-l: max(var(--order-gutter), env(safe-area-inset-left, 0px));
+    --order-edge-r: max(var(--order-gutter), env(safe-area-inset-right, 0px));
 
     // Room at the sides, less of it on a phone.
     .order-page {
@@ -626,9 +620,7 @@
     }
 
     @media (max-width: 575.98px) {
-      & {
-        --order-gutter: 1rem;
-      }
+      --order-gutter: 1rem;
     }
 
     // 56px exactly, the name centered in it (O6); the total button
