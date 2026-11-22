@@ -484,7 +484,8 @@
         "e2e/venmo-restart.spec.mjs",
         "e2e/wallets.spec.mjs",
         "e2e/window-label.spec.mjs",
-        "e2e/wording.spec.mjs"
+        "e2e/wording.spec.mjs",
+        "e2e/order-kept.spec.mjs"
       ],
       "pages": [
         "/order/"
@@ -1731,6 +1732,14 @@
       ],
       "specs": [
         "e2e/news.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/order-kept.spec.mjs"
+      ],
+      "specs": [
+        "e2e/order-kept.spec.mjs"
       ]
     },
     {
