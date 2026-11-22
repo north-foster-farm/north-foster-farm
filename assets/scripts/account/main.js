@@ -1553,8 +1553,9 @@ class Account {
       // A buying group's member (#471) moves a round order among the
       // group's open rounds, which /api/dates never lists: the
       // account's group is asked for them. They are Group orders'
-      // (#749, #762), never among the pick-up days.
-      if (ok && this.customer && this.customer.memberGroup) {
+      // (#749, #762), never among the pick-up days. A host is a member
+      // that /api/me names but the record never does (#772).
+      if (ok && this.customer && (this.customer.memberGroup || this.member)) {
         const mine = await api("/api/group", { method: "POST", body: {} })
           .catch(() => ({ ok: false, data: null }));
 

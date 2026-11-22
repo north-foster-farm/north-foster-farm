@@ -355,8 +355,10 @@ export class OrderForm {
       this.refresh();
     }
     // A buying group's member (#471) needs no code: the account's
-    // group is asked for, and its pickup and prices follow.
-    if (who.customer.memberGroup && !this.member && !this.editing) {
+    // group is asked for, and its pickup and prices follow. Its host is
+    // a member by /api/me's `member` alone, with no `memberGroup` (#772).
+    if ((who.customer.memberGroup || who.member) && !this.member
+      && !this.editing) {
       this.applyGroup("").catch(() => {});
     }
     // Credit kept after leaving a group (#495): it comes off any order
@@ -474,7 +476,7 @@ export class OrderForm {
 
     this.dates.load();
     // A member's change is offered the group's rounds (#749).
-    if (customer.memberGroup) this.editRounds();
+    if (customer.memberGroup || (who && who.member)) this.editRounds();
     this.applyCode({ quiet: true });
     this.refresh();
     this.stock.start();
