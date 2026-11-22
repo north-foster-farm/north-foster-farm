@@ -24,6 +24,7 @@ import {
 import terms from "../../netlify/functions/lib/terms.mjs";
 import { CUSTOMER, ORDER, dates } from "./canned.mjs";
 import { OrderPage, expect } from "./order.mjs";
+import { clearSession } from "./staging.mjs";
 
 export const VFF = groupOf("vff");
 export const GYM = terms.model.location(VFF.location);
@@ -107,7 +108,7 @@ export const signIn = async (page, baseURL, me, {
 } = {}) => {
   await page.goto("about:blank");
   await page.unrouteAll({ behavior: "ignoreErrors" });
-  await page.context().clearCookies();
+  await clearSession(page.context());
   await page.route("**/api/dates", (route) => route.fulfill({ json: lists }));
   if (!me) return;
   stamps += 1;

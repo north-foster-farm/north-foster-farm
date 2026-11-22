@@ -29,6 +29,7 @@
 import groupData from "../data/groups.json" with { type: "json" };
 import { CUSTOMER, cannedDates } from "./support/canned.mjs";
 import { OrderPage, expect, settleCart, test } from "./support/order.mjs";
+import { clearSession } from "./support/staging.mjs";
 
 const WIDTHS = [390, 1440];
 const HEIGHT = 900;
@@ -58,7 +59,7 @@ let stamps = 0;
 // one's perks. `extra` adds to /api/me's answer.
 const signIn = async (page, baseURL, perks, extra = {}) => {
   await page.unrouteAll({ behavior: "ignoreErrors" });
-  await page.context().clearCookies();
+  await clearSession(page.context());
   await page.goto("about:blank");
   stamps += 1;
   await page.context().addCookies([

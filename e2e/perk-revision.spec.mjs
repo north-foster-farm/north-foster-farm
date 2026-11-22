@@ -29,6 +29,7 @@ import groupData from "../data/groups.json" with { type: "json" };
 import { CUSTOMER, cannedDates } from "./support/canned.mjs";
 import { TODAY, moneyFor } from "./support/money-day.mjs";
 import { OrderPage, expect, settleCart, test } from "./support/order.mjs";
+import { clearSession } from "./support/staging.mjs";
 
 const FRIENDS = "Friends and family pricing";
 const FAMILY = "Family pricing";
@@ -191,7 +192,7 @@ const openPricing = async (page, baseURL, perks, extra = {}) => {
 // its Delivery card can be read in any season.
 const openPlace = async (page, baseURL, place, perks) => {
   await page.unrouteAll({ behavior: "ignoreErrors" });
-  await page.context().clearCookies();
+  await clearSession(page.context());
   if (perks) await signIn(page, baseURL, perks);
   else await page.goto("about:blank");
   if (perks) {
