@@ -502,6 +502,16 @@ to CSS. Its surface, which the Cart class imports:
   `revealLine(list, row)`, `clearFocusUnder(pane, bar)` -> dispose.
 - Pure and unit tested: `toPx(value, rootFont)`, `restOf({ margin,
   gap, kb })` and `moreShown({ top, height, full })`.
+- The pure parts live in `cart/view/` (2026-11-22, #843: they were
+  in `view.mjs` itself), which `view.mjs` re-exports, so the class
+  and the tests import from it alone: `COLUMN`, `SHORT` and `SHEET`
+  in `queries.mjs`; `toPx` and `restOf` in `units.mjs`; the move's
+  clock (`MOVE_MS`, `MOVE_ID`), its keyframes (`moveFrames`,
+  `fadeFrames`, `paneFrames`, `pillFadeFrames`, `WORD_FRAMES`) and
+  what decides them (`liftShift`, `moves`, `wordsAt`, `FADE_OUT`,
+  `FADE_IN`) in `frames.mjs`; `OWN_MS` and `ownScroll` in
+  `own-scroll.mjs`; `moreShown` in `more.mjs`. The design of the
+  split is `docs/refactors/cart-view.md`.
 
 ### 4.2 Structure
 

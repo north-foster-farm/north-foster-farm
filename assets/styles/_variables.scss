@@ -23,9 +23,10 @@ $cart-more-strip:  1.75rem; // Under the lines: the "more" arrows' own.
 // tabs: a phone upright, or on its side, tablet-wide but too short for
 // the floating panel (#278). Below xl, the rest of the range, 576 up
 // (#274, round 6), is $cart-split: two columns settled, a panel at the
-// foot of the content column floating. cart/view.mjs's SHEET is the
-// first query (2026-11-12, #559: this named an order-form.js SHEET
-// and PANEL that no longer exist).
+// foot of the content column floating. cart/view/queries.mjs's SHEET
+// is the first query (2026-11-12, #559: this named an order-form.js
+// SHEET and PANEL that no longer exist; 2026-11-22, #843: SHEET moved
+// out of cart/view.mjs).
 $cart-sheet: "(max-width: 575.98px), "
   + "(max-width: 1199.98px) and (max-height: 500px)";
 $cart-split: "(min-width: 576px) and (max-width: 1199.98px) "
@@ -34,7 +35,8 @@ $cart-split: "(min-width: 576px) and (max-width: 1199.98px) "
 // Too short for anything to ride along over the page, at any width: a
 // phone on its side, whatever its browser's bars are doing (#274,
 // round 4). The cart stays where it settles and the bars scroll away.
-// order-form.js's SHORT is the same query.
+// cart/view/queries.mjs's SHORT is the same query (2026-11-22, #843:
+// this named an order-form.js SHORT that no longer exists).
 $cart-short: "(max-height: 500px)";
 
 // The cart's Expand/Hide pill: halfway between $gray-100 (its hover)

@@ -12,39 +12,25 @@ import {
   clearBy, keyboardInset, moreStop, visibleArea,
 } from "../lib/cart-scroll.mjs";
 import { strayed, touchKind } from "../lib/cart-touch.mjs";
+import { COLUMN, SHEET, SHORT } from "./view/queries.mjs";
+import { restOf, toPx } from "./view/units.mjs";
+import {
+  CHROME, FADE_IN, FADE_OUT, MOVE_EASE, MOVE_ID, MOVE_MS, WORD_FRAMES,
+  fadeFrames, liftShift, moveFrames, moves, paneFrames, pillFadeFrames,
+  wordsAt,
+} from "./view/frames.mjs";
+import { OWN_MS, ownScroll } from "./view/own-scroll.mjs";
+import { moreShown } from "./view/more.mjs";
 
-// The width and height classes the state reads. The stylesheet's
-// $cart-short and the xl breakpoint are the same queries.
-export const COLUMN = "(min-width: 1200px)";
-export const SHORT = "(max-height: 500px)";
-// The one-column sheet: the stylesheet's $cart-sheet. The rules for a
-// scroll (#559) and the motion of its parts are the sheet's alone; the
-// tablet's panel keeps its own.
-export const SHEET = "(max-width: 575.98px), "
-  + "(max-width: 1199.98px) and (max-height: 500px)";
-
-const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-// A CSS length from a custom property, as pixels: "9.25rem", "148px"
-// or a bare number. `rootFont` is the root's font size in px.
-export const toPx = (value, rootFont = 16) => {
-  const text = String(value || "").trim();
-  const n = parseFloat(text);
-
-  if (!Number.isFinite(n)) return 0;
-  if (text.endsWith("rem")) return n * rootFont;
-  if (text.endsWith("em")) return n * rootFont;
-
-  return n;
+// The pure parts live in view/ (docs/refactors/cart-view.md); this
+// module is still the one door to them.
+export {
+  COLUMN, SHORT, SHEET, toPx, restOf, OWN_MS, ownScroll, MOVE_MS, MOVE_ID,
+  FADE_OUT, FADE_IN, moveFrames, fadeFrames, paneFrames, liftShift,
+  pillFadeFrames, moves, WORD_FRAMES, wordsAt, moreShown,
 };
 
-// What the floating pane rests on, from the foot of the layout
-// viewport: the margin, the toolbar's gap and the keyboard. The safe
-// area, which only CSS can read, is the one term left out, so a
-// threshold built on this is off by it on a phone with a home
-// indicator and Safari's bar hidden: the seam moves by that much and
-// nothing else does.
-export const restOf = ({ margin = 8, gap = 0, kb = 0 }) => margin + gap + kb;
+const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 const rootFont = () => parseFloat(
   getComputedStyle(document.documentElement).fontSize
@@ -234,23 +220,11 @@ export const watchPlacement = (pane, slot, { bar: given, look }) => {
   };
 };
 
-// Whether a page scroll is the person's own (#559): one that follows
-// a finger, a wheel or a scrolling key outside the pane, or the
-// momentum that carries on from one. A scroll the page makes (Proceed
-// to checkout, the bar's total going back to the cart, Tab moving a
-// field clear of the pane, the code field coming into view) has none
-// of those before it. Inside the pane a touch or a wheel scrolls the
-// pane, never the page (overscroll-behavior: contain).
+// The keys that scroll the page, for whether a scroll is the person's
+// own (view/own-scroll.mjs).
 const SCROLL_KEYS = new Set([
   "ArrowDown", "ArrowUp", "PageDown", "PageUp", "Home", "End", " ",
 ]);
-
-// How long after the person's last input, or the last scroll that was
-// theirs, a scroll still counts: momentum sends one a frame.
-export const OWN_MS = 150;
-
-export const ownScroll = ({ now, input, last, touching }) => touching
-  || now - input < OWN_MS || now - last < OWN_MS;
 
 // Calls `look({ y, counts })` once a frame while the page scrolls, and
 // `onMove` at once on the first sign of a scroll (a finger moving, a
@@ -365,29 +339,7 @@ export const animateFold = (pane, apply, { reduce = reduced() } = {}) => {
   });
 };
 
-// The sheet's one rule for motion (#559): the contents and the
-// container move together. The pane is never given a height. Each
-// part that comes, goes or changes size eases its own box between its
-// two sizes, every part on one curve and one clock from the same
-// frame, so the pane, which is only as tall as its parts, moves with
-// them on every frame. A part that goes stays drawn as it was until it
-// has shrunk to nothing, and is faded out early on; one that comes
-// grows from nothing and fades in late (fadeFrames). The pane's own
-// padding and borders, Clear cart, and on a lift-off the pane's place
-// (paneFrames) ease on the same clock. The body's parts ease their
-// height; the foot's two buttons ease their width, Expand or Hide
-// coming and going on a settle or a lift-off while Proceed to checkout
-// takes or gives its room, so the settled foot becomes the floating
-// one and back.
-// While the parts ease the body is held at its end, should it ever be
-// taller than the room: the total row stays on the foot. Add, remove,
-// clear, Expand, Hide, the minimize on scroll, the settle and the
-// lift-off all go through here; nothing patches one of them alone.
-// Resolves when every part is still. Under reduced motion it applies
-// the change and nothing moves.
-export const MOVE_MS = 420;
-const MOVE_EASE = "cubic-bezier(0.2, 0.8, 0.25, 1)";
-export const MOVE_ID = "cart-move";
+// The foot's buttons, which ease their width in a move.
 const SIDEWAYS = ".order-cart-toggle, .order-cart-next";
 
 const movers = (pane) => [
@@ -442,144 +394,11 @@ const sizeOf = (el) => {
   };
 };
 
-// The keyframes for one part, from its two sizes (pure, for the unit
-// tests). A body part eases its height; a sideways part (a foot
-// button) its flex basis with its growth held, since a flex item's
-// width is its basis. Coming or going, the room it takes besides its
-// size (ROOM: padding, borders, margins, a foot button's gap) eases
-// from or to nothing with it, so the pane's edge, the part and
-// everything under it move on the same curve to the end. Its fade is
-// fadeFrames', on its own timing.
-export const moveFrames = (sideways, was, now) => {
-  const fade = !was.shown || !now.shown;
-  const seen = was.shown ? was : now;
-  const frame = (size, gone) => {
-    const f = sideways
-      ? {
-        flexGrow: 0, flexShrink: 0, flexBasis: `${size}px`, minWidth: "0px",
-        maxWidth: "none",
-      }
-      : { height: `${size}px`, minHeight: "0px", maxHeight: "none" };
-
-    if (!fade) return f;
-    for (const [name, value] of Object.entries(seen.room || {})) {
-      f[name] = gone ? "0px" : value;
-    }
-    if (sideways && gone) {
-      f.marginRight = `${(parseFloat(seen.room?.marginRight) || 0)
-        - (seen.gap || 0)}px`;
-    }
-
-    return f;
-  };
-
-  return [frame(was.size, !was.shown), frame(now.size, !now.shown)];
-};
-
-// Where on the shared curve a fade ends or begins (#559, round 3): what
-// goes is gone by FADE_OUT of the way, and what comes shows from
-// FADE_IN, so old and new contents are never on screen together (the
-// clear's lines faded over the new total row) and a part that comes is
-// most of its height before it shows (Expand's rows looked squeezed
-// under Hide). Offsets on the eased progress: the curve starts fast,
-// so FADE_OUT is about the first 85 ms and FADE_IN about the first
-// 150 ms of MOVE_MS.
-export const FADE_OUT = 0.6;
-export const FADE_IN = 0.75;
-
-// The opacity keyframes for a part that comes or goes (pure, for the
-// unit tests); null for one that stays.
-export const fadeFrames = (was, now) => {
-  if (was.shown === now.shown) return null;
-  if (now.shown) {
-    return [
-      { opacity: 0, offset: 0 },
-      { opacity: 0, offset: FADE_IN },
-      { opacity: 1, offset: 1 },
-    ];
-  }
-
-  return [
-    { opacity: 1, offset: 0 },
-    { opacity: 0, offset: FADE_OUT },
-    { opacity: 0, offset: 1 },
-  ];
-};
-
-// The pane's own room, which a settle or a lift-off changes (the
-// settled pane has no padding, and its border is thinner): eased with
-// the parts on their clock, so the foot's width and the parts' widths
-// move as one (#559, round 3: on a CSS clock of its own, the foot
-// narrowed a frame ahead of its buttons, and Proceed to checkout
-// wrapped onto a row of its own).
-const CHROME = [
-  "paddingTop", "paddingRight", "paddingBottom", "paddingLeft",
-  "borderTopWidth", "borderRightWidth", "borderBottomWidth",
-  "borderLeftWidth", "marginLeft", "marginRight",
-];
-
 const chromeOf = (pane) => {
   const style = getComputedStyle(pane);
 
   return Object.fromEntries(CHROME.map((name) => [name, style[name]]));
 };
-
-// The keyframes for the pane itself (pure, for the unit tests): its
-// room where it changed, and `shift`, how far below its resting place
-// the pane starts, eased away. Null when nothing changes.
-//
-// The shift is the lift-off's (#559, round 3). A floating pane rests
-// on its foot (sticky), so on the frame an open settled cart lifted
-// off, the pane, still as tall as the settled cart, jumped up over the
-// catalog by all the height it had yet to lose, and shrank back down:
-// two carts on screen for a third of a second. Started that far down
-// and eased up as it shrinks, its top stays where the settled cart's
-// was while the lines go and the total row and the foot rise into
-// view, the settle run backwards.
-export const paneFrames = (was, now, shift = 0) => {
-  const from = {};
-  const to = {};
-
-  for (const name of CHROME) {
-    if (was[name] !== undefined && was[name] !== now[name]) {
-      from[name] = was[name];
-      to[name] = now[name];
-    }
-  }
-  if (Math.abs(shift) >= 0.5) {
-    from.translate = `0 ${shift}px`;
-    to.translate = "0 0";
-  }
-
-  return Object.keys(to).length ? [from, to] : null;
-};
-
-// How far below its resting place a floating pane must start so that
-// its top stays where it was (see paneFrames), from its box before the
-// change and after it. 0 when the pane is not floating after it (the
-// settled pane keeps its top in the flow) or the shift is under half a
-// pixel.
-export const liftShift = ({ wasTop, wasHeight, nowBottom, floating }) => {
-  if (!floating) return 0;
-
-  const shift = wasTop - (nowBottom - wasHeight);
-
-  return Math.abs(shift) < 0.5 ? 0 : shift;
-};
-
-// The opacity keyframes for Clear cart (pure, for the unit tests): one
-// that goes fades over the whole move, and one that comes as a part
-// does. It stands astride the pane's top edge, over the padding, so it
-// shares no room with what comes and needs no early fade. By FADE_OUT
-// it was gone in about 73 ms, less than one frame gap of WebKit on CI,
-// so the per-frame spec saw a cut, and on a phone it was 4 frames.
-export const pillFadeFrames = (was, now) => (was.shown && !now.shown
-  ? [{ opacity: 1, offset: 0 }, { opacity: 0, offset: 1 }]
-  : fadeFrames(was, now));
-
-// Whether a part moves, from its two sizes: half a pixel is rounding.
-export const moves = (was, now) => (was.shown || now.shown)
-  && Math.abs(was.size - now.size) >= 0.5;
 
 // The part eases running on the pane, for stilled() and the specs.
 export const moving = (pane) => pane.getAnimations({ subtree: true })
@@ -638,23 +457,6 @@ const movePill = (el, was, now, timing) => {
   };
 };
 
-// The opacity keyframes for words that change with a move (pure, for
-// the unit tests): the old words go as a part that goes (gone by
-// FADE_OUT), and the new ones come as a part that comes (from FADE_IN).
-export const WORD_FRAMES = [
-  { opacity: 1, offset: 0 },
-  { opacity: 0, offset: FADE_OUT },
-  { opacity: 0, offset: FADE_IN },
-  { opacity: 1, offset: 1 },
-];
-
-// The words the swap puts in, from the ease's progress on the shared
-// curve (pure, for the unit tests): the old ones until they have faded
-// to nothing, the new ones after.
-export const wordsAt = (progress, was, now) => (
-  progress !== null && progress < FADE_OUT ? was : now
-);
-
 // Swaps the words of a control with a move, Hide's or Expand's (#559,
 // round 3): the old words fade out with what goes, the new ones are put
 // in while nothing shows and fade in with what comes. On the clear,
@@ -704,6 +506,26 @@ export const swapWords = (el, text, { reduce = reduced() } = {}) => {
 // The words a control is showing or on its way to (see swapWords).
 export const wordsOf = (el) => el.wantWords ?? el.textContent;
 
+// The sheet's one rule for motion (#559): the contents and the
+// container move together. The pane is never given a height. Each
+// part that comes, goes or changes size eases its own box between its
+// two sizes, every part on one curve and one clock from the same
+// frame, so the pane, which is only as tall as its parts, moves with
+// them on every frame. A part that goes stays drawn as it was until it
+// has shrunk to nothing, and is faded out early on; one that comes
+// grows from nothing and fades in late (fadeFrames). The pane's own
+// padding and borders, Clear cart, and on a lift-off the pane's place
+// (paneFrames) ease on the same clock. The body's parts ease their
+// height; the foot's two buttons ease their width, Expand or Hide
+// coming and going on a settle or a lift-off while Proceed to checkout
+// takes or gives its room, so the settled foot becomes the floating
+// one and back.
+// While the parts ease the body is held at its end, should it ever be
+// taller than the room: the total row stays on the foot. Add, remove,
+// clear, Expand, Hide, the minimize on scroll, the settle and the
+// lift-off all go through here; nothing patches one of them alone.
+// Resolves when every part is still. Under reduced motion it applies
+// the change and nothing moves.
 export const moveParts = (pane, apply, { reduce = reduced() } = {}) => {
   const parts = movers(pane);
   const was = parts.map(sizeOf);
@@ -872,15 +694,6 @@ export const shutShare = (part, apply, { reduce = reduced() } = {}) => {
 
   return part.shutting;
 };
-
-// Which "more" arrows show (#560): one wherever any part of the list
-// lies past that edge, even a line only half under its fade. No count:
-// counting whole rows missed the ones the fades half hide. A pixel's
-// allowance at each end: iOS can rest a list at a fractional scrollTop.
-export const moreShown = ({ top, height, full }) => ({
-  up: top > 1,
-  down: top + height < full - 1,
-});
 
 // The "more" arrows and the fades at the list's edges, kept in step
 // with the list's own scrolling and size. `wrap` is the scroller
