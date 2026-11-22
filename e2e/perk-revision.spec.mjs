@@ -123,6 +123,14 @@ const signInAnswers = (perks, extra) => ({
 // keep the suite's own (hideToolbar's stub of /api/staging/**, the
 // stock pins).
 const SIGN_IN_ROUTES = Object.keys(signInAnswers([], {}));
+// The route cannedDates (support/canned.mjs) adds.
+const DATES_ROUTE = "**/api/dates";
+
+// Drops the routes a helper here added before it adds them again:
+// signIn's, and any of `more`.
+const dropOwnRoutes = (page, more = []) => Promise.all(
+  [...SIGN_IN_ROUTES, ...more].map((url) => page.unroute(url))
+);
 
 // Signed in as the canned customer, holding `perks`; as in
 // e2e/perk-label.spec.mjs, each sign-in takes a new session stamp so
@@ -143,7 +151,7 @@ const signIn = async (page, baseURL, perks, extra = {}) => {
 // -> { order, note, badge, beside }: the perk line, the free delivery
 // badge, and the buttons in the badge's list item but the badge.
 const openCart = async (page, baseURL, perks, extra = {}) => {
-  await Promise.all(SIGN_IN_ROUTES.map((url) => page.unroute(url)));
+  await dropOwnRoutes(page);
   await signIn(page, baseURL, perks, extra);
   await page.addInitScript(() => {
     try {
@@ -180,7 +188,7 @@ const openCart = async (page, baseURL, perks, extra = {}) => {
 // customer with nothing to show there may have no row in sight, so
 // with no perk and no group it waits for the account alone.
 const openPricing = async (page, baseURL, perks, extra = {}) => {
-  await page.unrouteAll({ behavior: "ignoreErrors" });
+  await dropOwnRoutes(page, [DATES_ROUTE]);
   await signIn(page, baseURL, perks, extra);
   await cannedDates(page);
   await page.goto("/account/#settings");
@@ -199,7 +207,7 @@ const openPricing = async (page, baseURL, perks, extra = {}) => {
 // market season (home.spec.mjs owns that swap); it is shown here so
 // its Delivery card can be read in any season.
 const openPlace = async (page, baseURL, place, perks) => {
-  await page.unrouteAll({ behavior: "ignoreErrors" });
+  await dropOwnRoutes(page);
   await clearSession(page.context());
   if (perks) await signIn(page, baseURL, perks);
   else await page.goto("about:blank");
