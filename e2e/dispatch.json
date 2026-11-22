@@ -749,7 +749,10 @@
         "assets/styles/components/_account.scss"
       ],
       "specs": [
+        "e2e/account-arrivals.spec.mjs",
+        "e2e/account-orders-pinned.spec.mjs",
         "e2e/account-rounds.spec.mjs",
+        "e2e/account-settings.spec.mjs",
         "e2e/account-tabs.spec.mjs",
         "e2e/account.spec.mjs",
         "e2e/busy-buttons.spec.mjs",
@@ -2238,6 +2241,30 @@
       ],
       "specs": [
         "e2e/wording.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/account-settings.spec.mjs"
+      ],
+      "specs": [
+        "e2e/account-settings.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/account-orders-pinned.spec.mjs"
+      ],
+      "specs": [
+        "e2e/account-orders-pinned.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/account-arrivals.spec.mjs"
+      ],
+      "specs": [
+        "e2e/account-arrivals.spec.mjs"
       ]
     }
   ]
