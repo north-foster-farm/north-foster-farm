@@ -1,8 +1,10 @@
 # Compacting staging for main
 
 > **A record, not a runbook (2026-11-01, #494).** Nothing links here
-> and nothing below is to be followed: `main` now moves only by a
-> release branch (`docs/security.md`, "Fast-forward only"). Delete
+> and nothing below is to be followed: `main` now moves by a
+> fast-forward to a plain release branch ("Releasing to `main`" in
+> `docs/cloud-lanes.md`; 2026-11-22: this pointed at the merge-commit
+> release branch, which linear history refuses). Delete
 > this file once James no longer wants the record.
 
 > **Superseded for the launch (James, 2026-10-26).** `main` does not
