@@ -480,6 +480,7 @@
         "e2e/optin-section.spec.mjs",
         "e2e/order-draft-date.spec.mjs",
         "e2e/order-layout.spec.mjs",
+        "e2e/order-locked.spec.mjs",
         "e2e/order-page.spec.mjs",
         "e2e/order-scheduled.spec.mjs",
         "e2e/order-topbar-scroll.spec.mjs",
@@ -596,6 +597,7 @@
         "e2e/optin-section.spec.mjs",
         "e2e/order-draft-date.spec.mjs",
         "e2e/order-layout.spec.mjs",
+        "e2e/order-locked.spec.mjs",
         "e2e/order-page.spec.mjs",
         "e2e/order-scheduled.spec.mjs",
         "e2e/order-topbar-scroll.spec.mjs",
@@ -827,6 +829,7 @@
         "e2e/missed-delivery.spec.mjs",
         "e2e/onfarm-times.spec.mjs",
         "e2e/order-link-shape.spec.mjs",
+        "e2e/order-locked.spec.mjs",
         "e2e/overflow.spec.mjs",
         "e2e/perk-label.spec.mjs",
         "e2e/perk-revision.spec.mjs",
@@ -871,6 +874,7 @@
         "e2e/membership-layout.spec.mjs",
         "e2e/membership.spec.mjs",
         "e2e/missed-delivery.spec.mjs",
+        "e2e/order-locked.spec.mjs",
         "e2e/overflow.spec.mjs",
         "e2e/scheduled-pickup.spec.mjs",
         "e2e/search.spec.mjs",
@@ -1749,6 +1753,14 @@
       ],
       "specs": [
         "e2e/kept-thursday.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/order-locked.spec.mjs"
+      ],
+      "specs": [
+        "e2e/order-locked.spec.mjs"
       ]
     },
     {
