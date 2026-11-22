@@ -25,8 +25,10 @@
       {{/* Each with its icon before its word (#703 revision): Lucide's
            copy, and Map the same Tabler external-link the "(map)"
            links show (order/map-link.html). Copy's word is a span of
-           its own, so "Copied" leaves the icon alone. */}}
-      <button type="button" class="btn btn-sm btn-outline-primary order-pickup-copy">{{ partial "svg.html" (dict "src" "icons/copy" "class" "order-pickup-icon" "aria-hidden" "true") }}<span class="order-pickup-copy-text">Copy</span></button>
+           its own, so "Copied" leaves the icon alone; the ghost after
+           it, empty at rest, holds the word it leaves while that fades
+           out. */}}
+      <button type="button" class="btn btn-sm btn-outline-primary order-pickup-copy">{{ partial "svg.html" (dict "src" "icons/copy" "class" "order-pickup-icon" "aria-hidden" "true") }}<span class="order-pickup-copy-text">Copy</span><span class="order-pickup-copy-ghost" aria-hidden="true"></span></button>
       <span class="visually-hidden order-pickup-copied" role="status"></span>
       <a class="btn btn-sm btn-outline-primary order-pickup-map" target="_blank" rel="noopener">{{ partial "svg.html" (dict "src" "icons/external-link" "class" "order-pickup-icon" "aria-hidden" "true") }}Map<span class="visually-hidden"> (opens in a new tab)</span></a>
     </span>
@@ -46,7 +48,8 @@
       <span class="order-pickup-address"><span class="order-pickup-street"></span><span class="order-pickup-city"></span></span>
     </label>
     <span class="order-pickup-actions">
-      <button type="button" class="btn btn-sm btn-outline-primary order-pickup-copy">{{ partial "svg.html" (dict "src" "icons/copy" "class" "order-pickup-icon" "aria-hidden" "true") }}<span class="order-pickup-copy-text">Copy</span></button>
+      {{/* The same Copy as tpl-pickup's, its ghost included. */}}
+      <button type="button" class="btn btn-sm btn-outline-primary order-pickup-copy">{{ partial "svg.html" (dict "src" "icons/copy" "class" "order-pickup-icon" "aria-hidden" "true") }}<span class="order-pickup-copy-text">Copy</span><span class="order-pickup-copy-ghost" aria-hidden="true"></span></button>
       <span class="visually-hidden order-pickup-copied" role="status"></span>
       <a class="btn btn-sm btn-outline-primary order-pickup-map" target="_blank" rel="noopener">{{ partial "svg.html" (dict "src" "icons/external-link" "class" "order-pickup-icon" "aria-hidden" "true") }}Map<span class="visually-hidden"> (opens in a new tab)</span></a>
     </span>
