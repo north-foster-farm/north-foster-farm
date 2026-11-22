@@ -22,6 +22,9 @@ import { holderOf } from "./amend.mjs";
 import { restoreCredit } from "./credit.mjs";
 import { audit, noteJoin } from "./group-log.mjs";
 import { GROUPS, groupOf, memberKeyOf } from "./groups.mjs";
+import {
+  HASHED, addressHash, listAddressed, segmentAddress,
+} from "./address-key.mjs";
 import { log } from "./log.mjs";
 import { devEmails, sendMail } from "./mail.mjs";
 import { maskEmail, maskIn } from "./mask.mjs";
@@ -31,8 +34,9 @@ import {
 } from "./payments.mjs";
 import * as paypalApi from "./paypal.mjs";
 import {
-  OPEN, allCustomers, allOrders, amendOrder, answerQuestion, byEmailKey,
-  cartKey, deleteCustomer, deleteOrder, dueOn, getCustomer, getOrder, keptFee,
+  OPEN, allCustomers, allOrders, amendOrder, answerQuestion, cartKey,
+  deleteByEmail, deleteCustomer, deleteOrder, dueOn, getCartOf, getCustomer,
+  getOrder, keptFee,
   listCheckouts, moveStatus, ordersFor, paidByHand, paidTotal, paymentRef,
   paymentsOf, questionOpen, refundedTotal, saveCustomer, setStatus,
   settledRefunds,
@@ -304,7 +308,7 @@ export const renameCustomer = async (stores, from, to, {
   // the old address as its email or, a change link, as changeFrom.
   const auth = await authRecordsFor(stores, old);
 
-  const support = await stores.customers.list(`support/${old}/`);
+  const support = await listAddressed(stores.customers, "support", old);
   const count = (prefix) => auth.filter((a) => a.key.startsWith(prefix))
     .length;
   const report = {
@@ -340,11 +344,15 @@ export const renameCustomer = async (stores, from, to, {
     await amendOrder(stores, order.id, {
       customer: { ...order.customer, email: next },
     }, "email changed", now);
-    await stores.orders.delete(byEmailKey(old, order.id));
+    await deleteByEmail(stores, old, order.id);
   }
   for (const { key } of support) {
-    await stores.customers.set(`support/${next}/${key.split("/").pop()}`,
-      await stores.customers.get(key));
+    const message = await stores.customers.get(key);
+
+    await stores.customers.set(
+      `support/${addressHash(next)}/${key.split("/").pop()}`,
+      message && message.email ? { ...message, email: next } : message
+    );
     await stores.customers.delete(key);
   }
   for (const { key, value } of auth) {
@@ -363,7 +371,7 @@ export const renameCustomer = async (stores, from, to, {
     await stores.auth.set(`change-rate/${next}`, spent);
     await stores.auth.delete(`change-rate/${old}`);
   }
-  const cart = await stores.customers.get(cartKey(old));
+  const cart = await getCartOf(stores, old);
 
   if (cart) await stores.customers.set(cartKey(next), cart);
   await deleteCustomer(stores, old);
@@ -1112,7 +1120,7 @@ export const resolveReturn = async (stores, id, returnId, {
 // Messages
 
 // Every message to the farm, from the contact page (`messages/<id>`)
-// and the account page's help form (`support/<email>/<id>`), in one
+// and the account page's help form (`support/<hash>/<id>`), in one
 // shape, oldest first; only the open ones unless `all`. `order` is
 // whether the order number is one the writer placed, null when none
 // was given or when the help form sent it (it offers only the
@@ -1136,8 +1144,15 @@ export const listMessages = async (stores, { all = false } = {}) => {
     const m = await stores.customers.get(key);
 
     if (m) {
-      const email = key.slice("support/".length, key.lastIndexOf("/"));
-      const customer = await getCustomer(stores, email);
+      // The address is in the message; one written before #758 has it
+      // only in its key, and one moved by `customers rekey` in the
+      // record its hashed key also names.
+      const segment = key.slice("support/".length, key.lastIndexOf("/"));
+      const named = HASHED.test(segment)
+        ? await stores.customers.get(`customer/${segment}`) : null;
+      const email = m.email || (named && named.email)
+        || (HASHED.test(segment) ? "" : segmentAddress(segment));
+      const customer = email ? await getCustomer(stores, email) : null;
 
       found.push({
         id: m.id, from: "help", at: m.at, status: m.status,

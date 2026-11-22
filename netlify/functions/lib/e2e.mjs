@@ -14,7 +14,7 @@ import {
 } from "./admin.mjs";
 import { requestLink } from "./auth.mjs";
 import { MAX_OFFSET } from "./clock.mjs";
-import { balanceOf, creditKey, grantCredit } from "./credit.mjs";
+import { balanceOf, deleteLedger, grantCredit } from "./credit.mjs";
 import { getGroupRecord, joinGroup, setGroupCode } from "./groups.mjs";
 import terms from "./terms.mjs";
 import { runJobs } from "./jobs.mjs";
@@ -296,7 +296,7 @@ export const OPS = {
   },
   // The spec's credit, spent or not, gone when the run is done.
   creditClear: async (stores, { email }) => {
-    await stores.customers.delete(creditKey(need(email, "email")));
+    await deleteLedger(stores, need(email, "email"));
 
     return { removed: true };
   },

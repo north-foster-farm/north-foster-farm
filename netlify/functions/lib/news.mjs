@@ -22,9 +22,9 @@ import { log } from "./log.mjs";
 import { sendMail } from "./mail.mjs";
 import { maskEmail } from "./mask.mjs";
 import { resendAllowed, resendRefusal } from "./resend-guard.mjs";
-import { creditKey } from "./credit.mjs";
+import { readAddressed } from "./address-key.mjs";
 import {
-  SCHEMA_DEFAULTS, allCustomers, cartKey, consentLog, deleteCustomer,
+  SCHEMA_DEFAULTS, allCustomers, consentLog, deleteCustomer,
   getCustomer, ordersFor, saveCustomer,
 } from "./records.mjs";
 import { customerEmailWithheld } from "./payments.mjs";
@@ -669,8 +669,8 @@ export const removeImported = async (stores, email, {
 
   if (imported && importMade(customer)
     && !(await ordersFor(stores, address)).length
-    && !await stores.customers.get(creditKey(address))
-    && !await stores.customers.get(cartKey(address))) {
+    && !await readAddressed(stores.customers, "credit", address)
+    && !await readAddressed(stores.customers, "cart", address)) {
     report.outcome = "deleted";
   } else {
     if (imported) report.cleared.push("marketing");

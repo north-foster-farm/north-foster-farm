@@ -11,7 +11,7 @@ import {
 } from "../../assets/scripts/utils/field-errors.mjs";
 import {
   clearCookieHeader, clearStampHeader, cookieHeader, createSession,
-  endSession, hasStamp, normalizeEmail, peekToken, publicCustomer,
+  endSession, hasStamp, peekToken, publicCustomer, receivedEmail,
   requestLink, safeNext, sameSite, sessionFrom, stampHeader, tokenEmail,
   verifyToken,
 } from "./lib/auth.mjs";
@@ -22,7 +22,8 @@ import { buyingGroupOf, namedGroup } from "./lib/groups.mjs";
 import { finishInvite } from "./lib/invites.mjs";
 import { finishJoin } from "./lib/join.mjs";
 import { roleOf } from "./lib/membership.mjs";
-import { cartKey, cartOwner } from "./lib/records.mjs";
+import { deleteAddressed } from "./lib/address-key.mjs";
+import { cartOwner } from "./lib/records.mjs";
 import { now as clock, real } from "./lib/clock.mjs";
 import { json, noCopy, readJson } from "./lib/http.mjs";
 import { log, withLog } from "./lib/log.mjs";
@@ -66,7 +67,7 @@ const carryCart = async (stores, email, cart, now) => {
     if (stored && stored.payload && (stored.payload.lines || []).length) {
       return;
     }
-    if (stored) await stores.customers.delete(cartKey(email));
+    if (stored) await deleteAddressed(stores.customers, "cart", email);
     await saveCart(stores, { email }, cart, { now });
   } catch (error) {
     log.warn({ event: "auth.cart-failed", error: error.message });
@@ -95,7 +96,10 @@ export const handle = async (req, {
     // An admin address may still ask for a link, so an admin with no
     // session can get in to test; the link goes only to that mailbox.
     const body = await readJson(req);
-    const admin = body && isAdminAddress(normalizeEmail(body.email), env);
+    // Decoded once, cleaned and checked (#758): "" when it fails, which
+    // requestLink refuses as invalid.
+    const email = (body && receivedEmail(body.email)) || "";
+    const admin = isAdminAddress(email, env);
     const closed = admin ? null : await gate(stores);
 
     if (closed) return closed;
@@ -108,7 +112,9 @@ export const handle = async (req, {
       return json(200, { ok: true });
     }
 
-    const result = await requestLink(stores, body, { now, env, mail });
+    const result = await requestLink(stores, { ...body, email }, {
+      now, env, mail,
+    });
 
     if (!result.ok && result.reason === "invalid") {
       return json(422, {

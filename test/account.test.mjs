@@ -21,11 +21,15 @@ import {
 import {
   getCustomer, getOrder, saveCustomer, saveOrder, setStatus,
 } from "../netlify/functions/lib/records.mjs";
+import { addressHash } from "../netlify/functions/lib/address-key.mjs";
 import { getCounts, setCount } from "../netlify/functions/lib/stock.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
 import { handle } from "../netlify/functions/account.mjs";
 import { instant } from "../assets/scripts/order/lib/zoned.mjs";
 import { AFTERNOON, SCHEDULE } from "./schedule-fixture.mjs";
+
+// Where a customer's support messages are filed (#758).
+const SUPPORT = `support/${addressHash("pat@example.com")}/`;
 
 // A SKU the catalog knows: an order with an unknown one can't change.
 const EGG = "NFF-CHK-EGG-LG";
@@ -841,7 +845,7 @@ describe("returns and support", () => {
     assert.match(sent[0].text, /duck eggs/);
     assert.equal(sent[0].replyTo, "\"Pat Example\" <pat@example.com>",
       "the farm answers by replying, to the customer by name");
-    assert.equal((await stores.customers.list("support/pat@example.com/"))
+    assert.equal((await stores.customers.list(SUPPORT))
       .length, 1);
     sent.length = 0;
     await sendSupport(stores, customerOf(), {
@@ -867,7 +871,7 @@ describe("returns and support", () => {
     assert.match(sent[0].text, /Line one\nline two/,
       "the note keeps its lines");
 
-    const [{ key }] = await stores.customers.list("support/pat@example.com/");
+    const [{ key }] = await stores.customers.list(SUPPORT);
     const filed = await stores.customers.get(key);
 
     assert.equal(filed.subject, "Eggs Bcc: someone@example.com and more");

@@ -783,7 +783,7 @@ Orders are persisted in Netlify Blobs (`netlify/functions/lib/store.mjs`
 is the seam; memory off Netlify) once the money is in, with the Square
 ids and the payment, and a customer record is created or touched by
 email. `lib/records.mjs` owns the documents and the indexes:
-`order/<id>`, `by-email/<email>/<id>`, `open/<id>` for orders the jobs
+`order/<id>`, `by-email/<hash>/<id>`, `open/<id>` for orders the jobs
 still watch (paid), `by-payment/<id>` from the Square payment id and
 the PayPal capture id, for the refund webhooks, and `checkout/<key>`
 with `by-paypal/<id>` for Venmo payments in flight. Statuses: paid,
@@ -857,9 +857,10 @@ wallet or Venmo payment goes out, so the dialog usually comes before
 a wallet opens. A Venmo payment the jobs finish after its time left
 the schedule stands, and alerts the farm (`pickup.lapsed`).
 
-A customer record (`customer/<email>`) keeps the name, phone, avatar,
-pricing group, delivery address and `reminders`, with one reminder
-email, `{ delivery }`, as a boolean; a key that is missing means on,
+A customer record (`customer/<hash>`, base64url SHA-256 of its
+address, #758) keeps the name, phone, avatar, pricing group,
+delivery address and `reminders`, with one reminder email,
+`{ delivery }`, as a boolean; a key that is missing means on,
 so records from before the setting existed behave as they did
 (`REMINDERS` and `reminderPrefs(customer)` in `lib/records.mjs`; a
 `payment` key from the unpaid era may still be on a record, and
@@ -1187,7 +1188,7 @@ Settings, Help) rendered from `GET /api/me` and
   by the CLI. Changing only the drop-off details keeps the decision.
 - Returns: a request on a paid or fulfilled order, recorded under
   `order.returns` and emailed to the farm.
-- Support: stored under `support/<email>/<id>` in the customers store
+- Support: stored under `support/<hash>/<id>` in the customers store
   and emailed to the farm, who replies by email.
 - Settings: first and last name (kept in parts, as the order form
   takes them; `name` is rebuilt from them), phone, avatar, the farm

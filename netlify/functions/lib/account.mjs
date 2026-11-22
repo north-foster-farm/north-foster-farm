@@ -23,6 +23,7 @@ import {
 import {
   phoneOk, zipInfo,
 } from "../../../assets/scripts/order/lib/validate.mjs";
+import { addressHash, dropOldForms } from "./address-key.mjs";
 import { cancelOrder as cancelAndRefund } from "./admin.mjs";
 import { holderOf } from "./amend.mjs";
 import { isGroupRound, placeOf } from "./describe.mjs";
@@ -40,8 +41,9 @@ import { notifyFarm, sendForOrder } from "./payments.mjs";
 import * as paypalApi from "./paypal.mjs";
 import { pickupSchedule } from "./pickups.mjs";
 import {
-  REMINDERS, amendOrder, answerQuestion, cartKey, cartOwner, dueOn, getOrder,
-  keptFee, ordersFor, paidByHand, paidTotal, paymentRef, paymentsOf,
+  REMINDERS, amendOrder, answerQuestion, cartKey, cartOwner, dueOn,
+  getCartOf, getOrder, keptFee, ordersFor, paidByHand, paidTotal, paymentRef,
+  paymentsOf,
   questionOpen, refundedTotal, reminderPrefs, saveCustomer, settledRefunds,
 } from "./records.mjs";
 import { mailLinks, orderUrlFor } from "./site.mjs";
@@ -679,7 +681,7 @@ export { cartOwner };
 // copy, or null when it has never had one, and the account's tag.
 export const getCart = async (stores, customer) => ({
   ok: true,
-  cart: (await stores.customers.get(cartKey(customer.email))) || null,
+  cart: (await getCartOf(stores, customer.email)) || null,
   owner: cartOwner(customer.email),
 });
 
@@ -711,7 +713,7 @@ export const saveCart = async (stores, customer, body, {
   }
 
   const key = cartKey(customer.email);
-  const stored = await stores.customers.get(key);
+  const stored = await getCartOf(stores, customer.email);
   const at = Math.min(savedAt, now.getTime());
 
   if (stored && stored.savedAt >= at) {
@@ -721,6 +723,7 @@ export const saveCart = async (stores, customer, body, {
   const cart = { payload: b.payload ? cartOf(b.payload) : null, savedAt: at };
 
   await stores.customers.set(key, cart);
+  await dropOldForms(stores.customers, "cart", customer.email);
 
   return { ok: true, cart, kept: true, owner };
 };
@@ -777,8 +780,10 @@ export const sendSupport = async (stores, customer, request, {
 
   const id = shortId();
 
-  await stores.customers.set(`support/${customer.email}/${id}`, {
-    id, at: now.toISOString(), subject, message, orderId, status: "open",
+  // Under the hashed address (#758), the address in the message.
+  await stores.customers.set(`support/${addressHash(customer.email)}/${id}`, {
+    id, at: now.toISOString(), email: customer.email, subject, message,
+    orderId, status: "open",
   });
   await tellFarm(stores, "farmSupport", {
     replyTo: mailbox(customer.name, customer.email),

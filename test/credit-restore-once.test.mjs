@@ -25,7 +25,7 @@ process.env.NODE_ENV = "test";
 
 const { getStore } = await import("@netlify/blobs");
 const {
-  creditBalance, getLedger, grantCredit, heldBy, restoreCredit,
+  creditBalance, creditKey, getLedger, grantCredit, heldBy, restoreCredit,
   spendCredit,
 } = await import("../netlify/functions/lib/credit.mjs");
 const { testStores, wrap } = await import(
@@ -160,7 +160,7 @@ describe("a credit restore (#684)", () => {
 
     // The ledger on a Blobs-backed customers store: the real client
     // and lib/store.mjs's wrap, as on Netlify.
-    const key = `credit/${EMAIL}`;
+    const key = creditKey(EMAIL);
     const stores = {};
     let restorePut = 0;
     let raced = false;

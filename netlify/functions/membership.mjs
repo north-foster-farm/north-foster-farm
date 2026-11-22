@@ -22,7 +22,7 @@
 
 import terms from "./lib/terms.mjs";
 import {
-  normalizeEmail, sameOrigin, sameSite, sessionFrom,
+  receivedEmail, sameOrigin, sameSite, sessionFrom,
 } from "./lib/auth.mjs";
 import { now as clock } from "./lib/clock.mjs";
 import { joinQr } from "./lib/groups.mjs";
@@ -151,10 +151,14 @@ export const handle = async (req, {
 
     if (closed) return closed;
 
-    const email = typeof body.email === "string"
-      ? normalizeEmail(body.email) : "";
+    // Decoded once, cleaned and checked (#758).
+    const email = receivedEmail(body.email);
 
-    if (!email) return json(400, { errors: { email: "Expected an email." } });
+    if (!email) {
+      return json(400, {
+        errors: { email: "Expected a valid email address." },
+      });
+    }
     if (email === session.email) {
       return json(422, { ok: false, message: SELF });
     }

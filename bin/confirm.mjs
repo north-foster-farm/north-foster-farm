@@ -69,6 +69,9 @@ const DESTRUCTIVE = {
   "members sync": { does: "mint member codes and set them in Square for "
     + "the group", unless: "dry-run" },
   "customers rename": { does: "move the account of", apply: true },
+  // Moves records to the key their own address names (#758).
+  "customers rekey": { does: "move misplaced customer records, running",
+    apply: true, whole: true },
   "customers forget": { does: "erase the details of", apply: true },
   "auth backfill-index": {
     does: "index every sign-in record by customer, running", apply: true,

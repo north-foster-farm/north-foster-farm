@@ -1,7 +1,8 @@
 // A buying group's credit (#471): stored value the farm grants a
 // member, the host reward or a share of it (lib/rounds.mjs), spent on
 // a later order alongside member pricing. It is the site's own, in
-// the customers store under `credit/<email>`, never Square's: a
+// the customers store under `credit/<hashed email>` (#758), never
+// Square's: a
 // ledger of grants, each with what has been spent of it, so the
 // books show every dollar and where it went.
 //
@@ -14,11 +15,18 @@
 import {
   instant, parts,
 } from "../../../assets/scripts/order/lib/zoned.mjs";
+import {
+  addressHash, deleteAddressed, dropOldForms, findAddressed, listLatest,
+} from "./address-key.mjs";
 import { getOrder } from "./records.mjs";
 
 const emailOf = (value) => String(value || "").trim().toLowerCase();
 
-export const creditKey = (email) => `credit/${emailOf(email)}`;
+export const creditKey = (email) => `credit/${addressHash(email)}`;
+
+// Every form of a ledger's key, old ones included (#758).
+export const deleteLedger = (stores, email) =>
+  deleteAddressed(stores.customers, "credit", email);
 
 // When a grant made at `now` expires: 11:59 PM on 31 December of the
 // same year, or, for a grant made in December, of the following year
@@ -31,9 +39,12 @@ export const yearEnd = (now, timeZone) => {
     .toISOString();
 };
 
-export const getLedger = async (stores, email) =>
-  (await stores.customers.get(creditKey(email)))
-  || { email: emailOf(email), entries: [] };
+// Under its hashed key, or a key from before the switch (#758).
+export const getLedger = async (stores, email) => {
+  const found = await findAddressed(stores.customers, "credit", email);
+
+  return found ? found.value : { email: emailOf(email), entries: [] };
+};
 
 export const spentOf = (entry) =>
   (entry.spent || []).reduce((s, x) => s + x.amount, 0);
@@ -68,13 +79,20 @@ const swapLedger = async (stores, email, change) => {
 
   for (let i = 0; i < SWAPS; i++) {
     const found = await stores.customers.getTagged(key);
-    const ledger = found ? found.value : { email: emailOf(email), entries: [] };
+    // A ledger still under its old key (#758) is the one to change; the
+    // change is created at the hashed key, which reads take first.
+    const old = found ? null
+      : await findAddressed(stores.customers, "credit", email);
+    const ledger = found ? found.value
+      : (old ? old.value : { email: emailOf(email), entries: [] });
     const next = change(ledger);
 
     if (!next) return ledger;
-    if (!found) {
-      if (await stores.customers.create(key, next)) return next;
-    } else if (await stores.customers.swap(key, next, found.etag)) {
+    if (found ? await stores.customers.swap(key, next, found.etag)
+      : await stores.customers.create(key, next)) {
+      // The hashed ledger replaces any old one (#758, qa on #787).
+      await dropOldForms(stores.customers, "credit", email);
+
       return next;
     }
   }
@@ -271,12 +289,12 @@ export const STRANDED_MS = 24 * 60 * 60_000;
 export const sweepStrandedCredit = async (stores, {
   now = new Date(),
 } = {}) => {
-  const keys = await stores.customers.list("credit/");
   const out = [];
 
-  for (const { key } of keys) {
-    const ledger = await stores.customers.get(key);
-
+  // One ledger per address: a hashed one wins over an old twin (#758).
+  for (const { value: ledger } of await listLatest(
+    stores.customers, "credit"
+  )) {
     if (!ledger || !Array.isArray(ledger.entries)) continue;
 
     const since = new Map();

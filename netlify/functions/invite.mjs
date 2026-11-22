@@ -22,7 +22,7 @@ import {
   perkName, perkParts,
 } from "../../assets/scripts/order/lib/perks.mjs";
 import {
-  normalizeEmail, requestLink, sameSite, validEmail,
+  receivedEmail, requestLink, sameSite,
 } from "./lib/auth.mjs";
 import { now as clock, real } from "./lib/clock.mjs";
 import { json, readJson } from "./lib/http.mjs";
@@ -127,9 +127,10 @@ export const handle = async (req, {
     // address, is told it worked.
     if (body.website || tooManySends(ip, at)) return json(200, { ok: true });
 
-    const email = normalizeEmail(body.email);
+    // Decoded once, cleaned and checked (#758).
+    const email = receivedEmail(body.email);
 
-    if (!validEmail(email)) {
+    if (!email) {
       return json(422, { errors: { email: fieldError("email", body.email) } });
     }
 

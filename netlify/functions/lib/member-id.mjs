@@ -20,6 +20,7 @@
 
 import { randomInt } from "node:crypto";
 
+import { dropOldForms } from "./address-key.mjs";
 import { audit } from "./group-log.mjs";
 import { memberKeyOf } from "./groups.mjs";
 import { log } from "./log.mjs";
@@ -75,9 +76,16 @@ export const ensureMemberId = async (stores, email, {
 }) => {
   for (let n = 0; n < MAX_DRAWS; n++) {
     const found = await stores.customers.getTagged(customerKey(email));
-    const customer = found && found.value;
+    const customer = found ? found.value : await getCustomer(stores, email);
 
     if (!customer) return null;
+    // A record still under its key from before #758: a copy at its
+    // hashed key, made create-only, is the one to change; look again.
+    if (!found && apply) {
+      await stores.customers.create(customerKey(email), customer);
+      await dropOldForms(stores.customers, "customer", email);
+      continue;
+    }
     if (customer.memberId) {
       return { memberId: customer.memberId, minted: false, customer };
     }

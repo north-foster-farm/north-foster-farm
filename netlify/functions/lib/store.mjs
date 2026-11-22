@@ -6,7 +6,7 @@
 //
 // A store holds JSON documents by key and can list keys by prefix.
 // Keys use "/" to build small indexes: `order/<id>`, `open/<id>`,
-// `by-email/<email>/<id>`.
+// `by-email/<hash>/<id>`, an address hashed (lib/address-key.mjs).
 //
 // `create(key, value)` writes only if the key is new and says whether
 // it did: Blobs' `onlyIfNew`, a conditional write the server decides,
