@@ -12,7 +12,6 @@ import { handle } from "../netlify/functions/stock.mjs";
 const THIGHS = "NFF-CHK-THGBN-10-14";   // In stock in the catalog
 const THIGHS_VARIATION = "T366DS6FNIHDC5LVUDI46PXN";
 const THIGHS_NAME = "Bone-In Thighs, 1.0 – 1.4 lbs";
-const EGGS = "NFF-CHK-EGG-LG";           // Always in stock (#511)
 const EGGS_VARIATION = "S7XJNPQUKY6JSYQOEYSL6FYS";
 const SMALL = "NFF-CHK-EGG-SM";          // On hiatus, flagged out
 const MEDIUM = "NFF-CHK-EGG-MD";         // Flagged out in the catalog
@@ -233,55 +232,60 @@ describe("Square's counts", () => {
     });
 });
 
-// Large eggs are always in stock (#511, James, 2026-10-28): no count,
-// no cap and no refusal, whatever Square counts. The farm turns them
-// off by hand.
+// The `alwaysInStock` rule (#511) stays in the code, though no catalog
+// item carries it since #905 (Large eggs are counted): a fixture item
+// of its own keeps it covered. No count, no cap, whatever Square
+// counts; the farm turns it off by hand.
 describe("an item marked always in stock", () => {
-  const square = (n) => async () => ({ [EGGS_VARIATION]: n });
+  const MARKED = "TEST-ALWAYS-IN-STOCK";
+  const MARKED_VARIATION = "TESTALWAYSINSTOCKVARIATION";
+  const marked = (over = {}) => {
+    const catalogIndex = indexCatalog(catalog);
+
+    catalogIndex.set(MARKED, {
+      ...catalogIndex.get(THIGHS), sku: MARKED,
+      squareVariationId: MARKED_VARIATION, inStock: true,
+      alwaysInStock: true, ...over,
+    });
+
+    return catalogIndex;
+  };
+  const square = (n) => async () => ({ [MARKED_VARIATION]: n });
 
   for (const n of [0, 2, 50, -3]) {
     it(`is in stock with no count at Square's ${n}`, async () => {
       const stores = testStores();
       const inventory = square(n);
+      const catalogIndex = marked();
 
-      assert.deepEqual((await availability(stores, { inventory }))[EGGS],
-        { inStock: true, available: null });
+      assert.deepEqual((await availability(stores, {
+        catalogIndex, inventory,
+      }))[MARKED], { inStock: true, available: null });
 
       const res = await handle(new Request("http://x/api/stock"), {
-        stores, inventory,
+        stores, inventory, catalogIndex,
       });
 
-      assert.deepEqual((await res.json()).items[EGGS],
+      assert.deepEqual((await res.json()).items[MARKED],
         { inStock: true, available: null });
-    });
-
-    it(`is never refused for stock at Square's ${n}`, async () => {
-      const check = await checkLines(testStores(),
-        [{ sku: EGGS, qty: 60 }], { inventory: square(n) });
-
-      assert.equal(check.ok, true);
-      assert.deepEqual(check.errors, {});
     });
   }
 
   it("ignores the store's count, which orders still move", async () => {
     const stores = testStores();
 
-    await setCount(stores, EGGS, 1);
-    await adjust(stores, [{ sku: EGGS, qty: 3 }], -1);
-    assert.equal((await getCounts(stores))[EGGS], -2);
-    assert.deepEqual((await availability(stores))[EGGS],
-      { inStock: true, available: null });
+    await setCount(stores, MARKED, 1);
+    await adjust(stores, [{ sku: MARKED, qty: 3 }], -1);
+    assert.equal((await getCounts(stores))[MARKED], -2);
+    assert.deepEqual((await availability(stores, {
+      catalogIndex: marked(),
+    }))[MARKED], { inStock: true, available: null });
   });
 
   it("is out when the catalog flags it off", async () => {
-    const stores = testStores();
-    const catalogIndex = indexCatalog(catalog);
-
-    catalogIndex.set(EGGS, { ...catalogIndex.get(EGGS), inStock: false });
-    assert.deepEqual((await availability(stores, {
-      catalogIndex, inventory: square(50),
-    }))[EGGS], { inStock: false, available: null });
+    assert.deepEqual((await availability(testStores(), {
+      catalogIndex: marked({ inStock: false }), inventory: square(50),
+    }))[MARKED], { inStock: false, available: null });
   });
 
   it("leaves Small and Medium on hiatus and the rest counted",

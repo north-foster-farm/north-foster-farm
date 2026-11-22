@@ -11,8 +11,8 @@
 //   0      soon, seasonal, hiatus, discontinued   hidden    label only
 //   0      hidden, archived                       hidden    hidden
 //
-// A product marked `alwaysInStock` (#511, Large eggs) is orderable at
-// any count, 0 included, while its catalog flag is on.
+// A product marked `alwaysInStock` (#511) is orderable at any count, 0
+// included, while its catalog flag is on. None is marked since #905.
 //
 // Two layers give the result: the server's availability(), then the
 // order page's row rule (order/restock.js) over a row as

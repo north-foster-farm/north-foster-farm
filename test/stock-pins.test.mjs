@@ -17,7 +17,7 @@ import { testStores } from "../netlify/functions/lib/store.mjs";
 import { handle as stagingApi } from "../netlify/functions/staging.mjs";
 import { handle as stockApi } from "../netlify/functions/stock.mjs";
 
-// Thighs, a counted product: Large eggs are never counted (#511).
+// Thighs, a counted product.
 const THIGHS = "NFF-CHK-THGBN-10-14";
 const THIGHS_VARIATION = "T366DS6FNIHDC5LVUDI46PXN";
 const WINGS = "NFF-CHK-WNG-10-19";

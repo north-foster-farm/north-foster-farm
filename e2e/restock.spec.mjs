@@ -27,9 +27,9 @@ const items = catalog.groups.flatMap((g) => g.items);
 // (James's corrections, #274 6330468558). No product is discontinued
 // since #492, which hid the oversized tiers while empty and put the
 // rest back in spring. Since feet went back in stock (9c870287) no
-// "soon" product is out in the catalog. Large eggs are always in
-// stock (#511): no count sells them out, only the farm turning their
-// flag off, so a stub of /api/stock does (stubStock, below).
+// "soon" product is out in the catalog. Large eggs are counted since
+// #905, but these tests sell them out with a stub of /api/stock
+// (stubStock, below), as the farm turning their flag off would.
 const OUT = {
   soon: "NFF-CHK-EGG-LG", // Large eggs: "Returning soon"
   hiatus: "NFF-CHK-SAUSWT", // Sweet Italian Sausage, out in the catalog
@@ -468,8 +468,8 @@ test.describe("restock types (#267)", () => {
       expect(errors.filter((m) => /Blocked/.test(m))).toEqual([]);
     });
 
-  // Large eggs are never counted (#511), and Sweet Italian is out in
-  // the catalog, so the server never counts it in stock; only a stub
+  // Sweet Italian is out in the catalog, so the server never counts
+  // it in stock, and Large eggs ride the same stub; only a stub
   // of /api/stock can say so, and the page's answer to that is what's
   // under test.
   test("stock wins over soon and hiatus",
@@ -491,22 +491,6 @@ test.describe("restock types (#267)", () => {
       }
       await row(page, OUT.hiatus).locator(".order-qty-add").click();
       await expect(new OrderPage(page).count).toHaveText("1 item");
-    });
-
-  // #511: whatever the count, Large eggs show in stock with no count,
-  // and a cart above it keeps its quantity.
-  test("Large eggs are always in stock, with no count or cap",
-    async ({ page, stock }) => {
-      await stock.pin({ [OUT.soon]: 0 });
-      await open(page, { eggs: 8 });
-
-      const r = row(page, OUT.soon);
-
-      await expect(r).toBeVisible();
-      await expect(r).not.toHaveAttribute("data-stock");
-      await expect(r.locator(".order-item-stock")).toHaveText("");
-      await expect(r.locator(`[data-qty="${OUT.soon}"]`)).toHaveValue("8");
-      await expect(new OrderPage(page).count).toHaveText("8 items");
     });
 
   test("a product that sells out mid-visit takes its label",
@@ -730,10 +714,8 @@ test.describe("search and restock types (#267)", () => {
   };
 
   test("lists every non-archived product with its label", async ({
-    page, stock,
+    page,
   }) => {
-    // Large eggs sell at any count (#511), 0 included.
-    await stock.pin({ [OUT.soon]: 0 });
     await page.goto("/about/");
 
     const p = await find(page, "sausage");

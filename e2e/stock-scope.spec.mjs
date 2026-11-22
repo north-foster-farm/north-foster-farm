@@ -10,8 +10,7 @@ import { scopeFor, stockFor, withScope } from "./support/stock.mjs";
 
 test("two scopes pinning one SKU at once each see their own count",
   async ({ playwright, baseURL, storageState }, info) => {
-    // A counted product: Large eggs are `alwaysInStock` (#511) and
-    // never report a count.
+    // A counted product.
     const sku = SKU.thighs;
     const scopes = [scopeFor(info), scopeFor(info)];
     const handles = scopes.map((scope) => stockFor(scope));

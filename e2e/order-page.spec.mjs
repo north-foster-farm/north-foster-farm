@@ -320,8 +320,7 @@ test.describe("order page", () => {
 
   // A stock count of 0 is out of stock too: the row goes, never a
   // sold-out one, and a category it leaves empty goes with its link.
-  // Every thigh goes, a counted category: Large eggs are `alwaysInStock`
-  // (#511) and keep their row at 0.
+  // Every thigh goes, a counted category.
   test("a product whose count reaches 0 loses its row, and its " +
     "category when empty", async ({ page, stock }) => {
     const thighs = catalog.groups.find((g) => g.key === "thighs").items
