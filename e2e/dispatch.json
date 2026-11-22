@@ -168,7 +168,8 @@
         "e2e/top-bar-places.spec.mjs",
         "e2e/top-bar.spec.mjs",
         "e2e/walkthrough-2026-10-24.spec.mjs",
-        "e2e/wording.spec.mjs"
+        "e2e/wording.spec.mjs",
+        "e2e/market-address.spec.mjs"
       ],
       "pages": [
         "/"
@@ -319,7 +320,8 @@
         "e2e/top-bar-places.spec.mjs",
         "e2e/top-bar.spec.mjs",
         "e2e/walkthrough-2026-10-24.spec.mjs",
-        "e2e/wording.spec.mjs"
+        "e2e/wording.spec.mjs",
+        "e2e/market-address.spec.mjs"
       ],
       "pages": [
         "/about/"
@@ -1681,6 +1683,14 @@
       ],
       "specs": [
         "e2e/membership.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/market-address.spec.mjs"
+      ],
+      "specs": [
+        "e2e/market-address.spec.mjs"
       ]
     },
     {

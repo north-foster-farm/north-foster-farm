@@ -592,7 +592,10 @@ $hero-text-shadow: 0 1px 3px rgb(0 0 0 / 50%);
   }
 
   // Two lines, the venue and then the street, town and ZIP, neither
-  // wrapping inside (#340, #348).
+  // wrapping inside from md (#340, #348). Below md a line too long for
+  // a phone wraps rather than run past the block's edge (#673): the
+  // address only after the street's or the town's comma, since the
+  // street, the town and the state and ZIP each hold together.
   .place-where {
     grid-area: where;
     margin: 1rem 0 0;
@@ -600,7 +603,10 @@ $hero-text-shadow: 0 1px 3px rgb(0 0 0 / 50%);
 
   .place-line {
     display: block;
-    white-space: nowrap;
+
+    @include media-breakpoint-up(md) {
+      white-space: nowrap;
+    }
   }
 
   .place-note {
