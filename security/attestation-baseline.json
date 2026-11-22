@@ -1,8 +1,10 @@
 [
+  "@csstools/css-calc",
   "@csstools/css-parser-algorithms",
   "@csstools/css-syntax-patches-for-csstree",
   "@csstools/css-tokenizer",
   "@csstools/media-query-list-parser",
+  "@csstools/selector-resolve-nested",
   "@csstools/selector-specificity",
   "@eslint/js",
   "@fastify/busboy",
@@ -113,6 +115,7 @@
   "html-tags",
   "ignore",
   "import-fresh",
+  "import-meta-resolve",
   "imurmurhash",
   "ini",
   "is-arrayish",
