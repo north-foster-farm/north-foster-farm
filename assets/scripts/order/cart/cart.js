@@ -22,7 +22,8 @@ import { drawBadgeInfo, drawPerks } from "./perk-label.js";
 import * as state from "./state.mjs";
 import { shutTip } from "./tip.js";
 import {
-  SHEET, animateFold, clearFocusUnder, moveParts, moving, pulsePill,
+  SHEET, animateFold, clearFocusUnder, focusAfterScroll, moveParts,
+  moving, pulsePill,
   revealLine, ringCart, showAdded, shutShare, swapWords, teach, toPx,
   watchKeyboard, watchList, watchPlacement, watchScroll, wordsOf,
 } from "./view.mjs";
@@ -1050,7 +1051,9 @@ export class Cart {
   // in the URL (#203, #337, #402). In the column the pane itself is
   // brought into view, only as far as it takes; below xl the heading,
   // at the top. `ring` rings the pane where the link would otherwise
-  // seem to do nothing (ringsCart).
+  // seem to do nothing (ringsCart). One scroll, to one place: the
+  // focus moves no further (focusAfterScroll), and reduced motion
+  // jumps there (#619).
   show({ smooth = false, ring = false } = {}) {
     const column = this.state.placement === "column";
     const target = column ? this.root : this.heading;
@@ -1061,8 +1064,10 @@ export class Cart {
     )) {
       ringCart(this.root);
     }
-    target.scrollIntoView({ behavior: smooth ? "smooth" : "auto", block });
-    target.focus({ preventScroll: true });
+    target.scrollIntoView({
+      behavior: smooth && !reduced() ? "smooth" : "auto", block,
+    });
+    focusAfterScroll(target);
   }
 
   // The cart's own fields, for the form's collect() and restore().

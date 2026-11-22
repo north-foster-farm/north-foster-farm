@@ -485,7 +485,9 @@
         "e2e/wallets.spec.mjs",
         "e2e/window-label.spec.mjs",
         "e2e/wording.spec.mjs",
-        "e2e/order-kept.spec.mjs"
+        "e2e/order-kept.spec.mjs",
+        "e2e/cart-add-scroll.spec.mjs",
+        "e2e/cart-total-keyboard.spec.mjs"
       ],
       "pages": [
         "/order/"
@@ -1196,6 +1198,22 @@
       ],
       "specs": [
         "e2e/cart-a11y.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/cart-add-scroll.spec.mjs"
+      ],
+      "specs": [
+        "e2e/cart-add-scroll.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/cart-total-keyboard.spec.mjs"
+      ],
+      "specs": [
+        "e2e/cart-total-keyboard.spec.mjs"
       ]
     },
     {

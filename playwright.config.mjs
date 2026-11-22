@@ -139,7 +139,8 @@ const config = defineConfig({
     // Contact information card (#666, #704), and the tooltip on
     // Proceed to checkout (#706), and a perk's tooltip on a tap and a
     // scroll (#717), the free delivery badge's info button too.
-    // cart-motion skips itself in the other projects.
+    // cart-motion skips itself in the other projects. Opening the cart
+    // from ?add= scrolls once, to one place, in WebKit too (#619).
     {
       name: "iphone",
       testMatch: [
@@ -151,6 +152,7 @@ const config = defineConfig({
         "**/account-tabs.spec.mjs", "**/keep-together.spec.mjs",
         "**/membership-layout.spec.mjs", "**/contact-card.spec.mjs",
         "**/order-topbar-scroll.spec.mjs", "**/checkout-go.spec.mjs",
+        "**/cart-add-scroll.spec.mjs",
       ],
       testIgnore: held,
       use: { ...devices["iPhone 15"] },

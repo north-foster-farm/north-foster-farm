@@ -1130,6 +1130,19 @@ const TAB_MS = 100;
 // script's focus after its own smooth scroll (Proceed to checkout's
 // legend) or a tapped field matches :focus-visible too, and an instant
 // scroll here would cut the smooth one short.
+//
+// A focus a script gives after scrolling the page itself, through
+// focusAfterScroll, is left alone: an instant scroll here cut cart
+// show()'s smooth one short and left the page at whichever finished
+// last (#619).
+const scripted = new WeakSet();
+
+export const focusAfterScroll = (el) => {
+  scripted.add(el);
+  el.focus({ preventScroll: true });
+  scripted.delete(el);
+};
+
 export const clearFocusUnder = (pane, given) => {
   const bar = given === undefined
     ? document.querySelector(".order-topbar") : given;
@@ -1161,6 +1174,12 @@ export const clearFocusUnder = (pane, given) => {
   };
   const onFocus = (e) => {
     since = performance.now();
+    // A script's own focus is no Tab's: an earlier Tab must not make a
+    // resize just after it scroll the page (qa on #619).
+    if (scripted.has(e.target)) {
+      tabbed = false;
+      return;
+    }
     tabbed = since - tabAt <= TAB_MS;
     const keyed = tabbed;
 
