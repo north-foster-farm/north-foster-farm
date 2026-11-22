@@ -107,7 +107,9 @@ const USAGE = `Usage:
                                       to <into>, which must exist;
                                       <from>'s record, Resend contact
                                       and Square customer go; sessions
-                                      end. A dry run unless --apply
+                                      end. A dry run unless --apply.
+                                      If it fails, rerun it before
+                                      changing either record
   bin/nff sessions end-all [--yes]    end every customer session; asks
                                       first unless --yes, and emails
                                       the developer

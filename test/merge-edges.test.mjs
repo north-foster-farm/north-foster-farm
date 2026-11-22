@@ -22,6 +22,8 @@ import {
 } from "../netlify/functions/lib/records.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
 
+import { pair } from "./merge-rerun-setup.mjs";
+
 const now = new Date("2026-11-21T15:00:00Z");
 const FROM = "pat+old@example.com";
 const INTO = "pat@example.com";
@@ -44,15 +46,6 @@ const failOnce = (stores, key) => {
 
     return del(k);
   };
-};
-
-const pair = async () => {
-  const stores = testStores();
-
-  await saveCustomer(stores, { email: FROM, name: "Old" });
-  await saveCustomer(stores, { email: INTO, name: "Kept" });
-
-  return stores;
 };
 
 describe("customers merge, where both accounts hold the same", () => {

@@ -21,45 +21,18 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { perksOf } from "../assets/scripts/order/lib/perks.mjs";
-import { mergeCustomer } from "../netlify/functions/lib/admin.mjs";
 import { maskEmail } from "../netlify/functions/lib/mask.mjs";
 import { addPerk, removePerk } from "../netlify/functions/lib/perks.mjs";
+import { getCustomer } from "../netlify/functions/lib/records.mjs";
 import {
-  customerKey, getCustomer, saveCustomer,
-} from "../netlify/functions/lib/records.mjs";
-import { testStores } from "../netlify/functions/lib/store.mjs";
-
-const now = new Date("2026-11-21T15:00:00Z");
-const later = new Date("2026-11-23T15:00:00Z");
-const FROM = "pat+old@example.com";
-const INTO = "pat@example.com";
-const BY = "tester";
-const failing = async () => {
-  throw new Error("no network in this test");
-};
-const run = (stores) => mergeCustomer(stores, FROM, INTO, {
-  env: {}, by: BY, now: later, apply: true, fetchImpl: failing,
-});
-
-const capture = (t) => {
-  const lines = [];
-
-  for (const level of ["log", "info", "warn", "error"]) {
-    t.mock.method(console, level, (...args) => {
-      lines.push(args.map(String).join(" "));
-    });
-  }
-
-  return lines;
-};
+  BY, FROM, INTO, capture, crashOnSource, now, pair, run,
+} from "./merge-rerun-setup.mjs";
 
 // The source holds an ended perk, a removed one and an open one; the
 // target holds none.
 const seeded = async () => {
-  const stores = testStores();
+  const stores = await pair();
 
-  await saveCustomer(stores, { email: FROM, name: "Old" });
-  await saveCustomer(stores, { email: INTO, name: "Kept" });
   await addPerk(stores, FROM, "free-delivery", { by: "cli", end:
     "2026-11-21", now });
   await addPerk(stores, FROM, "minimum-waived", { by: "cli", now });
@@ -67,27 +40,6 @@ const seeded = async () => {
   await addPerk(stores, FROM, "friends", { by: "cli", now });
 
   return stores;
-};
-
-// The next write to the source's customer record throws, once: the
-// run stops after the target is saved and before the source's perks
-// are cleared.
-const crashOnSource = (stores) => {
-  const key = customerKey(FROM);
-  let armed = true;
-
-  for (const method of ["set", "swap", "create"]) {
-    const write = stores.customers[method].bind(stores.customers);
-
-    stores.customers[method] = async (k, ...rest) => {
-      if (armed && k === key) {
-        armed = false;
-        throw new Error("blobs down");
-      }
-
-      return write(k, ...rest);
-    };
-  }
 };
 
 // A crashed run, then the rerun. -> the target's perks before the
