@@ -388,30 +388,48 @@ send fulfillment-cancel square "$CANCEL_REQUEST"
 # The same version a second time: stale.
 send order-update-stale-version square "$CANCEL_REQUEST" 4
 
-# ---- A pickup paid by card, refunded in full, then its fulfillment -----
-# cancelled (#775): what Square answers cancelFulfillment for an order
-# it refunded in full, which production refused on 2026-11-21.
-new_order refunded pickup
-REFUNDED_ORDER="$ORDER_ID"
-pay card-ok-refunded '{"sourceId": "cnon:card-nonce-ok"}'
-REFUNDED_PAYMENT="$(got .response.payment.id)"
-ARGS="$(margs --arg paymentId "$REFUNDED_PAYMENT" \
-  --argjson amount "$ORDER_TOTAL" --arg key "$K-refund-full" \
-  --arg reason "Fixture full refund")"
-send refund-create-full square "$(pick refund "$ARGS" 0)"
-REFUNDED_REFUND="$(got .response.refund.id)"
-# The cancel follows a refund that has finished, as in production.
-for _ in 1 2 3 4 5 6; do
-  send refund-get-full square "$(sq GET "/v2/refunds/$REFUNDED_REFUND")"
-  [ "$(jq -r '.response.refund.status // empty' "$OUT")" = COMPLETED ] \
-    && break
-  sleep 2
-done
-send order-get-refunded-full square "$(sq GET "/v2/orders/$REFUNDED_ORDER")"
-ARGS="$(margs --arg orderId "$REFUNDED_ORDER" \
-  --argjson current "$(jq -c .response.order "$OUT")")"
-send fulfillment-cancel-refunded square \
-  "$(pick cancel-fulfillment "$ARGS" 0)" 4
+# ---- Pickups refunded in full, then their fulfillment cancelled -------
+# What Square answers cancelFulfillment for an order it refunded in
+# full (#775). refunded_cancel SUFFIX SOURCE_JSON REASON CANCEL WANT pays
+# a new pickup, refunds the whole payment as REASON says, waits for the
+# refund to finish (the close follows a finished one, as in
+# production), reads the order back and records the cancel as CANCEL.
+refunded_cancel() {
+  local suffix="$1" source="$2" reason="$3" cancel="$4" want="$5"
+  local order payment refund args
+
+  new_order "refunded-$suffix" pickup
+  order="$ORDER_ID"
+  pay "refund-$suffix" "$source"
+  payment="$(got .response.payment.id)"
+  args="$(margs --arg paymentId "$payment" --argjson amount "$ORDER_TOTAL" \
+    --arg key "$K-refund-full-$suffix" --arg reason "$reason")"
+  send "refund-create-full-$suffix" square "$(pick refund "$args" 0)"
+  refund="$(got .response.refund.id)"
+  for _ in 1 2 3 4 5 6; do
+    send "refund-get-full-$suffix" square "$(sq GET "/v2/refunds/$refund")"
+    [ "$(jq -r '.response.refund.status // empty' "$OUT")" = COMPLETED ] \
+      && break
+    sleep 2
+  done
+  send "order-get-refunded-full-$suffix" square \
+    "$(sq GET "/v2/orders/$order")"
+  args="$(margs --arg orderId "$order" \
+    --argjson current "$(jq -c .response.order "$OUT")")"
+  send "$cancel" square "$(pick cancel-fulfillment "$args" 0)" "$want"
+}
+
+# Paid by card and refunded in Square: the sandbox closes it (200).
+refunded_cancel card '{"sourceId": "cnon:card-nonce-ok"}' \
+  "Fixture full refund" fulfillment-cancel-refunded-card 2
+
+# A Venmo payment as the site records it on Square (an EXTERNAL
+# tender), refunded in PayPal and repeated on Square as the PayPal
+# webhook's refundOnSquare repeats it: production refused this cancel
+# with a 400 on 2026-11-21 (NFF-2611-DT349B).
+refunded_cancel external '{"external": {"source": "Venmo",
+  "sourceId": "FIXTURE-VENMO-2", "type": "SOCIAL"}}' \
+  "Refunded in PayPal" fulfillment-cancel-refunded 4
 
 # ---- A pickup paid in cash (the farm's own, #181) -----------------------
 new_order cash pickup

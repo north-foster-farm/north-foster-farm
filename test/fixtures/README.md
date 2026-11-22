@@ -101,7 +101,9 @@ same value has the same placeholder in every file, so the payment in
 | `order-get-open`, `-before-cancel`, `-canceled`, `-after-refund`, `-completed`, `-catalog` | `getOrder` in each state the code reads |
 | `order-update-fulfillment` | `updateFulfillment` (a customer's change) |
 | `fulfillment-cancel`, `order-update-stale-version` | `cancelFulfillment`; the same version again (VERSION_MISMATCH) |
-| `order-create-refunded`, `payment-card-ok-refunded`, `refund-create-full`, `refund-get-full`, `order-get-refunded-full` | a pickup paid by card and refunded in full (#775) |
+| `order-create-refunded-card`, `payment-refund-card`, `refund-create-full-card`, `refund-get-full-card`, `order-get-refunded-full-card` | a pickup paid by card and refunded in full in Square (#775) |
+| `fulfillment-cancel-refunded-card` | `cancelFulfillment` on that order: Square closes it (#775) |
+| `order-create-refunded-external`, `payment-refund-external`, `refund-create-full-external`, `refund-get-full-external`, `order-get-refunded-full-external` | a pickup paid as an external (Venmo) tender, its PayPal refund repeated on Square in full (#775) |
 | `fulfillment-cancel-refunded` | `cancelFulfillment` on that order: Square's refusal, which the close of an order refunded elsewhere takes as already closed (#775) |
 | `order-complete` | `completeOrder` |
 | `order-cancel-refused` | the order alone, cancelled while its fulfillment is open: 400 INVALID_VALUE |
