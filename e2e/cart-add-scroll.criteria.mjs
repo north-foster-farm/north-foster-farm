@@ -28,10 +28,13 @@ import { cannedDates } from "./support/canned.mjs";
 const CART = { eggs: 2 };
 const LOADS = 3;
 const MOTIONS = ["reduce", "no-preference"];
-// Frames the page must hold still to count as settled, and the least
-// time after load before it may: under load the smooth scroll was
-// still pending a second later.
-const STILL = 60;
+// How long, and over how many frames at least, the page must hold
+// still to count as settled, and the least time after load before it
+// may: under load the smooth scroll was still pending a second later.
+// Time, not a frame count: WebKit in Actions draws about 5 frames a
+// second, so 60 frames took 13 s there (PR #812, run 45015932719).
+const STILL_MS = 1_000;
+const STILL_FRAMES = 5;
 const AFTER = 2_500;
 
 // Every frame's scrollY from the page's first script on.
@@ -47,17 +50,25 @@ const record = (page) => page.addInitScript(() => {
   requestAnimationFrame(tick);
 });
 
-// Waits until the page has held still for STILL frames, AFTER ms or
-// more after load, and returns every scrollY it passed through.
+// Waits until the page has held still for STILL_MS and STILL_FRAMES,
+// AFTER ms or more after load, and returns every scrollY it passed
+// through. The still run is the frames since scrollY last changed.
 const settled = async (page) => {
-  await expect.poll(() => page.evaluate(([still, after]) => {
+  await expect.poll(() => page.evaluate(([ms, frames, after]) => {
     const ys = window.nffScrolls;
-    const tail = ys.slice(-still);
+    const last = ys.at(-1);
 
-    return ys.length >= still && ys.at(-1)[0] >= after &&
-      tail.every(([, y]) => y === tail[0][1]);
-  }, [STILL, AFTER]), { message: "the page settles", timeout: 20_000 })
-    .toBe(true);
+    if (!last || last[0] < after) {
+      return false;
+    }
+
+    const moved = ys.findLastIndex(([, y]) => y !== last[1]);
+    const run = ys.slice(moved + 1);
+
+    return run.length >= frames && last[0] - run[0][0] >= ms;
+  }, [STILL_MS, STILL_FRAMES, AFTER]), {
+    message: "the page settles", timeout: 20_000,
+  }).toBe(true);
 
   return page.evaluate(() => window.nffScrolls.map(([, y]) => y));
 };
