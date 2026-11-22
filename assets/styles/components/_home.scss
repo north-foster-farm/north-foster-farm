@@ -609,6 +609,21 @@ $hero-text-shadow: 0 1px 3px rgb(0 0 0 / 50%);
     }
   }
 
+  // From lg to xl three columns share 960 px, about 309 each, and the
+  // longest address ("46 Institute Lane, North Scituate, RI 02857")
+  // needs about 305 on its one line: the columns' sides narrow and the
+  // address steps down a size there, so it fits inside (#673). From xl
+  // the container has room for both at full size.
+  @include media-breakpoint-only(lg) {
+    .places:not(.ways) .place {
+      padding-inline: 0.75rem;
+    }
+
+    .place-where {
+      font-size: 0.875rem;
+    }
+  }
+
   .place-note {
     grid-area: note;
     margin: 0.5rem 0 0;
