@@ -28,7 +28,7 @@ import { log } from "./log.mjs";
 import { sendMail } from "./mail.mjs";
 import { welcome } from "./news.mjs";
 import { getLedger, heldBy, spendCredit } from "./credit.mjs";
-import { joinGroup } from "./groups.mjs";
+import { hostsGroup, joinGroup } from "./groups.mjs";
 import * as paypalApi from "./paypal.mjs";
 import { usePass } from "./passes.mjs";
 import { announcePaid } from "./payments.mjs";
@@ -152,8 +152,11 @@ export const completeOrder = async (stores, order, { square, payment }, {
       }
     }
     // An order placed with a buying group's code makes its customer a
-    // member (#471): the next order needs no code when signed in.
-    if (order.group && order.group.key) {
+    // member (#471): the next order needs no code when signed in. The
+    // group's host is one already, by the group's record (#772), and
+    // an order writes no membership onto theirs.
+    if (order.group && order.group.key
+      && !(await hostsGroup(stores, order.customer.email, order.group.key))) {
       await joinGroup(stores, order.customer.email, order.group.key, {
         now,
         via: order.group.viaCode

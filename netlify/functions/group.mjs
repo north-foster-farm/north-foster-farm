@@ -19,8 +19,8 @@ import { sameSite, sessionFrom } from "./lib/auth.mjs";
 import { now as clock } from "./lib/clock.mjs";
 import { creditBalance } from "./lib/credit.mjs";
 import {
-  INVALID_CODE, findGroupByCode, groupOf, memberKeyOf, memberTerms,
-  namedGroup, publicGroup,
+  INVALID_CODE, findGroupByCode, groupOf, hostedKeyOf, memberKeyOf,
+  memberTerms, namedGroup, publicGroup,
 } from "./lib/groups.mjs";
 import { json, readJson } from "./lib/http.mjs";
 import { withLog } from "./lib/log.mjs";
@@ -73,7 +73,11 @@ export const handle = async (req, {
   }
 
   const session = await sessionFrom(stores, req, { now });
-  const own = session ? memberKeyOf(session.customer) : null;
+  // A signed-in member's own group, a host's included (#772).
+  const own = session
+    ? memberKeyOf(session.customer)
+      || await hostedKeyOf(stores, session.email)
+    : null;
   const group = typed
     ? await findGroupByCode(stores, typed)
     : groupOf(own);

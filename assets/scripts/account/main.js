@@ -440,12 +440,14 @@ class Account {
   }
 
   // A member's own Leave group (#495), asked first. Gone, the page
-  // starts again without the tab.
+  // starts again without the tab. A host who is a member only by
+  // hosting (#772) has nothing to leave.
   renderLeave(view) {
     const box = this.ownParts[1];
+    const leaves = view.member && !view.member.byHost;
 
-    box.hidden = !view.member;
-    if (!view.member || this.leaveWired) return;
+    box.hidden = !leaves;
+    if (!leaves || this.leaveWired) return;
     this.leaveWired = true;
 
     const open = document.getElementById("mem-leave");

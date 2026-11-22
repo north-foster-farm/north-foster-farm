@@ -18,7 +18,7 @@ import {
 import { getCart, saveCart } from "./lib/account.mjs";
 import { finishEmailChange } from "./lib/email-change.mjs";
 import { creditBalance } from "./lib/credit.mjs";
-import { groupOf, memberKeyOf, namedGroup } from "./lib/groups.mjs";
+import { buyingGroupOf, namedGroup } from "./lib/groups.mjs";
 import { finishInvite } from "./lib/invites.mjs";
 import { finishJoin } from "./lib/join.mjs";
 import { roleOf } from "./lib/membership.mjs";
@@ -272,7 +272,9 @@ export const handle = async (req, {
     // A buying group's member (#471) sees their group and their
     // credit on the account page: the name as the farm set it, and
     // the balance in cents, read from the ledger now.
-    const group = groupOf(memberKeyOf(session.customer));
+    // A group's host is its member here too (#772).
+    const group = await buyingGroupOf(stores, session.customer,
+      session.email);
     const member = group
       ? {
         key: group.key,

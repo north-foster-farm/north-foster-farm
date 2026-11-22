@@ -298,10 +298,12 @@ describe("a member of one group who hosts another", () => {
       { member: "vff", hosts: ["vff"] });
     assert.equal(await roleKeys(stores, STRANGER), null);
 
-    // Host only.
+    // Host only: the group they host is theirs as a member's too
+    // (#772), with no membership on their record.
     await setGroupHost(stores, "gym2", STRANGER, { now });
     assert.deepEqual(await roleKeys(stores, STRANGER),
-      { member: null, hosts: ["gym2"] });
+      { member: "gym2", hosts: ["gym2"] });
+    assert.equal(memberKeyOf(await getCustomer(stores, STRANGER)), null);
 
     // Member of A, hosting B.
     await setGroupHost(stores, "gym2", PAT, { now });

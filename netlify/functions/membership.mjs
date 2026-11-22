@@ -101,7 +101,7 @@ export const handle = async (req, {
   // The member's own code as a QR code (#131), for the tab and the key
   // tag. Only one already minted: the tab asks /api/membership first.
   if (path === "/api/membership/code" && req.method === "GET") {
-    if (!role.member) return NOTHING();
+    if (!role.member || role.byHost) return NOTHING();
 
     const code = await memberCode(stores, session.email, { now, mint: false });
 
@@ -115,7 +115,7 @@ export const handle = async (req, {
 
   // A member's own Leave group, with its confirmation on the page.
   if (path === "/api/membership/leave" && req.method === "POST") {
-    if (!role.member) return NOTHING();
+    if (!role.member || role.byHost) return NOTHING();
 
     const closed = await gate(stores);
 
