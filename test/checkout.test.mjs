@@ -855,6 +855,12 @@ describe("POST /api/paypal/webhook", () => {
 
           return { squareRefundId: "SQREF", status: "PENDING" };
         },
+        // The close of an order refunded in full (#775).
+        cancelFulfillment: async (id) => {
+          calls.push(["cancelFulfillment", id]);
+
+          return { id, cancelled: true };
+        },
       },
     };
   };
@@ -878,11 +884,15 @@ describe("POST /api/paypal/webhook", () => {
     assert.equal(saved.refunds.at(-1).source, "paypal");
     assert.equal(saved.refunds.at(-1).paypalRefundId, "REF");
     assert.equal(saved.refunds.at(-1).squareRefundId, "SQREF");
-    assert.equal(saved.history.at(-1).event, "refund.recorded");
-    assert.deepEqual(calls, [
+    // A refund of everything paid also closes the order (#775), so the
+    // refund is no longer the record's last event; it is noted once.
+    assert.equal(saved.history
+      .filter((h) => h.event === "refund.recorded").length, 1);
+    assert.deepEqual(calls.filter((c) => ["get", "refund"].includes(c[0])), [
       ["get", "PAY"], ["refund", "PAY", 6000, "paypal-REF"],
     ]);
 
+    const before = calls.length;
     const again = await webhook(post(refundEvent()), {
       stores, verify: yes, now, square, env: HOOK,
     });
@@ -890,7 +900,7 @@ describe("POST /api/paypal/webhook", () => {
     assert.deepEqual(await again.json(), {
       handled: true, id: "NFF-2610-ABCD", repeat: true,
     });
-    assert.equal(calls.length, 2, "a redelivery touches nothing");
+    assert.equal(calls.length, before, "a redelivery touches nothing");
 
     const unknown = await applyEvent(stores, JSON.parse(event(
       "PAYMENT.CAPTURE.REFUNDED", { id: "NOPE" }
