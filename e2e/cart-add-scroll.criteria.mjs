@@ -104,7 +104,8 @@ test.describe("opening the cart from ?add= (#619)", () => {
     });
 
     test(`after ?add=, the page settles with the cart's heading in its `
-      + `place and the focus on it (${motion} motion)`, async ({ page }) => {
+      + `place and the focus where it went before (${motion} motion)`,
+    async ({ page }) => {
       const order = await prepare(page, motion);
 
       await order.open(CART);
@@ -112,9 +113,14 @@ test.describe("opening the cart from ?add= (#619)", () => {
       const heading = page.locator("#order-cart-heading");
 
       await settled(page);
-      await expect(heading).toBeFocused();
 
       const placement = await order.cart.getAttribute("data-placement");
+
+      // "No change to where focus goes": cart.show() focuses the pane
+      // in the column (xl and up) and the heading below xl.
+      await expect(placement === "column" ? order.cart : heading)
+        .toBeFocused();
+
       const at = await heading.evaluate((el) => ({
         top: el.getBoundingClientRect().top,
         margin: parseFloat(getComputedStyle(el).scrollMarginTop),
