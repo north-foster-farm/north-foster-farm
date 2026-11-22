@@ -33,7 +33,6 @@ const HOUR = 60 * 60_000;
 
 export const ALERT_EVERY = HOUR;
 export const PING_TIMEOUT = 3000;
-export const MAIL_FAILURES_FOR_ALARM = 3;
 
 // Every alert goes to DEV_NOTIFICATIONS_EMAIL, and to nobody else:
 // there is no fallback when it is unset. The one escalation, below,
