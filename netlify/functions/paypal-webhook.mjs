@@ -11,12 +11,15 @@
 //                               the jobs' (rescueCheckout).
 //   PAYMENT.CAPTURE.REFUNDED    a refund made in PayPal rather than
 //                               the CLI, noted on the order and
-//                               repeated on Square's copy.
+//                               repeated on Square's copy; one that
+//                               covers everything paid closes an
+//                               unfulfilled order (#775).
 //
 // PayPal retries on anything but a 2xx, so an event about a payment
 // this site knows nothing of answers 200. A refused delivery is logged
 // and may alert (lib/webhooks.mjs).
 
+import { closeRefunded } from "./lib/admin.mjs";
 import { alert, mark } from "./lib/health.mjs";
 import { json } from "./lib/http.mjs";
 import { log, withLog } from "./lib/log.mjs";
@@ -139,6 +142,11 @@ export const applyEvent = async (stores, event, options = {}) => {
       squareRefundId,
       status: "COMPLETED",
     }, "paypal", now);
+    // Refunded in full here, not through the CLI: the order closes
+    // (#775).
+    await closeRefunded(stores, order.id, {
+      ...options, now, source: "paypal",
+    });
 
     return { handled: true, id: order.id };
   }

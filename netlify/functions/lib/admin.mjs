@@ -27,7 +27,7 @@ import { devEmails, sendMail } from "./mail.mjs";
 import { maskEmail, maskIn } from "./mask.mjs";
 import * as newsApi from "./news.mjs";
 import {
-  customerEmailWithheld, recordRefund, sendForOrder,
+  customerEmailWithheld, notifyFarm, recordRefund, sendForOrder,
 } from "./payments.mjs";
 import * as paypalApi from "./paypal.mjs";
 import {
@@ -40,8 +40,8 @@ import { paymentPending } from "./farm-orders.mjs";
 import { mailLinks, orderUrlFor } from "./site.mjs";
 import * as squareApi from "./square.mjs";
 import {
-  addressDecision, age, devMailTest as devMailTestMessage, missedDelivery,
-  movedDelivery, orderCancelled, orderChanged, sessionsEnded,
+  addressDecision, age, devMailTest as devMailTestMessage, farmRefundedClosed,
+  missedDelivery, movedDelivery, orderCancelled, orderChanged, sessionsEnded,
 } from "./templates.mjs";
 import { lastInteraction, quietDue } from "./retention.mjs";
 import siteTerms from "./terms.mjs";
@@ -598,6 +598,10 @@ const holdersToCancel = (order) => {
   ])].filter(Boolean);
 };
 
+// Whether everything paid on the order has gone back.
+const refundedInFull = (order) => paidTotal(order) > 0
+  && refundedTotal(order) >= paidTotal(order);
+
 // Cancels the fulfillment on each holder of a cancelled order (#662).
 // One that fails stops none of the others: it is logged, and the
 // order stays cancelled as before. A stale holder whose cancel went
@@ -606,9 +610,12 @@ const holdersToCancel = (order) => {
 // whose money is already back, which the drift check never sees (it
 // compares paid orders only): the order is flagged squareOutOfSync,
 // as a failed edit or fulfil is, and the farm gets one alert naming
-// them. `by` is who cancelled.
+// them. `by` is who cancelled. Square refuses, with a 400, to cancel
+// the fulfillment of an order it has refunded in full (production,
+// 2026-11-21, #775): for the close of an order refunded elsewhere
+// (`refunded`), that answer means already closed.
 const cancelHolders = async (stores, order, {
-  now, env, fetchImpl, mail, square, source,
+  now, env, fetchImpl, mail, square, source, refunded = false,
 }) => {
   const { id } = order;
   const stale = order.square && order.square.oldFulfilmentOrderId;
@@ -619,6 +626,14 @@ const cancelHolders = async (stores, order, {
       await square.cancelFulfillment(holder, { env, fetchImpl });
     } catch (error) {
       const code = (error && error.code) || null;
+
+      if (refunded && error && error.status === 400) {
+        log.info({
+          event: "square.fulfilment_closed_by_refund", id, holder,
+          by: source, code,
+        });
+        continue;
+      }
 
       log.error({
         event: "square.fulfilment_cancel_failed", id, holder, by: source,
@@ -738,6 +753,60 @@ export const cancelOrder = async (stores, id, {
         reason, reasonText, links: mailLinks(env),
       }), { mail, env, now });
   }
+
+  return getOrder(stores, id);
+};
+
+const WHERE = { square: "Square", paypal: "PayPal" };
+
+// A refund made elsewhere (Square's dashboard, PayPal) that brings an
+// unfulfilled order's refunds up to everything paid closes the order
+// as `orders cancel --no-refund` does (#775): cancelled, stock back,
+// its Square fulfillment closed, off every list. No money moves and
+// the customer is not emailed (James, 2026-11-21: Square's or PayPal's
+// own receipt tells them). The farm gets one notice, since someone
+// refunded the order without cancelling it. A fulfilled order, or one
+// partly refunded, is left as it is. `source` is the webhook that
+// recorded the refund. Safe to run again: only the run that cancels
+// the order does the rest. -> the order.
+export const closeRefunded = async (stores, id, {
+  now = new Date(), env = process.env, mail = sendMail,
+  square = squareApi, fetchImpl, source,
+} = {}) => {
+  const order = await getOrder(stores, id);
+
+  if (!order || !OPEN.includes(order.status) || !refundedInFull(order)) {
+    return order;
+  }
+
+  const reason = "refunded in full";
+  const at = now.toISOString();
+  const cancelled = await setStatus(stores, id, "cancelled", now, {
+    source, reason,
+  });
+  const last = cancelled && (cancelled.history || []).at(-1);
+
+  // Another writer got there first: a cancel, a close, or this same
+  // refund delivered twice at once.
+  if (!last || cancelled.status !== "cancelled" || last.event !== "cancelled"
+    || last.at !== at || last.reason !== reason) {
+    return cancelled;
+  }
+
+  log.info({
+    event: "order.cancelled", id, by: source, field: "status",
+    before: order.status, after: "cancelled", reason,
+  });
+
+  if (!order.cancelRequested) await adjust(stores, order.lines, 1);
+
+  await cancelHolders(stores, cancelled, {
+    now, env, fetchImpl, mail, square, source, refunded: true,
+  });
+  await notifyFarm(stores, cancelled, "farmRefundedClosed",
+    farmRefundedClosed(cancelled, {
+      where: WHERE[source] || "Square", links: mailLinks(env),
+    }), { mail, env, now });
 
   return getOrder(stores, id);
 };

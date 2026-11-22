@@ -1686,6 +1686,17 @@ export const farmOrderCancelled = (order, customer, { links } = {}) => {
   );
 };
 
+// A paid order refunded in full in Square or PayPal, not through the
+// CLI, and so closed here on its own (#775). `where` is "Square" or
+// "PayPal". Draft wording.
+export const farmRefundedClosed = (order, { where, links } = {}) =>
+  farmCard(`Canceled: ${order.id}, refunded in full`, "Order canceled", [
+    p(`Order ${order.id}, ${methodOn(order.fulfilment)}, was refunded in ` +
+      `full in ${where} without being canceled, so we canceled it. Its ` +
+      "stock is back and it is off the pickup and delivery lists. The " +
+      "customer was not emailed. Don't pack it."),
+  ], links, { orderId: order.id });
+
 // A customer's change saved here but not in Square.
 export const farmSquareOutOfSync = (order, customer, { links } = {}) =>
   farmCard(`Square out of sync: ${order.id}`, "Square out of sync", [
