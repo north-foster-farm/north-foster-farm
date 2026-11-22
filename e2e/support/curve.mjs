@@ -1,6 +1,6 @@
 // The per-frame spec's check of a move against its curve (#559, fix
 // round on fb5908d7). The phone sheet moves every part on one curve and
-// one clock (assets/scripts/order/cart/view.mjs moveParts), so on any
+// one clock (assets/scripts/order/cart/view/move.js moveParts), so on any
 // frame every edge of every part sits at
 //
 //   from + (to - from) * curve(time into the move / its length)

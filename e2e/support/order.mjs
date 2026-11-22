@@ -36,7 +36,7 @@ const setFold = async (cart, fold) => {
 };
 
 // Waits for the pane's height ease to end, and on a phone for its
-// parts' own eases (cart/view.mjs moveParts, #559), so a measurement
+// parts' own eases (cart/view/move.js moveParts, #559), so a measurement
 // after a fold, a render or a settle sees the pane at rest.
 export const paneStill = (cart) => expect.poll(
   () => cart.evaluate((el) => el.getAnimations().length

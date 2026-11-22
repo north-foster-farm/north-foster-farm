@@ -528,6 +528,15 @@ to CSS. Its surface, which the Cart class imports:
   `glideSpan` and `glideAt`, the glide's length and curve, in
   `more.mjs`, and `focusRoom`, the band a focused control is kept
   within, in `plan.mjs`.
+- And the sheet's motion (2026-11-22, #846), which leaves `view.mjs`
+  the re-exports alone: `moveParts` and `moving` in `move.js`, as its
+  steps in their order (read, take over, apply, plan, start, finish);
+  what it measures (`movers`, `sizeOf`, `chromeOf`, `pillOf`,
+  `outerHeight`) in `measure.js`; `movePill` in `pill.js`;
+  `swapWords` and `wordsOf` in `words.js`. What it decides, pure, is
+  in `plan.mjs`: `movePlan`, the parts that move and the height each
+  holds its scroller at; `pillMoves`; `lifting`; and `holds`, whether
+  the body stays held at its end.
 
 ### 4.2 Structure
 
