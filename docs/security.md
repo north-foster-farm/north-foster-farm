@@ -143,7 +143,10 @@ part updates faster than another.
    every new package. Before adding one, post a short proposal: the
    package, its version and license, how well it's maintained, what it
    replaces, and why it beats hand-rolling. Don't add it until James
-   approves. Approved packages are pinned. The proposal and the pull
+   approves. Approved packages run their latest stable release, held
+   at an older one only for a compelling, written reason (James,
+   2026-11-21, #778; this said "Approved packages are pinned";
+   corrected 2026-11-22). The proposal and the pull
    request that adds the package also state how big its own
    dependency tree is. No automation checks this.
 
@@ -151,13 +154,9 @@ Where installing a patched version would pull in young transitive
 packages, adopt an older patched version, or hold the transitive one
 with `overrides` in `package.json`.
 
-Overrides in force:
-
-- `minimatch` 11.0.3 and its new dependency
-  `@isaacs/nonrecursive-glob-match` 1.0.3 (#522, 2026-11-06), for
-  GHSA-g3hv-75wg-m249. ESLint 10.8.0 asks for minimatch 10, which
-  has no patched release. Drop both once ESLint's own range takes a
-  patched minimatch.
+Overrides in force: none. The last, minimatch 11.0.3 for
+GHSA-g3hv-75wg-m249 (#522), went on 2026-11-22, once ESLint 10.15.0
+asked for the patched minimatch ^11.0.5 itself.
 
 ## Remediation runs on events, not deadlines
 
