@@ -30,6 +30,7 @@ import {
 import {
   addDays, today,
 } from "../../../assets/scripts/order/lib/zoned.mjs";
+import { normalizeEmail } from "../../../assets/scripts/utils/email.js";
 import { noteJoin } from "./group-log.mjs";
 import { log } from "./log.mjs";
 import { newPassCode } from "./passes.mjs";
@@ -123,7 +124,7 @@ export const setGroupHost = async (stores, key, email, {
   };
   const record = {
     ...stored,
-    host: email ? String(email).trim().toLowerCase() : null,
+    host: email ? normalizeEmail(email) || null : null,
     hostSetAt: now.toISOString(),
   };
 
@@ -441,13 +442,14 @@ export const memberKeyOf = (customer) => (customer && customer.memberGroup
 
 // The first group whose record names this address its host, or null.
 export const hostedKeyOf = async (stores, email) => {
-  const address = String(email || "").trim().toLowerCase();
+  const address = normalizeEmail(email);
 
   if (!address) return null;
   for (const g of GROUPS) {
     const record = await getGroupRecord(stores, g.key);
 
-    if (record && record.host === address) return g.key;
+    if (record && record.host
+      && normalizeEmail(record.host) === address) return g.key;
   }
 
   return null;
@@ -457,8 +459,8 @@ export const hostedKeyOf = async (stores, email) => {
 export const hostsGroup = async (stores, email, key) => {
   const record = await getGroupRecord(stores, key);
 
-  return !!(record && record.host
-    && record.host === String(email || "").trim().toLowerCase());
+  return !!(record && record.host && normalizeEmail(email)
+    && normalizeEmail(record.host) === normalizeEmail(email));
 };
 
 // The group whose membership grants apply (#772): the record's, else

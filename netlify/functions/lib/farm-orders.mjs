@@ -360,6 +360,8 @@ export const planFarmOrder = async (stores, body, {
           round: roundFor(buying, terms, result.order.fulfilment.date),
           viaCode: false,
           ...(walkIn ? { walkIn: true } : {}),
+          ...(await hostsGroup(stores, result.order.customer.email,
+            buying.key) ? { byHost: true } : {}),
         }
         : null,
     },
@@ -439,9 +441,9 @@ export const createFarmOrder = async (stores, body, {
   await touchCustomer(stores, order.customer, now, { orderId: id });
   // A buying group's order makes its customer a member (#471), as a
   // paid order with the code does; its host is one by the group's
-  // record (#772), never by an order.
-  if (order.group && order.group.key
-    && !(await hostsGroup(stores, order.customer.email, order.group.key))) {
+  // record (#772), never by an order: one tagged `byHost` when placed
+  // joins no one.
+  if (order.group && order.group.key && !order.group.byHost) {
     await joinGroup(stores, order.customer.email, order.group.key, {
       now, via: walkIn ? "walk-in" : "farm",
     });
