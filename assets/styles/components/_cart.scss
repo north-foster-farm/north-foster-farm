@@ -11,7 +11,7 @@
 
 // No height is measured by script and written back. The browser lays
 // the pane out from these rules alone: the room comes from three raw
-// inputs cart/view.mjs relays from the visual viewport (--cart-vis,
+// inputs cart/view/keyboard.js relays from the visual viewport (--cart-vis,
 // --cart-gap, --cart-kb) and the top bar's foot (--cart-bar, from the
 // bar's resting place and scrollY, never a rect); the order in which
 // the parts give way is flex: the lines shrink first, down to three
@@ -62,7 +62,7 @@ $cart-nudge-line: $cart-nudge-gap + $cart-nudge-size * $cart-line-height;
   // The closed sheet: its padding, the total row, the foot and one
   // nudge line (182px measured at 390px, about 8px more since the
   // closed total row kept its padding, #559), set a little under that.
-  // cart/view.mjs reads it for the lift-off threshold until it has
+  // cart/view/placement.js reads it for the lift-off threshold until it has
   // measured the closed pane itself, and it must never exceed the
   // real closed height, or the settle and lift-off thresholds overlap.
   --cart-closed-h: 11rem;
@@ -1061,7 +1061,7 @@ $cart-nudge-line: $cart-nudge-gap + $cart-nudge-size * $cart-line-height;
   // change in the safe area or the toolbar's gap while the page
   // scrolled moved a minimized pane 23px in one frame (James's phone,
   // 2026-11-12). The keyboard still moves it at once (data-keyboard,
-  // view.mjs watchKeyboard). Disabled, Proceed to checkout fades
+  // view/keyboard.js watchKeyboard). Disabled, Proceed to checkout fades
   // rather than turning pale in one frame (the clear).
   @media #{$cart-sheet} {
     .order-cart {

@@ -12,3 +12,13 @@ export const OWN_MS = 150;
 
 export const ownScroll = ({ now, input, last, touching }) => touching
   || now - input < OWN_MS || now - last < OWN_MS;
+
+const SCROLL_KEYS = new Set([
+  "ArrowDown", "ArrowUp", "PageDown", "PageUp", "Home", "End", " ",
+]);
+
+// Whether a key scrolls the page: one of SCROLL_KEYS, never in a
+// field that takes text (`field`), and never Space on a button or a
+// link (`control`), which presses it and scrolls nothing.
+export const scrollKey = ({ key, field, control }) => SCROLL_KEYS.has(key)
+  && !field && !(key === " " && control);
