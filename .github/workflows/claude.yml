@@ -81,7 +81,7 @@ jobs:
       - name: Install
         run: npm ci
 
-      # Hugo extended 0.164.0 and Dart Sass 1.79.5, as netlify.toml and
+      # Hugo 0.170.0 and Dart Sass 1.108.2, as netlify.toml and
       # bin/prod use them, each checked against a pinned SHA-256.
       - uses: ./.github/actions/setup-hugo
 
