@@ -528,8 +528,8 @@ to CSS. Its surface, which the Cart class imports:
   `glideSpan` and `glideAt`, the glide's length and curve, in
   `more.mjs`, and `focusRoom`, the band a focused control is kept
   within, in `plan.mjs`.
-- And the sheet's motion (2026-11-22, #846), which leaves `view.mjs`
-  the re-exports alone: `moveParts` and `moving` in `move.js`, as its
+- And the sheet's motion (2026-11-22, #846), after which `view.mjs`
+  held no code of its own: `moveParts` and `moving` in `move.js`, as its
   steps in their order (read, take over, apply, plan, start, finish);
   what it measures (`movers`, `sizeOf`, `chromeOf`, `pillOf`,
   `outerHeight`) in `measure.js`; `movePill` in `pill.js`;
@@ -537,6 +537,9 @@ to CSS. Its surface, which the Cart class imports:
   in `plan.mjs`: `movePlan`, the parts that move and the height each
   holds its scroller at; `pillMoves`; `lifting`; and `holds`, whether
   the body stays held at its end.
+- `view.mjs` is the door (2026-11-22, #847): one `export … from` line
+  for each module in `cart/view/`, and nothing else. A new part of
+  the view goes in a module there, and the door gains a line.
 
 ### 4.2 Structure
 
