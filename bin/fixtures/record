@@ -425,11 +425,12 @@ refunded_cancel card '{"sourceId": "cnon:card-nonce-ok"}' \
 
 # A Venmo payment as the site records it on Square (an EXTERNAL
 # tender), refunded in PayPal and repeated on Square as the PayPal
-# webhook's refundOnSquare repeats it: production refused this cancel
-# with a 400 on 2026-11-21 (NFF-2611-DT349B).
+# webhook's refundOnSquare repeats it. Production refused this cancel
+# with a 400 on 2026-11-21 (NFF-2611-DT349B), but the sandbox closes
+# it (200, 2026-11-22), so the 400 is not reproduced.
 refunded_cancel external '{"external": {"source": "Venmo",
   "sourceId": "FIXTURE-VENMO-2", "type": "SOCIAL"}}' \
-  "Refunded in PayPal" fulfillment-cancel-refunded 4
+  "Refunded in PayPal" fulfillment-cancel-refunded-external 2
 
 # ---- A pickup paid in cash (the farm's own, #181) -----------------------
 new_order cash pickup

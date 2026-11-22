@@ -1,0 +1,35 @@
+{
+  "_source": {
+    "service": "square",
+    "environment": "sandbox",
+    "recorded": "2026-11-22",
+    "squareVersion": "2026-09-16",
+    "by": "bin/fixtures/record, scrubbed by bin/fixtures/scrub"
+  },
+  "status": 200,
+  "request": {
+    "method": "GET",
+    "path": "/v2/refunds/REFUND_ID_2",
+    "headers": {
+      "Square-Version": "2026-09-16"
+    },
+    "body": null
+  },
+  "response": {
+    "refund": {
+      "id": "REFUND_ID_2",
+      "status": "COMPLETED",
+      "amount_money": {
+        "amount": 5500,
+        "currency": "USD"
+      },
+      "payment_id": "PAYMENT_ID_11",
+      "order_id": "ORDER_ID_7",
+      "created_at": "2026-11-22T04:07:29.608Z",
+      "updated_at": "2026-11-22T04:07:31.192Z",
+      "location_id": "LOCATION_ID_1",
+      "reason": "NAME full refund",
+      "destination_type": "CARD"
+    }
+  }
+}

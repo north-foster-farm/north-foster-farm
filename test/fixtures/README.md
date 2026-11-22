@@ -104,7 +104,7 @@ same value has the same placeholder in every file, so the payment in
 | `order-create-refunded-card`, `payment-refund-card`, `refund-create-full-card`, `refund-get-full-card`, `order-get-refunded-full-card` | a pickup paid by card and refunded in full in Square (#775) |
 | `fulfillment-cancel-refunded-card` | `cancelFulfillment` on that order: Square closes it (#775) |
 | `order-create-refunded-external`, `payment-refund-external`, `refund-create-full-external`, `refund-get-full-external`, `order-get-refunded-full-external` | a pickup paid as an external (Venmo) tender, its PayPal refund repeated on Square in full (#775) |
-| `fulfillment-cancel-refunded` | `cancelFulfillment` on that order: Square's refusal, which the close of an order refunded elsewhere takes as already closed (#775) |
+| `fulfillment-cancel-refunded-external` | `cancelFulfillment` on that order: Square closes it too, though production refused one with a 400 on 2026-11-21 (#775) |
 | `order-complete` | `completeOrder` |
 | `order-cancel-refused` | the order alone, cancelled while its fulfillment is open: 400 INVALID_VALUE |
 | `order-cancel-fulfillment`, `order-cancel`, and the same with `-catalog` | `cancelOrder` after a decline: the fulfillment, then the order |
