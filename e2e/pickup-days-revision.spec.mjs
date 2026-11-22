@@ -108,12 +108,25 @@ const outlineOf = (locator) => locator.evaluate((el) => {
   const drawn = s.outlineStyle !== "none"
     && parseFloat(s.outlineWidth) > 0;
   const shadow = s.boxShadow !== "none" && s.boxShadow.includes(invalid);
+  // How far each outer shadow reaches past the box: its offset, blur
+  // and spread, as "<color> x y blur spread" (#703's ring, 2026-11-21:
+  // a glow in place of the outline must show in full too).
+  const glow = s.boxShadow === "none" ? 0 : Math.max(0, ...s.boxShadow
+    .split(/,(?![^(]*\))/)
+    .filter((one) => !one.includes("inset"))
+    .map((one) => {
+      const [x = 0, y = 0, blur = 0, spread = 0] = (one
+        .replace(/rgba?\([^)]*\)/g, "").match(/-?[\d.]+px/g) || [])
+        .map(parseFloat);
+
+      return Math.max(Math.abs(x), Math.abs(y)) + blur + spread;
+    }));
 
   return {
     marked: (drawn && s.outlineColor === invalid) || shadow
       || s.borderTopColor === invalid,
-    past: drawn
-      ? parseFloat(s.outlineOffset) + parseFloat(s.outlineWidth) : 0,
+    past: Math.max(glow, drawn
+      ? parseFloat(s.outlineOffset) + parseFloat(s.outlineWidth) : 0),
   };
 });
 
