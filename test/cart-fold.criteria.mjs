@@ -31,12 +31,12 @@
 // 2: both modules are listed as pure), not from a box.
 
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
 import { escapeStep } from "../assets/scripts/order/cart/escape.mjs";
 import { pillWord } from "../assets/scripts/order/cart/plan.mjs";
 import * as state from "../assets/scripts/order/cart/state.mjs";
+import { assertPure } from "./pure-module.mjs";
 
 const CART = new URL("../assets/scripts/order/cart/", import.meta.url);
 const nothing = (word) => [null, undefined, ""].includes(word);
@@ -115,20 +115,13 @@ describe("escapeStep, the fold", () => {
 
 describe("design, section 2", () => {
   it("keeps cart/escape.mjs and cart/plan.mjs pure", () => {
-    const dom = new RegExp(`\\b(${[
+    const banned = [
       "document", "window", "getComputedStyle", "matchMedia",
       "requestAnimationFrame", "performance", "Element", "Node",
-    ].join("|")})\\b`);
+    ];
 
     for (const name of ["escape.mjs", "plan.mjs"]) {
-      const code = readFileSync(new URL(name, CART), "utf8")
-        .replace(/\/\/.*$/gm, "")
-        .replace(/\/\*[\s\S]*?\*\//g, "");
-
-      assert.doesNotMatch(code, dom, `${name} reaches the DOM`);
-      for (const [, from] of code.matchAll(/\bfrom\s+["']([^"']+)["']/g)) {
-        assert.match(from, /\.mjs$/, `${name} imports ${from}`);
-      }
+      assertPure(new URL(name, CART), { banned });
     }
   });
 });
