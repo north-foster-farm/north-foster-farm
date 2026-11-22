@@ -444,6 +444,9 @@ export const inventoryCounts = async () => null;
 // No customers here to rename.
 export const renameCustomerEmail = async () => [];
 
+// The fake keeps no profiles, so no email finds one.
+export const customersByEmail = async () => [];
+
 // The read before an invite's PUT (#718). The fake keeps no profiles, so every
 // customer is the recorded one with no address (customer-get-no-email,
 // sandbox, 2026-11-21), the id asked about put in: an invite on the

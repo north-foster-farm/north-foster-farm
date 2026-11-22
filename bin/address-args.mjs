@@ -13,6 +13,7 @@ export const ADDRESS_ARGS = {
   "customers show": [0],
   "customers set": [0],
   "customers rename": [0, 1],
+  "customers merge": [0, 1],
   "customers forget": [0],
   "customers delete": [0],
   "address approve": [0],

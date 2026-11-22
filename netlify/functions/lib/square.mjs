@@ -1110,9 +1110,10 @@ export const completeOrder = async (squareOrderId, {
 };
 
 // Deletes a customer profile (#189, D-189). Only ever one an order's
-// own record names, never one found by name or email; Square keeps the
-// payments. A profile already gone counts as deleted, so a retry after
-// a half-finished deletion is safe.
+// own record names, or, for `customers merge` (#776), one found by the
+// exact email of the account the farm merges away; never one found by
+// name. Square keeps the payments. A profile already gone counts as
+// deleted, so a retry after a half-finished deletion is safe.
 // -> { deleted: true } or { deleted: false, gone: true }.
 export const deleteCustomer = async (customerId, {
   env = process.env,
@@ -1352,6 +1353,22 @@ const countsAt = async (cfg, ids, fetchImpl) => {
   return counts;
 };
 
+// The ids of every Square customer under one email, for `customers
+// rename` and `customers merge` (#238, #776). Read only.
+export const customersByEmail = async (email, {
+  env = process.env,
+  fetchImpl = globalThis.fetch,
+} = {}) => {
+  if (isFake(env)) return fake.customersByEmail(email);
+
+  const found = await call(settings(env), "/v2/customers/search", {
+    query: { filter: { email_address: { exact: email } } },
+    limit: 10,
+  }, fetchImpl);
+
+  return (found.customers || []).map((c) => c.id);
+};
+
 // Every Square customer under one email, moved to another, for
 // `bin/nff customers rename` (#238). -> the ids found; with `apply`
 // false nothing is written.
@@ -1363,11 +1380,7 @@ export const renameCustomerEmail = async (from, to, {
   if (isFake(env)) return fake.renameCustomerEmail(from, to, { env, apply });
 
   const cfg = settings(env);
-  const found = await call(cfg, "/v2/customers/search", {
-    query: { filter: { email_address: { exact: from } } },
-    limit: 10,
-  }, fetchImpl);
-  const ids = (found.customers || []).map((c) => c.id);
+  const ids = await customersByEmail(from, { env, fetchImpl });
 
   if (apply) {
     for (const id of ids) {

@@ -681,6 +681,12 @@ export const cartKey = (email) => `cart/${addressHash(email)}`;
 export const getCartOf = (stores, email) =>
   readAddressed(stores.customers, "cart", email);
 
+// The account page's help messages (account.mjs), one per id under
+// the hash of the customer's address (#758). One from before the
+// switch is found by listAddressed (lib/address-key.mjs).
+export const supportPrefix = (email) => `support/${addressHash(email)}/`;
+export const supportKey = (email, id) => `${supportPrefix(email)}${id}`;
+
 // Which account a browser's draft belongs to, without the email: the
 // browser tags its draft with this and scrubs a draft tagged for
 // another account (#149, session/cart-sync.js). /api/me and the cart

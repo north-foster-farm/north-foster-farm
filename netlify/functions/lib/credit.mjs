@@ -18,6 +18,7 @@ import {
 import {
   addressHash, deleteAddressed, dropOldForms, findAddressed, listLatest,
 } from "./address-key.mjs";
+import { refOf } from "./group-log.mjs";
 import { getOrder } from "./records.mjs";
 
 const emailOf = (value) => String(value || "").trim().toLowerCase();
@@ -120,6 +121,55 @@ export const grantCredit = async (stores, email, {
       }],
     }
   ));
+};
+
+// One customer's grants added to another's, for `bin/nff customers
+// merge` (#776): each keeps its amount, spends and expiry, and the
+// source's ledger goes. A grant whose id the target already holds
+// keeps its own under the id with "~merged" (or "~merged-2" and on,
+// when that is taken too). Each moved grant is marked `mergedFrom`,
+// the hash of the source's address (group-log.mjs's refOf), and only
+// a grant so marked with the source's id counts as already moved, so
+// a rerun after a failed delete moves nothing twice, while the
+// target's own grant, never marked, is never mistaken for one: two
+// members' equal shares of one round match on every value (security,
+// PR #780). -> how many moved.
+export const mergeLedger = async (stores, from, into) => {
+  const { entries } = await getLedger(stores, from);
+  const ref = refOf(from);
+  let moved = 0;
+
+  if (!entries.length) return 0;
+  await swapLedger(stores, into, (ledger) => {
+    const ids = new Set(ledger.entries.map((e) => e.id));
+    const done = new Set(ledger.entries.filter((e) => e.mergedFrom === ref)
+      .map((e) => e.mergedId));
+    const adding = entries.filter((e) => !done.has(e.id));
+    const free = (id) => {
+      let next = `${id}~merged`;
+
+      for (let n = 2; ids.has(next); n += 1) next = `${id}~merged-${n}`;
+
+      return next;
+    };
+    const placed = adding.map((e) => {
+      const id = ids.has(e.id) ? free(e.id) : e.id;
+
+      ids.add(id);
+
+      return { ...e, id, mergedFrom: ref, mergedId: e.id };
+    });
+
+    moved = adding.length;
+
+    return !adding.length ? null : {
+      ...ledger, entries: [...ledger.entries, ...placed],
+    };
+  });
+  // Every form of its key, one from before #758 included.
+  await deleteLedger(stores, from);
+
+  return moved;
 };
 
 // What an order still holds of a ledger, across its grants: its

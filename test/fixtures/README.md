@@ -77,7 +77,7 @@ same value has the same placeholder in every file, so the payment in
 | Fixture | What our code does |
 | --- | --- |
 | `locations-list` | `customerOrders` lists the account's locations |
-| `customers-search-none`, `-found` | `findOrCreateCustomer` searches by email |
+| `customers-search-none`, `-found` | `findOrCreateCustomer` and `customersByEmail` search by email |
 | `customers-search-email-refused` | the search for an address Square refuses: 400 INVALID_VALUE on `email` (#678). The recorder keeps the first of its candidates the sandbox refuses; on 2026-11-19 that was two periods in a row before the `@`. Recorded in the sandbox 2026-11-19. |
 | `customer-create`, `customer-create-replay` | creates the profile; the same key again |
 | `customer-update`, `customer-delete`, `customer-delete-gone` | `renameCustomerEmail`, `deleteCustomer` (404 once gone) |

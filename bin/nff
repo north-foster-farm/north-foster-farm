@@ -98,6 +98,14 @@ const USAGE = `Usage:
                                       contact and the Square customer
                                       move; sessions end. A dry run
                                       unless --apply
+  bin/nff customers merge <from> <into> [--apply]
+                                      fold one account into another
+                                      (#776): <from>'s orders, perks,
+                                      credit, messages and links move
+                                      to <into>, which must exist;
+                                      <from>'s record, Resend contact
+                                      and Square customer go; sessions
+                                      end. A dry run unless --apply
   bin/nff sessions end-all [--yes]    end every customer session; asks
                                       first unless --yes, and emails
                                       the developer
@@ -1441,6 +1449,10 @@ const run = async () => {
   case "customers rename":
     return out(await admin.renameCustomer(stores, rest[0], rest[1], {
       apply: !!flags.apply,
+    }));
+  case "customers merge":
+    return out(await admin.mergeCustomer(stores, rest[0], rest[1], {
+      apply: !!flags.apply, by: userInfo().username,
     }));
   case "customers forget":
     return out(await admin.forgetCustomer(stores, rest[0], {

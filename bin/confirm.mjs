@@ -10,6 +10,8 @@
 // --apply (then it asks only with the flag); `only` names a flag
 // without which the command only reads; `when` is a test of the
 // words after the action, for a command only some of whose forms act.
+// `does` may be a function of those words, for a prompt that names
+// more than the one typed.
 //
 // Left unguarded on purpose: `passes issue`, which only adds a pass
 // that `passes revoke` takes back. `square deletions status` changes
@@ -73,6 +75,12 @@ const DESTRUCTIVE = {
   "customers rekey": { does: "move misplaced customer records, running",
     apply: true, whole: true },
   "customers forget": { does: "erase the details of", apply: true },
+  // The account that goes is the one typed (#776); the prompt names
+  // both, so swapped arguments show (security, PR #780).
+  "customers merge": {
+    does: ([from, into]) => `merge ${from} into ${into}, keeping ${into} `
+      + "and removing", apply: true,
+  },
   "auth backfill-index": {
     does: "index every sign-in record by customer, running", apply: true,
     whole: true,
@@ -140,7 +148,10 @@ export const confirmation = ({ group, action, rest = [], flags = {} }) => {
 
   const phrase = rule.whole ? `${group} ${action}` : rest[0];
 
-  return phrase ? { does: rule.does, phrase } : null;
+  return phrase ? {
+    does: typeof rule.does === "function" ? rule.does(rest) : rule.does,
+    phrase,
+  } : null;
 };
 
 // Asks, when production's command needs it. -> true to go ahead.

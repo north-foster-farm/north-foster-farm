@@ -164,6 +164,7 @@ const SQUARE_CALLS = {
   searchOpenOrders: (o) => square.searchOpenOrders({
     before: new Date(),
   }, o),
+  customersByEmail: (o) => square.customersByEmail("a@example.com", o),
   renameCustomerEmail: (o) => square.renameCustomerEmail(
     "a@example.com", "b@example.com", o
   ),

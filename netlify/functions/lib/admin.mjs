@@ -19,9 +19,12 @@ import { company } from "./company.mjs";
 import { DELIVERING, alert } from "./health.mjs";
 import { completeInSquare } from "./complete.mjs";
 import { holderOf } from "./amend.mjs";
-import { restoreCredit } from "./credit.mjs";
-import { audit, noteJoin } from "./group-log.mjs";
-import { GROUPS, groupOf, memberKeyOf } from "./groups.mjs";
+import { perksOf } from "../../../assets/scripts/order/lib/perks.mjs";
+import { getLedger, mergeLedger, restoreCredit } from "./credit.mjs";
+import { audit, auditLog, noteJoin, refOf } from "./group-log.mjs";
+import {
+  GROUPS, getGroupRecord, groupOf, memberKeyOf, setGroupHost,
+} from "./groups.mjs";
 import {
   HASHED, addressHash, listAddressed, segmentAddress,
 } from "./address-key.mjs";
@@ -39,7 +42,7 @@ import {
   getOrder, keptFee,
   listCheckouts, moveStatus, ordersFor, paidByHand, paidTotal, paymentRef,
   paymentsOf, questionOpen, refundedTotal, saveCustomer, setStatus,
-  settledRefunds,
+  settledRefunds, supportKey,
 } from "./records.mjs";
 import { paymentPending } from "./farm-orders.mjs";
 import { mailLinks, orderUrlFor } from "./site.mjs";
@@ -273,6 +276,261 @@ export const applyAudience = async (stores, rows, {
   return { dryRun, rows: done, counts };
 };
 
+// Neither a rename nor a merge goes ahead while a Venmo payment from
+// the address is under way: its order would land on an address that
+// is gone.
+const refuseVenmo = async (stores, email) => {
+  if ((await listCheckouts(stores)).some(
+    (c) => normalizeEmail(c.order && c.order.customer
+      && c.order.customer.email) === email
+  )) {
+    throw new Error(`A Venmo payment from ${email} is under way. Try ` +
+      "again once it has finished or lapsed (a day at most). Nothing " +
+      "changed.");
+  }
+};
+
+// Help messages moved under another address; one whose id the address
+// already holds keeps its own under the id with "~merged". One the
+// address already holds unchanged, under either id, is not written
+// again, so a rerun after a failed delete makes no copy. The address's
+// own are found under every form of its key (#758); a moved one goes
+// under the hashed key, naming the address it now sits under, as a
+// rename files it.
+const moveSupport = async (stores, support, email) => {
+  const same = (a, b) => !!a && JSON.stringify(a) === JSON.stringify(b);
+  const idOf = (key) => key.split("/").pop();
+  const keys = new Map((await listAddressed(stores.customers, "support",
+    email)).map(({ key }) => [idOf(key), key]));
+  const heldAs = (id) => (keys.has(id) ? stores.customers.get(keys.get(id))
+    : null);
+
+  for (const { key } of support) {
+    const id = idOf(key);
+    const stored = await stores.customers.get(key);
+    const message = stored && stored.email ? { ...stored, email } : stored;
+
+    if (!same(await heldAs(id), message)
+      && !same(await heldAs(`${id}~merged`), message)) {
+      await stores.customers.set(supportKey(email,
+        keys.has(id) ? `${id}~merged` : id), message);
+    }
+    await stores.customers.delete(key);
+  }
+};
+
+// An address's sessions end and its sign-in links are voided; its
+// unsubscribe and farm-news links name the new address.
+const moveAuth = async (stores, auth, email) => {
+  for (const { key, value } of auth) {
+    if (/^(session|token)\//.test(key)) {
+      await deleteAuth(stores, key, value);
+    } else {
+      await putAuth(stores, key, { ...value, email }, { before: value });
+    }
+  }
+};
+
+// A CLI address argument, cleaned and checked: the one email rule
+// (auth.mjs) rename and forget use.
+const address = (value) => {
+  const email = normalizeEmail(value);
+
+  if (!validEmail(email)) {
+    throw new Error(`"${value}" isn't an email address. Nothing changed.`);
+  }
+
+  return email;
+};
+
+// A perk the customer holds and that has not ended or been removed.
+const openPerk = (perk, day) => !perk.removedAt
+  && (!perk.end || perk.end >= day);
+
+// One customer folded into another, from the CLI (#776): `from`'s
+// orders (their ids, statuses and money untouched), perks, credit,
+// help messages and links move onto `into`, which keeps everything of
+// its own; `from`'s buying group goes too when `into` has none, and
+// its cart when `into`'s is empty (a membership `into`'s own group
+// replaces is logged as removed), and `into` becomes the host of each
+// group `from` hosts. A rerun after a failure partway moves nothing
+// twice. `from`'s sessions end, its sign-in
+// links are voided, and its record goes. Resend keeps `into`'s
+// contact (or makes it from `from`'s, with its choice) and drops
+// `from`'s; Square loses `from`'s customer, found by its exact email,
+// while the moved orders keep the Square ids they name (Square is the
+// record for money). Refuses when `into` has no account or a Venmo
+// payment from `from` is under way. With `apply` false nothing is
+// written and Square and Resend are only read. One masked
+// customer.merged line per merge applied. -> the report.
+export const mergeCustomer = async (stores, from, into, {
+  apply = false, by = null, env = process.env, fetchImpl = globalThis.fetch,
+  square = squareApi, news = newsApi, now = new Date(),
+} = {}) => {
+  const source = address(from);
+  const target = address(into);
+
+  if (source === target) throw new Error("The two addresses are the same.");
+
+  const customer = need(await getCustomer(stores, source), "customer");
+  const keeper = await getCustomer(stores, target);
+
+  if (!keeper) {
+    throw new Error(`${target} has no account to merge into. Nothing ` +
+      "changed.");
+  }
+  await refuseVenmo(stores, source);
+
+  const orders = await ordersFor(stores, source);
+  const auth = await authRecordsFor(stores, source);
+  const support = await listAddressed(stores.customers, "support", source);
+  const ledger = await getLedger(stores, source);
+  const day = today(now, siteTerms.timeZone);
+  const held = new Set(perksOf(keeper).filter((p) => openPerk(p, day))
+    .map((p) => p.type));
+  // A perk the target already holds open is not doubled. A rerun
+  // copies none twice because the source's perks are cleared as soon
+  // as they move, not because the target holds one that looks the
+  // same (security, PR #780).
+  const perks = perksOf(customer).filter((p) => !(openPerk(p, day)
+    && held.has(p.type)));
+  const group = memberKeyOf(keeper) ? null : memberKeyOf(customer);
+  // The source's membership, when the target keeps a group of its own.
+  const dropped = group ? null : memberKeyOf(customer);
+  // The groups the source hosts: the host moves to the target.
+  const hosted = [];
+
+  for (const { key } of GROUPS) {
+    const record = await getGroupRecord(stores, key);
+
+    if (record && record.host === source) hosted.push(key);
+  }
+  const keeperCart = await getCartOf(stores, target);
+  const cart = !(keeperCart && keeperCart.payload)
+    ? await getCartOf(stores, source) : null;
+  const count = (prefix) => auth.filter((a) => a.key.startsWith(prefix))
+    .length;
+  const report = {
+    summary: `${source} is removed. Its records move to ${target}, which ` +
+      "is kept.",
+    apply, from: source, into: target, removed: source, kept: target,
+    orders: orders.map((o) => o.id),
+    perks: perks.length,
+    credit: ledger.entries.length,
+    supportMessages: support.length,
+    sessionsEnded: count("session/"),
+    signInLinksVoided: count("token/"),
+    linksRepointed: count("unsub/") + count("news/"),
+    group,
+    groupDropped: dropped,
+    hostOf: hosted,
+    cart: !!cart,
+  };
+  // The outside services are asked even on a dry run: reads only.
+  const outside = async (name, fn) => {
+    try {
+      report[name] = await fn();
+    } catch (error) {
+      report[name] = maskIn(maskIn(`not reached: ${error.message}`, source),
+        target);
+    }
+  };
+  const squareIds = async () => {
+    const ids = await square.customersByEmail(source, { env, fetchImpl });
+
+    if (apply) {
+      for (const id of ids) await square.deleteCustomer(id, { env, fetchImpl });
+    }
+
+    return ids.length;
+  };
+
+  if (!apply) {
+    await outside("resend", () => news.moveContact(source, target, {
+      env, fetchImpl,
+    }));
+    await outside("square", squareIds);
+
+    return report;
+  }
+
+  await saveCustomer(stores, {
+    ...keeper,
+    perks: [...perksOf(keeper), ...perks],
+    ...(group ? { memberGroup: customer.memberGroup } : {}),
+  });
+  if (perksOf(customer).length) await saveCustomer(stores, {
+    ...customer, perks: [],
+  });
+  // The source's removal from its group is logged once: a rerun finds
+  // the entry it wrote, for this address, since the source joined.
+  const removalLogged = async (key) => {
+    const ref = refOf(source);
+    const since = (customer.memberGroup && customer.memberGroup.joinedAt)
+      || "";
+
+    return (await auditLog(stores, key)).some((e) =>
+      e.action === "member.remove" && e.refs && e.refs.target === ref
+      && String(e.at) >= since);
+  };
+
+  if (group && !await removalLogged(group)) {
+    const fold = { role: "farm" };
+
+    await audit(stores, { group, by: fold, action: "member.remove",
+      target: source, before: { group }, after: { group: null }, now });
+    await audit(stores, { group, by: fold, action: "member.add",
+      target, before: { group: null }, after: { group }, now });
+  }
+  // A membership the target's own group replaces is a membership
+  // change, logged as `groups remove` logs one.
+  if (dropped && !await removalLogged(dropped)) {
+    await audit(stores, { group: dropped, by: { role: "farm" },
+      action: "member.remove", target: source, before: { group: dropped },
+      after: { group: null }, now });
+  }
+  // The same person hosts under the address that stays, so the round's
+  // reward reaches an account; logged as `groups set` logs it.
+  for (const key of hosted) {
+    const record = await setGroupHost(stores, key, target, { now });
+
+    await audit(stores, { group: key, by: { role: "farm" },
+      action: "host.set", target: record.host, before: { host: source },
+      after: { host: record.host }, now });
+  }
+  for (const order of orders) {
+    await amendOrder(stores, order.id, {
+      customer: { ...order.customer, email: target },
+    }, "customer merged", now);
+    await deleteByEmail(stores, source, order.id);
+  }
+  // The grants moved this run, which a rerun may make fewer.
+  report.credit = await mergeLedger(stores, source, target);
+  await moveSupport(stores, support, target);
+  await moveAuth(stores, auth, target);
+  if (cart) await stores.customers.set(cartKey(target), cart);
+  await deleteCustomer(stores, source);
+  await outside("resend", () => news.moveContact(source, target, {
+    env, fetchImpl, apply: true,
+  }));
+  await outside("square", squareIds);
+
+  log.info({
+    event: "customer.merged", by,
+    record: maskEmail(source), target: maskEmail(target),
+    orders: orders.length, perks: report.perks, credit: report.credit,
+    supportMessages: report.supportMessages,
+    sessionsEnded: report.sessionsEnded,
+    signInLinksVoided: report.signInLinksVoided,
+    linksRepointed: report.linksRepointed,
+    group: report.group, groupDropped: report.groupDropped,
+    hostOf: report.hostOf, cart: report.cart,
+    resend: report.resend, square: report.square,
+  });
+
+  return report;
+};
+
 // A customer's email changed, from the CLI (#238): the record, every
 // order and its index, support messages, unsubscribe and farm-news
 // links, the Resend contact and the Square customer move to the new
@@ -295,13 +553,7 @@ export const renameCustomer = async (stores, from, to, {
   if (await getCustomer(stores, next)) {
     throw new Error(`${next} already has an account. Nothing changed.`);
   }
-  if ((await listCheckouts(stores)).some(
-    (c) => normalizeEmail(c.order && c.order.customer
-      && c.order.customer.email) === old
-  )) {
-    throw new Error(`A Venmo payment from ${old} is under way. Try again ` +
-      "once it has finished or lapsed (a day at most).");
-  }
+  await refuseVenmo(stores, old);
 
   const orders = await ordersFor(stores, old);
   // Its sessions and links, from its index alone (#508): each names
