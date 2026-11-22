@@ -1,3 +1,5 @@
+@use "sass:map";
+
 // The pickup-days layout (#703): the order page's Pickup days card,
 // the lapsed dialog and the account's Change pickup share it, so it
 // stands outside `.order` (partials/order/pickup-days.html). Each date
@@ -8,21 +10,33 @@
 // its address is street then city, with Copy and Map below; wide, the
 // address is one line with Copy and Map to its right.
 
+// The invalid text input's ring, focused (Bootstrap's
+// form-validation-state): its border and its glow.
+$order-pickups-invalid-shadow: map.get(
+  $form-validation-states, "invalid", "focus-box-shadow"
+);
+
 .order-pickups {
   display: grid;
   gap: 1.25rem;
   padding-top: 0.25rem;
 
+  // Kept clear until it is marked, so the ring moves nothing.
+  border: $input-border-width solid transparent;
+  border-radius: var(--bs-border-radius);
+  transition: $input-transition;
+
   &:focus {
     outline: 0;
   }
 
-  // Inside the 0.25rem the order card's clipped body keeps at its
-  // edges, so neither side is cut off (James's revision, 2026-11-21).
+  // A list with nothing chosen rings as an invalid text input does
+  // when focused (James's staging review, 2026-11-21), its corners
+  // the cards'. The glow reaches no further than the 0.25rem the
+  // order card's clipped body keeps at its edges.
   &.is-invalid {
-    border-radius: var(--bs-border-radius);
-    outline: 1px solid var(--bs-form-invalid-border-color);
-    outline-offset: 0.125rem;
+    border-color: var(--bs-form-invalid-border-color);
+    box-shadow: $order-pickups-invalid-shadow;
   }
 }
 

@@ -4,7 +4,6 @@
 // URL hash.
 
 import { drawPerks } from "../order/cart/perk-label.js";
-import { mergeScheduled } from "../order/lib/group.mjs";
 import {
   scheduledChoice, scheduledChoices,
 } from "../order/lib/scheduled.mjs";
@@ -13,7 +12,7 @@ import {
 } from "../order/lib/schedule.mjs";
 import { dollars } from "../order/lib/totals.mjs";
 import { forgetCustomer } from "../order/draft.js";
-import { drawPickupDays } from "../order/pickup-days.js";
+import { drawPickupDays, drawRounds } from "../order/pickup-days.js";
 import { label } from "../order/lib/zoned.mjs";
 import { forgetJoined, remember } from "../news/hide.js";
 import { forget, showChick, signOut } from "../session/session.js";
@@ -888,10 +887,15 @@ class Account {
   // Field errors from the API, next to the fields of one form. A form
   // that saves itself does not pull the focus back to the error.
   showErrors(form, errors, { focus = true } = {}) {
+    // A key with a slot in more than one part (a pickup's occurrence,
+    // under Pick-up days or Group orders) is shown in the visible one.
+    const shown = (selector) => all(form, selector)
+      .find((el) => !el.closest("[hidden]")) || qs(form, selector);
+
     this.clearErrors(form);
     for (const [key, message] of Object.entries(errors || {})) {
-      const slot = qs(form, `[data-error-for="${key}"]`);
-      const field = qs(form, `[data-field="${key}"], [name="${key}"]`);
+      const slot = shown(`[data-error-for="${key}"]`);
+      const field = shown(`[data-field="${key}"], [name="${key}"]`);
 
       if (slot) {
         write(slot, message);
@@ -1544,16 +1548,17 @@ class Account {
       const { ok, data } = await api("/api/dates");
 
       this.dates = ok ? data : {};
-      // A buying group's member (#471) may move a pickup to the
-      // group's round, which /api/dates never lists: the account's
-      // group is asked for it.
+      // A buying group's member (#471) moves a round order among the
+      // group's open rounds, which /api/dates never lists: the
+      // account's group is asked for them. They are Group orders'
+      // (#749, #762), never among the pick-up days.
       if (ok && this.customer && this.customer.memberGroup) {
         const mine = await api("/api/group", { method: "POST", body: {} })
           .catch(() => ({ ok: false, data: null }));
 
         if (mine.ok && mine.data && mine.data.dates) {
-          this.dates.scheduled = mergeScheduled(this.dates.scheduled,
-            mine.data.dates);
+          this.dates.group = mine.data.dates;
+          this.roundSeries = mine.data.group && mine.data.group.series;
           this.locations = [...this.locations,
             ...((mine.data.group || {}).places || {}).locations || []];
         }
@@ -1571,15 +1576,17 @@ class Account {
     const form = qs(node, "form");
     const select = qs(form, "[data-dates]");
     const scheduled = !!order.pickup;
-    const dates = await this.dateList(
-      scheduled ? "scheduled" : order.fulfilment.method
-    );
+    // A round order changes among the group's rounds (#762).
+    const round = scheduled && !!order.pickup.group;
+    const list = round ? "[data-rounds]" : "[data-pickups]";
+    const dates = await this.dateList(round ? "group"
+      : scheduled ? "scheduled" : order.fulfilment.method);
 
     // A scheduled pickup chooses an occurrence, any open date at any
     // place, in the order page's layout (#703). The others choose a
     // date.
     if (scheduled) {
-      this.drawPickups(form, order, dates);
+      this.drawPickups(form, order, dates, round);
     } else {
       const held = order.fulfilment.date;
 
@@ -1614,7 +1621,8 @@ class Account {
         part.hidden = order.fulfilment.method !== "onfarm";
       }
       qs(form, "[data-day]").hidden = scheduled;
-      qs(form, "[data-scheduled]").hidden = !scheduled;
+      qs(form, "[data-scheduled]").hidden = !scheduled || round;
+      qs(form, "[data-group]").hidden = !round;
       if (order.fulfilment.method === "onfarm") {
         const draw = () => this.drawWindows(form, order, dates, select.value);
 
@@ -1633,7 +1641,7 @@ class Account {
 
       if (scheduled) {
         body.method = "scheduled";
-        body.occurrence = (qs(form, "[data-pickups] input:checked")
+        body.occurrence = (qs(form, `${list} input:checked`)
           || {}).value || "";
       } else {
         body.date = select.value;
@@ -1666,21 +1674,25 @@ class Account {
     });
 
     this.panel(card).appendChild(node);
-    (scheduled ? qs(form, "[data-pickups] input:checked") : select).focus();
+    (scheduled ? qs(form, `${list} input:checked`) : select).focus();
   }
 
   // Every open scheduled pickup as the order page shows it, grouped
   // under its date (#703, order/pickup-days.js), the booked one
   // chosen. A booked pickup no longer open is offered too, marked as
-  // booked, so the notes can change without moving it.
-  drawPickups(form, order, dates) {
+  // booked, so the notes can change without moving it. A round order
+  // (`round`) offers the group's open rounds instead, under Group
+  // orders, as the order page does (#749, #762); a pickup never does.
+  drawPickups(form, order, dates, round = false) {
     const p = order.pickup;
     const f = order.fulfilment;
     const held = p.occurrence || f.occurrence;
-    const box = qs(form, "[data-pickups]");
-    const name = qs(form, "[data-pickups-label]");
+    const part = round ? "rounds" : "pickups";
+    const box = qs(form, `[data-${part}]`);
+    const name = qs(form, `[data-${part}-label]`);
     const id = `change-${order.id}`;
-    const choices = scheduledChoices(dates);
+    const choices = scheduledChoices(round ? dates
+      : dates.filter((d) => d.series !== this.roundSeries));
 
     if (!choices.some((d) => d.value === held)) {
       choices.push(scheduledChoice({
@@ -1691,7 +1703,7 @@ class Account {
     }
     name.id = `${id}-label`;
     box.setAttribute("aria-labelledby", name.id);
-    drawPickupDays(box, choices, {
+    (round ? drawRounds : drawPickupDays)(box, choices, {
       place: (code) => this.place(code), name: "occurrence", id, pick: held,
     });
   }

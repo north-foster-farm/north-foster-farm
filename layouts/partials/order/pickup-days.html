@@ -34,17 +34,19 @@
     </span>
   </div>
 </template>
-{{/* A buying group's round (#749 item 5): its date, the place, its
-     hours and its address, with Copy and no Map (the place is
-     private). The order page's Group orders and the lapsed dialog draw
-     it, by pickup-days.js drawRounds. */}}
+{{/* A buying group's round (#749 item 5), in tpl-pickup's order
+     (James's staging review, 2026-11-21): its date as the title, its
+     hours, then the place and its address as one block, with Copy and
+     no Map (the place is private). The order page's Group orders, the
+     lapsed dialog and the account's Change pickup draw it, by
+     pickup-days.js drawRounds. */}}
 <template id="tpl-round">
   <div class="order-pickup">
     <input class="form-check-input" type="radio">
     <label class="order-pickup-label">
       <span class="order-pickup-name"></span>
-      <span class="order-pickup-place"></span>
       <span class="order-pickup-time"></span>
+      <span class="order-pickup-place"></span>
       <span class="order-pickup-address"><span class="order-pickup-street"></span><span class="order-pickup-city"></span></span>
     </label>
     <span class="order-pickup-actions">

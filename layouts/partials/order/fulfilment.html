@@ -219,7 +219,9 @@
          cards and in none (#749 item 5); the body is the reveal's one
          child, so it carries `data-method-body`. The card is a
          template, put among the ways only while a group's rounds are
-         offered, so no one else's page holds a fourth way. */}}
+         offered, so no one else's page holds a fourth way. Its list
+         shares the occurrence's error with Pick-up days' (errors.js
+         marks the visible one), so a missing round rings it too. */}}
     <template id="tpl-group-way">
     <div class="order-method" data-group-way>
       <input class="form-check-input" type="radio" name="method" id="method-group" value="group" data-field="fulfilment.method" aria-labelledby="method-group-title">
@@ -240,7 +242,7 @@
           <div class="row">
             <div class="col-12">
               <span class="visually-hidden" id="group-label">Group order date</span>
-              <div class="order-pickups" id="group-pickups" role="radiogroup" aria-labelledby="group-label" aria-describedby="err-group-date" tabindex="-1" data-dates="group">
+              <div class="order-pickups" id="group-pickups" role="radiogroup" aria-labelledby="group-label" aria-describedby="err-group-date" tabindex="-1" data-field="fulfilment.occurrence" data-dates="group">
                 <p class="order-windows-none">Loading group orders&hellip;</p>
               </div>
               <div class="invalid-feedback" id="err-group-date" data-error-for="fulfilment.occurrence"></div>

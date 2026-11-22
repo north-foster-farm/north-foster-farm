@@ -1679,10 +1679,12 @@ export class OrderForm {
     const times = window && windowLabel(pickupTimes({ window }));
 
     if (status) {
-      status.textContent = `${method === "onfarm"
-        ? `Pickup is now ${day}, ${times}`
-        : pickup ? `Pickup is now ${day}, ${place}`
-          : `Delivery is now ${day}`}. Pay again to place your order.`;
+      // A round by its date as the group lists it (#761, 1b).
+      status.textContent = `${method === "group"
+        ? `Your group order is now for ${(chosen && chosen.label) || day}`
+        : method === "onfarm" ? `Pickup is now ${day}, ${times}`
+          : pickup ? `Pickup is now ${day}, ${place}`
+            : `Delivery is now ${day}`}. Pay again to place your order.`;
       status.hidden = false;
     }
 
@@ -2011,7 +2013,7 @@ export class OrderForm {
   // its key and attempt, or null after showing the errors. Nothing
   // asynchronous: a wallet must tokenise inside its click.
   check(payload) {
-    return validateOrder(payload, {
+    const check = validateOrder(payload, {
       index: this.index, terms: this.terms, now: this.dates.now(),
       placed: this.editing && this.editing.placed,
       group: this.group, code: this.code, schedule: this.dates.schedule(),
@@ -2022,6 +2024,17 @@ export class OrderForm {
       waive: { minimum: !!this.pass, fee: !!this.pass && this.passFee },
       perks: this.perkTypes(),
     });
+
+    // Group orders posts as a pickup day (#749), so a missing round
+    // comes back as a missing day; it is said as a round (#761, 2b).
+    const round = payload.fulfilment.occurrence;
+
+    if (!check.ok && check.errors && this.way() === "group" && !round
+      && check.errors["fulfilment.occurrence"]) {
+      check.errors["fulfilment.occurrence"] = "Choose a group order date.";
+    }
+
+    return check;
   }
 
   // Once errors are showing, each change clears the ones it fixes and

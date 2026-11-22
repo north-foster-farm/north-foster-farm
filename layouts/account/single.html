@@ -625,6 +625,14 @@
           <div class="order-pickups" role="radiogroup" data-field="occurrence" tabindex="-1" data-pickups></div>
           <div class="invalid-feedback" data-error-for="occurrence"></div>
         </div>
+        {{/* A buying group's round order moves among the group's open
+             rounds, the order page's Group orders cards (#749, #762),
+             never among the pick-up days. */}}
+        <div class="col-12" data-group hidden>
+          <span class="visually-hidden" data-rounds-label>Group order date</span>
+          <div class="order-pickups" role="radiogroup" data-field="occurrence" tabindex="-1" data-rounds></div>
+          <div class="invalid-feedback" data-error-for="occurrence"></div>
+        </div>
         <div class="col-md-6" data-onfarm>
           {{/* The chosen day's times from the farm's schedule (W11d),
                drawn by main.js from the template below. */}}
