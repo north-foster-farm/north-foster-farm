@@ -14,7 +14,8 @@
 
 import { readFileSync } from "node:fs";
 
-import { CUSTOMER, ORDER, dates } from "./support/canned.mjs";
+import { dates } from "./support/canned.mjs";
+import { paidDelivery, signedInWith } from "./support/paid-order.mjs";
 import { SKU, expect, test } from "./support/order.mjs";
 import { deliveryDates } from "../assets/scripts/order/lib/dates.mjs";
 import { instant } from "../assets/scripts/order/lib/zoned.mjs";
@@ -31,24 +32,7 @@ const DAY = "2026-12-10";
 const REFUSED = "This order can't be changed any more.";
 
 // $56 of eggs and the $5 fee, for delivery on Thursday the 10th.
-const PAID = {
-  ...ORDER,
-  id: "NFF-2612-QA61",
-  submittedAt: "2026-12-01T14:00:00.000Z",
-  paidAt: "2026-12-01T14:00:05.000Z",
-  lines: [{ ...ORDER.lines[0], qty: 8, lineTotal: 56 }],
-  totals: { subtotal: 5600, discountAmount: 0, deliveryFee: 500,
-    total: 6100 },
-  fulfilment: {
-    method: "delivery", date: DAY, state: "agreed", onfarm: null,
-    delivery: { address1: "1 Main St", town: "Foster", zip: "02825",
-      cooler: "Porch" },
-  },
-  payments: [{ ...ORDER.payments[0], at: "2026-12-01T14:00:05.000Z",
-    amount: 6100 }],
-  keptFee: 0,
-  keptDate: null,
-};
+const PAID = paidDelivery("NFF-2612-QA61", DAY);
 const DRAFT = `nff-edit-${PAID.id}`;
 
 // Signed in with the order on the account, the dates at NOW, and every
@@ -57,18 +41,7 @@ const DRAFT = `nff-edit-${PAID.id}`;
 const setUp = async (page, context, baseURL) => {
   const sent = [];
 
-  await context.addCookies([{
-    name: "nff_signed_in", value: "1", url: baseURL,
-  }]);
-  await page.route("**/api/me", (route) => route.fulfill({
-    json: { signedIn: true, customer: CUSTOMER },
-  }));
-  await page.route("**/api/account/orders", (route) => route.fulfill({
-    json: { orders: [PAID] },
-  }));
-  await page.route("**/api/account/cart", (route) => route.fulfill({
-    json: { ok: true, cart: null },
-  }));
+  await signedInWith(page, context, baseURL, [PAID]);
   await page.route("**/api/dates", (route) => route.fulfill({ json: {
     ...dates(),
     now: NOW.toISOString(),
