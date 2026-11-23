@@ -106,6 +106,57 @@ export const answerAccount = async (context, on = true) => {
   }
 };
 
+// The staging toolbar's requests, answered 403 so it neither asks for
+// a token nor polls (the hideToolbar fixture in support/order.mjs). A
+// page.unrouteAll drops it, so leavePage puts it back.
+export const stubToolbar = (page) => page.route("**/api/staging/**",
+  (route) => route.fulfill({
+    status: 403,
+    contentType: "application/json",
+    body: JSON.stringify({ error: "Stubbed by the QA suite." }),
+  }));
+
+// Leaves the page signed out: the site's cookies go FIRST, then the
+// page. A page left with a cart save pending sends it on pagehide as a
+// keepalive PUT (session/cart-sync.js). Carrying a made-up stamp and no
+// session, it is answered 401 with a Set-Cookie that clears the stamp,
+// and on staging that answer lands after the next sign-in has set its
+// own: the order form then reads as signed out (#729, runs 45161671452
+// and 45168515763; gone in 45177401056 once the stamp went first).
+// With no stamp, cart-sync sends nothing. `unroute` drops the page's
+// routes too, the toolbar's stub put back.
+export const leavePage = async (page, { unroute = true } = {}) => {
+  await clearSession(page.context());
+  await page.goto("about:blank");
+  if (unroute) {
+    await page.unrouteAll({ behavior: "ignoreErrors" });
+    await stubToolbar(page);
+  }
+};
+
+let fakeStamps = 0;
+
+// A made-up sign-in, the one way every spec signs in without a real
+// session: leavePage, account requests answered at the context
+// (answerAccount), a new stamp, then `routes`, each [url, answer] with
+// answer a JSON body or a route handler. Each sign-in takes a new
+// stamp, `prefix` and a count, so the session's cache (session/
+// cache.js) never answers with the last sign-in's account.
+export const fakeSignIn = async (page, baseURL, {
+  prefix, routes, unroute = true,
+}) => {
+  await leavePage(page, { unroute });
+  await answerAccount(page.context());
+  fakeStamps += 1;
+  await page.context().addCookies([
+    { name: "nff_signed_in", value: `${prefix}${fakeStamps}`, url: baseURL },
+  ]);
+  for (const [url, answer] of routes) {
+    await page.route(url, typeof answer === "function" ? answer
+      : (route) => route.fulfill({ json: answer }));
+  }
+};
+
 // Whether the back office can be reached from here.
 export const backOffice = () => ({ ready: !!env.E2E_STAGING_TOKEN });
 

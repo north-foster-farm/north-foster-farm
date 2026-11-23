@@ -23,7 +23,7 @@
 
 import { CUSTOMER, cannedDates } from "./support/canned.mjs";
 import { OrderPage, expect, settleCart, test } from "./support/order.mjs";
-import { clearSession } from "./support/staging.mjs";
+import { fakeSignIn } from "./support/staging.mjs";
 
 const FRIENDS = "Friends and family pricing";
 const FRIENDS_PARTS = [
@@ -38,37 +38,25 @@ const BOTH = "Free delivery · No delivery minimum";
 // Perks as /api/me sends them (lib/perks.mjs publicPerk).
 const perk = (type, end = null) => ({ type, start: "2026-11-01", end });
 
-let stamps = 0;
-
 // Signed in as the canned customer, holding `perks`. Without the
 // session stamp the order page never applies /api/me's answer. Each
 // sign-in takes a new stamp, so a test that signs in again with other
 // perks never reads the last answer from the session's cache
 // (session/cache.js).
 //
-// The stamp goes first, then the last page: a cart push that page
-// sends on pagehide finds no stamp and is never sent, so it cannot
-// come back a 401 that clears the new stamp (#729; leaving first was
-// not enough, since a keepalive push outlives the page). The account
-// page then loads again rather than only changing its hash.
-const signIn = async (page, baseURL, perks) => {
-  await clearSession(page.context());
-  await page.goto("about:blank");
-  stamps += 1;
-  await page.context().addCookies([
-    { name: "nff_signed_in", value: `qa${stamps}`, url: baseURL },
-  ]);
-  await page.route("**/api/me", (route) => route.fulfill({
-    json: { signedIn: true, customer: { ...CUSTOMER, perks } },
-  }));
-  // Unanswered, the cart request gets a 401 that clears the stamp.
-  await page.route("**/api/account/cart", (route) => route.fulfill({
-    json: { ok: true, cart: null },
-  }));
-  await page.route("**/api/account/orders", (route) => route.fulfill({
-    json: { orders: [] },
-  }));
-};
+// fakeSignIn clears the stamp before the last page goes (support/
+// staging.mjs says why), and the account page then loads again rather
+// than only changing its hash.
+const signIn = (page, baseURL, perks) => fakeSignIn(page, baseURL, {
+  prefix: "qa",
+  routes: [
+    ["**/api/me", { signedIn: true, customer: { ...CUSTOMER, perks } }],
+    // Unanswered, the cart request gets a 401 that clears the stamp.
+    ["**/api/account/cart", { ok: true, cart: null }],
+    ["**/api/account/orders", { orders: [] }],
+  ],
+  unroute: false,
+});
 
 // The order page, signed in with `perks`, its cart open and settled.
 const openCart = async (page, baseURL, perks) => {

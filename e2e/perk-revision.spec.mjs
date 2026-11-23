@@ -29,7 +29,7 @@ import groupData from "../data/groups.json" with { type: "json" };
 import { CUSTOMER, cannedDates } from "./support/canned.mjs";
 import { TODAY, moneyFor } from "./support/money-day.mjs";
 import { OrderPage, expect, settleCart, test } from "./support/order.mjs";
-import { answerAccount, clearSession } from "./support/staging.mjs";
+import { clearSession, fakeSignIn } from "./support/staging.mjs";
 
 const FRIENDS = "Friends and family pricing";
 const FAMILY = "Family pricing";
@@ -107,8 +107,6 @@ const MEMBER = {
 // Perks as /api/me sends them (lib/perks.mjs publicPerk).
 const perk = (type, end = null) => ({ type, start: "2026-11-01", end });
 
-let stamps = 0;
-
 // What signIn answers, by route. Unanswered, the cart request gets a
 // 401 that clears the stamp.
 const signInAnswers = (perks, extra) => ({
@@ -136,19 +134,15 @@ const dropOwnRoutes = (page, more = []) => Promise.all(
 // e2e/perk-label.spec.mjs, each sign-in takes a new session stamp so
 // the session's cache never answers with the last test's perks.
 // `extra` adds to /api/me's answer (a member's `member`).
-const signIn = async (page, baseURL, perks, extra = {}) => {
-  // The stamp goes before the page does, as vff.mjs's signIn says.
-  await clearSession(page.context());
-  await page.goto("about:blank");
-  await answerAccount(page.context());
-  stamps += 1;
-  await page.context().addCookies([
-    { name: "nff_signed_in", value: `qr${stamps}`, url: baseURL },
-  ]);
-  await Promise.all(Object.entries(signInAnswers(perks, extra)).map(
-    ([url, json]) => page.route(url, (route) => route.fulfill({ json }))
-  ));
-};
+const signIn = (page, baseURL, perks, extra = {}) => fakeSignIn(
+  page, baseURL, {
+    prefix: "qr",
+    routes: Object.entries(signInAnswers(perks, extra)),
+    // The caller's dropOwnRoutes takes signIn's own routes away first,
+    // and keeps the suite's.
+    unroute: false,
+  }
+);
 
 // The order page, signed in with `perks`, its cart open and settled.
 // -> { order, note, badge, beside }: the perk line, the free delivery
