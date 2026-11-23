@@ -406,6 +406,12 @@ submission. The contract between them:
   moves the pane; `readoutLabels`; `editMoney`; `wayButtons`;
   `passedBy`, whether the bars' readouts take over; and `tierKeys`
   and `deliveryTip`, the day's money for the badges.
+- And the badges (2026-11-22, #853): `Badges` in `badges.js` holds
+  the badges' tooltips and the perks', wires them, draws which are
+  lit and celebrates one that lights, and takes the form's
+  `setMoney` and `setPerks`, which `Cart` passes on. `Cart` asks it
+  to shut its tooltips (`shutTips`) when the pane folds, settles or
+  scrolls, and on Escape.
 - Draft, sync and the header badge stay in `draft.js`, `cart-sync.mjs`,
   `session/cart-sync.js` and `cart-badge/*`, unchanged in shape. The
   cart announces nothing itself; `OrderForm` keeps `announceCart`.
