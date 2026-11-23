@@ -50,12 +50,15 @@ const paying = (req) => new URL(req.url).searchParams.get("final") === "1";
 // the server's own Square snapshot (#908, James's rule 7), so a repeat
 // inside them runs no function. Each edge node keeps its own copy;
 // durable shares one across them, which cuts the runs but does not
-// promise a single one. Browsers keep nothing (json()'s no-store), a
-// stock pin's cookie (staging's tests) gets an answer of its own, and
-// the check before paying is never answered from the edge.
+// promise a single one. Browsers keep nothing (json()'s no-store), and
+// the check before paying is never answered from the edge. The key is
+// only the final flag and a stock pin's cookie (staging's tests), so
+// a query string of any other parameter shares the one answer instead
+// of making its own (#994; Netlify's caching overview, "Cache key
+// variation").
 const EDGE = {
   "Netlify-CDN-Cache-Control": "public, durable, s-maxage=15",
-  "Netlify-Vary": `cookie=${SCOPE_COOKIE}`,
+  "Netlify-Vary": `query=final,cookie=${SCOPE_COOKIE}`,
 };
 const edgeFor = (req) => (paying(req) ? {} : EDGE);
 
