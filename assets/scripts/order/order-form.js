@@ -593,23 +593,25 @@ export class OrderForm {
   // or, for a group with no focus of its own (the pickup times) or a
   // list of dates (#703), its first choice. `options` go to Errors.
   showErrors(errors, options) {
-    this.errors.show(errors, options);
-
-    const field = this.errors.find("data-field", Object.keys(errors)[0]);
-
-    if (field && (field.hasAttribute("data-dates")
-      || document.activeElement !== field)) {
-      qs(field, "input:not([disabled])")?.focus({ preventScroll: true });
-    }
+    this.errors.show(errors, {
+      ...options,
+      focusIn: (field) => {
+        if (field.hasAttribute("data-dates")
+          || document.activeElement !== field) {
+          qs(field, "input:not([disabled])")?.focus({ preventScroll: true });
+        }
+      },
+    });
   }
 
   // A section brought into view, smoothly, and `focus` focused in it: a
-  // selector or an element.
+  // selector or an element. The focus moves first: WebKit ends a smooth
+  // scroll early when the focus moves during it (#1013).
   goTo(section, focus) {
     const el = typeof focus === "string" ? qs(section, focus) : focus;
 
-    el.scrollIntoView({ behavior: "smooth", block: "center" });
     el.focus({ preventScroll: true });
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
   }
 
   wire() {

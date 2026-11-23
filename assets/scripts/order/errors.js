@@ -127,10 +127,12 @@ export class Errors {
     return field || slot;
   }
 
-  // Every error shown, the first brought into view and focused. With
+  // Every error shown, the first focused and brought into view. With
   // `hint` (Proceed to checkout), a list of dates says its message as
-  // a hint (#703).
-  show(errors, { hint = false } = {}) {
+  // a hint (#703). `focusIn(first)` may move the focus on, into the
+  // field. All focus moves before the smooth scroll starts: WebKit
+  // ends a smooth scroll early when the focus moves during it (#1013).
+  show(errors, { hint = false, focusIn = null } = {}) {
     this.clear();
 
     let first = null;
@@ -142,8 +144,9 @@ export class Errors {
     }
 
     if (first) {
-      reveal(first);
       if (first.focus) first.focus({ preventScroll: true });
+      if (focusIn) focusIn(first);
+      reveal(first);
     }
   }
 }
