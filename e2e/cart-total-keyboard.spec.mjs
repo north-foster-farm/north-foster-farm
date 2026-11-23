@@ -8,7 +8,9 @@
 // bar is a phone's (d-lg-none), so this runs in the phone project.
 
 import { cannedDates } from "./support/canned.mjs";
-import { OrderPage, expect, test } from "./support/order.mjs";
+import {
+  OrderPage, expect, stockApplied, test,
+} from "./support/order.mjs";
 
 const STILL = 60;
 
@@ -21,6 +23,11 @@ test("Tab and Enter on the top bar's total, then a resize, scroll one "
   const order = new OrderPage(page);
 
   await order.open({ eggs: 2 });
+  // Stock settled first, as the other cart specs wait: on staging its
+  // answer comes late and hides or shows rows above the cart while
+  // the scroll runs (staging run 45105183530, qa's triage on #729,
+  // cause 3).
+  await stockApplied(page);
 
   const total = page.locator(".order-topbar-total");
 
