@@ -10,9 +10,10 @@
   "browserslist": "defaults",
   "scripts": {
     "lint": "npm run lint:code && npm run test:gates && npm run test:analysis",
-    "lint:code": "npm run lint:shell && npm run lint:scripts && npm run lint:styles && npm run lint:copies && npm run lint:unused && npm run check:exceptions",
+    "lint:code": "npm run lint:shell && npm run lint:scripts && npm run lint:styles && npm run lint:copies && npm run lint:unused && npm run check:exceptions && npm run check:touched",
     "lint:shell": "node bin/lint-shell.mjs",
     "check:exceptions": "node bin/quality/exceptions.mjs",
+    "check:touched": "node bin/quality/touched.mjs",
     "lint:scripts": "eslint --max-warnings 0 .",
     "lint:styles": "stylelint --max-warnings 0 \"**/*.{scss,css}\"",
     "lint:unused": "knip --no-progress",

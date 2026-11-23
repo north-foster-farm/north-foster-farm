@@ -1,5 +1,8 @@
 const js = require("@eslint/js");
 const globals = require("globals");
+const {
+  LENGTHS, LIMITS, TESTS, readLists,
+} = require("./bin/quality/lists.mjs");
 
 // The core rules beyond recommended that hold every script (#782, steps
 // 1 and 2 of the proposal): the 17 that found nothing on the code and
@@ -32,6 +35,19 @@ const correctness = [
   "prefer-promise-reject-errors",
   "radix",
 ];
+
+// The legacy lists (#782 c7075114694, section 2): each gate leaves out
+// the files on its list, and only that gate, until a change brings
+// one up and deletes its line. check:touched sets NFF_QUALITY_UNLISTED
+// to hold a stalled file's changed lines to the gate.
+const legacy = () => (process.env.NFF_QUALITY_UNLISTED ? [] :
+  Object.entries(readLists(__dirname))
+    .filter(([, entries]) => entries.length)
+    .map(([gate, entries]) => ({
+      // #782 c7075114694: the files not yet brought up to the gate.
+      "files": entries.map((entry) => entry.path),
+      "rules": { [gate]: "off" },
+    })));
 
 module.exports = [
   // `npm run lint` reads the whole tree (#769); these folders are build
@@ -131,6 +147,9 @@ module.exports = [
       "space-in-parens": "error",
       "spaced-comment": "error",
       ...Object.fromEntries(correctness.map((rule) => [rule, "error"])),
+      // James's limits (#782 c7095277804 and the issue body, 2026-11-22).
+      ...Object.fromEntries(Object.entries(LIMITS)
+        .map(([rule, max]) => [rule, ["error", { max }]])),
     },
   },
   {
@@ -193,4 +212,11 @@ module.exports = [
       "sourceType": "module",
     },
   },
+  {
+    // Function and file length are off in tests; nesting and
+    // parameters still hold there (James, #782 c7095277804).
+    "files": TESTS,
+    "rules": Object.fromEntries(LENGTHS.map((rule) => [rule, "off"])),
+  },
+  ...legacy(),
 ];

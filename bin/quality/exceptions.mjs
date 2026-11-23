@@ -5,15 +5,19 @@
 // fails on:
 // - a disable directive that names no rule, or cites no #791 c<id>;
 // - any @ts-ignore or @ts-nocheck;
-// - an exclusion in a config with no citation beside it.
+// - an exclusion in a config with no citation beside it;
+// - in a pull request or on a push, a stall marker with no #791 entry
+//   (the hook accepts one, since the entry may not exist yet;
+//   coordinator, 2026-11-23, provisional for James).
 // A directive that no longer suppresses anything is ESLint's and
 // Stylelint's own error (step 1).
-import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { join } from "node:path";
+import { git, changeOf } from "./change.mjs";
 import { directiveFaults, kindOf } from "./directives.mjs";
 import { configFaults } from "./configs.mjs";
+import { LISTS, readLists } from "./lists.mjs";
 
 const root = process.cwd();
 
@@ -27,9 +31,7 @@ const skipped = () => {
 
 const files = () => {
   const skip = skipped();
-  return execFileSync("git", ["ls-files", "-c", "-z"], {
-    "encoding": "utf8", "maxBuffer": 64 * 1024 * 1024,
-  }).split("\0").filter(Boolean)
+  return git(["ls-files", "-c", "-z"]).split("\0").filter(Boolean)
     .filter((path) => !skip.some((folder) => path.startsWith(folder)));
 };
 
@@ -49,9 +51,18 @@ const fileFaults = (path) => {
     .map((f) => `${path}:${f.line}: ${f.fault}`);
 };
 
+const markerFaults = () => {
+  if (changeOf().kind === "hook") return [];
+  return Object.entries(readLists(root)).flatMap(([gate, entries]) => entries
+    .filter((e) => e.stall && !e.stall.entry)
+    .map((e) => `${LISTS}/${gate}.txt: ${e.path}: a stall marker with no ` +
+      "#791 entry (c<id>)"));
+};
+
 const tracked = files();
 const faults = [
   ...tracked.flatMap(fileFaults),
+  ...markerFaults(),
   ...configFaults(root, tracked),
 ];
 for (const line of faults) console.error(line);

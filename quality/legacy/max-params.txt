@@ -1,0 +1,38 @@
+# The files not yet brought up to max-params (at most 4 parameters), written
+# from the code on next when the gate was switched on (#782 step 3,
+# issuecomment-7075114694, section 2). A change that touches one brings
+# it up and deletes its line; a list only shrinks.
+assets/scripts/map/fit.mjs
+assets/scripts/order/cart/perk-label.js
+assets/scripts/order/lib/dates.mjs
+bin/e2e/logs.mjs
+bin/e2e/server.mjs
+bin/facts/check.mjs
+bin/favicons/emblem.mjs
+bin/supply/lockfile.mjs
+e2e/contact-card.spec.mjs
+e2e/perk-label.spec.mjs
+e2e/support/canned.mjs
+e2e/support/request-error.mjs
+netlify/functions/lib/account.mjs
+netlify/functions/lib/checkout.mjs
+netlify/functions/lib/edit.mjs
+netlify/functions/lib/fake-square.mjs
+netlify/functions/lib/farm-orders.mjs
+netlify/functions/lib/news.mjs
+netlify/functions/lib/packing.mjs
+netlify/functions/lib/payments.mjs
+netlify/functions/lib/pdf.mjs
+netlify/functions/lib/records.mjs
+netlify/functions/lib/rounds.mjs
+netlify/functions/lib/settle.mjs
+netlify/functions/lib/square.mjs
+netlify/functions/lib/stock.mjs
+netlify/functions/lib/templates.mjs
+netlify/functions/paypal-webhook.mjs
+test/edit.test.mjs
+test/fake-square.test.mjs
+test/group-reward.test.mjs
+test/maintenance.test.mjs
+test/packing-kinds.test.mjs
+test/retention.test.mjs
