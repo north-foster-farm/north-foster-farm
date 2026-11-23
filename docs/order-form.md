@@ -527,7 +527,10 @@ refused rather than charged.
 field with its "Prefer text or call?" row in `contact.js` (2026-11-23,
 #816); the links into the page, `?method=`, `?series=`, `?add=` and
 `?group=`, in `links.js`, with `?add=`'s parsing and notice in the pure
-`add-query.mjs` (2026-11-23, #817); and the section spy, which names the section on screen in
+`add-query.mjs` (2026-11-23, #817); the result panels, the order
+placed, a checkout that could not complete and a change the server
+refused, in `result.js`, with their words and the beacon's record in
+the pure `placed.mjs` (2026-11-23, #818); and the section spy, which names the section on screen in
 the sidebar's outline, the phone's bar and the total bar, in
 `section-spy.js` (`watchSections`, `keepInRail`), with its choice of
 section drawn out into the pure `section-pick.mjs`.

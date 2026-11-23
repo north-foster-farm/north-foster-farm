@@ -14,11 +14,12 @@
 // top-level `idempotencyKey`, the one prepare() sets from the draft
 // and posts to /api/orders.
 //
-// How it reads the line: it calls OrderForm's fail() on a form
-// stubbed to the few members fail() reaches (summaryText,
-// contactLinks, finish, and a draft whose key is the request's), with
-// a fake window, document, navigator and location, and keeps every
-// console.error. The line is the one that parses as JSON with
+// How it reads the line: it calls form/result.js's showFailed(), which
+// took fail() in #818 (order-form.js phase 4), on a view stubbed to
+// the few members it reaches (the farm's contact, the catalog's entry,
+// the total, the pending and result panels), with a fake window,
+// document, navigator and location, and keeps every console.error.
+// The line is the one that parses as JSON with
 // `event: "order.undeliverable"`; the key is read from its
 // `idempotencyKey` field, the name the line has today
 // (docs/refactors/order-form.md, "Observability").
@@ -72,7 +73,9 @@ const before = own();
 set("window", {});
 set("document", fakeDocument);
 
-const { OrderForm } = await import("../assets/scripts/order/order-form.js");
+const { showFailed } = await import(
+  "../assets/scripts/order/form/result.js"
+);
 
 restore(before);
 
@@ -109,12 +112,23 @@ const payload = () => ({
   attempt: 1,
 });
 
-// The form fail() runs on: only what it reaches, the rest unset.
-const form = () => ({
-  summaryText: () => "Sam Tester <sam.tester@example.com>",
-  contactLinks: () => {},
-  finish: () => {},
-  draft: { key: () => KEY, attempt: () => 1 },
+// The view showFailed() draws on: only what it reaches, the rest
+// unset. The farm's contact and the catalog's entry are made up.
+const view = () => ({
+  contact: {
+    email: "farm@example.com",
+    phone: { plain: "4015550100", display: "(401) 555-0100" },
+  },
+  ctx: {
+    occurrence: () => null, drop: {}, dropSeries: null,
+    deliveryWindow: "", location: () => null,
+  },
+  item: () => ({ groupLabel: "Eggs", label: "Dozen", price: 7 }),
+  total: () => 1400,
+  pending: { hide: () => {} },
+  result: {
+    textContent: "", appendChild: () => {}, scrollIntoView: () => {},
+  },
 });
 
 describe("the order.undeliverable console line (#814)", () => {
@@ -136,10 +150,9 @@ describe("the order.undeliverable console line (#814)", () => {
     restore(saved);
   });
 
-  // The line fail() writes, raw and parsed.
+  // The line showFailed() writes, raw and parsed.
   const line = () => {
-    OrderForm.prototype.fail.call(form(), payload(),
-      "We couldn't reach our payment system.");
+    showFailed(view(), payload(), "We couldn't reach our payment system.");
 
     const found = errors.flatMap((raw) => {
       try {
