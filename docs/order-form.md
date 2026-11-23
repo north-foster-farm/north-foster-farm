@@ -517,7 +517,10 @@ refused rather than charged.
 ## The page
 
 `scripts/order/pay.js` owns the payment section
-(`layouts/partials/order/payment.html`). It fetches
+(`layouts/partials/order/payment.html`), with its parts in
+`scripts/order/pay/`: `section.js` writes the section's state,
+`scripts.js` loads the SDKs' scripts and `venmo-gate.js` keeps
+the Venmo dark launch (2026-11-23, #868). It fetches
 `/api/checkout/config` and loads the SDKs once the section is near
 the screen or focused: Square's from `web.squarecdn.com` (sandbox:
 `sandbox.web.squarecdn.com`), PayPal's from `www.paypal.com/sdk/js`

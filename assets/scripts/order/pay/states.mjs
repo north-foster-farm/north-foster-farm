@@ -1,6 +1,6 @@
 // What the payment section shows and whether it needs anything more,
 // decided from plain values (docs/refactors/pay.md, phase 1). Pure:
-// order/pay.js reads the SDKs and writes the DOM.
+// order/pay.js reads the SDKs, and pay/section.js writes the DOM.
 
 // The card's fields. Proceed to checkout asks whether all are
 // complete (#706).

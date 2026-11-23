@@ -1217,7 +1217,7 @@
   }
 
   // Payment: the card form the SDK mounts, and the wallet buttons
-  // beside it. The states are set by scripts/order/pay.js.
+  // beside it. The states are set by scripts/order/pay/section.js.
 
   // A layer of its own: the vendors' iframes carry z-indexes far above
   // the page's, and loose in the page's stacking they drew over the
