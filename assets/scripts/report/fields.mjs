@@ -27,7 +27,7 @@ export const LIMITS = {
   where: 40, message: 300, stack: 2000, build: 40, page: 200, crumbs: 20,
 };
 
-// The places a report may name: each one pay.js reports from, the
+// The places a report may name: each one pay.js and pay/ report from, the
 // stock check's two (order/stock.js), and the window's own two.
 // Anything else is sent and kept as null.
 export const WHERES = [

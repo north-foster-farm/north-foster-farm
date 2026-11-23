@@ -1,7 +1,8 @@
 // A stand-in for Square's Web Payments SDK, for SQUARE_ENV=fake in local
 // development (netlify/functions/lib/fake.mjs). It offers what the
-// order page uses (assets/scripts/order/pay.js): the card form, which
-// draws plain fields instead of Square's iframe, and a payment request.
+// order page uses (assets/scripts/order/pay.js and pay/card.js): the
+// card form, which draws plain fields instead of Square's iframe, and
+// a payment request.
 // The wallets say they are unavailable, so their buttons stay hidden.
 // Published at /scripts/fake-square.js by a local `hugo server` only
 // (layouts/partials/fake-sdks.html).
