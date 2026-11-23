@@ -32,7 +32,6 @@
 //     ->  { get(), set(record) }
 
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
 import catalog from "../data/catalog.json" with { type: "json" };
@@ -41,6 +40,7 @@ import terms from "../data/delivery.json" with { type: "json" };
 import places from "../data/locations.json" with { type: "json" };
 import rhythms from "../data/series.json" with { type: "json" };
 import { buildModel } from "../assets/scripts/order/lib/events.mjs";
+import { assertPure } from "./pure-module.mjs";
 import {
   editIdFrom, pageData,
 } from "../assets/scripts/order/form/page-data.mjs";
@@ -167,14 +167,11 @@ describe("createStore", () => {
 describe("design, phase 5", () => {
   it("keeps form/page-data.mjs and form/order-state.mjs pure", () => {
     for (const name of ["page-data.mjs", "order-state.mjs"]) {
-      const code = readFileSync(new URL(name, FORM), "utf8")
-        .replace(/\/\/.*$/gm, "")
-        .replace(/\/\*[\s\S]*?\*\//g, "");
-
-      assert.doesNotMatch(code,
-        new RegExp("(?<![.\\w])(document|window)\\."
-          + "|\\b(location\\.search|querySelector|Element)\\b"),
-        name);
+      assertPure(new URL(name, FORM), {
+        banned: ["(?<![.\\w])document(?=\\.)", "(?<![.\\w])window(?=\\.)",
+          "location\\.search", "querySelector", "Element"],
+        imports: null,
+      });
     }
   });
 });
