@@ -741,7 +741,8 @@ export const leftOpen = (o) => o.tenders === 0 && Boolean(o.siteVersion)
 
 // -> [{ squareOrderId, orderId, createdAt, total, cancelled, later?,
 // error? }], or null when Square is not configured. `cancel` unset
-// means unless the kill switch is set.
+// means unless the kill switch is set. `by` names who acted in the
+// line each cancel logs: the scheduled job unless the CLI says so.
 export const sweepSquareOrders = async (stores, {
   env = process.env,
   now = new Date(),
@@ -749,6 +750,7 @@ export const sweepSquareOrders = async (stores, {
   fetchImpl = globalThis.fetch,
   cancel,
   max = SQUARE_SWEEP_MAX,
+  by = "jobs",
 } = {}) => {
   if (!env.SQUARE_ACCESS_TOKEN || !env.SQUARE_LOCATION_ID) return null;
 
@@ -781,6 +783,15 @@ export const sweepSquareOrders = async (stores, {
         });
 
         item.cancelled = r.cancelled;
+        // A cancel is a change to a production record (#950,
+        // docs/security.md): one line for each, naming who acted.
+        if (r.cancelled) {
+          log.info({
+            event: "square.order_swept", by, orderId: o.referenceId,
+            squareOrderId: o.id, total: o.total,
+            before: { state: "OPEN" }, after: { state: "CANCELED" },
+          });
+        }
       } catch (error) {
         item.error = String((error && error.message) || error);
       }

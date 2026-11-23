@@ -2457,7 +2457,9 @@ const run = async () => {
         "square deletions status to see why.");
     }
 
-    const found = await sweepSquareOrders(stores, { cancel: apply });
+    const found = await sweepSquareOrders(stores, {
+      cancel: apply, by: "cli",
+    });
 
     if (!found) return out("Square is not configured here.");
     for (const o of found) {
