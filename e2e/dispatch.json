@@ -166,6 +166,7 @@
         "e2e/search-bar-width.spec.mjs",
         "e2e/search-panel-nav.spec.mjs",
         "e2e/search-stock.spec.mjs",
+        "e2e/stock-follow.spec.mjs",
         "e2e/sign-in-order.spec.mjs",
         "e2e/skip-link.spec.mjs",
         "e2e/staging-toolbar.spec.mjs",
@@ -208,6 +209,7 @@
         "e2e/search-bar-width.spec.mjs",
         "e2e/search-panel-nav.spec.mjs",
         "e2e/search-stock.spec.mjs",
+        "e2e/stock-follow.spec.mjs",
         "e2e/sign-in-order.spec.mjs",
         "e2e/skip-link.spec.mjs",
         "e2e/staging-toolbar.spec.mjs",
@@ -253,6 +255,7 @@
         "e2e/search-bar-width.spec.mjs",
         "e2e/search-panel-nav.spec.mjs",
         "e2e/search-stock.spec.mjs",
+        "e2e/stock-follow.spec.mjs",
         "e2e/sign-in-order.spec.mjs",
         "e2e/skip-link.spec.mjs",
         "e2e/staging-toolbar.spec.mjs",
@@ -297,6 +300,7 @@
         "e2e/search-bar-width.spec.mjs",
         "e2e/search-panel-nav.spec.mjs",
         "e2e/search-stock.spec.mjs",
+        "e2e/stock-follow.spec.mjs",
         "e2e/sign-in-order.spec.mjs",
         "e2e/skeletons.spec.mjs",
         "e2e/skip-link.spec.mjs",
@@ -342,6 +346,7 @@
         "e2e/search-bar-width.spec.mjs",
         "e2e/search-panel-nav.spec.mjs",
         "e2e/search-stock.spec.mjs",
+        "e2e/stock-follow.spec.mjs",
         "e2e/skeletons.spec.mjs",
         "e2e/skip-link.spec.mjs",
         "e2e/staging-toolbar.spec.mjs",
@@ -402,6 +407,7 @@
         "e2e/search-bar-width.spec.mjs",
         "e2e/search-panel-nav.spec.mjs",
         "e2e/search-stock.spec.mjs",
+        "e2e/stock-follow.spec.mjs",
         "e2e/top-bar-places.spec.mjs",
         "e2e/top-bar.spec.mjs",
         "e2e/wording.spec.mjs"
@@ -509,6 +515,7 @@
         "e2e/search-bar-width.spec.mjs",
         "e2e/search-panel-nav.spec.mjs",
         "e2e/search-stock.spec.mjs",
+        "e2e/stock-follow.spec.mjs",
         "e2e/sign-in-order.spec.mjs",
         "e2e/skeletons.spec.mjs",
         "e2e/skip-link.spec.mjs",
@@ -617,6 +624,7 @@
         "e2e/search-bar-width.spec.mjs",
         "e2e/search-panel-nav.spec.mjs",
         "e2e/search-stock.spec.mjs",
+        "e2e/stock-follow.spec.mjs",
         "e2e/sign-in-order.spec.mjs",
         "e2e/skeletons.spec.mjs",
         "e2e/skip-link.spec.mjs",
@@ -716,6 +724,7 @@
         "e2e/search-bar-width.spec.mjs",
         "e2e/search-panel-nav.spec.mjs",
         "e2e/search-stock.spec.mjs",
+        "e2e/stock-follow.spec.mjs",
         "e2e/sign-in-order.spec.mjs",
         "e2e/skeletons.spec.mjs",
         "e2e/skip-link.spec.mjs",
@@ -778,6 +787,7 @@
         "e2e/search-bar-width.spec.mjs",
         "e2e/search-panel-nav.spec.mjs",
         "e2e/search-stock.spec.mjs",
+        "e2e/stock-follow.spec.mjs",
         "e2e/wording.spec.mjs"
       ],
       "pages": [
@@ -866,6 +876,7 @@
         "e2e/search-bar-width.spec.mjs",
         "e2e/search-panel-nav.spec.mjs",
         "e2e/search-stock.spec.mjs",
+        "e2e/stock-follow.spec.mjs",
         "e2e/sign-in-order.spec.mjs",
         "e2e/skeletons.spec.mjs",
         "e2e/sku-alias.spec.mjs",
@@ -969,6 +980,7 @@
         "e2e/search-bar-width.spec.mjs",
         "e2e/search-panel-nav.spec.mjs",
         "e2e/search-stock.spec.mjs",
+        "e2e/stock-follow.spec.mjs",
         "e2e/top-bar-places.spec.mjs",
         "e2e/top-bar.spec.mjs",
         "e2e/wording.spec.mjs"
@@ -1018,6 +1030,7 @@
         "e2e/search-bar-width.spec.mjs",
         "e2e/search-panel-nav.spec.mjs",
         "e2e/search-stock.spec.mjs",
+        "e2e/stock-follow.spec.mjs",
         "e2e/skeletons.spec.mjs",
         "e2e/top-bar-places.spec.mjs",
         "e2e/top-bar.spec.mjs",
@@ -1062,6 +1075,7 @@
         "e2e/search-bar-width.spec.mjs",
         "e2e/search-panel-nav.spec.mjs",
         "e2e/search-stock.spec.mjs",
+        "e2e/stock-follow.spec.mjs",
         "e2e/sign-in-order.spec.mjs",
         "e2e/skeletons.spec.mjs",
         "e2e/skip-link.spec.mjs",
@@ -1107,6 +1121,7 @@
         "e2e/search-bar-width.spec.mjs",
         "e2e/search-panel-nav.spec.mjs",
         "e2e/search-stock.spec.mjs",
+        "e2e/stock-follow.spec.mjs",
         "e2e/sign-in-order.spec.mjs",
         "e2e/skeletons.spec.mjs",
         "e2e/skip-link.spec.mjs",
@@ -1151,6 +1166,7 @@
         "e2e/search-bar-width.spec.mjs",
         "e2e/search-panel-nav.spec.mjs",
         "e2e/search-stock.spec.mjs",
+        "e2e/stock-follow.spec.mjs",
         "e2e/wording.spec.mjs"
       ],
       "pages": [
@@ -2181,7 +2197,8 @@
         "e2e/header-search.spec.mjs",
         "e2e/search-bar-width.spec.mjs",
         "e2e/search-panel-nav.spec.mjs",
-        "e2e/search-stock.spec.mjs"
+        "e2e/search-stock.spec.mjs",
+        "e2e/stock-follow.spec.mjs"
       ]
     },
     {
@@ -2190,7 +2207,8 @@
       ],
       "specs": [
         "e2e/site-search.spec.mjs",
-        "e2e/search-stock.spec.mjs"
+        "e2e/search-stock.spec.mjs",
+        "e2e/stock-follow.spec.mjs"
       ]
     },
     {
@@ -2230,7 +2248,16 @@
         "e2e/search-stock.spec.mjs"
       ],
       "specs": [
-        "e2e/search-stock.spec.mjs"
+        "e2e/search-stock.spec.mjs",
+        "e2e/stock-follow.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/stock-follow.spec.mjs"
+      ],
+      "specs": [
+        "e2e/stock-follow.spec.mjs"
       ]
     },
     {

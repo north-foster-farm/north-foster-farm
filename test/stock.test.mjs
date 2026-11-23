@@ -316,18 +316,22 @@ describe("the /api/stock limit", () => {
     stores: testStores(), env, ip, inventory: async () => null,
   });
 
-  it("holds one address in production to 120 in ten minutes", async () => {
-    const env = { CONTEXT: "production" };
+  // #908: how many it allows is stock-follow.test.mjs's (several tabs
+  // at the order page's rhythm); here only that there is a limit.
+  it("holds one address in production to a limit in ten minutes",
+    async () => {
+      const env = { CONTEXT: "production" };
+      let res;
 
-    for (let i = 0; i < 120; i++) {
-      assert.equal((await ask(env, "203.0.113.7")).status, 200);
-    }
-    const res = await ask(env, "203.0.113.7");
+      for (let i = 0; i < 5000; i++) {
+        res = await ask(env, "203.0.113.7");
+        if (res.status !== 200) break;
+      }
 
-    assert.equal(res.status, 429);
-    assert.equal(res.headers.get("retry-after"), "600");
-    assert.equal((await ask(env, "203.0.113.8")).status, 200);
-  });
+      assert.equal(res.status, 429);
+      assert.equal(res.headers.get("retry-after"), "600");
+      assert.equal((await ask(env, "203.0.113.8")).status, 200);
+    });
 
   it("leaves staging unlimited for the QA suite", async () => {
     const env = { CONTEXT: "staging" };

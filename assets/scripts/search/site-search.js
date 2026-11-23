@@ -14,6 +14,7 @@
 // closes it and hands the focus back to the magnifier.
 
 import { index, search } from "./match.js";
+import { readStock } from "./live-stock.js";
 import { listed, stockOf } from "./stock.js";
 
 const WIDE = "(min-width: 992px)";
@@ -102,7 +103,6 @@ export const wireSiteSearch = () => {
   // #402; as the palette did, #267, #492). Until it answers, or if it
   // fails, results read the index's stock word (stock.js).
   let live = null;
-  let stocking = null;
 
   let indexed = null;
   let loading = null;
@@ -218,24 +218,21 @@ export const wireSiteSearch = () => {
     return loading;
   };
 
-  // The region says data-stock="ready" once live stock is in, or has
-  // failed and the index's word stands.
-  const loadStock = () => {
-    stocking ||= fetch("/api/stock", { cache: "no-store" })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((body) => {
-        live = (body && body.items) || null;
-      })
-      .catch(() => {
-        live = null;
-      })
-      .finally(() => {
-        root.dataset.stock = "ready";
-        render();
-      });
-
-    return stocking;
-  };
+  // Each time the field takes the focus (#908): the order page's own
+  // reader there, else a check of its own, under the same 15-second
+  // floor (live-stock.js). The region says data-stock="ready" once live
+  // stock is in, or has failed and the index's word stands.
+  const loadStock = () => readStock()
+    .then((items) => {
+      live = items;
+    })
+    .catch(() => {
+      live = null;
+    })
+    .finally(() => {
+      root.dataset.stock = "ready";
+      render();
+    });
 
   const open = () => {
     if (state.isOpen) return;
