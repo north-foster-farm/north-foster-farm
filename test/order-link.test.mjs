@@ -35,9 +35,15 @@ describe("orderFromLink", () => {
     assert.equal(at("/account/orders/NFF-2611-ABCDEF/"), "NFF-2611-ABCDEF");
   });
 
-  it("reads text not in the shape of an order id as no order (#947)", () => {
-    assert.equal(at("/account/orders/NFF%202611/"), "");
-  });
+  // Until #947 this case read the path's "NFF%202611" as "NFF 2611". The
+  // test agent for #947 decided it: by the issue's first box a value not
+  // in the shape of an order id reads as no order, in either form
+  // (the whole box is in test/order-link-shape.test.mjs).
+  it("reads a value not in the shape of an order id as no order (#947)",
+    () => {
+      assert.equal(at("/account/orders/NFF%202611/"), "", "the path form");
+      assert.equal(at("/account/?order=NFF%202611"), "", "the query form");
+    });
 
   it("names no order on the plain account page", () => {
     assert.equal(at("/account/"), "");
