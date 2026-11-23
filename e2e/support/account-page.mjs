@@ -80,25 +80,6 @@ export const openAccount = async (page, { context, baseURL }, {
 export const writes = (state, method, path) => state.sent
   .filter((s) => s.method === method && s.path === path);
 
-// Holds the next write until the function returned is called with its
-// answer (route.fulfill's options).
-export const hold = (state) => {
-  let release;
-  const held = new Promise((resolve) => {
-    release = resolve;
-  });
-
-  state.answer = async (route) => route.fulfill(await held);
-
-  return (answer) => release(answer);
-};
-
-// Fills `field` and leaves it, as a person does: its change event.
-export const leave = async (page, field, value) => {
-  await page.locator(field).fill(value);
-  await page.locator(field).blur();
-};
-
 // Waits until the page has drawn the account.
 export const shown = (page) => expect(page.locator("#account-app"))
   .toBeVisible();
