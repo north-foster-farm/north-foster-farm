@@ -32,6 +32,7 @@
 
 import { CUSTOMER } from "./support/canned.mjs";
 import { expect, test } from "./support/order.mjs";
+import { clearSession } from "./support/staging.mjs";
 import { eachWidth } from "./support/widths.mjs";
 
 const WIDE = 1280;
@@ -63,7 +64,10 @@ const signOut = (page) => page.route("**/api/me", (route) => route.fulfill({
 // from tests 2 and 3).
 const freshOut = async (page, context) => {
   await page.unrouteAll({ behavior: "ignoreErrors" });
-  await context.clearCookies();
+  // The site's cookies only: the gate's and Netlify's stay, or on
+  // staging the next page is the gate's sign-in (staging run
+  // 45168515763).
+  await clearSession(context);
   await page.evaluate(() => {
     try {
       sessionStorage.clear();
