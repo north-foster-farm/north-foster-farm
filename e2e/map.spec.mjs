@@ -118,8 +118,9 @@ const places = async (page) => {
 };
 
 // The view's width after one press of +: half of it, but never past
-// map.js's MAX_ZOOM of 5. Places frames its pins, so with the places
-// close together it opens near the cap, and + stops there (#282).
+// map/view.mjs's MAX_ZOOM of 5. Places frames its pins, so with the
+// places close together it opens near the cap, and + stops there
+// (#282).
 const MAX_ZOOM = 5;
 const zoomedIn = (width, whole) => Math.max(width / 2, whole / MAX_ZOOM);
 
