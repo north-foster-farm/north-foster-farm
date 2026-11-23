@@ -15,7 +15,7 @@ const ui = (page) => {
     field,
     listbox: region.getByRole("listbox"),
     magnifier: page.getByRole("banner")
-      .getByRole("button", { name: /search/i }),
+      .getByRole("button", { name: /^(open |close )?search$/i }),
   };
 };
 
@@ -30,6 +30,8 @@ test.describe("search (#402)", () => {
     const wide = page.viewportSize().width >= 992;
 
     if (wide) {
+      // Opened from the magnifier, at every width (#913).
+      await s.magnifier.click();
       await s.field.click();
       await s.field.fill("eggs");
       await expect(s.listbox).toBeVisible();

@@ -12,8 +12,10 @@
 //   sits in a `role="search"` landmark (a <search> element or a form
 //   with that role) that also holds its results panel, its Cancel and
 //   X buttons and the no-match links.
-// - Below 992 px the field is hidden until the header's magnifier, a
-//   button in the banner whose name holds "Search", opens it.
+// - At every width the field is hidden until the header's magnifier,
+//   a button in the banner named "Search" (or "Open search", "Close
+//   search" while open), opens it (#913, which retired the field
+//   standing in the row from 992 px).
 // - The results are a listbox with a group per kind, each group named
 //   by its heading ("Products", "Pages"), and options inside them.
 // - A product result's row on the order page is the existing
@@ -61,7 +63,7 @@ const ui = (page) => {
     region,
     banner: page.getByRole("banner"),
     magnifier: page.getByRole("banner")
-      .getByRole("button", { name: /search/i }),
+      .getByRole("button", { name: /^(open |close )?search$/i }),
     listbox: region.getByRole("listbox"),
     options: region.getByRole("option"),
     cancel: region.getByRole("button", { name: "Cancel", exact: true }),
@@ -71,16 +73,12 @@ const ui = (page) => {
 
 const wide = (page) => page.viewportSize().width >= 992;
 
-// Opens search as a customer would: the field at 992 and up, the
-// magnifier below.
+// Opens search as a customer would: from the magnifier, at every
+// width (#913).
 const openSearch = async (page) => {
   const s = ui(page);
 
-  if (wide(page)) {
-    await s.field.click();
-  } else {
-    await s.magnifier.click();
-  }
+  await s.magnifier.click();
   await expect(s.field).toBeVisible();
   await expect(s.field).toBeFocused();
   await page.waitForTimeout(500);
@@ -281,14 +279,30 @@ test.describe("#402 site search", () => {
 
       const s = ui(page);
       const brand = s.banner.getByRole("link", { name: /, home$/ });
+      const header = await s.banner.boundingBox();
 
-      // The field is there before anything is pressed, in the row.
+      // The page beside where the panel opens, before it opens. Since
+      // #913 the field shows only once the magnifier opens it, so the
+      // patch is placed by the magnifier, where the field opens.
+      const glass = await s.magnifier.boundingBox();
+      const vw = page.viewportSize().width;
+      const top = header.y + header.height + 20;
+      const away = glass.x > vw / 2
+        ? { x: 0, width: Math.min(300, glass.x - 300) }
+        : { x: vw - 300, width: 300 };
+      const clip = { ...away, y: top, height: 300 };
+      const before = await patch(page, clip);
+
+      await s.magnifier.click();
       await expect(s.field, `${at}: the field shows`).toBeVisible();
-      await expect(s.magnifier.filter({ visible: true }),
-        `${at}: no magnifier to press first`).toHaveCount(0);
+      // The field unfolds over a quarter second (#913). Clicked while it
+      // grows, Playwright scrolls the page before the click, and the
+      // panel is then measured 44 px off the field measured here (the
+      // implementer, 2026-11-23; how it runs, not what it expects).
+      await s.region.evaluate((el) => Promise.all(el.getAnimations(
+        { subtree: true }).map((a) => a.finished)));
 
       const field = await s.field.boundingBox();
-      const header = await s.banner.boundingBox();
       const row = await brand.boundingBox();
       const middle = field.y + field.height / 2;
 
@@ -302,15 +316,6 @@ test.describe("#402 site search", () => {
         .toBeLessThanOrEqual(row.y + row.height);
       expect(await luminance(s.field), `${at}: a light field`)
         .toBeGreaterThanOrEqual(0.7);
-
-      // The page beside the panel, before and after.
-      const vw = page.viewportSize().width;
-      const top = header.y + header.height + 20;
-      const away = field.x > vw / 2
-        ? { x: 0, width: Math.min(300, field.x - 40) }
-        : { x: vw - 300, width: 300 };
-      const clip = { ...away, y: top, height: 300 };
-      const before = await patch(page, clip);
 
       await s.field.click();
       await typed(s, "eggs");

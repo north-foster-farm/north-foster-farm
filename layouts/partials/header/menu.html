@@ -68,10 +68,10 @@
           {{ partial "header/account-menu.html" (dict "ctx" $ctx "compact" true) }}
         </div>
       {{ end }}
-      {{/* Search (#402): below 992 px the magnifier opens the bar
-           under the header, and turns into its closed twin while the
-           bar is open; from 992 px the field sits here in the row and
-           the magnifier is gone. */}}
+      {{/* Search (#402, #913): the magnifier opens it at every width,
+           and turns into its closed twin, named Close search, while it
+           is open: below 992 px a bar under the header, from 992 px a
+           field unfolding here in the row. */}}
       <button class="site-search" type="button" aria-controls="site-find" aria-expanded="false" aria-label="Search" data-search-open>
         <span class="site-search-icon site-search-open" aria-hidden="true">{{ partial "svg.html" "icons/search" }}</span>
         <span class="site-search-icon site-search-shut" aria-hidden="true">{{ partial "svg.html" "icons/search-close" }}</span>

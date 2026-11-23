@@ -618,7 +618,10 @@ for (const width of WIDTHS) {
       if (width >= 992) {
         const list = region.getByRole("listbox");
 
-        await field.focus();
+        // Opened from the magnifier, at every width (#913).
+        await page.getByRole("banner")
+          .getByRole("button", { name: /^(open |close )?search$/i }).click();
+        await expect(field).toBeFocused();
         await page.keyboard.type("eggs");
         await expect(list, "it opens from the keyboard").toBeVisible();
         await page.keyboard.press("Escape");

@@ -1,16 +1,20 @@
-// Site search (#402, partials/search/field.html): light, like the rest
-// of the site. From 992 px a rounded field in the header row, its
-// results in a panel under it; below that the magnifier opens a bar
+// Site search (#402, #913, partials/search/field.html): light, like
+// the rest of the site, closed to the header's magnifier at every
+// width. From 992 px the magnifier unfolds a field in the header row,
+// its results in a panel under it; below that it slides down a bar
 // under the header, with Cancel, over a scrim that dims the page.
 
 $find-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
 $find-wide: 992px;
+$find-narrow: 991.98px;
+$find-time: 0.25s;
 
-// The header's magnifier, below 992 px: it turns into its closed twin
-// while the bar is open.
+// The header's magnifier: it turns into its closed twin while search
+// is open.
 .site-search {
   position: relative;
   display: inline-grid;
+  flex: none;
   place-items: center;
   width: 2.25rem;
   height: 2.25rem;
@@ -30,8 +34,16 @@ $find-wide: 992px;
     box-shadow: $btn-lift-shadow;
   }
 
+  // Its glyph sits in 0.5rem of air, which the row's gap adds to; the
+  // links' words stand 0.75rem apart from md and 1.75rem from lg
+  // (_header.scss). The margin brings the glyph to the Order button
+  // to the same, as #327 did below md (#913).
+  @media (min-width: 768px) {
+    margin-right: -0.25rem;
+  }
+
   @media (min-width: $find-wide) {
-    display: none;
+    margin-right: 0.375rem;
   }
 }
 
@@ -66,47 +78,107 @@ $find-wide: 992px;
   }
 }
 
-// The search landmark: the bar below 992 px, hidden until the
-// magnifier opens it, fixed under the header (--find-top, set as it
-// opens); from 992 px a field in the row.
+// The search landmark, hidden until the magnifier opens it (.is-open,
+// scripts/search/site-search.js). Closing runs the same transition
+// back, and only then does visibility take it out of reach.
 .site-find {
-  display: none;
   font-family: $font-family-sans-serif;
+  visibility: hidden;
+  opacity: 0;
+}
 
-  &.is-open {
+// Below 992 px: a bar fixed under the header (--find-top, set as it
+// opens) that slides down into place.
+@media (max-width: $find-narrow) {
+  .site-find {
     position: fixed;
     top: var(--find-top, 0);
     right: 0;
     left: 0;
     z-index: 1040;
-    display: block;
     padding: 0.5rem 1rem;
     border-bottom: 1px solid $gray-200;
     background-color: var(--bs-body-bg);
     box-shadow: 0 10px 24px -14px rgba($black, 0.35);
-    animation: site-find-down 0.18s $find-ease;
+    transform: translateY(-1rem);
+    transition:
+      opacity 0.2s ease-out,
+      transform $find-time $find-ease,
+      visibility 0s linear $find-time;
+
+    &.is-open {
+      visibility: visible;
+      opacity: 1;
+      transform: none;
+      transition:
+        opacity 0.2s ease-out,
+        transform $find-time $find-ease,
+        visibility 0s;
+    }
   }
 
-  @media (min-width: $find-wide) {
-    position: relative;
-    display: block;
-    width: 13rem;
-  }
-
-  @media (min-width: 1200px) {
-    width: 15rem;
+  // While the bar is open the page under the scrim stays where it is.
+  :root:has(.site-find.is-open) {
+    overflow: hidden;
   }
 }
 
-// While the bar is open the page under the scrim stays where it is.
-:root:has(.site-find.is-open) {
-  overflow: hidden;
+// From 992 px: a field in the header row, about the width it always
+// had there, unfolding from the magnifier beside it. Closed it takes
+// no room: its negative margin gives back the row's gap before it.
+// Where the row is tight (992 px, signed in), it shrinks into the room
+// there is rather than push the row past the screen, to no less than
+// 7rem. After Escape it stays while it holds the focus
+// (:focus-within), so nothing folds away under the cursor; it folds
+// once the focus goes.
+@media (min-width: $find-wide) {
+  .site-find {
+    position: relative;
+    flex: 0 1 auto;
+    width: 0;
+    min-width: 0;
+    margin-left: calc(-1 * var(--actions-gap));
+    transition:
+      width $find-time $find-ease,
+      margin-left $find-time $find-ease,
+      opacity 0.2s ease-out,
+      visibility 0s linear $find-time;
+
+    &.is-open,
+    &:focus-within {
+      width: 13rem;
+      min-width: 7rem;
+      margin-left: 0;
+      visibility: visible;
+      opacity: 1;
+      transition:
+        width $find-time $find-ease,
+        margin-left $find-time $find-ease,
+        opacity 0.2s ease-out,
+        visibility 0s;
+    }
+  }
+}
+
+@media (min-width: 1200px) {
+  .site-find.is-open,
+  .site-find:focus-within {
+    width: 15rem;
+  }
 }
 
 .site-find-bar {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+
+  // The field is clipped as it unfolds, with room kept round it for
+  // its focus ring and its hover shadow.
+  @media (min-width: $find-wide) {
+    overflow: hidden;
+    margin: -0.75rem -0.25rem;
+    padding: 0.75rem 0.25rem;
+  }
 }
 
 .site-find-field {
@@ -130,20 +202,22 @@ $find-wide: 992px;
   }
 }
 
-// 16px below 992 px, or a phone zooms in on focus.
+// The outline of the navbar's links on hover (_header.scss): the light
+// gray border, and on hover the shadow under a lifted button. 16px
+// below 992 px, or a phone zooms in on focus; from there the links'
+// size.
 .site-find-input {
   display: block;
   width: 100%;
   height: 2.5rem;
   padding: 0 2.25rem;
-  border: 1px solid $gray-300;
+  border: 1px solid $gray-100;
   border-radius: 50rem;
-  background-color: $gray-100;
+  background-color: var(--bs-body-bg);
   color: var(--bs-body-color);
   font-size: 1rem;
   transition:
     border-color 0.16s ease-out,
-    background-color 0.16s ease-out,
     box-shadow 0.16s ease-out;
 
   &::placeholder {
@@ -151,16 +225,19 @@ $find-wide: 992px;
     opacity: 1;
   }
 
+  &:hover {
+    box-shadow: $btn-lift-shadow;
+  }
+
   &:focus {
     border-color: var(--bs-primary);
     outline: 0;
-    background-color: var(--bs-body-bg);
     box-shadow: 0 0 0 0.2rem rgba($primary, 0.2);
   }
 
   @media (min-width: $find-wide) {
     height: 2.25rem;
-    font-size: 0.875rem;
+    font-size: 0.8125rem;
   }
 }
 
@@ -319,32 +396,31 @@ $find-wide: 992px;
   inset: var(--find-top, 0) 0 0;
   z-index: 1035;
   background-color: rgba($black, 0.35);
-  animation: site-find-fade 0.18s ease-out;
+  visibility: hidden;
+  opacity: 0;
+  transition:
+    opacity 0.2s ease-out,
+    visibility 0s linear 0.2s;
+
+  &.is-open {
+    visibility: visible;
+    opacity: 1;
+    transition:
+      opacity 0.2s ease-out,
+      visibility 0s;
+  }
 
   @media (min-width: $find-wide) {
     display: none;
   }
 }
 
-@keyframes site-find-down {
-  from {
-    opacity: 0;
-    transform: translateY(-0.5rem);
-  }
-}
-
-@keyframes site-find-fade {
-  from {
-    opacity: 0;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
+  .site-find,
   .site-find.is-open,
-  .site-find-scrim {
-    animation: none;
-  }
-
+  .site-find:focus-within,
+  .site-find-scrim,
+  .site-find-scrim.is-open,
   .site-search-icon {
     transition: none;
   }

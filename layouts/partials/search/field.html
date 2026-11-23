@@ -1,11 +1,12 @@
 {{/*
-  The site search (#402): a light field in the header row from 992 px
-  up, its results in a light panel under it; below that the header's
-  magnifier opens it as a full-width bar under the header, with Cancel,
-  over a scrim. The field is an ARIA 1.2 combobox; its listbox holds a
-  group per kind (scripts/search/match.js), and a polite status line
-  says how many were found. The index, /search.json, is fetched the
-  first time the field is opened or focused
+  The site search (#402, #913), closed to the header's magnifier at
+  every width until it is pressed. From 992 px up it unfolds as a
+  light field in the header row, its results in a light panel under
+  it; below that it slides down as a full-width bar under the header,
+  with Cancel, over a scrim. The field is an ARIA 1.2 combobox; its
+  listbox holds a group per kind (scripts/search/match.js), and a
+  polite status line says how many were found. The index,
+  /search.json, is fetched the first time search is opened
   (scripts/search/site-search.js).
 
   The words here and in results are drafts for James. The no-match
