@@ -27,8 +27,8 @@
 //     ->       { text, tone, hidden }: tone "success" or "warning"
 
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
+import { assertPure } from "./pure-module.mjs";
 
 import {
   addNotice, parseAdd,
@@ -142,14 +142,8 @@ describe("addNotice, nothing to say", () => {
 
 describe("design, phase 3", () => {
   it("keeps form/add-query.mjs pure", () => {
-    const code = readFileSync(MODULE, "utf8")
-      .replace(/\/\/.*$/gm, "")
-      .replace(/\/\*[\s\S]*?\*\//g, "");
-
-    assert.doesNotMatch(code,
-      /\b(document|window|location|querySelector|Element)\b/);
-    for (const [, from] of code.matchAll(/\bfrom\s+["']([^"']+)["']/g)) {
-      assert.match(from, /\.mjs$/, `add-query.mjs imports ${from}`);
-    }
+    assertPure(MODULE, { banned: [
+      "document", "window", "location", "querySelector", "Element",
+    ] });
   });
 });
