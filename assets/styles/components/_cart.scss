@@ -883,7 +883,7 @@ $cart-nudge-line: $cart-nudge-gap + $cart-nudge-size * $cart-line-height;
   }
 
   // It cannot go on, so it looks disabled, as Bootstrap draws one, but
-  // still takes the press to say why (#706, cart.js wireCheckout).
+  // still takes the press to say why (#706, cart/checkout.js).
   .order-cart-next[aria-disabled="true"] {
     border-color: var(--bs-btn-disabled-border-color);
     color: var(--bs-btn-disabled-color);

@@ -8,13 +8,12 @@
 // it is folded) lives in state.mjs; the layout, the keyboard and the
 // animations in view.mjs.
 
-import Tooltip from "bootstrap/js/dist/tooltip.js";
-
 import { ringsCart } from "../lib/cart-scroll.mjs";
 import { awayFrom } from "../lib/share-away.mjs";
 import { Badges } from "./badges.js";
+import { CheckoutButton } from "./checkout.js";
+import { ClearCart } from "./clear.js";
 import { codeNote } from "./code-note.mjs";
-import { twoStep } from "./confirm.mjs";
 import { all, pulse, qs, reduced, say } from "./dom.js";
 import { firstAdd } from "./first-add.js";
 import { startJoke, stopJoke } from "./joke-row.js";
@@ -24,7 +23,6 @@ import * as state from "./state.mjs";
 import {
   drawEdit, drawNudge, drawReadouts, drawSums, drawWays,
 } from "./sums-view.js";
-import { shutTip } from "./tip.js";
 import {
   SHEET, animateFold, clearFocusUnder, focusAfterScroll, moveParts,
   moving, pulsePill,
@@ -40,13 +38,6 @@ export { JOKE_CODE } from "./joke.mjs";
 // new line before it shuts and the pill pulses. 2000 until #274 round
 // 4 added 1.5 s.
 export const TEACH_DWELL = 3500;
-
-// Clear cart's words (#531): at rest, and asking for the second press.
-// Drafts for comms.
-const CLEAR_WORD = "Clear cart";
-const CLEAR_ASK = "Clear cart?";
-const CLEAR_HINT = "Press again to remove every item from your cart.";
-const CLEAR_DONE = "Your cart is empty.";
 
 // Resolves once nothing animates the pane or moves its parts: an ease
 // that another ease cancelled resolves early, while the newer one
@@ -73,8 +64,6 @@ export class Cart {
     this.slot = root.parentElement;
     this.heading = document.getElementById("order-cart-heading");
     this.on = { onRemove, onClear, onWay, onCode, onCheckout, onBlocked };
-    // Why Proceed to checkout cannot go on, or null (#706).
-    this.why = null;
     this.state = state.initial();
     this.lastCount = null;
     this.lastTotal = null;
@@ -92,6 +81,9 @@ export class Cart {
     this.sheet = matchMedia(SHEET);
     // The badges, their tooltips and the perks' (badges.js).
     this.badges = new Badges(root);
+    // Proceed to checkout (checkout.js) and Clear cart (clear.js).
+    this.checkout = new CheckoutButton(root, this.on, () => this.open());
+    this.clear = new ClearCart(root, this.on);
 
     this.list = qs(root, "[data-cart-items]");
     this.pill = qs(root, "[data-cart-toggle]");
@@ -189,7 +181,7 @@ export class Cart {
 
     return toPx(this.root.style.getPropertyValue("--cart-kb")) > 0
       || Boolean(focused) || Boolean(this.state.share)
-      || this.clearing.armed || this.fingerDown;
+      || this.clear.armed || this.fingerDown;
   }
 
   // A page scroll's look, from the view (#559): state.mjs scrolled
@@ -273,7 +265,7 @@ export class Cart {
       // Proceed's tooltip stays through the pane's own ease (#706).
       onMove: () => {
         this.badges.shutTips();
-        if (!this.easing) this.shutWhy();
+        if (!this.easing) this.checkout.shut();
       },
     });
     // The pane changes form: the stay-open choice goes with the old
@@ -298,17 +290,18 @@ export class Cart {
       if (e.key !== "Escape") return;
 
       // An open badge tooltip goes first (#569), and Proceed's (#706).
-      if (this.badges.allTips().some((tip) => tip.tip) || this.whyTip.tip) {
+      if (this.badges.allTips().some((tip) => tip.tip)
+        || this.checkout.tip.tip) {
         e.preventDefault();
         this.badges.shutTips();
-        this.shutWhy();
+        this.checkout.shut();
 
         return;
       }
 
-      if (this.clearing.armed) {
+      if (this.clear.armed) {
         e.preventDefault();
-        this.clearing.reset();
+        this.clear.reset();
 
         return;
       }
@@ -345,8 +338,8 @@ export class Cart {
       if (button) this.on.onRemove(button.dataset.remove);
     });
 
-    this.wireCheckout();
-    this.wireClear();
+    this.checkout.wire();
+    this.clear.wire();
     this.wireShare();
     this.badges.wire();
 
@@ -354,122 +347,6 @@ export class Cart {
     for (const button of all(this.form, "[data-to-cart]")) {
       button.addEventListener("click", () => this.show({ smooth: true }));
     }
-  }
-
-  // Proceed to checkout (#706). When it cannot go on it only looks
-  // disabled (aria-disabled), so a press still lands and says why in a
-  // tooltip; for a delivery short of the minimum the pane opens too and
-  // the way's button pulses as the pill does. The tooltip goes on the
-  // next press elsewhere, Escape, a scroll of the page, or once the
-  // reason is gone. Otherwise the form takes the press.
-  wireCheckout() {
-    const button = qs(this.root, "[data-checkout]");
-
-    this.checkout = button;
-    this.whyTip = new Tooltip(button, {
-      title: () => (this.why ? this.why.text : ""),
-      trigger: "manual",
-      placement: "top",
-    });
-    button.addEventListener("click", () => {
-      if (this.why) this.explain();
-      else this.on.onCheckout();
-    });
-    document.addEventListener("click", (e) => {
-      if (!button.contains(e.target)) this.shutWhy();
-    });
-    document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape" && !this.root.contains(e.target)) {
-        this.shutWhy();
-      }
-    });
-  }
-
-  // Says why the press cannot go on. The pane opens first, so the
-  // tooltip is drawn where the button comes to rest.
-  explain() {
-    const { reason } = this.why;
-    const open = reason === "minimum" ? this.open() : Promise.resolve();
-
-    this.on.onBlocked(reason);
-    open.then(() => {
-      if (!this.why) return;
-      shutTip(this.whyTip);
-      this.whyTip.show();
-      this.shownWhy = this.why.text;
-      if (reason === "minimum") {
-        pulsePill(qs(this.root, "[data-way-toggle]"), "teach");
-      }
-    });
-  }
-
-  shutWhy() {
-    this.shownWhy = null;
-    if (this.whyTip) shutTip(this.whyTip);
-  }
-
-  // The button's state from a render: aria-disabled, never disabled,
-  // with the reason kept for a press. A tooltip showing a reason that
-  // has changed or gone is shut.
-  setWhy(why) {
-    this.why = why;
-    this.checkout.disabled = false;
-    if (why) this.checkout.setAttribute("aria-disabled", "true");
-    else this.checkout.removeAttribute("aria-disabled");
-    if (this.shownWhy && (!why || why.text !== this.shownWhy)) {
-      this.shutWhy();
-    }
-  }
-
-  // Clear cart (#531): the first press turns it into "Clear cart?" for
-  // 6 s (confirm.mjs), and a second press in that time, but not within
-  // 400 ms of the first, takes every line out. Waiting, Escape or the
-  // focus leaving puts it back.
-  // An emptied cart hides the lines and the button with them, so the
-  // focus goes to the pane.
-  wireClear() {
-    const button = qs(this.root, "[data-cart-clear]");
-    const word = qs(button, "[data-cart-clear-word]");
-    const live = qs(this.root, "[data-cart-live]");
-
-    this.clearing = twoStep({
-      onArm: () => {
-        button.dataset.armed = "";
-        word.textContent = CLEAR_ASK;
-        say(live, CLEAR_HINT);
-      },
-      // A pill fading out with the clear keeps its "Clear cart?" until
-      // it is gone (#559, round 3): the disarm lands inside the change,
-      // before its eases start, so it looks a frame later.
-      onDisarm: () => {
-        const put = () => {
-          if (this.clearing.armed) return;
-          delete button.dataset.armed;
-          word.textContent = CLEAR_WORD;
-        };
-
-        requestAnimationFrame(() => {
-          const fading = moving(this.root).filter((a) => (
-            a.effect && a.effect.target === button
-          ));
-
-          if (!fading.length) {
-            put();
-
-            return;
-          }
-          Promise.all(fading.map((a) => a.finished.catch(() => {})))
-            .then(put);
-        });
-      },
-      onConfirm: () => {
-        this.on.onClear();
-        this.root.focus({ preventScroll: true });
-        say(live, CLEAR_DONE);
-      },
-    });
-    button.addEventListener("click", () => this.clearing.press());
-    button.addEventListener("focusout", () => this.clearing.reset());
   }
 
   // The shared row (#203): the way and Add discount side by side; each
@@ -594,7 +471,7 @@ export class Cart {
       this.drawn = drawItems(root, this.list, s.groups, this.drawn);
       for (const button of all(root, "[data-remove]")) button.hidden = fixed;
       qs(root, "[data-cart-clear]").hidden = fixed;
-      if (fixed || count === 0) this.clearing.reset();
+      if (fixed || count === 0) this.clear.reset();
       drawSums(root, s, this.lastTotal);
       this.lastTotal = s.total;
       drawEdit(root, edit);
@@ -605,7 +482,7 @@ export class Cart {
 
     drawReadouts({ root, form: this.form, pill: this.pill }, s);
 
-    this.setWhy(whyOf(s, { method, locked, down }));
+    this.checkout.setWhy(whyOf(s, { method, locked, down }));
 
     // The lines came or went, or the cart emptied or filled: the fold
     // rule decides, and the pane eases to its new height (the column's

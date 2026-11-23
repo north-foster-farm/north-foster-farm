@@ -314,7 +314,8 @@ issues. Wording below is today's, approved under #400.
   stock locked, or a delivery under the minimum, it looks disabled
   (`aria-disabled`, never `disabled`) and a press says why in a
   tooltip; under the minimum the pane opens too and the way's button
-  pulses as the pill does (`cart.js` wireCheckout). (2026-11-21: this
+  pulses as the pill does (`checkout.js`; 2026-11-23, #854: this
+  said `cart.js` wireCheckout). (2026-11-21: this
   said it always went to the Pickup or delivery legend and was
   disabled.)
 - **The first Add of a browser session** (sessionStorage) opens the
@@ -412,6 +413,12 @@ submission. The contract between them:
   `setMoney` and `setPerks`, which `Cart` passes on. `Cart` asks it
   to shut its tooltips (`shutTips`) when the pane folds, settles or
   scrolls, and on Escape.
+- And Proceed to checkout and Clear cart (2026-11-23, #854):
+  `CheckoutButton` in `checkout.js` holds why Proceed cannot go on,
+  its tooltip and the reason it shows, and sets the button from each
+  render (`setWhy`); `ClearCart` in `clear.js` holds Clear cart's two
+  presses and words. `Cart` asks the one to shut its tooltip on a
+  scroll or Escape and the other whether it is asking.
 - Draft, sync and the header badge stay in `draft.js`, `cart-sync.mjs`,
   `session/cart-sync.js` and `cart-badge/*`, unchanged in shape. The
   cart announces nothing itself; `OrderForm` keeps `announceCart`.
