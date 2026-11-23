@@ -38,31 +38,62 @@ const PERSONAL = new Set([
 ]);
 
 const EMAIL = /[A-Za-z0-9._%+'-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+/g;
-const PHONE = /[+(]?\d[\d\s().-]{8,}\d/g;
+
+// A phone number is 10 or more digits, with spaces, dots, dashes or
+// brackets between them, and may end in an extension ("x23", "ext.
+// 23"). A number in the 3-3-4 shape is scrubbed wherever it sits.
+//
+// Ids hold such runs too (an invite's hex, a UUID, an order id's tail,
+// Square's and PayPal's ids, #896). A value logged under an id key
+// keeps a run touching a letter, a digit or a dash-joined part of the
+// same word, so the id survives whole; no id has the 3-3-4 shape. Any
+// other value, free text above all, loses every run, glued to a word
+// or not: an id inside a sentence loses its middle, which errs toward
+// privacy.
+const EXTENSION = String.raw`(?:\s*(?:x|ext\.?)\s*\d{1,6})?`;
+const RUN = String.raw`[+(]?\d[\d\s().-]{8,}\d${EXTENSION}`;
+const NO_ID_LEFT = "(?<![A-Za-z0-9-])";
+const NO_ID_RIGHT = "(?![A-Za-z0-9]|-[A-Za-z0-9])";
+const PHONE = new RegExp(RUN, "gi");
+const PHONE_BESIDE_ID = new RegExp(`${NO_ID_LEFT}${RUN}${NO_ID_RIGHT}`, "gi");
+const SHAPED = new RegExp(
+  String.raw`\(?(?<!\d)\d{3}\)?[\s.-]\d{3}[\s.-]\d{4}(?!\d)${EXTENSION}`,
+  "gi",
+);
 const DEPTH = 8;
+
+// An id key: "id", "key", "invite", or a camelCase or snake_case name
+// ending in one ("squareOrderId", "idempotencyKey", "order_id"). Read
+// from the key as written, so "paid" and "valid" are not ids.
+const ID_KEY = /^(?:id|key|invite)$|(?:[a-z0-9](?:Id|ID|Key)|[_-](?:id|key))$/;
 
 const tagEmail = (address) => `[email:${
   createHash("sha256").update(address.toLowerCase()).digest("hex")
     .slice(0, 8)}]`;
 
-const scrubText = (text) => text
-  .replace(EMAIL, tagEmail)
-  .replace(PHONE, (m) => (m.replace(/\D/g, "").length >= 10 ? "[phone]" : m));
+const tagPhone = (m) => (m.replace(/\D/g, "").length >= 10 ? "[phone]" : m);
 
-export const scrub = (value, depth = 0) => {
-  if (typeof value === "string") return scrubText(value);
+const scrubText = (text, asId) => text
+  .replace(EMAIL, tagEmail)
+  .replace(asId ? PHONE_BESIDE_ID : PHONE, tagPhone)
+  .replace(SHAPED, tagPhone);
+
+export const scrub = (value, depth = 0, asId = false) => {
+  if (typeof value === "string") return scrubText(value, asId);
   if (!value || typeof value !== "object") return value;
   if (depth >= DEPTH) return REMOVED;
   if (value instanceof Error) {
     return scrub({ message: value.message, stack: value.stack }, depth + 1);
   }
-  if (Array.isArray(value)) return value.map((v) => scrub(v, depth + 1));
+  if (Array.isArray(value)) {
+    return value.map((v) => scrub(v, depth + 1, asId));
+  }
 
   return Object.fromEntries(Object.entries(value).map(([key, v]) => [
     key,
     PERSONAL.has(key.toLowerCase().replace(/[^a-z0-9]/g, ""))
       ? REMOVED
-      : scrub(v, depth + 1),
+      : scrub(v, depth + 1, ID_KEY.test(key)),
   ]));
 };
 
