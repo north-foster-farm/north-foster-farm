@@ -11,6 +11,7 @@ import { log, scrub } from "../netlify/functions/lib/log.mjs";
 import { SquareError } from "../netlify/functions/lib/square.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
 import { handle as ordersApi } from "../netlify/functions/orders.mjs";
+import { logText } from "./log-text.mjs";
 import { MORNING, SCHEDULE } from "./schedule-fixture.mjs";
 
 const MAILS = {
@@ -105,7 +106,8 @@ describe("the log scrub", () => {
     });
 
     assert.equal(lines.length, 1);
-    assert.doesNotMatch(lines[0], /pat\.example@/);
+    // Every field but `_time`, which the logger sets (#999).
+    assert.doesNotMatch(logText(lines[0]), /pat\.example@/);
     assert.match(lines[0], /NFF-2610-AAAAAA/);
   });
 });
@@ -149,7 +151,8 @@ describe("a failed order", () => {
 
     assert.notEqual(res.status, 200);
 
-    const logged = lines.join("\n");
+    // Every field but `_time`, which the logger sets (#999).
+    const logged = lines.map(logText).join("\n");
 
     assert.match(logged, /order\.failed/, "the failure path ran");
     assert.match(logged, /NFF-\d{4}-[A-Z0-9]+/, "and names the order");

@@ -10,6 +10,7 @@ import {
   FIXED, MAP, flush, log, scrub,
 } from "../netlify/functions/lib/log.mjs";
 import { shipLog } from "../bin/ship-log.mjs";
+import { logText } from "./log-text.mjs";
 
 const AXIOM = { AXIOM_TOKEN: "t", AXIOM_DATASET: "d", DEPLOY_ID: "dep" };
 
@@ -112,8 +113,9 @@ describe("a shipped log line", () => {
       });
 
       // The scrub ran first: no address or phone number made it.
-      assert.doesNotMatch(bodies[0], /example\.com/);
-      assert.doesNotMatch(bodies[0], /555 0142/);
+      // Every field but `_time`, which the logger sets (#999).
+      assert.doesNotMatch(logText(bodies[0]), /example\.com/);
+      assert.doesNotMatch(logText(bodies[0]), /555 0142/);
     });
 
   it("keeps a personal field removed inside the map", async (t) => {
