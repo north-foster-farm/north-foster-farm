@@ -209,3 +209,198 @@ test.describe("staging email library (#874)", () => {
     });
   });
 });
+
+// #877, phase 3 of the split (the reader moves to library/reader.js):
+// six behaviors of the open email that nothing pinned, pinned before
+// the move, one test per criterion, each named for it (criterion 6 is
+// two, so the half that can run never hides behind a skip). They pass
+// against the library as it is today, on staging's real emails: no
+// answer is made up. Criterion 3's "not found" is the API's own 404,
+// fetched for an id that does not exist; criterion 4 holds back a real
+// answer, unchanged.
+const NO_SUCH_EMAIL = "/api/staging/emails/zz-no-such-email";
+const COPY = "[data-staging-copy-link]";
+const NOT_REWRITTEN = (e) => e.approval !== "rewritten";
+
+// Two emails of the library, for a test that opens one then another.
+const twoOf = (emails) => {
+  expect(emails.length, "staging's library has two emails").toBeGreaterThan(1);
+
+  return [emails[0], emails[1]];
+};
+
+// Makes the clipboard answer `works`: the page's clipboard is
+// replaced, as `drop` (support/library.mjs) replaces confirm, since
+// a headless browser may refuse the real one; prompt is recorded.
+const clipboard = (page, works) => page.evaluate((ok) => {
+  window.e2ePrompted = undefined;
+  Object.defineProperty(navigator, "clipboard", {
+    configurable: true,
+    value: { writeText: () => (ok ? Promise.resolve()
+      : Promise.reject(new Error("refused"))) },
+  });
+  window.prompt = (question, value) => {
+    window.e2ePrompted = [question, value];
+
+    return null;
+  };
+}, works);
+
+test.describe("staging email library, the reader (#877)", () => {
+  test.use({ hideToolbar: false });
+  test.beforeEach(({ context, baseURL }) => signIn(context, baseURL));
+
+  test("Back hides the reader, sets the hash to #emails and focuses the "
+    + "search", async ({ page }) => {
+    const [email] = await library(page);
+    const ui = await openEmail(page, email);
+
+    await expect(ui.reader).toBeVisible();
+    await page.locator("[data-staging-reader-back]").click();
+    await expect(ui.reader).toBeHidden();
+    expect(new URL(page.url()).hash).toBe("#emails");
+    await expect(ui.search).toBeFocused();
+  });
+
+  test("Copy link shows \"Copied\" and resets after 1.2 s, with the "
+    + "browser prompt as the fallback when the clipboard is refused",
+  async ({ page, baseURL }) => {
+    const [email] = await library(page);
+
+    await openEmail(page, email);
+
+    const button = page.locator(COPY);
+    const link = `${new URL(baseURL).origin}/#email=${
+      encodeURIComponent(email.id)}`;
+
+    await clipboard(page, true);
+    await button.click();
+    await expect(button).toHaveText("Copied");
+    await page.waitForTimeout(800);
+    await expect(button, "still Copied before 1.2 s").toHaveText("Copied");
+    await expect(button).toHaveText("Copy link", { timeout: 2_000 });
+    expect(await page.evaluate(() => window.e2ePrompted)).toBeUndefined();
+
+    await clipboard(page, false);
+    await button.click();
+    expect(await page.evaluate(() => window.e2ePrompted))
+      .toEqual(["The link to this email:", link]);
+    await expect(button).not.toHaveText("Copied");
+  });
+
+  test("The text view shows the email's text, and an email that is not "
+    + "found shows \"Not found.\" in the text view and in the frame",
+  async ({ page }) => {
+    const [shown, missing] = twoOf(await library(page));
+    let ui = await openEmail(page, shown);
+
+    await ui.view("text").click();
+    await expect(ui.text)
+      .toHaveText(await getText(page, `${emailPath(shown)}?format=text`));
+
+    const gone = await page.request.get(NO_SUCH_EMAIL);
+
+    expect(gone.ok(), `${NO_SUCH_EMAIL} is not found`).toBe(false);
+    await page.route(`**${emailPath(missing)}*`, async (route) => route
+      .fulfill({ response: await route.fetch({ url: gone.url() }) }));
+    ui = await openEmail(page, missing);
+    await ui.view("html").click();
+    await expect(ui.frame).toHaveAttribute("srcdoc", "<p>Not found.</p>");
+    await ui.view("text").click();
+    await expect(ui.text).toHaveText("Not found.");
+  });
+
+  test("A stale answer is dropped: when a second email is opened before "
+    + "the first answers, the first's late answer does not replace the "
+    + "second", async ({ page }) => {
+    const [first, second] = twoOf(await library(page)
+      .then((all) => all.filter(NOT_REWRITTEN)));
+    let release;
+    const held = new Promise((resolve) => { release = resolve; });
+    const late = page.waitForResponse((r) => r.url()
+      .endsWith(emailPath(first)));
+
+    await page.route(`**${emailPath(first)}`, async (route) => {
+      const answer = await route.fetch();
+
+      await held;
+      await route.fulfill({ response: answer });
+    });
+
+    const ui = await openEmail(page, first);
+
+    await page.evaluate((id) => { location.hash = `#email=${id}`; },
+      encodeURIComponent(second.id));
+    await expect(ui.name).toHaveText(second.name);
+    await expect(ui.frame).toHaveAttribute("srcdoc", /./);
+
+    const secondDoc = await ui.frame.getAttribute("srcdoc");
+
+    release();
+    await late;
+    await page.waitForTimeout(500);
+    await expect(ui.name).toHaveText(second.name);
+    expect(await ui.frame.getAttribute("srcdoc"),
+      "the first's late answer did not replace the second").toBe(secondDoc);
+  });
+
+  test("Attachments show as links that go to a new tab, and the list is "
+    + "hidden when there are none", async ({ page }) => {
+    const emails = await library(page);
+    const withFiles = emails.find((e) => (e.attachments || []).length);
+    const without = emails.find((e) => !(e.attachments || []).length);
+
+    expect(withFiles, "an email on staging with attachments").toBeTruthy();
+    expect(without, "an email on staging without attachments").toBeTruthy();
+
+    await openEmail(page, withFiles);
+
+    const holder = page.locator("[data-staging-reader-attachments]");
+    const links = page.locator("[data-staging-reader-files] a");
+
+    await expect(holder).toBeVisible();
+    await expect(links)
+      .toHaveText(withFiles.attachments.map((f) => f.filename));
+    for (const link of await links.all()) {
+      await expect(link).toHaveAttribute("target", "_blank");
+    }
+
+    const tab = page.waitForEvent("popup");
+
+    await links.first().click();
+    await (await tab).close();
+
+    await openEmail(page, without);
+    await expect(holder).toBeHidden();
+  });
+
+  test("An email that has a rewrite opens at its rewrite, and the Rewrite "
+    + "button is hidden for one that has none (one with a rewrite)",
+  async ({ page }) => {
+    const rewritten = (await library(page))
+      .find((e) => e.approval === "rewritten");
+
+    test.skip(!rewritten, "NOT RUN: no email on staging has approval "
+      + "\"rewritten\"; only a review session can make one");
+
+    const ui = await openEmail(page, rewritten);
+
+    await expect(ui.view("rewrite")).toBeVisible();
+    await expect(ui.view("rewrite")).toHaveAttribute("aria-pressed", "true");
+    await expect(ui.rewritten).toBeVisible();
+    await expect(ui.frame).toBeHidden();
+  });
+
+  test("An email that has a rewrite opens at its rewrite, and the Rewrite "
+    + "button is hidden for one that has none (one without)",
+  async ({ page }) => {
+    const plain = (await library(page)).find(NOT_REWRITTEN);
+
+    expect(plain, "an email on staging without a rewrite").toBeTruthy();
+
+    const ui = await openEmail(page, plain);
+
+    await expect(ui.view("rewrite")).toBeHidden();
+    await expect(ui.frame).toBeVisible();
+  });
+});
