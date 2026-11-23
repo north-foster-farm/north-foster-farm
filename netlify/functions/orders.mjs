@@ -18,8 +18,6 @@
 //   503 transient failure, safe to retry     502 permanent
 //   429 too many tries from one address      204 dropped (honeypot)
 
-import { createHash } from "node:crypto";
-
 import catalog from "../../data/catalog.json" with { type: "json" };
 import terms from "./lib/terms.mjs";
 import discountCodes from "../../data/discount-codes.json" with {
@@ -30,7 +28,7 @@ import { perkEffects } from "../../assets/scripts/order/lib/perks.mjs";
 import { lockOn } from "../../assets/scripts/order/lib/totals.mjs";
 import { validateOrder } from "../../assets/scripts/order/lib/validate.mjs";
 import { fieldError } from "../../assets/scripts/utils/field-errors.mjs";
-import { parts, today } from "../../assets/scripts/order/lib/zoned.mjs";
+import { today } from "../../assets/scripts/order/lib/zoned.mjs";
 import { saveCart } from "./lib/account.mjs";
 import { sessionFrom } from "./lib/auth.mjs";
 import {
@@ -58,7 +56,7 @@ import {
 } from "./lib/passes.mjs";
 import { PAYMENTS_OFF, paymentsOff } from "./lib/payments.mjs";
 import { perkTypes } from "./lib/perks.mjs";
-import { ID_LENGTH } from "./lib/order-id.mjs";
+import { ID_LENGTH, orderId } from "./lib/order-id.mjs";
 import { pickupSchedule } from "./lib/pickups.mjs";
 import {
   getOrder, orderForSubmission, paymentsOf, reserveOrderId, submissionKey,
@@ -91,29 +89,10 @@ const rateLimited = (ip, now) => {
   return recent.length > RATE.max;
 };
 
-// Human-readable, and the same for every retry of one submission:
-// `NFF-YYMM-` and six letters and digits, about a billion a month.
-// Ids before #253 had four, and stay valid everywhere (an id is only
-// ever looked up whole). `draw` is the nth candidate, for when an
-// earlier one is taken (lib/records.mjs, reserveOrderId). ID_LENGTH
-// lives in lib/order-id.mjs beside the pattern that reads it (#937).
-export { ID_LENGTH };
-
-export const orderId = (key, now, draw = 0) => {
-  const p = parts(now, terms.timeZone);
-  const yymm = `${String(p.year).slice(2)}${String(p.month).padStart(2, "0")}`;
-  const hash = createHash("sha256")
-    .update(draw ? `${key}#${draw}` : key)
-    .digest("hex");
-  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let tail = "";
-
-  for (let i = 0; i < ID_LENGTH; i++) {
-    tail += alphabet[parseInt(hash.slice(i * 2, i * 2 + 2), 16) % 32];
-  }
-
-  return `NFF-${yymm}-${tail}`;
-};
+// An order's id, drawn in lib/order-id.mjs since #968 so the libraries
+// need not import this function. Re-exported for the tests and older
+// importers.
+export { ID_LENGTH, orderId };
 
 // What the page shows once the order is paid: the payment just taken.
 // Only ever this submission's own record (checked by `own` first).

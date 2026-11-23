@@ -51,7 +51,7 @@ import {
   validateOrder,
 } from "../../../assets/scripts/order/lib/validate.mjs";
 import { today } from "../../../assets/scripts/order/lib/zoned.mjs";
-import { orderId } from "../orders.mjs";
+import { orderId } from "./order-id.mjs";
 import { publicOrder } from "./account.mjs";
 import {
   METHODS, announceNew, attemptKey, nothingDue,
