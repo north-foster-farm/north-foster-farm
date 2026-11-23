@@ -49,6 +49,9 @@
 import { readFileSync } from "node:fs";
 
 import { expect, test } from "./support/order.mjs";
+import {
+  atWidth, eachWidth, label, widthsFor,
+} from "./support/widths.mjs";
 
 const ICON = (name) => [...readFileSync(new URL(
   `../assets/images/icons/${name}.svg`, import.meta.url
@@ -60,16 +63,6 @@ const WIDE = 1280;
 const SETTLE_MS = 700;
 // Ink gaps that differ by no more than this are equal.
 const SAME_PX = 2;
-
-const widthsFor = (project, widths) => (project === "desktop"
-  ? widths : [null]);
-const label = (w) => (w ? `${w} px` : "the phone's width");
-
-const atWidth = async (page, width) => {
-  if (width) {
-    await page.setViewportSize({ width, height: width >= 992 ? 900 : 664 });
-  }
-};
 
 const ui = (page) => {
   const field = page.getByRole("combobox", { name: /search/i });
@@ -226,11 +219,8 @@ test.describe("#913 site search in the header", () => {
     + "same control, at every width; the control shows search.svg closed "
     + "and search-close.svg open, and says which in its accessible name",
   async ({ page }, info) => {
-    for (const width of widthsFor(info.project.name,
+    for await (const at of eachWidth(page, info.project.name,
       [390, 768, 992, WIDE])) {
-      const at = label(width);
-
-      await atWidth(page, width);
       await page.goto("/about/");
 
       const s = ui(page);
@@ -418,11 +408,8 @@ test.describe("#913 site search in the header", () => {
   test("The space to the left and right of the search control in the "
     + "header equals the space around the other header links",
   async ({ page }, info) => {
-    for (const width of widthsFor(info.project.name,
+    for await (const at of eachWidth(page, info.project.name,
       [390, 768, 992, WIDE])) {
-      const at = label(width);
-
-      await atWidth(page, width);
       await page.goto("/about/");
       await page.waitForTimeout(SETTLE_MS);
 

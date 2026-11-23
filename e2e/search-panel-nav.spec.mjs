@@ -13,19 +13,13 @@
 // options; "zzqx" matches nothing and "delivery" matches something.
 
 import { expect, test } from "./support/order.mjs";
+import { atWidth, label } from "./support/widths.mjs";
 
 const WIDE = 1280;
 const POLICY = "a[href$='/delivery-policy/']";
 const MAIN = "nav[aria-label='Main']";
 
 const widthsFor = (project) => (project === "desktop" ? [WIDE, 390] : [null]);
-const label = (w) => (w ? `${w} px` : "the phone's width");
-
-const atWidth = async (page, width) => {
-  if (width) {
-    await page.setViewportSize({ width, height: width >= 992 ? 900 : 664 });
-  }
-};
 
 const ui = (page) => {
   const field = page.getByRole("combobox", { name: /search/i });
