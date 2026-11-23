@@ -8,7 +8,8 @@ import { all, qs, reduced } from "./dom.js";
 import { passedBy, pillWord } from "./plan.mjs";
 import * as state from "./state.mjs";
 import {
-  SHEET, animateFold, clearFocusUnder, moveParts, swapWords, toPx,
+  SHEET, animateFold, clearFocusUnder, moveParts, moving, swapWords,
+  toPx,
   watchKeyboard, watchList, watchPlacement, watchScroll, wordsOf,
 } from "./view.mjs";
 
@@ -107,6 +108,16 @@ export class Fold {
     return run(this.root, change, { reduce: reduced() }).finally(() => {
       this.easing -= 1;
     });
+  }
+
+  // Resolves once nothing animates the pane or moves its parts: an
+  // ease that another ease cancelled resolves early, while the newer
+  // one still runs.
+  stilled() {
+    return Promise.all(
+      [...this.root.getAnimations(), ...moving(this.root)]
+        .map((a) => a.finished.catch(() => {}))
+    );
   }
 
   // A fold change: applied inside the view's motion, which measures

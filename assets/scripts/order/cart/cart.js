@@ -24,23 +24,14 @@ import * as state from "./state.mjs";
 import {
   drawEdit, drawNudge, drawReadouts, drawSums, drawWays,
 } from "./sums-view.js";
-import { focusAfterScroll, moving, ringCart } from "./view.mjs";
+import { focusAfterScroll, ringCart } from "./view.mjs";
 import { whyOf } from "./why.mjs";
 
 // The joke's code, for the form (joke.mjs).
 export { JOKE_CODE } from "./joke.mjs";
 
-// The first Add's lesson's dwell (added.js).
-export { TEACH_DWELL } from "./added.js";
-
-// Resolves once nothing animates the pane or moves its parts: an ease
-// that another ease cancelled resolves early, while the newer one
-// still runs.
-const stilled = (pane) => Promise.all(
-  [...pane.getAnimations(), ...moving(pane)]
-    .map((a) => a.finished.catch(() => {}))
-);
-
+// The root (docs/refactors/cart.md, phase 7): it builds the parts,
+// orders one render and the Escape, and passes the form's calls on.
 export class Cart {
   // `root` is #order-cart; its parent is the slot and the heading sits
   // before the slot. `bar` is the phone's sticky top bar, if any. The
@@ -62,39 +53,50 @@ export class Cart {
     // The lines last drawn (lines-view.js), null before the first.
     this.drawn = null;
     this.joke = null;
-    // The badges, their tooltips and the perks' (badges.js).
-    this.badges = new Badges(root);
-    // Proceed to checkout (checkout.js) and Clear cart (clear.js).
-    this.checkout = new CheckoutButton(root, this.on, () => this.fold.open());
-    this.clear = new ClearCart(root, this.on);
-
     this.list = qs(root, "[data-cart-items]");
     this.pill = qs(root, "[data-cart-toggle]");
-
-    // The view state, its folding and the watchers (fold.js); the
-    // shared row and the code (share-row.js); an Add (added.js).
-    this.fold = new Fold(root, { form, list: this.list, pill: this.pill }, {
-      badges: this.badges, checkout: this.checkout, clear: this.clear,
-    });
-    this.shareRow = new ShareRow(root, this.on, this.fold);
-    this.adds = new Added(root, {
-      list: this.list, pill: this.pill, fold: this.fold,
-    });
-
+    this.build();
     this.fold.apply(this.fold.state);
     this.wire(bar);
   }
 
+  // The parts, each in its own file. Fold reaches the first three.
+  build() {
+    const { root, list, pill } = this;
+
+    this.badges = new Badges(root);
+    this.checkout = new CheckoutButton(root, this.on, () => this.fold.open());
+    this.clear = new ClearCart(root, this.on);
+    this.fold = new Fold(root, { form: this.form, list, pill }, {
+      badges: this.badges, checkout: this.checkout, clear: this.clear,
+    });
+    this.shareRow = new ShareRow(root, this.on, this.fold);
+    this.adds = new Added(root, { list, pill, fold: this.fold });
+  }
+
+  // Every listener, in its old order.
   wire(bar) {
-    const root = this.root;
-
     this.fold.wire(bar);
-
     // The pill folds a floating cart; Escape folds it too and leaves
     // the focus on the pill (#159). Escape in the shared row folds the
     // row first.
     this.pill.addEventListener("click", () => this.fold.toggle());
-    root.addEventListener("keydown", (e) => {
+    this.wireEscape();
+    this.adds.wire();
+    this.wireRemove();
+    this.checkout.wire();
+    this.clear.wire();
+    this.shareRow.wire();
+    this.badges.wire();
+
+    // The readouts in the bars go back to the cart.
+    for (const button of all(this.form, "[data-to-cart]")) {
+      button.addEventListener("click", () => this.show({ smooth: true }));
+    }
+  }
+
+  wireEscape() {
+    this.root.addEventListener("keydown", (e) => {
       if (e.key !== "Escape") return;
 
       const step = escapeStep({
@@ -109,38 +111,20 @@ export class Cart {
       e.preventDefault();
       this.escape(step);
     });
+  }
 
-    // The pane is the customer's once they focus in it or press a key:
-    // the first Add's timer lapses. A touch is the view's to judge.
-    for (const type of ["focusin", "keydown"]) {
-      root.addEventListener(type, () => this.adds.keepOpen(), {
-        passive: true,
-      });
-    }
-
-    // The remove icon on a cart line takes every unit of that product
-    // out.
-    root.addEventListener("click", (e) => {
+  // The remove icon on a cart line takes every unit of that product
+  // out.
+  wireRemove() {
+    this.root.addEventListener("click", (e) => {
       const button = e.target.closest("[data-remove]");
 
       if (button) this.on.onRemove(button.dataset.remove);
     });
-
-    this.checkout.wire();
-    this.clear.wire();
-    this.shareRow.wire();
-    this.badges.wire();
-
-    // The readouts in the bars go back to the cart.
-    for (const button of all(this.form, "[data-to-cart]")) {
-      button.addEventListener("click", () => this.show({ smooth: true }));
-    }
   }
 
-  // Escape, by the part escapeStep names (escape.mjs): an open badge
-  // tooltip goes first (#569), and Proceed's (#706); then Clear cart's
-  // question; then the shared row, the focus back on the button that
-  // opened it; then the fold, the focus left on the pill.
+  // Escape, by the part escapeStep names (escape.mjs); the fold leaves
+  // the focus on the pill.
   escape(step) {
     if (step === "tips") {
       this.badges.shutTips();
@@ -148,12 +132,7 @@ export class Cart {
     } else if (step === "clear") {
       this.clear.reset();
     } else if (step === "row") {
-      const was = this.fold.state.share;
-
-      this.shareRow.shutRow().then(() => qs(
-        this.root,
-        was === "way" ? "[data-way-toggle]" : "[data-code-toggle]"
-      ).focus());
+      this.shareRow.escape();
     } else {
       const { state: next } = state.escape(this.fold.state);
 
@@ -178,71 +157,83 @@ export class Cart {
     method, ways = {}, edit = null, locked = false, adding = false,
     fixed = false, down = false,
   }) {
-    const root = this.root;
-    const count = s.count;
-    const fold = this.fold;
+    const draw = () => this.draw(s, { method, ways, edit, fixed });
 
     this.summary = s;
-
-    const draw = () => {
-      this.drawn = drawItems(root, this.list, s.groups, this.drawn);
-      for (const button of all(root, "[data-remove]")) button.hidden = fixed;
-      qs(root, "[data-cart-clear]").hidden = fixed;
-      if (fixed || count === 0) this.clear.reset();
-      drawSums(root, s, this.lastTotal);
-      this.lastTotal = s.total;
-      drawEdit(root, edit);
-      drawWays(root, method, ways);
-      root.toggleAttribute("data-empty", count === 0);
-      drawNudge(root, s);
-    };
-
-    drawReadouts({ root, form: this.form, pill: this.pill }, s);
-
+    drawReadouts({ root: this.root, form: this.form, pill: this.pill }, s);
     this.checkout.setWhy(whyOf(s, { method, locked, down }));
 
     // The lines came or went, or the cart emptied or filled: the fold
     // rule decides, and the pane eases to its new height (the column's
     // ease, #278 item 2; the sheet's fold).
-    const next = state.rendered(fold.state, {
-      count, was: this.lastCount, adding,
+    const next = state.rendered(this.fold.state, {
+      count: s.count, was: this.lastCount, adding,
     });
 
-    this.lastCount = count;
-
-    const moved = changed({
-      next, was: fold.state, lines: s.groups, drawn: this.drawn,
-      nudge: s.nudge, nudgeShown: !qs(root, "[data-nudge]").hidden,
-    });
-
-    if (moved) {
-      next.empty = count === 0;
-      // The badges after the ease: a badge that lights sends its chicks
-      // from where it is seen, and mid-ease it may lie past the pane's
-      // old edge. A render that follows at once cancels this ease and
-      // starts its own, and the ease it cancels resolves early: only
-      // the latest render's end counts. A render with nothing to ease
-      // may come before it ends (a sign-in's perks, #717): the badges
-      // follow the latest summary, not this one.
-      const seq = this.renders = (this.renders || 0) + 1;
-
-      fold.motion(() => {
-        fold.apply(next);
-        draw();
-      }).then(() => stilled(root)).then(() => {
-        if (seq !== this.renders) return;
-        dropRows(this.list, this.drawn);
-        fold.placement.refresh();
-        fold.lines.sync();
-        this.badges.draw(this.summary);
-      });
+    this.lastCount = s.count;
+    if (this.moves(next, s)) {
+      next.empty = s.count === 0;
+      this.ease(next, draw);
     } else {
-      fold.hold(next);
+      this.settle(next, draw, s);
+    }
+  }
+
+  // Whether the render moves the pane (plan.mjs changed).
+  moves(next, s) {
+    return changed({
+      next, was: this.fold.state, lines: s.groups, drawn: this.drawn,
+      nudge: s.nudge, nudgeShown: !qs(this.root, "[data-nudge]").hidden,
+    });
+  }
+
+  // The lines, the sums and the rest of the pane, from the summary.
+  draw(s, { method, ways, edit, fixed }) {
+    const root = this.root;
+    const count = s.count;
+
+    this.drawn = drawItems(root, this.list, s.groups, this.drawn);
+    for (const button of all(root, "[data-remove]")) button.hidden = fixed;
+    qs(root, "[data-cart-clear]").hidden = fixed;
+    if (fixed || count === 0) this.clear.reset();
+    drawSums(root, s, this.lastTotal);
+    this.lastTotal = s.total;
+    drawEdit(root, edit);
+    drawWays(root, method, ways);
+    root.toggleAttribute("data-empty", count === 0);
+    drawNudge(root, s);
+  }
+
+  // The badges after the ease: a badge that lights sends its chicks
+  // from where it is seen, and mid-ease it may lie past the pane's
+  // old edge. A render that follows at once cancels this ease and
+  // starts its own, and the ease it cancels resolves early: only
+  // the latest render's end counts. A render with nothing to ease
+  // may come before it ends (a sign-in's perks, #717): the badges
+  // follow the latest summary, not this one.
+  ease(next, draw) {
+    const fold = this.fold;
+    const seq = this.renders = (this.renders || 0) + 1;
+
+    fold.motion(() => {
+      fold.apply(next);
       draw();
+    }).then(() => fold.stilled()).then(() => {
+      if (seq !== this.renders) return;
+      dropRows(this.list, this.drawn);
       fold.placement.refresh();
       fold.lines.sync();
-      this.badges.draw(s);
-    }
+      this.badges.draw(this.summary);
+    });
+  }
+
+  // A render that moves nothing: drawn at once, the badges with it.
+  settle(next, draw, s) {
+    this.fold.hold(next);
+    draw();
+    this.fold.placement.refresh();
+    this.fold.lines.sync();
+    this.badges.draw(s);
   }
 
   // The feedback for an Add (#267, added.js).

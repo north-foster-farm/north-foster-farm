@@ -433,10 +433,20 @@ submission. The contract between them:
   side of the shared row (`setShare`), keeps the scroll rule (`busy`,
   `scrolled`), marks the cart passed and owns the watchers. `Added` in
   `added.js` gives an Add its live line, the first Add's lesson
-  (`TEACH_DWELL`, which `cart.js` still exports) and the strip.
+  (`TEACH_DWELL`) and the strip.
   `escapeStep` in `escape.mjs` names which part takes an Escape, in
   the order the pane has always kept: a tooltip, Clear cart's
   question, the shared row, then the fold.
+- And the root (2026-11-23, #857, the last phase): `Cart` builds the
+  parts (`build`), wires them in the old order, orders the Escape
+  (`escape`, the shared row's step and its focus in `ShareRow`'s
+  `escape`) and one render: the readouts and Proceed's reason, then
+  `moves`, `draw` inside `ease` when the pane moves (the badges once
+  `Fold`'s `stilled` resolves, for the latest render only) or
+  `settle` when it does not. `Added` wires its own `keepOpen`
+  listeners. `cart.js` meets every limit of #782. `TEACH_DWELL` is
+  `added.js`'s own: nothing imported it from `cart.js` (2026-11-23,
+  #857: phase 6 left a re-export there).
 - Draft, sync and the header badge stay in `draft.js`, `cart-sync.mjs`,
   `session/cart-sync.js` and `cart-badge/*`, unchanged in shape. The
   cart announces nothing itself; `OrderForm` keeps `announceCart`.
