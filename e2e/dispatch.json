@@ -489,6 +489,7 @@
         "e2e/pickup-days-revision.spec.mjs",
         "e2e/pickup-days-status.spec.mjs",
         "e2e/pickup-days.spec.mjs",
+        "e2e/pickup-hint.spec.mjs",
         "e2e/pickup-horizon.spec.mjs",
         "e2e/place-order-pane.spec.mjs",
         "e2e/placed-overflow.spec.mjs",
@@ -600,6 +601,7 @@
         "e2e/pickup-days-revision.spec.mjs",
         "e2e/pickup-days-status.spec.mjs",
         "e2e/pickup-days.spec.mjs",
+        "e2e/pickup-hint.spec.mjs",
         "e2e/pickup-horizon.spec.mjs",
         "e2e/place-order-pane.spec.mjs",
         "e2e/pricing.spec.mjs",
@@ -2039,6 +2041,14 @@
       "specs": [
         "e2e/pickup-days-revision-2.spec.mjs",
         "e2e/pickup-days-revision.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/pickup-hint.spec.mjs"
+      ],
+      "specs": [
+        "e2e/pickup-hint.spec.mjs"
       ]
     },
     {
