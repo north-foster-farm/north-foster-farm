@@ -36,3 +36,4 @@ e2e/restock.spec.mjs #370
 e2e/skeletons.spec.mjs #271
 e2e/keyboard.spec.mjs #427 #356
 e2e/staging-toolbar.spec.mjs #350
+e2e/staging-library.spec.mjs #874

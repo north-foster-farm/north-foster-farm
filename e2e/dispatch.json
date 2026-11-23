@@ -2275,6 +2275,14 @@
     },
     {
       "paths": [
+        "e2e/staging-library.spec.mjs"
+      ],
+      "specs": [
+        "e2e/staging-library.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
         "e2e/staging-toolbar.spec.mjs"
       ],
       "specs": [
