@@ -357,6 +357,11 @@ export class OrderPage {
     await this.scrollSettled();
     await this.page.locator(`label[for='method-${value}']`).click();
     await expect(this.page.locator(`#method-${value}`)).toBeChecked();
+    // Choosing a way runs revealMethod(), which after 240 ms
+    // smooth-scrolls its first field into view; let that start and end
+    // before the next step, or a tap lands just ahead of it (qa, #910).
+    await this.page.waitForTimeout(300);
+    await this.scrollSettled();
   }
 
   async contact({ first = "QA", last = "Tester", email, phone } = {}) {
