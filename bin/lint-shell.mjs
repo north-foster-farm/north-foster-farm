@@ -25,7 +25,8 @@ const main = () => {
   const firstLine = (f) => (statSync(join(root, f)).isFile()
     ? readFileSync(join(root, f), "utf8").split("\n", 1)[0] : "");
   const scripts = shellScripts(tracked, firstLine);
-  const run = spawnSync("shellcheck", scripts, {
+  // "--" first, so no file name can read as an option.
+  const run = spawnSync("shellcheck", ["--", ...scripts], {
     "cwd": root, "stdio": "inherit",
   });
 
