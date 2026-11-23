@@ -1452,7 +1452,8 @@ export const listMessages = async (stores, { all = false } = {}) => {
 // characters (escape sequences, carriage returns) and no bidirectional
 // overrides, either of which could make a line show something it is
 // not (#167, security review).
-// eslint-disable-next-line no-control-regex -- matching them is the point
+// Matching them is the point.
+// eslint-disable-next-line no-control-regex -- #791 c7105461370
 const UNSAFE = /[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/g;
 
 export const plain = (value) => String(value ?? "").replace(UNSAFE, "");

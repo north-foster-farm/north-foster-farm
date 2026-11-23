@@ -11,8 +11,6 @@
 
 import { readFileSync } from "node:fs";
 
-/* eslint-disable camelcase -- Resend names contact fields its way */
-
 const NAMES = [
   "create", "list", "update", "update-missing", "delete", "delete-missing",
 ];

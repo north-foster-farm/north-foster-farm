@@ -1,4 +1,3 @@
-/* eslint-disable camelcase -- GitHub names its fields its way */
 // The criteria tests for `bin/nff e2e --help` (#630), one per box of
 // the issue's "Done when" and named for it, written from the criteria
 // before the fix. The implementer may change how a test runs, never

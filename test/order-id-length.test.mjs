@@ -24,8 +24,6 @@
 // Held out of runs as order-id-length.criteria.mjs until the fix
 // renames it to order-id-length.test.mjs.
 
-/* eslint-disable camelcase -- Square names its fields its way */
-
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 

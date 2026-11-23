@@ -106,7 +106,8 @@ describe("bin/hotfix.mjs, round 3: the implementer's own", () => {
       spawnSync("git", ["init", "-q", dir]);
       await assert.rejects(realDeps.git(["-C", dir, "show",
         "\x1b]8;;evil\x07\x1b[31mzz‮"]), (error) => {
-        // eslint-disable-next-line no-control-regex -- what it must not hold
+        // What it must not hold.
+        // eslint-disable-next-line no-control-regex -- #791 c7105461370
         assert.ok(!/[\x00-\x1f\x7f-\x9f‪-‮]/.test(error.message),
           error.message);
         assert.match(error.message, /zz/, "and still says what git said");

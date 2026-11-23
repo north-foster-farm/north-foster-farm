@@ -263,7 +263,8 @@ export const test = base.extend({
   }, { scope: "worker", auto: true }],
   // A test that met Netlify's bot challenge fails naming it, whatever
   // else went wrong (challenge.mjs).
-  // eslint-disable-next-line no-empty-pattern
+  // Playwright's fixture form.
+  // eslint-disable-next-line no-empty-pattern -- #791 c7105461370
   netlifyChallenge: [async ({}, use) => {
     takeChallenges();
     await use();

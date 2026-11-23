@@ -52,8 +52,6 @@ import { testStores } from "../netlify/functions/lib/store.mjs";
 import { recorded } from "./recorded.mjs";
 import { resendFake } from "./resend-fixture.mjs";
 
-/* eslint-disable camelcase -- Square and Resend name fields their way */
-
 const now = new Date("2026-11-21T15:00:00Z");
 const ZONE = "America/New_York";
 const PLUS = "pat+dog@example.com";

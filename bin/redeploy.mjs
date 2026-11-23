@@ -14,8 +14,6 @@
 // (docs/security.md): who, the context, the commit served before and
 // the one built.
 
-/* eslint-disable camelcase -- Netlify names its fields its way */
-
 import { execFile, spawn } from "node:child_process";
 import { promisify } from "node:util";
 

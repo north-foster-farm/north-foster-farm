@@ -1,4 +1,3 @@
-/* eslint-disable camelcase -- GitHub names its fields its way */
 // The criteria test for criterion 7 of #615: `bin/nff e2e` sends the
 // pages it chose (or was given) as e2e.yml's `pages` input, through its
 // one place for dispatch inputs, and still refuses to send pages

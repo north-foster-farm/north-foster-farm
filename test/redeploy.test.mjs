@@ -1,4 +1,3 @@
-/* eslint-disable camelcase -- Netlify names its fields its way */
 // `bin/nff redeploy` (#510): a context built again without a push. The
 // right branch, the production confirm, the wait for /version.json and
 // a log line for each rebuild.

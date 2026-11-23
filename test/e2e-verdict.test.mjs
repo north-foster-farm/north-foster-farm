@@ -1,4 +1,3 @@
-/* eslint-disable camelcase -- GitHub names its fields its way */
 // The criteria tests for bin/nff e2e's verdict (#623), one per
 // acceptance criterion and named for it, written from the criteria
 // before the fix. The implementer may change how a test runs, never
@@ -69,7 +68,8 @@ const FAKE_GH = fileURLToPath(fixture("fake-gh.mjs"));
 const REPO = "repos/north-foster-farm/north-foster-farm";
 const BRANCH = "lane/e2e-cmd-tests";
 const SPEC = "e2e/skeletons.spec.mjs";
-const CONTROL = /[\x00-\x1f\x7f-\x9f]/; // eslint-disable-line no-control-regex
+// eslint-disable-next-line no-control-regex -- #791 c7105461370: the point
+const CONTROL = /[\x00-\x1f\x7f-\x9f]/;
 
 // The failing tests in e2e-verdict-escapes.txt's closing list. Their
 // names hold no site path, so there is no page to report.

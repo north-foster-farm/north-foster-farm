@@ -194,7 +194,8 @@ describe("bin/e2e/dispatch.mjs helpers", () => {
 
     assert.deepEqual(found, { file: "e2e/a.spec.mjs", line: 3,
       title: "bad name", projects: ["desktop"] });
-    // eslint-disable-next-line no-control-regex -- what must not print
+    // What must not print.
+    // eslint-disable-next-line no-control-regex -- #791 c7105461370
     assert.doesNotMatch(failureLine(found), /[\x00-\x1f\x7f-\x9f]/);
     assert.equal(printable(`job\x1b[2J\x1b[H \x85x\ty`), "job x y");
   });

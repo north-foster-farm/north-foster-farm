@@ -215,7 +215,6 @@ describe("customers rename (#238)", () => {
 });
 
 // Resend and Square name their fields in snake case.
-/* eslint-disable camelcase */
 
 // A fetch that answers from a table and remembers what it was asked,
 // for Square. Resend's contacts come from test/resend-fixture.mjs.

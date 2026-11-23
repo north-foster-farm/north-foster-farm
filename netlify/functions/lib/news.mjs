@@ -804,7 +804,6 @@ export const parseApplyCsv = (content) => {
 // --- The audience in Resend ----------------------------------------
 //
 // Resend names its contact fields first_name and last_name.
-/* eslint-disable camelcase */
 
 // Production only: elsewhere the audience counts as unconfigured, so
 // every caller skips it, and the call itself refuses as a second lock.

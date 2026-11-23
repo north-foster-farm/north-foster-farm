@@ -35,7 +35,7 @@ describe("mailbox, a customer's name and address for a header", () => {
     const got = mailbox("Pat\r\nBcc: evil@example.net\u0000\u2028", EMAIL);
 
     assert.equal(got, "\"Pat Bcc: evil@example.net\" <pat@example.com>");
-    // eslint-disable-next-line no-control-regex
+    // eslint-disable-next-line no-control-regex -- #791 c7105461370: the point
     assert.doesNotMatch(got, /[\r\n\u0000-\u001f]/);
   });
 

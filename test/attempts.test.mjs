@@ -2,7 +2,6 @@
 // later one is paid (#268): a lost answer after a taken payment must
 // never lead to a second charge.
 
-/* eslint-disable camelcase -- Square names its fields its way */
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 

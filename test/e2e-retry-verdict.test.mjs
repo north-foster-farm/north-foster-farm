@@ -1,4 +1,3 @@
-/* eslint-disable camelcase -- GitHub names its fields its way */
 // Criteria test for #693 (retry failing e2e tests automatically), box
 // 4: `bin/nff e2e`'s verdict names a test that passed on a retry as
 // flaky. Boxes 1 to 3 are test/promote-retry.criteria.mjs. Written by
@@ -68,7 +67,8 @@ const FAKE_GH = fileURLToPath(fixture("fake-gh.mjs"));
 const REPO = "repos/north-foster-farm/north-foster-farm";
 const BRANCH = "lane/e2e-cmd-tests";
 const SPEC = "e2e/skeletons.spec.mjs";
-const CONTROL = /[\x00-\x1f\x7f-\x9f]/; // eslint-disable-line no-control-regex
+// eslint-disable-next-line no-control-regex -- #791 c7105461370: the point
+const CONTROL = /[\x00-\x1f\x7f-\x9f]/;
 
 const FLAKY = { file: "e2e/zz-retry-flaky.spec.mjs",
   title: "fails on its first try and passes on a retry" };

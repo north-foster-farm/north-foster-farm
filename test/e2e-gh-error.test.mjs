@@ -13,7 +13,8 @@ import { ghApi, printable } from "../bin/e2e/dispatch.mjs";
 
 const HOSTILE = "\u001b]0;owned\u0007HTTP 422: \u001b[31mbad\u001b[0m"
   + " \u009b2J‮ref‬\nsecond \u0000line";
-// eslint-disable-next-line no-control-regex -- the point of the test
+// The point of the test.
+// eslint-disable-next-line no-control-regex -- #791 c7105461370
 const CONTROL = /[\x00-\x09\x0b-\x1f\x7f-\x9f‪-‮⁦-⁩]/;
 
 let home;
