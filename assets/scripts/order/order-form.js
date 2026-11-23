@@ -38,6 +38,7 @@ import { Pending } from "./pending.js";
 import { crumb } from "./report.js";
 import { wireSwitch } from "./restock.js";
 import { Stock } from "./stock.js";
+import { wireStockNudges } from "./stock-nudges.js";
 import { Submitter } from "./submit.js";
 import { announceCart } from "../cart-badge/announce.js";
 import { confirmJoin } from "../group/join-dialog.js";
@@ -187,6 +188,7 @@ export class OrderForm {
       onLock: () => this.refresh(),
       nameOf: (sku) => this.index.get(sku)?.lineName,
     });
+    wireStockNudges(form, this.stock);
     this.stockNotice = document.getElementById("order-stock");
     // The cart owns its pane; the form tells it what to show and hears
     // back what the customer did in it (docs/cart.md 4.1).

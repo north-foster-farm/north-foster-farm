@@ -107,9 +107,13 @@ That flag is the coarse switch. On top of it the `stock` store keeps a
 count of packs per SKU (`counts`), set by the CLI and moved by orders:
 down when an order is paid, back up when it is cancelled. `GET
 /api/stock` gives every item's `{ inStock, available }`; the page asks
-on load, on return to the tab, every two minutes and before paying,
-marks rows out of stock, shows "N left" at five or fewer, clamps the
-cart and says so. The order handler checks the same counts and
+on load, as the customer adds, changes a quantity or opens the cart,
+on return to the tab, once a minute and before paying, never more
+than once in 15 seconds and not at all after five minutes without
+input (#908, `order/stock.js`). It marks rows out of stock, shows "N
+left" at five or fewer, clamps the cart and says so in an alert.
+Search reads the same answers: through the page's reader here, and
+on every focus of its field elsewhere. The order handler checks the same counts and
 answers `422` with `lines.<sku>` errors plus the fresh `stock`.
 
 Square's count wins (#267, James, 6304555099). Every sale, on the
