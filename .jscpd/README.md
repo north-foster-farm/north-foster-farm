@@ -3,14 +3,15 @@
 `npm run lint:copies` runs jscpd once per area, each with its own
 config here, and fails when an area's share of duplicated lines rises
 above its ceiling (#782, step 8). Each ceiling is the area's figure on
-2026-11-22, rounded up to two places. A ceiling only falls: when a
-change removes duplicates, lower it to the new figure in the same
-change.
+2026-11-22, rounded up to two places, except tests, lowered to its
+figure on 2026-11-23 when #908's shared test helpers cut it. A
+ceiling only falls: when a change removes duplicates, lower it to the
+new figure in the same change.
 
 | Config           | Measured | Ceiling |
 | ---------------- | -------- | ------- |
 | `source.json`    | 0.767%   | 0.77%   |
-| `tests.json`     | 3.846%   | 3.85%   |
+| `tests.json`     | 3.740%   | 3.75%   |
 | `styles.json`    | 0.790%   | 0.80%   |
 | `templates.json` | 1.188%   | 1.19%   |
 

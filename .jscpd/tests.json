@@ -6,7 +6,7 @@
   "format": [
     "javascript"
   ],
-  "threshold": 3.85,
+  "threshold": 3.75,
   "reporters": [
     "console",
     "threshold"
