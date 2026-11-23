@@ -1,0 +1,22 @@
+{
+  "forbidden": [
+    {
+      "name": "no-circular",
+      "severity": "error",
+      "comment": "#782 step 8: no module may import itself through others, in every folder, netlify/functions/ and bin/ included. The proposal sets no folder rules yet, so this is the only rule. Exception (#791, Rule exceptions log): the 34 cycles in .dependency-cruiser-known-violations.json, all in netlify/functions/, are held by lint:cycles' --ignore-known until #925 untangles them; test/quality-cycles-known.test.mjs lets that file only shrink.",
+      "from": {},
+      "to": {
+        "circular": true
+      }
+    }
+  ],
+  "options": {
+    "doNotFollow": {
+      "path": "node_modules"
+    },
+    "moduleSystems": [
+      "es6",
+      "cjs"
+    ]
+  }
+}
