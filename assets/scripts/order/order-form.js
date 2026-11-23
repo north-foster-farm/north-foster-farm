@@ -7,12 +7,10 @@ import {
   locationsLabel,
 } from "./lib/scheduled.mjs";
 import {
-  groupFromQuery, nextRoundOpens, roundsWhen, withPlaces,
+  nextRoundOpens, roundsWhen, withPlaces,
 } from "./lib/group.mjs";
 import { perkEffects } from "./lib/perks.mjs";
 import { postedDelivery } from "./lib/posted.mjs";
-import { linkedMethod, withoutParam } from "./lib/query.mjs";
-import { sentence } from "./lib/sentence.mjs";
 import { summarize } from "./lib/summary.mjs";
 import {
   computeTotals, dollars, lockOn, meetsMinimum, toCents,
@@ -34,6 +32,7 @@ import {
   formatPhone, prefill, showContact, wirePhone,
 } from "./form/contact.js";
 import { all, pulse, qs } from "./form/dom.js";
+import { Links } from "./form/links.js";
 import { watchSections } from "./form/section-spy.js";
 import { Lapsed } from "./lapsed.js";
 import { Payment } from "./pay.js";
@@ -212,6 +211,9 @@ export class OrderForm {
     if (!this.editId) this.cart.setMoney(this.money);
     this.result = document.getElementById("order-result");
     this.pending = new Pending(document.getElementById("order-pending"));
+    // The links into the page: ?method, ?series, ?add, ?group
+    // (form/links.js).
+    this.links = new Links(this, { afterStock });
     this.submitButton = document.getElementById("order-submit");
     this.payment = new Payment(document.getElementById("payment"), this);
     this.busy = false;
@@ -270,17 +272,12 @@ export class OrderForm {
       if (e.key === this.draft.name) this.syncLines();
     });
 
-    this.methodFromQuery();
-    this.addFromQuery();
+    this.links.methodFromQuery();
+    this.links.addFromQuery();
     this.dates.load();
-    // /order/?group=<code>: a buying group's link (#471) puts its code
-    // in the box, and applyCode tries it as a typed one would be.
-    const linked = groupFromQuery(location.search);
-
-    this.clearQuery("group");
-    if (linked) this.cart.setCodeValue(linked);
-    // A code that came by the link, not typed, for the join log (#495).
-    this.groupLinked = !!linked;
+    // A code that came by the link (links.js), not typed, for the join
+    // log (#495).
+    this.groupLinked = this.links.groupFromLink();
     this.applyCode({ quiet: true });
     this.refresh();
     this.stock.start();
@@ -677,121 +674,6 @@ export class OrderForm {
     // A change after a payment attempt began means the next attempt
     // must not reuse that attempt's keys (the order may differ).
     this.draft.touch();
-  }
-
-  // /order/?method=onfarm (or scheduled, delivery) chooses that way, as
-  // a click on its card would: the home page's off-season band and the
-  // map's pin cards. ?method=scheduled&series=<code> also chooses that
-  // series' next date once the lists come, and the old
-  // ?method=scituate the drop site series'. The link wins over a
-  // restored draft's way. An unknown value is ignored. The query is
-  // cleared, as ?add= is.
-  methodFromQuery() {
-    // Group orders is no link's to choose: it is a member's alone.
-    const radios = all(this.form, "[name='method']")
-      .filter((radio) => radio.value !== "group");
-    const link = linkedMethod(
-      location.search, radios.map((radio) => radio.value), this.dropSeries
-    );
-
-    this.clearQuery("method");
-    this.clearQuery("series");
-    if (!link) return;
-
-    this.wantedSeries = link.series;
-    if (link.method === this.way()) {
-      this.chooseSeries();
-
-      return;
-    }
-
-    radios.find((radio) => radio.value === link.method).checked = true;
-    this.draft.save(this.collect());
-  }
-
-  // A linked series' next date, chosen on the picker once its list is
-  // here. A series the list lacks (closed, or none open) leaves the
-  // picker as it was.
-  chooseSeries() {
-    const lists = this.dates.lists;
-
-    if (!this.wantedSeries || !lists) return;
-
-    const first = lists.scheduled.find((c) => c.series === this.wantedSeries);
-
-    this.wantedSeries = null;
-    if (!first || this.way() !== "scheduled") return;
-    this.dates.choose(first.value);
-    this.draft.save(this.collect());
-  }
-
-  clearQuery(name) {
-    if (!new URLSearchParams(location.search).has(name)) return;
-
-    history.replaceState(null, "", `${location.pathname}${
-      withoutParam(location.search, name)}${location.hash}`);
-  }
-
-  // /order/?add=SKU:qty,SKU:qty puts those items in the cart: the
-  // "Add again" links on the account page, and anything else that
-  // wants to. Unknown or sold-out SKUs are named, not added; a live
-  // stock check right after brings any quantity down if it must. The
-  // query is cleared so a reload does not add again.
-  addFromQuery() {
-    const params = new URLSearchParams(location.search);
-    const raw = params.get("add");
-
-    if (!raw) return;
-
-    const added = [];
-    const missing = [];
-    let unknown = false;
-
-    for (const part of raw.split(",")) {
-      const [given, qtyText] = part.split(":");
-      const sku = current(given || "", this.aliases);
-      const input = qs(this.form, `[data-qty="${CSS.escape(sku || "")}"]`);
-      const qty = Math.min(99, Math.max(1, parseInt(qtyText, 10) || 1));
-
-      // A row out of stock is on the page to say when it is back, not
-      // to be added (#267).
-      if (!input || input.closest("[data-out]")) {
-        const item = this.index.get(sku);
-
-        // Named, never a raw SKU.
-        if (item) missing.push(item.lineName);
-        else unknown = true;
-        continue;
-      }
-      this.setQty(input, Math.min(99, this.qty(input) + qty));
-      added.push(`${qty} × ${this.index.get(sku).lineName}`);
-    }
-
-    const notice = document.getElementById("order-added");
-    const bits = [];
-
-    if (added.length) {
-      bits.push(sentence(`Added to your cart: ${added.join(", ")}`));
-    }
-    if (missing.length) {
-      bits.push(sentence(`Not available: ${missing.join(", ")}`));
-    }
-    // Draft wording.
-    if (unknown) {
-      bits.push("Some items from that order have changed. Please add " +
-        "them again.");
-    }
-    notice.textContent = bits.join(" ");
-    notice.hidden = !bits.length;
-    notice.classList.toggle("alert-warning", !added.length);
-    notice.classList.toggle("alert-success", added.length > 0);
-
-    this.clearQuery("add");
-
-    if (added.length) {
-      this.draft.save(this.collect());
-      afterStock(this.stock).then(() => this.cart.show({ smooth: true }));
-    }
   }
 
   // Stock changed under the cart: quantities were already brought into
@@ -1317,7 +1199,7 @@ export class OrderForm {
     qs(this.form, "[data-scheduled-none]").hidden = !none;
     radio.disabled = none;
     if (none && radio.checked) qs(this.form, "#method-onfarm").checked = true;
-    this.chooseSeries();
+    this.links.chooseSeries();
   }
 
   // The Group orders card (#749): shown only while a group's rounds
