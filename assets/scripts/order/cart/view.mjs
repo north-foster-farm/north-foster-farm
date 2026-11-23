@@ -14,11 +14,11 @@
 // to a module.
 
 // Pure: the queries, lengths, keyframes and rules.
-export { COLUMN, SHEET, SHORT } from "./view/queries.mjs";
+export { SHEET } from "./view/queries.mjs";
 export { restOf, toPx } from "./view/units.mjs";
 export {
-  FADE_IN, FADE_OUT, MOVE_ID, MOVE_MS, WORD_FRAMES, fadeFrames, liftShift,
-  moveFrames, moves, paneFrames, pillFadeFrames, wordsAt,
+  FADE_IN, FADE_OUT, WORD_FRAMES, fadeFrames, liftShift, moveFrames, moves,
+  paneFrames, pillFadeFrames, wordsAt,
 } from "./view/frames.mjs";
 export { OWN_MS, ownScroll } from "./view/own-scroll.mjs";
 export { moreShown } from "./view/more.mjs";
