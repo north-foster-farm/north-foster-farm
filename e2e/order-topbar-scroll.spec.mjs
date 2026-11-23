@@ -36,9 +36,9 @@ test.use({ stockPins: { ...SUITE_STOCK, [SKU.sausage]: 0 } });
 // row showing below the stuck bar's lower edge by any amount, the bar
 // must be blank and carry no chevron (#327). Returns what it saw.
 const walk = (page, step) => page.evaluate(async (by) => {
-  const frames = () => new Promise((done) => requestAnimationFrame(
-    () => requestAnimationFrame(done)
-  ));
+  const frames = () => new Promise((done) => {
+    requestAnimationFrame(() => requestAnimationFrame(done));
+  });
   const catalog = document.getElementById("order-catalog");
   const rows = [...catalog.querySelectorAll(".order-item")]
     .filter((el) => el.getClientRects().length);

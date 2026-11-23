@@ -45,7 +45,10 @@ const server = createServer((req, res) => {
   const drop = () => req.socket.destroy();
 
   if (pathname === "/api/hold") return;
-  if (pathname === "/api/drop") return drop();
+  if (pathname === "/api/drop") {
+    drop();
+    return;
+  }
   if (pathname === "/api/verify") {
     res.writeHead(200, {
       "set-cookie": `${SESSION}=${SESSION_VALUE}; Path=/; HttpOnly`,
@@ -75,7 +78,7 @@ let watchContext;
 let op;
 
 before(async () => {
-  await new Promise((done) => server.listen(0, "127.0.0.1", done));
+  await new Promise((done) => { server.listen(0, "127.0.0.1", done); });
   base = `http://127.0.0.1:${server.address().port}`;
   // The back office reads both when it loads (staging.mjs), and the
   // watchers (counted.mjs) load it.
@@ -99,14 +102,9 @@ const printed = (error) => [
   inspect(error, { depth: 10 }),
 ].join("\n");
 
-const rejection = async (promise) => {
-  try {
-    await promise;
-  } catch (error) {
-    return error;
-  }
-  assert.fail("the request did not fail");
-};
+const rejection = (promise) =>
+  Promise.resolve(promise)
+    .then(() => assert.fail("the request did not fail"), (error) => error);
 
 const TIMED_OUT = /time(d)?\s?out/i;
 const DROPPED = /hang\s?up|closed|reset|refused/i;
@@ -223,7 +221,7 @@ describe("the e2e suite's request errors (#665)", () => {
         context.emit("requestfinished", signInResponse(
           `${base}/api/verify`).request());
         for (let i = 0; i < 20; i += 1) {
-          await new Promise((done) => setTimeout(done, 10));
+          await new Promise((done) => { setTimeout(done, 10); });
         }
       });
 

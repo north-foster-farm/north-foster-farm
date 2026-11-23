@@ -27,10 +27,14 @@ const axiom = () => {
 };
 
 // A small seeded generator, so a failure repeats.
-const random = (seed) => () => {
-  seed = (seed * 1103515245 + 12345) % 2147483648;
+const random = (seed) => {
+  let state = seed;
 
-  return seed / 2147483648;
+  return () => {
+    state = (state * 1103515245 + 12345) % 2147483648;
+
+    return state / 2147483648;
+  };
 };
 
 const KEYS = [

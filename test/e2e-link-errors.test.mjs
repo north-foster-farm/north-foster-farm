@@ -42,7 +42,7 @@ let watchContext;
 let followLink;
 
 before(async () => {
-  await new Promise((done) => server.listen(0, "127.0.0.1", done));
+  await new Promise((done) => { server.listen(0, "127.0.0.1", done); });
   base = `http://127.0.0.1:${server.address().port}`;
   process.env.E2E_BASE_URL = base;
   ({ watchContext } = await import("../e2e/support/counted.mjs"));
@@ -59,14 +59,9 @@ const printed = (error) => [
   inspect(error, { depth: 10 }),
 ].join("\n");
 
-const rejection = async (promise) => {
-  try {
-    await promise;
-  } catch (error) {
-    return error;
-  }
-  assert.fail("it did not fail");
-};
+const rejection = (promise) =>
+  Promise.resolve(promise)
+    .then(() => assert.fail("it did not fail"), (error) => error);
 
 const clean = (error, secrets, { method, path, kind }) => {
   const text = printed(error);
@@ -187,7 +182,7 @@ describe("followLink() (#665)", () => {
         log(url)}` },
   ];
 
-  for (const { what, path, name, kind, message } of RECORDED) {
+  RECORDED.forEach(({ what, path, name, kind, message }) => {
     test(`${what}: the error holds no token and names GET, the path ` +
       "and the kind", async () => {
       const url = link(path);
@@ -203,7 +198,7 @@ describe("followLink() (#665)", () => {
       clean(await rejection(followLink(page, url)), [TOKEN],
         { method: "GET", path, kind });
     });
-  }
+  });
 
   test("a link that opens is page.goto's own answer, options and all",
     async () => {

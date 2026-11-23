@@ -467,7 +467,7 @@ export const startVenmo = async (stores, order, { key, attempt = 1 }, {
 };
 
 // The second half: capture the approved payment, record it on a
-// Square order as an external tender, write the record. `order` is
+// Square order as an external tender, write the record. `validated` is
 // the order as validated now; it must be the one the checkout kept.
 // A Square failure after the capture never loses the order: the
 // record is written without its Square copy and the farm is told,
@@ -481,7 +481,7 @@ export const startVenmo = async (stores, order, { key, attempt = 1 }, {
 // capture, and any after the first decline (the checkout is marked
 // `restarted`), goes under a request id of its own. Square's keys and
 // the record are as for any other capture.
-export const finishVenmo = async (stores, order, {
+export const finishVenmo = async (stores, validated, {
   key, attempt = 1, paypalOrderId, restart = false,
 }, {
   paypal = paypalApi,
@@ -495,7 +495,7 @@ export const finishVenmo = async (stores, order, {
   const fetchImpl = options.fetchImpl;
   // Finished already, by this request's lost first try or by the
   // jobs: the checkout is gone, and the record is the answer.
-  const existing = await getOrder(stores, order.id);
+  const existing = await getOrder(stores, validated.id);
 
   if (paymentsOf(existing).some((x) => x.paypalOrderId === paypalOrderId)) {
     return ownRecord(stores, existing, key, {
@@ -510,13 +510,13 @@ export const finishVenmo = async (stores, order, {
     throw new CheckoutError("That payment doesn't match this order. " +
       "Start again.", { code: "checkout.unknown" });
   }
-  if (checkout.order.totals.total !== order.totals.total) {
+  if (checkout.order.totals.total !== validated.totals.total) {
     throw new CheckoutError("The order changed after the Venmo payment " +
       "started. Start the payment again.", { code: "checkout.changed" });
   }
   // The id is the one PayPal was given when the payment started, which
   // the first request reserved.
-  order = { ...order, id: checkout.order.id };
+  const order = { ...validated, id: checkout.order.id };
 
   const k = attemptKey(key, checkout.attempt || attempt);
   const { deadline } = options;

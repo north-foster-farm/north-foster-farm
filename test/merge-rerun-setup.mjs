@@ -55,7 +55,7 @@ export const crashOnSource = (stores) => {
   const key = customerKey(FROM);
   let armed = true;
 
-  for (const method of ["set", "swap", "create"]) {
+  ["set", "swap", "create"].forEach((method) => {
     const write = stores.customers[method].bind(stores.customers);
 
     stores.customers[method] = async (k, ...rest) => {
@@ -66,5 +66,5 @@ export const crashOnSource = (stores) => {
 
       return write(k, ...rest);
     };
-  }
+  });
 };

@@ -61,7 +61,10 @@ const moneyTests = (day) => {
   // figures need no pickup.
   const later = day !== TODAY;
   const open = async (order, cart, { method } = {}) => {
-    if (!later) return order.open(cart, { method });
+    if (!later) {
+      await order.open(cart, { method });
+      return;
+    }
 
     await order.page.goto(`/order/?add=${addQuery(cart)}`, {
       waitUntil: "domcontentloaded",

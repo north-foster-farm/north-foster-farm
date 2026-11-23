@@ -65,7 +65,7 @@ const one = (raw) => scrubAll([raw])[0];
 const text = (made) => JSON.stringify([made.json, made.name, made.review]);
 
 const at = (node, path) => path.split(".")
-  .reduce((here, key) => (here == null ? here : here[key]), node);
+  .reduce((here, key) => ((here ?? null) === null ? here : here[key]), node);
 
 // The webhook event PayPal delivers, and the verify call lib/paypal.mjs
 // makes for it, which carries the event again as webhook_event.

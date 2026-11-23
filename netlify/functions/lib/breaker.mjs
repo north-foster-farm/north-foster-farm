@@ -59,7 +59,7 @@ const dayKey = (date) => date.toISOString().slice(0, 10);
 const recipients = (message) =>
   (Array.isArray(message.to) ? message.to : [message.to]).filter(Boolean);
 
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const sleep = (ms) => new Promise((resolve) => { setTimeout(resolve, ms); });
 
 // -> the state document while tripped, else null.
 export const readState = (stores) => stores.jobs.get(STATE);

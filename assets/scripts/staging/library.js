@@ -493,6 +493,7 @@ export const mountLibrary = ({
   onPress(review.withdraw, () => send("approval",
     "DELETE", undefined, review.error));
   onPress(review.revert, async () => {
+    // eslint-disable-next-line no-alert -- #791 c7102217150: pinned by e2e
     if (!confirm("Drop your rewrite and keep the current wording?")) return;
     view = "html";
     await send("rewrite", "DELETE", undefined, review.error);
@@ -583,7 +584,7 @@ export const mountLibrary = ({
     read(a.dataset.id);
   });
   search.addEventListener("input", () => emails && drawShelf());
-  for (const b of filters) {
+  filters.forEach((b) => {
     b.addEventListener("click", () => {
       approval = b.dataset.stagingFilter;
       for (const f of filters) {
@@ -591,13 +592,13 @@ export const mountLibrary = ({
       }
       if (emails) drawShelf();
     });
-  }
-  for (const b of views) {
+  });
+  views.forEach((b) => {
     b.addEventListener("click", () => {
       view = b.dataset.stagingView;
       if (current && !editing) drawView();
     });
-  }
+  });
   qs("[data-staging-reader-back]").addEventListener("click", () => {
     current = null;
     closeEditor();
@@ -615,6 +616,7 @@ export const mountLibrary = ({
       await navigator.clipboard.writeText(link);
       b.textContent = "Copied";
     } catch {
+      // eslint-disable-next-line no-alert -- #791 c7102217150: no new UI yet
       prompt("The link to this email:", link);
     }
     setTimeout(() => { b.textContent = "Copy link"; }, 1200);

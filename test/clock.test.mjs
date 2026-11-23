@@ -72,7 +72,7 @@ describe("the business clock", () => {
       assert.ok(near(now().getTime(), Date.now() + 3 * DAY));
 
       // Work left running after the answer keeps the request's clock.
-      await new Promise((r) => setTimeout(r, 5));
+      await new Promise((r) => { setTimeout(r, 5); });
       assert.ok(near(now().getTime(), Date.now() + 3 * DAY));
 
       const t = now();
@@ -85,12 +85,12 @@ describe("the business clock", () => {
     const env = { SITE_CONTEXT: "branch-deploy" };
     const [a, b] = await Promise.all([
       within(withCookie(DAY), async () => {
-        await new Promise((r) => setTimeout(r, 5));
+        await new Promise((r) => { setTimeout(r, 5); });
 
         return now().getTime() - Date.now();
       }, env),
       within(new Request("https://x/"), async () => {
-        await new Promise((r) => setTimeout(r, 1));
+        await new Promise((r) => { setTimeout(r, 1); });
 
         return now().getTime() - Date.now();
       }, env),

@@ -542,7 +542,14 @@ export const VERSION_WAIT_MS = 1000;
 const VERSION_DELAYS = [250, 750];
 const VERSION_MISMATCH = "VERSION_MISMATCH";
 
-const realSleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const realSleep = (ms) => new Promise((resolve) => {
+  setTimeout(resolve, ms);
+});
+
+// The fulfillment with this uid, or the first while there is no uid.
+const fulfillmentOf = (fulfillments, uid) => (uid
+  ? fulfillments.find((f) => f.uid === uid)
+  : fulfillments[0]);
 
 // `put(current, uid)` gets the order as read now and the uid of the
 // fulfillment the first read found, so every try changes the same one.
@@ -556,9 +563,7 @@ const atCurrentVersion = async (cfg, squareOrderId, fetchImpl, sleep,
   for (let tries = 1; ; tries++) {
     const current = await currentOrder(cfg, squareOrderId, fetchImpl);
     const fulfillments = current.fulfillments || [];
-    const existing = uid
-      ? fulfillments.find((f) => f.uid === uid)
-      : fulfillments[0];
+    const existing = fulfillmentOf(fulfillments, uid);
 
     if (uid && !existing) {
       throw new SquareError("Square order lost its fulfillment");

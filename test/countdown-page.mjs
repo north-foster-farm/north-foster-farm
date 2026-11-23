@@ -52,4 +52,4 @@ export const form = (chip, text) => {
 };
 
 // Settles the page's promises: a failed fetch, then its retry.
-export const settle = () => new Promise((done) => setImmediate(done));
+export const settle = () => new Promise((done) => { setImmediate(done); });

@@ -65,7 +65,7 @@ const reset = () => new Error([
 ].join("\n"));
 
 before(async () => {
-  await new Promise((done) => server.listen(0, "127.0.0.1", done));
+  await new Promise((done) => { server.listen(0, "127.0.0.1", done); });
   base = `http://127.0.0.1:${server.address().port}`;
   url = `${base}${PATH}`;
   // The back office and the counter read the base URL when they load.
@@ -125,14 +125,9 @@ const standIn = (plan) => {
   return { api, calls };
 };
 
-const rejection = async (promise) => {
-  try {
-    await promise;
-  } catch (error) {
-    return error;
-  }
-  assert.fail("the request did not fail");
-};
+const rejection = (promise) =>
+  Promise.resolve(promise)
+    .then(() => assert.fail("the request did not fail"), (error) => error);
 
 const counted = () => {
   const tally = workerTally();

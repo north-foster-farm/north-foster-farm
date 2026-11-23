@@ -78,6 +78,11 @@ describe("a 3 PM packet still owed at 6 AM (#694)", () => {
 
       return { id: `m${sent.length}` };
     };
+    const fetchImpl = async (url) => {
+      if (String(url).startsWith(URL)) pings.push({ url, now });
+
+      return new Response("OK");
+    };
 
     for (const id of ids) {
       await saveOrder(stores, fake(id, dropSite, occurrence("VFVQ", SAT)),
@@ -98,12 +103,7 @@ describe("a 3 PM packet still owed at 6 AM (#694)", () => {
           FARM_NOTIFICATIONS_EMAIL: "farm@example.com", MAIL_DRIVER: "resend",
           [PING_KEY]: URL,
         },
-        mail, now,
-        fetchImpl: async (url) => {
-          if (String(url).startsWith(URL)) pings.push({ url, now });
-
-          return new Response("OK");
-        },
+        mail, now, fetchImpl,
       });
     }
 

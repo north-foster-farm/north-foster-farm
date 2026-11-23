@@ -77,7 +77,6 @@
     "assets/scripts/touchable/**",
     "assets/scripts/clock/**",
     "assets/scripts/copyright/**",
-    "assets/scripts/extensions/**",
     "assets/scripts/expiry/**",
     "assets/scripts/dot-list/**",
     "assets/scripts/schedule/**",

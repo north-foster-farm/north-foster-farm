@@ -145,6 +145,8 @@ export class Venmo {
   // first, so a buyer who closes the sheet is where any decline
   // leaves them.
   async onApprove(data, actions) {
+    let restarted;
+
     crumb("venmo.approve");
     this.section.setBusy(true);
     try {
@@ -157,7 +159,7 @@ export class Venmo {
         this.venmoRestarted = true;
         crumb("venmo.restart");
 
-        return await actions.restart();
+        restarted = await actions.restart();
       }
     } catch (error) {
       this.section.fail(error.message
@@ -165,6 +167,7 @@ export class Venmo {
     } finally {
       this.section.setBusy(false);
     }
+    return restarted;
   }
 
   onCancel() {

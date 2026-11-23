@@ -89,7 +89,7 @@ const areaScript = (area) => {
     const config = all[name].match(/(?:-c|--config)[\s=]+(\S+)/)?.[1];
     if (config && config.endsWith(`/${area}.json`)) return { name, config };
   }
-  assert.fail(`no jscpd script npm run lint reaches reads ` +
+  return assert.fail(`no jscpd script npm run lint reaches reads ` +
     `.jscpd/${area}.json`);
 };
 

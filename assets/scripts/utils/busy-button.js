@@ -100,7 +100,7 @@ export const whileBusy = async (button, request) => {
   try {
     const [result] = await Promise.all([
       request,
-      new Promise((resolve) => setTimeout(resolve, MIN_BUSY_MS)),
+      new Promise((resolve) => { setTimeout(resolve, MIN_BUSY_MS); }),
     ]);
 
     return result;

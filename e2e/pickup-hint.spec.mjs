@@ -217,109 +217,112 @@ const withRed = async (page) => {
 // element in the way's card (Pick-up days unless `which` says) whose
 // text is the message, the block around it that holds that text alone,
 // and what the tests read of them.
-const messageOf = async (page, which = PICKUP) => (await withRed(page),
-page.evaluate((
-  { text, heading, way, listId }
-) => {
-  const isRed = window.e2eIsRed;
-  const card = document.querySelector(`#method-${way}`)
-    ?.closest(".order-method");
-  const words = (el) => el.innerText.replace(/\s+/g, " ").trim();
-  const pattern = new RegExp(text.source);
-  const seen = (el) => {
-    const r = el.getBoundingClientRect();
+const messageOf = async (page, which = PICKUP) => {
+  await withRed(page);
 
-    return r.width > 0 && r.height > 0
+  return page.evaluate((
+    { text, heading, way, listId }
+  ) => {
+    const isRed = window.e2eIsRed;
+    const card = document.querySelector(`#method-${way}`)
+      ?.closest(".order-method");
+    const words = (el) => el.innerText.replace(/\s+/g, " ").trim();
+    const pattern = new RegExp(text.source);
+    const seen = (el) => {
+      const r = el.getBoundingClientRect();
+
+      return r.width > 0 && r.height > 0
       && getComputedStyle(el).visibility !== "hidden";
-  };
-  // HTML elements only: an SVG (the Copy, Map and map-link icons, the
-  // message's own icons) has no innerText.
-  const hits = [...card.querySelectorAll("*")]
-    .filter((el) => el instanceof HTMLElement)
-    .filter((el) => seen(el) && pattern.test(words(el)))
-    .filter((el, _, all) => !all.some((o) => o !== el && el.contains(o)));
+    };
+    // HTML elements only: an SVG (the Copy, Map and map-link icons, the
+    // message's own icons) has no innerText.
+    const hits = [...card.querySelectorAll("*")]
+      .filter((el) => el instanceof HTMLElement)
+      .filter((el) => seen(el) && pattern.test(words(el)))
+      .filter((el, _, all) => !all.some((o) => o !== el && el.contains(o)));
 
-  if (!hits.length) return null;
+    if (!hits.length) return null;
 
-  const node = hits[0];
-  let block = node;
+    const node = hits[0];
+    let block = node;
 
-  while (block.parentElement !== card
+    while (block.parentElement !== card
     && pattern.test(words(block.parentElement))) block = block.parentElement;
 
-  const box = (el) => {
-    const r = el.getBoundingClientRect();
+    const box = (el) => {
+      const r = el.getBoundingClientRect();
 
-    return { top: r.top, bottom: r.bottom, left: r.left, right: r.right };
-  };
-  const drawn = (el, pseudo) => {
-    const c = getComputedStyle(el, pseudo).content;
+      return { top: r.top, bottom: r.bottom, left: r.left, right: r.right };
+    };
+    const drawn = (el, pseudo) => {
+      const c = getComputedStyle(el, pseudo).content;
 
-    return c !== "none" && c !== "normal" && c !== "\"\"";
-  };
-  const icon = !!block.querySelector("svg, img")
+      return c !== "none" && c !== "normal" && c !== "\"\"";
+    };
+    const icon = !!block.querySelector("svg, img")
     || [block, ...block.querySelectorAll("*")]
       .some((el) => drawn(el, "::before") || drawn(el, "::after"));
-  const lives = (el) => {
-    const role = el.getAttribute("role");
-    const live = el.getAttribute("aria-live");
+    const lives = (el) => {
+      const role = el.getAttribute("role");
+      const live = el.getAttribute("aria-live");
 
-    return ["alert", "status", "log"].includes(role)
+      return ["alert", "status", "log"].includes(role)
       || (!!live && live !== "off");
-  };
-  let around = false;
+    };
+    let around = false;
 
-  for (let el = node; el && el !== document.body; el = el.parentElement) {
-    if (lives(el)) around = true;
-  }
+    for (let el = node; el && el !== document.body; el = el.parentElement) {
+      if (lives(el)) around = true;
+    }
 
-  // A live region elsewhere on the page holding the text, shown or
-  // only to screen readers.
-  const region = [...document.querySelectorAll(
-    "[role='alert'], [role='status'], [role='log'], [aria-live]"
-  )].some((el) => lives(el) && pattern.test(
-    el.textContent.replace(/\s+/g, " ").trim()
-  ));
-  const group = document.getElementById(listId);
-  const described = (group.getAttribute("aria-describedby") || "")
-    .split(/\s+/).filter(Boolean)
-    .map((id) => document.getElementById(id))
-    .some((el) => el && (el.contains(node) || node.contains(el))
+    // A live region elsewhere on the page holding the text, shown or
+    // only to screen readers.
+    const region = [...document.querySelectorAll(
+      "[role='alert'], [role='status'], [role='log'], [aria-live]"
+    )].some((el) => lives(el) && pattern.test(
+      el.textContent.replace(/\s+/g, " ").trim()
+    ));
+    const group = document.getElementById(listId);
+    const described = (group.getAttribute("aria-describedby") || "")
+      .split(/\s+/).filter(Boolean)
+      .map((id) => document.getElementById(id))
+      .some((el) => el && (el.contains(node) || node.contains(el))
       && pattern.test(el.textContent.replace(/\s+/g, " ").trim()));
-  const head = document.querySelector(heading);
-  const firstCard = group.querySelector(".order-pickup");
-  const firstDay = group.querySelector(".order-pickup-day") || firstCard;
-  const center = (el) => {
-    const r = el.getBoundingClientRect();
-    const x = (r.left + r.right) / 2;
-    const y = (r.top + r.bottom) / 2;
-    const top = document.elementFromPoint(x, y);
+    const head = document.querySelector(heading);
+    const firstCard = group.querySelector(".order-pickup");
+    const firstDay = group.querySelector(".order-pickup-day") || firstCard;
+    const center = (el) => {
+      const r = el.getBoundingClientRect();
+      const x = (r.left + r.right) / 2;
+      const y = (r.top + r.bottom) / 2;
+      const top = document.elementFromPoint(x, y);
+
+      return {
+        inView: r.top >= 0 && r.bottom <= innerHeight
+        && r.left >= 0 && r.right <= innerWidth,
+        unseen: !top || !(el.contains(top) || top.contains(el)),
+      };
+    };
 
     return {
-      inView: r.top >= 0 && r.bottom <= innerHeight
-        && r.left >= 0 && r.right <= innerWidth,
-      unseen: !top || !(el.contains(top) || top.contains(el)),
+      text: words(node),
+      box: box(node),
+      color: getComputedStyle(node).color,
+      red: isRed(getComputedStyle(node).color),
+      icon,
+      live: around || region,
+      described,
+      heading: box(head),
+      firstCard: box(firstCard),
+      firstDay: box(firstDay),
+      view: center(node),
+      headView: center(head),
     };
-  };
-
-  return {
-    text: words(node),
-    box: box(node),
-    color: getComputedStyle(node).color,
-    red: isRed(getComputedStyle(node).color),
-    icon,
-    live: around || region,
-    described,
-    heading: box(head),
-    firstCard: box(firstCard),
-    firstDay: box(firstDay),
-    view: center(node),
-    headView: center(head),
-  };
-}, {
-  text: { source: which.text.source }, heading: which.heading,
-  way: which.way, listId: which.list,
-}));
+  }, {
+    text: { source: which.text.source }, heading: which.heading,
+    way: which.way, listId: which.list,
+  });
+};
 
 // What the list's message box says now, whatever the message: the
 // shown text of each element the radio group's aria-describedby names
@@ -345,50 +348,54 @@ const boxSays = (page, which = PICKUP) => list(page, which).evaluate(
 
 // Every visible element on the page drawn in red now: its color, a
 // border, an outline or a glow. A path for each, to compare two looks.
-const redNow = async (page) => (await withRed(page), page.evaluate(() => {
-  const isRed = window.e2eIsRed;
-  const out = [];
-  const path = (el) => {
-    const parts = [];
+const redNow = async (page) => {
+  await withRed(page);
 
-    for (let e = el; e && e !== document.body; e = e.parentElement) {
-      const i = e.parentElement
-        ? [...e.parentElement.children].indexOf(e) : 0;
+  return page.evaluate(() => {
+    const isRed = window.e2eIsRed;
+    const out = [];
+    const path = (el) => {
+      const parts = [];
 
-      parts.unshift(`${e.tagName.toLowerCase()}${e.id ? `#${e.id}` : ""}` +
+      for (let e = el; e && e !== document.body; e = e.parentElement) {
+        const i = e.parentElement
+          ? [...e.parentElement.children].indexOf(e) : 0;
+
+        parts.unshift(`${e.tagName.toLowerCase()}${e.id ? `#${e.id}` : ""}` +
         `:${i}`);
-    }
-    return parts.join(">");
-  };
+      }
+      return parts.join(">");
+    };
 
-  for (const el of document.body.querySelectorAll("*")) {
-    const r = el.getBoundingClientRect();
+    for (const el of document.body.querySelectorAll("*")) {
+      const r = el.getBoundingClientRect();
 
-    if (!r.width || !r.height) continue;
+      if (!r.width || !r.height) continue;
 
-    const s = getComputedStyle(el);
+      const s = getComputedStyle(el);
 
-    if (s.visibility === "hidden") continue;
+      if (s.visibility === "hidden") continue;
 
-    const sides = ["Top", "Right", "Bottom", "Left"].filter((d) => (
-      s[`border${d}Style`] !== "none" && parseFloat(s[`border${d}Width`]) > 0
+      const sides = ["Top", "Right", "Bottom", "Left"].filter((d) => (
+        s[`border${d}Style`] !== "none" && parseFloat(s[`border${d}Width`]) > 0
         && isRed(s[`border${d}Color`])));
-    const outline = s.outlineStyle !== "none"
+      const outline = s.outlineStyle !== "none"
       && parseFloat(s.outlineWidth) > 0 && isRed(s.outlineColor);
-    const glow = s.boxShadow !== "none" && (s.boxShadow
-      .match(/rgba?\([^)]*\)/g) || []).some(isRed);
-    // Its own text only, so a red word is counted once.
-    const text = [...el.childNodes].some((n) => n.nodeType === 3
+      const glow = s.boxShadow !== "none" && (s.boxShadow
+        .match(/rgba?\([^)]*\)/g) || []).some(isRed);
+      // Its own text only, so a red word is counted once.
+      const text = [...el.childNodes].some((n) => n.nodeType === 3
       && n.textContent.trim()) && isRed(s.color);
 
-    if (sides.length || outline || glow || text) {
-      out.push(`${path(el)} ${[text && "color", outline && "outline",
-        glow && "glow", ...sides.map((d) => `border-${d}`)]
-        .filter(Boolean).join(" ")}`);
+      if (sides.length || outline || glow || text) {
+        out.push(`${path(el)} ${[text && "color", outline && "outline",
+          glow && "glow", ...sides.map((d) => `border-${d}`)]
+          .filter(Boolean).join(" ")}`);
+      }
     }
-  }
-  return out;
-}));
+    return out;
+  });
+};
 
 // The ring or outline around the list, and the thin red bar: the list
 // itself and each wrapper up to the card's body, with their ::before

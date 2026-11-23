@@ -129,9 +129,9 @@ const XL = { width: 1440, height: 900 };
 // showing under the bar: more than half of it, or more than 48px of a
 // tall one, and never 8px or less (lib/sections.mjs, #561).
 const walk = (page) => page.evaluate(async () => {
-  const frames = () => new Promise((done) => requestAnimationFrame(
-    () => requestAnimationFrame(done)
-  ));
+  const frames = () => new Promise((done) => {
+    requestAnimationFrame(() => requestAnimationFrame(done));
+  });
   const catalog = document.getElementById("order-catalog");
   // Rows that show: an archived line is in the catalog, hidden, at the
   // end, and measuring it put the end above the top.

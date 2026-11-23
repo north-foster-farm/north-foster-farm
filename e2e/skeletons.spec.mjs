@@ -400,7 +400,7 @@ test.describe("loading skeletons (#271)", () => {
       }, true);
     });
     await page.route("**/api/dates", async (route) => {
-      if (!tried) await new Promise((r) => setTimeout(r, 500));
+      if (!tried) await new Promise((r) => { setTimeout(r, 500); });
 
       return route.fulfill(tried
         ? json(dates())

@@ -1292,7 +1292,8 @@ const restoreCommand = async (file) => {
       }
     }
 
-    return out("Scratch stores emptied.");
+    out("Scratch stores emptied.");
+    return;
   }
   if (!file) throw new Error("Usage: bin/nff restore <file.json> --scratch");
 

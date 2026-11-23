@@ -159,23 +159,29 @@ export const heldOn = (order) => paidTotal(order) - refundedTotal(order);
 // charges the fee again after the customer's miss (C1).
 export const creditOn = (order) => heldOn(order) - keptFee(order);
 
+// The catalog's index with each line the order already has at the
+// price it was placed at.
+const heldPrices = (catalog, order) => {
+  const index = new Map(catalog);
+
+  for (const l of order.lines) {
+    if (index.has(l.sku)) {
+      index.set(l.sku, { ...index.get(l.sku), price: l.unitPrice });
+    }
+  }
+  return index;
+};
+
 // Validated, priced and checked, before any money: the new order, and
 // the change against the record. `hold` prices the lines the order
 // already has at the prices it was placed at, so a catalog price that
 // moved since shows no difference (the farm's change, #307). -> { ok,
 // order, next, change } or a failure shaped like the order endpoint's.
 export const planEdit = async (stores, order, body, {
-  now, index, terms, codes, group, validate, schedule, env, hold = false,
-  farm = false, stockScope = null,
+  now, index: catalog, terms, codes, group, validate, schedule, env,
+  hold = false, farm = false, stockScope = null,
 }) => {
-  if (hold) {
-    index = new Map(index);
-    for (const l of order.lines) {
-      if (index.has(l.sku)) {
-        index.set(l.sku, { ...index.get(l.sku), price: l.unitPrice });
-      }
-    }
-  }
+  const index = hold ? heldPrices(catalog, order) : catalog;
 
   // A buying group's order (#471), or a member's, is offered the
   // group's pickup and priced by its lock through every change. A

@@ -51,7 +51,7 @@ let requestError;
 let followLink;
 
 before(async () => {
-  await new Promise((done) => server.listen(0, "127.0.0.1", done));
+  await new Promise((done) => { server.listen(0, "127.0.0.1", done); });
   base = `http://127.0.0.1:${server.address().port}`;
   process.env.E2E_BASE_URL = base;
   ({ watchRequests, watchContext } = await import(
@@ -72,14 +72,9 @@ const printed = (error) => [
   inspect(error, { depth: 10 }),
 ].join("\n");
 
-const rejection = async (promise) => {
-  try {
-    await promise;
-  } catch (error) {
-    return error;
-  }
-  assert.fail("the request did not fail");
-};
+const rejection = (promise) =>
+  Promise.resolve(promise)
+    .then(() => assert.fail("the request did not fail"), (error) => error);
 
 const TIMED_OUT = /time(d)?\s?out/i;
 const DROPPED = /hang\s?up|closed|reset|refused/i;
@@ -202,7 +197,7 @@ describe("a request to a relative URL names its path (#665)", () => {
       { [Symbol.toPrimitive]() { throw new Error(TOKEN); } },
     ];
 
-    for (const url of unreadable) {
+    unreadable.forEach((url) => {
       let made;
 
       assert.doesNotThrow(() => {
@@ -213,6 +208,6 @@ describe("a request to a relative URL names its path (#665)", () => {
       assert.ok(!printed(made).includes(TOKEN), "holds no token");
       assert.match(made.message, /^GET /, "names the method");
       assert.match(made.message, TIMED_OUT, "names the kind of failure");
-    }
+    });
   });
 });

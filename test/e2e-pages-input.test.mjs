@@ -102,10 +102,9 @@ const evaluate = (text, context) => String(text ?? "").replace(
 
     if (!(head in context)) throw new Error(`the test can't evaluate ${whole}`);
 
-    const value = rest.reduce((at, key) => (at == null ? at : at[key]),
-      context[head]);
+    const value = rest.reduce((at, key) => at?.[key], context[head]);
 
-    return value == null ? "" : String(value);
+    return String(value ?? "");
   },
 );
 

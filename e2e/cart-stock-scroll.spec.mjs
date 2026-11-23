@@ -55,7 +55,7 @@ const lateStock = async (page) => {
   const landed = new Promise((resolve) => { land = resolve; });
 
   await page.route("**/api/stock*", async (route) => {
-    await new Promise((resolve) => setTimeout(resolve, DELAY_MS));
+    await new Promise((resolve) => { setTimeout(resolve, DELAY_MS); });
 
     const res = await route.fetch();
     const body = await res.json();

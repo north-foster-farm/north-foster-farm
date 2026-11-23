@@ -195,7 +195,7 @@ test.describe("changing a paid order's items (#284)", () => {
       await followLink(page, linkIn(mail, /\/api\/auth\/verify\?token=/));
       await expect(page).toHaveURL(/\/account\/?/);
       await context.route("**/api/dates", async (route) => {
-        await new Promise((r) => setTimeout(r, 1500));
+        await new Promise((r) => { setTimeout(r, 1500); });
         await route.continue();
       });
       await page.goto(`/order/?edit=${orderId}`);

@@ -66,7 +66,7 @@ describe("e2e server: the build only, this machine only", () => {
         assert.doesNotMatch(out.body, /secret/);
         assert.equal((await get(port, "/")).body, "<p>home</p>");
       } finally {
-        await new Promise((resolve) => server.close(resolve));
+        await new Promise((resolve) => { server.close(resolve); });
         rmSync(parent, { recursive: true, force: true });
       }
     });

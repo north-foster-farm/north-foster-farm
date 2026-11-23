@@ -197,7 +197,7 @@ export const op = async (name, args = {}, {
       });
     } catch (error) {
       if (attempt < tries) {
-        await new Promise((r) => setTimeout(r, 2_000 * attempt));
+        await new Promise((r) => { setTimeout(r, 2_000 * attempt); });
         continue;
       }
       if (allowFail) return null;
@@ -209,7 +209,7 @@ export const op = async (name, args = {}, {
 
     if (res.ok) return res.json();
     if (attempt < tries && TRANSIENT.has(res.status)) {
-      await new Promise((r) => setTimeout(r, 2_000 * attempt));
+      await new Promise((r) => { setTimeout(r, 2_000 * attempt); });
       continue;
     }
     if (allowFail) return null;
@@ -253,7 +253,7 @@ export const waitForMail = async ({
     const hit = (await outbox({ since })).find(matches);
 
     if (hit) return hit;
-    await new Promise((r) => setTimeout(r, 2_000));
+    await new Promise((r) => { setTimeout(r, 2_000); });
   }
   throw new Error(`No email to ${to} matching ${subject} within ${
     timeout / 1000}s`);

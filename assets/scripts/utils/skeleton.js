@@ -116,7 +116,7 @@ const TIMED_OUT = Symbol("timed out");
 // -> the result once rendered, or null if it failed or is late.
 export const whileLoading = async (regions, request, {
   render = () => {},
-  failed = (result) => result == null || result.ok === false,
+  failed = (result) => (result ?? null) === null || result.ok === false,
   retry,
   // A request that retries by itself (stock's backoff) needs longer.
   giveUpMs = GIVE_UP_MS,

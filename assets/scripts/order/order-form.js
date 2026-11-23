@@ -71,10 +71,10 @@ const ADD_SCROLL_CAP_MS = 5000;
 // under the scroll, but no later than ADD_SCROLL_CAP_MS after the
 // page loaded: the stock script may keep trying for a minute.
 const afterStock = async (stock) => {
-  await new Promise((resolve) => setTimeout(resolve, 300));
+  await new Promise((resolve) => { setTimeout(resolve, 300); });
 
   const left = Math.max(0, ADD_SCROLL_CAP_MS - performance.now());
-  const capped = new Promise((resolve) => setTimeout(resolve, left));
+  const capped = new Promise((resolve) => { setTimeout(resolve, left); });
 
   await Promise.race([stock.ready(), capped]).catch(() => {});
 };
@@ -2040,7 +2040,7 @@ export class OrderForm {
     let outcome = await this.submitter.send(payload);
 
     if (outcome.kind === "retry") {
-      await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY));
+      await new Promise((resolve) => { setTimeout(resolve, RETRY_DELAY); });
       outcome = await this.submitter.send(payload);
     }
 

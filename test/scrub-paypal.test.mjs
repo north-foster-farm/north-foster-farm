@@ -167,7 +167,7 @@ const survivors = (json, values) => {
 };
 
 const at = (node, path) => path.split(".")
-  .reduce((here, key) => (here == null ? here : here[key]), node);
+  .reduce((here, key) => ((here ?? null) === null ? here : here[key]), node);
 
 // The vendor's shape stays: each scrubbed key is still there, holding a
 // string, so a fake can answer with it.

@@ -76,7 +76,7 @@ const element = (html, re) => {
       };
     }
   }
-  assert.fail(`${re} is closed`);
+  return assert.fail(`${re} is closed`);
 };
 
 describe("#898 search panel outside the main navigation",
