@@ -30,6 +30,7 @@ import assert from "node:assert/strict";
 import { afterEach, beforeEach, describe, it, mock } from "node:test";
 
 import { Stock } from "../assets/scripts/order/stock.js";
+import { element as region } from "./stock-page.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
 import { handle } from "../netlify/functions/stock.mjs";
 
@@ -76,18 +77,6 @@ const pageWith = (qty) => {
 
   return { form, row, input };
 };
-
-const region = () => ({
-  nodeType: 1,
-  dataset: {},
-  hidden: false,
-  setAttribute() {},
-  removeAttribute() {},
-  toggleAttribute() {},
-  querySelector: () => null,
-  querySelectorAll: () => [],
-  addEventListener() {},
-});
 
 describe("the order page follows stock (#908)", () => {
   const saved = {};
