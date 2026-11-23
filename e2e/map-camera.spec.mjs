@@ -131,7 +131,9 @@ test.describe("the map's camera (#862)", () => {
 
       await page.evaluate(() => { window.lastWheel = null; });
       await page.keyboard.down(key);
-      await page.mouse.wheel(0, -100);
+      // A small step, about 1.35 times closer, so two of them stay
+      // under the zoom's cap: at the cap the view is clamped instead.
+      await page.mouse.wheel(0, -30);
       await page.keyboard.up(key);
 
       await expect.poll(() => width(page), `${key}: zooms in`)
