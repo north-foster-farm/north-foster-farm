@@ -649,14 +649,19 @@ $nav-link-transition:
 
 // From md the slot keeps the place of the button with its word (#915),
 // so nothing moves when it shows. The bar over it while /api/me is
-// slow is as wide as the chicken and caret, at the slot's right beside
-// the links: a link's width, never the row of icons' (#322).
+// slow is as wide as the button was without the word, at the slot's
+// right beside the links: a link's width, never the row of icons'
+// (#322). That width is the chicken (1.75rem, .site-account-chick),
+// the link's gap (0.25rem), the caret (1em at the links' 0.8125rem,
+// .site-nav-caret), and the link's padding and 1px border each side:
+// calc(0.375rem - 1px) + 1px at md, calc(0.625rem - 1px) + 1px from lg
+// (.site-nav-link and its md and lg sizes, below).
 .site-account:not(.is-compact) > .skeleton-over {
   left: auto;
-  width: 3.5625rem;
+  width: calc(1.75rem + 0.25rem + 0.8125rem + 2 * 0.375rem);
 
   @media (min-width: 992px) {
-    width: 4.0625rem;
+    width: calc(1.75rem + 0.25rem + 0.8125rem + 2 * 0.625rem);
   }
 }
 

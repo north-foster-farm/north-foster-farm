@@ -95,9 +95,9 @@ export const me = async () => {
   return result;
 };
 
-// The customer's chicken in place of "Account" (#238, #347), the
-// brown hen when none is picked. The account page calls it again when
-// a new one is picked.
+// The customer's chicken on the Account button (#238, #347), beside
+// the word from md up (#915), the brown hen when none is picked. The
+// account page calls it again when a new one is picked.
 export const showChick = (root, avatar) => {
   const name = avatar || "hen-brown";
 
