@@ -57,7 +57,13 @@ const WIDTHS = [390, 768, 992, 1200, 1440, 1920];
 const CLEAR = 24;
 const TOL = 3;
 const LINE = 0.5;
-const PROBE = 1.5;
+// Whole pixel rows between the band's edge, rounded, and each row a
+// probe at the edge reads (seamAt).
+const STEP = 3;
+// How far a footer row may sit from its place, in px: Chromium lays
+// out in 1/64px units, so a box whose offset is fractional reads a
+// unit off (39.98 for 40) where nothing visible moved (rowsOf).
+const SLACK = 0.05;
 
 const desktopOnly = (info) => test.skip(info.project.name !== "desktop",
   "the desktop project sets each width the box names");
@@ -218,7 +224,7 @@ const seamAt = async (page, width, info) => {
   await page.evaluate((y) => window.scrollTo(0, y - innerHeight / 2), seam);
   await page.waitForTimeout(100);
 
-  const edge = await page.evaluate((probe) => {
+  const edge = await page.evaluate((step) => {
     const band = [...document.querySelectorAll(".touch")].find((el) =>
       /get in touch/i.test(el.querySelector(".touch-eyebrow")?.textContent
         ?? ""));
@@ -235,9 +241,23 @@ const seamAt = async (page, width, info) => {
 
       const r = el.getBoundingClientRect();
 
-      return { name: el.className || el.tagName, top: r.top,
+      return { el, name: el.className || el.tagName, top: r.top,
         bottom: r.bottom, color: getComputedStyle(el).backgroundColor };
     };
+    // The probes read whole pixel rows clear of the edge, not a
+    // fraction of a pixel off it. Where the edge is fractional
+    // (4996.797px down at 1280px), Chromium hit-tests the footer's
+    // block in the edge's own pixel row, so y - 0.5 found the footer on
+    // a page that is right and the "gap" measured was that block's
+    // height. Rounding the edge, then reading the middle of the row
+    // STEP rows away on each side, stays on the side meant whatever
+    // way the edge snaps, and clear of anything a few pixels thick
+    // painted across it.
+    const row = Math.round(y);
+    const above = painted(8, row - step - 0.5);
+    const below = painted(8, row + step + 0.5);
+    const strip = (p) => p && { name: p.name, top: p.top, bottom: p.bottom,
+      color: p.color };
     // Every box running at least half the page wide with its top or
     // bottom at the edge, and what it draws there.
     const drawn = [...document.querySelectorAll("body *")].flatMap((el) => {
@@ -263,19 +283,16 @@ const seamAt = async (page, width, info) => {
       });
     });
 
-    // Probe PROBE px either side of the edge, not half a pixel: where
-    // the edge is fractional (4996.797px down at 1280px), Chromium's hit
-    // test snaps it to a whole pixel, so y - 0.5 can land in the footer
-    // on a page that is right. Snapping moves an edge half a pixel at
-    // most, so 1.5px is on the side meant at every width.
-    return { above: painted(8, y - probe), below: painted(8, y + probe),
-      drawn };
-  }, PROBE);
+    return { above: strip(above), below: strip(below),
+      same: Boolean(above) && above.el === below?.el, drawn };
+  }, STEP);
 
   expect(edge.above, `${width}px: the band paints above its edge`)
     .not.toBeNull();
   expect(edge.below, `${width}px: something paints below the edge`)
     .not.toBeNull();
+  expect(edge.same, `${width}px: the probes either side of the edge ` +
+    `read two boxes, not ${edge.above.name} twice`).toBe(false);
   expect(edge.below.color, `${width}px: ${edge.below.name} under the ` +
     `band's edge shares ${edge.above.name}'s color`)
     .toBe(edge.above.color);
@@ -313,8 +330,9 @@ const seamAt = async (page, width, info) => {
 
   expect(lines, `${width}px: rows that read as a line across the page`)
     .toEqual([]);
-  for (const dy of [-3, 3]) {
-    const i = Math.round(seam + dy - from);
+  // Whole rows STEP off the rounded edge, as the probes above read.
+  for (const dy of [-STEP - 1, STEP]) {
+    const i = Math.round(seam) + dy - from;
 
     if (i >= 0 && i < rows.length) {
       expect(rows[i].clear, `${width}px: ${dy < 0 ? "above" : "below"} ` +
@@ -387,10 +405,22 @@ test.describe("Get in touch and the silhouette (#948)", () => {
       expect(home.ornament, `${width}px: no light row on the home page`)
         .toBe(0);
       expect(about.ornament, `${width}px: no light row on /about/`).toBe(0);
-      expect(home.under, `${width}px: the links start 40px under the ` +
-        "shape's full height").toBe(40);
-      expect(home, `${width}px: the footer's rows sit where /about/'s do`)
-        .toEqual(about);
+      // Within SLACK, not exactly: the band's edge now sits at a
+      // fractional position, so a row can read one 1/64px layout unit
+      // off (39.98 for 40) where nothing visible moved.
+      expect(Math.abs(home.under - 40), `${width}px: the links start 40px ` +
+        `under the shape's full height (${home.under})`)
+        .toBeLessThan(SLACK);
+      expect(Math.abs(home.shape - about.shape), `${width}px: the shape's ` +
+        `height matches /about/'s (${home.shape}, ${about.shape})`)
+        .toBeLessThan(SLACK);
+      for (const name of ["links", "signup", "contact", "copyright"]) {
+        ["left", "right", "top", "height"].forEach((side, i) => {
+          expect(Math.abs(home[name][i] - about[name][i]), `${width}px: ` +
+            `the ${name} row's ${side} sits where /about/'s does ` +
+            `(${home[name][i]}, ${about[name][i]})`).toBeLessThan(SLACK);
+        });
+      }
     }
   });
 });
