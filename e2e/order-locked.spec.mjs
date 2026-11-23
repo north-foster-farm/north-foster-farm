@@ -96,10 +96,12 @@ test.describe("a change the server refuses (#643, #818)", () => {
     const mail = card.locator("[data-out='mailto']");
 
     await expect(mail).toHaveText(COMPANY.email);
-    await expect(mail).toHaveAttribute("href", new RegExp(
-      `^mailto:${encodeURIComponent(COMPANY.email)
-        .replace(/[.]/g, "\\.")}\\?subject=`
-    ));
+    // The farm's address, then a subject: compared as text, so no
+    // character of the address is read as a pattern.
+    const mailto = `mailto:${encodeURIComponent(COMPANY.email)}?subject=`;
+
+    await expect.poll(async () => (await mail.getAttribute("href") || "")
+      .startsWith(mailto), `the link starts ${mailto}`).toBe(true);
 
     const phone = card.locator("[data-out='phone']");
 
