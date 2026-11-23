@@ -31,6 +31,29 @@ export const countdown = (days, hours, minutes) => {
   return `${parts[0]}, ${parts[1]}, and ${parts[2]}`;
 };
 
+// The count `remaining` ms before a cutoff, never "0 minutes": under a
+// minute is "1 minute". Delivery's countdown and Group orders' close
+// notice (#749) both, so the two never differ in form.
+const within = (remaining) => {
+  const minutes = Math.floor(remaining / 60_000);
+  const hours = Math.floor(remaining / HOUR);
+  const days = Math.floor(hours / 24);
+
+  return countdown(days, hours % 24,
+    Math.max(minutes % 60, days || hours ? 0 : 1));
+};
+
+// How often a count changes: each minute, each 10 s in the last hour.
+const every = (remaining) => (remaining < HOUR ? 10_000 : 60_000);
+
+// A notice's text. The last two words stay on one line ("November
+// 19."), as wrap.mjs keeps the built pages' (#627). A node outside a
+// document, as in the unit tests, takes the text as is.
+const write = (el, text) => {
+  if (el.ownerDocument) setKept(el, text);
+  else el.textContent = text;
+};
+
 export class DateLists {
   constructor(form, onChange) {
     this.form = form;
@@ -207,7 +230,8 @@ export class DateLists {
       this.fill(this.form.querySelector(`[data-dates='${method}']`),
         this.lists[method]);
     }
-    this.watchClosing();
+    // The rounds' refresh, and Group orders' close notice (#749).
+    this.tick();
     this.onChange();
   }
 
@@ -355,7 +379,9 @@ export class DateLists {
     if (method === "group") this.extra = rounds;
     if (this.lists) this.lists[method] = fresh;
     if (select) this.fill(select, fresh);
-    if (method === "delivery" && this.lists) this.tick();
+    if ((method === "delivery" || method === "group") && this.lists) {
+      this.tick();
+    }
     if (method === "scheduled" || method === "group") this.watchClosing();
     this.onChange();
   }
@@ -363,11 +389,7 @@ export class DateLists {
   note(text, urgency = "") {
     if (!this.chip) return;
 
-    // The last two words stay on one line ("November 19."), as wrap.mjs
-    // keeps the built pages' (#627). A node outside a document, as in
-    // the unit tests, takes the text as is.
-    if (this.text.ownerDocument) setKept(this.text, text);
-    else this.text.textContent = text;
+    write(this.text, text);
     if (urgency) {
       this.chip.dataset.urgency = urgency;
     } else {
@@ -396,18 +418,32 @@ export class DateLists {
     }, Math.min(wait, MAX_WAIT));
   }
 
+  // Both counts, Delivery's and Group orders', on one timer, run again
+  // as soon as either changes.
   tick() {
     clearTimeout(this.timer);
     this.watchClosing();
 
-    if (!this.chip || !this.lists) return;
+    if (!this.lists) return;
+
+    const waits = [this.noteGroup(), this.noteDelivery()]
+      .filter((wait) => wait !== null);
+
+    if (waits.length) {
+      this.timer = setTimeout(() => this.tick(), Math.min(...waits));
+    }
+  }
+
+  // Delivery's countdown; -> how long until it changes, or null.
+  noteDelivery() {
+    if (!this.chip) return null;
 
     const next = this.lists.delivery[0];
 
     if (!next) {
       this.note("Delivery ordering is closed right now.");
 
-      return;
+      return null;
     }
 
     const remaining = Date.parse(next.cutoff) - this.now().getTime();
@@ -418,18 +454,13 @@ export class DateLists {
       this.note("That cutoff just passed. Updating dates…");
       this.refresh().then((ok) => ok || this.retryLater());
 
-      return;
+      return null;
     }
 
-    const minutes = Math.floor(remaining / 60_000);
-    const hours = Math.floor(remaining / HOUR);
-    const days = Math.floor(hours / 24);
     let urgency = "";
-    let every = 60_000;
 
     if (remaining < HOUR) {
       urgency = "last";
-      every = 10_000;
     } else if (remaining < 6 * HOUR) {
       urgency = "soon";
     }
@@ -437,9 +468,32 @@ export class DateLists {
     // The day by its date, written as the select writes it (its first
     // option's label, no year), so a later day picked from a draft
     // can't seem to be the one counted down to (#627).
-    this.note(`Order within ${countdown(days, hours % 24,
-      Math.max(minutes % 60, days || hours ? 0 : 1))} for delivery on ${
+    this.note(`Order within ${within(remaining)} for delivery on ${
       next.label}.`, urgency);
-    this.timer = setTimeout(() => this.tick(), every);
+
+    return every(remaining);
+  }
+
+  // Group orders' close notice (#749, James, 2026-11-23): Delivery's
+  // countdown to the earliest round's cutoff, "Order within 12 days,
+  // 20 hours, and 26 minutes to join the current group order on
+  // Sunday, December 6.", hidden with no round open. The card comes
+  // in once a group's code is accepted, so the notice is looked for
+  // each time, and the card writes it as it renders (order-form.js
+  // renderGroupCard). -> how long until it changes, or null.
+  noteGroup() {
+    const close = this.form.querySelector("[data-group-close]");
+    const round = this.lists && (this.lists.group || [])[0];
+    const remaining = round && round.cutoff
+      ? Date.parse(round.cutoff) - this.now().getTime() : -1;
+    const text = remaining < 0 ? "" : `Order within ${within(remaining)
+    } to join the current group order on ${round.label}.`;
+
+    if (close) {
+      if (close.textContent !== text) write(close, text);
+      close.hidden = !text;
+    }
+
+    return text ? every(remaining) : null;
   }
 }

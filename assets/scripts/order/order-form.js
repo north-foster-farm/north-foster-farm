@@ -7,7 +7,7 @@ import {
   locationsLabel,
 } from "./lib/scheduled.mjs";
 import {
-  groupFromQuery, nextRoundOpens, ordersClose, roundsWhen, withPlaces,
+  groupFromQuery, nextRoundOpens, roundsWhen, withPlaces,
 } from "./lib/group.mjs";
 import { perkEffects } from "./lib/perks.mjs";
 import { postedDelivery } from "./lib/posted.mjs";
@@ -1604,9 +1604,6 @@ export class OrderForm {
       : nextRoundOpens(series, this.dates.now(), timeZone);
     const where = loc ? loc.short || [loc.name, loc.city]
       .filter(Boolean).join(", ") : "";
-    const close = qs(wrap, "[data-group-close]");
-    const closing = open && rounds && rounds[0] && rounds[0].cutoff
-      ? ordersClose(rounds[0].cutoff, timeZone) : "";
     const set = (el, text) => {
       if (el.textContent !== text) el.textContent = text;
     };
@@ -1623,8 +1620,9 @@ export class OrderForm {
     }
     set(qs(wrap, "[data-group-when]"), when);
     set(qs(wrap, "[data-group-where]"), where);
-    set(close, closing);
-    close.hidden = !closing;
+    // The close notice, Delivery's countdown to the round's cutoff
+    // (#749), is the date lists' to write and keep counting.
+    this.dates.noteGroup();
     radio.disabled = !open;
     if (!open && radio.checked) qs(this.form, "#method-onfarm").checked = true;
   }
