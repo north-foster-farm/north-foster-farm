@@ -84,11 +84,24 @@ const measure = (page) => page.locator("#map .map-key-delivery")
         const label = [...li.querySelectorAll(":scope > span")]
           .find((s) => s.textContent.trim()
             && !s.getAttribute("aria-hidden"));
-        const range = document.createRange();
+        // Lines a reader sees: the text outside `.visually-hidden`.
+        // Bootstrap lays that text (" for delivery" on items 3 and 4)
+        // out in a 1 px box where it wraps word by word, so measured
+        // with the rest it counts a one-line label as two.
+        const walker = document.createTreeWalker(label,
+          NodeFilter.SHOW_TEXT, { acceptNode: (n) => (
+            n.parentElement.closest(".visually-hidden")
+              ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT) });
+        const rects = [];
 
-        range.selectNodeContents(label);
+        for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+          const range = document.createRange();
 
-        const lines = new Set([...range.getClientRects()]
+          range.selectNodeContents(n);
+          rects.push(...range.getClientRects());
+        }
+
+        const lines = new Set(rects
           .filter((r) => r.width > 1).map((r) => Math.round(r.top)));
 
         return { ...union(shown(li)), lines: lines.size,
