@@ -150,6 +150,7 @@
         "e2e/home.spec.mjs",
         "e2e/home-news.spec.mjs",
         "e2e/info-align.spec.mjs",
+        "e2e/map-camera.spec.mjs",
         "e2e/tooltip-center.spec.mjs",
         "e2e/keyboard.spec.mjs",
         "e2e/map-link.spec.mjs",
@@ -197,6 +198,7 @@
         "e2e/home-news.spec.mjs",
         "e2e/keyboard.spec.mjs",
         "e2e/llms.spec.mjs",
+        "e2e/map-camera.spec.mjs",
         "e2e/map-link.spec.mjs",
         "e2e/map.spec.mjs",
         "e2e/news-footer.spec.mjs",
@@ -241,6 +243,7 @@
         "e2e/home.spec.mjs",
         "e2e/home-news.spec.mjs",
         "e2e/keyboard.spec.mjs",
+        "e2e/map-camera.spec.mjs",
         "e2e/map-link.spec.mjs",
         "e2e/map.spec.mjs",
         "e2e/news-footer.spec.mjs",
@@ -287,6 +290,7 @@
         "e2e/home.spec.mjs",
         "e2e/home-news.spec.mjs",
         "e2e/keyboard.spec.mjs",
+        "e2e/map-camera.spec.mjs",
         "e2e/map-link.spec.mjs",
         "e2e/map.spec.mjs",
         "e2e/news-footer.spec.mjs",
@@ -368,6 +372,7 @@
       "specs": [
         "e2e/footer.spec.mjs",
         "e2e/keyboard.spec.mjs",
+        "e2e/map-camera.spec.mjs",
         "e2e/map-link.spec.mjs",
         "e2e/map.spec.mjs",
         "e2e/overflow.spec.mjs",
@@ -394,6 +399,7 @@
         "e2e/footer.spec.mjs",
         "e2e/keyboard.spec.mjs",
         "e2e/llms.spec.mjs",
+        "e2e/map-camera.spec.mjs",
         "e2e/map-link.spec.mjs",
         "e2e/map.spec.mjs",
         "e2e/overflow.spec.mjs",
@@ -470,6 +476,7 @@
         "e2e/keyboard.spec.mjs",
         "e2e/maintenance-bar.spec.mjs",
         "e2e/maintenance.spec.mjs",
+        "e2e/map-camera.spec.mjs",
         "e2e/map-link.spec.mjs",
         "e2e/map.spec.mjs",
         "e2e/missed-delivery.spec.mjs",
@@ -588,6 +595,7 @@
         "e2e/llms.spec.mjs",
         "e2e/maintenance-bar.spec.mjs",
         "e2e/maintenance.spec.mjs",
+        "e2e/map-camera.spec.mjs",
         "e2e/map-link.spec.mjs",
         "e2e/map.spec.mjs",
         "e2e/missed-delivery.spec.mjs",
@@ -690,6 +698,7 @@
         "e2e/keyboard.spec.mjs",
         "e2e/maintenance-bar.spec.mjs",
         "e2e/maintenance.spec.mjs",
+        "e2e/map-camera.spec.mjs",
         "e2e/map-link.spec.mjs",
         "e2e/map.spec.mjs",
         "e2e/membership.spec.mjs",
@@ -1065,6 +1074,7 @@
         "e2e/home.spec.mjs",
         "e2e/home-news.spec.mjs",
         "e2e/keyboard.spec.mjs",
+        "e2e/map-camera.spec.mjs",
         "e2e/map-link.spec.mjs",
         "e2e/map.spec.mjs",
         "e2e/news-footer.spec.mjs",
@@ -1114,6 +1124,7 @@
         "e2e/home-news.spec.mjs",
         "e2e/keyboard.spec.mjs",
         "e2e/llms.spec.mjs",
+        "e2e/map-camera.spec.mjs",
         "e2e/map-link.spec.mjs",
         "e2e/map.spec.mjs",
         "e2e/news-footer.spec.mjs",
@@ -1828,6 +1839,14 @@
         "e2e/map-link.spec.mjs",
         "e2e/map.spec.mjs",
         "e2e/top-bar-places.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/map-camera.spec.mjs"
+      ],
+      "specs": [
+        "e2e/map-camera.spec.mjs"
       ]
     },
     {
