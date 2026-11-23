@@ -29,7 +29,7 @@ import groupData from "../data/groups.json" with { type: "json" };
 import { CUSTOMER, cannedDates } from "./support/canned.mjs";
 import { TODAY, moneyFor } from "./support/money-day.mjs";
 import { OrderPage, expect, settleCart, test } from "./support/order.mjs";
-import { clearSession } from "./support/staging.mjs";
+import { answerAccount, clearSession } from "./support/staging.mjs";
 
 const FRIENDS = "Friends and family pricing";
 const FAMILY = "Family pricing";
@@ -138,6 +138,7 @@ const dropOwnRoutes = (page, more = []) => Promise.all(
 // `extra` adds to /api/me's answer (a member's `member`).
 const signIn = async (page, baseURL, perks, extra = {}) => {
   await page.goto("about:blank");
+  await answerAccount(page.context());
   stamps += 1;
   await page.context().addCookies([
     { name: "nff_signed_in", value: `qr${stamps}`, url: baseURL },

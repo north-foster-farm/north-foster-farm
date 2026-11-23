@@ -39,7 +39,7 @@ import {
 } from "../assets/scripts/order/lib/zoned.mjs";
 import { dates } from "./support/canned.mjs";
 import { OrderPage, expect, settleCart, test } from "./support/order.mjs";
-import { clearSession } from "./support/staging.mjs";
+import { answerAccount, clearSession } from "./support/staging.mjs";
 import {
   GROUP_ORDERS, MEMBER, VFF, choose, openOrder, radioValues, rounds,
   signIn, way,
@@ -103,6 +103,7 @@ const signInHost = async (page, baseURL, host) => {
   await page.goto("about:blank");
   await page.unrouteAll({ behavior: "ignoreErrors" });
   await clearSession(page.context());
+  await answerAccount(page.context());
   await page.route("**/api/dates", (route) => route.fulfill({
     json: dates(),
   }));

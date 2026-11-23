@@ -72,6 +72,29 @@ export const clearSession = async (context) => {
   if (scope.length) await context.addCookies(scope);
 };
 
+// The account functions' requests a faked sign-in leaves unanswered,
+// answered at the browser context. A test signs in by adding a
+// made-up nff_signed_in stamp and routing the requests the page makes
+// by name; any other request to /api/account/* reaches the deploy
+// with that stamp and no session, and is answered 401 with a
+// Set-Cookie that clears the stamp (#149), so the page reads as signed
+// out. At the context the answer outlives page.unrouteAll, so it also
+// catches what the last page sends as it is left: cart-sync's keepalive
+// PUT of /api/account/cart on pagehide, whose 401 could otherwise land
+// after the next sign-in's stamp and clear that. A page's own route
+// wins over this. With `on` false it is taken away, for a signed-out
+// test, whose requests should meet the deploy.
+const ACCOUNT_API = /\/api\/account(?:[/?#]|$)/;
+
+export const answerAccount = async (context, on = true) => {
+  await context.unroute(ACCOUNT_API);
+  if (on) {
+    await context.route(ACCOUNT_API, (route) => route.fulfill({
+      json: { ok: true },
+    }));
+  }
+};
+
 // Whether the back office can be reached from here.
 export const backOffice = () => ({ ready: !!env.E2E_STAGING_TOKEN });
 
