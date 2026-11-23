@@ -1,19 +1,15 @@
-// Helpers the #782 step 8 tests share (quality-analysis, -knip and
-// -cycles): moved here verbatim from the test agent's file so each
-// test file holds only its own seeds and tests.
+// Helpers the #782 step 8 tests share (quality-analysis, -knip,
+// -cycles and #991's -ceilings): moved here verbatim from the test
+// agent's file so each test file holds only its own seeds and tests.
 import assert from "node:assert/strict";
-import { execFileSync, spawnSync } from "node:child_process";
-import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
 export const tag = `zz-criteria-${process.pid}`;
 export const camel = `zzCriteria${process.pid}`;
-
-export const tracked = () => execFileSync("git", ["ls-files", "-z"], {
-  "cwd": root, "encoding": "utf8",
-}).split("\0").filter((f) => f && existsSync(join(root, f)));
 
 const seeds = [];
 export const seed = (path, text) => {
