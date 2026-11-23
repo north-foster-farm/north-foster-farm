@@ -22,7 +22,7 @@ import { withLog } from "./lib/log.mjs";
 import {
   archivedInStock, availability, liveCounts,
 } from "./lib/stock.mjs";
-import { applyPins, scopeOf } from "./lib/stock-pins.mjs";
+import { SCOPE_COOKIE, applyPins, scopeOf } from "./lib/stock-pins.mjs";
 import { deployContext, stores as defaultStores } from "./lib/store.mjs";
 
 // Per-instance, best effort, as /api/orders. One bucket for browsing,
@@ -45,6 +45,19 @@ const rateLimited = (ip, now, bucket) => {
 
 // The check right before paying asks with ?final=1 (order/stock.js).
 const paying = (req) => new URL(req.url).searchParams.get("final") === "1";
+
+// The browsing answer, kept at Netlify's edge for the 15 seconds of
+// the server's own Square snapshot (#908, James's rule 7), so a repeat
+// inside them runs no function. Each edge node keeps its own copy;
+// durable shares one across them, which cuts the runs but does not
+// promise a single one. Browsers keep nothing (json()'s no-store), a
+// stock pin's cookie (staging's tests) gets an answer of its own, and
+// the check before paying is never answered from the edge.
+const EDGE = {
+  "Netlify-CDN-Cache-Control": "public, durable, s-maxage=15",
+  "Netlify-Vary": `cookie=${SCOPE_COOKIE}`,
+};
+const edgeFor = (req) => (paying(req) ? {} : EDGE);
 
 // Whether this ask is over its bucket's limit.
 const limited = (req, ip, now) =>
@@ -97,7 +110,7 @@ export const handle = async (req, {
     env, mail, now, catalogIndex, counts,
   }));
 
-  return json(200, { at: now.toISOString(), items });
+  return json(200, { at: now.toISOString(), items }, edgeFor(req));
 };
 
 export default withLog("stock", async (req, context) =>
