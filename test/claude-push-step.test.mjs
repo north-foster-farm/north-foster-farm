@@ -21,6 +21,16 @@ for (const key of Object.keys(process.env)) {
   if (key.startsWith("GIT_")) delete process.env[key];
 }
 
+// The scratch repos below include a bare one, which this file's own git
+// calls work in by path. A machine whose git config sets
+// safe.bareRepository to explicit (GitHub's runner does, and a hook's
+// env -i keeps HOME, so it is read) refuses that: "cannot use bare
+// repository" (#929). Git's own default, set here for this file's git
+// calls alone. The step under test sets its own config and drops this.
+process.env.GIT_CONFIG_COUNT = "1";
+process.env.GIT_CONFIG_KEY_0 = "safe.bareRepository";
+process.env.GIT_CONFIG_VALUE_0 = "all";
+
 const yml = readFileSync(".github/workflows/claude.yml", "utf8");
 const marker = "- name: Push the lane branch";
 const block = yml.slice(yml.indexOf(marker));
