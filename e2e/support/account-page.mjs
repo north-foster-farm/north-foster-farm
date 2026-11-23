@@ -80,6 +80,12 @@ export const openAccount = async (page, { context, baseURL }, {
 export const writes = (state, method, path) => state.sent
   .filter((s) => s.method === method && s.path === path);
 
+// The two helpers below are account-settings.spec.mjs's. Next dropped
+// them as unused (PR #960, ce71ae89) when only
+// account-orders-pinned.spec.mjs had landed: whoever lands
+// account-settings.spec.mjs or account-arrivals.spec.mjs from this
+// branch brings them back with it.
+
 // Holds the next write until the function returned is called with its
 // answer (route.fulfill's options).
 export const hold = (state) => {
