@@ -37,7 +37,10 @@
 // Wording is a draft for James (#138, #214).
 
 import { siteNow } from "../clock/now.js";
+import { drawTag, drawTip, standOn } from "./draw.js";
 import { clearance, fit } from "./fit.mjs";
+import { MARGIN, inFrame } from "./stand.mjs";
+import { tagFacts, toneOf, zipOf } from "./tag.mjs";
 import {
   FIT_MAX_ZOOM, FIT_PAD_PX, MAX_ZOOM, NUDGE_BELOW, NUDGE_PX, PIN_PX,
   atHome as atHomeOf, centreOf, clampView, easeOut, homeView,
@@ -48,19 +51,9 @@ import {
 // A pointer that moves further than this is dragging, not tapping.
 const SLOP = 6;
 
-// How far the tag and the cards keep from the frame's edges.
-const MARGIN = 8;
-
-// The ZIP a shape stands for. The markup writes it after a "z": the
-// minifier reads a bare "02825" in an SVG as a number and drops its
-// leading zero.
-const zipOf = (area) => area.dataset.zip.slice(1);
-
-const toneOf = (area) => {
-  if (area.classList.contains("is-ours")) return "ok";
-  if (area.classList.contains("is-away")) return "wait";
-  return "no";
-};
+// A shape's ZIP and tone (tag.mjs), read from the markup.
+const zipAt = (area) => zipOf(area.dataset.zip);
+const toneAt = (area) => toneOf([...area.classList]);
 
 // Today on the visitor's clock, moved by the staging toolbar's
 // (clock/now.js), to compare with the dates in the markup. Only
@@ -193,46 +186,16 @@ const wire = (map) => {
     };
   };
 
-  // Above a point where there is room, else below it, never past an
-  // edge: an element over the map, "lift" pixels above its tip.
-  const stand = (el, at, lift) => {
-    const w = el.offsetWidth;
-    const h = el.offsetHeight;
-    const left = Math.max(MARGIN, Math.min(at.width - w - MARGIN,
-      at.x - w / 2));
-    const above = at.y - lift - 6 - h;
-    const top = Math.max(MARGIN, Math.min(at.height - h - MARGIN,
-      above >= MARGIN ? above : at.y + MARGIN));
-
-    el.style.left = `${left}px`;
-    el.style.top = `${top}px`;
-  };
-
-  // The zoom stands over the map's top right: an element that would
-  // cover it moves aside, left of it where there is room, else under.
-  const clearZoom = (el) => {
-    const f = frame.getBoundingClientRect();
-    const z = map.querySelector(".map-zoom").getBoundingClientRect();
-    const [zl, zr, zt, zb] = [z.left - f.left, z.right - f.left,
-      z.top - f.top, z.bottom - f.top];
-    const [w, h] = [el.offsetWidth, el.offsetHeight];
-    const left = parseFloat(el.style.left);
-    const top = parseFloat(el.style.top);
-
-    if (left + w <= zl || left >= zr || top + h <= zt || top >= zb) return;
-    if (zl - w - 6 >= MARGIN) el.style.left = `${zl - w - 6}px`;
-    else el.style.top = `${zb + 6}px`;
-  };
-
+  // The dropped pin's tag over its pin and clear of the zoom
+  // (stand.mjs, draw.js), hidden while its pin is out of the frame.
   const placeTag = () => {
     if (tag.hidden || !dropAt.dataset.x) return;
 
     const at = onScreen(Number(dropAt.dataset.x), Number(dropAt.dataset.y));
 
-    tag.style.visibility = at.x < 0 || at.x > at.width || at.y < 0
-      || at.y > at.height ? "hidden" : "";
-    stand(tag, at, PIN_PX);
-    clearZoom(tag);
+    tag.style.visibility = inFrame(at) ? "" : "hidden";
+    standOn(tag, at, { lift: PIN_PX, frame,
+      zoom: map.querySelector(".map-zoom") });
   };
 
   // True at the layer's own view, where the globe has nothing to do.
@@ -634,33 +597,16 @@ const wire = (map) => {
     if (layer() === "places") go(home());
   }
 
-  // The tag: the town, what we deliver there and the price. "el" is
-  // the dropped pin's tag or the pointer's.
-  const fill = (el, area) => {
-    const tone = toneOf(area);
-    const fee = Number(tag.dataset.fee)
-      + (tone === "wait" ? Number(tag.dataset.extra) : 0);
-    const has = {
-      eggs: tone !== "no",
-      hen: tone !== "no" && !area.classList.contains("is-eggs"),
-    };
-    const [town, eggs, hen, price, none] = [
-      ".map-tag-town", ".map-tag-icon:nth-of-type(1)",
-      ".map-tag-icon:nth-of-type(2)", ".map-tag-fee", ".map-tag-none",
-    ].map((s) => el.querySelector(s));
-
-    town.textContent = area.dataset.town || zipOf(area);
-    price.textContent = tone === "no" ? "" : `$${fee}`;
-    price.hidden = tone === "no";
-    none.hidden = tone !== "no";
-    for (const [icon, on] of [[eggs, has.eggs], [hen, has.hen]]) {
-      icon.classList.toggle("is-off", !on);
-      if (el === tag) icon.dataset.on = on;
-    }
-    const link = el.querySelector(".map-tag-link");
-
-    if (link) link.hidden = tone !== "no";
-  };
+  // The tag: the town, what we deliver there and the price (tag.mjs,
+  // draw.js). "el" is the dropped pin's tag or the pointer's.
+  const fill = (el, area) => drawTag(el, tagFacts({
+    town: area.dataset.town,
+    zip: zipAt(area),
+    tone: toneAt(area),
+    eggsOnly: area.classList.contains("is-eggs"),
+    fee: Number(tag.dataset.fee),
+    extra: Number(tag.dataset.extra),
+  }), { mark: el === tag });
 
   // The tag beside the pointer, over a town, with a mouse.
 
@@ -672,25 +618,16 @@ const wire = (map) => {
     const area = layer() === "delivery" && e.pointerType === "mouse"
       && e.target.closest("[data-zip]");
 
-    if (!area || dragging || zipOf(area) === picked) {
+    if (!area || dragging || zipAt(area) === picked) {
       hideTip();
       return;
     }
 
     const box = frame.getBoundingClientRect();
-    const x = e.clientX - box.left;
-    const y = e.clientY - box.top;
 
     fill(tip, area);
     tip.hidden = false;
-    tip.style.left = `${x + 14}px`;
-    tip.style.top = `${y + 14}px`;
-    if (x + 14 + tip.offsetWidth > box.width - MARGIN) {
-      tip.style.left = `${x - 14 - tip.offsetWidth}px`;
-    }
-    if (y + 14 + tip.offsetHeight > box.height - MARGIN) {
-      tip.style.top = `${y - 14 - tip.offsetHeight}px`;
-    }
+    drawTip(tip, { x: e.clientX - box.left, y: e.clientY - box.top }, box);
   });
   svg.addEventListener("pointerleave", hideTip);
 
@@ -723,12 +660,12 @@ const wire = (map) => {
 
     const area = target.closest("[data-zip]");
 
-    if (!area || zipOf(area) === picked) {
+    if (!area || zipAt(area) === picked) {
       if (picked) check("", "");
       return;
     }
     hideTip();
-    check(zipOf(area), toneOf(area));
+    check(zipAt(area), toneAt(area));
   };
 
   // Drags and pinches, from pointer events so mouse, pen and touch
