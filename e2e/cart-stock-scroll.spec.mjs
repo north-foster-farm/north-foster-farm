@@ -69,7 +69,7 @@ const lateStock = async (page) => {
     land();
   });
 
-  return landed;
+  return { landed };
 };
 
 // Every frame's scrollY from the first script on, with its time.
@@ -112,7 +112,7 @@ const openLate = async (page, motion) => {
   await cannedDates(page);
   await trackScroll(page);
 
-  const landed = await lateStock(page);
+  const { landed } = await lateStock(page);
   const order = new OrderPage(page);
 
   const shown = page.locator(".order-item:not([hidden])");

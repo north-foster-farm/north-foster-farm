@@ -56,6 +56,24 @@ import { whileLoading } from "../utils/skeleton.js";
 // the page still shows it being placed, and then not again (#154).
 const RETRY_DELAY = 3000;
 
+// The longest the ?add= scroll waits for the first stock answer,
+// counted from the page's load (#892; the coordinator's provisional
+// figure of 2026-11-22, for James to change).
+const ADD_SCROLL_CAP_MS = 5000;
+
+// When the ?add= scroll may start: 300 ms on, then once the first
+// stock answer has hidden what it hides, so the page doesn't shift
+// under the scroll, but no later than ADD_SCROLL_CAP_MS after the
+// page loaded: the stock script may keep trying for a minute.
+const afterStock = async (stock) => {
+  await new Promise((resolve) => setTimeout(resolve, 300));
+
+  const left = Math.max(0, ADD_SCROLL_CAP_MS - performance.now());
+  const capped = new Promise((resolve) => setTimeout(resolve, left));
+
+  await Promise.race([stock.ready(), capped]).catch(() => {});
+};
+
 // The customer's details and delivery address: what signing out (or a
 // scrub of another account's draft) takes out of the draft (#149).
 const DETAIL_FIELDS = "[data-field^='customer.'], [data-field^='delivery.']";
@@ -1009,7 +1027,7 @@ export class OrderForm {
 
     if (added.length) {
       this.draft.save(this.collect());
-      setTimeout(() => this.cart.show({ smooth: true }), 300);
+      afterStock(this.stock).then(() => this.cart.show({ smooth: true }));
     }
   }
 
