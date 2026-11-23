@@ -44,13 +44,13 @@
 //     ->    { sku: qty } for every row
 
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
 import terms from "../data/delivery.json" with { type: "json" };
 import { postedDelivery } from "../assets/scripts/order/lib/posted.mjs";
 import { occurrenceId } from "../assets/scripts/order/lib/scheduled.mjs";
 import { zipInfo } from "../assets/scripts/order/lib/validate.mjs";
+import { assertPure } from "./pure-module.mjs";
 import {
   billingOf, buildPayload, lineTargets, restorePlan,
 } from "../assets/scripts/order/form/payload.mjs";
@@ -325,11 +325,10 @@ describe("lineTargets", () => {
 
 describe("design, phase 7", () => {
   it("keeps form/payload.mjs pure", () => {
-    const code = readFileSync(MODULE, "utf8")
-      .replace(/\/\/.*$/gm, "")
-      .replace(/\/\*[\s\S]*?\*\//g, "");
-
-    assert.doesNotMatch(code,
-      /(?<![.\w])(document|window)\.|\b(querySelector|Element)\b/);
+    assertPure(MODULE, {
+      banned: ["(?<![.\\w])document(?=\\.)", "(?<![.\\w])window(?=\\.)",
+        "querySelector", "Element"],
+      imports: null,
+    });
   });
 });
