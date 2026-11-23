@@ -308,6 +308,7 @@
       "specs": [
         "e2e/about.spec.mjs",
         "e2e/account.spec.mjs",
+        "e2e/account-orders-pinned.spec.mjs",
         "e2e/busy-buttons.spec.mjs",
         "e2e/buttons.spec.mjs",
         "e2e/cart-badge.spec.mjs",
@@ -409,6 +410,7 @@
         "e2e/account-rounds.spec.mjs",
         "e2e/account-tabs.spec.mjs",
         "e2e/account.spec.mjs",
+        "e2e/account-orders-pinned.spec.mjs",
         "e2e/archived-edit.spec.mjs",
         "e2e/buttons.spec.mjs",
         "e2e/cart-a11y.spec.mjs",
@@ -520,6 +522,7 @@
         "e2e/account-rounds.spec.mjs",
         "e2e/account-tabs.spec.mjs",
         "e2e/account.spec.mjs",
+        "e2e/account-orders-pinned.spec.mjs",
         "e2e/archived-edit.spec.mjs",
         "e2e/buttons.spec.mjs",
         "e2e/cart-a11y.spec.mjs",
@@ -621,6 +624,7 @@
         "e2e/account-rounds.spec.mjs",
         "e2e/account-tabs.spec.mjs",
         "e2e/account.spec.mjs",
+        "e2e/account-orders-pinned.spec.mjs",
         "e2e/archived-edit.spec.mjs",
         "e2e/buttons.spec.mjs",
         "e2e/cart-a11y.spec.mjs",
@@ -766,6 +770,7 @@
         "e2e/account-rounds.spec.mjs",
         "e2e/account-tabs.spec.mjs",
         "e2e/account.spec.mjs",
+        "e2e/account-orders-pinned.spec.mjs",
         "e2e/busy-buttons.spec.mjs",
         "e2e/cancel-order.spec.mjs",
         "e2e/cart-sync.spec.mjs",
@@ -811,6 +816,7 @@
       "specs": [
         "e2e/account-tabs.spec.mjs",
         "e2e/account.spec.mjs",
+        "e2e/account-orders-pinned.spec.mjs",
         "e2e/busy-buttons.spec.mjs",
         "e2e/cancel-order.spec.mjs",
         "e2e/cart-sync.spec.mjs",
@@ -848,6 +854,7 @@
       "specs": [
         "e2e/account-tabs.spec.mjs",
         "e2e/account.spec.mjs",
+        "e2e/account-orders-pinned.spec.mjs",
         "e2e/busy-buttons.spec.mjs",
         "e2e/cancel-order.spec.mjs",
         "e2e/cart-sync.spec.mjs",
@@ -887,6 +894,7 @@
       ],
       "specs": [
         "e2e/account.spec.mjs",
+        "e2e/account-orders-pinned.spec.mjs",
         "e2e/busy-buttons.spec.mjs",
         "e2e/contact-send.spec.mjs",
         "e2e/edit-order-date.spec.mjs",
@@ -913,6 +921,7 @@
       ],
       "specs": [
         "e2e/account.spec.mjs",
+        "e2e/account-orders-pinned.spec.mjs",
         "e2e/busy-buttons.spec.mjs",
         "e2e/contact-send.spec.mjs",
         "e2e/edit-order-date.spec.mjs",
@@ -1196,7 +1205,16 @@
         "e2e/account.spec.mjs"
       ],
       "specs": [
-        "e2e/account.spec.mjs"
+        "e2e/account.spec.mjs",
+        "e2e/account-orders-pinned.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/account-orders-pinned.spec.mjs"
+      ],
+      "specs": [
+        "e2e/account-orders-pinned.spec.mjs"
       ]
     },
     {

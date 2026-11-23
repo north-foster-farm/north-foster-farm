@@ -41,12 +41,17 @@ framework = "#custom"
 # Agents run netlify dev often; without this it opens a browser each time.
 autoLaunch = false
 
-# One order, deep-linked from the emails about it. The account page
-# reads the id off the path; the session decides whose order it is.
+# One order, deep-linked from the emails about it, sent on to the
+# account page at its own depth with the id in its query (#924): served
+# at the deep path, its relative scripts, styles and links resolved
+# under /account/orders/ and the page never drew. The account page
+# reads the id from ?order= (and still off the path, where no rule
+# runs); the session decides whose order it is. A fragment the link
+# carries stays with the browser across the redirect.
 [[redirects]]
   from = "/account/orders/*"
-  to = "/account/"
-  status = 200
+  to = "/account/?order=:splat"
+  status = 302
 
 # Browsers, feed readers and link previews ask for these at the root
 # whatever the page says; the set lives in /favicons/.

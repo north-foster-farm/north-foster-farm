@@ -132,8 +132,15 @@ export const startServer = ({
     send(res, status, headers, req.method === "HEAD" ? undefined : body);
   };
 
+  // The asked-for query goes on, joined to one the rule's `to` holds.
+  const withQuery = (to, search) => {
+    if (!search) return to;
+
+    return to.includes("?") ? `${to}&${search.slice(1)}` : `${to}${search}`;
+  };
+
   const redirect = (res, to, status, search) => send(res, status, {
-    location: to.startsWith("http") ? to : `${to}${search}`,
+    location: to.startsWith("http") ? to : withQuery(to, search),
   }, "");
 
   // Netlify's order: a function on its path; a forced redirect; a

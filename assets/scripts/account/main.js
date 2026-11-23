@@ -39,6 +39,7 @@ import {
   rounds,
 } from "./lib/membership.mjs";
 import { showMembership } from "./lib/membership-tab.mjs";
+import { orderFromLink } from "./lib/order-link.mjs";
 import { watchTabs } from "./tabs-more.js";
 
 const qs = (root, selector) => root.querySelector(selector);
@@ -112,15 +113,6 @@ const when = (order) => {
 const placed = (iso) => new Date(iso).toLocaleDateString("en-US", {
   month: "short", day: "numeric", year: "numeric",
 });
-
-// The emails about one order link to /account/orders/<id>/, which
-// netlify.toml rewrites to this page. The session says whose order it
-// is, so the path carries nothing but the id.
-const orderFromPath = () => {
-  const found = /^\/account\/orders\/([^/]+)\/?$/.exec(location.pathname);
-
-  return found ? decodeURIComponent(found[1]) : "";
-};
 
 // The order page takes ?add=SKU:qty,... and puts those in the cart.
 const addUrl = (lines) => `/order/?add=${encodeURIComponent(
@@ -252,7 +244,8 @@ class Account {
     watchTabs(qs(document, "[data-tabs-wrap]"));
     // The banner names the group, so it waits for the pane.
     pane.then(() => this.joined());
-    this.openOrder(orderFromPath());
+    // The session says whose order it is; the link carries only the id.
+    this.openOrder(orderFromLink(location));
     this.emailChanged();
     this.confirmChange();
   }
