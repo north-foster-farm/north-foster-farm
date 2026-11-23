@@ -124,8 +124,9 @@ const check = (change) => {
 const change = changeOf();
 if (change.fellBack) {
   console.error("check:touched: no push base it could use " +
-    "(NFF_QUALITY_PUSH_BEFORE unset, all zeros, or not an ancestor " +
-    "of HEAD), so it fell back to HEAD against its first parent");
+    "(NFF_QUALITY_PUSH_BEFORE unset, all zeros, HEAD itself, or not " +
+    "an ancestor of HEAD), so it fell back to HEAD against its first " +
+    "parent");
 }
 const failures = check(change);
 for (const line of failures) console.error(line);

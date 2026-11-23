@@ -8,9 +8,9 @@
 //   HEAD;
 // - otherwise a push (to next, staging or main): the whole pushed
 //   range, from NFF_QUALITY_PUSH_BEFORE (CI's github.event.before) to
-//   HEAD. When that is not given, is all zeros (a new branch) or is
-//   not an ancestor of HEAD (a force push), it falls back to HEAD
-//   against its first parent, and says so. It is never skipped
+//   HEAD. When that is not given, is all zeros (a new branch), is HEAD
+//   itself or is not an ancestor of HEAD (a force push), it falls back
+//   to HEAD against its first parent, and says so. It is never skipped
 //   (coordinator, 2026-11-23, provisional for James; the range is
 //   qa's correction of the first-parent rule).
 import { execFileSync } from "node:child_process";
@@ -37,10 +37,15 @@ const pullAtHead = () => {
 
 const hasParent = () => tryGit(["rev-parse", "--verify", "-q", "HEAD^1"]);
 
-// The commit before the push, when CI gave one HEAD contains.
+// The commit before the push, when CI gave one HEAD contains. A base
+// equal to HEAD is no range, so it falls back too (coordinator,
+// 2026-11-23, provisional for James; security's review of #1009).
 const pushedFrom = () => {
   const before = process.env.NFF_QUALITY_PUSH_BEFORE ?? "";
   if (!before || /^0+$/.test(before)) return null;
+  const commit = tryGit(["rev-parse", "--verify", "-q", `${before}^{commit}`]);
+  const head = tryGit(["rev-parse", "HEAD"]);
+  if (!commit || commit.trim() === head?.trim()) return null;
   const ok = tryGit(["merge-base", "--is-ancestor", before, "HEAD"]);
   return ok === null ? null : before;
 };
