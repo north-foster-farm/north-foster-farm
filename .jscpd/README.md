@@ -27,8 +27,16 @@ runs until their implementation lands. They are verbatim moves of a
 running test's helpers, so they duplicate it by design, and each is
 renamed to `.test.mjs`, and counted, when it runs.
 
-`test/quality-analysis.test.mjs` checks the gate. It seeds files and
-runs every area several times, so it runs as `npm run test:analysis`,
-the last step of `npm run lint` (CI's Lint step), and not in the
-pre-commit hook, which runs `lint:code` and so still enforces the
-ceilings.
+`test/quality-ceilings.test.mjs` checks the gate with two tests (#991).
+The first holds that the gate works: in every area, a seed sized to
+the gap between the measured figure and the ceiling always fails
+jscpd, however many clean lines the area has gained. The second holds
+that the ceiling stays honest: no ceiling sits more than 0.5 of a
+point above its area's measured figure. When the second fails, a test
+agent lowers that ceiling to the figure rounded up to two places, in a
+pull request of its own or in the one that tripped it.
+
+Both seed files and run every area several times, so they run as
+`npm run test:analysis`, the last step of `npm run lint` (CI's Lint
+step), with `test/quality-analysis.test.mjs`, and not in the pre-commit
+hook, which runs `lint:code` and so still enforces the ceilings.
