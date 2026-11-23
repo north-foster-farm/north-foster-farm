@@ -10,19 +10,16 @@
 
 import Tooltip from "bootstrap/js/dist/tooltip.js";
 
-import { celebrate } from "../celebrate.js";
 import { ringsCart } from "../lib/cart-scroll.mjs";
 import { awayFrom } from "../lib/share-away.mjs";
+import { Badges } from "./badges.js";
 import { codeNote } from "./code-note.mjs";
 import { twoStep } from "./confirm.mjs";
 import { all, pulse, qs, reduced, say } from "./dom.js";
 import { firstAdd } from "./first-add.js";
 import { startJoke, stopJoke } from "./joke-row.js";
 import { drawItems, dropRows } from "./lines-view.js";
-import { drawBadgeInfo, drawPerks } from "./perk-label.js";
-import {
-  changed, deliveryTip, passedBy, tierKeys,
-} from "./plan.mjs";
+import { changed, passedBy } from "./plan.mjs";
 import * as state from "./state.mjs";
 import {
   drawEdit, drawNudge, drawReadouts, drawSums, drawWays,
@@ -83,9 +80,6 @@ export class Cart {
     this.lastTotal = null;
     // The lines last drawn (lines-view.js), null before the first.
     this.drawn = null;
-    // Which badges were lit at the last render, so a badge that turns
-    // on can celebrate. Null until the first render, which never does.
-    this.lit = null;
     this.joke = null;
     this.teaching = null;
     this.passed = null;
@@ -96,9 +90,8 @@ export class Cart {
     this.easing = 0;
     this.fingerDown = false;
     this.sheet = matchMedia(SHEET);
-    this.tips = [];
-    // The perks' info buttons' tooltips (#717, setPerks).
-    this.perkTips = [];
+    // The badges, their tooltips and the perks' (badges.js).
+    this.badges = new Badges(root);
 
     this.list = qs(root, "[data-cart-items]");
     this.pill = qs(root, "[data-cart-toggle]");
@@ -114,7 +107,7 @@ export class Cart {
     const was = this.state;
 
     if (next.fold !== was.fold || next.placement !== was.placement) {
-      this.shutTips();
+      this.badges.shutTips();
     }
     this.state = next;
 
@@ -214,16 +207,6 @@ export class Cart {
     if (next !== this.state) this.fold(next);
   }
 
-  // The badges' tooltips and the perks' (#717).
-  allTips() {
-    return [...this.tips, ...this.perkTips.map((perk) => perk.tip)];
-  }
-
-  // Shuts every open badge or perk tooltip at once (#569).
-  shutTips() {
-    for (const tip of this.allTips()) shutTip(tip);
-  }
-
   open() {
     return this.fold(state.open(this.state));
   }
@@ -289,7 +272,7 @@ export class Cart {
       look: (seen) => this.scrolled(seen),
       // Proceed's tooltip stays through the pane's own ease (#706).
       onMove: () => {
-        this.shutTips();
+        this.badges.shutTips();
         if (!this.easing) this.shutWhy();
       },
     });
@@ -315,9 +298,9 @@ export class Cart {
       if (e.key !== "Escape") return;
 
       // An open badge tooltip goes first (#569), and Proceed's (#706).
-      if (this.allTips().some((tip) => tip.tip) || this.whyTip.tip) {
+      if (this.badges.allTips().some((tip) => tip.tip) || this.whyTip.tip) {
         e.preventDefault();
-        this.shutTips();
+        this.badges.shutTips();
         this.shutWhy();
 
         return;
@@ -365,7 +348,7 @@ export class Cart {
     this.wireCheckout();
     this.wireClear();
     this.wireShare();
-    this.wireBadges();
+    this.badges.wire();
 
     // The readouts in the bars go back to the cart.
     for (const button of all(this.form, "[data-to-cart]")) {
@@ -585,49 +568,9 @@ export class Cart {
     });
   }
 
-  // A tap on a badge explains it; the next tap, a tap elsewhere or
-  // Escape closes it, and so does any scroll, the pane folding or the
-  // pane settling (#569, wire and apply).
-  wireBadges() {
-    const tips = all(this.root, "[data-tip]").map((badge) => new Tooltip(
-      badge, { title: badge.dataset.tip, trigger: "click", placement: "top" }
-    ));
-
-    this.tips = tips;
-    this.root.addEventListener("show.bs.tooltip", (e) => {
-      for (const tip of this.allTips()) {
-        if (tip._element !== e.target) tip.hide();
-      }
-    });
-    document.addEventListener("click", (e) => {
-      if (!e.target.closest("[data-tip]")) {
-        for (const tip of tips) tip.hide();
-      }
-    });
-    // Escape with the focus outside the pane (the pane's own keydown
-    // takes it inside).
-    document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape" && !this.root.contains(e.target)) {
-        this.shutTips();
-      }
-    });
-  }
-
-  // A page built before a money change (data/delivery.json,
-  // money.changes) still carries the old tiers and minimum: bring them
-  // to the day's. `money` is moneyOn()'s for the day.
+  // The day's tiers and minimum on the badges (badges.js).
   setMoney(money) {
-    const tiers = tierKeys(money);
-
-    for (const badge of all(this.root, "[data-badge^='tier-']")) {
-      if (!tiers.includes(badge.dataset.badge)) badge.closest("li").remove();
-    }
-
-    const delivery = qs(this.root, "[data-badge='delivery']");
-
-    if (delivery) {
-      delivery.dataset.tip = deliveryTip(delivery.dataset.tip, money);
-    }
+    this.badges.setMoney(money);
   }
 
   // Everything the cart shows, from the form's summary (summary.mjs
@@ -697,43 +640,15 @@ export class Cart {
         dropRows(this.list, this.drawn);
         this.placement.refresh();
         this.lines.sync();
-        this.renderBadges(this.summary);
+        this.badges.draw(this.summary);
       });
     } else {
       this.state = next;
       draw();
       this.placement.refresh();
       this.lines.sync();
-      this.renderBadges(s);
+      this.badges.draw(s);
     }
-  }
-
-  // A badge that just turned on sends its chicks; the first render (a
-  // restored draft) only sets the baseline. They leave the badge
-  // itself; with the pane folded or the badge out of sight, the total.
-  renderBadges(s) {
-    const root = this.root;
-    const lit = {};
-    const seen = (el) => {
-      const r = el.getBoundingClientRect();
-      const box = root.getBoundingClientRect();
-
-      return r.height > 0
-        && r.top >= Math.max(0, box.top) - 1
-        && r.bottom <= Math.min(window.innerHeight, box.bottom) + 1;
-    };
-
-    for (const badge of s.badges) {
-      const el = qs(root, `[data-badge="${badge.key}"]`);
-
-      lit[badge.key] = badge.on;
-      if (!el) continue;
-      el.dataset.on = String(badge.on);
-      if (badge.on && this.lit && !this.lit[badge.key]) {
-        celebrate(seen(el) ? el : qs(root, "[data-total='total']"));
-      }
-    }
-    this.lit = lit;
   }
 
   // Scrolled past: the readouts in the bars take over, and their tap
@@ -804,24 +719,10 @@ export class Cart {
     if (this.teaching) this.teaching.keep();
   }
 
-  // The signed-in customer's perks (#514): what the totals already
-  // apply, said so the customer knows why, as pricing labels with no
-  // end dates (#717, perk-label.js). Free delivery shows on its badge,
-  // with an info button when no bundle's tooltip explains it, and a
-  // buying group's `member` (/api/me's) has its line (#717, revised).
-  // The info buttons' tooltips go with the badges' (shutTips).
-  setPerks(perks, { member = null } = {}) {
-    const note = qs(this.root, "[data-cart-perks]");
-
-    if (!note) return;
-    for (const tip of this.perkTips) tip.stop();
-    this.perkTips = drawPerks(note, perks, { freeBadge: true, member });
-    note.hidden = !note.childElementCount;
-
-    const badge = qs(this.root, "[data-badge='free-delivery']");
-    const info = badge && drawBadgeInfo(badge.closest("li"), perks);
-
-    if (info) this.perkTips.push(info);
+  // The signed-in customer's perks (#514, badges.js), with a buying
+  // group's `member`.
+  setPerks(perks, options) {
+    this.badges.setPerks(perks, options);
   }
 
   // The outcome of a code the form applied: `text` and `tone` for the
