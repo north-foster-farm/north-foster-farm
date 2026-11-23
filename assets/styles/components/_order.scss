@@ -857,7 +857,6 @@
   }
 
   // The contact row above sets its own padding, on purpose (#666).
-  // stylelint-disable-next-line no-descending-specificity
   .order-radios {
     display: flex;
     flex-wrap: wrap;
@@ -888,7 +887,6 @@
     grid-template-rows: 0fr;
     transition: grid-template-rows var(--order-base) var(--order-ease);
 
-    // stylelint-disable-next-line no-descending-specificity
     > * {
       overflow: hidden;
       opacity: 0;
@@ -920,7 +918,6 @@
       background-color var(--order-hover) ease,
       box-shadow var(--order-hover) ease;
 
-    // stylelint-disable-next-line no-descending-specificity
     > .form-check-input {
       position: absolute;
       top: 1.1rem;
@@ -943,7 +940,6 @@
         grid-template-rows: 1fr;
 
         // Group orders' hiding (above) never applies to a chosen way.
-        // stylelint-disable-next-line no-descending-specificity
         > * {
           opacity: 1;
         }
@@ -1343,7 +1339,6 @@
     border-radius: 4px;
 
     // The vendor's element, whatever it is.
-    // stylelint-disable-next-line no-descending-specificity
     > * {
       width: 100%;
       height: 100%;
@@ -1365,7 +1360,6 @@
       display: none;
     }
 
-    // stylelint-disable-next-line no-descending-specificity
     .order-pay-button[inert] {
       opacity: 0.45;
       filter: grayscale(1);
@@ -1769,7 +1763,6 @@
 
   // The order page's contact row sets its own padding and line, on
   // purpose (#666).
-  // stylelint-disable-next-line no-descending-specificity
   .col-form-label {
     font-size: 0.875rem;
   }

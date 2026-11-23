@@ -47,7 +47,8 @@ export const check = (dir, kind) => {
       .map((t) => `order/index.html lacks ${t}`);
     // The toolbar's card and the overlay's are one component (#303):
     // the same markup but for their ids' prefixes.
-    const cards = [...order.matchAll(/<dl class="?staging-card"?>[\s\S]*?<\/dl>/g)]
+    const card = /<dl class="?staging-card"?>[\s\S]*?<\/dl>/g;
+    const cards = [...order.matchAll(card)]
       .map((m) => m[0].replace(/\b(toolbar|overlay)-card-/g, "card-"));
 
     if (cards.length !== 2 || cards[0] !== cards[1]) {

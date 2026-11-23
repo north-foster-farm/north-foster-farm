@@ -2,8 +2,27 @@ const js = require("@eslint/js");
 const globals = require("globals");
 
 module.exports = [
+  // `npm run lint` reads the whole tree (#769); these folders are build
+  // output, run output or untracked notes, never source.
+  {
+    "ignores": [
+      ".ignored/",
+      ".netlify/",
+      "docs/example-projects/",
+      "docs/hugo-docs-source/",
+      "incidents/",
+      "netlify/edge-functions/",
+      "playwright-report/",
+      "public/",
+      "resources/",
+      "test-results/",
+    ],
+  },
   js.configs.recommended,
   {
+    "linterOptions": {
+      "reportUnusedDisableDirectives": "error",
+    },
     "languageOptions": {
       "ecmaVersion": "latest",
       "globals": {

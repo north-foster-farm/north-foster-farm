@@ -45,14 +45,14 @@ const line = (coords, close) => {
 
 const path = (geometry) => {
   switch (geometry.type) {
-    case "Polygon":
-      return geometry.coordinates.map((r) => line(r, true)).join("");
-    case "MultiPolygon":
-      return geometry.coordinates.flat().map((r) => line(r, true)).join("");
-    case "LineString":
-      return line(geometry.coordinates, false);
-    default:
-      return geometry.coordinates.map((l) => line(l, false)).join("");
+  case "Polygon":
+    return geometry.coordinates.map((r) => line(r, true)).join("");
+  case "MultiPolygon":
+    return geometry.coordinates.flat().map((r) => line(r, true)).join("");
+  case "LineString":
+    return line(geometry.coordinates, false);
+  default:
+    return geometry.coordinates.map((l) => line(l, false)).join("");
   }
 };
 

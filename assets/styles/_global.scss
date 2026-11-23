@@ -57,6 +57,25 @@ svg {
   position: absolute;
 }
 
+// A quick second tap on a control is another tap, never a zoom: iOS
+// reads two fast taps as a double-tap zoom unless touch-action says
+// otherwise. The groups count as controls so a tap in their gaps
+// behaves the same. Pinch zoom still works everywhere; the map's own
+// gestures (.map-svg) narrow this further.
+a,
+button,
+input,
+select,
+textarea,
+label,
+summary,
+.btn,
+.order-qty,
+.order-cart,
+.map-frame {
+  touch-action: manipulation;
+}
+
 .btn {
   letter-spacing: -0.01em;
 }
@@ -164,7 +183,6 @@ svg {
 // sits just under the 3:1 contrast against body text that WCAG asks
 // of an undecorated link; the underline is the second cue. Buttons,
 // navigation (.nav-item), breadcrumbs and headings are untouched.
-//
 // A .btn-link is a link that happens to be a button (Try again,
 // Dismiss, Cancel), so it gets the same underline wherever it sits.
 main :is(p, li:not(.breadcrumb-item, .nav-item), dd, td, figcaption) a:not(.btn),
@@ -212,8 +230,7 @@ h6 {
 }
 
 // The same aside in the yellow, for something to attend to: the
-// countdown's "soon" state, and the warnings on the sign-in and invite
-// pages (#756).
+// warnings on the sign-in and invite pages (#756).
 .zip-note-warning {
   border-left-color: var(--bs-warning);
   background-color: var(--bs-warning-bg-subtle);
@@ -249,7 +266,6 @@ h6 {
 
 .visually-hidden {
   position: absolute;
-  clip: rect(1px, 1px, 1px, 1px);
   clip-path: inset(0 0 99.9% 99.9%);
   overflow: hidden;
   height: 1px;
@@ -274,25 +290,6 @@ h6 {
   .form-select {
     font-size: 1rem;
   }
-}
-
-// A quick second tap on a control is another tap, never a zoom: iOS
-// reads two fast taps as a double-tap zoom unless touch-action says
-// otherwise. The groups count as controls so a tap in their gaps
-// behaves the same. Pinch zoom still works everywhere; the map's own
-// gestures (.map-svg) narrow this further.
-a,
-button,
-input,
-select,
-textarea,
-label,
-summary,
-.btn,
-.order-qty,
-.order-cart,
-.map-frame {
-  touch-action: manipulation;
 }
 
 // Chrome paints an autofilled field pale blue. The inset shadow covers

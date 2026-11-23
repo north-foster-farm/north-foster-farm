@@ -146,10 +146,11 @@ The script prints nothing else, so sourcing it never shows a message.
 ## Checks
 
 ```bash
-npm run check           # lint, then the tests
-npm run lint            # both linters
-npm run lint:scripts    # ESLint, assets/scripts, netlify, test
-npm run lint:styles     # Stylelint, assets/styles
+npm run check           # lint:code, then the tests
+npm run lint            # lint:code
+npm run lint:code       # ESLint and Stylelint
+npm run lint:scripts    # ESLint, every tracked script
+npm run lint:styles     # Stylelint, every tracked stylesheet
 npm test                # node:test: functions, CLI and build checks
 npm run check:signatures              # registry signatures, as CI
 npm run check:record-shape -- origin/next   # trailers since next

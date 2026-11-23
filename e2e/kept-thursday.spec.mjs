@@ -183,35 +183,35 @@ test.describe("an order on a replaced Thursday, on the order page (#643)",
     // today (order-form.js fail, #order-failed).
     test("says the order can no longer be changed, after its cutoff",
       async ({ page, context, baseURL }) => {
-      await page.clock.install({ time: BEFORE_CUTOFF });
+        await page.clock.install({ time: BEFORE_CUTOFF });
 
-      const { clock, sent } = await setUp(page, context, baseURL,
-        BEFORE_CUTOFF);
-      // The page's first stock load has to land before the clock jumps.
-      // page.clock fakes AbortSignal.timeout too, so a load still in
-      // flight during runFor is aborted at once, with its backoff and
-      // every retry, and the page shuts behind the stock notice. The
-      // real staging /api/stock is often slower than reaching runFor
-      // (run 44766787153, attempts 2 and 3, desktop).
-      const stock = page.waitForResponse("**/api/stock");
+        const { clock, sent } = await setUp(page, context, baseURL,
+          BEFORE_CUTOFF);
+        // The page's first stock load has to land before the clock jumps.
+        // page.clock fakes AbortSignal.timeout too, so a load still in
+        // flight during runFor is aborted at once, with its backoff and
+        // every retry, and the page shuts behind the stock notice. The
+        // real staging /api/stock is often slower than reaching runFor
+        // (run 44766787153, attempts 2 and 3, desktop).
+        const stock = page.waitForResponse("**/api/stock");
 
-      await openEdit(page);
-      await stock;
-      await stockApplied(page);
-      await fewerEggs(page);
-      // The page stays open past noon on the 9th.
-      clock.now = AFTER_CUTOFF;
-      await page.clock.runFor(AFTER_CUTOFF - BEFORE_CUTOFF);
-      await page.locator("#order-save").click();
+        await openEdit(page);
+        await stock;
+        await stockApplied(page);
+        await fewerEggs(page);
+        // The page stays open past noon on the 9th.
+        clock.now = AFTER_CUTOFF;
+        await page.clock.runFor(AFTER_CUTOFF - BEFORE_CUTOFF);
+        await page.locator("#order-save").click();
 
-      await expect(page.locator(
-        "#order-result .order-result-failed [data-out='message']",
-      )).toHaveText("This order can't be changed any more.");
-      await expect(page.locator("#order-lapsed"),
-        "no days are offered that the server would refuse").toBeHidden();
-      expect(datesSent(sent).filter((date) => date !== KEPT),
-        "no other day was sent in its place").toEqual([]);
-    });
+        await expect(page.locator(
+          "#order-result .order-result-failed [data-out='message']",
+        )).toHaveText("This order can't be changed any more.");
+        await expect(page.locator("#order-lapsed"),
+          "no days are offered that the server would refuse").toBeHidden();
+        expect(datesSent(sent).filter((date) => date !== KEPT),
+          "no other day was sent in its place").toEqual([]);
+      });
   });
 
 test.describe("an order on a replaced Thursday, in the account (#643)",
