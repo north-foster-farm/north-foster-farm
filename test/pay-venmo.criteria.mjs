@@ -8,7 +8,9 @@
 // Provisional: phases 1 to 4 had not landed when this was written, so
 // the shape of the `Venmo` part is this file's, drawn from the design
 // (section 2, "How state moves") and built as phase 3's criteria
-// build `Card` (lane/cloud-869, test/pay-card.criteria.mjs):
+// build `Card`. They have landed since (2026-11-23): the constructor
+// and the port match `Card` and `Wallets` in pay/card.js and
+// pay/wallets.js, and attach(cfg) and `button` are still this file's:
 //
 //   import { Venmo } from "../assets/scripts/order/pay/venmo.js";
 //   const venmo = new Venmo({ root, section, checkout });
