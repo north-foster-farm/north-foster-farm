@@ -8,8 +8,9 @@
 // keys it only on what varies the answer.
 //
 // Provisional, written to the issue's proposal:
-// - the header is `Netlify-Vary: query=final,cookie=nff_stock_scope`.
-//   The test reads it as Netlify's caching overview describes it
+// - the header is `Netlify-Vary: query=final,cookie=nff_stock_scope`
+//   where pins are allowed and `query=final` elsewhere (revised
+//   below). The test reads it as Netlify's caching overview describes it
 //   ("Cache key variation"): comma-separated instructions, each
 //   `kind=list` with a pipe-delimited list. It holds the header to one
 //   `query` instruction naming only `final` and one `cookie`
@@ -19,6 +20,12 @@
 //   with both a listed and an unlisted parameter is keyed, and whether
 //   query and cookie combine as the comma rule implies. Neither can be
 //   settled in a unit test; these tests take the comma rule as given.
+//
+// Revised 2026-11-23 with the second criteria file
+// (stock-vary-2.criteria.mjs, from security's read of PR #996): pins
+// are never allowed in production, so there the header names no
+// cookie and is `query=final` alone. Box 1 here holds the production
+// answer to that, and the second file holds both sides of the cookie.
 //
 // Boxes 2 and 3 say the existing tests pass unedited: those are
 // test/stock-follow.test.mjs ("The check right before paying gets a
@@ -72,7 +79,8 @@ const varyOf = (headers) => {
   return out;
 };
 
-const KEYED = { cookie: ["nff_stock_scope"], query: ["final"] };
+// In production, where pins are never allowed (#994, second part).
+const KEYED = { query: ["final"] };
 
 // Whether the answer leaves anything at the edge.
 const stored = (headers) => edgeSeconds(headers) > 0
@@ -81,7 +89,8 @@ const stored = (headers) => edgeSeconds(headers) > 0
 
 describe("/api/stock's edge cache key (#994)", () => {
   it("The browsing answer from /api/stock carries Netlify-Vary naming "
-    + "only the final query parameter and the nff_stock_scope cookie",
+    + "only the final query parameter (and the nff_stock_scope cookie "
+    + "only where pins are allowed)",
   async () => {
     for (const path of ["/api/stock", "/api/stock?anything=random"]) {
       const res = await ask(path, "198.51.100.71");
