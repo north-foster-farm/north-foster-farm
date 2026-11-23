@@ -24,6 +24,7 @@ import {
 import terms from "../../netlify/functions/lib/terms.mjs";
 import { CUSTOMER, ORDER, dates } from "./canned.mjs";
 import { OrderPage, expect } from "./order.mjs";
+import { isChallenge } from "./challenge.mjs";
 import { answerAccount, clearSession } from "./staging.mjs";
 
 export const VFF = groupOf("vff");
@@ -135,9 +136,26 @@ export const signIn = async (page, baseURL, me, {
 
 // What the page did, for a staging run that keeps no trace (#729,
 // qa's triage of run 45134992415): each response's method, path and
-// status, the page's errors and console errors, the cookies' names
-// and the session cache's keys, and what the page's /api/me answers
-// said, as flags. No cookie value, token, query, body or address.
+// status, and whether it was Netlify's bot challenge; the page's
+// errors and console errors, by kind and source path alone; the
+// cookies' names and the storage keys; and what the page's /api/me
+// answers said, as flags. Never a message's text, which can quote a
+// URL's query or a field's value: no cookie value, token, query, body
+// or address.
+const KIND = /^[A-Za-z][A-Za-z ]{0,39}(?=:)/;
+const pathOf = (url) => {
+  try {
+    return new URL(url).pathname;
+  } catch {
+    return "";
+  }
+};
+// The first frame of a stack that names a URL: its path and line.
+const frameOf = (stack) => {
+  const m = String(stack || "").match(/(https?:[^\s)]+?):(\d+):\d+/);
+
+  return m ? `${pathOf(m[1])}:${m[2]}` : "";
+};
 const watchPage = (page) => {
   const seen = [];
   const add = (line) => {
@@ -155,12 +173,22 @@ const watchPage = (page) => {
 
       note = body ? ` signedIn=${!!body.signedIn} member=${
         !!(body.customer && body.customer.memberGroup)}` : " unread";
+    } else if (r.status() === 403) {
+      const body = await r.text().catch(() => "");
+
+      note = isChallenge(403, body) ? " challenge" : "";
     }
     add(`${r.request().method()} ${url.pathname} ${r.status()}${note}`);
   };
-  const onError = (e) => add(`pageerror ${String(e.message).slice(0, 200)}`);
+  const onError = (e) => add(`pageerror ${e.name || "Error"} ${
+    frameOf(e.stack)}`);
   const onConsole = (m) => {
-    if (m.type() === "error") add(`console ${m.text().slice(0, 200)}`);
+    if (m.type() !== "error") return;
+
+    const where = m.location() || {};
+    const kind = (m.text().match(KIND) || ["error"])[0];
+
+    add(`console ${kind} ${pathOf(where.url)}:${where.lineNumber ?? ""}`);
   };
 
   page.on("response", onResponse);
