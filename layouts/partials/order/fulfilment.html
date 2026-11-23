@@ -121,11 +121,11 @@
                    draw it (#703). Inside the column, since a row's
                    children are columns only (check:grid G2). */}}
               <span class="visually-hidden" id="scheduled-label">Pick-up day</span>
+              {{ partial "order/dates-message.html" "err-scheduled-date" }}
               <div class="order-pickups" id="scheduled-pickups" role="radiogroup" aria-labelledby="scheduled-label" aria-describedby="err-scheduled-date" tabindex="-1" data-field="fulfilment.occurrence" data-dates="scheduled">
                 <p class="order-windows-none">Loading pickups&hellip;</p>
               </div>
               {{ partial "order/pickup-days.html" . }}
-              <div class="invalid-feedback" id="err-scheduled-date" data-error-for="fulfilment.occurrence"></div>
               {{ partial "skeleton/status.html" (dict "failed" "We couldn't load the dates.") }}
             </div>
           </div>
@@ -242,10 +242,10 @@
           <div class="row">
             <div class="col-12">
               <span class="visually-hidden" id="group-label">Group order date</span>
+              {{ partial "order/dates-message.html" "err-group-date" }}
               <div class="order-pickups" id="group-pickups" role="radiogroup" aria-labelledby="group-label" aria-describedby="err-group-date" tabindex="-1" data-field="fulfilment.occurrence" data-dates="group">
                 <p class="order-windows-none">Loading group orders&hellip;</p>
               </div>
-              <div class="invalid-feedback" id="err-group-date" data-error-for="fulfilment.occurrence"></div>
             </div>
           </div>
         </div>

@@ -1057,10 +1057,13 @@
     }
   }
 
+  // A list of dates' message brings its way's title into view, clear
+  // of the sticky bar, with the message under it (#703).
   .order-method-title {
     display: block;
     margin-bottom: 0.375rem;
     font-weight: bold;
+    scroll-margin-top: calc(var(--order-topbar-h) + 0.75rem);
   }
 
   // Group orders with no round open (#749 item 6): "· no open group

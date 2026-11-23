@@ -12,6 +12,43 @@ const mark = (field, invalid) => {
   else field.removeAttribute("aria-invalid");
 };
 
+// A list of dates, Pick-up days' or Group orders' (#703, third
+// revision). Its message sits above the cards in a box marked
+// `data-error-mode`: a quiet hint on Proceed to checkout, with the
+// list left unmarked; an error on Place your order, announced, the
+// list marked and drawn with its red bar.
+const dates = (field) => !!field && field.hasAttribute("data-dates");
+
+const say = (slot, hint) => {
+  const box = slot.closest("[data-error-mode]");
+
+  if (!box) return;
+  box.dataset.errorMode = hint ? "hint" : "error";
+  if (hint) slot.removeAttribute("role");
+  else slot.setAttribute("role", "alert");
+};
+
+// Whether a list's message is the hint: `hint` true or false says, and
+// null keeps what it is, a hint unless an error is showing.
+const quiet = (field, slot, hint) => {
+  if (!dates(field)) return false;
+  if (hint !== null) return hint;
+
+  const box = slot && slot.closest("[data-error-mode]");
+
+  return !(box && box.dataset.errorMode === "error" && slot.textContent);
+};
+
+// Where an error is brought into view: a list of dates by its way's
+// title, so the message under it shows too; any other field itself.
+const reveal = (first) => {
+  const title = dates(first)
+    && first.closest(".order-method")?.querySelector(".order-method-title");
+
+  if (title) title.scrollIntoView({ block: "start", behavior: "smooth" });
+  else first.scrollIntoView({ block: "center", behavior: "smooth" });
+};
+
 export class Errors {
   constructor(form) {
     this.form = form;
@@ -66,37 +103,46 @@ export class Errors {
     }
 
     if (leftKey && errors[leftKey]) {
-      const slot = this.find("data-error-for", leftKey);
-      const field = this.find("data-field", leftKey);
-
-      if (slot) {
-        slot.textContent = errors[leftKey];
-        slot.style.display = "block";
-      }
-      if (field) mark(field, true);
+      // A list left without a choice stays a hint until an attempt
+      // to place the order makes it an error (#703).
+      this.put(leftKey, errors[leftKey], null);
     }
   }
 
-  show(errors) {
+  // One message in its slot and its field marked; a list of dates
+  // quietly, as a hint, when `hint` asks or, null, it is one already.
+  // -> the field, or else the slot.
+  put(key, message, hint) {
+    const slot = this.find("data-error-for", key);
+    const field = this.find("data-field", key);
+    const soft = quiet(field, slot, hint);
+
+    if (slot) {
+      say(slot, soft);
+      slot.textContent = message;
+      slot.style.display = "block";
+    }
+    if (field) mark(field, !soft);
+
+    return field || slot;
+  }
+
+  // Every error shown, the first brought into view and focused. With
+  // `hint` (Proceed to checkout), a list of dates says its message as
+  // a hint (#703).
+  show(errors, { hint = false } = {}) {
     this.clear();
 
     let first = null;
 
     for (const [key, message] of Object.entries(errors)) {
-      const slot = this.find("data-error-for", key);
-      const field = this.find("data-field", key);
+      const shown = this.put(key, message, hint);
 
-      if (slot) {
-        slot.textContent = message;
-        slot.style.display = "block";
-      }
-      if (field) mark(field, true);
-
-      first = first || field || slot;
+      first = first || shown;
     }
 
     if (first) {
-      first.scrollIntoView({ block: "center", behavior: "smooth" });
+      reveal(first);
       if (first.focus) first.focus({ preventScroll: true });
     }
   }

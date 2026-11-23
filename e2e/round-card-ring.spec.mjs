@@ -21,9 +21,11 @@
 //
 // Every reference is read from the same page, never written out: a
 // Pick-up days card (the Foster market, which has a place name) for
-// the round card, an invalid text input (the first name, emptied once
-// Pay has marked the errors) for the ring, and a pickup card for the
-// ring's radius.
+// the round card.
+//
+// The two ring boxes (Group orders' and Pick-up days') were superseded
+// by #703's third revision (2026-11-23), which takes the ring off both
+// lists; their tests left this file for e2e/pickup-hint.spec.mjs.
 //
 // The seam, what the tests rely on:
 // - a card of either list is an `.order-pickup`, its parts as
@@ -50,8 +52,8 @@
 // as the lapsed round's 409, so a page that posts without a round
 // fails at the ring, not at the server.
 
-import { OrderPage, expect, test } from "./support/order.mjs";
-import { FOSTER, cannedScheduled, datesWith } from "./support/scheduled.mjs";
+import { expect, test } from "./support/order.mjs";
+import { FOSTER, datesWith } from "./support/scheduled.mjs";
 import {
   GROUP_ORDERS, MEMBER, choose, openOrder, pick, rounds, signIn,
 } from "./support/vff.mjs";
@@ -126,70 +128,6 @@ const copyAt = (parts) => {
   return { where: "over the block", gap: NaN };
 };
 
-// The ring an element draws: its border, glow, radius and outline.
-const ringOf = async (locator) => {
-  await still(locator);
-
-  return locator.evaluate((el) => {
-    const s = getComputedStyle(el);
-    const sides = ["Top", "Right", "Bottom", "Left"];
-
-    return {
-      colors: sides.map((d) => s[`border${d}Color`]),
-      widths: sides.map((d) => s[`border${d}Width`]),
-      styles: sides.map((d) => s[`border${d}Style`]),
-      shadow: s.boxShadow,
-      radii: ["TopLeft", "TopRight", "BottomRight", "BottomLeft"]
-        .map((c) => s[`border${c}Radius`]),
-      outline: s.outlineStyle === "none" ? "0px" : s.outlineWidth,
-    };
-  });
-};
-
-// An invalid text input's ring, read from the page: the first name,
-// emptied and left once Pay has put errors on the page, then focused
-// for its glow.
-const invalidInput = async (page) => {
-  const input = page.locator("#customer-first-name");
-
-  await input.fill("");
-  await input.blur();
-  await expect(input, "the emptied first name is marked")
-    .toHaveClass(/\bis-invalid\b/);
-  await input.focus();
-
-  return ringOf(input);
-};
-
-// The ring on `list`, against an invalid input's and the radius of
-// the list's own cards, at the page's current width.
-const holdsRing = async (page, list, width) => {
-  const at = `at ${width}px`;
-
-  await expect(list, `the list is marked invalid ${at}`)
-    .toHaveClass(/\bis-invalid\b/);
-
-  const ring = await ringOf(list);
-  const radius = await list.locator(".order-pickup").first()
-    .evaluate((el) => getComputedStyle(el).borderTopLeftRadius);
-  const input = await invalidInput(page);
-
-  expect(input.shadow, `an invalid input glows when focused ${at}`)
-    .not.toBe("none");
-  expect(ring.colors, `the list's border color is the input's ${at}`)
-    .toEqual(input.colors);
-  expect(ring.widths, `the list's border width is the input's ${at}`)
-    .toEqual(input.widths);
-  expect(ring.styles, `the list's border style is the input's ${at}`)
-    .toEqual(input.styles);
-  expect(ring.shadow, `the list's glow is the input's ${at}`)
-    .toBe(input.shadow);
-  expect(ring.radii, `the list's radius is its cards' ${at}`)
-    .toEqual([radius, radius, radius, radius]);
-  expect(ring.outline, `no outline is left on the list ${at}`)
-    .toBe("0px");
-};
-
 // Pays with nothing missing but the day or round: the contact, then
 // the card, then Pay.
 const payWithoutChoice = async (order, email, phone) => {
@@ -199,7 +137,7 @@ const payWithoutChoice = async (order, email, phone) => {
   await order.submit.click();
 };
 
-test.describe("round cards and the lists' ring (#749, #703)", () => {
+test.describe("round cards (#749)", () => {
   test("A round card reads as a Pick-up days card does: the date as " +
     "its title, the time first under it, then the place name and its " +
     "address together as one block in the address style, with Copy " +
@@ -272,48 +210,12 @@ test.describe("round cards and the lists' ring (#749, #703)", () => {
     }
   });
 
-  test("When Group orders is chosen with no round picked, the round " +
-    "list shows the same ring as an invalid text input on the order " +
-    "page (its border color, glow and radius, read from the page), " +
-    "drawn around the list with the radius of its cards, in place of " +
-    "the thin red outline, as Pick-up days does",
-  async ({ page, baseURL }) => {
-    for (const size of SIZES) {
-      await page.setViewportSize(size);
-      await signIn(page, baseURL, MEMBER, { lists: lists() });
-      await noPosts(page);
-
-      const order = await openOrder(page, MEMBER);
-      const group = await choose(order, GROUP_ORDERS);
-      const list = page.locator("#group-pickups");
-
-      await expect(group.locator(".order-pickup").first()).toBeVisible();
-      await payWithoutChoice(order, MEMBER.customer.email,
-        MEMBER.customer.phone);
-      await holdsRing(page, list, size.width);
-    }
-  });
-
-  test("When Pick-up days is chosen with no day picked, the list shows " +
-    "the same ring as an invalid text input on the order page (its " +
-    "border color, glow and radius, read from the page), drawn around " +
-    "the list with the radius of its cards, in place of the thin red " +
-    "outline", async ({ page }) => {
-    for (const size of SIZES) {
-      await page.setViewportSize(size);
-      await cannedScheduled(page, lists());
-      await noPosts(page);
-
-      const order = new OrderPage(page);
-      const list = page.locator("#scheduled-pickups");
-
-      await order.open({ eggs: 1 }, { method: "scheduled" });
-      await expect(list.locator(".order-pickup").first()).toBeVisible();
-      await order.scrollSettled();
-      await payWithoutChoice(order, "ringed@example.com");
-      await holdsRing(page, list, size.width);
-    }
-  });
+  // The two ring tests that stood here (Group orders' round list and
+  // Pick-up days' list, each ringed as an invalid text input) went with
+  // #703's third revision (James, 2026-11-23): neither list has an
+  // outline or ring in any state. Their boxes are now the "Third
+  // revision" and "Third revision, Group orders" tests of
+  // e2e/pickup-hint.spec.mjs.
 });
 
 // #749's two wording boxes from James's picks on #761 (1b and 2b),
