@@ -39,7 +39,7 @@ import {
 } from "../assets/scripts/order/lib/zoned.mjs";
 import { dates } from "./support/canned.mjs";
 import { OrderPage, expect, settleCart, test } from "./support/order.mjs";
-import { answerAccount, clearSession } from "./support/staging.mjs";
+import { fakeSignIn } from "./support/staging.mjs";
 import {
   GROUP_ORDERS, MEMBER, VFF, choose, openOrder, radioValues, rounds,
   signIn, way,
@@ -100,25 +100,16 @@ const signInHost = async (page, baseURL, host) => {
     localStorage.clear();
     sessionStorage.clear();
   });
-  // The stamp goes before the page does, as vff.mjs's signIn says.
-  await clearSession(page.context());
-  await page.goto("about:blank");
-  await page.unrouteAll({ behavior: "ignoreErrors" });
-  await answerAccount(page.context());
-  await page.route("**/api/dates", (route) => route.fulfill({
-    json: dates(),
-  }));
-  await page.context().addCookies([
-    { name: "nff_signed_in", value: `host${Date.now()}`, url: baseURL },
-  ]);
-  await page.route("**/api/me", serve(authHandle, host));
-  await page.route("**/api/group", serve(groupHandle, host));
-  await page.route("**/api/account/cart", (route) => route.fulfill({
-    json: { ok: true, cart: null },
-  }));
-  await page.route("**/api/account/orders", (route) => route.fulfill({
-    json: { orders: [] },
-  }));
+  await fakeSignIn(page, baseURL, {
+    prefix: "host",
+    routes: [
+      ["**/api/dates", dates()],
+      ["**/api/me", serve(authHandle, host)],
+      ["**/api/group", serve(groupHandle, host)],
+      ["**/api/account/cart", { ok: true, cart: null }],
+      ["**/api/account/orders", { orders: [] }],
+    ],
+  });
 };
 
 // What a signed-in customer sees of the group on the order page: the

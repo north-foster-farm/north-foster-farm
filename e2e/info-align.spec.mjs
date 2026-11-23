@@ -29,7 +29,7 @@
 import groupData from "../data/groups.json" with { type: "json" };
 import { CUSTOMER, cannedDates } from "./support/canned.mjs";
 import { OrderPage, expect, settleCart, test } from "./support/order.mjs";
-import { clearSession } from "./support/staging.mjs";
+import { fakeSignIn } from "./support/staging.mjs";
 
 const WIDTHS = [390, 1440];
 const HEIGHT = 900;
@@ -52,30 +52,21 @@ const WHO = {
   free: { name: "free delivery only", perks: [perk("free-delivery")] },
 };
 
-let stamps = 0;
-
 // Signed in as the canned customer, holding `perks`, each sign-in on a
 // new session stamp so the session's cache never answers with the last
 // one's perks. `extra` adds to /api/me's answer.
-const signIn = async (page, baseURL, perks, extra = {}) => {
-  await page.unrouteAll({ behavior: "ignoreErrors" });
-  await clearSession(page.context());
-  await page.goto("about:blank");
-  stamps += 1;
-  await page.context().addCookies([
-    { name: "nff_signed_in", value: `ia${stamps}`, url: baseURL },
-  ]);
-  await page.route("**/api/me", (route) => route.fulfill({
-    json: { signedIn: true, customer: { ...CUSTOMER, perks }, ...extra },
-  }));
-  // Unanswered, the cart request gets a 401 that clears the stamp.
-  await page.route("**/api/account/cart", (route) => route.fulfill({
-    json: { ok: true, cart: null },
-  }));
-  await page.route("**/api/account/orders", (route) => route.fulfill({
-    json: { orders: [] },
-  }));
-};
+const signIn = (page, baseURL, perks, extra = {}) => fakeSignIn(
+  page, baseURL, {
+    prefix: "ia",
+    routes: [
+      ["**/api/me",
+        { signedIn: true, customer: { ...CUSTOMER, perks }, ...extra }],
+      // Unanswered, the cart request gets a 401 that clears the stamp.
+      ["**/api/account/cart", { ok: true, cart: null }],
+      ["**/api/account/orders", { orders: [] }],
+    ],
+  }
+);
 
 // The order page with two eggs in the cart, open and settled.
 const openCart = async (page) => {

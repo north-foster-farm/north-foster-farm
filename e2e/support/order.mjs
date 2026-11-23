@@ -6,7 +6,7 @@ import { readFileSync } from "node:fs";
 
 import { recorded } from "../../netlify/functions/lib/fake.mjs";
 import { test as base, expect } from "./counted.mjs";
-import { orderLimitHeaders } from "./staging.mjs";
+import { orderLimitHeaders, stubToolbar } from "./staging.mjs";
 import { PLENTY, stockFixtures } from "./stock.mjs";
 
 // SKUs and prices from data/catalog.json (price list 2026-v9). The
@@ -115,11 +115,7 @@ export const test = base.extend({
       // token and sends the request again without reading the first
       // answer, so the page never reaches "networkidle". Answered
       // here with a 403 it neither asks nor waits.
-      await page.route("**/api/staging/**", (route) => route.fulfill({
-        status: 403,
-        contentType: "application/json",
-        body: JSON.stringify({ error: "Stubbed by the QA suite." }),
-      }));
+      await stubToolbar(page);
       await page.addInitScript(() => {
         document.addEventListener("DOMContentLoaded", () => {
           const style = document.createElement("style");
