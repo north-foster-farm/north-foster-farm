@@ -800,6 +800,7 @@
         "e2e/membership.spec.mjs",
         "e2e/missed-delivery.spec.mjs",
         "e2e/onfarm-times.spec.mjs",
+        "e2e/order-link-shape.spec.mjs",
         "e2e/overflow.spec.mjs",
         "e2e/perk-label.spec.mjs",
         "e2e/perk-revision.spec.mjs",
