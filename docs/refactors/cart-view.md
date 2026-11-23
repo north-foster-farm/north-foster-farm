@@ -9,8 +9,11 @@ This document changes none of that.
 `assets/scripts/order/cart/view.mjs` is 1,207 lines, about 760 of
 them code: 37 exported names and no class (2026-11-22: it was 1,188
 lines and 36 names until #812, scroll once when ?add= opens the cart,
-added `focusAfterScroll`). It is everything about the
-cart that touches the viewport, the clock or the pane's own motion.
+added `focusAfterScroll`; 33 since the Knip gate of #782 dropped
+`COLUMN`, `SHORT`, `MOVE_MS` and `MOVE_ID`, which nothing imported
+through it, from the door). It is
+everything about the cart that touches the viewport, the clock or the
+pane's own motion.
 Nine functions run past 25 lines, and one, `moveParts`, is 97 lines
 long. Unlike the other big files it is already a set of separate
 functions with one caller, so the work is a split by concern and the
@@ -225,7 +228,7 @@ The order of reads and writes in those steps is the design of
 
 ### What stays as it is
 
-`view.mjs`'s 37 exports, by name; `cart.js`; `state.mjs`;
+`view.mjs`'s 33 exports, by name; `cart.js`; `state.mjs`;
 `lib/cart-scroll.mjs` and `lib/cart-touch.mjs`; the properties left
 on elements; every clock.
 
@@ -339,7 +342,7 @@ e2e: the eleven cart specs.
 
 ## 4. What must not change
 
-- **The 37 exports of `view.mjs`,** by name and behavior.
+- **The 33 exports of `view.mjs`,** by name and behavior.
 - **What the specs read:** the animation id `cart-move`, the count
   `pane.eases`, the attributes `data-pulse`, `data-show`,
   `data-scroll`, `data-top`, `data-more`, the classes `is-ringed`
@@ -388,6 +391,11 @@ None of these is fixed inside a move.
   thing. An `em` is read as a `rem`.
 - `animateFold` and `watchList` write 420 ms and the move's curve as
   literals beside `MOVE_MS` and `MOVE_EASE`.
-- `COLUMN` and `SHORT` are exported and nothing imports them.
+- `COLUMN` and `SHORT` are exported and nothing imports them. Fixed
+  2026-11-22 by the Knip gate of #782 ("Drop the cart view door's
+  unused re-exports"): they left the door, with `MOVE_MS` and
+  `MOVE_ID`, which since phase 4 (#894) only `view/move.js` and
+  `view/words.js` import, from `view/frames.mjs`; `view/queries.mjs`
+  still exports `COLUMN` and `SHORT` to `view/placement.js`.
 - `teach` returns `{ keep, cancel: keep }`: one function under two
   names.
