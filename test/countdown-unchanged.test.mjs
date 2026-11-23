@@ -30,13 +30,9 @@ import deliveryTerms from "../data/delivery.json" with { type: "json" };
 import { DateLists } from "../assets/scripts/order/date-lists.js";
 import { deliveryDates } from "../assets/scripts/order/lib/dates.mjs";
 import {
-  addDays, today,
-} from "../assets/scripts/order/lib/zoned.mjs";
-import { groupDates } from "../netlify/functions/group.mjs";
-import { groupOf } from "../netlify/functions/lib/groups.mjs";
-import terms from "../netlify/functions/lib/terms.mjs";
+  VFF, form as notices, made, rounds, settle, stop,
+} from "./countdown-page.mjs";
 
-const VFF = groupOf("vff");
 const NOV19 = "Thursday, November 19";
 const DEC3 = "Thursday, December 3";
 
@@ -83,45 +79,13 @@ const CASES = [
   ]],
 ];
 
-// The group's open rounds at `now`, as /api/group lists them.
-const rounds = (now) => groupDates(VFF, now, {
-  PICKUP_SCHEDULE: `${addDays(today(now, terms.timeZone), 1)} 09:00-12:00`,
-}).map((d) => ({ ...d, name: VFF.name }));
-
-const made = [];
-
-// The last run's page and clock stopped, so each run starts clean.
-const stop = () => {
-  for (const lists of made.splice(0)) {
-    clearTimeout(lists.timer);
-    clearTimeout(lists.closing);
-    clearTimeout(lists.again);
-  }
-  mock.timers.reset();
-};
-
 // Delivery's notice and Group orders' close notice, in one form.
 const page = () => {
   const chip = { dataset: {} };
   const text = { textContent: "" };
-  const close = { dataset: {}, hidden: false, textContent: "" };
 
-  close.querySelector = () => close;
-  const form = {
-    querySelector: (sel) => {
-      if (sel === "[data-countdown]") return chip;
-      if (sel === "[data-countdown-text]") return text;
-      if (sel.includes("data-group-close")) return close;
-
-      return null;
-    },
-    querySelectorAll: () => [],
-  };
-
-  return { form, chip, text };
+  return { form: notices(chip, text), chip, text };
 };
-
-const settle = () => new Promise((done) => setImmediate(done));
 
 // The notice from `iso` for `seconds`: each change, with its second.
 const watch = async (iso, seconds, offered, withRound) => {
