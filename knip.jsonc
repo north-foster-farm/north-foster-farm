@@ -53,6 +53,11 @@
   // their `export` would touch some 70 files, the big legacy scripts
   // among them, which the designs in docs/refactors/ split next.
   "ignoreExportsUsedInFile": true,
+  // A held-out criteria file is written before the code it tests and
+  // imports a module that does not exist yet; it is outside npm test
+  // and the build until its implementer renames it (#791 c7106666783).
+  // e2e/ holds no such file yet; Knip flags a pattern that matches none.
+  "ignore": ["test/**/*.criteria.mjs"],
   // Hugo's css.PostCSS (layouts/partials/head/styles.html) runs
   // postcss-cli's binary; no script names it.
   "ignoreDependencies": ["postcss-cli"],
