@@ -38,24 +38,12 @@
 
 import { siteNow } from "../clock/now.js";
 import { clearance, fit } from "./fit.mjs";
-
-const MAX_ZOOM = 5;
-
-// Pins stand this tall on screen at any zoom and any width; the shape
-// is drawn 45 units tall and 30 wide.
-const PIN_PX = 38;
-const PIN_UNITS = 45;
-const PIN_WIDTH_PX = PIN_PX * 30 / PIN_UNITS;
-
-// Places frames its pins with a pin's height to spare, and never closer
-// than a town: one pin alone is shown at this zoom (#214).
-const FIT_PAD_PX = PIN_PX;
-const FIT_MAX_ZOOM = 4;
-
-// Below this zoom, a nudged pin stands this far aside, in screen
-// pixels, so two places that meet at the whole map can both be tapped.
-const NUDGE_BELOW = 2;
-const NUDGE_PX = 14;
+import {
+  FIT_MAX_ZOOM, FIT_PAD_PX, MAX_ZOOM, NUDGE_BELOW, NUDGE_PX, PIN_PX,
+  atHome as atHomeOf, centreOf, clampView, easeOut, homeView,
+  onScreen as onScreenOf, pannedBy, pinScale, toMap as toMapOf, tweenAt,
+  zoomOf, zoomedAbout,
+} from "./view.mjs";
 
 // A pointer that moves further than this is dragging, not tapping.
 const SLOP = 6;
@@ -73,8 +61,6 @@ const toneOf = (area) => {
   if (area.classList.contains("is-away")) return "wait";
   return "no";
 };
-
-const easeOut = (t) => 1 - (1 - t) ** 3;
 
 // Today on the visitor's clock, moved by the staging toolbar's
 // (clock/now.js), to compare with the dates in the markup. Only
@@ -171,62 +157,37 @@ const wire = (map) => {
   // The view: the viewBox, and everything that must keep its size on
   // screen whatever the zoom (pins, the dropped pin and its tag).
 
-  const zoom = () => W / view.w;
+  // The sums are view.mjs's; these read the SVG and the view.
+  const size = { W, H };
+  const zoom = () => zoomOf(view, size);
 
-  const clamp = (v) => {
-    const w = Math.min(W, Math.max(W / MAX_ZOOM, v.w));
-    const h = w * (H / W);
-
-    return {
-      w,
-      h,
-      x: Math.min(W - w, Math.max(0, v.x)),
-      y: Math.min(H - h, Math.max(0, v.y)),
-    };
-  };
+  const clamp = (v) => clampView(v, size);
 
   // The layer's own view: the whole state on Delivery; on Places the
-  // box of the pins, a pin's height of room around each, at no more
-  // than a town's zoom.
+  // box of the pins showing (homeView).
   const home = () => {
-    const whole = { x: 0, y: 0, w: W, h: H };
     const shown = pins.filter((p) => !p.hasAttribute("hidden"));
 
-    if (layer() !== "places" || !shown.length) return whole;
+    if (layer() !== "places" || !shown.length) {
+      return homeView({ size, layer: layer(), pins: [], width: W });
+    }
 
-    const width = svg.getBoundingClientRect().width || W;
-    const height = width * H / W;
-    const xs = shown.map((p) => Number(p.dataset.x));
-    const ys = shown.map((p) => Number(p.dataset.y));
-    const spanX = Math.max(...xs) - Math.min(...xs);
-    const spanY = Math.max(...ys) - Math.min(...ys);
-    // The room a pin takes on screen, and its margin, which come out of
-    // the view's width: solve for the width that holds the pins' span
-    // plus those pixels.
-    const roomX = PIN_WIDTH_PX + 2 * (FIT_PAD_PX + NUDGE_PX);
-    const roomY = PIN_PX + 2 * FIT_PAD_PX;
-    const wideX = spanX / Math.max(0.05, 1 - roomX / width);
-    const wideY = spanY / Math.max(0.05, 1 - roomY / height) * W / H;
-    const w = Math.max(W / FIT_MAX_ZOOM, wideX, wideY);
-    const units = w / width;
-
-    return clamp({
-      w,
-      h: w * H / W,
-      x: (Math.min(...xs) + Math.max(...xs)) / 2 - w / 2,
-      // The pins stand above their tips: the box is higher by half a pin.
-      y: (Math.min(...ys) + Math.max(...ys)) / 2 - PIN_PX / 2 * units
-        - w * H / W / 2,
+    return homeView({
+      size,
+      layer: layer(),
+      pins: shown.map((p) => ({ x: Number(p.dataset.x),
+        y: Number(p.dataset.y) })),
+      width: svg.getBoundingClientRect().width || W,
     });
   };
 
-  // A point in map units on screen, in pixels from the frame's corner.
+  // A point in map units on screen, in pixels from the frame's corner,
+  // with the frame's size.
   const onScreen = (x, y) => {
     const box = svg.getBoundingClientRect();
 
     return {
-      x: (x - view.x) / view.w * box.width,
-      y: (y - view.y) / view.h * box.height,
+      ...onScreenOf(view, box, { x, y }),
       width: box.width,
       height: box.height,
     };
@@ -275,18 +236,13 @@ const wire = (map) => {
   };
 
   // True at the layer's own view, where the globe has nothing to do.
-  const atHome = () => {
-    const h = home();
-
-    return Math.abs(h.w - view.w) < 0.5 && Math.abs(h.x - view.x) < 0.5
-      && Math.abs(h.y - view.y) < 0.5;
-  };
+  const atHome = () => atHomeOf(view, home());
 
   const apply = () => {
     const k = zoom();
     const width = svg.getBoundingClientRect().width || W;
     const units = view.w / width;
-    const s = (PIN_PX / PIN_UNITS * units).toFixed(4);
+    const s = pinScale(view, width);
     const nudged = k < NUDGE_BELOW;
 
     svg.setAttribute("viewBox", `${view.x} ${view.y} ${view.w} ${view.h}`);
@@ -322,16 +278,12 @@ const wire = (map) => {
     const from = { ...view };
     const start = performance.now();
     const step = (now) => {
-      const t = easeOut(Math.min(1, (now - start) / 220));
+      const t = Math.min(1, (now - start) / 220);
 
-      view = {
-        x: from.x + (to.x - from.x) * t,
-        y: from.y + (to.y - from.y) * t,
-        w: from.w + (to.w - from.w) * t,
-        h: from.h + (to.h - from.h) * t,
-      };
+      view = tweenAt(from, to, t);
       apply();
-      if (t < 1) tween = requestAnimationFrame(step);
+      // Runs until the eased step reaches the end.
+      if (easeOut(t) < 1) tween = requestAnimationFrame(step);
     };
 
     tween = requestAnimationFrame(step);
@@ -339,28 +291,14 @@ const wire = (map) => {
 
   // Zoom by a factor about a point in map units.
   const zoomAbout = (factor, px, py, animate) => {
-    const w = view.w / factor;
-    const h = view.h / factor;
-
-    go({
-      w,
-      h,
-      x: px - (px - view.x) / factor,
-      y: py - (py - view.y) / factor,
-    }, animate);
+    go(zoomedAbout(view, factor, { x: px, y: py }), animate);
   };
 
   // A point on screen in map units.
-  const toMap = (clientX, clientY) => {
-    const box = svg.getBoundingClientRect();
+  const toMap = (clientX, clientY) => toMapOf(view,
+    svg.getBoundingClientRect(), { x: clientX, y: clientY });
 
-    return {
-      x: view.x + (clientX - box.left) / box.width * view.w,
-      y: view.y + (clientY - box.top) / box.height * view.h,
-    };
-  };
-
-  const centre = () => ({ x: view.x + view.w / 2, y: view.y + view.h / 2 });
+  const centre = () => centreOf(view);
 
   zoomIn.addEventListener("click", () => {
     const c = centre();
@@ -841,11 +779,9 @@ const wire = (map) => {
     if (zoom() <= 1.01) return;
     if (!dragging) svg.setPointerCapture(e.pointerId);
     dragging = true;
-    go({
-      ...startView,
-      x: startView.x - dx * perPixel,
-      y: startView.y - dy * perPixel,
-    }, false);
+    // The drag's pixels in the units of the view showing, as before
+    // pannedBy, which reads them from the view it moves.
+    go(pannedBy(startView, { dx, dy }, startView.w / perPixel), false);
   });
 
   const up = (e) => {
