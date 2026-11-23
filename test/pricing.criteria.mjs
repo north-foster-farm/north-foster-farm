@@ -28,7 +28,6 @@
 //                                                   options, in part
 
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
 import terms from "../data/delivery.json" with { type: "json" };
@@ -36,6 +35,7 @@ import { moneyOn } from "../assets/scripts/order/lib/money-on.mjs";
 import { lockOn } from "../assets/scripts/order/lib/totals.mjs";
 import { zipInfo } from "../assets/scripts/order/lib/validate.mjs";
 import { instant } from "../assets/scripts/order/lib/zoned.mjs";
+import { assertPure } from "./pure-module.mjs";
 import {
   amountDue, checkOptions, lockOf, pricesOn, rulesOf, totalsArgs,
 } from "../assets/scripts/order/form/pricing.mjs";
@@ -234,11 +234,10 @@ describe("checkOptions", () => {
 
 describe("design, phase 6", () => {
   it("keeps form/pricing.mjs pure", () => {
-    const code = readFileSync(MODULE, "utf8")
-      .replace(/\/\/.*$/gm, "")
-      .replace(/\/\*[\s\S]*?\*\//g, "");
-
-    assert.doesNotMatch(code,
-      /(?<![.\w])(document|window)\.|\b(querySelector|Date\.now|Element)\b/);
+    assertPure(MODULE, {
+      banned: ["(?<![.\\w])document(?=\\.)", "(?<![.\\w])window(?=\\.)",
+        "querySelector", "Date\\.now", "Element"],
+      imports: null,
+    });
   });
 });
