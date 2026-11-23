@@ -49,7 +49,8 @@ import { join } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { promisify } from "node:util";
 
-import { ghApi, printable } from "./e2e/dispatch.mjs";
+import { ghApi } from "./e2e/dispatch.mjs";
+import { printable } from "./e2e/printable.mjs";
 import { REPO } from "./promote.mjs";
 
 const execute = promisify(execFile);

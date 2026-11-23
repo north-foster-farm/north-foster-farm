@@ -18,7 +18,7 @@
 // doubt refuses: a log that cannot be read, a test with no report or
 // two, an attempt that failed otherwise.
 
-import { printable } from "./e2e/dispatch.mjs";
+import { printable } from "./e2e/printable.mjs";
 
 export const EXEMPTIONS = "e2e/staging-exempt.json";
 

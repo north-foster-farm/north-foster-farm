@@ -9,7 +9,8 @@ import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
 import { after, before, describe, it } from "node:test";
 
-import { ghApi, printable } from "../bin/e2e/dispatch.mjs";
+import { ghApi } from "../bin/e2e/dispatch.mjs";
+import { printable } from "../bin/e2e/printable.mjs";
 
 const HOSTILE = "\u001b]0;owned\u0007HTTP 422: \u001b[31mbad\u001b[0m"
   + " \u009b2J‮ref‬\nsecond \u0000line";

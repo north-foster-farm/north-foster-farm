@@ -14,7 +14,7 @@
 // with whole-line patterns, and what comes back is printable().
 
 import { PROJECTS } from "../../e2e/support/projects.mjs";
-import { printable } from "./dispatch.mjs";
+import { printable } from "./printable.mjs";
 
 // A log line as a person reads it: no timestamp, no escape sequences.
 const bare = (line) => printable(String(line)

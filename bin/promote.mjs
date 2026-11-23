@@ -63,7 +63,7 @@ import { promisify } from "node:util";
 
 import { collectFindings, npmAudit, summary } from "./audit/check.mjs";
 import { evaluate, incompleteExceptions } from "./audit/findings.mjs";
-import { printable } from "./e2e/dispatch.mjs";
+import { printable } from "./e2e/printable.mjs";
 import {
   SHIPPED_PAST, flakyInLog, named, retriedInLog, shippedPast,
   shippedPastItem,

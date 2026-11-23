@@ -9,8 +9,9 @@ import { describe, it } from "node:test";
 
 import {
   changedArgs, checkSpecs, dispatchInputs, e2eCommand, failureLine,
-  failuresInLog, pageOf, printable,
+  failuresInLog, pageOf,
 } from "../bin/e2e/dispatch.mjs";
+import { printable } from "../bin/e2e/printable.mjs";
 
 const fixture = (name) => readFileSync(
   new URL(`fixtures/github/${name}`, import.meta.url), "utf8");
