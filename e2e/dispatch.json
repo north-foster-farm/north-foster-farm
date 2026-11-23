@@ -709,6 +709,7 @@
         "e2e/pickup-days-revision.spec.mjs",
         "e2e/pickup-days-status.spec.mjs",
         "e2e/pickup-days.spec.mjs",
+        "e2e/pickup-hint.spec.mjs",
         "e2e/pickup-horizon.spec.mjs",
         "e2e/place-order-pane.spec.mjs",
         "e2e/pricing.spec.mjs",
@@ -1980,6 +1981,7 @@
         "e2e/group-credit.spec.mjs",
         "e2e/group-orders.spec.mjs",
         "e2e/host-member.spec.mjs",
+        "e2e/pickup-hint.spec.mjs",
         "e2e/round-card-ring.spec.mjs"
       ]
     },
