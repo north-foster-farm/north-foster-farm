@@ -12,7 +12,8 @@ The work is small for what it removes. Eleven import edges carry
 every cycle. Each one carries a handful of names, and each name is a
 pure helper or a thin wrapper that sits in the wrong file. Moving
 those names, and nothing else, leaves no cycle. No function's body
-changes.
+changes. The one export added is `line` from `log.mjs`, for
+`with-log.mjs` alone (phase 2).
 
 ## 1. The graph today
 
@@ -141,14 +142,22 @@ The names the fakes take are the shapes, with no call in them:
 
 - `withLog` is imported by every one of the 24 function files and
   by two tests, `test/health.test.mjs` (with `alertCrash`) and
-  `test/log-slow.test.mjs`. Nothing in `bin/` imports either.
-- `ping`: `jobs.mjs`, `breaker.mjs`, `backup.mjs` (the function),
-  `test/health.test.mjs`, `test/morning-ping.test.mjs`.
-- `cutoffAt`: `account.mjs`, `test/jobs.test.mjs`.
-- `holderOf`: `account.mjs`, `admin.mjs`,
-  `test/account-change-holder.test.mjs`.
-- `paymentPending`: `admin.mjs`, `test/farm-orders.test.mjs`.
-- `orderId`: `farm-orders.mjs`, `test/orders.test.mjs`.
+  `test/log-slow.test.mjs`. Nothing in `bin/` imports either. Both
+  tests import names that stay in `log.mjs` on the same line
+  (`configured`, `flush`, `log`, `pending`, `trimStack` in the one,
+  `SLOW_MS` and `testOf` in the other).
+- `ping`: `lib/breaker.mjs`, `lib/jobs.mjs`, `lib/backup.mjs`,
+  `lib/packing.mjs`, the function `jobs.mjs`, `test/health.test.mjs`
+  and `test/setup.test.mjs`.
+- `cutoffAt`: `lib/account.mjs`, `test/jobs.test.mjs`.
+- `holderOf` (`amend.mjs`'s): `lib/account.mjs`, `lib/admin.mjs`.
+  `test/account-change-holder.test.mjs` names it only in a comment.
+  `records.mjs` has a private `holderOf` of its own, a different
+  function (the key a stored checkout lives under).
+- `paymentPending`: `lib/admin.mjs`. `PENDING_MS`:
+  `test/farm-orders.test.mjs`.
+- `orderId`: `lib/farm-orders.mjs`, `test/orders.test.mjs` and
+  `test/fake.test.mjs`.
 - No test mocks a module (`mock.module` appears nowhere), so a
   re-export is as good as the original to every caller.
 
@@ -159,8 +168,9 @@ The names the fakes take are the shapes, with no call in them:
 A library imports only libraries below it. The order, lowest first:
 
 ```
-leaves     log, mask, order-id, gate, http, site, terms, company,
-           alerts-guide, and the new pure modules below
+leaves     log, mask, gate, http, site, terms, company,
+           alerts-guide, holder, and the new pure modules below,
+           then order-id, whose one import from lib/ is terms
 storage    store, clock, resend-guard, ping
 records    auth-records, address-key, records, pickups, describe
 words      templates
@@ -188,6 +198,7 @@ All in `netlify/functions/lib/`. Sizes are lines, estimated.
 ```
 with-log.mjs       withLog, alertCrash, where                   95
 ping.mjs           ping, PING_TIMEOUT                           30
+holder.mjs         holderOf                                      5
 cutoff.mjs         cutoffAt                                     20
 pay-pending.mjs    PENDING_MS, pendingKey, paymentPending       25
 square-shapes.mjs  SquareError, DECLINE_MESSAGES, failure,
@@ -201,11 +212,25 @@ square-shapes.mjs  SquareError, DECLINE_MESSAGES, failure,
 paypal-shapes.mjs  PayPalError, captureOf, orderOf, refundOf    60
 ```
 
-Six new modules, and about 650 lines moved, none written anew.
+Seven new modules, and about 650 lines moved, none written anew.
+
+`with-log.mjs` imports `line` from `log.mjs`, which exports it for
+`with-log.mjs` alone, with a comment saying so. `withLog`'s three
+calls to `line` stay as they are, so no body changes and there is
+still one buffer, `log.mjs`'s.
+
+`pay-pending.mjs` exports `pendingKey`, private in `farm-orders.mjs`
+today, since `farm-orders`' claim helpers still write the key.
+
+`holder.mjs` is new because `records.mjs`, the home the first draft
+gave `amend`'s `holderOf`, has a private `holderOf` of its own for
+checkouts. A new leaf keeps both names and both bodies as they are.
 
 `orderId` and `ID_LENGTH` join `ORDER_ID` in the existing
-`order-id.mjs`, and `holderOf` joins the order readers in
-`records.mjs` (`paymentsOf`, `paymentRef`, `questionOpen`).
+`order-id.mjs`. `orderId` reads `terms.timeZone`, so `order-id.mjs`
+then imports `terms.mjs`, a leaf, and nothing else from `lib/`. It
+also imports `parts` from `assets/scripts/order/lib/zoned.mjs` and
+`createHash` from `node:crypto`, as `orders.mjs` does today.
 
 `square-shapes.mjs` takes every private helper `buildOrder` and
 `buildChangeOrder` reach (`money`, `stateFor`, `staffNote`,
@@ -224,12 +249,14 @@ freely.
 name                  from                 to                 kept by
 withLog, alertCrash   log.mjs              with-log.mjs       none
 where (private)       log.mjs              with-log.mjs       -
+line                  log.mjs (private)    log.mjs (export)   -
 ping, PING_TIMEOUT    health.mjs           ping.mjs           health
 cutoffAt              jobs.mjs             cutoff.mjs         jobs
-holderOf              amend.mjs            records.mjs        amend
+holderOf              amend.mjs            holder.mjs         amend
 paymentPending,
 PENDING_MS            farm-orders.mjs      pay-pending.mjs    farm-orders
-pendingKey (private)  farm-orders.mjs      pay-pending.mjs    -
+pendingKey            farm-orders.mjs      pay-pending.mjs    -
+                      (private)            (exported)
 orderId, ID_LENGTH    ../orders.mjs        order-id.mjs       orders.mjs
 the Square shapes     square.mjs           square-shapes.mjs  square
 the PayPal shapes     paypal.mjs           paypal-shapes.mjs  paypal
@@ -239,15 +266,17 @@ the PayPal shapes     paypal.mjs           paypal-shapes.mjs  paypal
 tests included, are not edited. A re-export is an import edge, so it
 is safe only from a module above the new home. `log.mjs` cannot keep
 `withLog` that way: `log` would import `with-log`, which imports
-`log`. So the 24 function files and the two tests change one import
-line each (phase 2). It is the one move every caller sees.
+`log`. So the 24 function files change one import line each, and
+the two tests split one import in two, since each also takes names
+that stay in `log.mjs` (phase 2). It is the one move every caller
+sees.
 
 Then the importers that made the cycles point at the new homes:
 
 - `breaker.mjs` imports `ping` from `ping.mjs`;
-- `account.mjs` imports `holderOf` from `records.mjs` and `cutoffAt`
+- `account.mjs` imports `holderOf` from `holder.mjs` and `cutoffAt`
   from `cutoff.mjs`;
-- `admin.mjs` imports `holderOf` from `records.mjs` and
+- `admin.mjs` imports `holderOf` from `holder.mjs` and
   `paymentPending` from `pay-pending.mjs`;
 - `farm-orders.mjs` imports `orderId` from `order-id.mjs`, and its
   claim helpers take `pendingKey` and `PENDING_MS` from
@@ -258,7 +287,8 @@ Then the importers that made the cycles point at the new homes:
 
 - `log.mjs` keeps `scrub`, `log`, `pending`, `FIXED`, `MAP`,
   `shape`, `configured`, `flush`, `trimStack`, `SLOW_MS`, `testOf`,
-  and the one `buffer`. It imports nothing from `lib/`.
+  `line`, now exported for `with-log.mjs` alone, and the one
+  `buffer`. It imports nothing from `lib/`.
 - `withLog`'s signature: `(name, handler, { onCrash, flushImpl,
   now })`, and the one-argument form, which names the function
   "unnamed".
@@ -283,9 +313,10 @@ server:
   `e2e/dispatch.json`, so `bin/nff e2e` runs every spec, in Actions,
   against a local build with fake payments, at most one run an hour.
   The specs named under a phase are the ones to read first.
-- **No `Record-shape` change.** Phases 2, 4 and 5 touch files that
-  `bin/check-record-shape.mjs` lists (`store`, `records`, `account`,
-  `admin`, `edit`), so each carries `Record-shape: none`.
+- **No `Record-shape` change.** Phase 4 edits `account.mjs` and
+  `admin.mjs`, which `bin/check-record-shape.mjs` lists, so it
+  carries `Record-shape: none`. As planned, no other phase edits a
+  listed file. One that comes to edit one carries the trailer too.
 - **The baseline shrinks with each phase.** Once step 8 is on
   `next`, a phase deletes the entries it ends from
   `.dependency-cruiser-known-violations.json` in the same commit,
@@ -325,10 +356,12 @@ Done when:
   for an error the fake throws (test)
 - [ ] The names `square.mjs` and `paypal.mjs` export are the same
   set as before (test: the list, written out)
-- [ ] `square.test`, `square-replay.test`, `paypal.test`,
-  `paypal-recorder.test`, `fake.test`, `fake-paypal.test` and
+- [ ] `square.test`, `square-replay.test`, `square-fixtures.test`,
+  `paypal.test`, `paypal-recorder.test`, `paypal-fixtures.test`,
+  `fake.test`, `fake-square.test`, `fake-paypal.test` and
   `fake-paypal-webhook.test` pass unedited (guard)
-- [ ] The fakes' two entries are gone from the baseline (guard)
+- [ ] The fakes' two entries are gone from the baseline (guard, once
+  step 8 is on `next`)
 
 e2e: `fake-payments`, `payment`, `orders-api`, `wallets`,
 `venmo-paid`, `square-fulfilment`, `farm-refund`.
@@ -337,9 +370,22 @@ e2e: `fake-payments`, `payment`, `orders-api`, `wallets`,
 
 Moves `withLog`, `alertCrash` and `where` to `with-log.mjs`. The 24
 function files and the two tests import `withLog` (and
-`alertCrash`) from there. The test edits are one import line each,
-with no expectation changed, in the test agent's patch. The comment
-in `clock.mjs` that names "lib/log.mjs, withLog" moves with it.
+`alertCrash`) from there.
+
+`withLog` calls `log.mjs`'s private `line` three times (the
+`function.slow`, `function.crashed` and `function.crash_alert_failed`
+lines). `log.mjs` exports `line` for `with-log.mjs` alone, with a
+comment above it saying so, and `with-log.mjs` imports it. The three
+calls stay as they are, so no function's body changes and there is
+still one log buffer. Switching them to `log.warn` and `log.error`
+would behave the same but change a body, so the series does not.
+
+Each function file changes one import line. `test/health.test.mjs`
+and `test/log-slow.test.mjs` each split one import in two: `withLog`
+(and `alertCrash`) from `with-log.mjs`, the rest still from
+`log.mjs`. No expectation changes, and the edits are in the test
+agent's patch. The comment in `clock.mjs` that names "lib/log.mjs,
+withLog" moves with it.
 
 Done when:
 
@@ -352,6 +398,10 @@ Done when:
   `netlify/functions/` that names `withLog`)
 - [ ] `with-log.mjs` reaches `health.mjs` and `store.mjs` only
   through `import()` (test)
+- [ ] `with-log.mjs` takes `line` from `log.mjs`, and no other module
+  under `netlify/functions/` or `bin/` imports `line` (guard: a check
+  in `test/server-imports.test.mjs` that reads every file's import
+  specifiers, and stays after the series so a new importer fails)
 - [ ] `withLog` flushes the lines `log` buffered during the handler,
   so there is one buffer, `log.mjs`'s (test: a line logged inside a
   wrapped handler reaches `flushImpl`, and `pending()` is 0 after)
@@ -359,7 +409,7 @@ Done when:
   import lines only, and `log-fields.test`, `clock.test` and
   `staging.test` pass unedited (guard)
 - [ ] The baseline holds no entry that runs through `log.mjs`
-  (guard)
+  (guard, once step 8 is on `next`)
 
 e2e: the full suite. Read first: `maintenance`, `rate-limit`,
 `orders-api`, `staging-toolbar` (the clock cookie through
@@ -383,21 +433,27 @@ Done when:
 - [ ] `breaker.test`, `health.test`, `morning-ping.test`,
   `quiet-morning.test`, `mail.test` and `maintenance.test` pass
   unedited (guard)
-- [ ] The baseline holds only the accounts' entries (guard)
+- [ ] The baseline holds only the accounts' entries (guard, once
+  step 8 is on `next`)
 
 e2e: the full suite. Read first: `customer-emails`,
 `contact-send`, `maintenance`.
 
 ### Phase 4: accounts above admin
 
-Moves `holderOf` to `records.mjs` (`amend.mjs` re-exports it),
+Moves `holderOf` to `holder.mjs` (`amend.mjs` re-exports it),
 `cutoffAt` to `cutoff.mjs` (`jobs.mjs` re-exports it), and
 `paymentPending`, `PENDING_MS` and `pendingKey` to
-`pay-pending.mjs` (`farm-orders.mjs` re-exports the first two).
-`account.mjs` and `admin.mjs` import from the new homes.
+`pay-pending.mjs`, which exports all three (`farm-orders.mjs`
+re-exports the first two and imports `pendingKey` for its claim
+helpers). `account.mjs` and `admin.mjs` import from the new homes.
+`records.mjs` and its own private `holderOf` are not edited.
 
-After it the accounts have no cycle, though `farm-orders.mjs` still
-imports `orders.mjs`.
+After it no cycle is left anywhere. `farm-orders.mjs` still imports
+`orders.mjs`, but `orders.mjs` reaches only `account`, which then
+reaches only `admin`, and `admin` reaches nothing in the tangle. So
+the edge sits on no cycle, and phase 5 is a layering fix, not a
+cycle fix.
 
 Done when:
 
@@ -406,7 +462,10 @@ Done when:
 - [ ] `admin.mjs` imports nothing from `amend.mjs` or
   `farm-orders.mjs` (test)
 - [ ] `cutoff.mjs` and `pay-pending.mjs` import nothing from `lib/`
-  but `terms.mjs` and `clock.mjs` (test)
+  but `terms.mjs` and `clock.mjs`, and `holder.mjs` nothing at all
+  (test)
+- [ ] No module among the 8 of the accounts reaches itself through
+  its imports (test: a walk of the graph from each)
 - [ ] The re-exported names are the same bindings as at their new
   homes (test)
 - [ ] `pay-pending/<id>` is still the key a claim writes and
@@ -416,29 +475,31 @@ Done when:
 - [ ] `account.test`, `account-change-holder.test`, `admin.test`,
   `amend.test`, `jobs.test`, `farm-orders.test`, `edit.test` and
   `edit-switch-cancel.test` pass unedited (guard)
+- [ ] The baseline is empty (guard, once step 8 is on `next`)
 
 e2e: the full suite. Read first: `cancel-order`, `edit-order`,
 `edit-switch`, `farm-refund`, `account-rounds`, `account`.
 
 ### Phase 5: no library imports a function
 
-Before it, the fix for `ORDER_ID` (section 6) lands as its own
-commit, since this phase moves code into the same file.
+A layering fix: phase 4 already ended every cycle. This phase starts
+only after #937 (the fix for `ORDER_ID`, section 6) is on `next`,
+since it moves code into the same file.
 
 Moves `orderId` and `ID_LENGTH` to `order-id.mjs`. `orders.mjs`
 re-exports both. `farm-orders.mjs` imports `orderId` from
-`order-id.mjs`.
+`order-id.mjs`. `orderId` reads `terms.timeZone`, so `order-id.mjs`
+gains an import of `terms.mjs`, a leaf.
 
 Done when:
 
 - [ ] No module under `lib/` imports a file outside `lib/` in
   `netlify/functions/` (test)
-- [ ] `order-id.mjs` imports nothing from `lib/` (test)
+- [ ] `order-id.mjs` imports only `terms.mjs` from `lib/` (test)
 - [ ] `orders.orderId` is the same binding as `order-id.mjs`'s
   (test)
-- [ ] `orders.test`, `farm-orders.test` and `records.test` pass
-  unedited (guard)
-- [ ] The baseline is empty (guard)
+- [ ] `orders.test`, `fake.test`, `farm-orders.test` and
+  `records.test` pass unedited (guard)
 
 e2e: the full suite. Read first: `orders-api`, `payment`,
 `farm-refund`.
@@ -459,8 +520,9 @@ Done when:
   lint` (guard: `test/quality-cycles.criteria.mjs`, once renamed
   `.test.mjs` by step 8)
 - [ ] The #791 entry is marked resolved, with this phase's pull
-  request named
-- [ ] #925's boxes are ticked and the issue is closed
+  request named (guard: the coordinator's landing check)
+- [ ] #925's boxes are ticked and the issue is closed (guard: the
+  coordinator's landing check)
 
 No e2e: no server code changes.
 
@@ -474,7 +536,12 @@ Each item names how it is checked.
   the existing unit tests passing unedited.
 - **One log buffer.** `withLog` must flush `log.mjs`'s buffer, never
   a copy. Two buffers would lose every line from the console's
-  shipment to Axiom without a failing request. Phase 2's flush test.
+  shipment to Axiom without a failing request. `log.mjs` exports its
+  `line` for `with-log.mjs` alone, with a comment saying so, and
+  `withLog`'s three calls to it stay as they are, so the lines go
+  into the one buffer through the same function as today. Phase 2's
+  flush test checks that no second buffer exists, and its import
+  check that no other module takes `line`.
 - **What loads at a cold start.** `health` and `store` stay behind
   `import()` in `with-log.mjs`. Phase 2's test, which fails on a
   static import.
@@ -529,7 +596,8 @@ Each item names how it is checked.
 
 None of these is fixed inside a move.
 
-- **`ORDER_ID` matches only the old ids.** `order-id.mjs` holds
+- **`ORDER_ID` matches only the old ids,** filed as #937
+  (2026-11-23). `order-id.mjs` holds
   `/^NFF-\d{4}-[A-Z0-9]{4}$/` and says "four characters", but ids
   have had six since #253 (`ID_LENGTH = 6`, `orders.mjs`). Three
   readers test it: `jobs.leftOpen`, so the daily Square sweep never
@@ -539,8 +607,8 @@ None of these is fixed inside a move.
   which masks a key part holding a new id as `***` (the safe way).
   The tests use four-character ids (`jobs.test.mjs`, around line
   1290), so nothing catches it. `square.mjs`'s `SITE_REFERENCE` has
-  the same `{4}`. This is a behavior fix and lands first, with
-  tests, before phase 5.
+  the same `{4}`. This is a behavior fix, with tests, and lands
+  under #937 before the series' phase 5 starts.
 - `clock.mjs`, `fake.mjs` and `resend-guard.mjs` import `store.mjs`
   for `deployContext` alone, a 2-line read of the environment. It
   makes no cycle once `log.mjs` is a leaf, so this series leaves it.
@@ -555,20 +623,22 @@ None of these is fixed inside a move.
 
 ## 7. The issues to file
 
-For the coordinator, in this order. Each is one pull request.
+For the coordinator, in this order. Each is one pull request. The
+`ORDER_ID` bug (section 6) is already filed as #937 and is not one
+of them, but phase 5 waits for it.
 
-1. **`ORDER_ID` matches only four-character order ids** (section 6).
-   A bug fix with tests, ahead of the series.
-2. **#925 phase 1:** move Square's and PayPal's shapes out of the
+1. **#925 phase 1:** move Square's and PayPal's shapes out of the
    drivers.
-3. **#925 phase 2:** move `withLog` to `lib/with-log.mjs`, so
+2. **#925 phase 2:** move `withLog` to `lib/with-log.mjs`, so
    `log.mjs` imports nothing.
-4. **#925 phase 3:** move `ping` to `lib/ping.mjs`, below the
+3. **#925 phase 3:** move `ping` to `lib/ping.mjs`, below the
    breaker.
-5. **#925 phase 4:** move `holderOf`, `cutoffAt` and
-   `paymentPending` below `account` and `admin`.
-6. **#925 phase 5:** move `orderId` into `lib/order-id.mjs`.
-7. **#925 phase 6:** retire the cycle baseline (or fold it into #782
+4. **#925 phase 4:** move `holderOf`, `cutoffAt` and
+   `paymentPending` below `account` and `admin`. It ends the last
+   cycle.
+5. **#925 phase 5:** move `orderId` into `lib/order-id.mjs`, a
+   layering fix, after #937 is on `next`.
+6. **#925 phase 6:** retire the cycle baseline (or fold it into #782
    step 8 if that has not landed).
 
 Each phase issue copies its "Done when" list from section 3.
