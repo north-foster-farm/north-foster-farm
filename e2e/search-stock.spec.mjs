@@ -21,7 +21,9 @@
 import { readFileSync } from "node:fs";
 
 import { SUITE_STOCK, expect, test } from "./support/order.mjs";
+import { findInSearch } from "./support/search.mjs";
 import { PLENTY } from "./support/stock.mjs";
+import { stubStock } from "./support/stock-stub.mjs";
 
 const catalog = JSON.parse(readFileSync(
   new URL("../data/catalog.json", import.meta.url), "utf8"
@@ -49,37 +51,10 @@ test.afterEach(({ page }) => page.unrouteAll({
   behavior: "ignoreErrors",
 }));
 
-// /api/stock as the server gives it, with `over` laid on top: the
-// server never counts a product the catalog has out, so only a stub
-// can.
-const stubStock = (page, over) => page.route("**/api/stock",
-  async (route) => {
-    const res = await route.fetch();
-    const body = await res.json();
-
-    Object.assign(body.items, over);
-    await route.fulfill({ response: res, json: body });
-  });
-
-// Opens search as a customer would (from the magnifier, at every
-// width, #913), types the query and waits for live stock, applied.
-// -> the product option for `sku`, which may be absent.
-const find = async (page, query, sku) => {
-  const field = page.getByRole("combobox", { name: /search/i });
-  const region = page.getByRole("search").filter({ has: field });
-
-  await page.getByRole("banner")
-    .getByRole("button", { name: /^(open |close )?search$/i }).click();
-  await expect(field).toBeFocused();
-  await field.fill(query);
-  // The panel shows once the index is in and the query rendered, with
-  // results or with none: a hidden product out of stock may leave none.
-  await expect(region).toHaveAttribute("data-stock", "ready");
-  await expect(region.locator("[data-find-panel]")).toBeVisible();
-
-  return region.getByRole("option")
-    .and(page.locator(`[data-sku="${sku}"]`));
-};
+// The stub (support/stock-stub.mjs) lays answers over the server's:
+// it never counts a product the catalog has out, so only a stub can.
+// Search opened as a customer opens it (support/search.mjs).
+const find = findInSearch;
 
 test("stock wins in search too", async ({ page }) => {
   await stubStock(page, { [HIATUS]: { inStock: true, available: 4 } });
