@@ -225,10 +225,12 @@ a press, a key, a scroll
 
 ### What stays as it is
 
-The constructor's options and the ten methods; `JOKE_CODE` and
-`TEACH_DWELL` as exports of `cart.js`; `state.mjs`, `confirm.mjs`,
-`code-note.mjs`, `perk-label.js`, `tip.js`; `view.mjs`'s surface;
-`order-form.js`.
+The constructor's options and the ten methods; `JOKE_CODE` as an
+export of `cart.js`; `state.mjs`, `confirm.mjs`, `code-note.mjs`,
+`perk-label.js`, `tip.js`; `view.mjs`'s surface; `order-form.js`.
+(2026-11-23, #857: this also kept `TEACH_DWELL` as an export of
+`cart.js`. Nothing imports it, so the unused-code gate, Knip, failed
+on the re-export phase 6 left; it is `added.js`'s own.)
 
 ## 3. The phases
 

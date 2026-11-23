@@ -115,6 +115,17 @@ export class ShareRow {
     }, { reduce: reduced() });
   }
 
+  // Escape in the row (#159): folds it and puts the focus back on the
+  // button that opened it.
+  escape() {
+    const was = this.pane.state.share;
+
+    this.shutRow().then(() => qs(
+      this.root,
+      was === "way" ? "[data-way-toggle]" : "[data-code-toggle]"
+    ).focus());
+  }
+
   // Folds the code field after Apply and hands the focus back to Add
   // discount, unless something else took it meanwhile (a dialog).
   shutCode() {

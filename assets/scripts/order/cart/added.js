@@ -1,6 +1,6 @@
 // The feedback for an Add (#267, docs/refactors/cart.md, phase 6): the
 // live line, the first Add's lesson and the "Added" strip. Cart builds
-// one and passes the form's added() on to it.
+// one, wires it with the pane and passes the form's added() on to it.
 
 import { pulse, qs, say } from "./dom.js";
 import { firstAdd } from "./first-add.js";
@@ -9,7 +9,7 @@ import { pulsePill, revealLine, showAdded, teach } from "./view.mjs";
 // The first Add's lesson (#278): how long the pane stays open on the
 // new line before it shuts and the pill pulses. 2000 until #274 round
 // 4 added 1.5 s.
-export const TEACH_DWELL = 3500;
+const TEACH_DWELL = 3500;
 
 export class Added {
   // `root` is #order-cart, `list` its lines and `pill` the floating
@@ -73,6 +73,16 @@ export class Added {
         this.fold.close().then(() => pulsePill(this.pill, "teach"));
       },
     });
+  }
+
+  // The pane is the customer's once they focus in it or press a key:
+  // the first Add's timer lapses. A touch is the view's to judge.
+  wire() {
+    for (const type of ["focusin", "keydown"]) {
+      this.root.addEventListener(type, () => this.keepOpen(), {
+        passive: true,
+      });
+    }
   }
 
   // The pane is the customer's once they focus in it, press a key in
