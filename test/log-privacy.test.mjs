@@ -106,7 +106,7 @@ describe("the log scrub", () => {
     });
 
     assert.equal(lines.length, 1);
-    // Every field but `_time`, which the logger sets (#999).
+    // Every field but the timestamp the logger wrote (#999).
     assert.doesNotMatch(logText(lines[0]), /pat\.example@/);
     assert.match(lines[0], /NFF-2610-AAAAAA/);
   });
@@ -151,7 +151,7 @@ describe("a failed order", () => {
 
     assert.notEqual(res.status, 200);
 
-    // Every field but `_time`, which the logger sets (#999).
+    // Every field but the timestamp the logger wrote (#999).
     const logged = lines.map(logText).join("\n");
 
     assert.match(logged, /order\.failed/, "the failure path ran");
