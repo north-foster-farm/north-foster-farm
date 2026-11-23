@@ -172,7 +172,8 @@
         "e2e/walkthrough-2026-10-24.spec.mjs",
         "e2e/wording.spec.mjs",
         "e2e/market-address.spec.mjs",
-        "e2e/home-news-layout.spec.mjs"
+        "e2e/home-news-layout.spec.mjs",
+        "e2e/map-legend.spec.mjs"
       ],
       "pages": [
         "/"
@@ -210,7 +211,8 @@
         "e2e/top-bar.spec.mjs",
         "e2e/walkthrough-2026-10-24.spec.mjs",
         "e2e/wording.spec.mjs",
-        "e2e/home-news-layout.spec.mjs"
+        "e2e/home-news-layout.spec.mjs",
+        "e2e/map-legend.spec.mjs"
       ],
       "pages": [
         "/"
@@ -252,7 +254,8 @@
         "e2e/top-bar.spec.mjs",
         "e2e/walkthrough-2026-10-24.spec.mjs",
         "e2e/wording.spec.mjs",
-        "e2e/home-news-layout.spec.mjs"
+        "e2e/home-news-layout.spec.mjs",
+        "e2e/map-legend.spec.mjs"
       ],
       "pages": [
         "/",
@@ -1724,6 +1727,14 @@
         "e2e/map-link.spec.mjs",
         "e2e/map.spec.mjs",
         "e2e/top-bar-places.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/map-legend.spec.mjs"
+      ],
+      "specs": [
+        "e2e/map-legend.spec.mjs"
       ]
     },
     {

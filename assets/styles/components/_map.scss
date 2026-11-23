@@ -495,6 +495,40 @@ $map-hover: #fbf8ef;
   }
 }
 
+// Below the map, below lg, the four items lay out as a grid (#917,
+// James): one row where it fits, two rows of two where pairs fit, else
+// a stack, each item its swatch or icons and its label on one line.
+// The key is the container. Its widths are the items' own, measured
+// on 2026-11-23 at 133, 133, 119 and 136px, plus the column gaps and
+// the card's 34px of padding and border: two columns from 326px, four
+// from 634px. Longer labels (a fee of three figures) need them raised.
+@include media-breakpoint-down(lg) {
+  .map-key {
+    container-type: inline-size;
+  }
+
+  .map-key-areas {
+    grid-template-columns: auto;
+
+    li {
+      display: flex;
+      gap: 0.75rem;
+      align-items: center;
+      white-space: nowrap;
+    }
+
+    @container (min-width: 20.375rem) {
+      grid-template-columns: repeat(2, auto);
+      column-gap: 1.25rem;
+    }
+
+    @container (min-width: 39.625rem) {
+      grid-template-columns: repeat(4, auto);
+      column-gap: 1.5rem;
+    }
+  }
+}
+
 .map-swatch {
   width: 2.75rem;
   height: 1.25rem;
