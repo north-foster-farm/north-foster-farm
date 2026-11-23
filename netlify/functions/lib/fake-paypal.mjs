@@ -18,7 +18,7 @@
 // captured: the jobs leave an abandoned fake checkout to the sweep.
 
 import { fakeId, recordedWhere } from "./fake.mjs";
-import { PayPalError, captureOf, orderOf, refundOf } from "./paypal.mjs";
+import { PayPalError, captureOf, orderOf, refundOf } from "./paypal-shapes.mjs";
 
 const PREFIX = "FAKE-PP";
 

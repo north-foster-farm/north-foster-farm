@@ -18,6 +18,12 @@ import * as fake from "./fake-paypal.mjs";
 import { MONEY_FLOOR_MS, timedFetch, timedOut } from "./http.mjs";
 import { cliRecordings, recorder } from "./recorder.mjs";
 import { onNetlify, stores } from "./store.mjs";
+import {
+  PayPalError, captureOf, orderOf, refundOf,
+} from "./paypal-shapes.mjs";
+
+// The shapes live in paypal-shapes.mjs (#964); the seam keeps them.
+export { PayPalError, captureOf, orderOf, refundOf };
 
 const HOSTS = {
   live: "https://api-m.paypal.com",
@@ -31,21 +37,6 @@ export const paypalEnv = (env = process.env) => {
 
   return env.PAYPAL_ENV === FAKE ? FAKE : "sandbox";
 };
-
-export class PayPalError extends Error {
-  constructor(message, {
-    retryable = false, status = 0, detail = null, declined = false,
-    code = null,
-  } = {}) {
-    super(message);
-    this.name = "PayPalError";
-    this.retryable = retryable;
-    this.status = status;
-    this.detail = detail;
-    this.declined = declined;
-    this.code = code;
-  }
-}
 
 // What the farm can do about a refusal PayPal names, by its issue.
 export const ISSUE_ADVICE = {
@@ -322,49 +313,6 @@ export const createOrder = async (order, key, {
 
   return { paypalOrderId: data.id };
 };
-
-// PayPal's answers, read into ours. Exported for fake-paypal.mjs, which
-// reads its recordings of PayPal through the same code (#708).
-
-// A captured order -> { paypalOrderId, paypalCaptureId, status, amount,
-// payer }, or null when it holds no capture.
-export const captureOf = (data) => {
-  const unit = (data.purchase_units || [])[0] || {};
-  const capture = ((unit.payments || {}).captures || [])[0] || null;
-  const payer = data.payer || {};
-  const name = payer.name || {};
-
-  return capture
-    ? {
-      paypalOrderId: data.id,
-      paypalCaptureId: capture.id,
-      status: capture.status,
-      amount: capture.amount
-        ? Math.round(Number(capture.amount.value) * 100)
-        : null,
-      payer: {
-        email: payer.email_address || null,
-        name: [name.given_name, name.surname].filter(Boolean).join(" ")
-          || null,
-      },
-    }
-    : null;
-};
-
-// An order read -> { status, updatedAt, capture }.
-export const orderOf = (data) => ({
-  status: data.status,
-  updatedAt: data.update_time || data.create_time || null,
-  capture: captureOf(data),
-});
-
-// A refund made or read -> { paypalRefundId, status, amount }, the
-// amount asked for when PayPal's answer gives none.
-export const refundOf = (data, asked) => ({
-  paypalRefundId: data.id,
-  status: data.status,
-  amount: data.amount ? Math.round(Number(data.amount.value) * 100) : asked,
-});
 
 export const getOrder = async (paypalOrderId, {
   env = process.env,

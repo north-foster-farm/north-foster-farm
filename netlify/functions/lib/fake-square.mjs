@@ -1,9 +1,10 @@
 // SQUARE_ENV=fake (lib/fake.mjs): every call square.mjs makes to
 // Square, answered here with the same arguments and the same shapes,
-// and no request sent. The order is still built by square.mjs, so a
-// fault in it shows locally, and every answer is a recording of
-// Square's own (test/fixtures/square/, bin/fixtures/record) with the
-// request's values put in, read by the same code that reads Square's.
+// and no request sent. The order is still built by the driver's own
+// code (square-shapes.mjs, #964), so a fault in it shows locally,
+// and every answer is a recording of Square's own
+// (test/fixtures/square/, bin/fixtures/record) with the request's
+// values put in, read by the same code that reads Square's.
 // Nothing is written by hand but the values.
 //
 // It remembers what it has been told, in this process (forgetFake()
@@ -28,7 +29,7 @@ import { fakeId, recorded } from "./fake.mjs";
 import {
   DECLINE_MESSAGES, SquareError, buildChangeOrder, buildOrder, customerView,
   failure, paymentRecord, paymentView, refundRecord, replaceableReference,
-} from "./square.mjs";
+} from "./square-shapes.mjs";
 
 const cfg = (env) => ({
   locationId: env.SQUARE_LOCATION_ID || "FAKE-LOCATION", catalog: false,
@@ -53,7 +54,8 @@ export const forgetFake = () => {
 };
 
 // Square's refusal, from its recording: the SquareError square.mjs
-// throws for it. `change` may edit the recorded body (a decline's code).
+// throws for it, made by the same failure (square-shapes.mjs).
+// `change` may edit the recorded body (a decline's code).
 const refusal = (name, path, change = (body) => body) => {
   const { status, response } = answer(name);
 
@@ -471,7 +473,7 @@ export const setCustomerEmail = async (customerId) => {
 // address it has not seen has no profile yet, so the first call makes
 // one and a second finds it unchanged. Each answer is a recording (a
 // made profile, or an updated one) with the request's values put in,
-// read by square.mjs's own customerView.
+// read by the driver's own customerView (square-shapes.mjs).
 //
 // The PUT here sends `reference_id` alone, so its answer is the
 // recording of exactly that request (recorded in the sandbox
