@@ -15,29 +15,32 @@ const TEXT_NODE = 3;
 
 const isToken = (node) => node.dataset && node.dataset.token !== undefined;
 
+// Text onto the parts: joined to the last part when that is text,
+// else a new part.
+const add = (out, text) => {
+  const last = out.at(-1);
+
+  if (last && last.text !== undefined) last.text += text;
+  else out.push({ text });
+};
+
 // The editor's content back as parts. A browser may wrap new lines
 // in <div> or <br> rather than a newline character; both count as
 // one.
 export const partsOf = (el) => {
   const out = [];
-  const add = (text) => {
-    const last = out.at(-1);
-
-    if (last && last.text !== undefined) last.text += text;
-    else out.push({ text });
-  };
   const walk = (node) => {
     for (const child of node.childNodes) visit(child);
   };
   const visit = (child) => {
     if (child.nodeType === TEXT_NODE) {
-      add(child.data.replaceAll(ANCHOR, ""));
+      add(out, child.data.replaceAll(ANCHOR, ""));
     } else if (isToken(child)) {
       out.push({ token: child.dataset.token });
     } else if (child.nodeName === "BR") {
-      add("\n");
+      add(out, "\n");
     } else {
-      if (/^(DIV|P)$/.test(child.nodeName) && out.length) add("\n");
+      if (/^(DIV|P)$/.test(child.nodeName) && out.length) add(out, "\n");
       walk(child);
     }
   };
