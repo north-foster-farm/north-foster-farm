@@ -349,3 +349,89 @@ test.describe("Proceed to checkout says why, and goes to what is " +
     });
   });
 });
+
+// #1013: the go-to held every time, not once. The test above checks
+// each go-to once per run, and on the iphone project its Payment step
+// failed or flaked in about half of runs on next at 78d9af3e: the
+// smooth scroll toward the section stopped short of it while the focus
+// went in. So each go-to here runs ROUNDS times in one run, each round
+// on a fresh page load, and any one of them failing fails the test.
+//
+// Fresh loads, not one page sent to each section in turn: Square's card
+// field (staging) cannot be emptied once entered, so a page goes to
+// Payment once. The load is also where a customer starts.
+//
+// No retries: a retry would pass a fault that shows only some of the
+// time, and catching that is what these are for. The repetition inside
+// each test stands in for them.
+const ROUNDS = 6;
+
+test.describe("A step that sends the customer on to a section leaves " +
+  "it in view and focused, every time (#706, #1013)", () => {
+  test.describe.configure({ retries: 0 });
+
+  // Proceed to checkout's go-to (goTo in order-form.js): to Payment
+  // while the card is not entered, then to Place your order. Two per
+  // round.
+  test("Every time, Proceed to checkout brings Payment, then Place " +
+    "your order, into view with the focus in it", async ({ page }) => {
+    test.setTimeout(ROUNDS * 60_000);
+
+    for (let round = 1; round <= ROUNDS; round += 1) {
+      await test.step(`round ${round} of ${ROUNDS}`, async () => {
+        const order = new OrderPage(page);
+
+        await order.open({ wings: 5 });
+        await chooseTime(page);
+        await order.contact({
+          email: "checkout-go@example.com", phone: "401-555-0100",
+        });
+        // Open and empty, as in the test above.
+        await order.openCard();
+
+        const fake = page.locator("[data-fake-card] [name='cardNumber']");
+
+        if (await fake.count()) await fake.fill("");
+        await toTop(order);
+        await press(order.next);
+        await expectFocusAt(page, { selector: SECTION.payment },
+          `round ${round}: to Payment, the card not yet entered`);
+
+        await order.card();
+        await toTop(order);
+        await press(order.next);
+        await expectFocusAt(page, { selector: SECTION.confirm },
+          `round ${round}: to Place your order, everything entered`);
+      });
+    }
+  });
+
+  // The errors' go-to (Errors.show in errors.js: the first field in
+  // error brought into view, then focused), which Proceed to checkout
+  // reaches by its own path, not goTo: to the way's pickup time while
+  // none is chosen, then, with one chosen, to Contact information. Two
+  // per round, on one page, since nothing here needs emptying.
+  test("Every time, the errors Proceed to checkout shows bring the " +
+    "first field in error into view with the focus on it",
+  async ({ page }) => {
+    test.setTimeout(ROUNDS * 60_000);
+
+    for (let round = 1; round <= ROUNDS; round += 1) {
+      await test.step(`round ${round} of ${ROUNDS}`, async () => {
+        const order = new OrderPage(page);
+
+        await order.open({ wings: 5 });
+        await toTop(order);
+        await press(order.next);
+        await expectFocusAt(page, { way: "onfarm" },
+          `round ${round}: to the pickup time, none chosen`);
+
+        await chooseTime(page);
+        await toTop(order);
+        await press(order.next);
+        await expectFocusAt(page, { selector: SECTION.contact },
+          `round ${round}: to Contact information, none entered`);
+      });
+    }
+  });
+});
