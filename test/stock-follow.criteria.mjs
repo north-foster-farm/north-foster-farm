@@ -11,7 +11,9 @@
 // The boxes a browser has to show are e2e/stock-follow.criteria.mjs:
 // adding, changing a quantity and opening the cart each check; the
 // prominent notice; search and the order page agreeing; search
-// checking on focus; search reading the page's /api/stock. Box 9
+// checking on focus; search reading the page's /api/stock. Rule 7's
+// box, the 15 seconds at Netlify's edge, is test/stock-edge.criteria.mjs,
+// apart so it can wait for James. Box 9
 // (search and the page share one reader) is tested here at the reader
 // too, as the coordinator asked.
 //
@@ -22,9 +24,6 @@
 // - "a household with several tabs" is TABS = 5 order pages from one
 //   address at the busiest rhythm the rules allow, one check every 15
 //   seconds each, plus a return to each tab;
-// - the edge cache may be set by any header Netlify's edge honors:
-//   Netlify-CDN-Cache-Control or CDN-Cache-Control with max-age or
-//   s-maxage 15, or Cache-Control with s-maxage 15 (edgeSeconds);
 // - "The check right before paying gets a fresh answer" is the
 //   coordinator's reading on the issue, not James's words: that
 //   check's answer is not cached at the edge, and its request is one
@@ -50,6 +49,7 @@ import assert from "node:assert/strict";
 import { afterEach, beforeEach, describe, it, mock } from "node:test";
 
 import { Stock } from "../assets/scripts/order/stock.js";
+import { edgeSeconds } from "./edge-cache.mjs";
 import { element as region, stockRow } from "./stock-page.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
 import { handle } from "../netlify/functions/stock.mjs";
@@ -73,28 +73,6 @@ const flush = async () => {
   for (let i = 0; i < 5; i++) {
     await new Promise((resolve) => { setImmediate(resolve); });
   }
-};
-
-// How long Netlify's edge may keep an answer, by the headers it
-// honors; 0 when it may not.
-const edgeSeconds = (headers) => {
-  const age = (value, keys) => {
-    if (!value || /no-store|private/i.test(value)) return 0;
-
-    for (const key of keys) {
-      const m = value.match(new RegExp(`(?:^|[,\\s])${key}=(\\d+)`, "i"));
-
-      if (m) return Number(m[1]);
-    }
-
-    return 0;
-  };
-
-  return Math.max(
-    age(headers.get("netlify-cdn-cache-control"), ["s-maxage", "max-age"]),
-    age(headers.get("cdn-cache-control"), ["s-maxage", "max-age"]),
-    age(headers.get("cache-control"), ["s-maxage"]),
-  );
 };
 
 // A page's fetch, as the function receives it.
@@ -391,7 +369,7 @@ describe("the order page follows stock (#908)", () => {
   });
 });
 
-describe("/api/stock's limit and cache (#908)", () => {
+describe("/api/stock's limit (#908)", () => {
   const ask = (t, ip, start) => handle(new Request(`${ORIGIN}/api/stock`), {
     stores: testStores(), env: PRODUCTION, ip, now: new Date(start + t),
     inventory: async () => null,
@@ -427,14 +405,5 @@ describe("/api/stock's limit and cache (#908)", () => {
     }
     assert.equal((await ask(LIMIT * 1000, "198.51.100.24", start)).status,
       429, `ask ${LIMIT + 1} is refused`);
-  });
-
-  it("/api/stock answers with headers that cache it at Netlify's edge "
-    + "for 15 seconds", async () => {
-    const res = await ask(0, "198.51.100.25", Date.now());
-
-    assert.equal(res.status, 200);
-    assert.equal(edgeSeconds(res.headers), 15,
-      "kept at the edge for 15 s");
   });
 });
