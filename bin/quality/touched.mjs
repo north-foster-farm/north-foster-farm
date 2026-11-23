@@ -121,7 +121,13 @@ const check = (change) => {
     ...stalledFindings(change, verdicts.flatMap((v) => v.stalled))];
 };
 
-const failures = check(changeOf());
+const change = changeOf();
+if (change.fellBack) {
+  console.error("check:touched: no push base it could use " +
+    "(NFF_QUALITY_PUSH_BEFORE unset, all zeros, or not an ancestor " +
+    "of HEAD), so it fell back to HEAD against its first parent");
+}
+const failures = check(change);
 for (const line of failures) console.error(line);
 if (failures.length) {
   console.error(`check:touched: ${failures.length} to fix`);

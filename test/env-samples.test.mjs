@@ -45,6 +45,8 @@ const NOT_IN_A_SAMPLE = {
   RUN_OUTCOME: "the e2e summary's workflow",
   PROD_AUDIT_PING_URL: "a GitHub Actions secret, not Netlify's",
   PROD_URL: "a GitHub Actions variable, not Netlify's",
+  NFF_QUALITY_PUSH_BEFORE:
+    "CI's lint step hands it to check:touched; no runtime reads it",
   // Kept elsewhere on purpose.
   NETLIFY_AUTH_TOKEN: "the macOS Keychain only (#363), never an env file",
   PICKUP_SCHEDULE: "set by `bin/nff schedule set`, which env check ignores",

@@ -1,14 +1,18 @@
 // What a change is, for check:touched and check:exceptions (#782 step
 // 3), told apart by git state alone, since CI runs npm run lint under
-// env -i and no GitHub variable reaches it:
+// env -i; the one variable CI hands over is a push's base:
 // - a pull request: a refs/remotes/pull/<n>/merge ref at HEAD, as
 //   actions/checkout leaves it; the change is HEAD against its first
 //   parent, the base;
 // - the commit hook: staged changes; the change is the index against
 //   HEAD;
-// - otherwise a push (to next, staging or main): HEAD against its
-//   first parent. It is never skipped (coordinator, 2026-11-23,
-//   provisional for James).
+// - otherwise a push (to next, staging or main): the whole pushed
+//   range, from NFF_QUALITY_PUSH_BEFORE (CI's github.event.before) to
+//   HEAD. When that is not given, is all zeros (a new branch) or is
+//   not an ancestor of HEAD (a force push), it falls back to HEAD
+//   against its first parent, and says so. It is never skipped
+//   (coordinator, 2026-11-23, provisional for James; the range is
+//   qa's correction of the first-parent rule).
 import { execFileSync } from "node:child_process";
 
 export const git = (args, cwd = process.cwd()) => execFileSync("git", args, {
@@ -33,14 +37,24 @@ const pullAtHead = () => {
 
 const hasParent = () => tryGit(["rev-parse", "--verify", "-q", "HEAD^1"]);
 
-// { kind: "pr" | "hook" | "push", pr, base }, with base null when the
-// change has nothing to compare with (a first commit).
+// The commit before the push, when CI gave one HEAD contains.
+const pushedFrom = () => {
+  const before = process.env.NFF_QUALITY_PUSH_BEFORE ?? "";
+  if (!before || /^0+$/.test(before)) return null;
+  const ok = tryGit(["merge-base", "--is-ancestor", before, "HEAD"]);
+  return ok === null ? null : before;
+};
+
+// { kind: "pr" | "hook" | "push", pr, base, fellBack }, with base
+// null when the change has nothing to compare with (a first commit).
 export const changeOf = () => {
   const pr = pullAtHead();
   if (pr !== null) return { "kind": "pr", pr, "base": "HEAD^1" };
   const staged = tryGit(["diff", "--cached", "--name-only"]) ?? "";
   if (staged.trim()) return { "kind": "hook", "pr": null, "base": "HEAD" };
-  return { "kind": "push", "pr": null,
+  const from = pushedFrom();
+  if (from) return { "kind": "push", "pr": null, "base": from };
+  return { "kind": "push", "pr": null, "fellBack": true,
     "base": hasParent() ? "HEAD^1" : null };
 };
 
