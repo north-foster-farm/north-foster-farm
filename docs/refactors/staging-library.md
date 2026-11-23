@@ -201,10 +201,14 @@ tests carry this series, and James's own look on staging closes it
 ### Phase 0: pin the library on staging
 
 Tests only, from the test agent: one spec, in the staging run and
-in `e2e/dispatch.json`. It needs a gate session, which the staging
-run has. The review steps need a session that may review, which is
-James's alone. Where the run cannot have one, criteria 6 to 8 are
-left to the unit tests of phases 2 and 4.
+in `e2e/dispatch.json`. It needs a gate session's cookie in
+`E2E_GATE_SESSION`, which `e2e-staging.yml` does not carry: its
+failure screenshots are safe only while it stays out. So the spec
+runs where a person supplies the cookie and skips in the staging run
+(2026-11-23, #874: this said the staging run has a gate session).
+The review steps need a session that may review, which is James's
+alone. Where the run cannot have one, criteria 6 to 8 are left to
+the unit tests of phases 2 and 4.
 
 1. `#emails` on any page opens the library with the search focused
    and the emails listed by audience, each group with its count.
