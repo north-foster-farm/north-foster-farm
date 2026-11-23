@@ -396,10 +396,10 @@ Done when:
 - [ ] Every function file that wraps its handler imports `withLog`
   from `lib/with-log.mjs` (test: each file under
   `netlify/functions/` that names `withLog`)
-- [ ] `with-log.mjs` reaches `health.mjs` and `store.mjs` only
-  through `import()` (test)
+- [ ] `with-log.mjs` imports `health.mjs` and `store.mjs` only with
+  `import()`, and reaches `health.mjs` no other way (test)
 - [ ] `with-log.mjs` takes `line` from `log.mjs`, and no other module
-  under `netlify/functions/` or `bin/` imports `line` (guard: a check
+  under `netlify/functions/` or `bin/` imports `line` (test: a check
   in `test/server-imports.test.mjs` that reads every file's import
   specifiers, and stays after the series so a new importer fails)
 - [ ] `withLog` flushes the lines `log` buffered during the handler,
@@ -531,9 +531,10 @@ No e2e: no server code changes.
 Each item names how it is checked.
 
 - **Every name each edited module exports,** by name and binding,
-  `withLog` and `alertCrash` leaving `log.mjs` excepted. Checked by
-  the binding tests and the export lists in phases 1 to 5, and by
-  the existing unit tests passing unedited.
+  `withLog` and `alertCrash` leaving `log.mjs` and `line` becoming an
+  export of `log.mjs` excepted. Checked by the binding tests and the
+  export lists in phases 1 to 5, and by the existing unit tests
+  passing unedited.
 - **One log buffer.** `withLog` must flush `log.mjs`'s buffer, never
   a copy. Two buffers would lose every line from the console's
   shipment to Axiom without a failing request. `log.mjs` exports its
