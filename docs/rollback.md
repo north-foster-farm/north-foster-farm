@@ -37,6 +37,10 @@ for every release.)
    applies, including `lint-and-test` (2026-11-22: this said the fix
    goes as a merge commit, `bin/nff promote main release/<name>`,
    which linear history on `main` has refused since 2026-11-18).
+   "Releasing to `main`" stops at step 7 until #902 lands, and
+   whether a fix ships by it or by "Hotfix" in `docs/cloud-lanes.md`
+   meanwhile falls under the open question on the hotfix path (entry
+   9 of "Where the current flow conflicts" there).
 4. **Check production** with the live checks on #237 (the launch
    guide's, which is no longer a file),
    then turn maintenance off (`bin/nff --production maintenance off`)
@@ -70,15 +74,20 @@ generated from them, and CI fails when the two differ.
 A release is cut on `staging` (James, 2026-11-22, on pull requests
 #729, "Release: order page refresh, quieter inbox, guard", and #889,
 "Document the hand-rolled release process"): `staging` is held at a
-cut until the full e2e run passes there and James has looked, a
-release branch is put at that commit, and `bin/nff promote` moves
-`main` to it on his go. `main` is never pushed by hand. The rule is
+cut until the full e2e run has passed there and a release branch has
+been put at that commit, after James has looked, and
+`bin/nff promote` moves `main` to it on his go (James, 2026-11-23:
+"Really the release is blocked until a release branch exists and the
+full e2e suite passes."). `main` is never pushed by hand. The rule is
 "Releasing to `main`" in `docs/cloud-lanes.md`. The coordinator runs
 these steps.
 
 Steps 7 and 8 need tools that are not built ("Not built yet" in
 `docs/cloud-lanes.md`). Where a step says so, the release stops
-there and the coordinator tells James. No by-hand command stands in.
+there and the coordinator tells James. No by-hand command stands in
+for a missing tool. Step 2's plain push of `staging` to a cut below
+`next`'s head is the one move by hand, by design, and bounded ("Not
+built yet" in `docs/cloud-lanes.md`).
 
 `<cut>` is the release commit's full SHA, `<name>` the release
 branch's short name (lowercase letters, digits and hyphens) and
@@ -121,9 +130,11 @@ written.
    ```
    Pass: the run ended in success and the last command prints
    `success`. A run that stood down because `staging` had moved also
-   ends green, with `Run` skipped, and does not count. A run whose
-   every failure is exempt under point 7 of "Promoting to staging and
-   e2e" in `docs/cloud-lanes.md` counts as passed.
+   ends green, with `Run` skipped, and does not count. Whether a run
+   whose every failure is exempt under point 7 of "Promoting to
+   staging and e2e" in `docs/cloud-lanes.md` counts as passed is not
+   settled: it is James's open question. `promote` counts it so
+   today.
 
    On a failure, without asking James: classify it, fix it through
    `next`, move the cut up to a landing boundary that includes the

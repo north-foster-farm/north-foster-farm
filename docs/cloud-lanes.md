@@ -295,10 +295,9 @@ here instead of restating it (2026-11-01, #494).
    it. Push its sha to `e2e/staging-full` as soon as `staging` serves
    it. The run comes first: James is asked to look only once it
    passes (2026-11-22: a candidate was a commit James had already
-   looked at). At most one full run starts in an hour (James,
-   2026-11-22). A push to `staging` that is not
-   a candidate takes no full run. No `--repeat-each` against `staging`
-   without James's OK. Sharding a staging run (#503) is on hold until
+   looked at). A push to `staging` that is not a candidate takes no
+   full run. No `--repeat-each` against `staging` without James's OK.
+   Sharding a staging run (#503) is on hold until
    its cost is known, since running in parallel makes no fewer calls:
    each run writes its count of function calls (see "The e2e suite
    against staging").
@@ -402,9 +401,11 @@ stay linear and no merge commit is made.
    come after the rebase. The window on the "no force-push or
    deletion" ruleset is never opened by hand.
 2. **`staging` is held at the release cut,** a landing boundary,
-   until the full e2e run passes on that commit while it is
-   `staging`'s head. While a cut is held, landings go to `next`
-   only.
+   until the full e2e run has passed on that commit while it is
+   `staging`'s head and the release branch exists (point 5). James,
+   2026-11-23: "Really the release is blocked until a release branch
+   exists and the full e2e suite passes." While a cut is held,
+   landings go to `next` only.
 3. **After a failed full run** the coordinator classifies it, fixes
    it through `next`, moves the cut up to include the fix and reruns,
    without asking. It pauses landings on `next` only if `next` moves
@@ -435,7 +436,12 @@ each with its pass condition, are "Releasing to `main`" in
 
 The process needs four things the tools lack (2026-11-22). Where a
 release reaches one, it stops and the coordinator tells James: no
-by-hand command stands in.
+by-hand command stands in for a missing tool. The one move by hand is
+by design: step 2 of the runbook pushes `staging` to a cut below
+`next`'s head. It is bounded: the rulesets still force a
+fast-forward and the three required checks, the pre-push hook runs,
+the check lookup before it reads checks as `promote` does, and
+`staging` is not production.
 
 - **The guarded rebase** of `staging`, `next` and the lanes onto a
   `main` that got ahead: #890 (A guarded command to rebase staging
@@ -568,6 +574,16 @@ any, closes the gap. Checked against `next` at `598af95e` on
     comment, `USAGE` and the refusal hint in `bin/promote.mjs`, and
     the body promote writes for a new `staging` into `main` pull
     request, all read as before. They are #902's to change.
+19. **The workspace rule on the release pull request.** The
+    workspace's own `CLAUDE.md`, beside this repository and the
+    dashboard's, said (James, 2026-11-18): "The release pull request
+    is `staging` into `main` and lists, as `#N`, what it ships."
+    James retired it on 2026-11-22 (#889, "Document the hand-rolled
+    release process", point 11): the release pull request is
+    `release/<name>` into `main` (point 5 of "Releasing to `main`"),
+    and the standing `staging` into `main` pull request is dropped.
+    That file is outside this repository, so it is not changed here.
+    It already carries the change, dated 2026-11-22.
 
 ## Hotfix
 
@@ -696,7 +712,8 @@ and `.github/workflows/e2e-staging.yml` waits for Netlify to serve that
 commit, then runs every spec. That is the one run per release
 candidate (point 4), and the one production is promoted from: it must
 have passed on that exact commit (point 7), which is why `staging` is
-held at the cut until it has (2026-11-22). A push to `e2e/staging`
+held at the cut until it has and the release branch exists
+(2026-11-22; James, 2026-11-23). A push to `e2e/staging`
 instead runs every spec not on `e2e/staging-passing.txt`, for a quick
 rerun of what failed while the fix is on its way. The run's summary
 lists the failed specs and the passed ones as `spec sha date` lines:

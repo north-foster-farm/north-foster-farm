@@ -407,9 +407,9 @@ Rules for every phase:
   with each phase and meets them at the last.
 - Before the commit: `npm run check`, through `run-heavy.sh`, and a
   Hugo build.
-- After it: the full e2e suite in Actions, as James ruled, at most
-  one run an hour. `bin/nff e2e` on the phase's branch selects the 95
-  specs mapped to `assets/scripts/order/**`. The specs named under a
+- After it: the full e2e suite in Actions, as James ruled.
+  `bin/nff e2e` on the phase's branch selects the 95 specs mapped to
+  `assets/scripts/order/**`. The specs named under a
   phase pin what it moved: read them first when the run fails, and
   rerun only those after a fix.
 - Notes move with the code: the template comments that name an
