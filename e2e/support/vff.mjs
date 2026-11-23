@@ -107,9 +107,13 @@ let stamps = 0;
 export const signIn = async (page, baseURL, me, {
   orders = [], lists = dates(), now = new Date(), group = groupAnswer(now),
 } = {}) => {
+  // The stamp goes before the page does: a page left with a cart save
+  // pending sends it on pagehide (session/cart-sync.js), and with the
+  // made-up stamp and no session staging answers 401 and clears the
+  // stamp, a moment after the next sign-in has set its own (#729).
+  await clearSession(page.context());
   await page.goto("about:blank");
   await page.unrouteAll({ behavior: "ignoreErrors" });
-  await clearSession(page.context());
   await page.route("**/api/dates", (route) => route.fulfill({ json: lists }));
   await answerAccount(page.context(), !!me);
   if (!me) return;

@@ -100,9 +100,10 @@ const signInHost = async (page, baseURL, host) => {
     localStorage.clear();
     sessionStorage.clear();
   });
+  // The stamp goes before the page does, as vff.mjs's signIn says.
+  await clearSession(page.context());
   await page.goto("about:blank");
   await page.unrouteAll({ behavior: "ignoreErrors" });
-  await clearSession(page.context());
   await answerAccount(page.context());
   await page.route("**/api/dates", (route) => route.fulfill({
     json: dates(),
