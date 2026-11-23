@@ -1029,6 +1029,10 @@ export const removeContact = async (email, {
 // name reaches Resend only this way. `contacts` is the audience, when
 // the caller has listed it already. -> "renamed", "none" or
 // "unconfigured"; with `apply` false nothing is written.
+/**
+ * @public admin.mjs calls it as news.renameContact, through the module
+ * passed in as a parameter, which Knip cannot follow.
+ */
 export const renameContact = async (email, { firstName, lastName }, {
   env = process.env,
   fetchImpl = globalThis.fetch,

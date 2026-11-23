@@ -7,6 +7,9 @@ import {
   addAllow, endSessions, listAllow, normalize, removeAllow,
 } from "../netlify/functions/lib/gate.mjs";
 
+/**
+ * @public bin/nff imports it; Knip reads no file without an extension.
+ */
 export const USAGE = `  bin/nff gate allow list --staging
   bin/nff gate allow add <email|@domain> --staging
   bin/nff gate allow remove <email|@domain> --staging

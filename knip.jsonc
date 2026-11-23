@@ -1,0 +1,62 @@
+// Knip: unused files, exports and dependencies (#782, step 8). Knip
+// finds most entries itself, through its plugins for package.json
+// scripts, node --test, Playwright, ESLint, Stylelint, PostCSS and
+// GitHub Actions. What it cannot see is listed here, each with why.
+{
+  "$schema": "https://unpkg.com/knip@6/schema-jsonc.json",
+  "entry": [
+    // Page scripts Hugo bundles with js.Build or copies as they are:
+    // layouts/partials/footer/scripts.html (main.js, and the
+    // pageScript a page names, scripts/<name>/main.js),
+    // head/reporter.html (report.js), head/session-hint.html,
+    // staging-toolbar.html and fake-sdks.html (the fake SDKs that
+    // stand in for Square and PayPal in e2e builds).
+    "assets/scripts/main.js",
+    "assets/scripts/*/main.js",
+    "assets/scripts/report.js",
+    "assets/scripts/session/hint.js",
+    "assets/scripts/fake/*.js",
+    // Netlify runs every file at the top of netlify/functions/ as a
+    // function (netlify.toml, [functions]); bin/install-gate.mjs
+    // copies the gate's edge function into place on branch deploys.
+    "netlify/functions/*.mjs",
+    "netlify/gate-edge/gate.mjs",
+    // The local build plugin netlify.toml names ([[plugins]]).
+    "plugins/*/index.js",
+    // Scripts run where Knip does not look: netlify.toml's build
+    // command (install-gate), the shell scripts bin/favicons/build and
+    // bin/map/build, and by hand (logos/build, docs/svg.md). Every
+    // other script in bin/ is reached through package.json, a
+    // workflow or an import.
+    "bin/install-gate.mjs",
+    "bin/favicons/emblem.mjs",
+    "bin/map/project.mjs",
+    "bin/logos/build.mjs",
+    // Knip reads no file without an extension, so these CLIs count as
+    // entries but are not parsed: what only they import carries a
+    // JSDoc @public saying so.
+    "bin/nff",
+    "bin/gh-shot",
+    "bin/fixtures/scrub"
+  ],
+  "project": [
+    "assets/scripts/**/*.{js,mjs}",
+    "netlify/**/*.mjs",
+    "plugins/**/*.js",
+    "bin/**/*.{js,mjs}",
+    "test/**/*.mjs",
+    "e2e/**/*.mjs",
+    "*.{js,mjs}"
+  ],
+  // An export used in its own file is not dead code. On 2026-11-22,
+  // 189 of the 194 exports Knip reported were of this kind; dropping
+  // their `export` would touch some 70 files, the big legacy scripts
+  // among them, which the designs in docs/refactors/ split next.
+  "ignoreExportsUsedInFile": true,
+  // Hugo's css.PostCSS (layouts/partials/head/styles.html) runs
+  // postcss-cli's binary; no script names it.
+  "ignoreDependencies": ["postcss-cli"],
+  // Hugo is Homebrew's, not an npm package (CLAUDE.md), and Inkscape
+  // is a desktop app bin/logos/build.mjs calls when run by hand.
+  "ignoreBinaries": ["hugo", "inkscape"]
+}

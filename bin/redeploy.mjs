@@ -34,6 +34,9 @@ export const TIMEOUT_MS = 20 * 60 * 1000;
 // Netlify's deploy states that end a build without a site to serve.
 const FAILED = new Set(["error", "rejected", "cancelled"]);
 
+/**
+ * @public bin/nff imports it; Knip reads no file without an extension.
+ */
 export const USAGE = `
   bin/nff redeploy --production|--staging [--yes] [--dry-run]
                                       build the context again without a
