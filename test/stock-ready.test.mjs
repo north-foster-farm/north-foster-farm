@@ -9,22 +9,9 @@ import assert from "node:assert/strict";
 import { afterEach, beforeEach, describe, it, mock } from "node:test";
 
 import { Stock } from "../assets/scripts/order/stock.js";
+import { element } from "./stock-page.mjs";
 
 const ITEMS = { "NFF-CHK-EGG-LG": { inStock: true, available: 12 } };
-
-// The least of a DOM the module reads: a region for the skeleton, a
-// form with no rows, a document with no callout.
-const element = () => ({
-  nodeType: 1,
-  dataset: {},
-  hidden: false,
-  setAttribute() {},
-  removeAttribute() {},
-  toggleAttribute() {},
-  querySelector: () => null,
-  querySelectorAll: () => [],
-  addEventListener() {},
-});
 
 const flush = () => new Promise((resolve) => { setImmediate(resolve); });
 
