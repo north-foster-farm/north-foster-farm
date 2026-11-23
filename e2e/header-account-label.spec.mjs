@@ -21,10 +21,11 @@
 //   customer's chicken or the account glyph).
 // - Box 3 compares the header signed in with the same header signed
 //   out, in the brand's row, the account control named "(account)" in
-//   both: the same controls in the same order, none overlapping, the
-//   controls outside the main navigation where they were, and the
-//   space between each pair of neighbors in one group (the main
-//   navigation landmark, or the rest of the row) what it was. Space is
+//   both: the same controls in the same order, none overlapping one
+//   another or the brand, the controls outside the main navigation
+//   where they were, and the space between each pair of neighbors in
+//   one group (the main navigation landmark, or the rest of the row)
+//   what it was. Space is
 //   measured by ink, as #327 did: a control's own border box when it
 //   shows a border or a background, else the union of the text, SVGs
 //   and painted parts inside it.
@@ -140,7 +141,11 @@ const looks = (control) => control.evaluate((el) => {
 });
 
 // The header's controls in the brand's row, by ink, left to right,
-// with the gaps between neighbors in one group.
+// with the gaps between neighbors in one group, and the brand's box.
+// From 768 px the links and the account control sit in #site-menu, an
+// .offcanvas that navbar-expand-md shows in the row without "show", so
+// it is not filtered out; visible() drops the closed phone menu, whose
+// visibility is hidden (as #913's helper, d6badec0).
 const row = (page) => page.evaluate(() => {
   const banner = document.querySelector("header, [role='banner']");
   const main = banner.querySelector("nav[aria-label='Main']");
@@ -189,8 +194,7 @@ const row = (page) => page.evaluate(() => {
   };
   const controls = [...banner.querySelectorAll("a, button")]
     .filter((el) => el !== brand && visible(el)
-      && !el.closest("[role='search'], search, .offcanvas:not(.show), "
-        + ".dropdown-menu")
+      && !el.closest("[role='search'], search, .dropdown-menu")
       && (() => {
         const b = el.getBoundingClientRect();
         const mid = b.top + b.height / 2;
@@ -220,7 +224,7 @@ const row = (page) => page.evaluate(() => {
     }
   }
 
-  return { controls, gaps };
+  return { brand: line.toJSON(), controls, gaps };
 });
 
 test.describe("#915 the header's account label", () => {
@@ -297,6 +301,9 @@ test.describe("#915 the header's account label", () => {
       expect(inside.controls.map((c) => c.name),
         `${at}: the same controls in the same order`)
         .toEqual(out.controls.map((c) => c.name));
+      expect(inside.controls[0].box.x,
+        `${at}: ${inside.controls[0].name} clear of the brand`)
+        .toBeGreaterThanOrEqual(inside.brand.x + inside.brand.width - 1);
       for (let i = 1; i < inside.controls.length; i += 1) {
         const [a, b] = [inside.controls[i - 1], inside.controls[i]];
 
