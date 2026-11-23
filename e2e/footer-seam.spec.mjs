@@ -57,6 +57,7 @@ const WIDTHS = [390, 768, 992, 1200, 1440, 1920];
 const CLEAR = 24;
 const TOL = 3;
 const LINE = 0.5;
+const PROBE = 1.5;
 
 const desktopOnly = (info) => test.skip(info.project.name !== "desktop",
   "the desktop project sets each width the box names");
@@ -217,7 +218,7 @@ const seamAt = async (page, width, info) => {
   await page.evaluate((y) => window.scrollTo(0, y - innerHeight / 2), seam);
   await page.waitForTimeout(100);
 
-  const edge = await page.evaluate(() => {
+  const edge = await page.evaluate((probe) => {
     const band = [...document.querySelectorAll(".touch")].find((el) =>
       /get in touch/i.test(el.querySelector(".touch-eyebrow")?.textContent
         ?? ""));
@@ -262,9 +263,14 @@ const seamAt = async (page, width, info) => {
       });
     });
 
-    return { above: painted(8, y - 0.5), below: painted(8, y + 0.5),
+    // Probe PROBE px either side of the edge, not half a pixel: where
+    // the edge is fractional (4996.797px down at 1280px), Chromium's hit
+    // test snaps it to a whole pixel, so y - 0.5 can land in the footer
+    // on a page that is right. Snapping moves an edge half a pixel at
+    // most, so 1.5px is on the side meant at every width.
+    return { above: painted(8, y - probe), below: painted(8, y + probe),
       drawn };
-  });
+  }, PROBE);
 
   expect(edge.above, `${width}px: the band paints above its edge`)
     .not.toBeNull();
