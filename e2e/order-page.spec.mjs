@@ -118,16 +118,31 @@ test.describe("order page", () => {
     await expect(order.count).toHaveText("0 items");
   });
 
+  // Clicks the wings line's remove icon in a settled cart. The icon is
+  // in full view first, so the click needs no scroll of its own.
+  const removeWings = async (order) => {
+    const remove = order.cart.getByRole("button", {
+      name: "Remove Wings, 1.0 – 1.9 lbs from your cart",
+    });
+
+    await expect(remove).toBeInViewport({ ratio: 1 });
+    await remove.click();
+    await expect(order.qty("wings")).toHaveValue("0");
+  };
+
   test("the remove icon on a cart line takes every unit out",
     async ({ page }) => {
       const order = new OrderPage(page);
 
       await order.open({ eggs: 3, wings: 2 });
       await expect(order.count).toHaveText("5 items");
-      await order.cart.getByRole("button", {
-        name: "Remove Wings, 1.0 – 1.9 lbs from your cart",
-      }).click();
-      await expect(order.qty("wings")).toHaveValue("0");
+      // On a phone the cart is still easing in when open returns, and
+      // the click's own scroll to reach the line is a page scroll,
+      // which folds the floating cart and hides the line (#559; run
+      // 45187196088, #998). Settle it open first, as the next test
+      // does.
+      await settleCart(order);
+      await removeWings(order);
       await expect(order.count).toHaveText("3 items");
       await expect(order.subtotal).toHaveText("$21");
     });
@@ -165,15 +180,7 @@ test.describe("order page", () => {
       // field is still the one the click blurs.
       await settleCart(order);
       await expect(order.zip).toBeFocused();
-
-      const remove = order.cart.getByRole("button", {
-        name: "Remove Wings, 1.0 – 1.9 lbs from your cart",
-      });
-
-      // In full view, so the click needs no scroll of its own.
-      await expect(remove).toBeInViewport({ ratio: 1 });
-      await remove.click();
-      await expect(order.qty("wings")).toHaveValue("0");
+      await removeWings(order);
       await expect(order.count).toHaveText("1 item");
     });
 
