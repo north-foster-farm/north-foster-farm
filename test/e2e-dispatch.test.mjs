@@ -1,4 +1,3 @@
-/* eslint-disable camelcase -- GitHub names its fields its way */
 // The criteria tests for `bin/nff e2e` (#610), one per acceptance
 // criterion and named for it, written from the criteria before the
 // command existed. The implementer may change how a test runs, never

@@ -148,7 +148,8 @@ export const checkBase = (base) => !!base && !base.startsWith("-");
 // gone, colors and other escape sequences first, so none reaches the
 // terminal. Bidi overrides and isolates go too, so none reorders a
 // line.
-/* eslint-disable no-control-regex -- control characters are the point */
+// Control characters are the point.
+/* eslint-disable no-control-regex -- #791 c7105461370 */
 export const printable = (text) => String(text)
   .replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, "")
   .replace(/\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)?/g, "")
@@ -519,7 +520,7 @@ export const e2eCommand = async (args, { flags = {}, out }, deps = {}) => {
       body: {
         ref,
         inputs: dispatchInputs(choice),
-        // eslint-disable-next-line camelcase -- GitHub's name
+        // eslint-disable-next-line camelcase -- #791 c7105461370: GitHub's name
         return_run_details: true,
       },
     });

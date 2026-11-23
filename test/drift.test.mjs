@@ -2,8 +2,6 @@
 // the daily reconcile, flagged to the farm, and never copied into the
 // record or charged.
 
-/* eslint-disable camelcase -- Square names its fields its way */
-
 import assert from "node:assert/strict";
 import { createHmac } from "node:crypto";
 import { describe, it } from "node:test";

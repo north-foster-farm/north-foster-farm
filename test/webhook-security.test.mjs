@@ -1,4 +1,3 @@
-/* eslint-disable camelcase -- the providers name their fields their way */
 // The three webhooks (Square, PayPal, Resend) each answer a missing, a
 // bad and a replayed signature the same way: refused or a no-op, with
 // every record left exactly as it was (#267, code analysis). The

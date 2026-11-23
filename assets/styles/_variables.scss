@@ -1,4 +1,10 @@
-// stylelint-disable
+// Bootstrap's variables, laid out Bootstrap's way.
+/* stylelint-disable scss/dollar-variable-colon-space-after,
+   scss/dollar-variable-empty-line-before,
+   scss/double-slash-comment-empty-line-before, scss/comment-no-empty,
+   scss/no-global-function-names, scss/operator-no-newline-before,
+   alpha-value-notation, color-function-alias-notation,
+   color-function-notation, value-keyword-case -- #791 c7105461370 */
 
 // Fixed max width
 // Used to generate fmw-* utilities.

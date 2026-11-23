@@ -1,4 +1,3 @@
-/* eslint-disable camelcase -- GitHub names its fields its way */
 import assert from "node:assert/strict";
 import { describe, it, mock } from "node:test";
 

@@ -1,4 +1,3 @@
-/* eslint-disable camelcase -- GitHub names its fields its way */
 // `bin/nff hotfix start|finish` (#612): a hotfix while `staging` holds
 // work that is not fit to release, so that the commit reaching `main`
 // is the one that was tested, never a copy of it.

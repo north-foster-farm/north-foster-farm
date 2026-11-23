@@ -103,7 +103,7 @@ const encodedWords = (name) => {
 // so no driver or provider has to encode it. No name, the bare address.
 export const mailbox = (name, email) => {
   const clean = [...String(name || "")
-    // eslint-disable-next-line no-control-regex
+    // eslint-disable-next-line no-control-regex -- #791 c7105461370: the point
     .replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]/g, " ")
     .replace(/\s+/g, " ")
     .trim()]

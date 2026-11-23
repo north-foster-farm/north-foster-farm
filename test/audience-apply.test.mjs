@@ -29,8 +29,6 @@ const PAT = "pat.example@gmail.test";
 const SAM = "sam.sample@example.org";
 const LEE = "lee.duplicate@example.net";
 
-/* eslint-disable camelcase -- Resend names contact fields its way */
-
 const writes = (calls) => calls.filter((c) => c.method !== "GET")
   .map(({ method, pathname, body }) => ({ method, pathname, body }));
 

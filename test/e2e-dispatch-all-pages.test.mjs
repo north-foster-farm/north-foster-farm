@@ -1,4 +1,3 @@
-/* eslint-disable camelcase -- GitHub names its fields its way */
 // The implementer's own test for #615, beside the criteria tests: a
 // choice of everything (--all, or a shared or unmapped path) sends no
 // pages, so the keyboard walk covers the whole site. The coordinator

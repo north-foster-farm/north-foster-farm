@@ -1,4 +1,4 @@
-/* stylelint-disable */
+/* stylelint-disable scss/no-global-function-names -- #791 c7105461370: Sass's global functions */
 @use "sass:math";
 
 .snowflake {

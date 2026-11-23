@@ -1,4 +1,3 @@
-/* eslint-disable camelcase -- npm and GitHub name their fields their way */
 // Criteria tests for #647, written by a test agent from the issue's
 // spec and "Done when" list before the fix: `bin/nff e2e` records its
 // run for James's status line through ~/.bin/report_run, when that

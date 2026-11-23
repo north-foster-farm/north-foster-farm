@@ -1,4 +1,3 @@
-/* eslint-disable camelcase -- GitHub names its fields its way */
 // The implementer's own tests for the second review of #693's pull
 // request (#696): the guards security and qa asked of the promote
 // override and of filing flaky tests. Additions only, beside the

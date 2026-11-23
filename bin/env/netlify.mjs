@@ -216,7 +216,7 @@ export const envRunner = ({
       });
     } catch (error) {
       // No `cause`: it would carry the unscrubbed message and stack.
-      // eslint-disable-next-line preserve-caught-error
+      // eslint-disable-next-line preserve-caught-error -- #791 c7105461370
       throw new Error(scrub(`Netlify did not answer (${error.message}).`));
     }
     if (res.status === 404 && method === "GET") return null;
@@ -280,7 +280,8 @@ export const envRunner = ({
 
       return "";
     } catch (error) {
-      // eslint-disable-next-line preserve-caught-error
+      // A cause would leak the unscrubbed message.
+      // eslint-disable-next-line preserve-caught-error -- #791 c7105461370
       throw new Error(scrub(error.message));
     }
   };

@@ -88,7 +88,7 @@ export const hit = async (stores, key, now, { windowMs, max }) => {
 export const safeNext = (next) => {
   const s = typeof next === "string" ? next : "";
 
-  // eslint-disable-next-line no-control-regex
+  // eslint-disable-next-line no-control-regex -- #791 c7105461370: the point
   const control = /[\x00-\x1f]/.test(s);
 
   return s.startsWith("/") && !s.startsWith("//") && !s.includes("\\")

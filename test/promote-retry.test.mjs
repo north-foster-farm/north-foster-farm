@@ -1,4 +1,3 @@
-/* eslint-disable camelcase -- GitHub names its fields its way */
 // Criteria tests for #693 (retry failing e2e tests automatically),
 // boxes 1 to 3 of its "Done when" list, one test each, named for it:
 //

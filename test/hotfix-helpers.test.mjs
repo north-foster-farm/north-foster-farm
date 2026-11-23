@@ -1,4 +1,3 @@
-/* eslint-disable camelcase -- GitHub names its fields its way */
 // The implementer's own tests of bin/hotfix.mjs's helpers, beside the
 // criteria tests in test/hotfix.test.mjs, which they never replace.
 

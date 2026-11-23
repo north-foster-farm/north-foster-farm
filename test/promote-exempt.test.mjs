@@ -1,4 +1,3 @@
-/* eslint-disable camelcase -- GitHub names its fields its way */
 // Criteria tests for #654: a recorded exemption that lets `bin/nff
 // promote main` accept a full staging run whose only failures are
 // Netlify's bot challenge on named tests that passed against a local

@@ -213,8 +213,6 @@ const record = (t) => ({
   flags: {},
 });
 
-/* eslint-disable camelcase -- Square names order fields its way */
-
 describe("buildOrder for a perk's discount", () => {
   it("records Friends and Fam per item, under Square's own name, and the " +
     "fee at $0", () => {
@@ -251,8 +249,6 @@ describe("buildOrder for a perk's discount", () => {
     assert.equal(buildOrder(record(t), "CUST", cfg).metadata.perk, undefined);
   });
 });
-
-/* eslint-enable camelcase */
 
 const quietLog = (t) => {
   for (const level of ["log", "info", "warn", "error"]) {

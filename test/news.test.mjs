@@ -1,4 +1,3 @@
-/* eslint-disable camelcase -- Resend names contact fields its way */
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { describe, it } from "node:test";

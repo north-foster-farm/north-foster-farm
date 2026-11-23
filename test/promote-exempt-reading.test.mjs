@@ -9,8 +9,6 @@
 // runs of the stood-down case are #502's recording,
 // e2e-staging-runs.json.
 
-/* eslint-disable camelcase -- GitHub names its fields its way */
-
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";

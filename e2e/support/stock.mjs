@@ -94,7 +94,8 @@ export const stockFor = (scope, { ops = op } = {}) => {
 // spec's option: the counts every test of it starts with.
 export const stockFixtures = {
   stockPins: [{}, { option: true }],
-  // eslint-disable-next-line no-empty-pattern
+  // Playwright's fixture form.
+  // eslint-disable-next-line no-empty-pattern -- #791 c7105461370
   stockScope: async ({}, use, info) => {
     await use(scopeFor(info));
   },
@@ -116,7 +117,8 @@ export const stockFixtures = {
   }, { auto: true }],
   // The browser's context carries the scope, so every page of the test
   // does.
-  // eslint-disable-next-line no-unused-vars
+  // Named so Playwright sets them up first.
+  // eslint-disable-next-line no-unused-vars -- #791 c7105461370
   context: async ({ context, stock, stockScope, baseURL }, use) => {
     await context.addCookies([scopeCookie(stockScope, baseURL)]);
     await use(context);
@@ -124,7 +126,8 @@ export const stockFixtures = {
   // The request fixture made again with the scope beside the gate
   // cookie, from the config's own storage state.
   request: async ({
-    // eslint-disable-next-line no-unused-vars
+    // Named so Playwright sets them up first.
+    // eslint-disable-next-line no-unused-vars -- #791 c7105461370
     playwright, baseURL, storageState, stockScope, stock,
   }, use) => {
     const state = storageState && typeof storageState === "object"

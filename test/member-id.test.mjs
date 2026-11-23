@@ -1,4 +1,3 @@
-/* eslint-disable camelcase -- Square names its fields its way */
 // Member codes (#131): each member's opaque ID, minted once and kept,
 // on the record and its index; set as the reference_id of their Square
 // profile, idempotent and logged; shown on the Membership tab as text

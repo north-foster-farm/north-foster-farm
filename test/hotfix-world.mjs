@@ -1,4 +1,3 @@
-/* eslint-disable camelcase -- GitHub names its fields its way */
 // The harness of the #612 criteria tests (test/hotfix.test.mjs and
 // test/hotfix-round3.criteria.mjs): throwaway repositories, the seam
 // the commands reach git and GitHub through, and the checks the tests
