@@ -1,9 +1,8 @@
-import { current, indexCatalog } from "./lib/catalog.mjs";
-import { buildModel } from "./lib/events.mjs";
+import { current } from "./lib/catalog.mjs";
 import { bookedDay, cutoffFor, keptDelivery } from "./lib/dates.mjs";
 import { moneyOn } from "./lib/money-on.mjs";
 import {
-  draftOccurrence, dropSeriesCode, locationCount,
+  draftOccurrence, locationCount,
   locationsLabel,
 } from "./lib/scheduled.mjs";
 import {
@@ -33,6 +32,8 @@ import {
 } from "./form/contact.js";
 import { all, pulse, qs } from "./form/dom.js";
 import { Links } from "./form/links.js";
+import { createStore, initialState } from "./form/order-state.mjs";
+import { editIdFrom, pageData } from "./form/page-data.mjs";
 import { pickupAt } from "./form/placed.mjs";
 import { showFailed, showLocked, showPlaced } from "./form/result.js";
 import { watchSections } from "./form/section-spy.js";
@@ -104,86 +105,62 @@ export class OrderForm {
   // changes (data/delivery.json, money.changes) arrive with the day;
   // an order being changed keeps those of the day it was placed.
   get money() {
-    const placed = this.editing && this.editing.placed;
+    const placed = this.state.editing && this.state.editing.placed;
 
-    return moneyOn(this.terms.money, today(
-      placed ? new Date(placed) : this.dates.now(), this.terms.timeZone
+    return moneyOn(this.state.terms.money, today(
+      placed ? new Date(placed) : this.dates.now(), this.state.terms.timeZone
     ));
   }
 
   constructor(form) {
-    const data = JSON.parse(document.getElementById("order-data").textContent);
+    const page = pageData(
+      JSON.parse(document.getElementById("order-data").textContent)
+    );
 
     this.form = form;
-    this.catalog = data.catalog;
-    this.aliases = data.aliases || {};
-    // The scheduled pickups the page validates against, built as the
-    // functions build them (lib/events.mjs).
-    this.terms = {
-      ...data.terms, model: buildModel(data.locations, data.series),
-    };
-    // The drop site's series code (data/series.json), for the old
-    // ?method=scituate link and a draft saved before scheduled pickup.
-    this.dropSeries = dropSeriesCode(this.terms.model);
-    this.drop = this.terms.model.series
-      .find((s) => s.code === this.dropSeries) || {};
-    this.contact = data.contact;
-    // Discount codes, by hash; the plain codes stay on the server.
-    this.codes = data.codes || [];
-    this.code = null;
-    // A pass the farm issued (#182): its code, once /api/pass says it
-    // lifts the delivery minimum, and whether it waives the delivery
-    // fee too. The server checks it again. To the customer it is a
-    // discount code like any other.
-    this.pass = null;
-    this.passFee = false;
-    // A buying group (#471): what /api/group said its code unlocks
-    // (the name, the lock, its place and series), and the code itself
-    // when one was typed or linked, so the order carries it; null for
-    // a member signed in, whose account the server knows. The page
-    // embeds nothing of a group, so its places are folded into the
-    // model from the answer (`raw` is what the page embeds).
-    this.raw = { locations: data.locations, series: data.series };
-    this.member = null;
-    // The group whose rounds Group orders offers (#749): the member's,
-    // or the one a code unlocked. A change to a paid order sets it
-    // alone, its prices and credit staying as the order has them.
-    this.roundGroup = null;
-    this.groupCode = null;
-    // Group codes the customer has said Join to (#495, decision 5): a
-    // draft's, and any confirmed here. Applied again, they don't ask.
-    this.joinConfirmed = new Set();
-    // A draft's pickup at a round the lists lack until the group is
-    // unlocked, chosen then.
-    this.wantedOccurrence = null;
-    // A member's credit, in cents, from /api/group when signed in: it
-    // comes off the total by itself, and the server reads the ledger
-    // again.
-    this.credit = 0;
-    this.index = indexCatalog(this.catalog);
-    this.errors = new Errors(form);
-    // /order/?edit=<id> changes a paid order (startEdit): its own draft,
-    // so the cart the header reads is left alone, and its own endpoint.
-    const edit = new URLSearchParams(location.search).get("edit") || "";
+    this.buildPage(page);
+    // The order's state, one record (form/order-state.mjs).
+    this.store = createStore({ ...initialState(), terms: page.terms });
+    this.buildEdit(form);
+    this.buildStock(form);
+    this.buildCart(form);
+    this.buildParts();
+  }
 
-    this.editId = /^[A-Za-z0-9-]{1,32}$/.test(edit) ? edit : null;
-    this.editing = null;
+  // What the page embeds, fixed after load (form/page-data.mjs), and
+  // /order/?edit=<id>, which changes a paid order (startEdit).
+  buildPage(page) {
+    this.catalog = page.catalog;
+    this.aliases = page.aliases;
+    this.dropSeries = page.dropSeries;
+    this.drop = page.drop;
+    this.contact = page.contact;
+    this.codes = page.codes;
+    this.raw = page.raw;
+    this.index = page.index;
+    this.editId = editIdFrom(location.search);
+  }
+
+  // A change to a paid order has its own draft, so the cart the header
+  // reads is left alone, and its own endpoint.
+  buildEdit(form) {
+    this.errors = new Errors(form);
     this.draft = new Draft(this.editId ? { name: `nff-edit-${this.editId}` }
       : {});
     this.dates = new DateLists(form, () => this.refresh());
-    this.dates.place = (code) => this.terms.model.location(code);
-    // A pickup time to select once its day's windows are drawn: a
-    // restored draft's, or the dialog's.
-    this.wantedWindow = null;
+    this.dates.place = (code) => this.state.terms.model.location(code);
     this.lapsed = new Lapsed(document.getElementById("order-lapsed"), {
       onUse: (choice) => this.useLapsed(choice),
       onOther: (method) => this.otherWay(method),
-      place: (code) => this.terms.model.location(code),
+      place: (code) => this.state.terms.model.location(code),
     });
     this.submitter = new Submitter(this.editId
       ? { url: `/api/account/orders/${this.editId}/edit` }
       : {});
     this.saveButton = document.getElementById("order-save");
+  }
+
+  buildStock(form) {
     this.stock = new Stock(form, {
       onChange: (notice) => this.stockMoved(notice),
       setQty: (input, n) => this.setQty(input, n),
@@ -193,8 +170,11 @@ export class OrderForm {
     });
     wireStockNudges(form, this.stock);
     this.stockNotice = document.getElementById("order-stock");
-    // The cart owns its pane; the form tells it what to show and hears
-    // back what the customer did in it (docs/cart.md 4.1).
+  }
+
+  // The cart owns its pane; the form tells it what to show and hears
+  // back what the customer did in it (docs/cart.md 4.1).
+  buildCart(form) {
     this.cart = new Cart(document.getElementById("order-cart"), {
       form,
       bar: document.querySelector(".order-topbar"),
@@ -210,6 +190,9 @@ export class OrderForm {
     });
     // A change to a paid order keeps the prices of its day.
     if (!this.editId) this.cart.setMoney(this.money);
+  }
+
+  buildParts() {
     this.result = document.getElementById("order-result");
     this.pending = new Pending(document.getElementById("order-pending"));
     // The links into the page: ?method, ?series, ?add, ?group
@@ -220,19 +203,17 @@ export class OrderForm {
     this.busy = false;
     // The quantity box with focus, which refresh() keeps open.
     this.typing = null;
-    // The signed-in customer's discount group, from /api/me. The server
-    // applies it again from the session; this only shows it.
-    this.group = null;
-    // The signed-in customer's perks (#514), from /api/me: [{ type,
-    // start, end }]. The server reads them again from the record.
-    this.perks = [];
-    // The buying group whose member line the cart shows (#717), and the
-    // tooltips of the Delivery choice's terms, as the account has them.
-    this.shownMember = null;
-    this.termTips = [];
-    // Whether /api/me said so: the thank-you card then leaves out the
-    // line about the account the order made (#114).
-    this.isSignedIn = false;
+  }
+
+  // The order's state as it is now (form/order-state.mjs).
+  get state() {
+    return this.store.get();
+  }
+
+  // A new record, with `patch` over the one before. Draws nothing: the
+  // caller calls refresh() as before.
+  update(patch) {
+    this.store.set({ ...this.store.get(), ...patch });
   }
 
   async start() {
@@ -278,7 +259,7 @@ export class OrderForm {
     this.dates.load();
     // A code that came by the link (links.js), not typed, for the join
     // log (#495).
-    this.groupLinked = this.links.groupFromLink();
+    this.update({ groupLinked: this.links.groupFromLink() });
     this.applyCode({ quiet: true });
     this.refresh();
     this.stock.start();
@@ -310,7 +291,7 @@ export class OrderForm {
     }, {
       key: this.draft.name,
       onSignOut: () => {
-        if (this.isSignedIn) location.reload();
+        if (this.state.signedIn) location.reload();
       },
     });
   }
@@ -318,14 +299,14 @@ export class OrderForm {
   signedIn(who) {
     if (!who.signedIn || !who.customer) return;
 
-    this.isSignedIn = true;
+    this.update({ signedIn: true });
     // "Have an account?" (#521) goes by the session alone.
     this.hideSignInPrompt();
 
     const group = who.customer.discountGroup || null;
 
-    if (group && group !== this.group) {
-      this.group = group;
+    if (group && group !== this.state.group) {
+      this.update({ group });
       this.refresh();
     }
 
@@ -336,28 +317,29 @@ export class OrderForm {
 
     // A change keeps the perks its order was priced with (startEdit), so
     // the account's own are not laid over them.
-    if (!this.editing
-      && (perks.length || this.perks.length || member || this.shownMember)) {
-      this.perks = perks;
-      this.shownMember = member;
+    if (!this.state.editing
+      && (perks.length || this.state.perks.length || member
+        || this.state.shownMember)) {
+      this.update({ perks });
+      this.update({ shownMember: member });
       this.cart.setPerks(perks, { member });
       // The Delivery choice's fee and minimum, as the account has them.
-      for (const tip of this.termTips) tip.stop();
-      this.termTips = drawTerms(perks, this.form);
+      for (const tip of this.state.termTips) tip.stop();
+      this.update({ termTips: drawTerms(perks, this.form) });
       this.refresh();
     }
     // A buying group's member (#471) needs no code: the account's
     // group is asked for, and its pickup and prices follow. Its host is
     // a member by /api/me's `member` alone, with no `memberGroup` (#772).
-    if ((who.customer.memberGroup || who.member) && !this.member
-      && !this.editing) {
+    if ((who.customer.memberGroup || who.member) && !this.state.member
+      && !this.state.editing) {
       this.applyGroup("").catch(() => {});
     }
     // Credit kept after leaving a group (#495): it comes off any order
     // signed in, as the server takes it.
-    this.ownCredit = Number(who.credit) || 0;
-    if (this.ownCredit && !this.member && !this.editing) {
-      this.credit = this.ownCredit;
+    this.update({ ownCredit: Number(who.credit) || 0 });
+    if (this.state.ownCredit && !this.state.member && !this.state.editing) {
+      this.update({ credit: this.state.ownCredit });
       this.refresh();
     }
     prefill(this.form, who.customer, () => this.draft.save(this.collect()));
@@ -402,14 +384,14 @@ export class OrderForm {
 
     // A fee a missed delivery kept paid for that trip: it counts toward
     // nothing now (#193).
-    this.editing = {
+    this.update({ editing: {
       id: order.id, held: sum(order.payments) - sum(order.refunds),
       kept: order.keptFee || 0, keptDate: order.keptDate || null,
       placed: order.submittedAt,
       // The delivery day the order holds, which its change may keep
       // though the farm has since moved that week (#643).
       booked: bookedDay(order),
-    };
+    } });
     this.keepBooked();
     for (const line of order.lines) {
       this.stock.held[line.sku] = line.qty;
@@ -429,18 +411,18 @@ export class OrderForm {
     // (#284); the edit keeps the record's whatever is sent.
     if (who && who.signedIn === false) forget();
 
-    this.group = customer.discountGroup || null;
+    this.update({ group: customer.discountGroup || null });
     // The perks the order was priced with that the account still holds,
     // as the server prices the change (lib/edit.mjs). With no answer
     // from /api/me, those of the order; the server has the last word.
     const holds = Array.isArray(customer.perks)
       ? customer.perks.map((p) => p.type) : null;
 
-    this.perks = ((order.totals && order.totals.perks) || [])
+    this.update({ perks: ((order.totals && order.totals.perks) || [])
       .filter((type) => !holds || holds.includes(type))
-      .map((type) => ({ type }));
-    this.pass = order.pass || null;
-    this.passFee = !!(order.pass && order.passWaivesFee);
+      .map((type) => ({ type })) });
+    this.update({ pass: order.pass || null });
+    this.update({ passFee: !!(order.pass && order.passWaivesFee) });
 
     const saved = this.draft.load();
 
@@ -481,15 +463,16 @@ export class OrderForm {
   // it stays: a refresh of the lists must never put another day in
   // its place, and the server then refuses the change in its own words.
   keepBooked() {
-    const { booked } = this.editing;
+    const { booked } = this.state.editing;
 
     if (!booked) return;
 
-    const cutoff = cutoffFor(booked, this.terms).getTime();
+    const cutoff = cutoffFor(booked, this.state.terms).getTime();
 
     this.dates.shown = (method, list) => method === "delivery"
       ? keptDelivery(list, booked,
-        new Date(Math.min(this.dates.now().getTime(), cutoff)), this.terms)
+        new Date(Math.min(this.dates.now().getTime(), cutoff)),
+        this.state.terms)
       : list;
   }
 
@@ -497,11 +480,12 @@ export class OrderForm {
   // server refuses any change then (lib/account.mjs canChange), so the
   // page sends it for that refusal rather than offer other days.
   bookedClosed(payload) {
-    const booked = this.editing && this.editing.booked;
+    const booked = this.state.editing && this.state.editing.booked;
 
     return Boolean(booked) && payload.fulfilment.method === "delivery"
       && payload.fulfilment.date === booked
-      && this.dates.now().getTime() > cutoffFor(booked, this.terms).getTime();
+      && this.dates.now().getTime()
+        > cutoffFor(booked, this.state.terms).getTime();
   }
 
   // A line the paid order holds. An archived one's row shows, and its
@@ -521,9 +505,9 @@ export class OrderForm {
   // for the payment section. The cart shows what is paid and the
   // difference (cart.js renderEdit).
   renderEdit(total) {
-    if (!this.editing) return;
+    if (!this.state.editing) return;
 
-    const { held, kept } = this.editing;
+    const { held, kept } = this.state.editing;
     const diff = total - (held - kept);
 
     this.payment.root.hidden = diff <= 0;
@@ -777,18 +761,18 @@ export class OrderForm {
       method: this.method(),
       index: this.index,
       money: this.money,
-      group: this.group,
-      code: this.code,
+      group: this.state.group,
+      code: this.state.code,
       lock: this.lock(),
       zipStatus: this.zipStatus(),
-      waiveFee: !!this.pass && this.passFee,
-      credit: this.editing ? 0 : this.credit,
+      waiveFee: !!this.state.pass && this.state.passFee,
+      credit: this.state.editing ? 0 : this.state.credit,
       perks: this.perkTypes(),
     });
   }
 
   // Looks the typed code up by its hash. A known one becomes
-  // `this.code` and shows in the totals; the joke starts its clock;
+  // `this.state.code` and shows in the totals; the joke starts its clock;
   // anything else is ignored by the server, and the cart's note says
   // so (cart.js codeResult).
   async applyCode({ quiet = false } = {}) {
@@ -799,16 +783,16 @@ export class OrderForm {
 
     this.cart.setCodeValue(typed);
     // Apply pressed: whatever is on now was typed.
-    if (!quiet) this.groupLinked = false;
+    if (!quiet) this.update({ groupLinked: false });
 
     // Apply with the field empty takes the code off again, and a pass
     // with it; a change keeps the pass its order was placed with.
     if (!typed) {
       this.cart.stopJoke();
-      this.code = null;
-      if (!this.editing) {
-        this.pass = null;
-        this.passFee = false;
+      this.update({ code: null });
+      if (!this.state.editing) {
+        this.update({ pass: null });
+        this.update({ passFee: false });
       }
       this.cart.codeResult();
       this.refresh();
@@ -817,7 +801,7 @@ export class OrderForm {
     }
 
     if (typed === JOKE_CODE) {
-      this.code = null;
+      this.update({ code: null });
       this.cart.startJoke();
       accepted("Code applied.");
       this.refresh();
@@ -830,7 +814,9 @@ export class OrderForm {
 
     if (found) {
       this.cart.stopJoke();
-      this.code = { code: typed, label: found.label, off: found.off };
+      this.update({
+        code: { code: typed, label: found.label, off: found.off },
+      });
       accepted(`Code applied: $${found.off} off.`);
       this.refresh();
 
@@ -839,7 +825,7 @@ export class OrderForm {
 
     // A buying group's code (#471): the server says what it unlocks.
     // Only its own shape, six characters or more, is worth a request.
-    const member = this.editing || typed.length < 6
+    const member = this.state.editing || typed.length < 6
       ? { ok: false }
       : await this.applyGroup(typed);
 
@@ -865,13 +851,14 @@ export class OrderForm {
       return;
     }
 
-    const pass = this.editing ? { ok: false } : await this.applyPass(typed);
+    const pass = this.state.editing
+      ? { ok: false } : await this.applyPass(typed);
 
     // James's wording (6333286808, and on #182 since): the minimum is
     // the live one from data/delivery.json; a code that waives the fee
     // says only "Applied.", as the fee cell already shows $0.
     if (pass.ok) {
-      accepted(this.passFee ? "Applied."
+      accepted(this.state.passFee ? "Applied."
         : "Applied: this order can be delivered under the " +
           `$${this.money.deliveryMinimum} minimum.`);
     } else if (!quiet) {
@@ -889,7 +876,7 @@ export class OrderForm {
 
   // Asks the server whether a typed code is a pass (#182). Only the
   // pass shape, eight letters and digits, is worth a request.
-  // -> { ok, message? }; an accepted one becomes `this.pass`.
+  // -> { ok, message? }; an accepted one becomes `this.state.pass`.
   async applyPass(value) {
     const raw = String(value || "").replace(/[^A-Z0-9]/gi, "").toUpperCase();
 
@@ -904,8 +891,8 @@ export class OrderForm {
     ).catch(() => ({ ok: false, data: null }));
 
     if (ok) {
-      this.pass = code;
-      this.passFee = !!(data && data.waivesFee);
+      this.update({ pass: code });
+      this.update({ passFee: !!(data && data.waivesFee) });
     }
 
     // `limited`: the server's rate limit answered, not the pass.
@@ -915,8 +902,8 @@ export class OrderForm {
   // Takes a pass the server refused off the order and says why by the
   // code box, as a code refused on Apply would.
   dropPass(message) {
-    this.pass = null;
-    this.passFee = false;
+    this.update({ pass: null });
+    this.update({ passFee: false });
     this.cart.codeResult({ text: message });
     this.refresh();
   }
@@ -935,13 +922,15 @@ export class OrderForm {
     const already = !!(data && data.already);
     const elsewhere = !!(data && data.elsewhere);
     const asks = found && !!code && !already && !elsewhere
-      && !this.joinConfirmed.has(normalizeCode(code));
+      && !this.state.joinConfirmed.has(normalizeCode(code));
 
     if (asks) {
       if (!(await confirmJoin(data.group.name))) {
         return { ok: false, declined: true };
       }
-      this.joinConfirmed.add(normalizeCode(code));
+      this.update({ joinConfirmed: new Set([
+        ...this.state.joinConfirmed, normalizeCode(code),
+      ]) });
     }
     if (found) this.unlockGroup(data, code || null);
 
@@ -954,9 +943,9 @@ export class OrderForm {
   // pickup list, its member prices set the totals, and the order carries
   // the code (or, for a member signed in, nothing: the server knows).
   unlockGroup(data, code) {
-    this.member = data.group;
-    this.groupCode = code;
-    this.credit = Number(data.credit) || 0;
+    this.update({ member: data.group });
+    this.update({ groupCode: code });
+    this.update({ credit: Number(data.credit) || 0 });
     this.offerRounds(data);
     this.draft.save(this.collect());
   }
@@ -965,21 +954,21 @@ export class OrderForm {
   // orders (#749). A draft's or a paid order's round, waiting for
   // them, is chosen there, under Group orders.
   offerRounds(data) {
-    this.roundGroup = data.group;
-    this.terms = withPlaces(this.terms, this.raw, data.group);
+    this.update({ roundGroup: data.group });
+    this.update({ terms: withPlaces(this.state.terms, this.raw, data.group) });
     this.dates.addRounds(data.dates || [], data.group.series);
 
-    const wanted = this.wantedOccurrence;
+    const wanted = this.state.wantedOccurrence;
 
     this.refresh();
     if (wanted && String(wanted).startsWith(`${data.group.series}-`)) {
       // Chosen now if the lists are here, or as they come (want).
-      this.wantedOccurrence = null;
+      this.update({ wantedOccurrence: null });
       this.dates.want("group", wanted);
       qs(this.form, "#method-group").checked = true;
       this.refresh();
     } else if (wanted && this.dates.choose(wanted)) {
-      this.wantedOccurrence = null;
+      this.update({ wantedOccurrence: null });
     }
   }
 
@@ -999,14 +988,15 @@ export class OrderForm {
   // change, was, as `money` chooses the prices in force. The server
   // works it out the same way, so the totals agree.
   lock() {
-    if (!this.member || !this.member.lock) return null;
+    if (!this.state.member || !this.state.member.lock) return null;
 
-    const placed = this.editing && this.editing.placed;
+    const placed = this.state.editing && this.state.editing.placed;
     const day = today(placed ? new Date(placed) : this.dates.now(),
-      this.terms.timeZone);
+      this.state.terms.timeZone);
 
-    return lockOn({ ...this.member.lock, through: this.member.lockThrough },
-      day);
+    return lockOn({
+      ...this.state.member.lock, through: this.state.member.lockThrough,
+    }, day);
   }
 
   // A member's credit in the payment section (#471): what it covers
@@ -1046,11 +1036,11 @@ export class OrderForm {
   // applied it): the group comes off, its pickup with it, and the
   // words go by the code box, as for a pass.
   dropGroup(message) {
-    this.member = null;
-    this.roundGroup = null;
-    this.groupCode = null;
-    this.credit = this.ownCredit || 0;
-    this.terms = withPlaces(this.terms, this.raw);
+    this.update({ member: null });
+    this.update({ roundGroup: null });
+    this.update({ groupCode: null });
+    this.update({ credit: this.state.ownCredit || 0 });
+    this.update({ terms: withPlaces(this.state.terms, this.raw) });
     this.dates.dropExtra();
     if (message) this.cart.codeResult({ text: message });
     this.refresh();
@@ -1070,14 +1060,14 @@ export class OrderForm {
   // The money rules the page holds the order to: a pass or a perk
   // (#514) lifts the delivery minimum, and nothing else.
   rules() {
-    return this.pass || perkEffects(this.perkTypes()).minimum
+    return this.state.pass || perkEffects(this.perkTypes()).minimum
       ? { ...this.money, deliveryMinimum: 0 } : this.money;
   }
 
   // The signed-in customer's perk types (#514), from /api/me; while
   // changing an order, the ones it was priced with.
   perkTypes() {
-    return this.perks.map((p) => p.type);
+    return this.state.perks.map((p) => p.type);
   }
 
 
@@ -1087,7 +1077,7 @@ export class OrderForm {
     if (this.method() !== "delivery") return null;
 
     return zipInfo(
-      qs(this.form, "[data-field='delivery.zip']").value, this.terms.area
+      qs(this.form, "[data-field='delivery.zip']").value, this.state.terms.area
     ).status;
   }
 
@@ -1159,7 +1149,8 @@ export class OrderForm {
         scheduled: !!this.dates.lists && this.dates.lists.scheduled.length > 0,
         name: way === "group" ? "Group orders" : "",
       },
-      edit: this.editing ? { ...this.editing, total: totals.total } : null,
+      edit: this.state.editing
+        ? { ...this.state.editing, total: totals.total } : null,
       locked: !!(this.stock && this.stock.locked),
       down: !!(this.stock && this.stock.down),
       adding: !!this.adding,
@@ -1170,7 +1161,7 @@ export class OrderForm {
     this.renderEdit(totals.total);
     // The header's Order link shows the same count; a change to a paid
     // order is not the cart.
-    if (!this.editing) announceCart(count);
+    if (!this.state.editing) announceCart(count);
 
     const short = qs(this.form, "[data-delivery-short]");
 
@@ -1217,7 +1208,7 @@ export class OrderForm {
   // its When, and it can't be chosen. Until the lists come it reads as
   // open, its body saying "Loading group orders…".
   renderGroupCard() {
-    const g = this.roundGroup;
+    const g = this.state.roundGroup;
     let wrap = qs(this.form, "[data-group-way]");
 
     if (!g) {
@@ -1247,7 +1238,7 @@ export class OrderForm {
     const lists = this.dates.lists;
     const rounds = lists ? lists.group || [] : null;
     const open = rounds ? rounds.length > 0 : true;
-    const { model, timeZone } = this.terms;
+    const { model, timeZone } = this.state.terms;
     const series = g.series && model.seriesOf(g.series);
     const loc = model.location(g.location);
     const title = qs(wrap, ".order-method-title");
@@ -1294,10 +1285,10 @@ export class OrderForm {
     const windows = day ? day.windows : [];
     const key = `${select.value} ${windows.map((w) => w.id).join(" ")}`;
 
-    if (box.dataset.key === key && !this.wantedWindow) return;
+    if (box.dataset.key === key && !this.state.wantedWindow) return;
 
     const checked = qs(box, "input:checked");
-    const current = this.wantedWindow || (checked && checked.value);
+    const current = this.state.wantedWindow || (checked && checked.value);
     const pick = windows.some((w) => w.id === current) ? current : null;
 
     box.dataset.key = key;
@@ -1323,7 +1314,7 @@ export class OrderForm {
       setWhole(text, windowLabel(w));
       box.appendChild(node);
     }
-    if (lists) this.wantedWindow = null;
+    if (lists) this.update({ wantedWindow: null });
   }
 
   // The dialog's choice, put on the form; the customer pays again with
@@ -1339,7 +1330,7 @@ export class OrderForm {
 
     if (pickup) this.dates.choose(date);
     else if (select) select.value = date;
-    if (window) this.wantedWindow = window;
+    if (window) this.update({ wantedWindow: window });
     this.refresh();
     this.errors.clear();
     this.draft.save(this.collect());
@@ -1409,7 +1400,7 @@ export class OrderForm {
   renderZipNote() {
     const zip = qs(this.form, "[data-field='delivery.zip']");
     const note = qs(this.form, "[data-zip-note]");
-    const info = zipInfo(zip.value, this.terms.area);
+    const info = zipInfo(zip.value, this.state.terms.area);
     const bad = disallowedFor(this.lineDetails(), info.state);
 
     note.classList.remove("text-danger-emphasis");
@@ -1495,14 +1486,15 @@ export class OrderForm {
           notes: value("delivery.notes"),
         }),
       },
-      code: this.code
-        ? this.code.code
+      code: this.state.code
+        ? this.state.code.code
         : normalizeCode(qs(this.form, "[data-field='code']").value),
-      pass: this.pass,
+      pass: this.state.pass,
       // A buying group's code (#471), when one was typed or linked.
-      groupCode: this.groupCode,
+      groupCode: this.state.groupCode,
       // Whether that code came by the group's link (#495).
-      ...(this.groupCode && this.groupLinked ? { groupLink: true } : {}),
+      ...(this.state.groupCode && this.state.groupLinked
+        ? { groupLink: true } : {}),
       claimedTotal: this.totals().total,
       website: qs(this.form, "[name='website']").value,
     };
@@ -1585,21 +1577,24 @@ export class OrderForm {
     set("customer.contact", c.contact);
     set("code", payload.code);
     // A saved draft's pass is asked about again: it may be gone.
-    if (payload.pass && !this.editing) {
+    if (payload.pass && !this.state.editing) {
       this.applyPass(payload.pass).then(() => this.refresh());
     }
     // So is a buying group's code (#471): replaced since, it is gone,
     // and the pickup it unlocked with it.
     // Said Join to when it went on the draft: not asked again.
-    if (payload.groupCode && !this.editing) {
-      this.joinConfirmed.add(normalizeCode(payload.groupCode));
+    if (payload.groupCode && !this.state.editing) {
+      this.update({ joinConfirmed: new Set([
+        ...this.state.joinConfirmed, normalizeCode(payload.groupCode),
+      ]) });
       this.applyGroup(payload.groupCode).catch(() => {});
     }
 
     for (const line of payload.lines || []) {
       // A saved cart may predate a rename; a paid order being changed
       // never does (its SKUs are all known, or it can't be changed).
-      const sku = this.editing ? line.sku : current(line.sku, this.aliases);
+      const sku = this.state.editing
+        ? line.sku : current(line.sku, this.aliases);
       const input = qs(this.form, `[data-qty="${CSS.escape(sku)}"]`);
 
       if (input) this.setQty(input, line.qty);
@@ -1611,13 +1606,13 @@ export class OrderForm {
 
     if (way) set("fulfilment.method", way);
     // The radios are drawn from the lists when they come.
-    this.wantedWindow = o.window || null;
+    this.update({ wantedWindow: o.window || null });
 
     // A draft saved with the group's delivery ticked (#471, parked in
     // #626) holds the group's place, which is no longer offered: it
     // comes back as an ordinary delivery with the address to type.
     // A paid order being changed keeps its own address.
-    const ticked = d.toGroup === true && !this.editing;
+    const ticked = d.toGroup === true && !this.state.editing;
 
     for (const key of [
       "address1", "address2", "town", "zip", "cooler", "notes",
@@ -1633,9 +1628,9 @@ export class OrderForm {
       // A round of a buying group is not in the lists until the group
       // is unlocked (#471); it is chosen then, under Group orders
       // (#749), or now, if the group's rounds are here already.
-      this.wantedOccurrence = f.occurrence || null;
-      if (f.occurrence && this.roundGroup
-        && f.occurrence.startsWith(`${this.roundGroup.series}-`)) {
+      this.update({ wantedOccurrence: f.occurrence || null });
+      if (f.occurrence && this.state.roundGroup
+        && f.occurrence.startsWith(`${this.state.roundGroup.series}-`)) {
         this.dates.want("group", f.occurrence);
         set("fulfilment.method", "group");
       }
@@ -1648,8 +1643,9 @@ export class OrderForm {
   // What the payment section asks of the form (pay.js).
 
   amount() {
-    return this.editing
-      ? Math.max(0, (this.total || 0) - this.editing.held + this.editing.kept)
+    return this.state.editing
+      ? Math.max(0, (this.total || 0) - this.state.editing.held
+        + this.state.editing.kept)
       : this.total || 0;
   }
 
@@ -1675,7 +1671,8 @@ export class OrderForm {
       phone: c.phone,
       address1: d.address1 || "", address2: d.address2 || "",
       town: d.town || "", zip: d.zip || "",
-      state: d.zip ? (zipInfo(d.zip, this.terms.area).state || {}).code : "",
+      state: d.zip
+        ? (zipInfo(d.zip, this.state.terms.area).state || {}).code : "",
     };
   }
 
@@ -1684,14 +1681,18 @@ export class OrderForm {
   // asynchronous: a wallet must tokenise inside its click.
   check(payload) {
     const check = validateOrder(payload, {
-      index: this.index, terms: this.terms, now: this.dates.now(),
-      placed: this.editing && this.editing.placed,
-      group: this.group, code: this.code, schedule: this.dates.schedule(),
+      index: this.index, terms: this.state.terms, now: this.dates.now(),
+      placed: this.state.editing && this.state.editing.placed,
+      group: this.state.group, code: this.state.code,
+      schedule: this.dates.schedule(),
       // As lib/edit.mjs passes it (#643).
-      keptDate: (this.editing && this.editing.booked) || null,
+      keptDate: (this.state.editing && this.state.editing.booked) || null,
       lock: this.lock(),
-      credit: this.editing ? 0 : this.credit,
-      waive: { minimum: !!this.pass, fee: !!this.pass && this.passFee },
+      credit: this.state.editing ? 0 : this.state.credit,
+      waive: {
+        minimum: !!this.state.pass,
+        fee: !!this.state.pass && this.state.passFee,
+      },
       perks: this.perkTypes(),
     });
 
@@ -1891,7 +1892,7 @@ export class OrderForm {
 
     if (!payload) return;
     // A change with nothing more to pay: no payment at all.
-    if (this.editing && this.amount() <= 0) {
+    if (this.state.editing && this.amount() <= 0) {
       await this.deliver(payload);
 
       return;
@@ -1956,7 +1957,7 @@ export class OrderForm {
   paid(data, payload) {
     this.draft.clearPending();
     this.draft.clear();
-    if (this.editing) {
+    if (this.state.editing) {
       location.assign("/account/#orders");
 
       return;
@@ -2014,9 +2015,9 @@ export class OrderForm {
       this.payment.fail(outcome.message);
       break;
     default:
-      if (outcome.locked && this.editing) {
+      if (outcome.locked && this.state.editing) {
         showLocked(this.resultView(), outcome.message,
-          `Order ${this.editing.id}`, () => this.draft.clear());
+          `Order ${this.state.editing.id}`, () => this.draft.clear());
         break;
       }
       showFailed(this.resultView(), payload, outcome.message);
@@ -2046,7 +2047,7 @@ export class OrderForm {
 
   // The cart says the total; the button says what it does.
   submitLabel() {
-    qs(this.submitButton, ".busy-button-idle").textContent = this.editing
+    qs(this.submitButton, ".busy-button-idle").textContent = this.state.editing
       // Draft wording.
       ? `Pay ${dollars(this.amount())} and save`
       : "Place your order";
@@ -2059,8 +2060,9 @@ export class OrderForm {
       occurrence: (id) => this.dates.occurrence(id),
       drop: this.drop,
       dropSeries: this.dropSeries,
-      deliveryWindow: this.terms.delivery && this.terms.delivery.window,
-      location: (id) => this.terms.model.location(id),
+      deliveryWindow: this.state.terms.delivery
+        && this.state.terms.delivery.window,
+      location: (id) => this.state.terms.model.location(id),
     };
   }
 
@@ -2072,8 +2074,8 @@ export class OrderForm {
       result: this.result,
       contact: this.contact,
       ctx: this.placedCtx(),
-      signedIn: this.isSignedIn,
-      group: this.roundGroup,
+      signedIn: this.state.signedIn,
+      group: this.state.roundGroup,
       item: (sku) => this.index.get(sku),
       total: () => this.totals().total,
     };
