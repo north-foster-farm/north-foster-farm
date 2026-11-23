@@ -81,6 +81,9 @@ export const reportRunFor = (argv, env, deps = {}) => {
 // status to end with: the child's, or 1 when a signal ended it. Null
 // when report_run would not start, so the caller runs the command
 // itself, unrecorded, rather than fail over the status line.
+/**
+ * @public bin/nff imports it; Knip reads no file without an extension.
+ */
 export const handOff = (script, nff, argv, env) => {
   const done = spawnSync(script,
     ["e2e", "--", process.execPath, nff, ...argv],

@@ -14,6 +14,10 @@ const lineText = (l) => (l
   : "NO LINE (not offered; check:schedule fails the deploy)");
 
 // -> [string], one per line to print.
+/**
+ * @public bin/nff (`events`) imports it; Knip reads no file without an
+ * extension, so it sees no user.
+ */
 export const listEvents = (terms, schedule, now) => {
   const { model } = terms;
   const { first, last } = coverage(now, terms.timeZone);
