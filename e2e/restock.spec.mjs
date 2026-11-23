@@ -13,6 +13,7 @@ import {
   OrderPage, SKU, SUITE_STOCK, expect, stockApplied, test,
 } from "./support/order.mjs";
 import { PLENTY } from "./support/stock.mjs";
+import { stubStock } from "./support/stock-stub.mjs";
 
 const catalog = JSON.parse(readFileSync(
   new URL("../data/catalog.json", import.meta.url), "utf8"
@@ -80,15 +81,7 @@ const show = (page, name) => choice(page, name).click();
 // only for an answer the server can never give, which is what those
 // tests are about (stock on a product the catalog has out, an
 // archived one on hand, or Large eggs flagged out). Every other count
-// is pinned.
-const stubStock = (page, over) => page.route("**/api/stock",
-  async (route) => {
-    const res = await route.fetch();
-    const body = await res.json();
-
-    Object.assign(body.items, over);
-    await route.fulfill({ response: res, json: body });
-  });
+// is pinned. The stub is support/stock-stub.mjs.
 
 // Opens the order page and waits for its stock check, applied.
 const open = async (page, cart) => {

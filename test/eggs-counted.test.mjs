@@ -18,6 +18,7 @@ import { availability, setCount } from "../netlify/functions/lib/stock.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
 import { instant } from "../assets/scripts/order/lib/zoned.mjs";
 import { MORNING } from "./schedule-fixture.mjs";
+import { stockRow } from "./stock-page.mjs";
 
 const EGGS = "NFF-CHK-EGG-LG";
 const CHICKEN = "NFF-CHK-WHL-35-39";
@@ -91,33 +92,8 @@ const orderEggs = async (stores, qty) => {
 
 // The least of an order page row that order/stock.js marks: one Large
 // eggs row as order/row.html writes it, under Full catalog.
-const pageRow = () => {
-  const attrs = new Set();
-  const note = { textContent: "" };
-  const add = { disabled: false };
-  const row = {
-    dataset: { restockLabel: restockNote },
-    hidden: false,
-    hasAttribute: (name) => attrs.has(name),
-    toggleAttribute: (name, on) => {
-      if (on) attrs.add(name);
-      else attrs.delete(name);
-    },
-    querySelector: (s) => (s === "label" ? { textContent: "Large" }
-      : s === "[data-stock-note]" ? note : null),
-    querySelectorAll: (s) => (s === "[data-step]" ? [add] : []),
-  };
-  const input = {
-    dataset: { qty: EGGS }, value: "2", disabled: false,
-    closest: () => row,
-  };
-  const form = {
-    querySelectorAll: (s) => (s === "[data-qty]" ? [input]
-      : s === ".order-item" ? [row] : []),
-  };
-
-  return { form, row, input, add };
-};
+const pageRow = () => stockRow({ sku: EGGS, qty: 2,
+  restockLabel: restockNote });
 
 describe("#905 Large eggs counted like every other item", () => {
   const saved = {};
