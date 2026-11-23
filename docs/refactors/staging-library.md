@@ -128,10 +128,13 @@ Dumb:
 ```
 library/elements.js     elementsOf(root)                           45
 library/shelf-view.js   drawShelf, drawSent, drawSummary, badge   100
-library/tokens.js       token, fill, keepCaretOut                  60
+library/tokens.js       token, fill, outOfToken                    60
 library/reader-view.js  drawHead, drawFiles, drawReview,
                         drawPanes                                 100
 ```
+
+(2026-11-23, #876: `tokens.js` named `keepCaretOut`; the move kept
+the function's name, `outOfToken`, as phase 2 says.)
 
 Smart:
 

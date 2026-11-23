@@ -15,10 +15,14 @@
 
 import { isBusy, onPress, whileBusy } from "../utils/busy-button.js";
 import { elementsOf } from "./library/elements.js";
+import {
+  leftOut, oneLine, partsOf, rewriteParts,
+} from "./library/parts.mjs";
 import { grouped, wordsOf } from "./library/search.mjs";
 import {
   badge, day, drawShelf as showShelf, drawSummary as showSummary,
 } from "./library/shelf-view.js";
+import { fill, outOfToken } from "./library/tokens.js";
 
 // The toolbar's line on the library, for staging/main.js.
 export { tally } from "./library/search.mjs";
@@ -82,94 +86,9 @@ export const mountLibrary = ({
 
   // --- Parts: text with the sample values as tokens -----------------
 
-  const token = (value) => {
-    const span = tokenTemplate.content.firstElementChild.cloneNode(true);
-
-    span.textContent = value;
-    span.dataset.token = value;
-
-    return span;
-  };
-
-  // In the editor, a click beside a token can leave the caret inside
-  // it, where nothing can be typed, so each token is wrapped in
-  // invisible anchors for the caret to land in. partsOf drops them.
-  const ANCHOR = "​";
-
-  const fill = (el, parts, anchored = false) => {
-    const anchor = () => document.createTextNode(ANCHOR);
-
-    el.replaceChildren(...parts.flatMap((p) => {
-      if (p.token === undefined) return [document.createTextNode(p.text)];
-
-      return anchored ? [anchor(), token(p.token), anchor()] : [token(p.token)];
-    }));
-  };
-
-  // The editor's content back as parts. A browser may wrap new lines
-  // in <div> or <br> rather than a newline character; both count as
-  // one.
-  const partsOf = (el) => {
-    const out = [];
-    const add = (text) => {
-      const last = out.at(-1);
-
-      if (last && last.text !== undefined) last.text += text;
-      else out.push({ text });
-    };
-    const walk = (node) => {
-      for (const child of node.childNodes) {
-        if (child.nodeType === Node.TEXT_NODE) {
-          add(child.data.replaceAll(ANCHOR, ""));
-        } else if (child.dataset && child.dataset.token !== undefined) {
-          out.push({ token: child.dataset.token });
-        } else if (child.nodeName === "BR") {
-          add("\n");
-        } else {
-          if (/^(DIV|P)$/.test(child.nodeName) && out.length) add("\n");
-          walk(child);
-        }
-      }
-    };
-
-    walk(el);
-
-    return out.filter((p) => p.token !== undefined || p.text);
-  };
-
-  // A click past the end of a line that ends in a token leaves the
-  // caret inside the token, where typing does nothing. Move it to the
-  // anchor on the nearer side.
-  const outOfToken = () => {
-    const s = getSelection();
-
-    if (!editing || !s.rangeCount || !s.isCollapsed) return;
-
-    const node = s.anchorNode;
-    const el = node.nodeType === Node.TEXT_NODE ? node.parentNode : node;
-    const tok = el.closest && el.closest("[data-token]");
-
-    if (!tok || !editor.form.contains(tok)) return;
-
-    const after = s.anchorOffset >= tok.textContent.length / 2;
-    const side = after ? tok.nextSibling : tok.previousSibling;
-    const r = document.createRange();
-
-    if (side && side.nodeType === Node.TEXT_NODE) {
-      r.setStart(side, after ? Math.min(1, side.length) : side.length);
-    } else if (after) {
-      r.setStartAfter(tok);
-    } else {
-      r.setStartBefore(tok);
-    }
-    s.removeAllRanges();
-    s.addRange(r);
-  };
-
-  document.addEventListener("selectionchange", outOfToken);
-
-  const tokensOf = (parts) => parts
-    .filter((p) => p.token !== undefined).map((p) => p.token);
+  // The caret kept out of a token while the editor is open.
+  document.addEventListener("selectionchange",
+    () => outOfToken(editing, editor.form));
 
   // --- The open email ------------------------------------------------
 
@@ -181,10 +100,7 @@ export const mountLibrary = ({
     textView.hidden = editing || view !== "text";
     rewritten.hidden = editing || view !== "rewrite";
     if (view === "rewrite") {
-      const { subject, text } = current.rewrite;
-
-      fill(rewritten, [{ text: "Subject: " }, ...subject, { text: "\n\n" },
-        ...text]);
+      fill(tokenTemplate, rewritten, rewriteParts(current.rewrite));
 
       return;
     }
@@ -310,8 +226,8 @@ export const mountLibrary = ({
     const from = current.approval === "rewritten"
       ? current.rewrite : current.parts;
 
-    fill(editor.subject, from.subject, true);
-    fill(editor.text, from.text, true);
+    fill(tokenTemplate, editor.subject, from.subject, true);
+    fill(tokenTemplate, editor.text, from.text, true);
     for (const el of [editor.subject, editor.text]) {
       try {
         el.contentEditable = "plaintext-only";
@@ -330,10 +246,8 @@ export const mountLibrary = ({
 
   // Which of the email's sample values the rewrite leaves out.
   const noteDropped = () => {
-    const had = tokensOf([...current.parts.subject, ...current.parts.text]);
-    const kept = new Set(tokensOf([...partsOf(editor.subject),
-      ...partsOf(editor.text)]));
-    const gone = [...new Set(had.filter((t) => !kept.has(t)))];
+    const gone = leftOut([...current.parts.subject, ...current.parts.text],
+      [...partsOf(editor.subject), ...partsOf(editor.text)]);
 
     editor.dropped.textContent = gone.length
       ? `Left out: ${gone.join(", ")}` : "";
@@ -363,9 +277,7 @@ export const mountLibrary = ({
     if (isBusy(button)) return;
     editor.error.hidden = true;
 
-    const subject = partsOf(editor.subject)
-      .map((p) => (p.text === undefined ? p
-        : { text: p.text.replace(/\s*\n\s*/g, " ") }));
+    const subject = oneLine(partsOf(editor.subject));
     const ok = await whileBusy(button, send("rewrite", "PUT", {
       version: current.version, subject, text: partsOf(editor.text),
     }, editor.error));
