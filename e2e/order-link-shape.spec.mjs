@@ -63,11 +63,18 @@ test.describe("an order link's value and the shape of an order id (#947)",
 
       const get = (path) => request.get(path, { maxRedirects: 0 });
       const plain = await get(`/account/orders/${PAID.id}/`);
-      const names = new Set(plain.headersArray()
-        .map(({ name }) => name.toLowerCase()));
 
       expect(plain.status(), "the plain link redirects").toBe(302);
 
+      // "Adds no header" is checked on the response itself, not by
+      // diffing its header names against the plain link's. Staging run
+      // 45168515763 showed Netlify answering two 302s with different
+      // header sets by compression and caching (content-encoding and
+      // transfer-encoding, or the site's own [[headers]] on one and
+      // not the other), so a diff flagged headers the link's text never
+      // made. What the box asks is that nothing in the path becomes a
+      // header: no x-injected, every name a plain token, no name
+      // holding the path's words, and no CR or LF in any value.
       for (const path of [
         "/account/orders/NFF-2611-ABCDEF%0D%0AX-Injected:%201/",
         "/account/orders/NFF-2611-ABCDEF%0D%0A%0D%0A%3Cb%3Ehi%3C/b%3E/",
@@ -78,16 +85,29 @@ test.describe("an order link's value and the shape of an order id (#947)",
       ]) {
         const res = await get(path);
         const location = res.headers().location || "";
-        const added = res.headersArray()
-          .map(({ name }) => name.toLowerCase())
-          .filter((name) => !names.has(name));
+        const headers = res.headersArray();
+        const names = headers.map(({ name }) => name.toLowerCase());
+        const words = decodeURIComponent(
+          path.slice("/account/orders/".length)
+        ).toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length >= 4);
 
         expect(res.status(), path).toBe(plain.status());
         expect(location.startsWith("/account/?order="),
           `${path} -> ${JSON.stringify(location)}`).toBe(true);
         expect(location, path).not.toMatch(/[\r\n]/);
-        expect(added, `${path} adds no header`).toEqual([]);
         expect(res.headers()["x-injected"], path).toBeUndefined();
+        expect(names, `${path} has no x-injected`)
+          .not.toContain("x-injected");
+        for (const name of names) {
+          expect(name, `${path}: header name`).toMatch(/^[a-z0-9-]+$/);
+          for (const word of words) {
+            expect(name, `${path}: header name holds "${word}"`)
+              .not.toContain(word);
+          }
+        }
+        for (const { name, value } of headers) {
+          expect(value, `${path}: ${name}'s value`).not.toMatch(/[\r\n]/);
+        }
       }
     });
   });
