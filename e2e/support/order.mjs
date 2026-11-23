@@ -308,19 +308,74 @@ export class OrderPage {
   // the tests, before they press a row's buttons.
   // Until the page stops scrolling: a smooth scroll the page started
   // (choosing a method scrolls to its date) would override ours.
-  async scrollSettled() {
-    await this.page.evaluate(() => new Promise((done) => {
+  // Settled is scrollY unchanged for 10 frames, or, where frames stop
+  // coming (WebKit can stop requestAnimationFrame for a page that is
+  // not in front), for a second by the clock. It waited on frames
+  // alone, with no bound, and hung to the 120 s test timeout in long
+  // iphone runs (checkout-go:300, cart-motion:1128). Past `limit` it
+  // fails, naming itself, the last scrollY values and the frames seen.
+  async scrollSettled({ limit = 15_000 } = {}) {
+    const run = this.page.evaluate((bound) => new Promise((done) => {
+      const STILL_FRAMES = 10;
+      const STILL_MS = 1_000;
+      const start = performance.now();
+      const values = [Math.round(scrollY)];
       let last = scrollY;
+      let since = start;
       let still = 0;
-      const tick = () => {
-        still = scrollY === last ? still + 1 : 0;
+      let frames = 0;
+      let raf = 0;
+      let poll = 0;
+      const finish = (ok) => {
+        cancelAnimationFrame(raf);
+        clearInterval(poll);
+        done({ ok, values: values.slice(-8), frames });
+      };
+      const moved = () => {
+        if (scrollY === last) return false;
         last = scrollY;
-        if (still >= 10) done();
-        else requestAnimationFrame(tick);
+        since = performance.now();
+        values.push(Math.round(scrollY));
+
+        return true;
+      };
+      const tick = () => {
+        frames += 1;
+        still = moved() ? 0 : still + 1;
+        if (still >= STILL_FRAMES) finish(true);
+        else raf = requestAnimationFrame(tick);
       };
 
-      requestAnimationFrame(tick);
-    }));
+      poll = setInterval(() => {
+        if (moved()) still = 0;
+
+        const now = performance.now();
+
+        if (now - since >= STILL_MS) finish(true);
+        else if (now - start >= bound) finish(false);
+      }, 100);
+      raf = requestAnimationFrame(tick);
+    }), limit);
+    // The page's own timers may be throttled too: a bound from here.
+    // A late failure of the page's answer, after the bound, is dropped.
+    run.catch(() => {});
+    let timer;
+    const guard = new Promise((resolve, reject) => {
+      timer = setTimeout(() => reject(new Error(
+        `scrollSettled: no answer from the page in ${limit + 5_000} ms`
+      )), limit + 5_000);
+    });
+    let got;
+
+    try {
+      got = await Promise.race([run, guard]);
+    } finally {
+      clearTimeout(timer);
+    }
+    if (!got.ok) {
+      throw new Error(`scrollSettled: scrollY never settled in ${limit} ms `
+        + `(last values ${got.values.join(", ")}; ${got.frames} frames)`);
+    }
   }
 
   // Scroll first: a cart that settled below opens in full. The scroll
