@@ -41,6 +41,11 @@ $sil-clear: calc(var(--sil-h) + #{$sil-gap});
 // The footer's gap above its field on a page with no band.
 $band-gap: 3.5rem;
 
+// The part of the gap under a band's buttons that the band keeps
+// (_touch.scss), so they never sit on its edge with the footer (#948).
+// The footer's own gap gives it back, and the total is unchanged.
+$touch-gap: 2rem;
+
 // The dark band above the roofline, which rises into its bottom
 // padding (the sign-up moved below the links, #341). Under a band
 // (_touch.scss) it keeps the footer's gap from the band's buttons; on
@@ -51,10 +56,25 @@ $band-gap: 3.5rem;
   background-color: $band-dark-bg;
 
   body:has(.touch) & {
-    padding-top: $footer-gap;
+    position: relative;
+    padding-top: calc(#{$footer-gap} - #{$touch-gap});
 
     @include media-breakpoint-down(md) {
-      padding-top: $footer-gap-phone;
+      padding-top: calc(#{$footer-gap-phone} - #{$touch-gap});
+    }
+
+    // Where the band and the footer meet, in the same color, a
+    // fractional edge can show the page's white as a hairline (#948).
+    // A strip of the band's color across that edge covers it. It is
+    // paint only: the pointer passes through it to the boxes it
+    // covers, which still meet exactly at the edge.
+    &::before {
+      content: "";
+      position: absolute;
+      inset: -2px 0 auto;
+      height: 4px;
+      background-color: $band-dark-bg;
+      pointer-events: none;
     }
   }
 }
