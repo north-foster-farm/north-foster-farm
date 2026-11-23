@@ -77,25 +77,21 @@ export const shownIds = (ui) => ui.rows.evaluateAll(
 export const idsOf = (emails, keep) =>
   emails.filter(keep).map((e) => e.id).sort();
 
-const GROUPS = [
-  ["customer", "To the customer"],
-  ["farm", "To the farm"],
-  ["list", "Farm news"],
-];
-
-// Each audience with emails, in order: its heading and its ids.
-export const groupsOf = (emails) => GROUPS.map(([audience, title]) => {
+// Each audience of `groups` ([audience, title], in order) that has
+// emails: its heading and its ids.
+export const groupsOf = (emails, groups) => groups.map(([audience, title]) => {
   const ids = idsOf(emails, (e) => e.audience === audience);
 
   return [`${title} (${ids.length})`, ids];
 }).filter(([, ids]) => ids.length);
 
-// The shelf's groups as shown, the sent mail (James's alone) left out.
-export const shownGroups = (page) =>
-  page.locator(".staging-group").evaluateAll((groups) => groups
+// The shelf's groups as shown, the one headed `sent` (the sent mail,
+// James's alone) left out.
+export const shownGroups = async (page, sent) => (await page
+  .locator(".staging-group").evaluateAll((groups) => groups
     .map((g) => [g.querySelector("h2").textContent,
-      [...g.querySelectorAll("a[data-id]")].map((a) => a.dataset.id).sort()])
-    .filter(([h]) => !h.startsWith("Sent, every session")));
+      [...g.querySelectorAll("a[data-id]")].map((a) => a.dataset.id).sort()])))
+  .filter(([h]) => !h.startsWith(sent));
 
 // The fields the search box names: name, subject, text and tags. A
 // word is chosen only when it is in none of the fields the search also
@@ -135,7 +131,8 @@ export const mine = (emails, n, ok = () => true) => {
     && !e.error && !e.rewrite && ok(e));
   const slot = PROJECTS.indexOf(test.info().project.name) * 3 + n;
 
-  test.skip(pool.length <= slot, "not enough emails to approve");
+  test.skip(pool.length <= slot, `NOT RUN: needs ${slot + 1} emails to `
+    + `approve for this project's review test ${n}, found ${pool.length}`);
 
   return pool[slot];
 };
@@ -168,29 +165,31 @@ export const deleteToken = async (page, ui, value) => {
   await page.keyboard.press("Delete");
 };
 
-export const PINNED = " Pinned by the e2e suite.";
-export const DROP = "Drop your rewrite and keep the current wording?";
-export const REWRITTEN = "rewritten, to apply";
-
-export const saveRewrite = async (page, ui) => {
+// Opens the editor, adds `words` at the end of the text, and saves.
+export const saveRewrite = async (page, ui, words) => {
   await ui.rewrite.click();
   await ui.body.focus();
   await page.keyboard.press("Control+End");
-  await page.keyboard.type(PINNED);
+  await page.keyboard.type(words);
   await ui.editor.getByRole("button", { name: "Save rewrite" }).click();
 };
 
-// Presses Drop, answering its confirm yes or no. -> what it asked.
+// Presses Drop, answering its confirm yes or no. -> what it asked, or
+// undefined if it asked nothing. The page's own confirm is replaced,
+// since the shared page fixture (support/order.mjs) dismisses every
+// dialog before a listener here could answer one.
 export const drop = async (page, ui, yes) => {
-  const asked = new Promise((resolve) => page.once("dialog", (d) => {
-    resolve(d.message());
+  await page.evaluate((answer) => {
+    window.e2eAsked = undefined;
+    window.confirm = (question) => {
+      window.e2eAsked = question;
 
-    return yes ? d.accept() : d.dismiss();
-  }));
-
+      return answer;
+    };
+  }, yes);
   await ui.revert.click();
 
-  return asked;
+  return page.evaluate(() => window.e2eAsked);
 };
 
 // The toolbar's line on the library: how many are to approve.
