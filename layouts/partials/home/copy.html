@@ -6,8 +6,10 @@
      them previews of the three newest published posts after it, then
      the way to more news (#566); below lg the title leads, then the
      card, then the previews. Drafts and future posts never preview,
-     though staging builds them. */}}
-{{ $news := where site.RegularPages "Section" "news" }}
+     though staging builds them. A post marked newsOnly: true (#916)
+     is neither the lead nor a preview: it stays on the news page, at
+     its own address and in search. */}}
+{{ $news := where (where site.RegularPages "Section" "news") "Params.newsOnly" "ne" true }}
 {{ $post := index (where $news "Params.home" true).ByDate.Reverse 0 }}
 {{ with $post }}{{ else }}{{ $post = index $news.ByDate.Reverse 0 }}{{ end }}
 

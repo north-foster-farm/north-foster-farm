@@ -324,6 +324,29 @@ fingerprinted, so the post's own photos are copied at build time to
 for posts only). The library's `news-letter-sample` shows every block
 (its photos are placeholders with no address).
 
+### A post's front matter
+
+A post is a Markdown file in `content/news/`. Besides `title` and
+`date`, its front matter takes:
+
+- `featured`: its thumbnail, a path under `assets/`, such as
+  `images/lily.jpg`. Without it the thumbnail is the post's first
+  figure or video poster, or else a stand-in
+  (`layouts/partials/news/featured.html`).
+- `heading`: a title to show on the page in place of `title`, which
+  the browser's tab keeps.
+- `excerpt`: where the home page cuts the post short, or `whole` to
+  show all of it (`layouts/partials/news/excerpt.html`).
+- `home: true`: the post leads the home page's news, instead of the
+  newest.
+- `newsOnly: true`: the post stays off the home page (#916, James,
+  2026-11-22). It is never the home page's lead or one of its
+  previews, and the next post takes its place. It is still in the
+  news page's list, at its own address, in the site search and
+  llms.txt, and in the Newer and Older links between posts. It wins
+  over `home: true`. Nothing else lists posts today; a new list of
+  posts outside the news page leaves these posts out too.
+
 ### A post as an email
 
 `lib/post-mail.mjs` turns a post's Markdown, the file Hugo writes at
