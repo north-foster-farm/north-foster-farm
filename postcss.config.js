@@ -135,6 +135,13 @@ const plugins = [
         // Added to the built HTML after Hugo, by bin/orphans/wrap.mjs
         // (#303), so Hugo's stats may never see it.
         "text-nowrap",
+        // A list of dates' message (#703): a hint, or an error once an
+        // order is placed (scripts/order/errors.js), and the red bar
+        // its list takes inside a way's body.
+        "data-error-mode",
+        "hint",
+        "error",
+        "data-method-body",
       ];
     },
     safelist: {
