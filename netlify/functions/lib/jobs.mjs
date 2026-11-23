@@ -79,12 +79,6 @@
 
 import terms from "./terms.mjs";
 import {
-  cutoffFor, isScheduled,
-} from "../../../assets/scripts/order/lib/dates.mjs";
-import {
-  cutoffOf as eveningBefore,
-} from "../../../assets/scripts/order/lib/events.mjs";
-import {
   coverUntil, parseSchedule,
 } from "../../../assets/scripts/order/lib/schedule.mjs";
 import {
@@ -101,6 +95,7 @@ import {
 } from "./forget.mjs";
 import { alert, escalate, ping, readCount, readMark } from "./health.mjs";
 import { now as clock } from "./clock.mjs";
+import { cutoffAt } from "./cutoff.mjs";
 import { log } from "./log.mjs";
 import { prune as pruneRecordings } from "./recorder.mjs";
 import { quietAccounts } from "./retention.mjs";
@@ -154,17 +149,9 @@ const reminded = (order) => sent(order, "deliveryReminder")
   && !(order.attempted
     && order.emails.deliveryReminder.at < order.attempted.at);
 
-// When a customer can no longer change or cancel an order themselves:
-// the delivery or drop-site cutoff, or midnight before an on-farm
-// pickup.
-export const cutoffAt = (order) => {
-  const { date, method } = order.fulfilment;
-
-  if (method === "delivery") return cutoffFor(date, terms);
-  if (isScheduled(order.fulfilment)) return eveningBefore(date, tz);
-
-  return instant(date, 0, 0, tz);
-};
+// When a customer can no longer change or cancel an order themselves,
+// now in lib/cutoff.mjs (#967), still read from here.
+export { cutoffAt };
 
 // Whether a customer's change may still land: before the cutoff, or
 // while the farm's question waits on them (lib/account.mjs's gate).

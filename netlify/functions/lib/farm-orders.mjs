@@ -66,6 +66,9 @@ import { alert, mark } from "./health.mjs";
 import { retry } from "./http.mjs";
 import { log } from "./log.mjs";
 import { sendMail } from "./mail.mjs";
+import {
+  PENDING_MS, paymentPending, pendingKey,
+} from "./pay-pending.mjs";
 import { perkTypes } from "./perks.mjs";
 import { pickupSchedule } from "./pickups.mjs";
 import {
@@ -101,14 +104,11 @@ export const TENDERS = {
   },
 };
 
-// A pending payment's marker stands this long: a request that died
-// with the money taken is finished by the jobs' or the farm's hand
-// before then, and a stale marker never locks an order for good.
-export const PENDING_MS = 10 * 60_000;
+// A pending payment's marker, how long it stands and whether one does,
+// now in lib/pay-pending.mjs (#967), still read from here.
+export { PENDING_MS, paymentPending };
 
 const fail = (errors) => ({ ok: false, errors });
-
-const pendingKey = (id) => `pay-pending/${id}`;
 
 const line = (order, event, now, extra = {}) => [
   ...(order.history || []), { at: now.toISOString(), event, ...extra },
@@ -273,15 +273,6 @@ const recordOrAlert = async (stores, id, payment, event, {
   }
 
   return { order: next, taken };
-};
-
-// Whether a payment of the order is under way: a fresh claim stands
-// (#181). The farm's cancel waits for it, so money is never taken on
-// an order being cancelled.
-export const paymentPending = async (stores, id, now = clock()) => {
-  const held = await stores.orders.get(pendingKey(id));
-
-  return !!held && now.getTime() - Date.parse(held.at) < PENDING_MS;
 };
 
 // What the farm's command says when the record refused the money.

@@ -25,13 +25,13 @@ import {
 } from "../../../assets/scripts/order/lib/validate.mjs";
 import { addressHash, dropOldForms } from "./address-key.mjs";
 import { cancelOrder as cancelAndRefund } from "./admin.mjs";
-import { holderOf } from "./amend.mjs";
+import { holderOf } from "./holder.mjs";
 import { isGroupRound, placeOf } from "./describe.mjs";
 import {
   buyingGroupOf, groupOf, memberTerms, offeredGroup, retag,
 } from "./groups.mjs";
 import { AUTOPLAY } from "./auth.mjs";
-import { cutoffAt } from "./jobs.mjs";
+import { cutoffAt } from "./cutoff.mjs";
 import { now as clock } from "./clock.mjs";
 import { farmEmails, mailbox, sendMail } from "./mail.mjs";
 import { alert, noteMail } from "./health.mjs";

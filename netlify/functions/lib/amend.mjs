@@ -40,6 +40,7 @@ import {
 } from "../../../assets/scripts/utils/field-errors.mjs";
 import { planEdit } from "./edit.mjs";
 import { now as clock } from "./clock.mjs";
+import { holderOf } from "./holder.mjs";
 import { sendMail } from "./mail.mjs";
 import { customerEmailWithheld, sendForOrder } from "./payments.mjs";
 import { pickupSchedule } from "./pickups.mjs";
@@ -51,6 +52,10 @@ import * as squareApi from "./square.mjs";
 import { methodName, placeOf } from "./describe.mjs";
 import terms from "./terms.mjs";
 import { orderChanged } from "./templates.mjs";
+
+// The Square order that carries an order's fulfillment, now in
+// lib/holder.mjs (#967), still read from here.
+export { holderOf };
 
 const index = indexCatalog(catalog);
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
@@ -84,11 +89,6 @@ const movedEvent = (order, next, now) => {
       by: "farm" }]
     : [];
 };
-
-// The Square order that carries an order's fulfillment: the change
-// order a switch moved it to, else the one the customer paid on.
-export const holderOf = (order) => order.square
-  && (order.square.fulfilmentOrderId || order.square.squareOrderId);
 
 const delivering = (order) => order.fulfilment.method === "delivery";
 

@@ -20,7 +20,7 @@ import {
 import { company } from "./company.mjs";
 import { DELIVERING, alert } from "./health.mjs";
 import { completeInSquare } from "./complete.mjs";
-import { holderOf } from "./amend.mjs";
+import { holderOf } from "./holder.mjs";
 import { perksOf } from "../../../assets/scripts/order/lib/perks.mjs";
 import { getLedger, mergeLedger, restoreCredit } from "./credit.mjs";
 import { audit, auditLog, noteJoin, refOf } from "./group-log.mjs";
@@ -46,7 +46,7 @@ import {
   paymentsOf, questionOpen, refundedTotal, saveCustomer, setStatus,
   settledRefunds, supportKey,
 } from "./records.mjs";
-import { paymentPending } from "./farm-orders.mjs";
+import { paymentPending } from "./pay-pending.mjs";
 import { mailLinks, orderUrlFor } from "./site.mjs";
 import * as squareApi from "./square.mjs";
 import {
