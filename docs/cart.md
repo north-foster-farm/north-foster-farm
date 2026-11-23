@@ -424,7 +424,19 @@ submission. The contract between them:
   away and Apply, folds the row (`shutRow`, `shutCode`) and draws the
   code's note. `Cart` keeps the form's `codeResult`, `codeValue` and
   `setCodeValue` and passes them on, and asks the row to fold on
-  Escape; the row reads and sets the view state through `Cart`.
+  Escape; the row reads and sets the view state through `Fold`
+  (2026-11-23, #856: this said through `Cart`).
+- And folding (2026-11-23, #856): `Fold` in `fold.js` holds the view
+  state and writes it to the pane (`apply`, with the pill's word from
+  `plan.mjs`'s `pillWord`), runs every change of size through the
+  view's motion (`motion`, `fold`, `open`, `close`, `toggle`), opens a
+  side of the shared row (`setShare`), keeps the scroll rule (`busy`,
+  `scrolled`), marks the cart passed and owns the watchers. `Added` in
+  `added.js` gives an Add its live line, the first Add's lesson
+  (`TEACH_DWELL`, which `cart.js` still exports) and the strip.
+  `escapeStep` in `escape.mjs` names which part takes an Escape, in
+  the order the pane has always kept: a tooltip, Clear cart's
+  question, the shared row, then the fold.
 - Draft, sync and the header badge stay in `draft.js`, `cart-sync.mjs`,
   `session/cart-sync.js` and `cart-badge/*`, unchanged in shape. The
   cart announces nothing itself; `OrderForm` keeps `announceCart`.
@@ -498,8 +510,9 @@ to CSS. Its surface, which the Cart class imports:
   its lines drawn for it. The items list keeps the larger of its two
   sizes while the lines ease, so the edge uncovers or covers it and
   never squeezes it, and its arrows and fades are set inside the change
-  (`Cart.motion`). Everything that changes a part's size is set inside
-  `apply`, the nudge among them (2026-11-12, #559: it was set after the
+  (`Fold.motion`, 2026-11-23, #856: this said `Cart.motion`).
+  Everything that changes a part's size is set inside `apply`, the
+  nudge among them (2026-11-12, #559: it was set after the
   sizes were read, and its line snapped). The body is held at its end
   while it overflows, so the total row stays on the foot, but not under
   the keyboard, and not once anything else scrolls it (2026-11-12,

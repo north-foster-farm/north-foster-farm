@@ -79,3 +79,12 @@ export const deliveryTip = (tip, money) => tip.replace(
   /^Orders of \$\d+ or more/,
   `Orders of $${money.deliveryMinimum} or more`
 );
+
+// The pill's word, which is the floating pane's alone: "Hide" while it
+// is open and "Expand" while it is not. A pane that does not float
+// has none (null). `s` is a state.mjs record.
+export const pillWord = (s) => {
+  if (s.placement !== "floating") return null;
+
+  return s.fold === "open" ? "Hide" : "Expand";
+};

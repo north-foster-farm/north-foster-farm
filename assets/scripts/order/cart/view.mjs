@@ -1,6 +1,6 @@
 // The cart's view: what touches the viewport, the clock and the
 // pane's own motion (#477, docs/cart.md). cart/state.mjs decides the
-// state and cart/cart.js writes it; the view feeds the decision and
+// state and cart/fold.js writes it; the view feeds the decision and
 // animates the result. It writes no height, floor or cap to CSS: the
 // stylesheet (_cart.scss) lays the pane out from three raw viewport
 // facts (--cart-vis, --cart-gap, --cart-kb) and the top bar's foot
@@ -9,8 +9,9 @@
 // back for the layout to read.
 //
 // This module is the view's one door, re-exports and nothing else
-// (docs/refactors/cart-view.md): cart.js and the unit tests import
-// from here, and the parts live in view/, one concern to a module.
+// (docs/refactors/cart-view.md): the cart's modules and the unit
+// tests import from here, and the parts live in view/, one concern
+// to a module.
 
 // Pure: the queries, lengths, keyframes and rules.
 export { COLUMN, SHEET, SHORT } from "./view/queries.mjs";
