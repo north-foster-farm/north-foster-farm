@@ -12,7 +12,6 @@ import {
 import { perkEffects } from "./lib/perks.mjs";
 import { postedDelivery } from "./lib/posted.mjs";
 import { linkedMethod, withoutParam } from "./lib/query.mjs";
-import { showing } from "./lib/sections.mjs";
 import { sentence } from "./lib/sentence.mjs";
 import { summarize } from "./lib/summary.mjs";
 import {
@@ -31,6 +30,8 @@ import { celebrate } from "./celebrate.js";
 import { DateLists } from "./date-lists.js";
 import { Draft } from "./draft.js";
 import { Errors } from "./errors.js";
+import { all, pulse, qs } from "./form/dom.js";
+import { watchSections } from "./form/section-spy.js";
 import { Lapsed } from "./lapsed.js";
 import { Payment } from "./pay.js";
 import { Pending } from "./pending.js";
@@ -84,41 +85,6 @@ const sha256 = async (text) => {
 
   return Array.from(new Uint8Array(digest),
     (b) => b.toString(16).padStart(2, "0")).join("");
-};
-
-const qs = (root, selector) => root.querySelector(selector);
-const all = (root, selector) => Array.from(root.querySelectorAll(selector));
-
-// Restart a CSS animation by re-applying its class.
-const pulse = (el, className) => {
-  el.classList.remove(className);
-  void el.offsetWidth;
-  el.classList.add(className);
-};
-
-// Brings the rail's lit link into view inside whatever box scrolls the
-// rail, never the page. scrollIntoView moved Chromium's Tab starting
-// point to the link, so on load the first Tab skipped the skip link
-// for the link after it (#291).
-const keepInRail = (link) => {
-  let box = link.parentElement;
-
-  while (box && box !== document.body) {
-    const { overflowY } = getComputedStyle(box);
-
-    const scrolls = /auto|scroll/.test(overflowY);
-
-    if (scrolls && box.scrollHeight > box.clientHeight) break;
-    box = box.parentElement;
-  }
-  if (!box || box === document.body) return;
-
-  const a = link.getBoundingClientRect();
-  const b = box.getBoundingClientRect();
-  const by = a.top < b.top ? a.top - b.top
-    : a.bottom > b.bottom ? a.bottom - b.bottom : 0;
-
-  if (by) box.scrollBy({ top: by, behavior: "smooth" });
 };
 
 export class OrderForm {
@@ -759,153 +725,7 @@ export class OrderForm {
     });
     if (location.hash === "#order-cart") this.cart.show();
 
-    this.watchSections();
-  }
-
-  // The section on screen, named in three places: the sidebar's
-  // outline from lg up, the phone's sticky bar below lg, and the total
-  // bar from lg to xl. Bootstrap's spy only hears sections crossing a
-  // band, so a fast scroll left a stale name, and the last section,
-  // too short to reach the band, never lit (#204). This asks where
-  // each section is on every frame the page moves.
-  watchSections() {
-    const nav = document.getElementById("order-nav");
-    const catalog = document.getElementById("order-catalog");
-    const titles = all(document, "[data-topbar-title]");
-    const bars = all(document, ".order-topbar, .order-total-bar");
-    const heading = document.querySelector(".page-heading h1");
-    const wide = window.matchMedia("(min-width: 992px)");
-    const xl = window.matchMedia("(min-width: 1200px)");
-    const sections = all(nav, "a")
-      .map((link) => ({
-        link, target: document.querySelector(link.hash),
-      }))
-      .filter(({ target }) => target);
-    // Each category's link, by its section; the catalog's rows, top to
-    // bottom.
-    const cats = new Map(sections
-      .filter(({ target }) => target.classList.contains("order-cat"))
-      .map(({ link, target }) => [target, link]));
-    const rows = all(catalog, ".order-item");
-    const catalogLink = sections
-      .find(({ target }) => target === catalog)?.link;
-    const cartHeading = document.getElementById("order-cart-heading");
-    let shown = null;
-    let tick = null;
-
-    // Mark the link and its parent in the outline (Catalog, over a
-    // category).
-    const mark = (link) => {
-      const parent = link.closest(".order-side-sub")
-        ?.closest(".nav-item").querySelector(":scope > .nav-link");
-
-      for (const a of all(nav, ".nav-link")) {
-        a.classList.toggle("active", a === link || a === parent);
-      }
-      if (wide.matches) keepInRail(link);
-    };
-
-    const update = () => {
-      tick = null;
-
-      // A section is current once its top reaches the lower edge of
-      // whichever bar is stuck at the top, less a little so a jump to
-      // it lands inside it. The floating cart is at the foot of the
-      // screen, not at its place in the page, so it counts only once
-      // settled. From xl it is a column stuck beside the others and
-      // never counts.
-      const column = xl.matches;
-
-      // The phone bar casts its shadow only once stuck; at rest it
-      // lies flat under the header (O5).
-      for (const bar of bars) {
-        if (bar.classList.contains("order-topbar")) {
-          bar.dataset.stuck = String(bar.getBoundingClientRect().top <= 0.5);
-        }
-      }
-
-      const edge = bars.reduce((low, bar) => {
-        const r = bar.getBoundingClientRect();
-
-        return bar.offsetParent && getComputedStyle(bar).opacity !== "0"
-          && r.top <= 1 ? Math.max(low, r.bottom) : low;
-      }, 0);
-      const line = edge + 24;
-      const end = window.innerHeight + window.scrollY
-        >= document.documentElement.scrollHeight - 2;
-      let current = null;
-      let best = -Infinity;
-
-      for (const { link, target } of sections) {
-        if (target.dataset.stuck === "true") continue;
-        if (column && target.id === "order-cart") continue;
-        // Settled, the cart begins at its heading, above the pane.
-        const box = target.id === "order-cart" ? cartHeading : target;
-
-        // A section that isn't shown (a category "In stock" hides)
-        // measures top 0, so once the sections below it had scrolled
-        // above the screen it was the lowest above the line (#702).
-        if (!box.getClientRects().length) continue;
-        const top = box.getBoundingClientRect().top;
-
-        // On a tie the later link wins: a category over the catalog.
-        // At the foot of the page the last section on screen wins,
-        // since it may be too short ever to reach the line.
-        if ((top <= line || (end && top < window.innerHeight))
-          && (top >= best || end)) {
-          best = top;
-          current = link;
-        }
-      }
-
-      // Within the catalog, the category is the one whose rows are
-      // under the bar: the first row with more than a sliver showing
-      // below its edge names it. A section's top crossing the line
-      // named it too late, after the gap above its heading, while the
-      // rows under the bar were already its own (#274), and the last
-      // few pixels of a row kept its section named over the next
-      // one's heading and rows (#561).
-      if (current && (current.hash === `#${catalog.id}`
-        || cats.has(document.querySelector(current.hash)))) {
-        const row = rows.find((el) => showing(el.getBoundingClientRect(),
-          edge));
-
-        if (row && row.getBoundingClientRect().top < window.innerHeight) {
-          current = cats.get(row.closest(".order-cat")) || current;
-        } else if (!row) {
-          // Every row has gone above the bar, but the section after the
-          // catalog has yet to reach the line: the last category was
-          // kept, chevron and all, over the gap (#702). Past its rows
-          // the catalog names no category.
-          current = catalogLink || current;
-        }
-      }
-
-      if (current && current !== shown) mark(current);
-      shown = current || shown;
-
-      const name = current
-        ? current.dataset.heading || current.textContent.trim()
-        : heading ? heading.textContent.trim() : "";
-      // A category's name in the bar carries the double chevron.
-      const cat = !!current && current.hash.startsWith("#cat-");
-
-      for (const title of titles) {
-        // Below lg the bar drops the page name: it shows a category's
-        // name or nothing (#327).
-        const text = !cat && title.closest(".order-topbar") ? "" : name;
-
-        if (title.textContent !== text) title.textContent = text;
-        title.parentElement.toggleAttribute("data-cat", cat);
-      }
-    };
-    const onScroll = () => {
-      if (tick === null) tick = requestAnimationFrame(update);
-    };
-
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll);
-    update();
+    watchSections();
   }
 
   changed() {
