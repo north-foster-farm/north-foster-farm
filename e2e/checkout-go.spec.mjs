@@ -364,7 +364,23 @@ test.describe("Proceed to checkout says why, and goes to what is " +
 // No retries: a retry would pass a fault that shows only some of the
 // time, and catching that is what these are for. The repetition inside
 // each test stands in for them.
+//
+// Each round starts from a fresh draft. The form keeps what was entered
+// in localStorage and restores it on the next load, so without this
+// round 2 opened with round 1's pickup time chosen, and "none chosen"
+// was false from there on (proof runs at 75b34250, all projects).
 const ROUNDS = 6;
+
+// The order form's draft and pending submission gone from this origin's
+// localStorage, as pickup-hint.spec.mjs's freshDraft does (the keys,
+// nff-order-draft and nff-order-pending, are assets/scripts/order/
+// draft.js's). Called on the order page, before the next load: the form
+// saves on a change, not on unload, so the draft stays gone.
+const freshDraft = (page) => page.evaluate(() => {
+  for (const key of Object.keys(localStorage)) {
+    if (/^nff-order-(draft|pending)/.test(key)) localStorage.removeItem(key);
+  }
+});
 
 test.describe("A step that sends the customer on to a section leaves " +
   "it in view and focused, every time (#706, #1013)", () => {
@@ -381,6 +397,7 @@ test.describe("A step that sends the customer on to a section leaves " +
       await test.step(`round ${round} of ${ROUNDS}`, async () => {
         const order = new OrderPage(page);
 
+        if (round > 1) await freshDraft(page);
         await order.open({ wings: 5 });
         await chooseTime(page);
         await order.contact({
@@ -420,6 +437,7 @@ test.describe("A step that sends the customer on to a section leaves " +
       await test.step(`round ${round} of ${ROUNDS}`, async () => {
         const order = new OrderPage(page);
 
+        if (round > 1) await freshDraft(page);
         await order.open({ wings: 5 });
         await toTop(order);
         await press(order.next);
@@ -433,5 +451,195 @@ test.describe("A step that sends the customer on to a section leaves " +
           `round ${round}: to Contact information, none entered`);
       });
     }
+  });
+});
+
+// #1013, the cause and not the weather. The tests above fail only where
+// WebKit is slow enough to have drawn little of the smooth scroll when
+// the focus lands (5 of 7 slow runners, 0 of 7 fast ones), and
+// Playwright cannot slow WebKit's CPU. The order of what the page does
+// is the same on every runner, so this test reads that order.
+//
+// Before each press, watchGoTo arms a watch in the page:
+// - the scroll's start: the first smooth scrollIntoView call (patched
+//   on Element.prototype, the native one still run) whose element lies
+//   in the destination or holds it;
+// - its end: the viewport's scrollend, or, where the engine fires none
+//   ("onscrollend" absent, or the scroll cut short before one), the
+//   scroll settled, no scroll event for SETTLED_MS;
+// - each focusin, and each later scrollIntoView call, between the two.
+// A focus change between start and end is the fault: the go-to has
+// moved the focus while its own scroll was under way. A go-to that
+// focuses first and scrolls after, or scrolls and focuses once the
+// scroll has ended, passes; one that focuses straight after starting
+// the scroll fails, on any runner and in any engine.
+//
+// Each test records, as a "scrollend" annotation, whether the engine
+// has scrollend and whether the viewport fired one, so a run's report
+// says what WebKit on the runner does.
+const SETTLED_MS = 300;
+
+const watchGoTo = (page, selector) => page.evaluate(({ sel, quiet }) => {
+  const now = () => performance.now();
+  const name = (node) => {
+    if (!node || node === document || node === window) return "document";
+    if (node.id) return `#${node.id}`;
+
+    const tag = node.tagName.toLowerCase();
+    const field = node.getAttribute("name");
+    const home = node.closest("[id]");
+
+    return `${tag}${field ? `[name='${field}']` : ""}`
+      + `${home ? ` in #${home.id}` : ""}`;
+  };
+  const viewport = (target) => target === document || target === window
+    || target === document.documentElement || target === document.body;
+
+  if (!window.goToWatch) {
+    const watch = { log: [] };
+    const native = Element.prototype.scrollIntoView;
+
+    window.goToWatch = watch;
+    Element.prototype.scrollIntoView = function scrollIntoView(arg) {
+      if (watch.armed && !watch.ended) {
+        const smooth = !!arg && typeof arg === "object"
+          && arg.behavior === "smooth";
+        const to = document.querySelector(watch.sel);
+        const toward = !!to && (to.contains(this) || this.contains(to));
+
+        if (!watch.started && smooth && toward) {
+          watch.started = true;
+          watch.last = now();
+          watch.log.push({ type: "start", what: name(this) });
+        } else if (watch.started) {
+          watch.log.push({ type: "scroll-call", what: name(this), smooth });
+        }
+      }
+
+      return native.call(this, arg);
+    };
+    addEventListener("focusin", (e) => {
+      if (watch.armed && !watch.ended) {
+        watch.log.push({ type: "focusin", what: name(e.target) });
+      }
+    }, true);
+    addEventListener("scroll", () => {
+      if (watch.started && !watch.ended) watch.last = now();
+    }, true);
+    addEventListener("scrollend", (e) => {
+      if (!viewport(e.target)) return;
+      watch.fired = true;
+      if (watch.started && !watch.ended) {
+        watch.ended = true;
+        watch.log.push({ type: "scrollend" });
+      }
+    }, true);
+    setInterval(() => {
+      if (watch.started && !watch.ended && now() - watch.last > quiet) {
+        watch.ended = true;
+        watch.log.push({ type: "settled" });
+      }
+    }, 50);
+  }
+
+  Object.assign(window.goToWatch, {
+    log: [], sel, armed: true, started: false, ended: false, fired: false,
+    last: 0, has: "onscrollend" in window,
+  });
+}, { sel: selector, quiet: SETTLED_MS });
+
+// The watch's record once the scroll has ended: whether it started and
+// ended, the focus changes between, and the whole log for the message.
+const goToOrder = async (page, label) => {
+  await expect.poll(() => page.evaluate(() => window.goToWatch.ended), {
+    message: `${label}: the go-to's smooth scroll starts and ends`,
+    timeout: 10_000,
+  }).toBe(true);
+
+  return page.evaluate(() => {
+    const { log, fired, has } = window.goToWatch;
+    const start = log.findIndex((e) => e.type === "start");
+    const end = log.findIndex((e) => e.type === "scrollend"
+      || e.type === "settled");
+    const between = start < 0 ? [] : log.slice(start + 1, end < 0
+      ? log.length : end);
+
+    window.goToWatch.armed = false;
+
+    return {
+      verdict: {
+        started: start >= 0,
+        ended: end > start,
+        focusDuring: between.filter((e) => e.type === "focusin")
+          .map((e) => e.what),
+      },
+      log: log.map((e) => `${e.type}${e.what ? ` ${e.what}` : ""}`),
+      scrollend: { has, fired },
+    };
+  });
+};
+
+test.describe("While a step's smooth scroll to a section is under way, " +
+  "nothing the page does ends it early (#706, #1013)", () => {
+  // The order is the code's, the same on every try: a retry only
+  // repeats the failure.
+  test.describe.configure({ retries: 0 });
+
+  test("The focus does not move between the start of a go-to's smooth " +
+    "scroll and its end, and the section ends in view with the focus " +
+    "in it", async ({ page }) => {
+    const order = new OrderPage(page);
+
+    // One go-to, watched: the order checked softly, so every go-to of
+    // the run reports, then the section in view with the focus in it.
+    const goTo = async (label, where, watchFor) => {
+      await toTop(order);
+      await watchGoTo(page, watchFor);
+      await press(order.next);
+
+      const got = await goToOrder(page, label);
+
+      test.info().annotations.push({
+        type: "scrollend",
+        description: `${label}: has ${got.scrollend.has}, fired `
+          + `${got.scrollend.fired}`,
+      });
+      expect.soft(got.verdict,
+        `${label}: no focus change during the scroll (${got.log.join(", ")})`)
+        .toEqual({ started: true, ended: true, focusDuring: [] });
+      await expectFocusAt(page, where, `${label}: in view, focused`);
+    };
+
+    // One page sent to each section in turn, four go-tos by both paths:
+    // Errors.show (errors.js) to the pickup time, then goTo
+    // (order-form.js) to Contact information, Payment and Place your
+    // order. The card comes last, so nothing needs emptying twice.
+    await order.open({ wings: 5 });
+
+    await test.step("the errors' go-to: to the pickup time, none chosen",
+      () => goTo("to the pickup time", { way: "onfarm" }, "#pickup"));
+
+    await chooseTime(page);
+    await test.step("to Contact information, none entered",
+      () => goTo("to Contact information", { selector: SECTION.contact },
+        SECTION.contact));
+
+    await order.contact({
+      email: "checkout-go@example.com", phone: "401-555-0100",
+    });
+    // Open and empty, as in the #706 test above.
+    await order.openCard();
+
+    const fake = page.locator("[data-fake-card] [name='cardNumber']");
+
+    if (await fake.count()) await fake.fill("");
+    await test.step("to Payment, the card not yet entered",
+      () => goTo("to Payment", { selector: SECTION.payment },
+        SECTION.payment));
+
+    await order.card();
+    await test.step("to Place your order, everything entered",
+      () => goTo("to Place your order", { selector: SECTION.confirm },
+        SECTION.confirm));
   });
 });
