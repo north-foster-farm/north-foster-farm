@@ -13,7 +13,9 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { MACHINE_COOKIE } from "../../netlify/functions/lib/gate.mjs";
+import {
+  COOKIE as GATE_COOKIE, MACHINE_COOKIE,
+} from "../../netlify/functions/lib/gate.mjs";
 import { SCOPE_COOKIE } from "../../netlify/functions/lib/stock-pins.mjs";
 import { countCall } from "./calls.mjs";
 import { challengeError, isChallenge } from "./challenge.mjs";
@@ -51,15 +53,25 @@ const env = {
 // the deploy's own secrets would (the maintenance rehearsal).
 export const stagingEnv = (name) => env[name] || "";
 
-// Forget the visitor's cookies, the way a signed-out browser does,
+// Forget the site's cookies, the way a signed-out browser does,
 // but keep the staging gate's machine cookie: clearing it too sends
 // the next request to the gate's sign-in page, not to the site. The
 // test's stock scope stays too (#507), so its pins still apply.
-export const clearSession = async (context) => {
-  const scope = (await context.cookies())
-    .filter((c) => c.name === SCOPE_COOKIE);
+//
+// Only the site's own cookies go, the nff_ ones, as a real sign-out
+// drops them. Netlify's own stay: clearing them made each pass of a
+// loop look like a new visitor from one address, and Netlify's bot
+// challenge answered 403 (staging run 45105183530, qa's triage on
+// #729, cause 2). The gate's two cookies stay as well.
+const KEPT = new Set([SCOPE_COOKIE, GATE_COOKIE, MACHINE_COOKIE]);
 
-  await context.clearCookies();
+export const clearSession = async (context) => {
+  const site = (await context.cookies())
+    .filter((c) => c.name.startsWith("nff_") && !KEPT.has(c.name));
+
+  for (const { name, domain, path } of site) {
+    await context.clearCookies({ name, domain, path });
+  }
 
   const host = new URL(BASE_URL).hostname;
 
@@ -69,7 +81,6 @@ export const clearSession = async (context) => {
       path: "/", httpOnly: true, secure: true, sameSite: "Lax",
     }]);
   }
-  if (scope.length) await context.addCookies(scope);
 };
 
 // The account functions' requests a faked sign-in leaves unanswered,
