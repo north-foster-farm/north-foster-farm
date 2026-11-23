@@ -92,44 +92,6 @@ const glyphLines = (locator) => locator.evaluate((el) => {
   return rects.filter((r, i) => i === 0 || r.top - rects[i - 1].top > 2);
 });
 
-// How far past each side of its box an element draws its outline, and
-// whether it draws one in the form's invalid color.
-const outlineOf = (locator) => locator.evaluate((el) => {
-  const s = getComputedStyle(el);
-  const probe = document.createElement("span");
-
-  probe.style.color = "var(--bs-form-invalid-border-color)";
-  el.append(probe);
-
-  const invalid = getComputedStyle(probe).color;
-
-  probe.remove();
-
-  const drawn = s.outlineStyle !== "none"
-    && parseFloat(s.outlineWidth) > 0;
-  const shadow = s.boxShadow !== "none" && s.boxShadow.includes(invalid);
-  // How far each outer shadow reaches past the box: its offset, blur
-  // and spread, as "<color> x y blur spread" (#703's ring, 2026-11-21:
-  // a glow in place of the outline must show in full too).
-  const glow = s.boxShadow === "none" ? 0 : Math.max(0, ...s.boxShadow
-    .split(/,(?![^(]*\))/)
-    .filter((one) => !one.includes("inset"))
-    .map((one) => {
-      const [x = 0, y = 0, blur = 0, spread = 0] = (one
-        .replace(/rgba?\([^)]*\)/g, "").match(/-?[\d.]+px/g) || [])
-        .map(parseFloat);
-
-      return Math.max(Math.abs(x), Math.abs(y)) + blur + spread;
-    }));
-
-  return {
-    marked: (drawn && s.outlineColor === invalid) || shadow
-      || s.borderTopColor === invalid,
-    past: Math.max(glow, drawn
-      ? parseFloat(s.outlineOffset) + parseFloat(s.outlineWidth) : 0),
-  };
-});
-
 // The left and right edges of the region an element can draw in: the
 // viewport, cut by every ancestor that clips its overflow sideways.
 const clipOf = (locator) => locator.evaluate((el) => {
@@ -150,35 +112,26 @@ const clipOf = (locator) => locator.evaluate((el) => {
 });
 
 test.describe("pickup days, James's revision (#703)", () => {
-  test("The validation outline and message show in full at 390 px, " +
-    "with nothing clipped on the left or right", async ({ page }) => {
+  // #703's third revision (2026-11-23) took the outline away: the list
+  // has no outline or ring in any state (e2e/pickup-hint.spec.mjs), so
+  // what is left of this box is the message, still shown in full.
+  test("The validation message shows in full at 390 px, with nothing " +
+    "clipped on the left or right", async ({ page }) => {
     const order = await openPickups(page);
 
-    // Paying without a choice marks the pickups and says so.
+    // Paying without a choice says so, as an error.
     await order.contact({ email: "unclipped@example.com" });
     await order.openCard();
     await order.card();
     await order.submit.click();
 
-    const pickups = page.locator("#scheduled-pickups");
-    const message = page.locator("#err-scheduled-date");
+    // Found by its text in the Pick-up days card: the third revision
+    // moves it above the cards, and its markup is the implementer's.
+    const message = page.locator(".order-method:has(#method-scheduled)")
+      .getByText(/^Choose a pick-up day and place\.?$/);
 
-    await expect(pickups).toHaveClass(/\bis-invalid\b/);
-    await expect(message).toHaveText("Choose a pick-up day and place.");
     await expect(message).toBeVisible();
     await order.scrollSettled();
-
-    const outline = await outlineOf(pickups);
-
-    expect(outline.marked, "the pickups are outlined in red").toBe(true);
-
-    const at = await box(pickups);
-    const clip = await clipOf(pickups);
-
-    expect(at.x - outline.past, "the outline's left edge shows")
-      .toBeGreaterThanOrEqual(clip.left - 0.5);
-    expect(at.right + outline.past, "the outline's right edge shows")
-      .toBeLessThanOrEqual(clip.right + 0.5);
 
     const said = await box(message);
     const room = await clipOf(message);

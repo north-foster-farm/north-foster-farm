@@ -574,7 +574,7 @@ export class OrderForm {
     const contact = only((key) => key.startsWith("customer."));
 
     if (Object.keys(way).length) {
-      this.showErrors(way);
+      this.showErrors(way, { hint: true });
 
       return;
     }
@@ -596,14 +596,15 @@ export class OrderForm {
   }
 
   // The errors on the page, brought into view: the first field focused,
-  // or, for a group with no focus of its own (the pickup times), its
-  // first choice.
-  showErrors(errors) {
-    this.errors.show(errors);
+  // or, for a group with no focus of its own (the pickup times) or a
+  // list of dates (#703), its first choice. `options` go to Errors.
+  showErrors(errors, options) {
+    this.errors.show(errors, options);
 
     const field = this.errors.find("data-field", Object.keys(errors)[0]);
 
-    if (field && document.activeElement !== field) {
+    if (field && (field.hasAttribute("data-dates")
+      || document.activeElement !== field)) {
       qs(field, "input:not([disabled])")?.focus({ preventScroll: true });
     }
   }
