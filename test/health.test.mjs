@@ -6,9 +6,10 @@ import {
 } from "../netlify/functions/lib/health.mjs";
 import { recordRun } from "../netlify/functions/lib/jobs.mjs";
 import {
-  alertCrash, configured, flush, log, pending, trimStack, withLog,
+  configured, flush, log, pending, trimStack,
 } from "../netlify/functions/lib/log.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
+import { alertCrash, withLog } from "../netlify/functions/lib/with-log.mjs";
 import { handle, snapshot } from "../netlify/functions/health.mjs";
 import { handle as jobsHandle } from "../netlify/functions/jobs.mjs";
 import { handle as stagingHandle } from "../netlify/functions/staging.mjs";

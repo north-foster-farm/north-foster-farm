@@ -12,8 +12,6 @@
 
 import { createHash } from "node:crypto";
 
-import { within } from "./clock.mjs";
-
 const buffer = [];
 
 const SHIP_TIMEOUT = 1500;
@@ -116,7 +114,9 @@ export const scrub = (value, depth = 0, asId = false) => {
   ]));
 };
 
-const line = (level, fields) => {
+// Exported for lib/with-log.mjs alone, whose wrapper writes its own
+// lines into this one buffer. Everything else logs through `log`.
+export const line = (level, fields) => {
   const record = scrub({
     _time: new Date().toISOString(),
     level,
@@ -225,24 +225,6 @@ export const trimStack = (error) => String((error && error.stack)
   || error).split("\n").slice(0, STACK_LINES).join("\n")
   .slice(0, STACK_CHARS);
 
-// The alert for an exception no handler caught, through lib/health.mjs
-// (imported here when needed, since it logs through this module). Its
-// hourly limit is per function, so one noisy function cannot hide
-// another's crash. `options` are alert()'s, for the tests.
-export const alertCrash = async (detail, error, {
-  stores: given, ...options
-} = {}) => {
-  const [{ alert }, { stores }] = await Promise.all([
-    import("./health.mjs"), import("./store.mjs"),
-  ]);
-
-  const s = given || stores();
-
-  return alert(s, "function.crashed", detail, {
-    ...options, mute: `function.crashed/${detail.function}`,
-  });
-};
-
 // A request that answers this slowly, or with a 5xx, gets one line.
 export const SLOW_MS = 5000;
 
@@ -255,84 +237,4 @@ export const testOf = (req) => {
   const match = raw.match(/(?:^|;\s*)nff_stock_scope=([^;]+)/);
 
   return match && SCOPE_ID.test(match[1]) ? match[1] : null;
-};
-
-// -> the request's path and method, or nulls for a scheduled run.
-const where = (req) => {
-  try {
-    return { method: req.method || null, path: new URL(req.url).pathname };
-  } catch {
-    return { method: null, path: null };
-  }
-};
-
-// Wraps a function handler so its lines ship after it answers,
-// whatever happened inside. An exception the handler did not catch is
-// logged as function.crashed with the function's name and a trimmed
-// stack, raises one alert (`onCrash`), and is thrown on unchanged, so
-// Netlify answers exactly as it would have. The report never fails
-// the request: a failing onCrash is logged and dropped. An answer
-// slower than SLOW_MS or with a 5xx status is logged as
-// function.slow, with the path (never the query) and the e2e test it
-// came from, so a failed staging run can find its own lines.
-//
-//   withLog("orders", handler)
-//   withLog("orders", handler, { onCrash, flushImpl })
-export const withLog = (name, handler, {
-  onCrash = alertCrash,
-  flushImpl = flush,
-  now = Date.now,
-} = {}) => {
-  if (typeof name === "function") return withLog("unnamed", name, handler);
-
-  return async (req, context) => {
-    const started = now();
-
-    try {
-      const res = await within(req, () => handler(req, context));
-      const ms = now() - started;
-      const status = res && typeof res.status === "number" ? res.status : null;
-
-      if (ms >= SLOW_MS || (status !== null && status >= 500)) {
-        line("warn", {
-          event: "function.slow", function: name, ...where(req), status,
-          ms, test: testOf(req),
-        });
-      }
-
-      return res;
-    } catch (error) {
-      let path = null;
-
-      try {
-        path = new URL(req.url).pathname;
-      } catch {
-        // A scheduled run has no request.
-      }
-
-      const detail = {
-        function: name,
-        error: String((error && error.message) || error).slice(0, 300),
-        method: (req && req.method) || null,
-        path,
-        stack: trimStack(error),
-      };
-
-      line("error", { event: "function.crashed", ...detail });
-      if (onCrash) {
-        try {
-          await onCrash(detail, error);
-        } catch (failure) {
-          line("error", {
-            event: "function.crash_alert_failed", function: name,
-            error: String(failure),
-          });
-        }
-      }
-
-      throw error;
-    } finally {
-      await flushImpl();
-    }
-  };
 };

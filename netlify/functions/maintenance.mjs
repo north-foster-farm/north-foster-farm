@@ -10,7 +10,7 @@
 
 import { json } from "./lib/http.mjs";
 import { sameSite } from "./lib/auth.mjs";
-import { withLog } from "./lib/log.mjs";
+import { withLog } from "./lib/with-log.mjs";
 import {
   ACTIONS, MESSAGE, page, readState, setState, validSignature,
 } from "./lib/maintenance.mjs";

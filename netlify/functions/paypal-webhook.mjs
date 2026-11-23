@@ -22,7 +22,8 @@
 import { closeRefunded } from "./lib/admin.mjs";
 import { alert, mark } from "./lib/health.mjs";
 import { json } from "./lib/http.mjs";
-import { log, withLog } from "./lib/log.mjs";
+import { log } from "./lib/log.mjs";
+import { withLog } from "./lib/with-log.mjs";
 import { real } from "./lib/clock.mjs";
 import {
   SIGNATURE_HEADER, recordingsFor, verifyWebhook, webhookConfigured,

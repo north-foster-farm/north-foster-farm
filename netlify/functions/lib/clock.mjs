@@ -7,7 +7,7 @@
 // clock keeps running from the time they set. Everywhere else, and
 // always in production, `now()` is the real time.
 //
-// Every function runs its request inside `within` (lib/log.mjs,
+// Every function runs its request inside `within` (lib/with-log.mjs,
 // withLog), which reads two facts off the request once: the clock
 // offset, and the gate session that asked, so an email written to the
 // outbox can be stamped with the session it belongs to (lib/mail.mjs,

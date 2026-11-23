@@ -21,7 +21,7 @@ import { json, readJson } from "./lib/http.mjs";
 import {
   ELSEWHERE, INVALID_LINK, checkToken, joinNow, requestJoin,
 } from "./lib/join.mjs";
-import { withLog } from "./lib/log.mjs";
+import { withLog } from "./lib/with-log.mjs";
 import { gate } from "./lib/maintenance.mjs";
 import { stores as defaultStores } from "./lib/store.mjs";
 
