@@ -523,7 +523,10 @@ refused rather than charged.
 the Venmo dark launch (2026-11-23, #868), and `card.js` attaches
 Square's card form, waits for its fields' word and tokenizes it,
 asking the form only through the `checkout` port `pay.js` builds
-(2026-11-23, #869). It fetches
+(2026-11-23, #869), and `wallets.js` holds the payment request and
+Apple Pay, Google Pay and Cash App Pay, guards each press and keeps
+the request's total current, through the same port (2026-11-23,
+#870). It fetches
 `/api/checkout/config` and loads the SDKs once the section is near
 the screen or focused: Square's from `web.squarecdn.com` (sandbox:
 `sandbox.web.squarecdn.com`), PayPal's from `www.paypal.com/sdk/js`
