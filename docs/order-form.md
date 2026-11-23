@@ -532,9 +532,12 @@ placed, a checkout that could not complete and a change the server
 refused, in `result.js`, with their words and the beacon's record in
 the pure `placed.mjs` (2026-11-23, #818); what the page embeds,
 read once, in the pure `page-data.mjs`, and the order's state as
-one record in the pure `order-state.mjs` (2026-11-23, #819); and
-the section spy, which names the section on screen in the
-sidebar's outline, the phone's bar and the total bar, in
+one record in the pure `order-state.mjs` (2026-11-23, #819); what
+prices the order, the prices of the day, the member price, the money
+rules, the totals' arguments, the amount due and the checks' options,
+in the pure `pricing.mjs` (2026-11-23, #820); and the section spy,
+which names the section on screen in the sidebar's outline, the
+phone's bar and the total bar, in
 `section-spy.js` (`watchSections`, `keepInRail`), with its choice of
 section drawn out into the pure `section-pick.mjs`.
 

@@ -1,6 +1,5 @@
 import { current } from "./lib/catalog.mjs";
 import { bookedDay, cutoffFor, keptDelivery } from "./lib/dates.mjs";
-import { moneyOn } from "./lib/money-on.mjs";
 import {
   draftOccurrence, locationCount,
   locationsLabel,
@@ -8,19 +7,16 @@ import {
 import {
   nextRoundOpens, roundsWhen, withPlaces,
 } from "./lib/group.mjs";
-import { perkEffects } from "./lib/perks.mjs";
 import { postedDelivery } from "./lib/posted.mjs";
 import { summarize } from "./lib/summary.mjs";
-import {
-  computeTotals, dollars, lockOn, meetsMinimum,
-} from "./lib/totals.mjs";
+import { computeTotals, dollars } from "./lib/totals.mjs";
 import {
   disallowedFor, normalizeCode, validateOrder, zipInfo,
 } from "./lib/validate.mjs";
 import {
   pickupTimes, windowLabel,
 } from "./lib/schedule.mjs";
-import { label, today } from "./lib/zoned.mjs";
+import { label } from "./lib/zoned.mjs";
 import { Cart, JOKE_CODE } from "./cart/cart.js";
 import { drawTerms } from "./cart/perk-label.js";
 import { celebrate } from "./celebrate.js";
@@ -34,6 +30,10 @@ import { all, pulse, qs } from "./form/dom.js";
 import { Links } from "./form/links.js";
 import { createStore, initialState } from "./form/order-state.mjs";
 import { editIdFrom, pageData } from "./form/page-data.mjs";
+import {
+  amountDue, checkOptions, lockOf, perkTypesOf, pricesOn, rulesOf,
+  totalsArgs,
+} from "./form/pricing.mjs";
 import { pickupAt } from "./form/placed.mjs";
 import { showFailed, showLocked, showPlaced } from "./form/result.js";
 import { watchSections } from "./form/section-spy.js";
@@ -101,15 +101,19 @@ export class OrderForm {
     });
   }
 
-  // The prices in force today in the farm's zone, so the 1 January
-  // changes (data/delivery.json, money.changes) arrive with the day;
-  // an order being changed keeps those of the day it was placed.
+  // The prices in force (form/pricing.mjs pricesOn).
   get money() {
-    const placed = this.state.editing && this.state.editing.placed;
+    return pricesOn({ money: this.state.terms.money, ...this.pricedOn() });
+  }
 
-    return moneyOn(this.state.terms.money, today(
-      placed ? new Date(placed) : this.dates.now(), this.state.terms.timeZone
-    ));
+  // The clock and the day a change was placed, which the prices, the
+  // member price and the checks are read by.
+  pricedOn() {
+    return {
+      now: this.dates.now(),
+      placed: this.state.editing && this.state.editing.placed,
+      timeZone: this.state.terms.timeZone,
+    };
   }
 
   constructor(form) {
@@ -755,20 +759,26 @@ export class OrderForm {
     }));
   }
 
+  // The order's totals (form/pricing.mjs totalsArgs).
   totals() {
-    return computeTotals({
+    const s = this.state;
+
+    return computeTotals(totalsArgs({
       lines: this.lines(),
       method: this.method(),
       index: this.index,
       money: this.money,
-      group: this.state.group,
-      code: this.state.code,
+      group: s.group,
+      code: s.code,
       lock: this.lock(),
-      zipStatus: this.zipStatus(),
-      waiveFee: !!this.state.pass && this.state.passFee,
-      credit: this.state.editing ? 0 : this.state.credit,
+      zip: qs(this.form, "[data-field='delivery.zip']").value,
+      area: s.terms.area,
+      pass: s.pass,
+      passFee: s.passFee,
+      editing: s.editing,
+      credit: s.credit,
       perks: this.perkTypes(),
-    });
+    }));
   }
 
   // Looks the typed code up by its hash. A known one becomes
@@ -983,20 +993,9 @@ export class OrderForm {
     if (ok && data && data.group) this.offerRounds(data);
   }
 
-  // The member price while it holds (#471): through its last
-  // day, by the day the order is for, the day it is placed or, for a
-  // change, was, as `money` chooses the prices in force. The server
-  // works it out the same way, so the totals agree.
+  // The member price while it holds (form/pricing.mjs lockOf).
   lock() {
-    if (!this.state.member || !this.state.member.lock) return null;
-
-    const placed = this.state.editing && this.state.editing.placed;
-    const day = today(placed ? new Date(placed) : this.dates.now(),
-      this.state.terms.timeZone);
-
-    return lockOn({
-      ...this.state.member.lock, through: this.state.member.lockThrough,
-    }, day);
+    return lockOf({ member: this.state.member, ...this.pricedOn() });
   }
 
   // A member's credit in the payment section (#471): what it covers
@@ -1057,32 +1056,17 @@ export class OrderForm {
     this.payment.fail(errors["fulfilment.method"]);
   }
 
-  // The money rules the page holds the order to: a pass or a perk
-  // (#514) lifts the delivery minimum, and nothing else.
+  // The money rules the page holds the order to (form/pricing.mjs
+  // rulesOf).
   rules() {
-    return this.state.pass || perkEffects(this.perkTypes()).minimum
-      ? { ...this.money, deliveryMinimum: 0 } : this.money;
+    return rulesOf({
+      money: this.money, pass: this.state.pass, perks: this.perkTypes(),
+    });
   }
 
-  // The signed-in customer's perk types (#514), from /api/me; while
-  // changing an order, the ones it was priced with.
+  // The customer's perk types (form/pricing.mjs perkTypesOf).
   perkTypes() {
-    return this.state.perks.map((p) => p.type);
-  }
-
-
-  // The delivery ZIP's status, for the outside-area fee. Null unless
-  // delivery is chosen, so the fee shows the moment it applies.
-  zipStatus() {
-    if (this.method() !== "delivery") return null;
-
-    return zipInfo(
-      qs(this.form, "[data-field='delivery.zip']").value, this.state.terms.area
-    ).status;
-  }
-
-  eligible(totals) {
-    return meetsMinimum(totals, this.rules());
+    return perkTypesOf(this.state.perks);
   }
 
   // Everything derived from the current field values.
@@ -1643,10 +1627,7 @@ export class OrderForm {
   // What the payment section asks of the form (pay.js).
 
   amount() {
-    return this.state.editing
-      ? Math.max(0, (this.total || 0) - this.state.editing.held
-        + this.state.editing.kept)
-      : this.total || 0;
+    return amountDue({ total: this.total, editing: this.state.editing });
   }
 
   referenceId() {
@@ -1680,21 +1661,13 @@ export class OrderForm {
   // its key and attempt, or null after showing the errors. Nothing
   // asynchronous: a wallet must tokenise inside its click.
   check(payload) {
-    const check = validateOrder(payload, {
-      index: this.index, terms: this.state.terms, now: this.dates.now(),
-      placed: this.state.editing && this.state.editing.placed,
-      group: this.state.group, code: this.state.code,
-      schedule: this.dates.schedule(),
-      // As lib/edit.mjs passes it (#643).
-      keptDate: (this.state.editing && this.state.editing.booked) || null,
-      lock: this.lock(),
-      credit: this.state.editing ? 0 : this.state.credit,
-      waive: {
-        minimum: !!this.state.pass,
-        fee: !!this.state.pass && this.state.passFee,
-      },
-      perks: this.perkTypes(),
-    });
+    const s = this.state;
+    const check = validateOrder(payload, checkOptions({
+      index: this.index, terms: s.terms, now: this.dates.now(),
+      editing: s.editing, group: s.group, code: s.code,
+      schedule: this.dates.schedule(), lock: this.lock(), credit: s.credit,
+      pass: s.pass, passFee: s.passFee, perks: this.perkTypes(),
+    }));
 
     // Group orders posts as a pickup day (#749), so a missing round
     // comes back as a missing day; it is said as a round (#761, 2b).
