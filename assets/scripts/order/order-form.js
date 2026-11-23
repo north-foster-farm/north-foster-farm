@@ -294,7 +294,12 @@ export class OrderForm {
       ? all(this.form, "[data-prefill-region]")
       : [];
 
-    whileLoading(fields, me, { render: (who) => this.signedIn(who) });
+    const asked = me();
+
+    whileLoading(fields, () => asked, { render: (who) => this.signedIn(who) });
+    // No stamp yet a live session (#985): the same answer still fills
+    // the form; signedIn() takes only a signed-in one.
+    if (!fields.length) asked.then((who) => this.signedIn(who), () => {});
 
     // Signed in since in another tab, or in this one after Back
     // (#521): the perks, the group and the credit apply before Pay, or
