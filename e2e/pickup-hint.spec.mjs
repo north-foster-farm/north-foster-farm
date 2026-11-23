@@ -66,7 +66,7 @@
 
 import { OrderPage, expect, test } from "./support/order.mjs";
 import {
-  DROP, FOSTER, cannedScheduled, datesWith,
+  DROP, FOSTER, cannedScheduled, datesWith, payable,
 } from "./support/scheduled.mjs";
 import {
   GROUP_ORDERS, MEMBER, choose, openOrder, pick, signIn,
@@ -123,9 +123,9 @@ const press = (button) => (test.info().project.use.hasTouch
 const list = (page, which = PICKUP) => page.locator(`#${which.list}`);
 
 // The order page with Pick-up days chosen, its cards shown, nothing
-// picked.
-const openPickups = async (page) => {
-  await cannedScheduled(page, lists());
+// picked; the canned lists are `made` (lists() unless a test says).
+const openPickups = async (page, made = lists()) => {
+  await cannedScheduled(page, made);
   await noPosts(page);
 
   const order = new OrderPage(page);
@@ -320,6 +320,28 @@ page.evaluate((
   text: { source: which.text.source }, heading: which.heading,
   way: which.way, listId: which.list,
 }));
+
+// What the list's message box says now, whatever the message: the
+// shown text of each element the radio group's aria-describedby names
+// (the box the third revision's boxes describe it by), joined, or "".
+// A box holding another error ("That pickup is no longer available.")
+// is not cleared, though messageOf, which looks for one text, is null.
+const boxSays = (page, which = PICKUP) => list(page, which).evaluate(
+  (group) => (group.getAttribute("aria-describedby") || "")
+    .split(/\s+/).filter(Boolean)
+    .map((id) => document.getElementById(id))
+    .filter((el) => {
+      if (!el) return false;
+
+      const r = el.getBoundingClientRect();
+
+      return r.width > 0 && r.height > 0
+        && getComputedStyle(el).visibility !== "hidden";
+    })
+    .map((el) => el.textContent.replace(/\s+/g, " ").trim())
+    .filter(Boolean)
+    .join(" | "),
+);
 
 // Every visible element on the page drawn in red now: its color, a
 // border, an outline or a glow. A path for each, to compare two looks.
@@ -664,7 +686,13 @@ test.describe("the pick-up list's hint and error (#703, third revision)",
             // The hint step's pick is in the draft: start without it.
             if (state === "error") await freshDraft(page);
 
-            const order = await openPickups(page);
+            // The drop site on its real Saturdays, so the day picked is
+            // one the page's validator still holds once Place your order
+            // has been pressed. lists() offers it on a day its series
+            // does not run (e2e/support/scheduled.mjs), and the error
+            // step's pick was then refused as "That pickup is no longer
+            // available." (run 45163975380).
+            const order = await openPickups(page, payable());
 
             await proceed(order);
             if (state === "error") await placeOrder(order);
@@ -674,6 +702,8 @@ test.describe("the pick-up list's hint and error (#703, third revision)",
             await first().check();
             await settle(order);
             expect(await messageOf(page), `the ${state} is gone`).toBeNull();
+            expect(await boxSays(page),
+              `the message box says nothing after the ${state}`).toBe("");
             expect((await frameOf(page)).bars, "no red bar").toEqual([]);
           });
         }
@@ -793,6 +823,8 @@ test.describe("the Group orders date list's hint and error (#703, third " +
           await settle(order);
           expect(await messageOf(page, GROUP), `the ${state} is gone`)
             .toBeNull();
+          expect(await boxSays(page, GROUP),
+            `the message box says nothing after the ${state}`).toBe("");
           expect((await frameOf(page, GROUP)).bars, "no red bar")
             .toEqual([]);
         });
