@@ -82,7 +82,12 @@ export const handle = async (req, {
     env, mail, now, catalogIndex, counts,
   }));
 
-  return json(200, { at: now.toISOString(), items });
+  // PROOF ONLY (#908, PR #933): does Netlify's CDN answer a second ask
+  // within 15 s without invoking this function? Never to be landed.
+  return json(200, { at: now.toISOString(), items }, {
+    "Netlify-CDN-Cache-Control": "public, durable, s-maxage=15",
+    "Netlify-Vary": "cookie=nff_stock_scope",
+  });
 };
 
 export default withLog("stock", async (req, context) =>
