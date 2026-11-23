@@ -21,8 +21,16 @@
 //   venmoCapture(payload, paypalOrderId)
 
 import { venmoGate } from "./lib/venmo.mjs";
+import {
+  CARD_STYLE, cardRequest, paymentRequestOf,
+} from "./pay/requests.mjs";
+import {
+  cardDone, cardFieldOf, endState, sectionComplete, submitHidden,
+  walletsShown,
+} from "./pay/states.mjs";
+import { clickAllowed, shouldRestart } from "./pay/venmo-flow.mjs";
+import { dollarsOf, tokenMessage, venmoRefusal } from "./pay/words.mjs";
 import { crumb, reportError, reportUnavailable, sdk } from "./report.js";
-import { validField } from "../utils/field-errors.mjs";
 import { whileLoading } from "../utils/skeleton.js";
 
 const qs = (root, selector) => root.querySelector(selector);
@@ -34,10 +42,8 @@ const VENMO = "nff-venmo";
 // fields gives up at 10 s with Try again; this is the backstop.
 const INIT_TIMEOUT_MS = 20_000;
 
-// The card's fields, and the events in which Square's card form says
-// how each stands (CardInputEvent: detail.field, detail.currentState).
-// Proceed to checkout asks whether all are complete (#706).
-const CARD_FIELDS = ["cardNumber", "expirationDate", "cvv", "postalCode"];
+// The events in which Square's card form says how each of the card's
+// fields stands (pay/states.mjs, cardFieldOf).
 const CARD_EVENTS = [
   "focusClassRemoved", "errorClassAdded", "errorClassRemoved",
   "cardBrandChanged", "postalCodeChanged",
@@ -96,29 +102,6 @@ const loadScript = (src) => {
   return loaded.get(src);
 };
 
-const money = (cents) => (cents / 100).toFixed(2);
-
-// What the SDK says when a card will not tokenise, in our words.
-const tokenMessage = (result) => {
-  const first = result && result.errors && result.errors[0];
-
-  if (!first) return "Check your card details and try again.";
-  if (/postal|zip/i.test(first.field || "")) {
-    return "Check the ZIP code and try again.";
-  }
-  if (/expir/i.test(first.field || first.message || "")) {
-    return "Check the expiration date and try again.";
-  }
-  if (/cvv|security/i.test(first.field || first.message || "")) {
-    return "Check the security code and try again.";
-  }
-  if (/cardNumber|number/i.test(first.field || "")) {
-    return validField("card");
-  }
-
-  return first.message || "Check your card details and try again.";
-};
-
 export class Payment {
   constructor(root, form) {
     this.root = root;
@@ -131,7 +114,7 @@ export class Payment {
     this.config = null;
     this.ready = false;
     this.starting = null;
-    // Which of the card's fields Square calls complete (CARD_FIELDS).
+    // Which of the card's fields Square calls complete (cardDone).
     this.cardFields = {};
     this.error = qs(root, "[data-error-for='payment']");
     this.state = qs(root, "[data-pay]");
@@ -153,7 +136,9 @@ export class Payment {
 
     this.state.dataset.cardOpen = String(open);
     this.cardButton.setAttribute("aria-pressed", String(open));
-    if (submit) submit.hidden = !open && !this.covered;
+    if (submit) {
+      submit.hidden = submitHidden({ cardOpen: open, covered: this.covered });
+    }
   }
 
   // A member's credit covers the whole order (#471): nothing to
@@ -265,7 +250,9 @@ export class Payment {
 
     await Promise.all(jobs);
 
-    if (!this.card && !this.venmo) {
+    const state = endState({ card: this.card, venmo: this.venmo });
+
+    if (state === "unavailable") {
       reportUnavailable("sdks.gone", "Neither the card nor Venmo is " +
         "available.");
       this.setState("unavailable");
@@ -274,7 +261,7 @@ export class Payment {
     }
 
     this.ready = true;
-    this.setState(this.card ? "ready" : "venmo-only");
+    this.setState(state);
     this.form.paymentReady();
   }
 
@@ -297,21 +284,7 @@ export class Payment {
     crumb("square.ready");
 
     try {
-      // The iframe cannot see our stylesheet, so the field is told
-      // our colours by value (_variables.scss).
-      this.card = await this.payments.card({
-        style: {
-          input: { fontSize: "16px", color: "#212529" },
-          "input::placeholder": { color: "#8a8a8b" },
-          ".input-container": { borderColor: "#e7e7e7", borderRadius: "6px" },
-          ".input-container.is-focus": { borderColor: "#1e7b54" },
-          ".input-container.is-error": { borderColor: "#dc3545" },
-          ".message-text": { color: "#5e5e5f" },
-          ".message-icon": { color: "#5e5e5f" },
-          ".message-text.is-error": { color: "#dc3545" },
-          ".message-icon.is-error": { color: "#dc3545" },
-        },
-      });
+      this.card = await this.payments.card({ style: CARD_STYLE });
       await this.card.attach(qs(this.root, "[data-card]"));
       // A stand-in with no events (a spec's) leaves every field unknown.
       for (const type of CARD_EVENTS) {
@@ -331,13 +304,9 @@ export class Payment {
       this.setCardAvailable(false);
     }
 
-    this.request = this.payments.paymentRequest({
-      countryCode: "US",
-      currencyCode: "USD",
-      total: {
-        amount: money(this.form.amount()), label: this.form.contact.name,
-      },
-    });
+    this.request = this.payments.paymentRequest(paymentRequestOf(
+      this.form.amount(), this.form.contact.name
+    ));
 
     await Promise.all([
       this.initApplePay(), this.initGooglePay(), this.initCashAppPay(),
@@ -348,34 +317,36 @@ export class Payment {
 
   // A field of the card form says how it stands.
   cardInput(e) {
-    const d = (e && e.detail) || e || {};
+    const said = cardFieldOf(e);
 
-    if (d.field && d.currentState) {
-      this.cardFields[d.field] = !!d.currentState.isCompletelyValid;
-    }
+    if (said) this.cardFields[said.field] = said.valid;
   }
 
   cardDone() {
-    return CARD_FIELDS.every((field) => this.cardFields[field]);
+    return cardDone(this.cardFields);
   }
 
-  // Whether the section needs nothing more (#706): nothing to charge,
-  // or the card chosen and every field of it complete. A wallet or
-  // Venmo pays in its own step, so this section still needs it.
+  // Whether the section needs nothing more (pay/states.mjs,
+  // sectionComplete). A card whose fields have not all reported waits
+  // CARD_SETTLE_MS for the last one's word.
   async complete() {
-    if (this.covered || this.form.amount() === 0) return true;
-    if (!this.card || this.state.dataset.cardOpen !== "true") return false;
-    if (this.cardDone()) return true;
+    const amount = this.form.amount();
+    const now = (done) => sectionComplete({
+      amount, covered: this.covered, card: this.card,
+      cardOpen: this.state.dataset.cardOpen === "true", done,
+    });
+
+    if (now(this.cardDone())) return true;
+    if (!now(true)) return false;
     await new Promise((resolve) => { setTimeout(resolve, CARD_SETTLE_MS); });
 
     return this.cardDone();
   }
 
   showWallets() {
-    const any = !!this.card || Object.keys(this.wallets).length > 0
-      || !!this.venmo;
-
-    qs(this.root, "[data-wallets]").hidden = !any;
+    qs(this.root, "[data-wallets]").hidden = !walletsShown({
+      card: this.card, wallets: this.wallets, venmo: this.venmo,
+    });
   }
 
   // A wallet button pays the whole order on its own. The form is
@@ -499,26 +470,9 @@ export class Payment {
     }
 
     const b = this.form.billing(payload);
-    const result = await this.card.tokenize({
-      amount: money(this.form.amount()),
-      currencyCode: "USD",
-      intent: "CHARGE",
-      customerInitiated: true,
-      sellerKeyedIn: false,
-      billingContact: {
-        givenName: b.firstName,
-        familyName: b.lastName,
-        email: b.email,
-        phone: b.phone,
-        countryCode: "US",
-        ...(b.address1 ? {
-          addressLines: [b.address1, b.address2].filter(Boolean),
-          city: b.town,
-          state: b.state || undefined,
-          postalCode: b.zip,
-        } : {}),
-      },
-    });
+    const result = await this.card.tokenize(
+      cardRequest(this.form.amount(), b)
+    );
 
     if (result.status !== "OK") throw new Error(tokenMessage(result));
 
@@ -530,7 +484,7 @@ export class Payment {
     if (!this.request) return;
     try {
       this.request.update({
-        total: { amount: money(cents), label: this.form.contact.name },
+        total: { amount: dollarsOf(cents), label: this.form.contact.name },
       });
     } catch {
       // The old amount is refused by the server anyway.
@@ -573,7 +527,8 @@ export class Payment {
         if (locked) actions.disable();
       },
       onClick: (data, actions) => {
-        if (locked || this.busy || !this.form.prepare()) {
+        if (!clickAllowed({ locked, busy: this.busy },
+          () => this.form.prepare())) {
           return actions.reject();
         }
 
@@ -583,9 +538,7 @@ export class Payment {
         const payload = await this.form.prepareAsync();
 
         if (!payload) {
-          throw new Error(this.form.stock.locked
-            ? "Ordering isn't available right now."
-            : "Check the form and try again.");
+          throw new Error(venmoRefusal(this.form.stock.locked));
         }
         this.venmoPayload = payload;
         this.venmoRestarted = false;
@@ -602,11 +555,10 @@ export class Payment {
 
         return id;
       },
-      // Venmo refused the funding source the buyer picked (#721): the
-      // sheet opens again on the same PayPal order, once, so they can
-      // pick another, as PayPal advises. The decline is settled first,
-      // so a buyer who closes the sheet is where any decline leaves
-      // them. A second decline, or any other failure, stops there.
+      // A decline for the funding source opens the sheet again, once
+      // (pay/venmo-flow.mjs, shouldRestart). The decline is settled
+      // first, so a buyer who closes the sheet is where any decline
+      // leaves them.
       onApprove: async (data, actions) => {
         crumb("venmo.approve");
         this.setBusy(true);
@@ -616,9 +568,7 @@ export class Payment {
             this.venmoPayload, data.orderID, { restart }
           );
 
-          if (!restart && outcome && outcome.kind === "declined"
-            && outcome.code === "INSTRUMENT_DECLINED" && actions
-            && typeof actions.restart === "function") {
+          if (shouldRestart({ restarted: restart, outcome, actions })) {
             this.venmoRestarted = true;
             crumb("venmo.restart");
 
