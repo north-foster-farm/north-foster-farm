@@ -399,6 +399,13 @@ submission. The contract between them:
   (`cart.js` still exports `JOKE_CODE`) and its row in `joke-row.js`;
   `firstAdd` in `first-add.js`; and `qs`, `all`, `pulse`, `say` and
   `reduced` in `dom.js`.
+- And the drawing (2026-11-22, #852): the lines in `lines-view.js`
+  (`drawItems`, `dropRows`); the readouts, the sums, a paid order's
+  money, the shared row's switch and the nudge in `sums-view.js`;
+  and what a render decides in `plan.mjs`: `changed`, whether it
+  moves the pane; `readoutLabels`; `editMoney`; `wayButtons`;
+  `passedBy`, whether the bars' readouts take over; and `tierKeys`
+  and `deliveryTip`, the day's money for the badges.
 - Draft, sync and the header badge stay in `draft.js`, `cart-sync.mjs`,
   `session/cart-sync.js` and `cart-badge/*`, unchanged in shape. The
   cart announces nothing itself; `OrderForm` keeps `announceCart`.

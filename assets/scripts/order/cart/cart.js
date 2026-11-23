@@ -12,17 +12,21 @@ import Tooltip from "bootstrap/js/dist/tooltip.js";
 
 import { celebrate } from "../celebrate.js";
 import { ringsCart } from "../lib/cart-scroll.mjs";
-import { packLabel } from "../lib/catalog.mjs";
 import { awayFrom } from "../lib/share-away.mjs";
-import { dollars } from "../lib/totals.mjs";
-import { label } from "../lib/zoned.mjs";
 import { codeNote } from "./code-note.mjs";
 import { twoStep } from "./confirm.mjs";
 import { all, pulse, qs, reduced, say } from "./dom.js";
 import { firstAdd } from "./first-add.js";
 import { startJoke, stopJoke } from "./joke-row.js";
+import { drawItems, dropRows } from "./lines-view.js";
 import { drawBadgeInfo, drawPerks } from "./perk-label.js";
+import {
+  changed, deliveryTip, passedBy, tierKeys,
+} from "./plan.mjs";
 import * as state from "./state.mjs";
+import {
+  drawEdit, drawNudge, drawReadouts, drawSums, drawWays,
+} from "./sums-view.js";
 import { shutTip } from "./tip.js";
 import {
   SHEET, animateFold, clearFocusUnder, focusAfterScroll, moveParts,
@@ -39,10 +43,6 @@ export { JOKE_CODE } from "./joke.mjs";
 // new line before it shuts and the pill pulses. 2000 until #274 round
 // 4 added 1.5 s.
 export const TEACH_DWELL = 3500;
-
-// How far above the screen's foot the settled cart's bottom edge is
-// before the readouts in the bars take over.
-const PASSED_AT = 60;
 
 // Clear cart's words (#531): at rest, and asking for the second press.
 // Drafts for comms.
@@ -81,7 +81,8 @@ export class Cart {
     this.state = state.initial();
     this.lastCount = null;
     this.lastTotal = null;
-    this.itemsKey = null;
+    // The lines last drawn (lines-view.js), null before the first.
+    this.drawn = null;
     // Which badges were lit at the last render, so a badge that turns
     // on can celebrate. Null until the first render, which never does.
     this.lit = null;
@@ -616,7 +617,7 @@ export class Cart {
   // money.changes) still carries the old tiers and minimum: bring them
   // to the day's. `money` is moneyOn()'s for the day.
   setMoney(money) {
-    const tiers = money.bulkTiers.map((t) => `tier-${t.threshold}`);
+    const tiers = tierKeys(money);
 
     for (const badge of all(this.root, "[data-badge^='tier-']")) {
       if (!tiers.includes(badge.dataset.badge)) badge.closest("li").remove();
@@ -625,10 +626,7 @@ export class Cart {
     const delivery = qs(this.root, "[data-badge='delivery']");
 
     if (delivery) {
-      delivery.dataset.tip = delivery.dataset.tip.replace(
-        /^Orders of \$\d+ or more/,
-        `Orders of $${money.deliveryMinimum} or more`
-      );
+      delivery.dataset.tip = deliveryTip(delivery.dataset.tip, money);
     }
   }
 
@@ -650,41 +648,19 @@ export class Cart {
     this.summary = s;
 
     const draw = () => {
-      this.renderItems(s);
+      this.drawn = drawItems(root, this.list, s.groups, this.drawn);
       for (const button of all(root, "[data-remove]")) button.hidden = fixed;
       qs(root, "[data-cart-clear]").hidden = fixed;
       if (fixed || count === 0) this.clearing.reset();
-      this.renderSums(s);
-      this.renderEdit(edit);
-      this.renderWays(method, ways);
+      drawSums(root, s, this.lastTotal);
+      this.lastTotal = s.total;
+      drawEdit(root, edit);
+      drawWays(root, method, ways);
       root.toggleAttribute("data-empty", count === 0);
-
-      // The nudge under the foot's buttons, with the rest of the change
-      // (#559): set after the motion had read the sizes, its line came
-      // or went in one frame while the other parts eased.
-      const nudge = qs(root, "[data-nudge]");
-
-      if (nudge.textContent !== s.nudge) nudge.textContent = s.nudge;
-      nudge.hidden = !s.nudge;
-      nudge.dataset.tone = s.nudgeTone || "";
+      drawNudge(root, s);
     };
 
-    // The readouts, in the pane and in the bars.
-    qs(root, "[data-cart-count]").textContent = s.countText;
-    for (const el of all(this.form, "[data-total-bar-count]")) {
-      el.textContent = s.countText;
-    }
-    for (const el of all(this.form, "[data-total-bar-total]")) {
-      el.textContent = s.total;
-    }
-    for (const el of all(this.form, "[data-to-cart]")) {
-      el.setAttribute(
-        "aria-label", `${s.countText}, total ${s.total}. Go to the cart.`
-      );
-    }
-    this.pill.setAttribute(
-      "aria-label", `${s.countText}, total ${s.total}. Show or hide the cart.`
-    );
+    drawReadouts({ root, form: this.form, pill: this.pill }, s);
 
     this.setWhy(whyOf(s, { method, locked, down }));
 
@@ -697,10 +673,10 @@ export class Cart {
 
     this.lastCount = count;
 
-    const moved = next.fold !== this.state.fold
-      || next.empty !== this.state.empty
-      || JSON.stringify(s.groups) !== this.itemsKey
-      || !s.nudge !== qs(root, "[data-nudge]").hidden;
+    const moved = changed({
+      next, was: this.state, lines: s.groups, drawn: this.drawn,
+      nudge: s.nudge, nudgeShown: !qs(root, "[data-nudge]").hidden,
+    });
 
     if (moved) {
       next.empty = count === 0;
@@ -718,7 +694,7 @@ export class Cart {
         draw();
       }).then(() => stilled(root)).then(() => {
         if (seq !== this.renders) return;
-        this.dropRows();
+        dropRows(this.list, this.drawn);
         this.placement.refresh();
         this.lines.sync();
         this.renderBadges(this.summary);
@@ -730,126 +706,6 @@ export class Cart {
       this.lines.sync();
       this.renderBadges(s);
     }
-  }
-
-  // The cart's lines: each category, with its tiers indented beneath,
-  // from the templates in the markup (so PurgeCSS keeps their
-  // classes). Rebuilt only when the lines change: a render that
-  // follows a field's change event would otherwise replace the ×
-  // under the pointer between press and release, and the click would
-  // be lost (#155).
-  //
-  // A cart that empties keeps its old lines drawn while they ease out
-  // with the pane (#559: the clear left an empty box), and drops them
-  // once the ease is over (dropRows).
-  renderItems(s) {
-    const key = JSON.stringify(s.groups);
-
-    if (key === this.itemsKey) return;
-    this.itemsKey = key;
-    if (!s.groups.length) return;
-
-    const groupTpl = qs(this.root, "template[data-cart-group]");
-    const lineTpl = qs(this.root, "template[data-cart-line]");
-
-    for (const row of all(this.list, ":scope > *")) row.remove();
-
-    for (const group of s.groups) {
-      const g = groupTpl.content.cloneNode(true);
-      const items = qs(g, "[data-group-items]");
-
-      qs(g, "[data-group-name]").textContent = group.label;
-      for (const item of group.items) {
-        const li = lineTpl.content.cloneNode(true);
-        const remove = qs(li, "[data-remove]");
-
-        remove.dataset.remove = item.sku;
-        remove.setAttribute(
-          "aria-label", `Remove ${item.lineName} from your cart`
-        );
-        qs(li, "[data-line-name]").textContent = packLabel(item.row);
-        qs(li, "[data-line-qty]").textContent = item.qtyText;
-        qs(li, "[data-line-sub]").textContent = item.subtotal;
-        items.appendChild(li);
-      }
-      this.list.appendChild(g);
-    }
-  }
-
-  // The lines an emptied cart kept for its ease (renderItems), gone.
-  dropRows() {
-    if (this.itemsKey !== "[]") return;
-    for (const row of all(this.list, ":scope > *")) row.remove();
-  }
-
-  renderSums(s) {
-    const root = this.root;
-
-    qs(root, "[data-total='subtotal']").textContent = s.subtotal;
-    qs(root, "[data-total-row='discount']").hidden = !s.discount;
-    qs(root, "[data-total='discount-label']").textContent =
-      s.discount ? s.discount.label : "";
-    qs(root, "[data-total='discount']").textContent =
-      s.discount ? s.discount.text : "";
-
-    const fee = qs(root, "[data-total='fee']");
-
-    qs(root, "[data-total-row='fee']").hidden = !s.fee.show;
-    fee.textContent = s.fee.show ? s.fee.text : "";
-    fee.classList.toggle("order-cart-free", !!s.fee.waived);
-
-    const total = qs(root, "[data-total='total']");
-
-    if (this.lastTotal !== null && this.lastTotal !== s.total) {
-      pulse(total, "is-bumped");
-    }
-    total.textContent = s.total;
-    this.lastTotal = s.total;
-  }
-
-  // Changing a paid order: what is paid, a fee a missed delivery kept
-  // (#193), and the difference to pay or to get back.
-  renderEdit(edit) {
-    const box = qs(this.root, "[data-edit-money]");
-
-    box.hidden = !edit;
-    if (!edit) return;
-
-    const { held, kept, keptDate, total } = edit;
-    const diff = total - (held - kept);
-
-    qs(box, "[data-total='paid']").textContent = dollars(held);
-    qs(box, "[data-edit-kept]").hidden = !kept;
-    qs(box, "[data-total='kept']").textContent = `−${dollars(kept)}`;
-    // A kept fee always has its day: `orders attempted` dates the miss.
-    if (kept) {
-      qs(box, "[data-total='kept-label']").textContent =
-        `Delivery fee for the trip on ${label(keptDate)}`;
-    }
-    qs(box, "[data-total='due-label']").textContent = diff < 0
-      ? "We refund" : "You pay";
-    qs(box, "[data-total='due']").textContent = dollars(Math.abs(diff));
-  }
-
-  // The shared row's button names the way the page holds; the cart
-  // never picks one of its own (#203). Only the method (#352): the
-  // day, time and place stay in the method's card.
-  renderWays(method, ways) {
-    let wayName = "";
-
-    for (const way of all(this.root, "[data-way]")) {
-      const on = way.dataset.way === method;
-
-      way.setAttribute("aria-pressed", String(on));
-      way.classList.toggle("btn-primary", on);
-      way.classList.toggle("btn-outline-primary", !on);
-      way.disabled = ways[way.dataset.way] === false;
-      if (on) wayName = way.textContent.trim();
-    }
-    // A way the switch doesn't hold, Group orders (#749), is named by
-    // the form.
-    qs(this.root, "[data-way-name]").textContent = wayName || ways.name
-      || "Pickup or delivery";
   }
 
   // A badge that just turned on sends its chicks; the first render (a
@@ -884,8 +740,10 @@ export class Cart {
   // becomes a way back. `seen.slotBottom` is the slot's bottom edge in
   // the viewport.
   markPassed(seen) {
-    const passed = this.state.placement === "inline" && !seen.short
-      && seen.slotBottom < PASSED_AT;
+    const passed = passedBy({
+      placement: this.state.placement, short: seen.short,
+      slotBottom: seen.slotBottom,
+    });
 
     if (this.passed === passed) return;
     this.passed = passed;
