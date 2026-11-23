@@ -160,8 +160,12 @@ asked for the patched minimatch ^11.0.5 itself.
 
 ## Remediation runs on events, not deadlines
 
-- A pinned version may run indefinitely while it has no known
-  vulnerability. Being out of date is never a reason to update.
+- A package moves to each stable release once it clears the 7-day
+  cooldown. Holding one below its latest needs a compelling, written
+  reason (James, 2026-11-21, #778; point 5 above). Corrected
+  2026-11-23: this said a pinned version could run indefinitely while
+  it had no known vulnerability, and that being out of date was never
+  a reason to update.
 - The `audit` CI job runs `npm audit` over every lockfile and the
   GitHub advisory database over the Actions in use. It fails while a
   finding has neither a fix in the lockfile nor a recorded exception.
