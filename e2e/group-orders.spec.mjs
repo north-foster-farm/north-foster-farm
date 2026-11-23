@@ -76,20 +76,13 @@ const fact = (card, name) => card.locator("dt")
   .filter({ hasText: new RegExp(`^\\s*${name}\\s*$`) })
   .locator("xpath=following-sibling::dd[1]");
 
-// "Orders close at 11:59 PM on Saturday, November 21": a round's
-// cutoff, in the farm's zone (#749 item 5).
-const closeLine = (cutoff) => {
-  const at = new Date(cutoff);
-  const zone = { timeZone: "America/New_York" };
-  const time = at.toLocaleTimeString("en-US", {
-    ...zone, hour: "numeric", minute: "2-digit",
-  }).replace(/\s/gu, " ");
-  const day = at.toLocaleDateString("en-US", {
-    ...zone, weekday: "long", month: "long", day: "numeric",
-  });
-
-  return `Orders close at ${time} on ${day}`;
-};
+// "Order within 12 days, 20 hours, and 26 minutes to join the current
+// group order on Sunday, December 6.": the round's close notice (#749
+// item 5, reworded by James 2026-11-23), counting down to its cutoff,
+// its date as the round's label. Its every form is held in
+// e2e/group-close-notice.spec.mjs; here, only where it sits.
+const closeLine = (round) => new RegExp("^\\s*Order within .+ to join "
+  + `the current group order on ${round.label}\\.\\s*$`, "u");
 
 // /api/group's answer with no round open (#749 item 6): `scheduled`,
 // the group's series still runs, so a next date is known; otherwise
@@ -349,8 +342,7 @@ test.describe("Group orders (#749)", () => {
 
     const order = await openOrder(page, MEMBER);
     const body = await choose(order, GROUP_ORDERS);
-    const text = closeLine(first.cutoff);
-    const line = body.getByText(text, { exact: true });
+    const line = body.getByText(closeLine(first));
 
     await expect(line, "the earliest round's close").toBeVisible();
     await expect(line).toHaveCount(1);
@@ -378,7 +370,7 @@ test.describe("Group orders (#749)", () => {
     expect(placed.inCard, "inside no round card").toBe(false);
     for (const label of await body.locator("label").all()) {
       await expect(label, "no close line in a card")
-        .not.toContainText("Orders close");
+        .not.toContainText("Order within");
     }
 
     // In Delivery's place: the first thing its way reveals, as
