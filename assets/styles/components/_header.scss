@@ -36,6 +36,16 @@ header {
   min-height: var(--header-row);
 }
 
+// The main navigation: the logo and the links, laid out as if they
+// stood in the row themselves, with the row's gap between them. The
+// actions after it stay outside (layouts/partials/header/menu.html).
+.site-nav {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: inherit;
+}
+
 // The hen in its arc, and beside it the wordmark once there is room
 // for it at a size that reads. A phone shows the hen alone; the link's
 // name says the farm's. The logo never gives up its width: the links
