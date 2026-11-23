@@ -382,6 +382,19 @@ const freshDraft = (page) => page.evaluate(() => {
   }
 });
 
+// A round's fresh start: the draft gone, then the page left for
+// about:blank, as support/staging.mjs's leavePage leaves one, before the
+// next load. Opening the same /order/?add= URL from the page itself is
+// taken as a reload, and on phone and iphone the browser then puts the
+// form's fields back, round 1's pickup time among them, which the form
+// saves again (#1013: round 2 failed "none chosen" there with the draft
+// already cleared). From about:blank the load is a new one, with
+// nothing to put back.
+const freshRound = async (page) => {
+  await freshDraft(page);
+  await page.goto("about:blank");
+};
+
 test.describe("A step that sends the customer on to a section leaves " +
   "it in view and focused, every time (#706, #1013)", () => {
   test.describe.configure({ retries: 0 });
@@ -397,7 +410,7 @@ test.describe("A step that sends the customer on to a section leaves " +
       await test.step(`round ${round} of ${ROUNDS}`, async () => {
         const order = new OrderPage(page);
 
-        if (round > 1) await freshDraft(page);
+        if (round > 1) await freshRound(page);
         await order.open({ wings: 5 });
         await chooseTime(page);
         await order.contact({
@@ -437,7 +450,7 @@ test.describe("A step that sends the customer on to a section leaves " +
       await test.step(`round ${round} of ${ROUNDS}`, async () => {
         const order = new OrderPage(page);
 
-        if (round > 1) await freshDraft(page);
+        if (round > 1) await freshRound(page);
         await order.open({ wings: 5 });
         await toTop(order);
         await press(order.next);
