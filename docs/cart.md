@@ -419,6 +419,12 @@ submission. The contract between them:
   render (`setWhy`); `ClearCart` in `clear.js` holds Clear cart's two
   presses and words. `Cart` asks the one to shut its tooltip on a
   scroll or Escape and the other whether it is asking.
+- And the shared row and the code (2026-11-23, #855): `ShareRow` in
+  `share-row.js` wires the row's two toggles, a pick, a tap or focus
+  away and Apply, folds the row (`shutRow`, `shutCode`) and draws the
+  code's note. `Cart` keeps the form's `codeResult`, `codeValue` and
+  `setCodeValue` and passes them on, and asks the row to fold on
+  Escape; the row reads and sets the view state through `Cart`.
 - Draft, sync and the header badge stay in `draft.js`, `cart-sync.mjs`,
   `session/cart-sync.js` and `cart-badge/*`, unchanged in shape. The
   cart announces nothing itself; `OrderForm` keeps `announceCart`.

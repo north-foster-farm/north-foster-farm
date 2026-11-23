@@ -767,7 +767,7 @@ $cart-nudge-line: $cart-nudge-gap + $cart-nudge-size * $cart-line-height;
 
   // Shut, the row shows its two buttons; open, one side takes the
   // whole row. The code field folds back the way it came, the opening
-  // run backwards (cart.js shutCode, view/share.js shutShare).
+  // run backwards (cart/share-row.js shutCode, view/share.js shutShare).
   .order-cart-ways,
   .order-cart-code {
     display: none;

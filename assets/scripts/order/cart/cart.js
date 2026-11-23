@@ -9,16 +9,15 @@
 // animations in view.mjs.
 
 import { ringsCart } from "../lib/cart-scroll.mjs";
-import { awayFrom } from "../lib/share-away.mjs";
 import { Badges } from "./badges.js";
 import { CheckoutButton } from "./checkout.js";
 import { ClearCart } from "./clear.js";
-import { codeNote } from "./code-note.mjs";
 import { all, pulse, qs, reduced, say } from "./dom.js";
 import { firstAdd } from "./first-add.js";
 import { startJoke, stopJoke } from "./joke-row.js";
 import { drawItems, dropRows } from "./lines-view.js";
 import { changed, passedBy } from "./plan.mjs";
+import { ShareRow } from "./share-row.js";
 import * as state from "./state.mjs";
 import {
   drawEdit, drawNudge, drawReadouts, drawSums, drawWays,
@@ -26,7 +25,7 @@ import {
 import {
   SHEET, animateFold, clearFocusUnder, focusAfterScroll, moveParts,
   moving, pulsePill,
-  revealLine, ringCart, showAdded, shutShare, swapWords, teach, toPx,
+  revealLine, ringCart, showAdded, swapWords, teach, toPx,
   watchKeyboard, watchList, watchPlacement, watchScroll, wordsOf,
 } from "./view.mjs";
 import { whyOf } from "./why.mjs";
@@ -84,6 +83,8 @@ export class Cart {
     // Proceed to checkout (checkout.js) and Clear cart (clear.js).
     this.checkout = new CheckoutButton(root, this.on, () => this.open());
     this.clear = new ClearCart(root, this.on);
+    // The shared row and the code (share-row.js).
+    this.shareRow = new ShareRow(root, this.on, this);
 
     this.list = qs(root, "[data-cart-items]");
     this.pill = qs(root, "[data-cart-toggle]");
@@ -216,24 +217,6 @@ export class Cart {
     this.apply(state.setShare(this.state, share));
   }
 
-  // Folds the shared row. The code field goes the way it came in, the
-  // opening reversed, and instantly under reduced motion (#532); the
-  // way's switch shuts at once, as before. Resolves once the row's two
-  // buttons are back, so the caller can focus one.
-  shutRow() {
-    const part = qs(this.root, "#order-cart-code");
-
-    if (this.state.share !== "code") {
-      if (this.state.share) this.setShare("");
-
-      return Promise.resolve();
-    }
-
-    return shutShare(part, () => {
-      if (this.state.share === "code") this.setShare("");
-    }, { reduce: reduced() });
-  }
-
   wire(bar) {
     const root = this.root;
 
@@ -310,7 +293,7 @@ export class Cart {
         const was = this.state.share;
 
         e.preventDefault();
-        this.shutRow().then(() => qs(
+        this.shareRow.shutRow().then(() => qs(
           root, was === "way" ? "[data-way-toggle]" : "[data-code-toggle]"
         ).focus());
 
@@ -340,109 +323,13 @@ export class Cart {
 
     this.checkout.wire();
     this.clear.wire();
-    this.wireShare();
+    this.shareRow.wire();
     this.badges.wire();
 
     // The readouts in the bars go back to the cart.
     for (const button of all(this.form, "[data-to-cart]")) {
       button.addEventListener("click", () => this.show({ smooth: true }));
     }
-  }
-
-  // The shared row (#203): the way and Add discount side by side; each
-  // opens over the whole row. A pick, Apply (#532), a tap or a
-  // focus outside the row, or Escape folds it back. Blur alone does
-  // not: a tap on Apply blurs the field on iOS before its click lands.
-  wireShare() {
-    const share = qs(this.root, "[data-cart-share]");
-    const input = qs(share, "[data-field='code']");
-
-    qs(share, "[data-way-toggle]").addEventListener("click", () => {
-      this.setShare("way");
-      (qs(share, "[data-way][aria-pressed='true']")
-        || qs(share, "[data-way]")).focus();
-    });
-    qs(share, "[data-code-toggle]").addEventListener("click", () => {
-      this.setShare("code");
-      input.focus();
-    });
-
-    share.addEventListener("click", (e) => {
-      const pick = e.target.closest("[data-way]");
-
-      if (!pick) return;
-      this.setShare("");
-      qs(share, "[data-way-toggle]").focus();
-      this.on.onWay(pick.dataset.way);
-    });
-
-    // A focus on an ancestor of the row is not away: Safari focuses
-    // the pane, not the pick it tapped (#383, share-away.mjs).
-    const away = (e) => {
-      if (this.state.share && awayFrom(
-        { dataset: { share: this.state.share }, contains: (n) =>
-          share.contains(n) }, e.target, e.type === "focusin"
-      )) {
-        this.shutRow();
-      }
-    };
-
-    document.addEventListener("pointerdown", away);
-    document.addEventListener("focusin", away);
-
-    // The discount code: Apply, or Enter in the field (#532). An empty
-    // field takes the code off and closes at once; a code closes the
-    // field once the form has an answer (codeResult), accepted or
-    // refused, the refused one left in the field for the next open. A
-    // group's code asks first, and Cancel there leaves the field open
-    // with the code in it (#495, decision 5).
-    const submit = () => {
-      const empty = !input.value.trim();
-
-      this.on.onCode(input.value);
-      if (empty) this.shutCode();
-    };
-
-    qs(share, "[data-code-apply]").addEventListener("click", submit);
-    input.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        submit();
-      }
-    });
-
-    this.note = this.wireCodeNote();
-  }
-
-  // Folds the code field after Apply and hands the focus back to Add
-  // discount, unless something else took it meanwhile (a dialog).
-  shutCode() {
-    const share = qs(this.root, "[data-cart-share]");
-
-    return this.shutRow().then(() => {
-      const at = document.activeElement;
-
-      if (!at || at === document.body || share.contains(at)) {
-        qs(share, "[data-code-toggle]").focus();
-      }
-    });
-  }
-
-  // The line under the code (code-note.mjs): drawn here, timed there.
-  wireCodeNote() {
-    const input = qs(this.root, "[data-field='code']");
-    const note = qs(this.root, "[data-code-note]");
-
-    return codeNote({
-      show: ({ text, tone, fading }) => {
-        note.classList.toggle("is-fading", fading);
-        note.textContent = text;
-        note.hidden = !text;
-        if (tone) note.dataset.tone = tone;
-        else delete note.dataset.tone;
-      },
-      clear: () => { input.value = ""; },
-    });
   }
 
   // The day's tiers and minimum on the badges (badges.js).
@@ -602,19 +489,9 @@ export class Cart {
     this.badges.setPerks(perks, options);
   }
 
-  // The outcome of a code the form applied: `text` and `tone` for the
-  // note ("good" for an accepted one). An accepted code also empties
-  // the field; its note, and that of a code `refused` on Apply, fades
-  // after a short while (code-note.mjs), and either folds the field if
-  // it is open (#532). A note that `stays` (the rate limit's) folds the
-  // field too but stays until the next one.
-  codeResult({
-    text = "", tone = "", accepted = false, refused = false, stays = false,
-  } = {}) {
-    this.note.result({ text, tone, accepted, refused, stays });
-    if ((accepted || refused) && this.state.share === "code") {
-      this.shutCode();
-    }
+  // The outcome of a code the form applied (share-row.js).
+  codeResult(result) {
+    this.shareRow.codeResult(result);
   }
 
   // The joke's row (joke-row.js).
@@ -652,12 +529,13 @@ export class Cart {
     focusAfterScroll(target);
   }
 
-  // The cart's own fields, for the form's collect() and restore().
+  // The cart's own fields, for the form's collect() and restore()
+  // (share-row.js).
   codeValue() {
-    return qs(this.root, "[data-field='code']").value;
+    return this.shareRow.codeValue();
   }
 
   setCodeValue(value) {
-    qs(this.root, "[data-field='code']").value = value;
+    this.shareRow.setCodeValue(value);
   }
 }
