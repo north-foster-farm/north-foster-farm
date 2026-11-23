@@ -62,6 +62,9 @@ export class DateLists {
     this.lists = null;
     this.attempt = 0;
     this.timer = null;
+    // Delivery's cutoff the count last saw passed, so a group tick
+    // doesn't note it or refresh again (#957). New lists clear it.
+    this.passed = null;
     this.chip = form.querySelector("[data-countdown]");
     this.text = form.querySelector("[data-countdown-text]");
     this.regions = form.querySelectorAll("[data-dates-region]");
@@ -180,6 +183,7 @@ export class DateLists {
       this.fill(select, this.lists[select.dataset.dates] || []);
     }
 
+    this.passed = null;
     this.tick();
     this.onChange();
   }
@@ -379,6 +383,7 @@ export class DateLists {
     if (method === "group") this.extra = rounds;
     if (this.lists) this.lists[method] = fresh;
     if (select) this.fill(select, fresh);
+    if (method === "delivery") this.passed = null;
     if ((method === "delivery" || method === "group") && this.lists) {
       this.tick();
     }
@@ -450,7 +455,11 @@ export class DateLists {
 
     if (remaining < 0) {
       // The cutoff passed while the page was open: refresh the lists
-      // so the closed date leaves the select without a reload.
+      // so the closed date leaves the select without a reload. Once
+      // per cutoff: a group tick, or a code accepted, leaves the note
+      // and the refresh or its retry alone until new lists come.
+      if (this.passed === next.cutoff) return null;
+      this.passed = next.cutoff;
       this.note("That cutoff just passed. Updating dates…");
       this.refresh().then((ok) => ok || this.retryLater());
 
