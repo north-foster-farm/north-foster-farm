@@ -25,7 +25,7 @@ import terms from "../../netlify/functions/lib/terms.mjs";
 import { CUSTOMER, ORDER, dates } from "./canned.mjs";
 import { OrderPage, expect } from "./order.mjs";
 import { isChallenge } from "./challenge.mjs";
-import { answerAccount, clearSession } from "./staging.mjs";
+import { BASE_URL, answerAccount, clearSession } from "./staging.mjs";
 
 export const VFF = groupOf("vff");
 export const GYM = terms.model.location(VFF.location);
@@ -150,20 +150,94 @@ export const signIn = async (page, baseURL, me, {
 // address.
 // Whether the jar held the stamp right after signIn added it, by page.
 const stamped = new WeakMap();
-// Each document's path and whether it saw the stamp as it started,
-// kept in sessionStorage so a reload (a challenge's) keeps the list.
-const STARTS = "nff-e2e-stamp-at-start";
-const noteStart = (key) => {
-  try {
-    const list = JSON.parse(sessionStorage.getItem(key) || "[]");
+// What befalls the stamp in each top-frame document of the site's own
+// origin, kept in sessionStorage so a reload keeps the list (run
+// 45153665639 saw it gone between the /order/ document's start and
+// the form's): the document's start and whether it had the stamp; a
+// deletion or change of it the browser reports (cookieStore, Chromium),
+// with the time and the last three finished resources' paths; and a
+// script's write of it, with its first two stack frames' path:line.
+// Runs once per page (an init script stays for the page's life).
+const STAMP_LOG = "nff-e2e-stamp-log";
+const watchStamp = ({ key, origin }) => {
+  if (window !== window.top || location.origin !== origin) return;
 
-    list.push([location.pathname,
-      /(?:^|;\s*)nff_signed_in=[^;]/.test(document.cookie)]);
-    sessionStorage.setItem(key, JSON.stringify(list.slice(-20)));
+  const note = (entry) => {
+    try {
+      const list = JSON.parse(sessionStorage.getItem(key) || "[]");
+
+      list.push(entry);
+      sessionStorage.setItem(key, JSON.stringify(list.slice(-30)));
+    } catch {
+      // Storage blocked: nothing to note.
+    }
+  };
+  const path = (url) => {
+    try {
+      const u = new URL(url);
+
+      return u.origin === origin ? u.pathname : "(other origin)";
+    } catch {
+      return "";
+    }
+  };
+  const at = () => Math.round(performance.now());
+  const recent = () => performance.getEntriesByType("resource").slice(-3)
+    .map((e) => path(e.name));
+
+  note(["start", location.pathname,
+    /(?:^|;\s*)nff_signed_in=[^;]/.test(document.cookie)]);
+  try {
+    window.cookieStore.addEventListener("change", (e) => {
+      for (const c of e.deleted || []) {
+        if (c.name === "nff_signed_in") note(["deleted", at(), recent()]);
+      }
+      for (const c of e.changed || []) {
+        if (c.name === "nff_signed_in") note(["changed", at(), recent()]);
+      }
+    });
   } catch {
-    // Storage blocked: nothing to note.
+    // No cookieStore here: the write below still shows a script's.
+  }
+  try {
+    const own = Object.getOwnPropertyDescriptor(Document.prototype, "cookie");
+
+    Object.defineProperty(Document.prototype, "cookie", {
+      configurable: true,
+      get: own.get,
+      set(value) {
+        if (/^\s*nff_signed_in=/.test(String(value))) {
+          const frames = String(new Error().stack || "").split("\n")
+            .map((l) => l.match(/(https?:[^\s)]+?):(\d+):\d+/))
+            .filter(Boolean).slice(0, 2)
+            .map((m) => `${path(m[1])}:${m[2]}`);
+
+          note(["write", at(), frames]);
+        }
+        own.set.call(this, value);
+      },
+    });
+  } catch {
+    // The setter could not be wrapped: the change event still shows.
   }
 };
+// The pages that already carry watchStamp.
+const watched = new WeakSet();
+// Each Set-Cookie header's cookie name, and whether it expires the
+// cookie (Max-Age=0 or less, or a date gone by). Never its value.
+const cookiesSet = (values) => values.map((v) => {
+  const [pair, ...attrs] = String(v).split(";");
+  const name = pair.split("=")[0].trim();
+  const expires = attrs.some((a) => {
+    const [k, val = ""] = a.split("=").map((x) => x.trim());
+
+    return (/^max-age$/i.test(k) && Number(val) <= 0)
+      || (/^expires$/i.test(k) && Date.parse(val) < Date.now());
+  });
+
+  return `${/^[\w.-]{1,64}$/.test(name) ? name : "(odd name)"}${
+    expires ? "(expires)" : ""}`;
+});
 // The kinds of console error that may be printed; any other text,
 // which could begin with a name ("Pat Example: ..."), prints as error.
 const KINDS = ["Failed to load resource", "Uncaught TypeError",
@@ -191,10 +265,27 @@ const watchPage = (page) => {
   const add = (line) => {
     if (seen.length < 200) seen.push(line);
   };
+  // The site's origin, from the first top-frame document.
+  let origin = null;
+  // Every response of the context, frames' and other pages' included,
+  // that sets a cookie on the site's origin.
+  const onAnyResponse = async (r) => {
+    const url = new URL(r.url());
+
+    if (!origin || url.origin !== origin) return;
+
+    const set = await r.headerValues("set-cookie").catch(() => []);
+
+    if (set.length) {
+      add(`setcookie ${url.pathname} ${cookiesSet(set).join(" ")}`);
+    }
+  };
   const onResponse = async (r) => {
     const url = new URL(r.url());
     const nav = r.request().isNavigationRequest()
       && r.frame() === page.mainFrame();
+
+    if (nav) origin = url.origin;
 
     // Main-frame documents, and the site's own calls and scripts, not
     // the payment SDKs'.
@@ -226,27 +317,37 @@ const watchPage = (page) => {
   };
 
   page.on("response", onResponse);
+  page.context().on("response", onAnyResponse);
   page.on("pageerror", onError);
   page.on("console", onConsole);
-  // Every document from here on notes the stamp as it starts.
-  const started = page.addInitScript(noteStart, STARTS).catch(() => {});
+
+  // Every top-frame document of the site from here on, once per page.
+  const started = watched.has(page) ? Promise.resolve()
+    : page.addInitScript(watchStamp, {
+      key: STAMP_LOG, origin: new URL(BASE_URL).origin,
+    }).then(() => watched.add(page)).catch(() => {});
 
   const stop = () => {
     page.off("response", onResponse);
+    page.context().off("response", onAnyResponse);
     page.off("pageerror", onError);
     page.off("console", onConsole);
   };
   const gather = async () => ({
     stampAfterSignIn: stamped.has(page) ? stamped.get(page) : null,
     cookies: (await page.context().cookies()).map((c) => c.name),
-    starts: await page.evaluate((key) => {
+    stamp: await page.evaluate((key) => {
+      const text = (v) => String(v).slice(0, 80);
+
       try {
         return JSON.parse(sessionStorage.getItem(key) || "[]")
-          .map(([path, seen]) => [String(path), !!seen]);
+          .map(([what, a, b]) => [text(what),
+            typeof a === "number" ? a : text(a),
+            Array.isArray(b) ? b.map(text) : !!b]);
       } catch {
         return null;
       }
-    }, STARTS),
+    }, STAMP_LOG),
     state: await page.evaluate(() => ({
       stamp: /(?:^|;\s*)nff_signed_in=[^;]/.test(document.cookie),
       session: Object.keys(sessionStorage),
