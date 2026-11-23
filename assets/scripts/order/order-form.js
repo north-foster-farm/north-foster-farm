@@ -3,7 +3,7 @@ import { buildModel } from "./lib/events.mjs";
 import { bookedDay, cutoffFor, keptDelivery } from "./lib/dates.mjs";
 import { moneyOn } from "./lib/money-on.mjs";
 import {
-  draftOccurrence, dropSeriesCode, fulfilmentDate, locationCount,
+  draftOccurrence, dropSeriesCode, locationCount,
   locationsLabel,
 } from "./lib/scheduled.mjs";
 import {
@@ -13,7 +13,7 @@ import { perkEffects } from "./lib/perks.mjs";
 import { postedDelivery } from "./lib/posted.mjs";
 import { summarize } from "./lib/summary.mjs";
 import {
-  computeTotals, dollars, lockOn, meetsMinimum, toCents,
+  computeTotals, dollars, lockOn, meetsMinimum,
 } from "./lib/totals.mjs";
 import {
   disallowedFor, normalizeCode, validateOrder, zipInfo,
@@ -33,6 +33,8 @@ import {
 } from "./form/contact.js";
 import { all, pulse, qs } from "./form/dom.js";
 import { Links } from "./form/links.js";
+import { pickupAt } from "./form/placed.mjs";
+import { showFailed, showLocked, showPlaced } from "./form/result.js";
 import { watchSections } from "./form/section-spy.js";
 import { Lapsed } from "./lapsed.js";
 import { Payment } from "./pay.js";
@@ -52,7 +54,6 @@ import { forget, me } from "../session/session.js";
 import { watchSignIn } from "../session/watch.js";
 import { api } from "../utils/api.js";
 import { setBusy as spin } from "../utils/busy-button.js";
-import { looksLikeEmail } from "../utils/email.js";
 import { setWhole } from "../utils/keep-together.mjs";
 import { whileLoading } from "../utils/skeleton.js";
 
@@ -1333,7 +1334,8 @@ export class OrderForm {
     // A group's round (#749) is a pickup at its place, as a pickup
     // day's is.
     const pickup = method === "scheduled" || method === "group";
-    const place = pickup && this.pickupAt({ occurrence: date });
+    const place = pickup
+      && pickupAt({ occurrence: date }, this.placedCtx());
 
     if (pickup) this.dates.choose(date);
     else if (select) select.value = date;
@@ -1940,7 +1942,8 @@ export class OrderForm {
       break;
     case "retry":
       // Draft wording.
-      this.fail(payload, "We couldn't reach our payment system.");
+      showFailed(this.resultView(), payload,
+        "We couldn't reach our payment system.");
       break;
     default:
       this.settle(outcome, payload);
@@ -1959,7 +1962,7 @@ export class OrderForm {
       return;
     }
     announceCart(0);
-    this.succeed(data, payload);
+    showPlaced(this.resultView(), data, payload);
   }
 
   // Every answer but success and retry: the customer decides again.
@@ -2012,10 +2015,11 @@ export class OrderForm {
       break;
     default:
       if (outcome.locked && this.editing) {
-        this.locked(outcome.message);
+        showLocked(this.resultView(), outcome.message,
+          `Order ${this.editing.id}`, () => this.draft.clear());
         break;
       }
-      this.fail(payload, outcome.message);
+      showFailed(this.resultView(), payload, outcome.message);
     }
   }
 
@@ -2048,274 +2052,30 @@ export class OrderForm {
       : "Place your order";
   }
 
-  // One line saying when and where, the sentence people screenshot.
-  when(fulfilment) {
-    const f = fulfilment;
-    const date = fulfilmentDate(f, (id) => this.dates.occurrence(id));
-    const day = date ? label(date) : "";
-
-    if (f.method === "delivery" && f.delivery) {
-      return `${day}, delivered to ${f.delivery.address1}.`;
-    }
-    if (f.method === "scituate" || f.method === "scheduled") {
-      return `${day}, ${this.pickupAt(f)}.`;
-    }
-    if (f.method === "onfarm" && f.onfarm) {
-      const times = pickupTimes(f.onfarm);
-
-      return `${day}, ${times ? windowLabel(times) : ""}, at the farm.`;
-    }
-
-    return day;
-  }
-
-  // "10:00 – 11:00 AM, at the drop site" or "9:00 AM – 1:00 PM, at
-  // Foster Farmers’ Market": the occurrence's own hours and name, from
-  // the lists (one that has since left them is still remembered). A
-  // draft saved before scheduled pickup (`scituate`) reads as the drop
-  // site's did; an occurrence the page cannot name, as "the pickup you
-  // chose".
-  pickupAt(f) {
-    if (f.method === "scituate") {
-      return `${this.drop.window}, at the drop site`;
-    }
-
-    const entry = this.dates.occurrence(f.occurrence);
-
-    if (!entry) return "at the pickup you chose";
-
-    const place = entry.series === this.dropSeries
-      ? "the drop site" : entry.name;
-
-    return `${entry.window}, at ${place}`;
-  }
-
-  // The placed panel's rows (#723). The order type is the way's title
-  // as its card on the form shows it; a draft saved before scheduled
-  // pickup (`scituate`) is a pickup day.
-  orderType(f) {
-    // A group's round is a Group order (#749 item 10).
-    const round = f.method === "scheduled" && this.roundGroup
-      && String(f.occurrence).startsWith(`${this.roundGroup.series}-`);
-
-    if (round) return "Group orders";
-
-    const way = f.method === "scituate" ? "scheduled" : f.method;
-    const title = document.getElementById(`method-${way}-title`);
-
-    return title ? title.textContent.trim() : "";
-  }
-
-  // "Saturday, November 22, 10:00 – 11:00 AM": the day, then the
-  // pickup's window or the delivery's.
-  dateTime(f) {
-    const date = fulfilmentDate(f, (id) => this.dates.occurrence(id));
-    const entry = f.method === "scheduled"
-      && this.dates.occurrence(f.occurrence);
-    const times = f.method === "onfarm" && f.onfarm
-      && pickupTimes(f.onfarm);
-    const time = {
-      delivery: this.terms.delivery && this.terms.delivery.window,
-      onfarm: times && windowLabel(times),
-      scheduled: entry && entry.window,
-      scituate: this.drop.window,
-    }[f.method];
-
-    return [date && label(date), time].filter(Boolean).join(", ");
-  }
-
-  // Where a pickup is handed over: the farm's address (from the row,
-  // data/company.json) or the occurrence's location's street. None
-  // for a delivery.
-  pickupAddress(f, row) {
-    if (f.method === "onfarm") return row.dataset.farm;
-
-    const entry = f.method === "scheduled"
-      ? this.dates.occurrence(f.occurrence)
-      : f.method === "scituate" && this.drop;
-    const loc = entry && this.terms.model.location(entry.location);
-
-    if (loc) return [loc.street, loc.city, loc.state].join(", ");
-
-    return entry ? entry.short || entry.place || "" : "";
-  }
-
-  summaryText(payload) {
-    const totals = this.totals();
-    const lines = payload.lines.map((line) => {
-      const item = this.index.get(line.sku);
-
-      return `${line.qty} × ${item.groupLabel}, ${item.label} ` +
-        `(${dollars(line.qty * toCents(item.price))})`;
-    });
-
-    return [
-      `${payload.customer.firstName} ${payload.customer.lastName} ` +
-        `<${payload.customer.email}>`,
-      this.when(payload.fulfilment),
-      ...lines,
-      `Total ${dollars(totals.total)}`,
-    ].join("\n");
-  }
-
-  finish(node) {
-    this.pending.hide();
-    this.result.textContent = "";
-    this.result.appendChild(node);
-    this.result.hidden = false;
-    this.result.scrollIntoView({ block: "start", behavior: "smooth" });
-  }
-
-  succeed(data, payload) {
-    const node = document.getElementById("order-success").content
-      .cloneNode(true);
-    const fill = (name, text) => {
-      const el = qs(node, `[data-out="${name}"]`);
-
-      if (el) el.textContent = text;
+  // What the placed panel's words read from the page
+  // (form/placed.mjs), as it is now.
+  placedCtx() {
+    return {
+      occurrence: (id) => this.dates.occurrence(id),
+      drop: this.drop,
+      dropSeries: this.dropSeries,
+      deliveryWindow: this.terms.delivery && this.terms.delivery.window,
+      location: (id) => this.terms.model.location(id),
     };
-
-    if (data) {
-      fill("name", data.customer.firstName || data.customer.name);
-      fill("email", data.customer.email);
-      fill("total", dollars(data.totals.total));
-      fill("orderId", data.orderId);
-      fill("how", this.paidWith(data.payment));
-      fill("type", this.orderType(data.fulfilment));
-      fill("dateTime", this.dateTime(data.fulfilment));
-
-      // A delivery has no pick-up address: the row goes, not hidden.
-      const row = qs(node, "[data-out='addressRow']");
-      const address = row && this.pickupAddress(data.fulfilment, row);
-
-      if (address) {
-        fill("address", address);
-      } else if (row) {
-        row.remove();
-      }
-
-      const signIn = qs(node, "[data-out='signIn']");
-
-      if (signIn) signIn.hidden = this.isSignedIn;
-
-      const signedIn = qs(node, "[data-out='signedIn']");
-
-      if (signedIn) signedIn.hidden = !this.isSignedIn;
-
-      const receipt = qs(node, "[data-out='receiptUrl']");
-
-      if (data.payment && data.payment.receiptUrl) {
-        receipt.href = data.payment.receiptUrl;
-      } else {
-        receipt.parentElement.hidden = true;
-      }
-    } else {
-      // Dropped silently by the server: show nothing that could be
-      // used to probe the filter, just a plain thank-you.
-      fill("name", payload.customer.firstName);
-      qs(node, "[data-out='details']").hidden = true;
-    }
-
-    this.form.hidden = true;
-    this.finish(node);
   }
 
-  // "Visa ending 4242", "Apple Pay", "Venmo".
-  paidWith(payment) {
-    const p = payment || {};
-    const wallets = {
-      applepay: "Apple Pay", googlepay: "Google Pay", cashapp: "Cash App Pay",
-      venmo: "Venmo",
+  // What the result panels draw on (form/result.js).
+  resultView() {
+    return {
+      form: this.form,
+      pending: this.pending,
+      result: this.result,
+      contact: this.contact,
+      ctx: this.placedCtx(),
+      signedIn: this.isSignedIn,
+      group: this.roundGroup,
+      item: (sku) => this.index.get(sku),
+      total: () => this.totals().total,
     };
-
-    if (wallets[p.method]) return wallets[p.method];
-
-    const brand = String(p.brand || "card").toLowerCase()
-      .replace(/_/g, " ")
-      .replace(/\b\w/g, (ch) => ch.toUpperCase());
-
-    return p.last4 ? `${brand} ending ${p.last4}` : brand;
-  }
-
-  // The farm's own address and number in a card, from the page's
-  // data; only a plain address or number becomes a link. The address
-  // goes into the link encoded, so the one email rule is enough (#678).
-  contactLinks(node, subject, body) {
-    const mail = qs(node, "[data-out='mailto']");
-    const phone = qs(node, "[data-out='phone']");
-
-    if (looksLikeEmail(this.contact.email)) {
-      const tail = body ? `&body=${encodeURIComponent(body)}` : "";
-
-      mail.href = `mailto:${encodeURIComponent(this.contact.email)}` +
-        `?subject=${encodeURIComponent(subject)}${tail}`;
-    }
-    mail.textContent = this.contact.email;
-    if (/^\+?\d+$/.test(this.contact.phone.plain)) {
-      phone.href = `tel:${this.contact.phone.plain}`;
-    }
-    phone.textContent = this.contact.phone.display;
-  }
-
-  // A change the server refused: the order can no longer be changed
-  // (#643). Nothing went wrong on our end, so no summary to send and
-  // no word to the farm.
-  locked(message) {
-    const node = document.getElementById("order-locked").content
-      .cloneNode(true);
-
-    qs(node, "[data-out='message']").textContent = message;
-    this.contactLinks(node, `Order ${this.editing.id}`);
-    this.draft.clear();
-    this.finish(node);
-  }
-
-  fail(payload, message) {
-    const node = document.getElementById("order-failed").content
-      .cloneNode(true);
-    const text = this.summaryText(payload);
-    const copy = qs(node, "[data-out='copy']");
-
-    qs(node, "[data-out='message']").textContent = message;
-    qs(node, "[data-out='summary']").textContent = text;
-    this.contactLinks(node, "Order from the website", text);
-
-    copy.addEventListener("click", async () => {
-      try {
-        await navigator.clipboard.writeText(text);
-        copy.textContent = "Copied";
-        setTimeout(() => { copy.textContent = "Copy summary"; }, 2000);
-      } catch {
-        copy.textContent = "Select the text above to copy it";
-      }
-    });
-
-    // The key, never the payload: it holds the customer's details, and
-    // the console is read by whoever sits down at the machine (#258).
-    console.error(JSON.stringify({
-      event: "order.undeliverable",
-      idempotencyKey: payload && payload.idempotencyKey,
-    }));
-    // Tell the farm a checkout could not complete. A beacon survives
-    // the page being closed; nothing here can fail the customer.
-    try {
-      const beacon = JSON.stringify({
-        kind: "checkout.failed",
-        message,
-        method: payload.fulfilment && payload.fulfilment.method,
-        page: location.pathname,
-      });
-
-      if (!navigator.sendBeacon || !navigator.sendBeacon("/api/health",
-        new Blob([beacon], { type: "application/json" }))) {
-        fetch("/api/health", {
-          method: "POST", body: beacon, keepalive: true,
-          headers: { "Content-Type": "application/json" },
-        }).catch(() => {});
-      }
-    } catch {
-      // The failure itself is already on screen.
-    }
-    this.finish(node);
   }
 }
