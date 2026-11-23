@@ -23,6 +23,11 @@
 //   Customer and cart keys (a base64url hash of the address) are not
 //   carried by any log line today.
 //
+// The keys the ids are logged under here: invite (box 1); id, key,
+// squareOrderId, squarePaymentId, paypalOrderId and paypalCaptureId
+// (box 3). Phones and glued digit runs go under message (a plain
+// string) and detail, which are no id's keys.
+//
 // The seam: lines are read off console.info, as the logger writes
 // them. A revoked invite is stored under `invite/<id>`, as
 // lib/invites.mjs keeps it (inviteKey).
@@ -75,6 +80,20 @@ const keepsWhole = async (t, field, id) => {
 
 const PHONES = ["401-555-0100", "(401) 555-0100", "+1 401 555 0100"];
 
+// Digit runs glued to a word or a dash, in a value that is no id
+// (security's review of #921). `detail` is no id's key and is not a
+// field the scrub removes whole, as `note` is.
+const GLUED = [
+  ["call4015550100", "4015550100"], ["4015550100abc", "4015550100"],
+  ["x4015550100", "4015550100"], ["home-4015550100", "4015550100"],
+  ["4015550100-home", "4015550100"], ["ref401 5550100", "4015550100"],
+  ["card4111111111111111", "4111111111111111"],
+];
+
+// Whether `text` still holds the digits of `run`, whatever lies
+// between them.
+const holds = (text, run) => text.replace(/\D+/g, "").includes(run);
+
 describe("#896 ids survive the logger's phone scrub", () => {
   it("A log line carrying an id made of 10 or more digits in a row keeps "
     + "the id whole: invite.added and invite.revoked for an invite "
@@ -124,6 +143,23 @@ describe("#896 ids survive the logger's phone scrub", () => {
         assert.doesNotMatch(scrub({ detail: value }).detail, /555/,
           `scrub() too: ${value}`);
       }
+    }
+  });
+
+  it("Outside an id field, a run of 10 or more digits is scrubbed "
+    + "whatever it is glued to: call4015550100, 4015550100abc, "
+    + "x4015550100, home-4015550100, 4015550100-home, ref401 5550100, "
+    + "card4111111111111111", async (t) => {
+    for (const [value, run] of GLUED) {
+      const [plain] = await written(t, () => log.info(value));
+      const [keyed] = await written(t, () => log.info({
+        event: "test.glued", detail: value,
+      }));
+
+      assert.equal(holds(plain.message, run), false,
+        `a plain message: ${value} -> ${plain.message}`);
+      assert.equal(holds(keyed.detail, run), false,
+        `under detail: ${value} -> ${keyed.detail}`);
     }
   });
 
