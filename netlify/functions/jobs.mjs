@@ -13,7 +13,8 @@
 
 import { alert, ping } from "./lib/health.mjs";
 import { runJobs } from "./lib/jobs.mjs";
-import { log, withLog } from "./lib/log.mjs";
+import { log } from "./lib/log.mjs";
+import { withLog } from "./lib/with-log.mjs";
 import { stores } from "./lib/store.mjs";
 
 const answer = (status, body) => new Response(JSON.stringify(body), {

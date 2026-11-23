@@ -4,7 +4,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { SLOW_MS, testOf, withLog } from "../netlify/functions/lib/log.mjs";
+import { SLOW_MS, testOf } from "../netlify/functions/lib/log.mjs";
+import { withLog } from "../netlify/functions/lib/with-log.mjs";
 
 const SCOPE = "run1234-desktop-0-abcdef";
 

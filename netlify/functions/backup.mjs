@@ -6,7 +6,7 @@
 // never runs.
 
 import { nightly } from "./lib/backup.mjs";
-import { withLog } from "./lib/log.mjs";
+import { withLog } from "./lib/with-log.mjs";
 import { stores } from "./lib/store.mjs";
 
 export const handle = async ({

@@ -26,7 +26,8 @@ import { deleteAddressed } from "./lib/address-key.mjs";
 import { cartOwner } from "./lib/records.mjs";
 import { now as clock, real } from "./lib/clock.mjs";
 import { json, noCopy, readJson } from "./lib/http.mjs";
-import { log, withLog } from "./lib/log.mjs";
+import { log } from "./lib/log.mjs";
+import { withLog } from "./lib/with-log.mjs";
 import {
   MESSAGE, gate, isAdminAddress, readState,
 } from "./lib/maintenance.mjs";

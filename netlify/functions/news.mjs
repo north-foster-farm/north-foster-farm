@@ -21,7 +21,8 @@ import {
 import { receivedEmail, sameSite } from "./lib/auth.mjs";
 import { now as clock } from "./lib/clock.mjs";
 import { json, readJson } from "./lib/http.mjs";
-import { log, withLog } from "./lib/log.mjs";
+import { log } from "./lib/log.mjs";
+import { withLog } from "./lib/with-log.mjs";
 import { sendMail } from "./lib/mail.mjs";
 import { gate } from "./lib/maintenance.mjs";
 import { confirmSubscribe, subscribe, unsubscribe } from "./lib/news.mjs";

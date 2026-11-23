@@ -79,7 +79,8 @@ import { COOKIE, cookieValue, normalize, sessionFor } from "./lib/gate.mjs";
 import { json, readJson } from "./lib/http.mjs";
 import { runJobs } from "./lib/jobs.mjs";
 import { entry, library } from "./lib/library.mjs";
-import { log, withLog } from "./lib/log.mjs";
+import { log } from "./lib/log.mjs";
+import { withLog } from "./lib/with-log.mjs";
 import { OUTBOX_PREFIX, attached } from "./lib/mail.mjs";
 import {
   SENT as PACKING_SENT, fileName as packetFile, packetPreview,

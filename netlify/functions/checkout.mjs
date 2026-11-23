@@ -7,7 +7,7 @@
 // says payments are switched off there, not that they are broken.
 
 import { json } from "./lib/http.mjs";
-import { withLog } from "./lib/log.mjs";
+import { withLog } from "./lib/with-log.mjs";
 import { clientConfig as paypalConfig } from "./lib/paypal.mjs";
 import { paymentsOff } from "./lib/payments.mjs";
 import { clientConfig as squareConfig } from "./lib/square.mjs";

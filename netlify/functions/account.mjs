@@ -41,7 +41,7 @@ import {
 import { requestEmailChange } from "./lib/email-change.mjs";
 import { forgetCustomer } from "./lib/forget.mjs";
 import { json, readJson } from "./lib/http.mjs";
-import { withLog } from "./lib/log.mjs";
+import { withLog } from "./lib/with-log.mjs";
 import { gate } from "./lib/maintenance.mjs";
 import { leaving, leavingChange, noteInteraction } from "./lib/retention.mjs";
 import { scopeOf } from "./lib/stock-pins.mjs";

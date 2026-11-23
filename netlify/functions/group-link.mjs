@@ -11,7 +11,7 @@
 // A read, so no log line (docs/security.md, Logging).
 
 import { groupOf, joinPath, joinTokenOf } from "./lib/groups.mjs";
-import { withLog } from "./lib/log.mjs";
+import { withLog } from "./lib/with-log.mjs";
 import { stores as defaultStores } from "./lib/store.mjs";
 
 const notFound = () => new Response("Not found.", {

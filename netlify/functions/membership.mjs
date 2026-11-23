@@ -27,7 +27,7 @@ import {
 import { now as clock } from "./lib/clock.mjs";
 import { joinQr } from "./lib/groups.mjs";
 import { json, readJson } from "./lib/http.mjs";
-import { withLog } from "./lib/log.mjs";
+import { withLog } from "./lib/with-log.mjs";
 import { gate } from "./lib/maintenance.mjs";
 import {
   hostMembers, hostedBy, memberCode, memberCodeSvg, membershipView,

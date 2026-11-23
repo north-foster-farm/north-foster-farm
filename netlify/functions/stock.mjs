@@ -18,7 +18,7 @@
 
 import { now as clock, real } from "./lib/clock.mjs";
 import { json } from "./lib/http.mjs";
-import { withLog } from "./lib/log.mjs";
+import { withLog } from "./lib/with-log.mjs";
 import {
   archivedInStock, availability, liveCounts,
 } from "./lib/stock.mjs";

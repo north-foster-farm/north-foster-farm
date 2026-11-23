@@ -23,7 +23,7 @@ import {
   memberTerms, namedGroup, publicGroup,
 } from "./lib/groups.mjs";
 import { json, readJson } from "./lib/http.mjs";
-import { withLog } from "./lib/log.mjs";
+import { withLog } from "./lib/with-log.mjs";
 import { pickupSchedule } from "./lib/pickups.mjs";
 import { stores as defaultStores } from "./lib/store.mjs";
 
