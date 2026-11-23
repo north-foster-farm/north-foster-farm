@@ -519,7 +519,9 @@ refused rather than charged.
 `scripts/order/order-form.js` draws on small modules in
 `scripts/order/form/` (2026-11-23, #815, the first phase of
 `docs/refactors/order-form.md`): `qs`, `all` and `pulse` in
-`dom.js`; and the section spy, which names the section on screen in
+`dom.js`; the phone field's mask in the pure `phone.mjs`, and the
+field with its "Prefer text or call?" row in `contact.js` (2026-11-23,
+#816); and the section spy, which names the section on screen in
 the sidebar's outline, the phone's bar and the total bar, in
 `section-spy.js` (`watchSections`, `keepInRail`), with its choice of
 section drawn out into the pure `section-pick.mjs`.

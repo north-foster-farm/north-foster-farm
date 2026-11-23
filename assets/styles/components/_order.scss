@@ -780,7 +780,7 @@
   }
 
   // "Prefer text or call?" is hidden until there is a phone number,
-  // and fades in when it appears (order-form.js showContact).
+  // and fades in when it appears (form/contact.js showContact).
   .order-contact-row {
     transition:
       opacity var(--order-base) ease,

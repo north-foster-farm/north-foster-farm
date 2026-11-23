@@ -18,7 +18,7 @@ import {
   computeTotals, dollars, lockOn, meetsMinimum, toCents,
 } from "./lib/totals.mjs";
 import {
-  disallowedFor, normalizeCode, phoneOk, validateOrder, zipInfo,
+  disallowedFor, normalizeCode, validateOrder, zipInfo,
 } from "./lib/validate.mjs";
 import {
   pickupTimes, windowLabel,
@@ -30,6 +30,9 @@ import { celebrate } from "./celebrate.js";
 import { DateLists } from "./date-lists.js";
 import { Draft } from "./draft.js";
 import { Errors } from "./errors.js";
+import {
+  formatPhone, prefill, showContact, wirePhone,
+} from "./form/contact.js";
 import { all, pulse, qs } from "./form/dom.js";
 import { watchSections } from "./form/section-spy.js";
 import { Lapsed } from "./lapsed.js";
@@ -352,7 +355,7 @@ export class OrderForm {
       this.credit = this.ownCredit;
       this.refresh();
     }
-    this.prefill(who.customer);
+    prefill(this.form, who.customer, () => this.draft.save(this.collect()));
   }
 
   hideSignInPrompt() {
@@ -615,62 +618,6 @@ export class OrderForm {
     el.focus({ preventScroll: true });
   }
 
-  // Name, email and phone from the customer's record, filled in as
-  // ordinary fields.
-  prefill(customer) {
-    let any = false;
-
-    for (const input of all(this.form, "[data-prefill]")) {
-      const value = customer[input.dataset.prefill];
-
-      if (!value) continue;
-      if (!input.value) input.value = value;
-      any = true;
-    }
-    this.formatPhone();
-
-    this.showContact();
-    if (any) this.draft.save(this.collect());
-  }
-
-  // The phone number as "(xxx) xxx-xxxx" while it is typed. A
-  // deletion that lands on a bracket or a dash takes the digit before
-  // it too, so backspace never fights the mask. A leading 1 is dropped.
-  formatPhone(deleting = false) {
-    const input = qs(this.form, "[data-field='customer.phone']");
-    const raw = input.value;
-    let digits = raw.replace(/\D/g, "");
-
-    if (digits.length === 11 && digits.startsWith("1")) {
-      digits = digits.slice(1);
-    }
-    if (deleting && /\D$/.test(raw)) digits = digits.slice(0, -1);
-    digits = digits.slice(0, 10);
-
-    const out = digits.length <= 3 ? (digits ? `(${digits}` : "")
-      : digits.length <= 6 ? `(${digits.slice(0, 3)}) ${digits.slice(3)}`
-        : `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
-
-    if (out !== raw) input.value = out;
-  }
-
-  // "Prefer text or call?" shows once the phone number is one we could
-  // use, and fades in when it appears.
-  showContact() {
-    const row = qs(this.form, "[data-contact-row]");
-    const phone = qs(this.form, "[data-field='customer.phone']");
-    const on = phoneOk(phone.value.trim());
-
-    if (row.dataset.shown === String(on)) return;
-    row.dataset.shown = String(on);
-    if (on) {
-      row.classList.add("is-entering");
-      requestAnimationFrame(() => requestAnimationFrame(() => {
-        row.classList.remove("is-entering");
-      }));
-    }
-  }
-
   wire() {
     this.form.addEventListener("input", () => {
       this.changed();
@@ -702,14 +649,7 @@ export class OrderForm {
       this.revalidate(e.target);
     });
 
-    const phone = qs(this.form, "[data-field='customer.phone']");
-
-    phone.addEventListener("input", (e) => {
-      this.formatPhone((e.inputType || "").startsWith("delete"));
-      this.showContact();
-    });
-    this.formatPhone();
-    this.showContact();
+    wirePhone(this.form);
 
     // The rail's Cart link, the header's cart link and #order-cart in
     // the URL bring the cart into view and focus it at every width
@@ -1749,7 +1689,7 @@ export class OrderForm {
     set("customer.lastName", c.lastName);
     set("customer.email", c.email);
     set("customer.phone", c.phone);
-    this.formatPhone();
+    formatPhone(this.form);
     set("customer.contact", c.contact);
     set("code", payload.code);
     // A saved draft's pass is asked about again: it may be gone.
@@ -1810,7 +1750,7 @@ export class OrderForm {
     } else if (way && f.date) {
       this.dates.want(way, f.date);
     }
-    this.showContact();
+    showContact(this.form);
   }
 
   // What the payment section asks of the form (pay.js).
