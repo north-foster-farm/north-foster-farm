@@ -33,20 +33,6 @@ export const nextRoundOpens = (series, now, timeZone) => {
   return next ? `next order opens ${label(next)}` : "Not currently scheduled";
 };
 
-// "Orders close at 11:59 PM on Saturday, November 21": a round's
-// cutoff (#749 item 5), an ISO instant, in the farm's zone.
-export const ordersClose = (cutoff, timeZone) => {
-  const at = new Date(cutoff);
-  const time = at.toLocaleTimeString("en-US", {
-    timeZone, hour: "numeric", minute: "2-digit",
-  }).replace(/\s/gu, " ");
-  const day = at.toLocaleDateString("en-US", {
-    timeZone, weekday: "long", month: "long", day: "numeric",
-  });
-
-  return `Orders close at ${time} on ${day}`;
-};
-
 // The code a link carries, as typed into the box, or "".
 export const groupFromQuery = (search) => {
   const value = new URLSearchParams(search).get("group") || "";
