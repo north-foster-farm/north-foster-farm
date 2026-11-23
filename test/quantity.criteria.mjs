@@ -22,8 +22,8 @@
 //   minusLabel(qty)                -> the minus button's name
 
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
+import { assertPure } from "./pure-module.mjs";
 
 import {
   minusLabel, parseQty, qtyState, stepTo,
@@ -92,11 +92,10 @@ describe("minusLabel", () => {
 
 describe("design, phase 8", () => {
   it("keeps form/quantity.mjs pure", () => {
-    const code = readFileSync(MODULE, "utf8")
-      .replace(/\/\/.*$/gm, "")
-      .replace(/\/\*[\s\S]*?\*\//g, "");
-
-    assert.doesNotMatch(code,
-      /(?<![.\w])(document|window)\.|\b(querySelector|Element)\b/);
+    assertPure(MODULE, {
+      banned: ["(?<![.\\w])document(?=\\.)", "(?<![.\\w])window(?=\\.)",
+        "querySelector", "Element"],
+      imports: null,
+    });
   });
 });
