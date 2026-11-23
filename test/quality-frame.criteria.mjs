@@ -29,11 +29,16 @@
 //   after the file's path on its line (stallMarker);
 // - the directive forms of section 2, "-- #791 c<id>: reason" (cite);
 // - how a change is found. CI runs npm run lint under env -i (ci.yml,
-//   lint-and-test), so no GitHub variable reaches the check: the tests
-//   give it git state alone. In the hook the change is what is staged.
-//   In CI it is a pull request's merge commit, whose first parent is
-//   the base, with the ref refs/remotes/pull/<number>/merge at it, as
-//   actions/checkout leaves it; the number comes from that ref;
+//   lint-and-test), so no GitHub variable reaches the check unless CI
+//   passes it by name. In the hook the change is what is staged. In CI
+//   it is a pull request's merge commit, whose first parent is the
+//   base, with the ref refs/remotes/pull/<number>/merge at it, as
+//   actions/checkout leaves it; the number comes from that ref. On a
+//   push it is the pushed range, from NFF_QUALITY_PUSH_BEFORE
+//   (PUSH_BASE), the one variable CI passes, to HEAD (see the push
+//   cases below);
+// - the words a fallback is said in, "fell back" or "falls back"
+//   (FELL_BACK);
 // - the parity test, read as "a test fails when a gate's script exists
 //   that npm run lint does not call" (the coordinator's reading of
 //   section 2). A gate's script is here one that runs a linter or
@@ -46,13 +51,21 @@
 // Two cases the coordinator settled for the implementer on 2026-11-23
 // (PROVISIONAL, for James to overrule), tested at the end of the file:
 // - a run with no pull request ref (a push to next, staging or main):
-//   check:touched compares HEAD with its first parent and is not
-//   skipped. A touched, listed file with a stall marker has its findings
-//   accepted on the changed lines when the marker cites its entry on
-//   #791 and refused when it cites none; a touched, listed file with no
-//   marker meets every limit as a whole file, as on a pull request. The
-//   tests give it a commit on a branch named next, with
-//   refs/remotes/origin/next at it, and no pull ref ("push" in stage);
+//   check:touched compares the pushed range and is not skipped. A
+//   touched, listed file with a stall marker has its findings accepted
+//   on the changed lines when the marker cites its entry on #791 and
+//   refused when it cites none; a touched, listed file with no marker
+//   meets every limit as a whole file, as on a pull request. The tests
+//   give it commits on a branch named next, with
+//   refs/remotes/origin/next at it, and no pull ref ("push" in stage,
+//   and pushed). Corrected the same day, after the reviewer showed
+//   that a landing fast-forwards several commits, so HEAD^1 alone
+//   checks the last one only: the range runs from the commit the
+//   branch stood at before the push (github.event.before, which CI
+//   hands over as NFF_QUALITY_PUSH_BEFORE) to HEAD. Only when that is not
+//   given, or is not an ancestor of HEAD (a force-push, a new branch,
+//   the all-zero id), does the check fall back to HEAD's first parent,
+//   and it says so in its output;
 // - the commit hook: a staged change that itself adds a stall marker is
 //   accepted by the hook though no pull request number exists yet; the
 //   entry on #791 is required in CI, where the number is known. The
@@ -111,14 +124,22 @@ const SHAPES = ["max-depth", "max-params"];
 const GATE_TOOLS = ["eslint", "stylelint", "jscpd", "shellcheck",
   "prettier", "knip", "depcruise", "tsc", "markdownlint-cli2"];
 
-const env = () => ({
+// The commit a pushed branch stood at before the push, as CI hands it to
+// check:touched from github.event.before (provisional name, see the
+// header).
+const PUSH_BASE = "NFF_QUALITY_PUSH_BEFORE";
+const ZERO = "0".repeat(40);
+const FELL_BACK = /fell back|falls back|falling back/i;
+
+const env = (extra = {}) => ({
   "PATH": process.env.PATH,
   "HOME": process.env.HOME,
   "npm_config_script_shell": "/bin/sh",
+  ...extra,
 });
 
-const run = (cwd, command, args) => spawnSync(command, args, {
-  cwd, "encoding": "utf8", "env": env(), "maxBuffer": 64 * 1024 * 1024,
+const run = (cwd, command, args, extra) => spawnSync(command, args, {
+  cwd, "encoding": "utf8", "env": env(extra), "maxBuffer": 64 * 1024 * 1024,
 });
 
 const said = (result) => `${result.stdout}\n${result.stderr}`;
@@ -337,10 +358,10 @@ const stage = (mode, { before, change, pr = PR }) => {
 
 // The gates on a change: the frame's two scripts, ESLint over the
 // paths named, and Stylelint over the stylesheets named.
-const script = (scriptName) => {
+const script = (scriptName, extra) => {
   assert.ok(scriptsOf(scratch)[scriptName],
     `package.json has a ${scriptName} script`);
-  return run(scratch, "npm", ["run", "--silent", scriptName]);
+  return run(scratch, "npm", ["run", "--silent", scriptName], extra);
 };
 
 const eslint = (paths) => {
@@ -369,9 +390,9 @@ const stylelint = (paths) => {
   return { "failed": result.status !== 0, "log": shown(result) };
 };
 
-const gates = ({ scripts = [], styles = [] } = {}) => {
-  const touched = script(TOUCHED);
-  const exceptions = script(EXCEPTIONS);
+const gates = ({ scripts = [], styles = [], extra } = {}) => {
+  const touched = script(TOUCHED, extra);
+  const exceptions = script(EXCEPTIONS, extra);
   const lint = eslint(scripts);
   const styled = stylelint(styles);
   return {
@@ -816,11 +837,16 @@ describe("#782 step 3: exceptions", () => {
 
 // The coordinator's two cases of 2026-11-23 (provisional, see the header).
 // Each sub-case is staged in turn and every miss is reported at once.
+const rev = (ref) => git(scratch, ["rev-parse", ref]).trim();
+
+// A push run is given the commit the branch stood at before the push,
+// here the "before" commit, as CI gives it from github.event.before.
 const verdicts = (cases) => {
   const wrong = [];
   for (const [what, { mode, change, ok }] of Object.entries(cases)) {
     stage(mode, { "before": legacyBefore, change });
-    const result = gates({ "scripts": [LEGACY, OTHER] });
+    const extra = mode === "push" ? { [PUSH_BASE]: rev("HEAD^") } : {};
+    const result = gates({ "scripts": [LEGACY, OTHER], extra });
     if (ok === result.failed) {
       wrong.push(`${what}: wanted ${ok ? "a pass" : "a failure"}\n` +
         `${result.log}`);
@@ -835,11 +861,11 @@ const stalled = (mark) => () => {
 };
 
 describe("#782 step 3: runs with no pull request number", () => {
-  it("a run with no pull request ref compares HEAD with its first " +
-    "parent, holds a stall marker's file to its changed lines only when " +
-    "the marker cites its #791 entry, and is not skipped", () => {
+  it("a run with no pull request ref compares the pushed range, holds a " +
+    "stall marker's file to its changed lines only when the marker cites " +
+    "its #791 entry, and is not skipped", () => {
     assert.deepEqual(verdicts({
-      "an untouched listed file, touched only before the first parent": {
+      "an untouched listed file, written before the pushed range": {
         "mode": "push", "change": () => add(OTHER, small("OtherC")),
         "ok": true,
       },
@@ -887,4 +913,101 @@ describe("#782 step 3: runs with no pull request number", () => {
       },
     }), [], "hook and CI runs judged wrongly");
   });
+});
+
+// The pushed range (2026-11-23, the reviewer's correction of the
+// coordinator's ruling: a landing fast-forwards several commits, so
+// HEAD^1 alone misses all but the last). `pushed` commits the "before"
+// state, then each change as a commit of its own on next, and returns
+// the commit next stood at before the push.
+const pushed = (changes) => {
+  reset();
+  legacyBefore();
+  git(scratch, ["add", "-A"]);
+  git(scratch, ["commit", "-q", "-m", "before"]);
+  const start = rev("HEAD");
+  changes.forEach((change, i) => {
+    change();
+    git(scratch, ["add", "-A"]);
+    git(scratch, ["commit", "-q", "--allow-empty", "-m", `change ${i + 1}`]);
+  });
+  git(scratch, ["checkout", "-q", "-B", "next"]);
+  git(scratch, ["update-ref", "refs/remotes/origin/next", "HEAD"]);
+  return start;
+};
+
+// Three commits: the first touches the listed file, which breaks every
+// limit as a whole file; the last two touch only compliant files.
+const LEGACY_FIRST = [
+  () => add(LEGACY, small("LegacyAdded")),
+  () => add(OTHER, small("OtherC")),
+  () => put(FRESH, compliant("New")),
+];
+
+const COMPLIANT_ONLY = [
+  () => add(OTHER, small("OtherC")),
+  () => put(FRESH, compliant("New")),
+  () => add(FRESH, small("NewC")),
+];
+
+const ranged = (start) => ({ [PUSH_BASE]: start });
+
+const fellBack = (result, wanted) => assert.equal(
+  FELL_BACK.test(said(result)), wanted,
+  `${TOUCHED} ${wanted ? "says" : "does not say"} it fell back to the ` +
+  `first parent\n${shown(result)}`);
+
+// No usable base: the three-commit push passes, since HEAD^1 touches no
+// listed file, and says it fell back; a one-commit push that touches
+// the listed file still fails, so the fallback compares, never skips.
+const fallsBack = (base) => {
+  const start = pushed(LEGACY_FIRST);
+  const many = script(TOUCHED, base ? ranged(base(start)) : {});
+  assert.equal(many.status, 0, `HEAD^1 alone passes\n${shown(many)}`);
+  fellBack(many, true);
+  const one = pushed([LEGACY_FIRST[0]]);
+  const single = script(TOUCHED, base ? ranged(base(one)) : {});
+  failsNaming(single, LEGACY, gateNames());
+  fellBack(single, true);
+};
+
+describe("#782 step 3: a push is checked over its whole range", () => {
+  it("a push whose first commit touches a listed file fails, naming it, " +
+    "when the base is given; HEAD^1 alone would pass", () => {
+    const start = pushed(LEGACY_FIRST);
+    const range = script(TOUCHED, ranged(start));
+    failsNaming(range, LEGACY, gateNames());
+    fellBack(range, false);
+    const last = script(TOUCHED, ranged(rev("HEAD^")));
+    assert.equal(last.status, 0,
+      `the same push against HEAD^1 alone passes\n${shown(last)}`);
+  });
+
+  it("a push with the base given and every touched file within the " +
+    "limits passes", () => {
+    const start = pushed(COMPLIANT_ONLY);
+    const result = gates({ "scripts": [LEGACY, OTHER, FRESH],
+      "extra": ranged(start) });
+    passes(result);
+    fellBack(result.touched, false);
+  });
+
+  it("with no base given, a push compares HEAD with its first parent " +
+    "and says it fell back", () => {
+    fallsBack(null);
+  });
+
+  const unusable = {
+    "a force-push: the base is a commit HEAD does not contain": (start) =>
+      git(scratch, ["commit-tree", `${start}^{tree}`, "-p", start, "-m",
+        "replaced"]).trim(),
+    "a new branch: the all-zero id": () => ZERO,
+  };
+
+  for (const [what, base] of Object.entries(unusable)) {
+    it(`a base that is not an ancestor of HEAD falls back the same way ` +
+      `(${what})`, () => {
+      fallsBack(base);
+    });
+  }
 });
