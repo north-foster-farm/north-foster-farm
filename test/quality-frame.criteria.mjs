@@ -43,6 +43,25 @@
 //   max-lines-per-function, max-lines, max-depth and max-params
 //   (LIMITS), and their findings are read from ESLint's JSON output.
 //
+// Two cases the coordinator settled for the implementer on 2026-11-23
+// (PROVISIONAL, for James to overrule), tested at the end of the file:
+// - a run with no pull request ref (a push to next, staging or main):
+//   check:touched compares HEAD with its first parent and is not
+//   skipped. A touched, listed file with a stall marker has its findings
+//   accepted on the changed lines when the marker cites its entry on
+//   #791 and refused when it cites none; a touched, listed file with no
+//   marker meets every limit as a whole file, as on a pull request. The
+//   tests give it a commit on a branch named next, with
+//   refs/remotes/origin/next at it, and no pull ref ("push" in stage);
+// - the commit hook: a staged change that itself adds a stall marker is
+//   accepted by the hook though no pull request number exists yet; the
+//   entry on #791 is required in CI, where the number is known. The
+//   marker the hook sees, before a number exists, is " # stall" after
+//   the path (pendingMarker), also provisional in its form.
+// The run tells hook, pull request and push apart by git state alone:
+// a pull ref at HEAD is a pull request, else staged changes are the
+// hook, else it is a push.
+//
 // Each case runs in a scratch copy of the working tree (tracked and
 // untracked files, not ignored ones) committed once as "base" in a git
 // repository of its own under the system's temporary folder, with this
@@ -75,6 +94,7 @@ const PR = 1234;
 const ENTRY = "c7075001234";
 const stallMarker = (pr, entry) =>
   ` # stall PR-${pr}${entry ? ` ${entry}` : ""}`;
+const pendingMarker = " # stall";
 const cite = `#791 ${ENTRY}: criteria seed`;
 
 const LIMITS = {
@@ -299,6 +319,12 @@ const stage = (mode, { before, change, pr = PR }) => {
   change?.();
   git(scratch, ["add", "-A"]);
   if (mode === "hook") return;
+  if (mode === "push") {
+    git(scratch, ["commit", "-q", "--allow-empty", "-m", "change"]);
+    git(scratch, ["checkout", "-q", "-B", "next"]);
+    git(scratch, ["update-ref", "refs/remotes/origin/next", "HEAD"]);
+    return;
+  }
   const parent = git(scratch, ["rev-parse", "HEAD"]).trim();
   git(scratch, ["checkout", "-q", "-b", "pr"]);
   git(scratch, ["commit", "-q", "--allow-empty", "-m", "change"]);
@@ -785,5 +811,80 @@ describe("#782 step 3: exceptions", () => {
       if (!result.failed) failed.push(`${path}\n${result.log}`);
     }
     assert.deepEqual(failed, [], "needless directives that pass");
+  });
+});
+
+// The coordinator's two cases of 2026-11-23 (provisional, see the header).
+// Each sub-case is staged in turn and every miss is reported at once.
+const verdicts = (cases) => {
+  const wrong = [];
+  for (const [what, { mode, change, ok }] of Object.entries(cases)) {
+    stage(mode, { "before": legacyBefore, change });
+    const result = gates({ "scripts": [LEGACY, OTHER] });
+    if (ok === result.failed) {
+      wrong.push(`${what}: wanted ${ok ? "a pass" : "a failure"}\n` +
+        `${result.log}`);
+    }
+  }
+  return wrong;
+};
+
+const stalled = (mark) => () => {
+  markFile(LEGACY, mark);
+  add(LEGACY, small("LegacyAdded"));
+};
+
+describe("#782 step 3: runs with no pull request number", () => {
+  it("a run with no pull request ref compares HEAD with its first " +
+    "parent, holds a stall marker's file to its changed lines only when " +
+    "the marker cites its #791 entry, and is not skipped", () => {
+    assert.deepEqual(verdicts({
+      "an untouched listed file, touched only before the first parent": {
+        "mode": "push", "change": () => add(OTHER, small("OtherC")),
+        "ok": true,
+      },
+      "a marker citing its entry, compliant lines added": {
+        "mode": "push", "change": stalled(stallMarker(PR, ENTRY)),
+        "ok": true,
+      },
+      "a marker citing its entry, a long function added": {
+        "mode": "push",
+        "change": () => {
+          markFile(LEGACY, stallMarker(PR, ENTRY));
+          add(LEGACY, longFunction("LegacyAddedLong", 30));
+        },
+        "ok": false,
+      },
+      "a marker citing no entry": {
+        "mode": "push", "change": stalled(stallMarker(PR, "")),
+        "ok": false,
+      },
+      "a touched listed file with no marker": {
+        "mode": "push", "change": () => add(LEGACY, small("LegacyAdded")),
+        "ok": false,
+      },
+    }), [], "push runs judged wrongly");
+  });
+
+  it("the hook accepts a staged change that adds a stall marker though " +
+    "no pull request number exists yet, and CI requires its entry on " +
+    "#791", () => {
+    assert.deepEqual(verdicts({
+      "the hook, a marker with no number yet": {
+        "mode": "hook", "change": stalled(pendingMarker), "ok": true,
+      },
+      "the hook, a marker with a number and no entry": {
+        "mode": "hook", "change": stalled(stallMarker(PR, "")), "ok": true,
+      },
+      "CI, a marker with no number": {
+        "mode": "ci", "change": stalled(pendingMarker), "ok": false,
+      },
+      "CI, a marker with the number and no entry": {
+        "mode": "ci", "change": stalled(stallMarker(PR, "")), "ok": false,
+      },
+      "CI, a marker with the number and its entry": {
+        "mode": "ci", "change": stalled(stallMarker(PR, ENTRY)), "ok": true,
+      },
+    }), [], "hook and CI runs judged wrongly");
   });
 });
