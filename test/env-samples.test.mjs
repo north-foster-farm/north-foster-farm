@@ -72,6 +72,18 @@ const sources = (dir) => readdirSync(join(root, dir), { withFileTypes: true })
       && !entry.name.includes(".")) ? [path] : [];
   });
 
+// The names one destructuring of env takes: `{ A, B: b, C = 1 }`.
+const destructured = (list) => list.split(",")
+  .map((part) => part.trim().split(/[\s:=]/)[0])
+  .filter((name) => new RegExp(`^${NAME}$`).test(name));
+
+// Every name a file's text reads, in the order the patterns find them.
+const namesIn = (text) => [
+  ...READS.flatMap((pattern) => [...text.matchAll(pattern)]
+    .map((m) => m[1])),
+  ...[...text.matchAll(DESTRUCTURED)].flatMap((m) => destructured(m[1])),
+];
+
 // Every name the runtime code reads, and one file that does.
 const reads = () => {
   const found = new Map();
@@ -80,16 +92,7 @@ const reads = () => {
   for (const file of ["netlify/functions", "bin", "plugins"].flatMap(sources)) {
     const text = readFileSync(join(root, file), "utf8");
 
-    for (const pattern of READS) {
-      for (const m of text.matchAll(pattern)) note(m[1], file);
-    }
-    for (const m of text.matchAll(DESTRUCTURED)) {
-      for (const part of m[1].split(",")) {
-        const name = part.trim().split(/[\s:=]/)[0];
-
-        if (new RegExp(`^${NAME}$`).test(name)) note(name, file);
-      }
-    }
+    for (const name of namesIn(text)) note(name, file);
   }
 
   return found;
@@ -139,13 +142,12 @@ describe("the tracked env samples", () => {
         .map((e) => [e.name, `filled-${e.name.toLowerCase()}`]));
       const { sets } = planPush(sample, { values, errors: [] }, `.env.${env}`);
 
-      for (const e of parsed[env].entries.filter((x) => x.public)) {
+      for (const e of parsed[env].entries
+        .filter((x) => x.public && !x.local)) {
         const set = sets.find((s) => s.name === e.name);
 
-        if (!e.local) {
-          assert.ok(set, `${e.name} is pushed from ${sampleFile(env)}`);
-          assert.equal(set.secret, false, `${e.name} in ${sampleFile(env)}`);
-        }
+        assert.ok(set, `${e.name} is pushed from ${sampleFile(env)}`);
+        assert.equal(set.secret, false, `${e.name} in ${sampleFile(env)}`);
       }
     }
   });
@@ -153,24 +155,23 @@ describe("the tracked env samples", () => {
   it("mark Public: every empty key whose comment says it is no secret",
     () => {
       for (const env of ["staging", "production"]) {
-        for (const e of parsed[env].entries) {
-          if (/not a secret/i.test(e.purpose.join(" "))) {
-            assert.equal(e.public, true,
-              `${e.name} in ${sampleFile(env)} says "Public:"`);
-          }
+        for (const e of parsed[env].entries
+          .filter((x) => /not a secret/i.test(x.purpose.join(" ")))) {
+          assert.equal(e.public, true,
+            `${e.name} in ${sampleFile(env)} says "Public:"`);
         }
       }
     });
 
   it("mark as Optional: every key the tooling lets stay empty", () => {
     for (const env of ["staging", "production"]) {
-      for (const name of OPTIONAL) {
-        const entry = parsed[env].entries.find((e) => e.name === name);
+      const present = [...OPTIONAL]
+        .map((name) => [name, parsed[env].entries.find((e) => e.name === name)])
+        .filter(([, entry]) => entry);
 
-        if (entry) {
-          assert.equal(entry.optional, true,
-            `${name} in ${sampleFile(env)} says Optional:`);
-        }
+      for (const [name, entry] of present) {
+        assert.equal(entry.optional, true,
+          `${name} in ${sampleFile(env)} says Optional:`);
       }
     }
   });

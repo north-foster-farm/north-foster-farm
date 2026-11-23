@@ -118,7 +118,6 @@ test/container-shell.test.mjs
 test/context-guard-env.test.mjs
 test/e2e-pages-input.test.mjs
 test/edit-switch-cancel.test.mjs
-test/env-samples.test.mjs
 test/function-config.test.mjs
 test/hostile-input.test.mjs
 test/hotfix-round4.test.mjs
