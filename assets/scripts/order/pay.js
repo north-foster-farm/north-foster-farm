@@ -1,11 +1,12 @@
 // The payment section: the card form and the wallet buttons from
 // Square's Web Payments SDK, and the Venmo button from PayPal's. The
-// SDKs load once the section is near the screen, from the hosts the
-// content-security policy allows, with the ids /api/checkout/config
-// gives for this deploy. Nothing here talks to our server about the
-// order: it turns a card or a wallet into a token and hands it to the
-// form, or runs the Venmo approval and hands the form the PayPal
-// order to capture. The form validates first, every time.
+// SDKs load once the section is near the screen (pay/loader.js), from
+// the hosts the content-security policy allows, with the ids
+// /api/checkout/config gives for this deploy. Nothing here talks to
+// our server about the order: it turns a card or a wallet into a token
+// and hands it to the form, or runs the Venmo approval and hands the
+// form the PayPal order to capture. The form validates first, every
+// time.
 //
 // What the form gives:
 //   prepare()            validate now; -> the payload, or null after
@@ -21,20 +22,12 @@
 //   venmoCapture(payload, paypalOrderId)
 
 import { Card } from "./pay/card.js";
+import { Loader } from "./pay/loader.js";
 import { loadScript } from "./pay/scripts.js";
 import { Section } from "./pay/section.js";
-import { endState } from "./pay/states.mjs";
 import { Venmo } from "./pay/venmo.js";
 import { Wallets } from "./pay/wallets.js";
 import { crumb, reportUnavailable, sdk } from "./report.js";
-import { whileLoading } from "../utils/skeleton.js";
-
-const qs = (root, selector) => root.querySelector(selector);
-
-// How long the payment SDKs get to load before the page calls payment
-// unavailable and reports it (#268, rec 8). The skeleton over the card
-// fields gives up at 10 s with Try again; this is the backstop.
-const INIT_TIMEOUT_MS = 20_000;
 
 // The form, narrowed to what the parts may ask of it (docs/refactors/
 // pay.md, section 2), from the eleven members it gives. No part sees
@@ -59,25 +52,23 @@ export class Payment {
     this.form = form;
     this.checkout = checkoutOf(form);
     this.payments = null;
-    this.config = null;
-    this.ready = false;
-    this.starting = null;
     // The section's DOM state, its error line and its two flags
     // (pay/section.js). The form reads `state`.
     this.section = new Section(root);
     this.state = this.section.state;
+    const parts = { root, section: this.section, checkout: this.checkout };
     // The card form, its fields' states and its token (pay/card.js).
-    this.cardPart = new Card({
-      root, section: this.section, checkout: this.checkout,
-    });
+    this.cardPart = new Card(parts);
     // The payment request and the three wallets (pay/wallets.js).
-    this.walletsPart = new Wallets({
-      root, section: this.section, checkout: this.checkout,
-    });
-    // PayPal's Venmo button, its payload and its two flags
-    // (pay/venmo.js).
-    this.venmoPart = new Venmo({
-      root, section: this.section, checkout: this.checkout,
+    this.walletsPart = new Wallets(parts);
+    // PayPal's Venmo button, its payload and flags (pay/venmo.js).
+    this.venmoPart = new Venmo(parts);
+    // When the SDKs load, the config and the state the section ends
+    // in (pay/loader.js), from what Square's half and PayPal's attach.
+    this.loader = new Loader({
+      ...parts,
+      square: (cfg) => this.initSquare(cfg).then(() => this.card),
+      paypal: (cfg) => this.initVenmo(cfg).then(() => this.venmo),
     });
   }
 
@@ -117,106 +108,15 @@ export class Payment {
   }
 
   // Loads once the section is near the screen, or the first time
-  // anything inside it is focused, whichever comes first.
+  // anything inside it is focused (pay/loader.js).
   start() {
-    const go = () => this.load();
-
-    if ("IntersectionObserver" in window) {
-      const watcher = new IntersectionObserver((entries) => {
-        if (entries.some((e) => e.isIntersecting)) {
-          watcher.disconnect();
-          go();
-        }
-      }, { rootMargin: "600px 0px" });
-
-      watcher.observe(this.root);
-    } else {
-      go();
-    }
-    this.root.addEventListener("focusin", go, { once: true });
+    this.loader.start();
   }
 
-  async load() {
-    if (this.starting) return this.starting;
-
-    // The card fields wait under a skeleton (#271). A payment that
-    // turns out unavailable says so itself; one still loading after
-    // the skeleton gives up offers Try again, a reload.
-    // An SDK that loads but never settles (payments() or attach()
-    // hanging) left the page loading for good, with Pay disabled and
-    // nothing reported (#268, rec 8). After INIT_TIMEOUT_MS it is
-    // unavailable and reported; a late success still takes over.
-    const init = () => {
-      const timer = setTimeout(() => {
-        if (this.ready || this.state.dataset.payState !== "loading") return;
-        reportUnavailable("checkout.init", `No answer in ${
-          INIT_TIMEOUT_MS / 1000} s.`);
-        this.setState("unavailable");
-      }, INIT_TIMEOUT_MS);
-
-      return this.init().then(() => true, (error) => {
-        console.error(error);
-        reportUnavailable("checkout.init", error);
-        this.setState("unavailable");
-
-        return true;
-      }).finally(() => clearTimeout(timer));
-    };
-
-    this.starting = whileLoading(qs(this.root, "#pay-card-panel"), init, {
-      failed: (done) => !done,
-    });
-
-    return this.starting;
-  }
-
-  setState(state) {
-    this.section.setState(state);
-  }
-
-  async init() {
-    crumb("pay.load");
-
-    const res = await fetch("/api/checkout/config", { cache: "no-store" });
-
-    this.config = res.ok ? await res.json() : {};
-    crumb(res.ok ? "config.ok" : "config.failed");
-
-    if (this.config.off) {
-      crumb("config.off");
-      this.setState("off");
-
-      return;
-    }
-
-    const jobs = [];
-
-    if (this.config.square) jobs.push(this.initSquare(this.config.square));
-    if (this.config.paypal) jobs.push(this.initVenmo(this.config.paypal));
-
-    if (!jobs.length) {
-      reportUnavailable("checkout.config", `No payment configured (HTTP ${
-        res.status}).`);
-      this.setState("unavailable");
-
-      return;
-    }
-
-    await Promise.all(jobs);
-
-    const state = endState({ card: this.card, venmo: this.venmo });
-
-    if (state === "unavailable") {
-      reportUnavailable("sdks.gone", "Neither the card nor Venmo is " +
-        "available.");
-      this.setState("unavailable");
-
-      return;
-    }
-
-    this.ready = true;
-    this.setState(state);
-    this.form.paymentReady();
+  // Whether the section took its end state with a way to pay
+  // (pay/loader.js). The form reads it.
+  get ready() {
+    return this.loader.ready;
   }
 
   // --- Square -------------------------------------------------------

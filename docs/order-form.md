@@ -541,9 +541,10 @@ asking the form only through the `checkout` port `pay.js` builds
 Apple Pay, Google Pay and Cash App Pay, guards each press and keeps
 the request's total current, through the same port (2026-11-23,
 #870), and `venmo.js` holds PayPal's Venmo button, its six callbacks
-and its restart, through the same port (2026-11-23, #871). It fetches
-`/api/checkout/config` and loads the SDKs once the section is near
-the screen or focused: Square's from `web.squarecdn.com` (sandbox:
+and its restart, through the same port (2026-11-23, #871), and
+`loader.js` fetches `/api/checkout/config`, starts the parts and
+sets the state the section ends in (2026-11-23, #872). The SDKs load
+once the section is near the screen or focused: Square's from `web.squarecdn.com` (sandbox:
 `sandbox.web.squarecdn.com`), PayPal's from `www.paypal.com/sdk/js`
 with `enable-funding=venmo`, `disable-funding=paylater,card,credit`
 and, in the sandbox, `buyer-country=US`. The card fields are Square's
