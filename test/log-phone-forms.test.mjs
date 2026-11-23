@@ -25,8 +25,8 @@
 // only about keys that are not ids.
 //
 // The seam: scrub() and the line log.info writes to the console. The
-// line is checked for digits left with every field but `_time`
-// (logText), since the timestamp can hold 555 or 0100 itself (#999).
+// line is checked for digits left with every field but the timestamp
+// the logger wrote (logText), since it can hold 555 or 0100 (#999).
 
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";

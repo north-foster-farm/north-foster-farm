@@ -1,4 +1,4 @@
-// A clock for log-clock.criteria.mjs (#999): loaded before a test
+// A clock for log-clock.test.mjs (#999): loaded before a test
 // file with `--import ./test/fixed-clock.mjs?at=<ISO time>`, it starts
 // the clock at that time. `new Date()` and Date.now() then read it,
 // moving on in whole seconds as real time passes, and the milliseconds
