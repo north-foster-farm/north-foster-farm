@@ -1,6 +1,6 @@
 // The map's camera, in sums (#859, phase 1 of docs/refactors/map.md).
-// No DOM: map.js measures the SVG and keeps the view, this works it
-// out. A view is the SVG's viewBox, { x, y, w, h }, in map units;
+// No DOM: camera.js measures the SVG and keeps the view (#862), this
+// works it out. A view is the SVG's viewBox, { x, y, w, h }, in map units;
 // `size` the whole map's, { W, H }; a box the SVG's on screen,
 // { left, top, width, height }, in pixels.
 

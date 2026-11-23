@@ -1,9 +1,42 @@
 // What the map writes over itself (#860, phase 2 of
 // docs/refactors/map.md): the tag's contents and where the tag and the
-// tip stand. It measures and writes; stand.mjs and tag.mjs work out
-// what.
+// tip stand, and (#862, phase 4) the view. It measures and writes;
+// stand.mjs, tag.mjs and view.mjs work out what.
 
 import { TIP_GAP, clearOf, standAt, tipAt } from "./stand.mjs";
+import { MAX_ZOOM, NUDGE_BELOW, NUDGE_PX, pinScale } from "./view.mjs";
+
+// A pin's transform: its tip at x, y in map units, scaled by s.
+const pinAt = (x, y, s) => `translate(${x} ${y}) scale(${s})`;
+
+// The view: the viewBox, and everything that must keep its size on
+// screen whatever the zoom (pins, the dropped pin). `k` is the zoom,
+// `width` the SVG's on screen in px, and `atHome` whether the view is
+// the layer's own, where the reset has nothing to do.
+export const drawView = (parts, view, pins, { k, width, atHome }) => {
+  const { svg, dropAt, zoomIn, zoomOut, reset } = parts;
+  const units = view.w / width;
+  const s = pinScale(view, width);
+  const nudged = k < NUDGE_BELOW;
+
+  svg.setAttribute("viewBox", `${view.x} ${view.y} ${view.w} ${view.h}`);
+  for (const pin of pins) {
+    const dx = nudged ? Number(pin.dataset.nudge || 0) * NUDGE_PX * units
+      : 0;
+
+    pin.setAttribute("transform",
+      pinAt(Number(pin.dataset.x) + dx, pin.dataset.y, s));
+  }
+  if (dropAt.dataset.x) {
+    dropAt.setAttribute("transform",
+      pinAt(dropAt.dataset.x, dropAt.dataset.y, s));
+  }
+  zoomIn.disabled = k >= MAX_ZOOM - 0.01;
+  zoomOut.disabled = k <= 1.01;
+  reset.hidden = atHome();
+  // Zoomed in, a drag pans the map; at full size it scrolls the page.
+  svg.style.touchAction = k > 1.01 ? "none" : "pan-y";
+};
 
 const sizeOf = (el) => ({ w: el.offsetWidth, h: el.offsetHeight });
 

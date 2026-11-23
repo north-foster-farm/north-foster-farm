@@ -36,19 +36,16 @@
 //
 // Wording is a draft for James (#138, #214).
 
+import { Camera } from "./camera.js";
 import { drawTag, drawTip, standOn } from "./draw.js";
 import { clearance, fit } from "./fit.mjs";
+import { partsOf } from "./parts.js";
 import { schedule, watchSeasons } from "./schedule.js";
 import { expire, number } from "./seasons.js";
 import { hashTarget } from "./seasons.mjs";
 import { MARGIN, inFrame } from "./stand.mjs";
 import { tagFacts, toneOf, zipOf } from "./tag.mjs";
-import {
-  FIT_MAX_ZOOM, FIT_PAD_PX, MAX_ZOOM, NUDGE_BELOW, NUDGE_PX, PIN_PX,
-  atHome as atHomeOf, centreOf, clampView, easeOut, homeView,
-  onScreen as onScreenOf, pannedBy, pinScale, toMap as toMapOf, tweenAt,
-  zoomOf, zoomedAbout,
-} from "./view.mjs";
+import { FIT_MAX_ZOOM, FIT_PAD_PX, PIN_PX, pannedBy } from "./view.mjs";
 
 // A pointer that moves further than this is dragging, not tapping.
 const SLOP = 6;
@@ -62,27 +59,13 @@ const wire = (map) => {
   expire(map);
   number(map);
 
-  const frame = map.querySelector("[data-map-frame]");
-  const svg = map.querySelector("[data-map-svg]");
-  const drop = map.querySelector("[data-map-drop]");
-  const dropAt = map.querySelector("[data-map-drop-at]");
-  const tag = map.querySelector("[data-map-drop-tag]");
-  const zoomIn = map.querySelector("[data-map-zoom='in']");
-  const zoomOut = map.querySelector("[data-map-zoom='out']");
-  const reset = map.querySelector("[data-map-zoom='reset']");
-  const tabs = [...map.querySelectorAll("[data-map-layer]")];
+  // The elements, found once (parts.js).
+  const parts = partsOf(map);
+  const { frame, svg, drop, dropAt, tag, tabs, list, picks, towns, form } =
+    parts;
   let pins = [...map.querySelectorAll("[data-map-pin]")];
   const pinOf = (n) => map.querySelector(`[data-map-pin="${n}"]`);
-  const list = map.querySelector(".map-places");
-  const picks = [...map.querySelectorAll("[data-map-pick]")];
-  const towns = [...map.querySelectorAll("[data-map-town]")];
-  const form = map.querySelector("[data-zip-check]");
-  const full = svg.viewBox.baseVal;
-  const W = full.width;
-  const H = full.height;
-  let view = { x: 0, y: 0, w: W, h: H };
   let open = null;
-  let tween = 0;
   // The ZIP the dropped pin stands on.
   let picked = null;
 
@@ -106,157 +89,28 @@ const wire = (map) => {
   let startPoint = null;
   let startSpread = 0;
 
-  // The view: the viewBox, and everything that must keep its size on
-  // screen whatever the zoom (pins, the dropped pin and its tag).
+  const layer = () => map.dataset.layer;
 
-  // The sums are view.mjs's; these read the SVG and the view.
-  const size = { W, H };
-  const zoom = () => zoomOf(view, size);
-
-  const clamp = (v) => clampView(v, size);
-
-  // The layer's own view: the whole state on Delivery; on Places the
-  // box of the pins showing (homeView).
-  const home = () => {
-    const shown = pins.filter((p) => !p.hasAttribute("hidden"));
-
-    if (layer() !== "places" || !shown.length) {
-      return homeView({ size, layer: layer(), pins: [], width: W });
-    }
-
-    return homeView({
-      size,
-      layer: layer(),
-      pins: shown.map((p) => ({ x: Number(p.dataset.x),
-        y: Number(p.dataset.y) })),
-      width: svg.getBoundingClientRect().width || W,
-    });
-  };
-
-  // A point in map units on screen, in pixels from the frame's corner,
-  // with the frame's size.
-  const onScreen = (x, y) => {
-    const box = svg.getBoundingClientRect();
-
-    return {
-      ...onScreenOf(view, box, { x, y }),
-      width: box.width,
-      height: box.height,
-    };
-  };
+  // The camera: the view, its moves and its draw (camera.js). It reads
+  // the pins held now, and after each draw the tag stands again.
+  const camera = new Camera(parts, {
+    pins: () => pins,
+    layer,
+    drawn: () => placeTag(),
+  });
 
   // The dropped pin's tag over its pin and clear of the zoom
   // (stand.mjs, draw.js), hidden while its pin is out of the frame.
   const placeTag = () => {
     if (tag.hidden || !dropAt.dataset.x) return;
 
-    const at = onScreen(Number(dropAt.dataset.x), Number(dropAt.dataset.y));
+    const at = camera.onScreen(Number(dropAt.dataset.x),
+      Number(dropAt.dataset.y));
 
     tag.style.visibility = inFrame(at) ? "" : "hidden";
     standOn(tag, at, { lift: PIN_PX, frame,
       zoom: map.querySelector(".map-zoom") });
   };
-
-  // True at the layer's own view, where the globe has nothing to do.
-  const atHome = () => atHomeOf(view, home());
-
-  const apply = () => {
-    const k = zoom();
-    const width = svg.getBoundingClientRect().width || W;
-    const units = view.w / width;
-    const s = pinScale(view, width);
-    const nudged = k < NUDGE_BELOW;
-
-    svg.setAttribute("viewBox", `${view.x} ${view.y} ${view.w} ${view.h}`);
-    for (const pin of pins) {
-      const dx = nudged ? Number(pin.dataset.nudge || 0) * NUDGE_PX * units
-        : 0;
-
-      pin.setAttribute("transform", `translate(${Number(pin.dataset.x) + dx} `
-        + `${pin.dataset.y}) scale(${s})`);
-    }
-    if (dropAt.dataset.x) {
-      dropAt.setAttribute("transform",
-        `translate(${dropAt.dataset.x} ${dropAt.dataset.y}) scale(${s})`);
-    }
-    zoomIn.disabled = k >= MAX_ZOOM - 0.01;
-    zoomOut.disabled = k <= 1.01;
-    reset.hidden = atHome();
-    // Zoomed in, a drag pans the map; at full size it scrolls the page.
-    svg.style.touchAction = k > 1.01 ? "none" : "pan-y";
-    placeTag();
-  };
-
-  const go = (target, animate = true) => {
-    const to = clamp(target);
-
-    cancelAnimationFrame(tween);
-    if (!animate || matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      view = to;
-      apply();
-      return;
-    }
-
-    const from = { ...view };
-    const start = performance.now();
-    const step = (now) => {
-      const t = Math.min(1, (now - start) / 220);
-
-      view = tweenAt(from, to, t);
-      apply();
-      // Runs until the eased step reaches the end.
-      if (easeOut(t) < 1) tween = requestAnimationFrame(step);
-    };
-
-    tween = requestAnimationFrame(step);
-  };
-
-  // Zoom by a factor about a point in map units.
-  const zoomAbout = (factor, px, py, animate) => {
-    go(zoomedAbout(view, factor, { x: px, y: py }), animate);
-  };
-
-  // A point on screen in map units.
-  const toMap = (clientX, clientY) => toMapOf(view,
-    svg.getBoundingClientRect(), { x: clientX, y: clientY });
-
-  const centre = () => centreOf(view);
-
-  zoomIn.addEventListener("click", () => {
-    const c = centre();
-
-    zoomAbout(2, c.x, c.y, true);
-  });
-  zoomOut.addEventListener("click", () => {
-    const c = centre();
-
-    zoomAbout(0.5, c.x, c.y, true);
-  });
-  reset.addEventListener("click", () => go(home()));
-
-  // A trackpad pinch arrives as the wheel with ctrl held.
-  svg.addEventListener("wheel", (e) => {
-    if (!e.ctrlKey && !e.metaKey) return;
-    e.preventDefault();
-
-    const p = toMap(e.clientX, e.clientY);
-
-    zoomAbout(Math.exp(-e.deltaY * 0.01), p.x, p.y, false);
-  }, { passive: false });
-
-  // A double tap is two taps: picking towns quickly must not zoom.
-  let touched = false;
-
-  svg.addEventListener("pointerdown", (e) => {
-    touched = e.pointerType === "touch";
-  });
-  svg.addEventListener("dblclick", (e) => {
-    e.preventDefault();
-    if (touched) return;
-    const p = toMap(e.clientX, e.clientY);
-
-    zoomAbout(2, p.x, p.y, true);
-  });
 
   // The list beside the map ends where the map does, and scrolls. On a
   // phone it sits below the map and the page scrolls instead.
@@ -277,8 +131,6 @@ const wire = (map) => {
   addEventListener("resize", fitList);
 
   // Layers.
-
-  const layer = () => map.dataset.layer;
 
   // Pins are Tab stops only where they show: Safari still stops on
   // the ones Delivery hides with display: none.
@@ -304,9 +156,9 @@ const wire = (map) => {
     }
     if (name === "delivery") close();
     hideTip();
-    go(home());
+    camera.go(camera.home());
     fitList();
-    apply();
+    camera.apply();
   }
 
   for (const [i, t] of tabs.entries()) {
@@ -391,12 +243,14 @@ const wire = (map) => {
 
   // A pin out of view, or too near an edge to show, is brought in.
   const bringIn = (pin) => {
-    const at = onScreen(Number(pin.dataset.x), Number(pin.dataset.y));
+    const at = camera.onScreen(Number(pin.dataset.x), Number(pin.dataset.y));
     const edge = PIN_PX / 2;
 
     if (at.x > edge && at.x < at.width - edge && at.y > PIN_PX + MARGIN
       && at.y < at.height - MARGIN) return;
-    go({
+    const { view } = camera;
+
+    camera.go({
       ...view,
       x: Number(pin.dataset.x) - view.w / 2,
       y: Number(pin.dataset.y) - view.h / 2,
@@ -427,7 +281,9 @@ const wire = (map) => {
       left: FIT_PAD_PX,
     };
 
-    go(fit(bb, box, clearance(box, covers, base), { w: W, h: H },
+    const { W, H } = camera.size;
+
+    camera.go(fit(bb, box, clearance(box, covers, base), { w: W, h: H },
       FIT_MAX_ZOOM));
   };
 
@@ -504,7 +360,9 @@ const wire = (map) => {
       pressed(null);
       outline(null);
     }
-    if (pins.length !== before && layer() === "places") go(home());
+    if (pins.length !== before && layer() === "places") {
+      camera.go(camera.home());
+    }
   });
 
   // The tag: the town, what we deliver there and the price (tag.mjs,
@@ -595,7 +453,7 @@ const wire = (map) => {
   svg.addEventListener("pointerdown", (e) => {
     if (e.pointerType === "mouse" && e.button !== 0) return;
     pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    startView = { ...view };
+    startView = camera.view;
     startPoint = { x: e.clientX, y: e.clientY };
     dragging = false;
     if (pointers.size === 2) startSpread = spread();
@@ -606,15 +464,15 @@ const wire = (map) => {
     pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
     const box = svg.getBoundingClientRect();
-    const perPixel = view.w / box.width;
+    const perPixel = camera.view.w / box.width;
 
     if (pointers.size === 2) {
       dragging = true;
       const m = middle();
       const factor = spread() / startSpread;
-      const p = toMap(m.x, m.y);
+      const p = camera.toMap(m.x, m.y);
 
-      zoomAbout(factor, p.x, p.y, false);
+      camera.zoomAbout(factor, p.x, p.y, false);
       startSpread = spread();
       return;
     }
@@ -623,12 +481,12 @@ const wire = (map) => {
     const dy = e.clientY - startPoint.y;
 
     if (!dragging && Math.hypot(dx, dy) < SLOP) return;
-    if (zoom() <= 1.01) return;
+    if (camera.zoom() <= 1.01) return;
     if (!dragging) svg.setPointerCapture(e.pointerId);
     dragging = true;
     // The drag's pixels in the units of the view showing, as before
     // pannedBy, which reads them from the view it moves.
-    go(pannedBy(startView, { dx, dy }, startView.w / perPixel), false);
+    camera.go(pannedBy(startView, { dx, dy }, startView.w / perPixel), false);
   });
 
   const up = (e) => {
@@ -642,7 +500,7 @@ const wire = (map) => {
         dragging = false;
       });
     } else {
-      startView = { ...view };
+      startView = camera.view;
       const [rest] = [...pointers.values()];
 
       startPoint = rest;
@@ -687,7 +545,7 @@ const wire = (map) => {
     drop.getBoundingClientRect();
     drop.removeAttribute("hidden");
     tag.hidden = false;
-    apply();
+    camera.apply();
   });
 
   // "See pickup spots", on a map with the Places layer; on one without,
@@ -756,12 +614,12 @@ const wire = (map) => {
     settled(toField);
   });
   addEventListener("load", toField);
-  addEventListener("resize", apply);
-  apply();
+  // The first draw, and one on each resize (camera.js).
+  camera.start();
   follow();
   // The list by the next date the farm attends (schedule.js).
   schedule(map, list, () => {
-    if (layer() === "places") go(home());
+    if (layer() === "places") camera.go(camera.home());
   });
 };
 
