@@ -395,6 +395,26 @@ const freshRound = async (page) => {
   await page.goto("about:blank");
 };
 
+// The draft keys gone again at the start of every load, in the top
+// frame, before the page's own scripts run, so a round starts fresh
+// whoever wrote the draft last (#1013: with freshRound alone, rounds 2
+// to 6 still opened on phone and iphone with a pickup time chosen,
+// since a save on the page being left, which writes the form as it
+// stands, can land after freshDraft). It is added to the page of each
+// round test alone, and holds for every later load of that page in
+// the test: each load of /order/ there starts with no draft, which is
+// what each round wants, and the round tests load nothing else.
+const clearDraftAtLoad = (page) => page.addInitScript(() => {
+  if (window !== window.top) return;
+  try {
+    for (const key of Object.keys(localStorage)) {
+      if (/^nff-order-(draft|pending)/.test(key)) localStorage.removeItem(key);
+    }
+  } catch {
+    // An about:blank page has no localStorage: nothing to clear there.
+  }
+});
+
 test.describe("A step that sends the customer on to a section leaves " +
   "it in view and focused, every time (#706, #1013)", () => {
   test.describe.configure({ retries: 0 });
@@ -405,6 +425,7 @@ test.describe("A step that sends the customer on to a section leaves " +
   test("Every time, Proceed to checkout brings Payment, then Place " +
     "your order, into view with the focus in it", async ({ page }) => {
     test.setTimeout(ROUNDS * 60_000);
+    await clearDraftAtLoad(page);
 
     for (let round = 1; round <= ROUNDS; round += 1) {
       await test.step(`round ${round} of ${ROUNDS}`, async () => {
@@ -445,6 +466,7 @@ test.describe("A step that sends the customer on to a section leaves " +
     "first field in error into view with the focus on it",
   async ({ page }) => {
     test.setTimeout(ROUNDS * 60_000);
+    await clearDraftAtLoad(page);
 
     for (let round = 1; round <= ROUNDS; round += 1) {
       await test.step(`round ${round} of ${ROUNDS}`, async () => {
