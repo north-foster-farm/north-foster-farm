@@ -436,6 +436,7 @@
         "e2e/favicon.spec.mjs",
         "e2e/footer.spec.mjs",
         "e2e/forms.spec.mjs",
+        "e2e/group-close-notice.spec.mjs",
         "e2e/group-code.spec.mjs",
         "e2e/group-credit.spec.mjs",
         "e2e/group-delivery-removed.spec.mjs",
@@ -547,6 +548,7 @@
         "e2e/favicon.spec.mjs",
         "e2e/footer.spec.mjs",
         "e2e/forms.spec.mjs",
+        "e2e/group-close-notice.spec.mjs",
         "e2e/group-code.spec.mjs",
         "e2e/group-credit.spec.mjs",
         "e2e/group-delivery-removed.spec.mjs",
@@ -1329,6 +1331,14 @@
     },
     {
       "paths": [
+        "e2e/group-close-notice.spec.mjs"
+      ],
+      "specs": [
+        "e2e/group-close-notice.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
         "e2e/group-orders.spec.mjs"
       ],
       "specs": [
@@ -1885,6 +1895,7 @@
       ],
       "specs": [
         "e2e/account-rounds.spec.mjs",
+        "e2e/group-close-notice.spec.mjs",
         "e2e/group-code.spec.mjs",
         "e2e/group-credit.spec.mjs",
         "e2e/group-orders.spec.mjs",
