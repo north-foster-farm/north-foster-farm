@@ -201,7 +201,10 @@ page.evaluate((
     return r.width > 0 && r.height > 0
       && getComputedStyle(el).visibility !== "hidden";
   };
+  // HTML elements only: an SVG (the Copy, Map and map-link icons, the
+  // message's own icons) has no innerText.
   const hits = [...card.querySelectorAll("*")]
+    .filter((el) => el instanceof HTMLElement)
     .filter((el) => seen(el) && pattern.test(words(el)))
     .filter((el, _, all) => !all.some((o) => o !== el && el.contains(o)));
 
