@@ -392,6 +392,13 @@ submission. The contract between them:
   `onWay(method)`, `onCode(text)`, `onCheckout()`.
 - The code field, the way picks, the badges, the pill, the joke row
   and the bars' readouts are the cart's.
+- `Cart` draws on small modules beside it in `cart/`
+  (2026-11-22, #851, the first phase of docs/refactors/cart.md):
+  `whyOf`, the reason Proceed cannot go on, with its words, in
+  `why.mjs`; the joke's code, rate, label and amount in `joke.mjs`
+  (`cart.js` still exports `JOKE_CODE`) and its row in `joke-row.js`;
+  `firstAdd` in `first-add.js`; and `qs`, `all`, `pulse`, `say` and
+  `reduced` in `dom.js`.
 - Draft, sync and the header badge stay in `draft.js`, `cart-sync.mjs`,
   `session/cart-sync.js` and `cart-badge/*`, unchanged in shape. The
   cart announces nothing itself; `OrderForm` keeps `announceCart`.

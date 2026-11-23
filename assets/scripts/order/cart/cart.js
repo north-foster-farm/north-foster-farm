@@ -18,6 +18,9 @@ import { dollars } from "../lib/totals.mjs";
 import { label } from "../lib/zoned.mjs";
 import { codeNote } from "./code-note.mjs";
 import { twoStep } from "./confirm.mjs";
+import { all, pulse, qs, reduced, say } from "./dom.js";
+import { firstAdd } from "./first-add.js";
+import { startJoke, stopJoke } from "./joke-row.js";
 import { drawBadgeInfo, drawPerks } from "./perk-label.js";
 import * as state from "./state.mjs";
 import { shutTip } from "./tip.js";
@@ -27,12 +30,10 @@ import {
   revealLine, ringCart, showAdded, shutShare, swapWords, teach, toPx,
   watchKeyboard, watchList, watchPlacement, watchScroll, wordsOf,
 } from "./view.mjs";
+import { whyOf } from "./why.mjs";
 
-// The code that is a joke: the cart shows a discount growing by this
-// much a minute for as long as the page is open, and nothing else
-// changes. The server has never heard of it.
-export const JOKE_CODE = "EGGBOI";
-const JOKE_PER_MINUTE = 4000;
+// The joke's code, for the form (joke.mjs).
+export { JOKE_CODE } from "./joke.mjs";
 
 // The first Add's lesson (#278): how long the pane stays open on the
 // new line before it shuts and the pill pulses. 2000 until #274 round
@@ -43,40 +44,12 @@ export const TEACH_DWELL = 3500;
 // before the readouts in the bars take over.
 const PASSED_AT = 60;
 
-const qs = (root, selector) => root.querySelector(selector);
-const all = (root, selector) => Array.from(root.querySelectorAll(selector));
-
-// Restarts a CSS animation by re-applying its class.
-const pulse = (el, className) => {
-  el.classList.remove(className);
-  void el.offsetWidth;
-  el.classList.add(className);
-};
-
-const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-// Says `text` in a live region; a repeated line must be heard again,
-// so clear, then set.
-const say = (live, text) => {
-  live.textContent = "";
-  setTimeout(() => { live.textContent = text; }, 60);
-};
-
 // Clear cart's words (#531): at rest, and asking for the second press.
 // Drafts for comms.
 const CLEAR_WORD = "Clear cart";
 const CLEAR_ASK = "Clear cart?";
 const CLEAR_HINT = "Press again to remove every item from your cart.";
 const CLEAR_DONE = "Your cart is empty.";
-
-// Why Proceed to checkout cannot go on (#706), said in a tooltip on
-// the press. Drafts for comms, except stock's, which are the notices'
-// own approved words (order-form.js prepare, catalog.html).
-const WHY_EMPTY = "Your cart is empty. Add something to check out.";
-const WHY_CHECKING = "We're still checking what's in stock. Please try " +
-  "again in a moment.";
-const WHY_DOWN = "Ordering isn't available right now. We can't check " +
-  "what's in stock, so we're not taking orders yet.";
 
 // Resolves once nothing animates the pane or moves its parts: an ease
 // that another ease cancelled resolves early, while the newer one
@@ -713,13 +686,7 @@ export class Cart {
       "aria-label", `${s.countText}, total ${s.total}. Show or hide the cart.`
     );
 
-    this.setWhy(count === 0 ? { reason: "empty", text: WHY_EMPTY }
-      : locked ? {
-        reason: "locked", text: down ? WHY_DOWN : WHY_CHECKING,
-      }
-        : method === "delivery" && !s.eligible
-          ? { reason: "minimum", text: s.minimumTip }
-          : null);
+    this.setWhy(whyOf(s, { method, locked, down }));
 
     // The lines came or went, or the cart emptied or filled: the fold
     // rule decides, and the pane eases to its new height (the column's
@@ -1014,35 +981,14 @@ export class Cart {
     }
   }
 
+  // The joke's row (joke-row.js).
   startJoke() {
-    if (this.joke) return;
-
-    const row = document.createElement("div");
-    const dt = document.createElement("dt");
-    const dd = document.createElement("dd");
-    const since = Date.now();
-
-    row.className = "order-cart-row order-cart-credit order-cart-joke";
-    dt.textContent = `Discount (${JOKE_CODE}, ${
-      dollars(JOKE_PER_MINUTE)}/min)`;
-    row.appendChild(dt);
-    row.appendChild(dd);
-    qs(this.root, "[data-total-row='fee']").before(row);
-
-    const tick = () => {
-      const minutes = (Date.now() - since) / 60_000;
-
-      dd.textContent = `−${dollars(Math.floor(minutes * JOKE_PER_MINUTE))}`;
-    };
-
-    tick();
-    this.joke = { row, timer: setInterval(tick, 1000) };
+    if (!this.joke) this.joke = startJoke(this.root);
   }
 
   stopJoke() {
     if (!this.joke) return;
-    clearInterval(this.joke.timer);
-    this.joke.row.remove();
+    stopJoke(this.joke);
     this.joke = null;
   }
 
@@ -1079,24 +1025,3 @@ export class Cart {
     qs(this.root, "[data-field='code']").value = value;
   }
 }
-
-// True once per browser session; the session's own storage, so a new
-// page keeps the count and a new visit starts it over.
-let addedBefore = false;
-
-const firstAdd = () => {
-  const key = "nff-cart-first-add";
-
-  try {
-    if (sessionStorage.getItem(key)) return false;
-    sessionStorage.setItem(key, "1");
-
-    return true;
-  } catch {
-    const first = !addedBefore;
-
-    addedBefore = true;
-
-    return first;
-  }
-};
