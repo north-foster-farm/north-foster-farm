@@ -4,6 +4,8 @@
 // its results in a panel under it; below that it slides down a bar
 // under the header, with Cancel, over a scrim that dims the page.
 
+@use "sass:map";
+
 $find-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
 $find-wide: 992px;
 $find-narrow: 991.98px;
@@ -120,6 +122,20 @@ $find-time: 0.25s;
   // While the bar is open the page under the scrim stays where it is.
   :root:has(.site-find.is-open) {
     overflow: hidden;
+  }
+}
+
+// From 768 to 991 px the bar stays full width, but its field and
+// Cancel, and the results under them, keep to the page container's
+// width, lined up with the content below (James, #913's revision).
+@media (min-width: 768px) and (max-width: $find-narrow) {
+  .site-find-bar,
+  .site-find-panel {
+    // A container pads each side by half of $container-padding-x.
+    max-width: calc(
+      #{map.get($container-max-widths, md)} - #{$container-padding-x}
+    );
+    margin-inline: auto;
   }
 }
 
