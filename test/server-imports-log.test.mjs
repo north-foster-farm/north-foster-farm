@@ -27,63 +27,13 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { dirname, extname, join, relative, resolve } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { dirname, extname, join, resolve } from "node:path";
+import {
+  LIB, load, need, rel, root, source,
+} from "./server-graph.mjs";
 
-const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const FUNCTIONS = join(root, "netlify/functions");
-const LIB = join(FUNCTIONS, "lib");
 const BIN = join(root, "bin");
-const rel = (path) => relative(root, path);
-
-// A module in lib/ by its name, as .mjs or .mts, or null.
-const moduleOf = (name) => [".mjs", ".mts"]
-  .map((ext) => join(LIB, `${name}${ext}`))
-  .find((path) => existsSync(path)) || null;
-
-const need = (name) => {
-  const path = moduleOf(name);
-
-  assert.ok(path, `netlify/functions/lib/${name}.mjs does not exist`);
-
-  return path;
-};
-
-const load = async (name) => import(pathToFileURL(need(name)).href);
-
-// The source with its comments taken out, so a comment that names a
-// module is not read as an import. Strings and template literals are
-// kept as they are, so a URL's "//" is not a comment.
-const code = (text) => {
-  let out = "";
-  let i = 0;
-
-  while (i < text.length) {
-    const c = text[i];
-    const pair = text.slice(i, i + 2);
-
-    if (pair === "//") {
-      while (i < text.length && text[i] !== "\n") i += 1;
-    } else if (pair === "/*") {
-      const end = text.indexOf("*/", i + 2);
-
-      i = end === -1 ? text.length : end + 2;
-    } else if (c === "\"" || c === "'" || c === "`") {
-      let j = i + 1;
-
-      while (j < text.length && text[j] !== c) j += text[j] === "\\" ? 2 : 1;
-      out += text.slice(i, j + 1);
-      i = j + 1;
-    } else {
-      out += c;
-      i += 1;
-    }
-  }
-
-  return out;
-};
-
-const source = (file) => code(readFileSync(file, "utf8"));
 
 // The static forms (import ... from "x", export ... from "x", import
 // "x") and the dynamic one (import("x")).
