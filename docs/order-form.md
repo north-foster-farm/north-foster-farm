@@ -525,7 +525,9 @@ refused rather than charged.
 `docs/refactors/order-form.md`): `qs`, `all` and `pulse` in
 `dom.js`; the phone field's mask in the pure `phone.mjs`, and the
 field with its "Prefer text or call?" row in `contact.js` (2026-11-23,
-#816); and the section spy, which names the section on screen in
+#816); the links into the page, `?method=`, `?series=`, `?add=` and
+`?group=`, in `links.js`, with `?add=`'s parsing and notice in the pure
+`add-query.mjs` (2026-11-23, #817); and the section spy, which names the section on screen in
 the sidebar's outline, the phone's bar and the total bar, in
 `section-spy.js` (`watchSections`, `keepInRail`), with its choice of
 section drawn out into the pure `section-pick.mjs`.
