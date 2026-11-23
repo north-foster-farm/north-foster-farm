@@ -14,37 +14,18 @@
 // to one can be handed to James; #emails opens it at the top.
 
 import { isBusy, onPress, whileBusy } from "../utils/busy-button.js";
+import { elementsOf } from "./library/elements.js";
+import { grouped, wordsOf } from "./library/search.mjs";
+import {
+  badge, day, drawShelf as showShelf, drawSummary as showSummary,
+} from "./library/shelf-view.js";
 
-const GROUPS = [
-  ["customer", "To the customer"],
-  ["farm", "To the farm"],
-  ["list", "Farm news"],
-];
-
-const LABELS = { rewritten: "rewritten, to apply" };
+// The toolbar's line on the library, for staging/main.js.
+export { tally } from "./library/search.mjs";
 
 // The email's own page, made to open its links outside the frame.
 const framed = (html) => html.replace(/<head>/i,
   '<head><base target="_blank">');
-
-const day = (iso) => new Date(iso).toLocaleString(undefined, {
-  month: "short", day: "numeric", hour: "numeric", minute: "2-digit",
-});
-
-// The toolbar's line on the library (#303). Feedback given is a
-// rewrite waiting to be ported; updated, an email whose wording the
-// code has changed since James approved or rewrote it
-// (lib/review.mjs, standing).
-export const tally = (emails) => {
-  const n = (test) => emails.filter(test).length;
-
-  return [
-    `Total emails: ${emails.length}`,
-    `To approve: ${n((e) => e.approval === "to approve")}`,
-    `Feedback given: ${n((e) => e.approval === "rewritten")}`,
-    `Updated: ${n((e) => e.updated)}`,
-  ].join(" · ");
-};
 
 // `canReview` says whether this session may approve and rewrite: James
 // alone (#294); everyone else reads.
@@ -53,36 +34,11 @@ export const mountLibrary = ({
 }) => {
   let sent = [];
   const qs = (sel) => root.querySelector(sel);
-  const box = qs("[data-staging-library]");
-  const shelf = qs("[data-staging-shelf]");
-  const empty = qs("[data-staging-shelf-empty]");
-  const search = qs("[data-staging-search]");
-  const summary = qs("[data-staging-library-summary]");
-  const count = qs("[data-staging-library-count]");
-  const reader = qs("[data-staging-reader]");
-  const frame = qs("[data-staging-frame]");
-  const textView = qs("[data-staging-text]");
-  const rewritten = qs("[data-staging-rewritten]");
-  const item = qs("[data-staging-item]");
-  const tokenTemplate = qs("[data-staging-token]");
-  const filters = root.querySelectorAll("[data-staging-filter]");
-  const views = root.querySelectorAll("[data-staging-view]");
-  const review = {
-    bar: qs("[data-staging-review]"),
-    status: qs("[data-staging-review-status]"),
-    approve: qs("[data-staging-approve]"),
-    rewrite: qs("[data-staging-rewrite]"),
-    withdraw: qs("[data-staging-withdraw]"),
-    revert: qs("[data-staging-revert]"),
-    error: qs("[data-staging-review-error]"),
-  };
-  const editor = {
-    form: qs("[data-staging-editor]"),
-    subject: qs("[data-staging-edit-subject]"),
-    text: qs("[data-staging-edit-text]"),
-    dropped: qs("[data-staging-edit-dropped]"),
-    error: qs("[data-staging-edit-error]"),
-  };
+  const el = elementsOf(root);
+  const {
+    box, shelf, empty, search, reader, frame, textView, rewritten,
+    tokenTemplate, views, filters, review, editor,
+  } = el;
   let emails = null;
   let current = null;
   let view = "html";
@@ -90,119 +46,15 @@ export const mountLibrary = ({
   let loading = null;
   let editing = false;
 
-  const haystack = (e) => [e.id, e.name, e.when, e.subject, e.text,
-    e.approval, LABELS[e.approval], e.audience, ...(e.tags || [])]
-    .join("\n").toLowerCase();
+  // The shelf: the emails by audience, narrowed by the search and the
+  // approval filter, and the sent mail for a session that may see it,
+  // asked at each drawing.
+  const drawShelf = () => showShelf(el, grouped({
+    emails, sent, words: wordsOf(search.value), approval,
+    canSeeSent: canSeeSent(),
+  }), current);
 
-  const matches = (e) => {
-    const words = search.value.toLowerCase().split(/\s+/).filter(Boolean);
-    const hay = haystack(e);
-
-    return (!approval || e.approval === approval)
-      && words.every((w) => hay.includes(w));
-  };
-
-  const badge = (el, e) => {
-    el.textContent = LABELS[e.approval] || e.approval;
-    el.dataset.approval = e.approval;
-  };
-
-  const drawShelf = () => {
-    for (const old of shelf.querySelectorAll(".staging-group")) old.remove();
-
-    let shown = 0;
-
-    for (const [audience, title] of GROUPS) {
-      const list = emails.filter((e) => e.audience === audience && matches(e));
-
-      if (!list.length) continue;
-      shown += list.length;
-
-      const group = document.createElement("section");
-      const h = document.createElement("h2");
-      const ol = document.createElement("ol");
-
-      group.className = "staging-group";
-      h.textContent = `${title} (${list.length})`;
-      for (const e of list) {
-        const li = item.content.firstElementChild.cloneNode(true);
-        const a = li.querySelector("a");
-        const tags = li.querySelector(".staging-item-tags");
-
-        a.href = `#email=${encodeURIComponent(e.id)}`;
-        a.dataset.id = e.id;
-        if (current && current.id === e.id) {
-          a.setAttribute("aria-current", "true");
-        }
-        li.querySelector(".staging-item-name").textContent = e.name;
-        li.querySelector(".staging-item-subject").textContent = e.subject;
-        badge(tags.firstElementChild, e);
-        for (const tag of e.tags) {
-          const t = document.createElement("button");
-
-          t.type = "button";
-          t.className = "staging-tag";
-          t.dataset.tag = tag;
-          t.textContent = tag;
-          tags.appendChild(t);
-        }
-        ol.appendChild(li);
-      }
-      group.append(h, ol);
-      shelf.appendChild(group);
-    }
-    shown += drawSent();
-    empty.hidden = shown > 0;
-  };
-
-  // James's alone (#294): every email the deploy wrote, from every
-  // session and none, each opening as the customer would get it.
-  // -> how many it shows.
-  const drawSent = () => {
-    const words = search.value.toLowerCase().split(/\s+/).filter(Boolean);
-    const list = sent.filter((m) => {
-      const hay = `${m.subject} ${[].concat(m.to).join(" ")}`.toLowerCase();
-
-      return words.every((w) => hay.includes(w));
-    });
-
-    // An approval filter is about templates; sent mail has none.
-    if (!list.length || approval) return 0;
-
-    const group = document.createElement("section");
-    const h = document.createElement("h2");
-    const ol = document.createElement("ol");
-
-    group.className = "staging-group";
-    h.textContent = `Sent, every session (${list.length})`;
-    for (const m of list) {
-      const li = item.content.firstElementChild.cloneNode(true);
-      const a = li.querySelector("a");
-
-      a.href = `/api/staging/outbox/${encodeURIComponent(m.id)}`;
-      a.target = "_blank";
-      a.rel = "noopener";
-      li.querySelector(".staging-item-name").textContent = m.subject;
-      li.querySelector(".staging-item-subject").textContent =
-        `${day(m.at)} · to ${[].concat(m.to).join(", ")}`;
-      li.querySelector(".staging-item-tags").remove();
-      ol.appendChild(li);
-    }
-    group.append(h, ol);
-    shelf.appendChild(group);
-
-    return list.length;
-  };
-
-  const drawSummary = () => {
-    const waiting = emails.filter((e) => e.approval === "to approve").length;
-    const redone = emails.filter((e) => e.approval === "rewritten").length;
-    const text = `${emails.length}, ${waiting} to approve${
-      redone ? `, ${redone} rewritten` : ""}`;
-
-    summary.textContent = text;
-    count.textContent = tally(emails);
-  };
+  const drawSummary = () => showSummary(el, emails);
 
   const load = () => {
     loading = loading || api("/api/staging/emails").then(async ({
