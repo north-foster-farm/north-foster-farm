@@ -41,6 +41,47 @@ const middle = async (page) => {
   return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
 };
 
+// A spot well off the drawing's middle, still on the drawing itself (no
+// control or field over it), so that a zoom about the middle would
+// carry the map's point under it away. -> { x, y } on screen.
+const offCentre = async (page) => {
+  await svg(page).scrollIntoViewIfNeeded();
+
+  const spot = await svg(page).evaluate((el) => {
+    const r = el.getBoundingClientRect();
+
+    for (const [fx, fy] of [[0.3, 0.4], [0.7, 0.6], [0.3, 0.6],
+      [0.7, 0.4], [0.25, 0.5], [0.75, 0.5]]) {
+      const x = r.left + r.width * fx;
+      const y = r.top + r.height * fy;
+      const hit = document.elementFromPoint(x, y);
+
+      if (hit && el.contains(hit)) return { x, y };
+    }
+
+    return null;
+  });
+
+  expect(spot, "an off-centre spot on the drawing").not.toBeNull();
+
+  return spot;
+};
+
+// The view's middle, in map units.
+const viewMiddle = (page) => svg(page).evaluate((el) => {
+  const v = el.viewBox.baseVal;
+
+  return { x: v.x + v.width / 2, y: v.y + v.height / 2 };
+});
+
+// How far, in map units, a zoom about the view's middle `c` from `was`
+// to `now` wide would carry the map's point `p` from under the pointer:
+// the screen spot keeps its place in the view, which shrinks toward
+// `c`, so the point it shows moves by its distance from `c` times the
+// share the view shrank.
+const centreDrift = (p, c, was, now) => Math.hypot(p.x - c.x, p.y - c.y)
+  * (1 - now / was);
+
 // A spot on the drawing with nothing under it to pick or open: no
 // town, no pin, no control. On Delivery a tap there picks nothing, so
 // only the camera can answer a double click or tap.
@@ -121,11 +162,12 @@ test.describe("the map's camera (#862)", () => {
     expect(await width(page), "a plain wheel does not zoom").toBe(whole);
 
     for (const key of ["Control", "Meta"]) {
-      const spot = await middle(page);
+      const spot = await offCentre(page);
 
       await page.mouse.move(spot.x, spot.y);
 
       const before = await under(page, spot.x, spot.y);
+      const centre = await viewMiddle(page);
       const was = await width(page);
       const scrolled = await page.evaluate(() => scrollY);
 
@@ -144,7 +186,13 @@ test.describe("the map's camera (#862)", () => {
         `${key}: the page does not scroll`).toBe(scrolled);
 
       const after = await under(page, spot.x, spot.y);
+      const now = await width(page);
 
+      // The spot is far enough off the middle that a zoom about the
+      // middle would carry its point ten times the tolerance away.
+      expect(centreDrift(before, centre, was, now),
+        `${key}: a zoom about the middle would move this point`)
+        .toBeGreaterThan(10);
       expect(Math.hypot(after.x - before.x, after.y - before.y),
         `${key}: the point under the pointer stays under it`)
         .toBeLessThan(1);
@@ -165,10 +213,34 @@ test.describe("the map's camera (#862)", () => {
       await expect.poll(() => width(page), "half the width: twice as close")
         .toBeCloseTo(whole / 2, 0);
     } else {
+      // Two taps make a dblclick in Chromium: count it, so the test
+      // fails only for a zoom, not for an event that never came.
+      await page.evaluate(() => {
+        window.dblclicks = 0;
+        document.addEventListener("dblclick", () => {
+          window.dblclicks += 1;
+        });
+      });
       await page.touchscreen.tap(at.x, at.y);
       await page.touchscreen.tap(at.x, at.y);
-      await page.waitForTimeout(600);
-      expect(await width(page), "a double tap does not zoom").toBe(whole);
+      await expect.poll(() => page.evaluate(() => window.dblclicks),
+        "the two taps arrived as a double click").toBeGreaterThan(0);
+
+      // A zoom would tween from the next frame on: the width, frame by
+      // frame for twenty frames, stays the whole.
+      const widths = await svg(page).evaluate((el) => new Promise((done) => {
+        const seen = [];
+        const step = () => {
+          seen.push(Number(el.getAttribute("viewBox").split(" ")[2]));
+          if (seen.length < 20) requestAnimationFrame(step);
+          else done(seen);
+        };
+
+        requestAnimationFrame(step);
+      }));
+
+      expect(widths, "a double tap does not zoom")
+        .toEqual(widths.map(() => whole));
     }
   });
 
