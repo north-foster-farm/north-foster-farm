@@ -1,0 +1,17 @@
+{{/*
+  A post's thumbnail, linked to the post and skipped by keyboards: on
+  the news page's rows (news/row.html) and the home page's previews
+  (news/preview.html). Its featured picture, or for a post with none
+  the farm's default news picture (#914, James's
+  farm-news-default.tiff), cut to the same size and format. Centered,
+  so the hen and the words stay in the frame.
+*/}}
+{{ $thumb := "" }}
+{{ with partial "news/featured.html" . }}
+  {{ $thumb = .Fill "480x360 webp q80 Smart" }}
+{{ else }}
+  {{ $thumb = (resources.Get "images/farm-news-default.jpg").Fill "480x360 webp q80 Center" }}
+{{ end }}
+<a class="news-thumb" href="{{ .RelPermalink }}" tabindex="-1" aria-hidden="true">
+  <img src="{{ $thumb.RelPermalink }}" width="{{ $thumb.Width }}" height="{{ $thumb.Height }}" alt="" loading="lazy" decoding="async">
+</a>

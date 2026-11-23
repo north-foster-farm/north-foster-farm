@@ -2,7 +2,8 @@
 // recent posts as thumbnails), box 1. James's layout (2026-11-21): at
 // desktop width the left column holds the eyebrow, the heading, a
 // stack of thumbnails of the posts after the latest, then "More from
-// the farm" (the site's outline button) under them; the right column
+// the farm" (the site's outline button, "All news and updates"
+// since #914) under them; the right column
 // is the latest post's excerpt card, as now. At phone width the latest
 // post leads and the thumbnails follow it. Which posts fill the three
 // places, and that drafts and future posts never do, is box 2's test,
@@ -19,12 +20,15 @@
 //   (`.news-mark`) for a post with none, as the news page's rows do.
 // - The lead stays `.home-update-card`, its title link
 //   `.news-header-link` and its date `.news-header time`.
-// - The section has one "More from the farm" link.
+// - The section has one "All news and updates" link (#914).
 
 import { expect, test } from "./support/order.mjs";
 
-const MORE = "More from the farm";
+const MORE = "All news and updates";
 const LG = 992;
+// #914: from 992 to 1199 px the three sit in one row
+// (home-news-layout.spec.mjs), so they stack only outside it.
+const XL = 1200;
 
 const box = (locator) => locator.boundingBox();
 
@@ -47,7 +51,7 @@ const read = (preview) => preview.evaluate((el) => {
 test.describe("home news previews (#566)", () => {
   test("the latest post's excerpt plus thumbnails of the next three "
     + "posts, each linking to its post, in the left column under the "
-    + "heading with More from the farm below them wide, after the "
+    + "heading with All news and updates below them wide, after the "
     + "latest post narrow", async ({ page }) => {
     await page.goto("/");
 
@@ -118,11 +122,15 @@ test.describe("home news previews (#566)", () => {
     const button = await box(more);
     const last = boxes.at(-1);
 
-    boxes.slice(1).forEach((b, i) => {
-      expect(b.y, "stacked, one under the other")
-        .toBeGreaterThanOrEqual(boxes[i].y + boxes[i].height - 1);
-    });
-    expect(button.y, "More from the farm under the thumbnails")
+    const width = page.viewportSize().width;
+
+    if (width < LG || width >= XL) {
+      boxes.slice(1).forEach((b, i) => {
+        expect(b.y, "stacked, one under the other")
+          .toBeGreaterThanOrEqual(boxes[i].y + boxes[i].height - 1);
+      });
+    }
+    expect(button.y, "All news and updates under the thumbnails")
       .toBeGreaterThanOrEqual(last.y + last.height - 1);
 
     if (page.viewportSize().width >= LG) {
@@ -135,8 +143,6 @@ test.describe("home news previews (#566)", () => {
       expect(boxes[0].y, "beside the card, not below it")
         .toBeLessThan(leadBox.y + leadBox.height);
     } else {
-      const width = page.viewportSize().width;
-
       expect(boxes[0].y, "after the latest post")
         .toBeGreaterThanOrEqual(leadBox.y + leadBox.height - 1);
       for (const b of [...boxes, button]) {

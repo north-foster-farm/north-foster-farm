@@ -12,7 +12,7 @@ change.
 | `source.json`    | 0.767%   | 0.77%   |
 | `tests.json`     | 3.846%   | 3.85%   |
 | `styles.json`    | 0.790%   | 0.80%   |
-| `templates.json` | 1.357%   | 1.36%   |
+| `templates.json` | 1.188%   | 1.19%   |
 
 Source is the JavaScript in assets/scripts, netlify, bin and plugins;
 tests, the JavaScript in test and e2e; styles, the SCSS and CSS in

@@ -1,7 +1,7 @@
 {
   "path": ["../layouts"],
   "format": ["markup"],
-  "threshold": 1.36,
+  "threshold": 1.19,
   "reporters": ["console", "threshold"],
   "noTips": true,
   "failOnEmpty": true

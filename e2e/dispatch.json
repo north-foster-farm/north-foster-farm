@@ -170,7 +170,8 @@
         "e2e/top-bar.spec.mjs",
         "e2e/walkthrough-2026-10-24.spec.mjs",
         "e2e/wording.spec.mjs",
-        "e2e/market-address.spec.mjs"
+        "e2e/market-address.spec.mjs",
+        "e2e/home-news-layout.spec.mjs"
       ],
       "pages": [
         "/"
@@ -206,7 +207,8 @@
         "e2e/top-bar-places.spec.mjs",
         "e2e/top-bar.spec.mjs",
         "e2e/walkthrough-2026-10-24.spec.mjs",
-        "e2e/wording.spec.mjs"
+        "e2e/wording.spec.mjs",
+        "e2e/home-news-layout.spec.mjs"
       ],
       "pages": [
         "/"
@@ -246,7 +248,8 @@
         "e2e/top-bar-places.spec.mjs",
         "e2e/top-bar.spec.mjs",
         "e2e/walkthrough-2026-10-24.spec.mjs",
-        "e2e/wording.spec.mjs"
+        "e2e/wording.spec.mjs",
+        "e2e/home-news-layout.spec.mjs"
       ],
       "pages": [
         "/",
@@ -286,7 +289,8 @@
         "e2e/top-bar-places.spec.mjs",
         "e2e/top-bar.spec.mjs",
         "e2e/walkthrough-2026-10-24.spec.mjs",
-        "e2e/wording.spec.mjs"
+        "e2e/wording.spec.mjs",
+        "e2e/home-news-layout.spec.mjs"
       ],
       "pages": [
         "/",
@@ -1008,7 +1012,8 @@
         "e2e/top-bar-places.spec.mjs",
         "e2e/top-bar.spec.mjs",
         "e2e/walkthrough-2026-10-24.spec.mjs",
-        "e2e/wording.spec.mjs"
+        "e2e/wording.spec.mjs",
+        "e2e/home-news-layout.spec.mjs"
       ],
       "pages": [
         "/",
@@ -1049,7 +1054,8 @@
         "e2e/top-bar-places.spec.mjs",
         "e2e/top-bar.spec.mjs",
         "e2e/walkthrough-2026-10-24.spec.mjs",
-        "e2e/wording.spec.mjs"
+        "e2e/wording.spec.mjs",
+        "e2e/home-news-layout.spec.mjs"
       ],
       "pages": [
         "/",
@@ -1595,6 +1601,14 @@
       ],
       "specs": [
         "e2e/home-news.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/home-news-layout.spec.mjs"
+      ],
+      "specs": [
+        "e2e/home-news-layout.spec.mjs"
       ]
     },
     {

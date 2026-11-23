@@ -292,19 +292,35 @@ $hero-text-shadow: 0 1px 3px rgb(0 0 0 / 50%);
     margin-bottom: 1.5rem;
   }
 
+  // In the eyebrow's place (#914): a short bar, twice as thick as the
+  // header's stripe and in its green, centered over the title on a
+  // phone and at its start from lg.
+  .home-update-bar {
+    display: block;
+    width: 3rem;
+    height: calc(var(--header-stripe) * 2);
+    margin: 0 auto 0.75rem;
+    background-color: var(--bs-primary);
+  }
+
   @media (min-width: 992px) {
     .home-update-intro {
-      .home-eyebrow,
       .home-title {
         text-align: start;
+      }
+
+      .home-update-bar {
+        margin-inline: 0;
       }
     }
   }
 
   // The band's layout (#566): one column below lg, the title, the
-  // card, then the previews; from lg the card spans the right column
-  // and the title and the previews stack in the left, on the grid's
-  // column widths (4 and 8 of 12, then 3 and 8, centered).
+  // card, then the previews; from lg the card spans the right column,
+  // tight to the container's right edge (#914), and the title and the
+  // previews stack in the left, on the grid's column widths (5 and 7
+  // of 12, room for three previews in a row, then 3 and 8, with half a
+  // column of 12 on the left).
   .home-update-grid {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
@@ -312,7 +328,7 @@ $hero-text-shadow: 0 1px 3px rgb(0 0 0 / 50%);
     @include media-breakpoint-up(lg) {
       grid-template:
         "intro lead" auto
-        "more lead" 1fr / minmax(0, 4fr) minmax(0, 8fr);
+        "more lead" 1fr / minmax(0, 5fr) minmax(0, 7fr);
       column-gap: $grid-gutter-width;
       align-items: start;
 
@@ -331,32 +347,42 @@ $hero-text-shadow: 0 1px 3px rgb(0 0 0 / 50%);
 
     @include media-breakpoint-up(xl) {
       grid-template-columns: minmax(0, 3fr) minmax(0, 8fr);
-      margin-inline: 4.1667%; // half a column of 12 each side
+      margin-inline-start: 4.1667%; // half a column of 12
     }
   }
 
-  // The previews: below lg a row each, the thumbnail beside the title
-  // and date, in the card's measure; from lg the thumbnail fills the
-  // column and the title and date sit under it, as James drew them.
+  // The previews (#914): below lg a row each, the thumbnail beside its
+  // title and date, centered on each other, in the card's measure; at
+  // lg three in a row, the title and a smaller date under each
+  // thumbnail; from xl a stack, each thumbnail filling the column.
   .home-news-previews {
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
     width: 100%;
     max-width: 40rem;
+
+    @include media-breakpoint-only(lg) {
+      flex-direction: row;
+      gap: 0.75rem;
+    }
   }
 
   .home-news-preview {
     display: grid;
     grid-template-columns: 6.5rem minmax(0, 1fr);
-    grid-template-rows: auto 1fr;
+    align-items: center;
     column-gap: 1rem;
 
     // The band is the news page's pale green, so the thumbnail takes
-    // the card's off white and the mark stays on a tile of its own.
+    // the card's off white.
     .news-thumb {
-      grid-row: span 2;
       background-color: #fcfcfc;
+    }
+
+    // A block, so its box is its line and the text centers truly.
+    .news-date {
+      display: block;
     }
 
     @include media-breakpoint-up(sm) {
@@ -365,12 +391,29 @@ $hero-text-shadow: 0 1px 3px rgb(0 0 0 / 50%);
     }
 
     @include media-breakpoint-up(lg) {
-      grid-template-rows: none;
       grid-template-columns: minmax(0, 1fr);
+      align-items: start;
 
       .news-thumb {
-        grid-row: auto;
         margin-bottom: 0.75rem;
+      }
+    }
+
+    @include media-breakpoint-only(lg) {
+      flex: 1 1 0;
+      min-width: 0;
+
+      .news-thumb {
+        margin-bottom: 0.5rem;
+      }
+
+      .home-news-preview-title {
+        font-size: $font-size-base;
+      }
+
+      .news-date {
+        font-size: 0.6875rem;
+        letter-spacing: 0.02em;
       }
     }
   }

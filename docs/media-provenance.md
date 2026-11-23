@@ -73,13 +73,14 @@ below from them, paths as drawn; run it after changing an original.
 | --- | --- | --- | --- |
 | `bin/logos/originals/*.svg` | Original vector files supplied by James; wordmark by an unnamed designer | | `wordmark.svg` (the wordmark) and `halo-chicken.svg` (the hen and arc), both exported from Pixelmator Pro 3.8; `halo-chicken-wordmark.svg` (the two on one line) and `halo-chicken-tight.svg` (the hen and arc, cropped). |
 | `assets/images/logo.svg` | Built from the originals | | `wordmark.svg`. Header wordmark. |
-| `assets/images/logo-mark.svg` | Built from the originals | | The hen and arc of `halo-chicken.svg`. Header hen, README, news placeholder tiles. |
+| `assets/images/logo-mark.svg` | Built from the originals | | The hen and arc of `halo-chicken.svg`. Header hen, README, the news page's lead when its post has no picture (the thumbnails' tiles until #914). |
 | `assets/images/search/hen.svg` | Built from the originals | | The hen of `halo-chicken.svg`, recolored (#142). The map's dropped pin (and the search palette's placeholder until #402). |
 | `assets/images/logo-horizontal.svg`, `static/logo-horizontal.svg` | Built from the originals | | `halo-chicken-wordmark.svg`, unchanged. Public; unused on the pages (L3). |
 | `static/images/email/logo.png` | Built from the originals | | Inkscape render of `logo.svg` in the header green. Every email's header. |
 | `assets/images/logo-mark.png` | Built from the originals | | Inkscape render of the hen and arc of `halo-chicken.svg` in its own green, 512 wide. JSON-LD `logo` (`params.logo`). |
 | `static/images/silhouette-4.svg`, `silhouette-4_2.svg`, `silhouette-4_2-sm.svg` | James | | His final files for the footer (#226 comment of 2026-10-20 10:17, launch-guide 026d16c, `feedback/ft-silhouette/`), exported from Pixelmator Pro: the high tunnel and the two coops at full width (xl and up), a middle crop (md to xl) and a crop for phones. Through svgo 4.1.0 at its default preset, plus `preserveAspectRatio="none"` in place of the width and height. Footer's top edge (#277). |
 | `assets/images/share-card.png` | James | | Made 2026-09-24 (1352220). `og:image` on every page. |
+| `assets/images/farm-news-default.jpg` | James | | His `farm-news-default.tiff` (#914, 2026-11-22: "I added a new default thumb"), made in Pixelmator Pro 3.8 the same evening: the hen and arc over "Farm News & Updates" on a paper texture, 2000px square. Flattened onto white (its alpha was 228 to 255), resized to 1440px, saved as JPEG quality 85 with no metadata, with Pillow. The thumbnail of a post with no picture, on the news page and the home page's previews, cut to 480x360 WebP like the others (`layouts/partials/news/thumb.html`). |
 | `static/email-signature/logo-horizontal.png` | James | | "New image files for general use outside of this project" (57e89d5). Public URL, likely his email signature. |
 | `bin/favicons/emblem.mjs` and `static/favicons/*` | An agent, from James's choice | | The gingham egg James chose (#145). `bin/favicons/build` writes every favicon file from the script; a rebuild reproduces them pixel for pixel. |
 

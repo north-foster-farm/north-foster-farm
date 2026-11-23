@@ -7,6 +7,9 @@ import { expect, test } from "./support/order.mjs";
 
 const SIGN_UP = "Sign up for news like this.";
 const MORE = "More from the farm";
+// #914: the home page's own words for both.
+const HOME_SIGN_UP = "Sign up for Farm News";
+const HOME_MORE = "All news and updates";
 
 const openLatest = async (page) => {
   await page.goto("/news/");
@@ -82,12 +85,13 @@ test.describe("a post's footer (#483)", () => {
 
       const footer = page.locator(".home-update-card .news-footer");
 
-      await expect(footer.getByRole("link", { name: SIGN_UP }))
+      await expect(footer.getByRole("link", { name: HOME_SIGN_UP }))
         .toHaveAttribute("href", "#farm-list-footer-email");
       await expect(page.locator(".home-update")
-        .getByRole("link", { name: MORE }))
+        .getByRole("link", { name: HOME_MORE }))
         .toHaveJSProperty("pathname", "/news/");
-      await expect(page.getByRole("link", { name: MORE })).toHaveCount(1);
+      await expect(page.getByRole("link", { name: HOME_MORE }))
+        .toHaveCount(1);
       await expect(page.getByRole("link", { name: "More news and updates" }))
         .toHaveCount(0);
     });

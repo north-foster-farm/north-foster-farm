@@ -1,11 +1,11 @@
 {{/* News and updates: the post marked home: true, or else the newest,
      as its excerpt (#537), with "Continue reading" to the rest on the
      post's own page, its canonical home, which the title links to too.
-     The sign-up closes the card (#483). From lg the eyebrow and the
+     The sign-up closes the card (#483). From lg the bar and the
      section's title stand left of the card, left-aligned, and under
      them previews of the three newest published posts after it, then
-     the way to more news (#566); below lg the title leads, then the
-     card, then the previews. Drafts and future posts never preview,
+     the way to more news (#566, #914); below lg the title leads, then
+     the card, then the previews. Drafts and future posts never preview,
      though staging builds them. A post marked newsOnly: true (#916)
      is neither the lead nor a preview: it stays on the news page, at
      its own address and in search. */}}
@@ -24,10 +24,12 @@
     <div class="container">
       <div class="home-update-grid py-3 py-md-5">
         <div class="home-update-intro pt-3">
-          <p class="home-eyebrow">Learn more</p>
+          {{/* A short bar in the header stripe's green in the
+               eyebrow's place (#914); it says nothing. */}}
+          <span class="home-update-bar" aria-hidden="true"></span>
           <h2 class="home-title">Farm news and updates</h2>
         </div>
-        <div class="home-update-lead d-flex flex-column align-items-center align-items-lg-start pb-3 pt-lg-3">
+        <div class="home-update-lead d-flex flex-column align-items-center align-items-lg-end pb-3 pt-lg-3">
           <article class="home-update-card border border-1 border-success border-opacity-50 rounded-4 py-3 py-sm-5">
             <div class="fmw-600 w-100">
               {{/* The post's header and body, shared with its own
@@ -38,7 +40,7 @@
             </div>
           </article>
         </div>
-        <div class="home-update-more d-flex flex-column align-items-center gap-4 pt-3 pt-lg-0 pb-3">
+        <div class="home-update-more d-flex flex-column align-items-center align-items-xl-start gap-4 pt-3 pt-lg-0 pb-3">
           {{ with first 3 $published }}
             <div class="home-news-previews">
               {{ range . }}
@@ -46,7 +48,7 @@
               {{ end }}
             </div>
           {{ end }}
-          {{ partial "news/more.html" . }}
+          {{ partial "news/more.html" (dict "label" "All news and updates") }}
         </div>
       </div>
     </div>

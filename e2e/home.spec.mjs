@@ -436,8 +436,9 @@ test.describe("home", () => {
   });
 
   // #136: the newest post lives at /news/<slug>/. Since #537 the home
-  // page shows its excerpt, under the band's eyebrow and title, with
-  // "Continue reading" to the rest.
+  // page shows its excerpt, under the band's title, with "Continue
+  // reading" to the rest. Since #914 a decorative bar takes the
+  // eyebrow's place (home-news-layout.spec.mjs).
   test.describe("home news section (#136, #537)", () => {
     const POST = "/news/three-quarters-of-the-way/";
 
@@ -447,7 +448,6 @@ test.describe("home", () => {
       const band = page.locator(".home-update");
       const card = page.locator(".home-update-card");
 
-      await expect(band.locator(".home-eyebrow")).toHaveText("Learn more");
       await expect(band.getByRole("heading", { level: 2 }))
         .toHaveText("Farm news and updates");
       await expect(card.locator(".news-header-link"))
@@ -478,9 +478,10 @@ test.describe("home", () => {
 
       // The archive button, in the section under the thumbnails since
       // #566 (#483): the small outline one, found by its name, since
-      // the card's sign-up has "news" in its own.
+      // the card's sign-up has "news" in its own; named "All news and
+      // updates" since #914.
       const news = page.locator(".home-update")
-        .getByRole("link", { name: "More from the farm" });
+        .getByRole("link", { name: "All news and updates" });
 
       await expect(news).toHaveClass(/btn-outline/);
       await expect(news).toHaveAttribute("href", /\/news\/$/);

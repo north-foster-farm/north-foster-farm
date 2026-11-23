@@ -10,11 +10,14 @@
   into the post's Markdown, so none of it reaches the email.
 
   On the home page (the excerpt) the archive button leaves the card for
-  the section, under the previews of the posts after it (#566).
+  the section, under the previews of the posts after it (#566), and
+  the invitation reads "Sign up for Farm News" (#914).
 */}}
 <div class="news-footer">
   <div data-farm-list-block>
-    <a class="btn btn-primary" href="#farm-list-footer-email" data-farm-list-jump>Sign up for news like this.</a>
+    <a class="btn btn-primary" href="#farm-list-footer-email" data-farm-list-jump>
+      {{- if .excerpt }}Sign up for Farm News{{ else }}Sign up for news like this.{{ end -}}
+    </a>
   </div>
   {{ if not .excerpt }}
     {{ partial "news/more.html" . }}
