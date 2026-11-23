@@ -2407,7 +2407,7 @@ export class OrderForm {
     // the console is read by whoever sits down at the machine (#258).
     console.error(JSON.stringify({
       event: "order.undeliverable",
-      idempotencyKey: payload && payload.meta && payload.meta.idempotencyKey,
+      idempotencyKey: payload && payload.idempotencyKey,
     }));
     // Tell the farm a checkout could not complete. A beacon survives
     // the page being closed; nothing here can fail the customer.
