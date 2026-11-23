@@ -20,22 +20,21 @@
 //                        null when the order turned out paid already
 //   venmoCapture(payload, paypalOrderId)
 
-import { venmoGate } from "./lib/venmo.mjs";
 import {
   CARD_STYLE, cardRequest, paymentRequestOf,
 } from "./pay/requests.mjs";
+import { loadScript } from "./pay/scripts.js";
+import { Section } from "./pay/section.js";
 import {
-  cardDone, cardFieldOf, endState, sectionComplete, submitHidden,
-  walletsShown,
+  cardDone, cardFieldOf, endState, sectionComplete,
 } from "./pay/states.mjs";
 import { clickAllowed, shouldRestart } from "./pay/venmo-flow.mjs";
+import { venmoEnabled } from "./pay/venmo-gate.js";
 import { dollarsOf, tokenMessage, venmoRefusal } from "./pay/words.mjs";
 import { crumb, reportError, reportUnavailable, sdk } from "./report.js";
 import { whileLoading } from "../utils/skeleton.js";
 
 const qs = (root, selector) => root.querySelector(selector);
-
-const VENMO = "nff-venmo";
 
 // How long the payment SDKs get to load before the page calls payment
 // unavailable and reports it (#268, rec 8). The skeleton over the card
@@ -54,54 +53,6 @@ const CARD_EVENTS = [
 // long for its word.
 const CARD_SETTLE_MS = 200;
 
-// Whether the Venmo button works in this browser (lib/venmo.mjs).
-const venmoEnabled = (hidden) => {
-  let remembered = false;
-
-  try {
-    remembered = window.localStorage.getItem(VENMO) === "1";
-  } catch {
-    // Storage blocked: ?venmo still works for this page view.
-  }
-
-  const { enabled, remember } = venmoGate(
-    hidden, location.search, remembered
-  );
-
-  try {
-    if (remember) {
-      window.localStorage.setItem(VENMO, "1");
-    } else {
-      window.localStorage.removeItem(VENMO);
-    }
-  } catch {
-    // As above.
-  }
-
-  return enabled;
-};
-
-const loaded = new Map();
-
-const loadScript = (src) => {
-  if (!loaded.has(src)) {
-    loaded.set(src, new Promise((resolve, reject) => {
-      const s = document.createElement("script");
-
-      s.src = src;
-      s.async = true;
-      s.onload = () => resolve();
-      s.onerror = () => {
-        loaded.delete(src);
-        reject(new Error(`Could not load ${src}`));
-      };
-      document.head.appendChild(s);
-    }));
-  }
-
-  return loaded.get(src);
-};
-
 export class Payment {
   constructor(root, form) {
     this.root = root;
@@ -116,48 +67,32 @@ export class Payment {
     this.starting = null;
     // Which of the card's fields Square calls complete (cardDone).
     this.cardFields = {};
-    this.error = qs(root, "[data-error-for='payment']");
-    this.state = qs(root, "[data-pay]");
-    this.cardButton = qs(root, "[data-card-choose]");
-    this.busy = false;
-    this.setCardOpen(true);
+    // The section's DOM state, its error line and its two flags
+    // (pay/section.js). The form reads `state`; the card's button is
+    // wired in initSquare.
+    this.section = new Section(root);
+    this.state = this.section.state;
+    this.cardButton = this.section.cardButton;
   }
 
-  // Card is one way among the buttons, and starts chosen: its fields
-  // and the form's own Pay button show under the grid until card
-  // payments turn out to be unavailable.
+  get busy() {
+    return this.section.busy;
+  }
+
+  get covered() {
+    return this.section.covered;
+  }
+
   setCardAvailable(on) {
-    this.cardButton.hidden = !on;
-    if (!on) this.setCardOpen(false);
+    this.section.setCardAvailable(on);
   }
 
   setCardOpen(open) {
-    const submit = document.getElementById("order-submit");
-
-    this.state.dataset.cardOpen = String(open);
-    this.cardButton.setAttribute("aria-pressed", String(open));
-    if (submit) {
-      submit.hidden = submitHidden({ cardOpen: open, covered: this.covered });
-    }
+    this.section.setCardOpen(open);
   }
 
-  // A member's credit covers the whole order (#471): nothing to
-  // charge, so the wallets and the card fields step aside and the
-  // form's own button places the order. Off again, the card is back
-  // as it was.
   setCovered(on) {
-    const submit = document.getElementById("order-submit");
-
-    this.covered = !!on;
-    this.state.dataset.payCovered = String(this.covered);
-    qs(this.root, "[data-wallets]").hidden = this.covered;
-    qs(this.root, "#pay-card-panel").hidden = this.covered;
-    if (this.covered && submit) {
-      submit.hidden = false;
-      submit.disabled = false;
-    } else if (!this.covered) {
-      this.setCardOpen(this.state.dataset.cardOpen === "true");
-    }
+    this.section.setCovered(on);
   }
 
   // Loads once the section is near the screen, or the first time
@@ -215,9 +150,7 @@ export class Payment {
   }
 
   setState(state) {
-    this.state.dataset.payState = state;
-    // No card to pay with, so no Pay button to leave dead.
-    if (state !== "loading" && state !== "ready") this.setCardOpen(false);
+    this.section.setState(state);
   }
 
   async init() {
@@ -344,7 +277,7 @@ export class Payment {
   }
 
   showWallets() {
-    qs(this.root, "[data-wallets]").hidden = !walletsShown({
+    this.section.showWallets({
       card: this.card, wallets: this.wallets, venmo: this.venmo,
     });
   }
@@ -622,18 +555,14 @@ export class Payment {
   // --- Errors and state ---------------------------------------------
 
   fail(message) {
-    this.error.textContent = message;
-    this.error.hidden = false;
-    this.root.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    this.section.fail(message);
   }
 
   clearError() {
-    this.error.textContent = "";
-    this.error.hidden = true;
+    this.section.clearError();
   }
 
   setBusy(busy) {
-    this.busy = busy;
-    this.root.classList.toggle("order-pay-busy", busy);
+    this.section.setBusy(busy);
   }
 }
