@@ -145,6 +145,7 @@
         "e2e/cart-badge.spec.mjs",
         "e2e/cart-sync.spec.mjs",
         "e2e/favicon.spec.mjs",
+        "e2e/footer-seam.spec.mjs",
         "e2e/footer.spec.mjs",
         "e2e/gate.spec.mjs",
         "e2e/home.spec.mjs",
@@ -1601,6 +1602,14 @@
       ],
       "specs": [
         "e2e/favicon.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/footer-seam.spec.mjs"
+      ],
+      "specs": [
+        "e2e/footer-seam.spec.mjs"
       ]
     },
     {
