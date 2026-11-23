@@ -18,6 +18,7 @@ import {
 import { real } from "./clock.mjs";
 import * as fake from "./fake-square.mjs";
 import { placeOf } from "./describe.mjs";
+import { ID_TAIL } from "./order-id.mjs";
 import { MONEY_FLOOR_MS, timedFetch, timedOut } from "./http.mjs";
 import {
   pickupTimes, windowLabel,
@@ -569,8 +570,9 @@ const findOrCreateCustomer = async (cfg, customer, key, fetchImpl, ref) => {
 // the order id a checkout marks the profile it made with (#236; the
 // mark only matters during that checkout's own retries), or an older
 // member ID. Anything else someone typed in the Square Dashboard, so it
-// is reported as a conflict and left alone.
-const SITE_REFERENCE = /^NF[FM]-[A-Z0-9]{4}-[A-Z0-9]{4}$/;
+// is reported as a conflict and left alone. The last part takes either
+// order id length (lib/order-id.mjs, #937).
+const SITE_REFERENCE = new RegExp(`^NF[FM]-[A-Z0-9]{4}-${ID_TAIL}$`);
 
 export const replaceableReference = (value) =>
   !value || SITE_REFERENCE.test(String(value));
