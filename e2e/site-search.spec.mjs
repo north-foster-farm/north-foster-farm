@@ -32,27 +32,14 @@
 // labels but the group names and "Cancel".
 
 import { expect, test } from "./support/order.mjs";
+import { atWidth, label, widthsFor } from "./support/widths.mjs";
 
 const WIDE = 1280;
-const PHONE_HEIGHT = 664;
-const DESKTOP_HEIGHT = 900;
 const OUT = "NFF-CHK-EGG-MD";
 const WINGS = /^NFF-CHK-WNG-/;
 // A dialog of the site's own: every <dialog> on the page but the one
 // marked data-staging-card-dialog.
 const SITE_DIALOG = "dialog:not([data-staging-card-dialog])";
-
-const widthsFor = (project, widths) => (project === "desktop"
-  ? widths : [null]);
-const label = (w) => (w ? `${w} px` : "the phone's width");
-
-const atWidth = async (page, width) => {
-  if (width) {
-    await page.setViewportSize({
-      width, height: width >= 992 ? DESKTOP_HEIGHT : PHONE_HEIGHT,
-    });
-  }
-};
 
 const ui = (page) => {
   const field = page.getByRole("combobox", { name: /search/i });

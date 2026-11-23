@@ -31,6 +31,7 @@
 
 import { CUSTOMER } from "./support/canned.mjs";
 import { expect, test } from "./support/order.mjs";
+import { eachWidth } from "./support/widths.mjs";
 
 const WIDE = 1280;
 const SETTLE_MS = 700;
@@ -38,16 +39,6 @@ const SETTLE_MS = 700;
 const SAME_PX = 2;
 // From this width the word shows (provisional).
 const LABEL_FROM = 768;
-
-const widthsFor = (project, widths) => (project === "desktop"
-  ? widths : [null]);
-const label = (w) => (w ? `${w} px` : "the phone's width");
-
-const atWidth = async (page, width) => {
-  if (width) {
-    await page.setViewportSize({ width, height: width >= 992 ? 900 : 664 });
-  }
-};
 
 const signIn = async (page, context, baseURL) => {
   await context.addCookies([{
@@ -61,6 +52,31 @@ const signIn = async (page, context, baseURL) => {
 const signOut = (page) => page.route("**/api/me", (route) => route.fulfill({
   json: { signedIn: false },
 }));
+
+// A test that signs in and out on one page starts each half afresh:
+// no routes, and signed out as a sign-out leaves it, with no cookie
+// and no cached /api/me answer (session.js forget()). Without that, a
+// signed-in answer the page cached under an empty stamp, after the
+// server's 401 for the canned session's cart cleared the cookie,
+// stood for the next width (the implementer; steps only, gathered
+// from tests 2 and 3).
+const freshOut = async (page, context) => {
+  await page.unrouteAll({ behavior: "ignoreErrors" });
+  await context.clearCookies();
+  await page.evaluate(() => {
+    try {
+      sessionStorage.clear();
+    } catch {
+      // No page of the site's yet.
+    }
+  });
+  await signOut(page);
+};
+
+const freshIn = async (page, context, baseURL) => {
+  await page.unrouteAll({ behavior: "ignoreErrors" });
+  await signIn(page, context, baseURL);
+};
 
 const account = (page) => page.getByRole("banner")
   .getByRole("button", { name: "Account", exact: true });
@@ -212,11 +228,8 @@ test.describe("#915 the header's account label", () => {
     + "its icon", async ({ page, context, baseURL }, info) => {
     await signIn(page, context, baseURL);
 
-    for (const width of widthsFor(info.project.name,
+    for await (const at of eachWidth(page, info.project.name,
       [390, LABEL_FROM, 992, WIDE])) {
-      const at = label(width);
-
-      await atWidth(page, width);
       await page.goto("/about/");
 
       const control = account(page);
@@ -245,21 +258,15 @@ test.describe("#915 the header's account label", () => {
 
   test("Signed in or out, its accessible name is what it is today, said "
     + "once, not twice", async ({ page, context, baseURL }, info) => {
-    for (const width of widthsFor(info.project.name,
+    for await (const at of eachWidth(page, info.project.name,
       [390, LABEL_FROM, 992, WIDE])) {
-      const at = label(width);
-
-      await atWidth(page, width);
-      await page.unrouteAll({ behavior: "ignoreErrors" });
-      await context.clearCookies();
-      await signOut(page);
+      await freshOut(page, context);
       await page.goto("/about/");
       await expect(signin(page), `${at}: signed out, one "Sign in"`)
         .toHaveCount(1);
       await expect(signin(page)).toHaveAccessibleName("Sign in");
 
-      await page.unrouteAll({ behavior: "ignoreErrors" });
-      await signIn(page, context, baseURL);
+      await freshIn(page, context, baseURL);
       await page.goto("/about/");
       await expect(account(page), `${at}: signed in, one "Account"`)
         .toHaveCount(1);
@@ -271,22 +278,16 @@ test.describe("#915 the header's account label", () => {
   test("The header's other controls keep their places and spacing at "
     + "390, 768, 992 and 1280 px", async ({ page, context, baseURL },
     info) => {
-    for (const width of widthsFor(info.project.name,
+    for await (const at of eachWidth(page, info.project.name,
       [390, LABEL_FROM, 992, WIDE])) {
-      const at = label(width);
-
-      await atWidth(page, width);
-      await page.unrouteAll({ behavior: "ignoreErrors" });
-      await context.clearCookies();
-      await signOut(page);
+      await freshOut(page, context);
       await page.goto("/about/");
       await expect(signin(page)).toBeVisible();
       await page.waitForTimeout(SETTLE_MS);
 
       const out = await row(page);
 
-      await page.unrouteAll({ behavior: "ignoreErrors" });
-      await signIn(page, context, baseURL);
+      await freshIn(page, context, baseURL);
       await page.goto("/about/");
       await expect(account(page)).toBeVisible();
       await page.waitForTimeout(SETTLE_MS);

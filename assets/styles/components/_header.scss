@@ -574,8 +574,8 @@ $nav-link-transition:
   }
 }
 
-// The customer's chicken in place of "Account", smaller than on the
-// settings page (#238, #347).
+// The customer's chicken, with "Account" beside it from md up (#915),
+// smaller than on the settings page (#238, #347).
 .site-account-chick {
   width: 1.75rem;
   height: 1.75rem;
@@ -644,6 +644,19 @@ $nav-link-transition:
 
   .site-account-icon {
     display: none;
+  }
+}
+
+// From md the slot keeps the place of the button with its word (#915),
+// so nothing moves when it shows. The bar over it while /api/me is
+// slow is as wide as the chicken and caret, at the slot's right beside
+// the links: a link's width, never the row of icons' (#322).
+.site-account:not(.is-compact) > .skeleton-over {
+  left: auto;
+  width: 3.5625rem;
+
+  @media (min-width: 992px) {
+    width: 4.0625rem;
   }
 }
 
