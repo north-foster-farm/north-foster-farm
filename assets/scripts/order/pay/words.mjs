@@ -1,5 +1,6 @@
 // The payment section's words for the customer (docs/refactors/pay.md,
-// phase 1). Pure: order/pay.js shows them.
+// phase 1). Pure: pay/card.js, pay/wallets.js and pay/venmo.js show
+// them.
 
 import { validField } from "../../utils/field-errors.mjs";
 

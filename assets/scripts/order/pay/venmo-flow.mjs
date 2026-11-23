@@ -1,5 +1,5 @@
 // The Venmo button's two choices (docs/refactors/pay.md, phase 1).
-// Pure: order/pay.js wires PayPal's callbacks to them.
+// Pure: pay/venmo.js wires PayPal's callbacks to them.
 
 // Whether a press opens the sheet. A locked or busy button refuses
 // before the form is asked, since prepare() shows the form's errors.

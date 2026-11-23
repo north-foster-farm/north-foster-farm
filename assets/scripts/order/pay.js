@@ -24,11 +24,9 @@ import { Card } from "./pay/card.js";
 import { loadScript } from "./pay/scripts.js";
 import { Section } from "./pay/section.js";
 import { endState } from "./pay/states.mjs";
-import { clickAllowed, shouldRestart } from "./pay/venmo-flow.mjs";
-import { venmoEnabled } from "./pay/venmo-gate.js";
+import { Venmo } from "./pay/venmo.js";
 import { Wallets } from "./pay/wallets.js";
-import { venmoRefusal } from "./pay/words.mjs";
-import { crumb, reportError, reportUnavailable, sdk } from "./report.js";
+import { crumb, reportUnavailable, sdk } from "./report.js";
 import { whileLoading } from "../utils/skeleton.js";
 
 const qs = (root, selector) => root.querySelector(selector);
@@ -61,7 +59,6 @@ export class Payment {
     this.form = form;
     this.checkout = checkoutOf(form);
     this.payments = null;
-    this.venmo = null;
     this.config = null;
     this.ready = false;
     this.starting = null;
@@ -77,6 +74,16 @@ export class Payment {
     this.walletsPart = new Wallets({
       root, section: this.section, checkout: this.checkout,
     });
+    // PayPal's Venmo button, its payload and its two flags
+    // (pay/venmo.js).
+    this.venmoPart = new Venmo({
+      root, section: this.section, checkout: this.checkout,
+    });
+  }
+
+  // The unlocked Venmo button, or null.
+  get venmo() {
+    return this.venmoPart.button;
   }
 
   // The attached card, or null.
@@ -260,130 +267,10 @@ export class Payment {
 
   // --- Venmo --------------------------------------------------------
 
+  // PayPal's Venmo button and its six callbacks (pay/venmo.js). A
+  // rendered button shows the wallets again.
   async initVenmo(cfg) {
-    const cell = qs(this.root, "[data-venmo-cell]");
-    const container = qs(cell, "[data-venmo]");
-    // Held back: PayPal's button, inert and greyed, over "Coming soon".
-    // It never counts as a way to pay, and never opens anything.
-    const locked = !venmoEnabled(cfg.hidden);
-
-    container.inert = locked;
-
-    sdk("paypal", "loading");
-    try {
-      await loadScript(cfg.sdkUrl);
-    } catch (error) {
-      console.error(error);
-      sdk("paypal", "failed");
-      crumb("paypal.load_failed");
-      reportError("paypal.load", error);
-
-      return;
-    }
-    sdk("paypal", "ready");
-    crumb("paypal.ready");
-
-    const paypal = window.paypal;
-
-    if (!paypal || !paypal.Buttons) return;
-
-    const button = paypal.Buttons({
-      fundingSource: paypal.FUNDING.VENMO,
-      style: { shape: "rect", height: 44, label: "pay" },
-      onInit: (data, actions) => {
-        if (locked) actions.disable();
-      },
-      onClick: (data, actions) => {
-        if (!clickAllowed({ locked, busy: this.busy },
-          () => this.form.prepare())) {
-          return actions.reject();
-        }
-
-        return actions.resolve();
-      },
-      createOrder: async () => {
-        const payload = await this.form.prepareAsync();
-
-        if (!payload) {
-          throw new Error(venmoRefusal(this.form.stock.locked));
-        }
-        this.venmoPayload = payload;
-        this.venmoRestarted = false;
-        this.clearError();
-
-        const id = await this.form.venmoCreate(payload);
-
-        // Paid already, and the page says so: PayPal is stopped the
-        // only way it can be, and onError keeps quiet.
-        if (!id) {
-          this.venmoSettled = true;
-          throw new Error("The order is already paid.");
-        }
-
-        return id;
-      },
-      // A decline for the funding source opens the sheet again, once
-      // (pay/venmo-flow.mjs, shouldRestart). The decline is settled
-      // first, so a buyer who closes the sheet is where any decline
-      // leaves them.
-      onApprove: async (data, actions) => {
-        crumb("venmo.approve");
-        this.setBusy(true);
-        try {
-          const restart = !!this.venmoRestarted;
-          const outcome = await this.form.venmoCapture(
-            this.venmoPayload, data.orderID, { restart }
-          );
-
-          if (shouldRestart({ restarted: restart, outcome, actions })) {
-            this.venmoRestarted = true;
-            crumb("venmo.restart");
-
-            return await actions.restart();
-          }
-        } catch (error) {
-          this.fail(error.message || "The Venmo payment didn't go through.");
-        } finally {
-          this.setBusy(false);
-        }
-      },
-      onCancel: () => {
-        crumb("venmo.cancel");
-        this.setBusy(false);
-      },
-      onError: (error) => {
-        if (this.venmoSettled) {
-          this.venmoSettled = false;
-          this.setBusy(false);
-
-          return;
-        }
-        console.error(error);
-        reportError("paypal.error", error);
-        this.setBusy(false);
-        this.fail("Venmo didn't go through. Try again, or pay another way.");
-      },
-    });
-
-    if (!button.isEligible()) {
-      cell.hidden = true;
-
-      return;
-    }
-
-    try {
-      await button.render(container);
-      crumb("venmo.ready");
-      if (!locked) this.venmo = button;
-      qs(cell, "[data-venmo-soon]").hidden = !locked;
-      cell.hidden = false;
-      this.showWallets();
-    } catch (error) {
-      console.error(error);
-      crumb("venmo.render_failed");
-      reportError("paypal.render", error);
-      cell.hidden = true;
-    }
+    if (await this.venmoPart.attach(cfg)) this.showWallets();
   }
 
   // --- Errors and state ---------------------------------------------
