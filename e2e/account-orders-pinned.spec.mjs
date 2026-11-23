@@ -79,12 +79,19 @@ test.describe("the account page's orders (#832)", () => {
   test("/account/orders/<id>/ opens Orders with that card focused and "
     + "marked; an id the account lacks says so",
   async ({ page, context, baseURL }) => {
-    await openAccount(page, { context, baseURL }, { orders: [PAID] });
+    const state = await openAccount(page, { context, baseURL },
+      { orders: [PAID] });
+
     await page.goto(`/account/orders/${PAID.id}/`);
     await shown(page);
     await expect(page.locator("#acct-orders")).toBeVisible();
     await expect(card(page)).toHaveClass(/\bis-linked\b/);
     await expect(card(page)).toBeFocused();
+    // #924: the head's avatar is a <use> of the page's own sprite,
+    // which a base element can send to another document.
+    await expect.poll(() => page.locator("#account-avatar use")
+      .evaluate((use) => use.getBBox().width),
+    { message: "the avatar draws" }).toBeGreaterThan(0);
 
     await page.goto("/account/orders/NFF-0000-NOPE/");
     await shown(page);
@@ -92,5 +99,13 @@ test.describe("the account page's orders (#832)", () => {
       "We couldn't find order NFF-0000-NOPE on this account. Here's "
       + "everything you've ordered."
     );
+
+    // #924: signed out, the way back from signing in still names
+    // the order.
+    state.me = { signedIn: false };
+    await page.goto(`/account/orders/${PAID.id}/`);
+    await expect(page).toHaveURL(/\/login\/\?next=/);
+    expect(new URL(page.url()).searchParams.get("next"),
+      "the return address carries the order").toContain(PAID.id);
   });
 });
