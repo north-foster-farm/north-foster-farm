@@ -44,7 +44,6 @@
 //   failureBeacon(payload, message, path) -> the beacon's record
 
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
 import company from "../data/company.json" with { type: "json" };
@@ -53,6 +52,7 @@ import {
   pickupTimes, windowLabel,
 } from "../assets/scripts/order/lib/schedule.mjs";
 import { label } from "../assets/scripts/order/lib/zoned.mjs";
+import { assertPure } from "./pure-module.mjs";
 import {
   contactHrefs, dateTime, failureBeacon, isRound, paidWith, pickupAddress,
   summaryText, when,
@@ -297,18 +297,14 @@ describe("failureBeacon", () => {
 
 describe("design, phase 4", () => {
   it("keeps form/placed.mjs pure", () => {
-    const code = readFileSync(MODULE, "utf8")
-      .replace(/\/\/.*$/gm, "")
-      .replace(/\/\*[\s\S]*?\*\//g, "");
-
-    assert.doesNotMatch(code, new RegExp(`\\b(${[
-      "(?<![.\\w])document\\.", "(?<![.\\w])window\\.",
-      "location\\.pathname", "navigator",
-      "querySelector",
-      "fetch", "Element",
-    ].join("|")})\\b`));
-    for (const [, from] of code.matchAll(/\bfrom\s+["']([^"']+)["']/g)) {
-      assert.match(from, /\.m?js$/, `placed.mjs imports ${from}`);
-    }
+    assertPure(MODULE, {
+      banned: [
+        "(?<![.\\w])document\\.", "(?<![.\\w])window\\.",
+        "location\\.pathname", "navigator",
+        "querySelector",
+        "fetch", "Element",
+      ],
+      imports: /\.m?js$/,
+    });
   });
 });
