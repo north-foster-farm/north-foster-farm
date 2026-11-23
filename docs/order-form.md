@@ -1431,8 +1431,11 @@ Flags that take a value accept both `--reason "..."` and
   submission already paid is answered with its record before
   anything else, so a new attempt after a lost answer never charges
   again. Ids
-  from before had four characters and stay valid: nothing parses the
-  tail.
+  from before had four characters and stay valid: `ORDER_ID` and the
+  Square profile's `SITE_REFERENCE` take both lengths, from
+  `ID_LENGTH` in `lib/order-id.mjs` (2026-11-23, #937: this said
+  nothing parses the tail, but those two did, at four only, so the
+  sweep and the drift check missed every six-character id).
 
 ## History
 

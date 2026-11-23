@@ -57,6 +57,7 @@ import {
 } from "./lib/passes.mjs";
 import { PAYMENTS_OFF, paymentsOff } from "./lib/payments.mjs";
 import { perkTypes } from "./lib/perks.mjs";
+import { ID_LENGTH } from "./lib/order-id.mjs";
 import { pickupSchedule } from "./lib/pickups.mjs";
 import {
   getOrder, orderForSubmission, paymentsOf, reserveOrderId, submissionKey,
@@ -93,8 +94,9 @@ const rateLimited = (ip, now) => {
 // `NFF-YYMM-` and six letters and digits, about a billion a month.
 // Ids before #253 had four, and stay valid everywhere (an id is only
 // ever looked up whole). `draw` is the nth candidate, for when an
-// earlier one is taken (lib/records.mjs, reserveOrderId).
-export const ID_LENGTH = 6;
+// earlier one is taken (lib/records.mjs, reserveOrderId). ID_LENGTH
+// lives in lib/order-id.mjs beside the pattern that reads it (#937).
+export { ID_LENGTH };
 
 export const orderId = (key, now, draw = 0) => {
   const p = parts(now, terms.timeZone);
