@@ -23,7 +23,7 @@
     "start:bind": "HUGO_BIND_TO_IP=true bin/dev",
     "start:functions": "node bin/dev-functions.mjs",
     "test": "node --import ./test/setup.mjs --test \"test/**/!(quality-analysis|quality-knip).test.mjs\"",
-    "test:analysis": "node --import ./test/setup.mjs --test test/quality-analysis.test.mjs test/quality-knip.test.mjs",
+    "test:analysis": "node --import ./test/setup.mjs --test-concurrency=1 --test test/quality-analysis.test.mjs test/quality-knip.test.mjs",
     "check": "npm run check:node && npm run check:places && npm run lint:code && npm test",
     "build:orphans": "node bin/orphans/wrap.mjs public",
     "check:grid": "node bin/grid/check.mjs public",
