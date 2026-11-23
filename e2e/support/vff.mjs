@@ -133,6 +133,57 @@ export const signIn = async (page, baseURL, me, {
   }
 };
 
+// What the page did, for a staging run that keeps no trace (#729,
+// qa's triage of run 45134992415): each response's method, path and
+// status, the page's errors and console errors, the cookies' names
+// and the session cache's keys, and what the page's /api/me answers
+// said, as flags. No cookie value, token, query, body or address.
+const watchPage = (page) => {
+  const seen = [];
+  const add = (line) => {
+    if (seen.length < 200) seen.push(line);
+  };
+  const onResponse = async (r) => {
+    const url = new URL(r.url());
+
+    // The site's own calls and scripts, not the payment SDKs'.
+    if (!/^\/(api|scripts)\//.test(url.pathname)) return;
+    let note = "";
+
+    if (url.pathname === "/api/me") {
+      const body = await r.json().catch(() => null);
+
+      note = body ? ` signedIn=${!!body.signedIn} member=${
+        !!(body.customer && body.customer.memberGroup)}` : " unread";
+    }
+    add(`${r.request().method()} ${url.pathname} ${r.status()}${note}`);
+  };
+  const onError = (e) => add(`pageerror ${String(e.message).slice(0, 200)}`);
+  const onConsole = (m) => {
+    if (m.type() === "error") add(`console ${m.text().slice(0, 200)}`);
+  };
+
+  page.on("response", onResponse);
+  page.on("pageerror", onError);
+  page.on("console", onConsole);
+
+  return async () => {
+    page.off("response", onResponse);
+    page.off("pageerror", onError);
+    page.off("console", onConsole);
+
+    const cookies = (await page.context().cookies()).map((c) => c.name);
+    const state = await page.evaluate(() => ({
+      stamp: /(?:^|;\s*)nff_signed_in=[^;]/.test(document.cookie),
+      session: Object.keys(sessionStorage),
+      local: Object.keys(localStorage),
+      prompt: !!document.querySelector("[data-signin-prompt]:not([hidden])"),
+    })).catch(() => null);
+
+    return { seen, cookies, state };
+  };
+};
+
 // The order page with `cart`, once a member's group has come.
 export const openOrder = async (page, me, cart = { whole: 2 }) => {
   const member = !!(me && me.customer && me.customer.memberGroup);
@@ -140,9 +191,16 @@ export const openOrder = async (page, me, cart = { whole: 2 }) => {
     ? page.waitForResponse((r) => r.url().includes("/api/group"))
     : null;
   const order = new OrderPage(page);
+  const report = watchPage(page);
 
-  await order.open(cart);
-  if (group) await group;
+  try {
+    await order.open(cart);
+    if (group) await group;
+  } catch (error) {
+    console.log(`openOrder diagnostics: ${JSON.stringify(await report())}`);
+    throw error;
+  }
+  await report();
   // The page folds the group in after the answer.
   await order.scrollSettled();
 
