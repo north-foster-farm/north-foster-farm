@@ -231,13 +231,20 @@ const twoOf = (emails) => {
 
 // Makes the clipboard answer `works`: the page's clipboard is
 // replaced, as `drop` (support/library.mjs) replaces confirm, since
-// a headless browser may refuse the real one; prompt is recorded.
+// a headless browser may refuse the real one; what it is given to
+// copy, and prompt, are recorded.
 const clipboard = (page, works) => page.evaluate((ok) => {
+  window.e2eCopied = undefined;
   window.e2ePrompted = undefined;
   Object.defineProperty(navigator, "clipboard", {
     configurable: true,
-    value: { writeText: () => (ok ? Promise.resolve()
-      : Promise.reject(new Error("refused"))) },
+    value: {
+      writeText: (copied) => {
+        window.e2eCopied = copied;
+
+        return ok ? Promise.resolve() : Promise.reject(new Error("refused"));
+      },
+    },
   });
   window.prompt = (question, value) => {
     window.e2ePrompted = [question, value];
@@ -275,6 +282,8 @@ test.describe("staging email library, the reader (#877)", () => {
 
     await clipboard(page, true);
     await button.click();
+    await expect.poll(() => page.evaluate(() => window.e2eCopied),
+      "the link is what was copied").toBe(link);
     await expect(button).toHaveText("Copied");
     await page.waitForTimeout(800);
     await expect(button, "still Copied before 1.2 s").toHaveText("Copied");
@@ -283,7 +292,7 @@ test.describe("staging email library, the reader (#877)", () => {
 
     await clipboard(page, false);
     await button.click();
-    expect(await page.evaluate(() => window.e2ePrompted))
+    await expect.poll(() => page.evaluate(() => window.e2ePrompted))
       .toEqual(["The link to this email:", link]);
     await expect(button).not.toHaveText("Copied");
   });
@@ -400,6 +409,7 @@ test.describe("staging email library, the reader (#877)", () => {
 
     const ui = await openEmail(page, plain);
 
+    await expect(ui.view("rewrite")).toHaveCount(1);
     await expect(ui.view("rewrite")).toBeHidden();
     await expect(ui.frame).toBeVisible();
   });
