@@ -22,7 +22,9 @@ import { withLog } from "./lib/with-log.mjs";
 import {
   archivedInStock, availability, liveCounts,
 } from "./lib/stock.mjs";
-import { SCOPE_COOKIE, applyPins, scopeOf } from "./lib/stock-pins.mjs";
+import {
+  SCOPE_COOKIE, applyPins, pinsAllowed, scopeOf,
+} from "./lib/stock-pins.mjs";
 import { deployContext, stores as defaultStores } from "./lib/store.mjs";
 
 // Per-instance, best effort, as /api/orders. One bucket for browsing,
@@ -44,7 +46,9 @@ const rateLimited = (ip, now, bucket) => {
 };
 
 // The check right before paying asks with ?final=1 (order/stock.js).
-const paying = (req) => new URL(req.url).searchParams.get("final") === "1";
+// Any query carrying final at all, in any form, is taken as one, so
+// none of them is answered from the edge (#994, security's read).
+const paying = (req) => new URL(req.url).searchParams.has("final");
 
 // The browsing answer, kept at Netlify's edge for the 15 seconds of
 // the server's own Square snapshot (#908, James's rule 7), so a repeat
@@ -52,15 +56,15 @@ const paying = (req) => new URL(req.url).searchParams.get("final") === "1";
 // durable shares one across them, which cuts the runs but does not
 // promise a single one. Browsers keep nothing (json()'s no-store), and
 // the check before paying is never answered from the edge. The key is
-// only the final flag and a stock pin's cookie (staging's tests), so
-// a query string of any other parameter shares the one answer instead
-// of making its own (#994; Netlify's caching overview, "Cache key
-// variation").
-const EDGE = {
+// only the final flag, and a stock pin's cookie where pins are allowed
+// (staging's tests): elsewhere a cookie would only make misses. A query
+// string of any other parameter shares the one answer instead of making
+// its own (#994; Netlify's caching overview, "Cache key variation").
+const PINNED = `query=final,cookie=${SCOPE_COOKIE}`;
+const edgeFor = (req, env) => (paying(req) ? {} : {
   "Netlify-CDN-Cache-Control": "public, durable, s-maxage=15",
-  "Netlify-Vary": `query=final,cookie=${SCOPE_COOKIE}`,
-};
-const edgeFor = (req) => (paying(req) ? {} : EDGE);
+  "Netlify-Vary": pinsAllowed(env) ? PINNED : "query=final",
+});
 
 // Whether this ask is over its bucket's limit.
 const limited = (req, ip, now) =>
@@ -113,7 +117,7 @@ export const handle = async (req, {
     env, mail, now, catalogIndex, counts,
   }));
 
-  return json(200, { at: now.toISOString(), items }, edgeFor(req));
+  return json(200, { at: now.toISOString(), items }, edgeFor(req, env));
 };
 
 export default withLog("stock", async (req, context) =>
