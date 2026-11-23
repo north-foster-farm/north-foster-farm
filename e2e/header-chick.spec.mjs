@@ -25,7 +25,9 @@ test.describe("the header's chicken", () => {
       "href", "#avatar-hen-brown"
     );
     await expect(button).toHaveAccessibleName("Account");
-    // The word is for screen readers only; the chicken is what shows.
+    // The name is the visually hidden word, said once: the word shown
+    // beside the chicken from 768 px (#915) is hidden from screen
+    // readers.
     await expect(button.locator(".visually-hidden")).toHaveText("Account");
   });
 
