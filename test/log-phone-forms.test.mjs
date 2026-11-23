@@ -24,12 +24,15 @@
 // values under an id key are left to the implementer: the box asks
 // only about keys that are not ids.
 //
-// The seam: scrub() and the line log.info writes to the console.
+// The seam: scrub() and the line log.info writes to the console. The
+// line is checked for digits left with every field but `_time`
+// (logText), since the timestamp can hold 555 or 0100 itself (#999).
 
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { log, scrub } from "../netlify/functions/lib/log.mjs";
+import { logText } from "./log-text.mjs";
 
 // The console lines written while `run` runs, raw and parsed.
 const written = (t, run) => {
@@ -73,7 +76,7 @@ const scrubsForm = (t, phone) => {
     }));
 
     assert.equal(JSON.parse(raw).message, want, `the line: ${value}`);
-    noneLeft(raw, value);
+    noneLeft(logText(raw), value);
   }
 };
 
@@ -130,7 +133,7 @@ describe("#922 the logger's phone scrub catches every form", () => {
 
         assert.notEqual(JSON.parse(raw)[key], number,
           `the line keeps ${key}: ${number}`);
-        assert.doesNotMatch(raw, new RegExp(String(number)),
+        assert.doesNotMatch(logText(raw), new RegExp(String(number)),
           `no digits left on the line: ${key}: ${number}`);
       }
 
