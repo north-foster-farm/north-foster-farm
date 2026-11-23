@@ -119,6 +119,11 @@ export const signIn = async (page, baseURL, me, {
   ]);
   stamped.set(page, (await page.context().cookies())
     .some((c) => c.name === "nff_signed_in"));
+  // A new visit for the stamp log (watchStamp), which then keeps only
+  // this sign-in's documents.
+  await page.context().addCookies([
+    { name: VISIT, value: `${stamps}`, url: baseURL },
+  ]);
   // With or without a query string.
   await page.route(/\/api\/me(?:[?#]|$)/, (route) => route.fulfill({
     json: me,
@@ -159,15 +164,25 @@ const stamped = new WeakMap();
 // script's write of it, with its first two stack frames' path:line.
 // Runs once per page (an init script stays for the page's life).
 const STAMP_LOG = "nff-e2e-stamp-log";
-const watchStamp = ({ key, origin }) => {
+// The sign-in a document belongs to: a cookie of the suite's own that
+// signIn sets, so the log starts afresh at each sign-in.
+const VISIT = "e2e_visit";
+const watchStamp = ({ key, origin, visitName }) => {
   if (window !== window.top || location.origin !== origin) return;
 
+  const visit = (document.cookie.match(
+    new RegExp(`(?:^|;\\s*)${visitName}=(\\d+)`)
+  ) || [])[1] || "";
   const note = (entry) => {
     try {
-      const list = JSON.parse(sessionStorage.getItem(key) || "[]");
+      const kept = JSON.parse(sessionStorage.getItem(key) || "{}");
+      const list = kept.visit === visit && Array.isArray(kept.list)
+        ? kept.list : [];
 
       list.push(entry);
-      sessionStorage.setItem(key, JSON.stringify(list.slice(-30)));
+      sessionStorage.setItem(key, JSON.stringify({
+        visit, list: list.slice(-30),
+      }));
     } catch {
       // Storage blocked: nothing to note.
     }
@@ -238,6 +253,10 @@ const cookiesSet = (values) => values.map((v) => {
   return `${/^[\w.-]{1,64}$/.test(name) ? name : "(odd name)"}${
     expires ? "(expires)" : ""}`;
 });
+// A header's value fit for the log: letters, digits and a little
+// punctuation, at most 80 characters, else "(odd)".
+const plain = (value) => (value == null ? "-"
+  : /^[\w ./:;,()-]{0,80}$/.test(value) ? value : "(odd)");
 // The kinds of console error that may be printed; any other text,
 // which could begin with a name ("Pat Example: ..."), prints as error.
 const KINDS = ["Failed to load resource", "Uncaught TypeError",
@@ -265,32 +284,61 @@ const watchPage = (page) => {
   const add = (line) => {
     if (seen.length < 200) seen.push(line);
   };
-  // The site's origin, from the first top-frame document.
-  let origin = null;
+  // The site's origin, fixed, so the first document's own response is
+  // read too (run 45161671452 could not see it).
+  const origin = new URL(BASE_URL).origin;
   // Every response of the context, frames' and other pages' included,
-  // that sets a cookie on the site's origin.
+  // that sets a cookie on the site's origin; for one that expires the
+  // stamp, who answered: its Server and Via headers and the edge
+  // functions Netlify ran (x-nf-edge-functions, their names).
   const onAnyResponse = async (r) => {
     const url = new URL(r.url());
 
-    if (!origin || url.origin !== origin) return;
+    if (url.origin !== origin) return;
 
     const set = await r.headerValues("set-cookie").catch(() => []);
 
-    if (set.length) {
-      add(`setcookie ${url.pathname} ${cookiesSet(set).join(" ")}`);
+    if (!set.length) return;
+
+    const names = cookiesSet(set);
+    let by = "";
+
+    if (names.includes("nff_signed_in(expires)")) {
+      const h = await r.allHeaders().catch(() => ({}));
+
+      by = ` server=${plain(h.server)} via=${plain(h.via)} edge=${
+        plain(h["x-nf-edge-functions"])}`;
     }
+    add(`setcookie ${url.pathname} ${r.status()} ${names.join(" ")}${by}`);
   };
   const onResponse = async (r) => {
     const url = new URL(r.url());
     const nav = r.request().isNavigationRequest()
       && r.frame() === page.mainFrame();
 
-    if (nav) origin = url.origin;
-
     // Main-frame documents, and the site's own calls and scripts, not
     // the payment SDKs'.
     if (!nav && !/^\/(api|scripts)\//.test(url.pathname)) return;
     let note = nav ? " document" : "";
+
+    // A document's redirects, by path and status, and the names of the
+    // headers it came with (whether Set-Cookie is among them).
+    if (nav) {
+      const chain = [];
+
+      for (let q = r.request().redirectedFrom(); q; q = q.redirectedFrom()) {
+        const back = await q.response().catch(() => null);
+
+        chain.unshift(`${pathOf(q.url())} ${back ? back.status() : "-"}`);
+      }
+      if (chain.length) note += ` redirected from ${chain.join(" > ")}`;
+
+      const heads = await r.headersArray().catch(() => []);
+
+      note += ` headers=${[...new Set(heads.map((h) => h.name
+        .toLowerCase()))].filter((n) => /^[a-z0-9-]{1,40}$/.test(n))
+        .sort().join(",")}`;
+    }
 
     if (url.pathname === "/api/me") {
       const body = await r.json().catch(() => null);
@@ -324,7 +372,7 @@ const watchPage = (page) => {
   // Every top-frame document of the site from here on, once per page.
   const started = watched.has(page) ? Promise.resolve()
     : page.addInitScript(watchStamp, {
-      key: STAMP_LOG, origin: new URL(BASE_URL).origin,
+      key: STAMP_LOG, origin, visitName: VISIT,
     }).then(() => watched.add(page)).catch(() => {});
 
   const stop = () => {
@@ -340,7 +388,9 @@ const watchPage = (page) => {
       const text = (v) => String(v).slice(0, 80);
 
       try {
-        return JSON.parse(sessionStorage.getItem(key) || "[]")
+        const kept = JSON.parse(sessionStorage.getItem(key) || "{}");
+
+        return (Array.isArray(kept.list) ? kept.list : [])
           .map(([what, a, b]) => [text(what),
             typeof a === "number" ? a : text(a),
             Array.isArray(b) ? b.map(text) : !!b]);
