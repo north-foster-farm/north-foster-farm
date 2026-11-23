@@ -33,7 +33,10 @@ describe("orderFromLink", () => {
 
   it("still reads the id off the path where no rule runs", () => {
     assert.equal(at("/account/orders/NFF-2611-ABCDEF/"), "NFF-2611-ABCDEF");
-    assert.equal(at("/account/orders/NFF%202611/"), "NFF 2611");
+  });
+
+  it("reads text not in the shape of an order id as no order (#947)", () => {
+    assert.equal(at("/account/orders/NFF%202611/"), "");
   });
 
   it("names no order on the plain account page", () => {
