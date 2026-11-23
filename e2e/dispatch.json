@@ -534,7 +534,8 @@
         "e2e/order-kept.spec.mjs",
         "e2e/cart-add-scroll.spec.mjs",
         "e2e/cart-total-keyboard.spec.mjs",
-        "e2e/cart-stock-scroll.spec.mjs"
+        "e2e/cart-stock-scroll.spec.mjs",
+        "e2e/stamp-restore.spec.mjs"
       ],
       "pages": [
         "/order/"
@@ -2310,6 +2311,14 @@
       ],
       "specs": [
         "e2e/sku-alias.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/stamp-restore.spec.mjs"
+      ],
+      "specs": [
+        "e2e/stamp-restore.spec.mjs"
       ]
     },
     {
