@@ -26,13 +26,22 @@ import { today } from "../../../assets/scripts/order/lib/zoned.mjs";
 import { devEmails, escalatedEmails, sendMail } from "./mail.mjs";
 import { links as maintenanceLinks, readState } from "./maintenance.mjs";
 import { log, scrub } from "./log.mjs";
+import { ping } from "./ping.mjs";
 import { mailLinks } from "./site.mjs";
 import { escalation, farmAlert } from "./templates.mjs";
+
+// The heartbeat moved to lib/ping.mjs (#925, phase 3), below the
+// breaker; both names stay here for the importers.
+export { ping } from "./ping.mjs";
+/**
+ * @public test/server-imports-ping.test.mjs reads it as
+ * health.PING_TIMEOUT, through a namespace Knip does not follow.
+ */
+export { PING_TIMEOUT } from "./ping.mjs";
 
 const HOUR = 60 * 60_000;
 
 export const ALERT_EVERY = HOUR;
-export const PING_TIMEOUT = 3000;
 
 // Every alert goes to DEV_NOTIFICATIONS_EMAIL, and to nobody else:
 // there is no fallback when it is unset. The one escalation, below,
@@ -115,33 +124,6 @@ export const noteMail = async (stores, ok, now = new Date(), detail = {}) => {
     };
 
   return mark(stores, "mail", next, now);
-};
-
-// One heartbeat. `ok` false posts the report to /fail. Never throws.
-export const ping = async (url, {
-  ok = true, body = null, fetchImpl = globalThis.fetch,
-} = {}) => {
-  if (!url) return false;
-
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), PING_TIMEOUT);
-
-  try {
-    const res = await fetchImpl(ok ? url : `${url.replace(/\/$/, "")}/fail`, {
-      method: ok && !body ? "GET" : "POST",
-      headers: body ? { "Content-Type": "application/json" } : {},
-      body: body ? JSON.stringify(body).slice(0, 10_000) : undefined,
-      signal: controller.signal,
-    });
-
-    return res.ok;
-  } catch (error) {
-    log.warn({ event: "health.ping_failed", error: String(error) });
-
-    return false;
-  } finally {
-    clearTimeout(timer);
-  }
 };
 
 // A failure on the critical path, with what it reached. `kind` is

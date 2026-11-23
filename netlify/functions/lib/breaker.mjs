@@ -35,9 +35,9 @@
 import { randomUUID } from "node:crypto";
 
 import thresholds from "../../../data/breaker.json" with { type: "json" };
-import { ping } from "./health.mjs";
 import { timedFetch } from "./http.mjs";
 import { log } from "./log.mjs";
+import { ping } from "./ping.mjs";
 import { resendAllowed, resendRefusal } from "./resend-guard.mjs";
 
 export const STATE = "breaker/state";
