@@ -34,14 +34,17 @@ const PERSONAL = new Set([
   "street2", "line1", "line2", "city", "town", "postal", "postalcode",
   "customer", "payer", "recipient", "recipients", "to", "from", "replyto",
   "note", "notes", "instructions", "text", "html", "subject", "token",
-  "authorization", "cookie",
+  "authorization", "cookie", "secretaccesskey", "apikey",
 ]);
 
 const EMAIL = /[A-Za-z0-9._%+'-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+/g;
 
-// A phone number is 10 or more digits, with spaces, dots, dashes or
-// brackets between them, and may end in an extension ("x23", "ext.
-// 23"). A number in the 3-3-4 shape is scrubbed wherever it sits.
+// A phone number is 10 or more digits, ASCII or full-width, with
+// spaces, dots, slashes, underscores, brackets or any dash between
+// them (the hyphen, the figure, en and em dashes, the minus sign, the
+// non-breaking hyphen, the horizontal bar, #922), and may end in an
+// extension ("x23", "ext. 23"). A number in the 3-3-4 shape is
+// scrubbed wherever it sits.
 //
 // Ids hold such runs too (an invite's hex, a UUID, an order id's tail,
 // Square's and PayPal's ids, #896). A value logged under an id key
@@ -50,28 +53,40 @@ const EMAIL = /[A-Za-z0-9._%+'-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+/g;
 // other value, free text above all, loses every run, glued to a word
 // or not: an id inside a sentence loses its middle, which errs toward
 // privacy.
-const EXTENSION = String.raw`(?:\s*(?:x|ext\.?)\s*\d{1,6})?`;
-const RUN = String.raw`[+(]?\d[\d\s().-]{8,}\d${EXTENSION}`;
-const NO_ID_LEFT = "(?<![A-Za-z0-9-])";
-const NO_ID_RIGHT = "(?![A-Za-z0-9]|-[A-Za-z0-9])";
+const DIGIT = String.raw`[0-9０-９]`;
+const DASH = String.raw`‐-―−﹘﹣－`;
+const BETWEEN = String.raw`[\s.\/_\-${DASH}]`;
+const EXTENSION = String.raw`(?:\s*(?:x|ext\.?)\s*${DIGIT}{1,6})?`;
+const RUN = String.raw`[+(]?${DIGIT}(?:${DIGIT}|${BETWEEN}|[()]){8,}${
+  DIGIT}${EXTENSION}`;
+const NO_ID_LEFT = String.raw`(?<![A-Za-z0-9０-９-])`;
+const NO_ID_RIGHT = String.raw`(?![A-Za-z0-9０-９]|-[A-Za-z0-9])`;
 const PHONE = new RegExp(RUN, "gi");
 const PHONE_BESIDE_ID = new RegExp(`${NO_ID_LEFT}${RUN}${NO_ID_RIGHT}`, "gi");
-const SHAPED = new RegExp(
-  String.raw`\(?(?<!\d)\d{3}\)?[\s.-]\d{3}[\s.-]\d{4}(?!\d)${EXTENSION}`,
-  "gi",
-);
+const SHAPED = new RegExp(String.raw`\(?(?<!${DIGIT})${DIGIT}{3}\)?${
+  BETWEEN}${DIGIT}{3}${BETWEEN}${DIGIT}{4}(?!${DIGIT})${EXTENSION}`, "gi");
+const DIGITS = new RegExp(DIGIT, "g");
 const DEPTH = 8;
 
+// A number value of 10 or more digits before the point could be a
+// phone number logged as a number, not a string (#922), so off an id
+// key it is tagged like one. A count, an amount in cents or a duration
+// is far shorter.
+const LONG_NUMBER = 1e9;
+
 // An id key: "id", "key", "invite", or a camelCase or snake_case name
-// ending in one ("squareOrderId", "idempotencyKey", "order_id"). Read
-// from the key as written, so "paid" and "valid" are not ids.
-const ID_KEY = /^(?:id|key|invite)$|(?:[a-z0-9](?:Id|ID|Key)|[_-](?:id|key))$/;
+// ending in one ("squareOrderId", "idempotencyKey", "order_id"), or in
+// "Run" or "run" for a GitHub Actions run id ("stagingRun", #922).
+// Read from the key as written, so "paid" and "valid" are not ids.
+const ID_KEY =
+  /^(?:id|key|invite)$|(?:[a-z0-9](?:Id|ID|Key|Run)|[_-](?:id|key|run))$/;
 
 const tagEmail = (address) => `[email:${
   createHash("sha256").update(address.toLowerCase()).digest("hex")
     .slice(0, 8)}]`;
 
-const tagPhone = (m) => (m.replace(/\D/g, "").length >= 10 ? "[phone]" : m);
+const tagPhone = (m) => ((m.match(DIGITS) || []).length >= 10
+  ? "[phone]" : m);
 
 const scrubText = (text, asId) => text
   .replace(EMAIL, tagEmail)
@@ -80,6 +95,10 @@ const scrubText = (text, asId) => text
 
 export const scrub = (value, depth = 0, asId = false) => {
   if (typeof value === "string") return scrubText(value, asId);
+  if (typeof value === "number") {
+    return !asId && Number.isFinite(value) && Math.abs(value) >= LONG_NUMBER
+      ? "[phone]" : value;
+  }
   if (!value || typeof value !== "object") return value;
   if (depth >= DEPTH) return REMOVED;
   if (value instanceof Error) {
