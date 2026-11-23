@@ -36,9 +36,11 @@
 //
 // Wording is a draft for James (#138, #214).
 
-import { siteNow } from "../clock/now.js";
 import { drawTag, drawTip, standOn } from "./draw.js";
 import { clearance, fit } from "./fit.mjs";
+import { schedule, watchSeasons } from "./schedule.js";
+import { expire, number } from "./seasons.js";
+import { hashTarget } from "./seasons.mjs";
 import { MARGIN, inFrame } from "./stand.mjs";
 import { tagFacts, toneOf, zipOf } from "./tag.mjs";
 import {
@@ -55,51 +57,8 @@ const SLOP = 6;
 const zipAt = (area) => zipOf(area.dataset.zip);
 const toneAt = (area) => toneOf([...area.classList]);
 
-// Today on the visitor's clock, moved by the staging toolbar's
-// (clock/now.js), to compare with the dates in the markup. Only
-// forward: what the build left out, or this removed, stays gone.
-const today = () => {
-  const d = new Date(siteNow());
-  const pad = (n) => String(n).padStart(2, "0");
-
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-};
-
-// What has ended goes: a series on a card, a link, a row in the list,
-// a pin. A card left without links loses their heading.
-const expire = (map) => {
-  const day = today();
-  const gone = (el) => el.dataset.until && el.dataset.until < day;
-
-  for (const el of map.querySelectorAll(".map-places [data-until]")) {
-    if (gone(el)) el.remove();
-  }
-  for (const links of map.querySelectorAll(".map-card-links")) {
-    if (links.querySelector("a")) continue;
-    links.previousElementSibling.remove();
-    links.remove();
-  }
-  for (const pin of map.querySelectorAll("[data-map-pin]")) {
-    if (gone(pin)) pin.remove();
-  }
-};
-
-// The numbers on the rows and the pins, in the order of the list: a
-// place that has ended, or is filtered out, leaves no gap.
-const number = (map) => {
-  const rows = [...map.querySelectorAll(
-    "li:not([hidden]) > [data-map-show]"
-  )];
-  const numbers = new Map(rows.map((row, i) => [row.dataset.mapShow, i + 1]));
-
-  for (const el of map.querySelectorAll("[data-map-show], [data-map-pin]")) {
-    const n = numbers.get(el.dataset.mapShow || el.dataset.mapPin);
-
-    if (n) el.querySelector("[data-map-num], .map-pin-num").textContent = n;
-  }
-};
-
 const wire = (map) => {
+  // What has ended goes, and the rest are numbered (seasons.js).
   expire(map);
   number(map);
 
@@ -534,16 +493,12 @@ const wire = (map) => {
     rowOf(n)?.focus();
   });
 
-  // What ends while the page is open leaves the list and the map, and
-  // Places frames the pins that remain.
-  document.addEventListener("visibilitychange", () => {
-    if (document.hidden) return;
-
+  // What ends while the page is open leaves the list and the map
+  // (schedule.js), and Places frames the pins that remain.
+  watchSeasons(map, (remaining) => {
     const before = pins.length;
 
-    expire(map);
-    pins = [...map.querySelectorAll("[data-map-pin]")];
-    number(map);
+    pins = remaining;
     if (open && !open.isConnected) {
       open = null;
       pressed(null);
@@ -551,51 +506,6 @@ const wire = (map) => {
     }
     if (pins.length !== before && layer() === "places") go(home());
   });
-
-  // The schedule, read at view time (/api/events: what the farm
-  // attends).
-  const rows = () => (list
-    ? [...list.querySelectorAll(".map-key-list > li")] : []);
-
-  // The locations by the next date the farm attends: the farm first,
-  // those with a date in /api/events in its order, the rest as built.
-  const arrange = (events) => {
-    const ul = list.querySelector(".map-key-list");
-    const at = (li) => {
-      const i = events.findIndex((e) => e.location === li.dataset.location);
-
-      return i < 0 ? events.length : i;
-    };
-    const items = rows();
-    const sorted = [...items].sort((a, b) => {
-      if (!a.dataset.location || !b.dataset.location) {
-        return (a.dataset.location ? 1 : 0) - (b.dataset.location ? 1 : 0);
-      }
-
-      return at(a) - at(b) || items.indexOf(a) - items.indexOf(b);
-    });
-
-    ul.append(...sorted);
-  };
-
-  async function schedule() {
-    if (!list) return;
-
-    let events;
-
-    try {
-      const res = await fetch("/api/events", { cache: "no-store" });
-      const data = res.ok ? await res.json() : null;
-
-      events = data && Array.isArray(data.events) ? data.events : null;
-    } catch {
-      events = null;
-    }
-    if (!events) return;
-    arrange(events);
-    number(map);
-    if (layer() === "places") go(home());
-  }
 
   // The tag: the town, what we deliver there and the price (tag.mjs,
   // draw.js). "el" is the dropped pin's tag or the pointer's.
@@ -789,15 +699,15 @@ const wire = (map) => {
     tabs.find((t) => t.dataset.mapLayer === "places").focus();
   });
 
-  // #places opens the Places layer. #places-scheduled is the older
-  // link, from when Places had a filter, and opens plain Places too;
-  // #place-… opens that place's card.
+  // #places and #places-scheduled open the Places layer, #place-… that
+  // place's card (hashTarget, seasons.mjs).
   const follow = () => {
-    const hash = decodeURIComponent(location.hash.slice(1));
+    const target = hashTarget(decodeURIComponent(location.hash.slice(1)),
+      tabs.length > 0);
 
-    if (!tabs.length || !hash.startsWith("place")) return;
-    const pin = hash.startsWith("places") ? null
-      : map.querySelector(`[data-map-slug="${CSS.escape(hash)}"]`);
+    if (!target) return;
+    const pin = target.slug && map.querySelector(
+      `[data-map-slug="${CSS.escape(target.slug)}"]`);
 
     setLayer("places");
     if (pin) show(pin.dataset.mapPin);
@@ -849,7 +759,10 @@ const wire = (map) => {
   addEventListener("resize", apply);
   apply();
   follow();
-  schedule();
+  // The list by the next date the farm attends (schedule.js).
+  schedule(map, list, () => {
+    if (layer() === "places") go(home());
+  });
 };
 
 export const wireMaps = () => {
