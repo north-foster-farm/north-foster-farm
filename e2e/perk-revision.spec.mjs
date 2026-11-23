@@ -137,6 +137,8 @@ const dropOwnRoutes = (page, more = []) => Promise.all(
 // the session's cache never answers with the last test's perks.
 // `extra` adds to /api/me's answer (a member's `member`).
 const signIn = async (page, baseURL, perks, extra = {}) => {
+  // The stamp goes before the page does, as vff.mjs's signIn says.
+  await clearSession(page.context());
   await page.goto("about:blank");
   await answerAccount(page.context());
   stamps += 1;

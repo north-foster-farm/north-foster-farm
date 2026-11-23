@@ -23,6 +23,7 @@
 
 import { CUSTOMER, cannedDates } from "./support/canned.mjs";
 import { OrderPage, expect, settleCart, test } from "./support/order.mjs";
+import { clearSession } from "./support/staging.mjs";
 
 const FRIENDS = "Friends and family pricing";
 const FRIENDS_PARTS = [
@@ -45,11 +46,13 @@ let stamps = 0;
 // perks never reads the last answer from the session's cache
 // (session/cache.js).
 //
-// The last page goes first: its requests end there, so a cart push it
-// sent while the routes were away cannot come back a 401 that clears
-// the new stamp, and the account page loads again rather than only
-// changing its hash.
+// The stamp goes first, then the last page: a cart push that page
+// sends on pagehide finds no stamp and is never sent, so it cannot
+// come back a 401 that clears the new stamp (#729; leaving first was
+// not enough, since a keepalive push outlives the page). The account
+// page then loads again rather than only changing its hash.
 const signIn = async (page, baseURL, perks) => {
+  await clearSession(page.context());
   await page.goto("about:blank");
   stamps += 1;
   await page.context().addCookies([
