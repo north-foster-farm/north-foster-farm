@@ -20,14 +20,11 @@
 //                        null when the order turned out paid already
 //   venmoCapture(payload, paypalOrderId)
 
-import {
-  CARD_STYLE, cardRequest, paymentRequestOf,
-} from "./pay/requests.mjs";
+import { Card } from "./pay/card.js";
+import { paymentRequestOf } from "./pay/requests.mjs";
 import { loadScript } from "./pay/scripts.js";
 import { Section } from "./pay/section.js";
-import {
-  cardDone, cardFieldOf, endState, sectionComplete,
-} from "./pay/states.mjs";
+import { endState } from "./pay/states.mjs";
 import { clickAllowed, shouldRestart } from "./pay/venmo-flow.mjs";
 import { venmoEnabled } from "./pay/venmo-gate.js";
 import { dollarsOf, tokenMessage, venmoRefusal } from "./pay/words.mjs";
@@ -41,23 +38,28 @@ const qs = (root, selector) => root.querySelector(selector);
 // fields gives up at 10 s with Try again; this is the backstop.
 const INIT_TIMEOUT_MS = 20_000;
 
-// The events in which Square's card form says how each of the card's
-// fields stands (pay/states.mjs, cardFieldOf).
-const CARD_EVENTS = [
-  "focusClassRemoved", "errorClassAdded", "errorClassRemoved",
-  "cardBrandChanged", "postalCodeChanged",
-];
-
-// Square's frame sends a field's state a moment after the focus leaves
-// it, so a press that took the focus from the last field waits this
-// long for its word.
-const CARD_SETTLE_MS = 200;
+// The form, narrowed to what the parts may ask of it (docs/refactors/
+// pay.md, section 2), from the eleven members it gives. No part sees
+// the form itself.
+const checkoutOf = (form) => ({
+  amount: () => form.amount(),
+  label: () => form.contact.name,
+  prepare: () => form.prepare(),
+  prepareAsync: () => form.prepareAsync(),
+  pay: (payload, source) => form.pay(payload, source),
+  billing: (payload) => form.billing(payload),
+  referenceId: () => form.referenceId(),
+  venmoCreate: (payload) => form.venmoCreate(payload),
+  venmoCapture: (...args) => form.venmoCapture(...args),
+  stockLocked: () => form.stock.locked,
+  ready: () => form.paymentReady(),
+});
 
 export class Payment {
   constructor(root, form) {
     this.root = root;
     this.form = form;
-    this.card = null;
+    this.checkout = checkoutOf(form);
     this.payments = null;
     this.request = null;
     this.wallets = {};
@@ -65,14 +67,19 @@ export class Payment {
     this.config = null;
     this.ready = false;
     this.starting = null;
-    // Which of the card's fields Square calls complete (cardDone).
-    this.cardFields = {};
     // The section's DOM state, its error line and its two flags
-    // (pay/section.js). The form reads `state`; the card's button is
-    // wired in initSquare.
+    // (pay/section.js). The form reads `state`.
     this.section = new Section(root);
     this.state = this.section.state;
-    this.cardButton = this.section.cardButton;
+    // The card form, its fields' states and its token (pay/card.js).
+    this.cardPart = new Card({
+      root, section: this.section, checkout: this.checkout,
+    });
+  }
+
+  // The attached card, or null.
+  get card() {
+    return this.cardPart.card;
   }
 
   get busy() {
@@ -216,26 +223,7 @@ export class Payment {
     sdk("square", "ready");
     crumb("square.ready");
 
-    try {
-      this.card = await this.payments.card({ style: CARD_STYLE });
-      await this.card.attach(qs(this.root, "[data-card]"));
-      // A stand-in with no events (a spec's) leaves every field unknown.
-      for (const type of CARD_EVENTS) {
-        this.card.addEventListener?.(type, (e) => this.cardInput(e));
-      }
-      crumb("card.ready");
-      this.setCardAvailable(true);
-      this.cardButton.addEventListener("click", () => {
-        this.setCardOpen(true);
-        this.card.focus("cardNumber").catch(() => {});
-      });
-    } catch (error) {
-      console.error(error);
-      crumb("card.attach_failed");
-      reportError("card.attach", error);
-      this.card = null;
-      this.setCardAvailable(false);
-    }
+    await this.cardPart.attach(this.payments);
 
     this.request = this.payments.paymentRequest(paymentRequestOf(
       this.form.amount(), this.form.contact.name
@@ -248,32 +236,9 @@ export class Payment {
     this.showWallets();
   }
 
-  // A field of the card form says how it stands.
-  cardInput(e) {
-    const said = cardFieldOf(e);
-
-    if (said) this.cardFields[said.field] = said.valid;
-  }
-
-  cardDone() {
-    return cardDone(this.cardFields);
-  }
-
-  // Whether the section needs nothing more (pay/states.mjs,
-  // sectionComplete). A card whose fields have not all reported waits
-  // CARD_SETTLE_MS for the last one's word.
-  async complete() {
-    const amount = this.form.amount();
-    const now = (done) => sectionComplete({
-      amount, covered: this.covered, card: this.card,
-      cardOpen: this.state.dataset.cardOpen === "true", done,
-    });
-
-    if (now(this.cardDone())) return true;
-    if (!now(true)) return false;
-    await new Promise((resolve) => { setTimeout(resolve, CARD_SETTLE_MS); });
-
-    return this.cardDone();
+  // Whether the section needs nothing more (pay/card.js).
+  complete() {
+    return this.cardPart.complete();
   }
 
   showWallets() {
@@ -394,22 +359,10 @@ export class Payment {
     }
   }
 
-  // The card form's token, with the customer's details for the
-  // bank's verification. -> { method, sourceId }; throws with a
-  // message for the customer.
-  async tokenizeCard(payload) {
-    if (!this.card) {
-      throw new Error("Card payments aren't available right now.");
-    }
-
-    const b = this.form.billing(payload);
-    const result = await this.card.tokenize(
-      cardRequest(this.form.amount(), b)
-    );
-
-    if (result.status !== "OK") throw new Error(tokenMessage(result));
-
-    return { method: "card", sourceId: result.token };
+  // The card form's token (pay/card.js). -> { method, sourceId };
+  // throws with a message for the customer.
+  tokenizeCard(payload) {
+    return this.cardPart.tokenize(payload);
   }
 
   // The total changed: the wallets' sheets must show the new one.
