@@ -319,7 +319,9 @@ export const cookieFrom = (req) => {
   return match ? match[1] : null;
 };
 
-// -> { id, email, customer } for a live session on the request, else null.
+// -> { id, email, customer, via, expires } for a live session on the
+// request, else null. `expires` is when it ends (ms since the epoch),
+// so a stamp put back can end with it (#985).
 export const sessionFrom = async (stores, req, { now = clock() } = {}) => {
   const id = cookieFrom(req);
 
@@ -337,7 +339,10 @@ export const sessionFrom = async (stores, req, { now = clock() } = {}) => {
 
   const customer = await ensureCustomer(stores, session.email, now);
 
-  return { id, email: session.email, customer, via: session.via };
+  return {
+    id, email: session.email, customer, via: session.via,
+    expires: session.expires,
+  };
 };
 
 export const endSession = async (stores, id) => {

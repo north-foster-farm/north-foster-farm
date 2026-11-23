@@ -301,8 +301,13 @@ export const handle = async (req, {
     // A live session asked for without its stamp gets the stamp back
     // (#985): a late 401 from another tab can clear it just after a
     // sign-in, which would leave the header signed in and the order
-    // form not. A cookie only; no record changes.
-    const restamp = hasStamp(req) ? {} : { "Set-Cookie": stampHeader(now) };
+    // form not. It ends with the session, which does not slide, so it
+    // lasts only the time the session has left. A cookie only; no
+    // record changes.
+    const left = Math.floor((session.expires - now.getTime()) / 1000);
+    const restamp = hasStamp(req)
+      ? {}
+      : { "Set-Cookie": stampHeader(now, { maxAge: left }) };
 
     // `owner`: the tag of this account's cart draft (#149).
     return json(200, {
