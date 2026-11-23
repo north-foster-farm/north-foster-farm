@@ -922,7 +922,8 @@ None of these is fixed inside a move.
   `idempotencyKey` at its top level and nothing on the page sets
   `meta`, so the `order.undeliverable` line never has its key. Filed
   as #814 (the `order.undeliverable` console line never carries its
-  idempotency key). Its fix, with a test, lands before phase 4.
+  idempotency key). Fixed before phase 4 (2026-11-23): the line now
+  reads the payload's top-level key.
 - `eligible()` has no caller (deleted in phase 6).
 - `settle()` handles `declined` and `checkout` with the same three
   lines (one handler in phase 13).
