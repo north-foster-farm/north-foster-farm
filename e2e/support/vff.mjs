@@ -117,6 +117,8 @@ export const signIn = async (page, baseURL, me, {
   await page.context().addCookies([
     { name: "nff_signed_in", value: `vff${stamps}`, url: baseURL },
   ]);
+  stamped.set(page, (await page.context().cookies())
+    .some((c) => c.name === "nff_signed_in"));
   // With or without a query string.
   await page.route(/\/api\/me(?:[?#]|$)/, (route) => route.fulfill({
     json: me,
@@ -135,14 +137,42 @@ export const signIn = async (page, baseURL, me, {
 };
 
 // What the page did, for a staging run that keeps no trace (#729,
-// qa's triage of run 45134992415): each response's method, path and
-// status, and whether it was Netlify's bot challenge; the page's
-// errors and console errors, by kind and source path alone; the
-// cookies' names and the storage keys; and what the page's /api/me
-// answers said, as flags. Never a message's text, which can quote a
-// URL's query or a field's value: no cookie value, token, query, body
-// or address.
-const KIND = /^[A-Za-z][A-Za-z ]{0,39}(?=:)/;
+// qa's triage of run 45134992415; run 45144961061 found the stamp
+// gone before the order page started): each main-frame navigation
+// and each of the site's /api/ and /scripts/ responses, by method,
+// path and status, and whether it was Netlify's bot challenge; the
+// page's errors and console errors, by a known kind and source path
+// alone; whether signIn's jar held the stamp right after adding it;
+// whether each document saw the stamp as it started; the cookies'
+// names and the storage keys; and what the page's /api/me answers
+// said, as flags. Never a message's text, which can quote a URL's
+// query or a field's value: no cookie value, token, query, body or
+// address.
+// Whether the jar held the stamp right after signIn added it, by page.
+const stamped = new WeakMap();
+// Each document's path and whether it saw the stamp as it started,
+// kept in sessionStorage so a reload (a challenge's) keeps the list.
+const STARTS = "nff-e2e-stamp-at-start";
+const noteStart = (key) => {
+  try {
+    const list = JSON.parse(sessionStorage.getItem(key) || "[]");
+
+    list.push([location.pathname,
+      /(?:^|;\s*)nff_signed_in=[^;]/.test(document.cookie)]);
+    sessionStorage.setItem(key, JSON.stringify(list.slice(-20)));
+  } catch {
+    // Storage blocked: nothing to note.
+  }
+};
+// The kinds of console error that may be printed; any other text,
+// which could begin with a name ("Pat Example: ..."), prints as error.
+const KINDS = ["Failed to load resource", "Uncaught TypeError",
+  "Uncaught ReferenceError", "Uncaught SyntaxError", "Uncaught Error",
+  "TypeError", "ReferenceError", "SyntaxError", "RangeError", "Error"];
+const kindOf = (text) => KINDS.find((k) => String(text).startsWith(`${k}:`))
+  || "error";
+const nameOf = (e) => (/^[A-Za-z]{1,40}$/.test(String(e && e.name))
+  ? e.name : "Error");
 const pathOf = (url) => {
   try {
     return new URL(url).pathname;
@@ -163,30 +193,34 @@ const watchPage = (page) => {
   };
   const onResponse = async (r) => {
     const url = new URL(r.url());
+    const nav = r.request().isNavigationRequest()
+      && r.frame() === page.mainFrame();
 
-    // The site's own calls and scripts, not the payment SDKs'.
-    if (!/^\/(api|scripts)\//.test(url.pathname)) return;
-    let note = "";
+    // Main-frame documents, and the site's own calls and scripts, not
+    // the payment SDKs'.
+    if (!nav && !/^\/(api|scripts)\//.test(url.pathname)) return;
+    let note = nav ? " document" : "";
 
     if (url.pathname === "/api/me") {
       const body = await r.json().catch(() => null);
 
-      note = body ? ` signedIn=${!!body.signedIn} member=${
-        !!(body.customer && body.customer.memberGroup)}` : " unread";
-    } else if (r.status() === 403) {
+      note = body ? ` signedIn=${!!body.signedIn} memberGroup=${
+        !!(body.customer && body.customer.memberGroup)} member=${
+        !!body.member}` : " unread";
+    }
+    if (r.status() === 403) {
       const body = await r.text().catch(() => "");
 
-      note = isChallenge(403, body) ? " challenge" : "";
+      if (isChallenge(403, body)) note += " challenge";
     }
     add(`${r.request().method()} ${url.pathname} ${r.status()}${note}`);
   };
-  const onError = (e) => add(`pageerror ${e.name || "Error"} ${
-    frameOf(e.stack)}`);
+  const onError = (e) => add(`pageerror ${nameOf(e)} ${frameOf(e.stack)}`);
   const onConsole = (m) => {
     if (m.type() !== "error") return;
 
     const where = m.location() || {};
-    const kind = (m.text().match(KIND) || ["error"])[0];
+    const kind = kindOf(m.text());
 
     add(`console ${kind} ${pathOf(where.url)}:${where.lineNumber ?? ""}`);
   };
@@ -194,22 +228,52 @@ const watchPage = (page) => {
   page.on("response", onResponse);
   page.on("pageerror", onError);
   page.on("console", onConsole);
+  // Every document from here on notes the stamp as it starts.
+  const started = page.addInitScript(noteStart, STARTS).catch(() => {});
 
-  return async () => {
+  const stop = () => {
     page.off("response", onResponse);
     page.off("pageerror", onError);
     page.off("console", onConsole);
-
-    const cookies = (await page.context().cookies()).map((c) => c.name);
-    const state = await page.evaluate(() => ({
+  };
+  const gather = async () => ({
+    stampAfterSignIn: stamped.has(page) ? stamped.get(page) : null,
+    cookies: (await page.context().cookies()).map((c) => c.name),
+    starts: await page.evaluate((key) => {
+      try {
+        return JSON.parse(sessionStorage.getItem(key) || "[]")
+          .map(([path, seen]) => [String(path), !!seen]);
+      } catch {
+        return null;
+      }
+    }, STARTS),
+    state: await page.evaluate(() => ({
       stamp: /(?:^|;\s*)nff_signed_in=[^;]/.test(document.cookie),
       session: Object.keys(sessionStorage),
       local: Object.keys(localStorage),
       prompt: !!document.querySelector("[data-signin-prompt]:not([hidden])"),
-    })).catch(() => null);
+    })),
+  });
 
-    return { seen, cookies, state };
+  // -> what was seen. Never throws and never takes more than 5 s, so
+  // the error it reports on is the one rethrown: a closed page or a
+  // stuck one leaves only what the listeners saw.
+  const report = async () => {
+    stop();
+
+    let timer;
+    const late = new Promise((resolve) => {
+      timer = setTimeout(() => resolve({ late: true }), 5_000);
+    });
+    const more = await Promise.race([gather(), late])
+      .catch(() => ({ closed: true }));
+
+    clearTimeout(timer);
+
+    return { seen, ...more };
   };
+
+  return { started, stop, report };
 };
 
 // The order page with `cart`, once a member's group has come.
@@ -219,16 +283,23 @@ export const openOrder = async (page, me, cart = { whole: 2 }) => {
     ? page.waitForResponse((r) => r.url().includes("/api/group"))
     : null;
   const order = new OrderPage(page);
-  const report = watchPage(page);
+  const watch = watchPage(page);
 
+  await watch.started;
   try {
     await order.open(cart);
     if (group) await group;
   } catch (error) {
-    console.log(`openOrder diagnostics: ${JSON.stringify(await report())}`);
+    // Never in place of the error it reports on.
+    try {
+      console.log(`openOrder diagnostics: ${
+        JSON.stringify(await watch.report())}`);
+    } catch {
+      // Nothing more to say.
+    }
     throw error;
   }
-  await report();
+  watch.stop();
   // The page folds the group in after the answer.
   await order.scrollSettled();
 
