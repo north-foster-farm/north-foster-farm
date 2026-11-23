@@ -1,12 +1,17 @@
-// The site search (partials/search/field.html, #402): an ARIA 1.2
-// combobox over /search.json. From 992 px the field sits in the header
-// row and its results open in a panel under it; below that the
-// header's magnifier opens a bar under the header, over a scrim, with
-// Cancel. The index is fetched the first time search is opened or
-// focused, never on load. Results come grouped (match.js); arrows move
-// the active one while the focus stays in the field, and Enter or a
-// click opens one. A product goes to its row on the order page; there
-// is no Add. Esc, Cancel, X or a tap outside closes search.
+// The site search (partials/search/field.html, #402, #913): an ARIA 1.2
+// combobox over /search.json, closed to the header's magnifier at
+// every width. The magnifier opens it and closes it again, named
+// "Search" or "Close search" to match. From 992 px it unfolds a field
+// in the header row, its results in a panel under it; below that a bar
+// under the header, over a scrim, with Cancel. The index is fetched
+// the first time search is opened, never on load. Results come grouped
+// (match.js); arrows move the active one while the focus stays in the
+// field, and Enter or a click opens one. A product goes to its row on
+// the order page; there is no Add. Esc, Cancel, X or a tap outside
+// closes search. From 992 px, Esc or X closes the results and leaves
+// the focus in the field, which folds away once the focus leaves it
+// (_search.scss); typing there opens search again, and a second Esc
+// closes it and hands the focus back to the magnifier.
 
 import { index, search } from "./match.js";
 import { listed, stockOf } from "./stock.js";
@@ -29,6 +34,48 @@ const detail = (entry, live) => {
   return entry.detail || entry.snippet || "";
 };
 
+// Search's open state, on the region, the scrim and the magnifier,
+// which says what pressing it does (#913). The CSS animates the change.
+const openState = ({ root, scrim, opener, wide }) => {
+  let open = false;
+
+  return {
+    get isOpen() {
+      return open;
+    },
+    mark(now) {
+      open = now;
+      root.classList.toggle("is-open", now);
+      scrim?.classList.toggle("is-open", now && !wide.matches);
+      opener?.setAttribute("aria-expanded", String(now));
+      // Drafts for James.
+      opener?.setAttribute("aria-label", now ? "Close search" : "Search");
+    },
+  };
+};
+
+// Below 992 px the bar is fixed under the header where it is now; the
+// page under the scrim stays put while it is open.
+const placeBar = (root, scrim) => {
+  const bottom = root.closest("header").getBoundingClientRect().bottom;
+  const top = `${Math.max(0, bottom)}px`;
+
+  root.style.setProperty("--find-top", top);
+  scrim?.style.setProperty("--find-top", top);
+};
+
+// Calls back only when the width truly crosses the breakpoint: Chrome
+// can fire a change with none, as when the viewport is reset (#913).
+const onCrossing = (query, back) => {
+  let was = query.matches;
+
+  query.addEventListener("change", () => {
+    if (query.matches === was) return;
+    was = query.matches;
+    back();
+  });
+};
+
 export const wireSiteSearch = () => {
   const root = document.querySelector("[data-site-find]");
 
@@ -47,8 +94,8 @@ export const wireSiteSearch = () => {
   const optionShape = q("[data-find-option]").content.firstElementChild;
   const opener = document.querySelector("[data-search-open]");
   const scrim = document.querySelector("[data-find-scrim]");
-  const header = root.closest("header");
   const wide = matchMedia(WIDE);
+  const state = openState({ root, scrim, opener, wide });
 
   // Live stock, { sku: { inStock, available } }, from /api/stock on
   // the first open, as the order page asks for it (James, 2026-11-21,
@@ -61,12 +108,10 @@ export const wireSiteSearch = () => {
   let loading = null;
   let options = [];
   let active = -1;
-  let barOpen = false;
 
-  // Engaged: the field has the focus from 992 px, the bar is open
-  // below.
-  const engaged = () => (wide.matches
-    ? document.activeElement === input : barOpen);
+  // Engaged: search is open, and from 992 px the field has the focus.
+  const engaged = () => state.isOpen
+    && (!wide.matches || document.activeElement === input);
 
   const setActive = (i, { scroll = true } = {}) => {
     active = options.length ? i : -1;
@@ -192,38 +237,36 @@ export const wireSiteSearch = () => {
     return stocking;
   };
 
-  const openBar = () => {
-    if (barOpen) return;
-    barOpen = true;
-
-    // Fixed under the header where it is now; the page under the
-    // scrim stays put while the bar is open.
-    const top = `${Math.max(0, header.getBoundingClientRect().bottom)}px`;
-
-    root.style.setProperty("--find-top", top);
-    scrim.style.setProperty("--find-top", top);
-    root.classList.add("is-open");
-    scrim.hidden = false;
-    opener.setAttribute("aria-expanded", "true");
+  const open = () => {
+    if (state.isOpen) return;
+    if (!wide.matches) placeBar(root, scrim);
+    state.mark(true);
     input.focus();
     load();
     loadStock();
     render();
   };
 
-  const closeBar = ({ focus = true } = {}) => {
-    if (!barOpen) return;
-    barOpen = false;
-    root.classList.remove("is-open");
-    scrim.hidden = true;
-    opener.setAttribute("aria-expanded", "false");
+  // Closes search, the field held open by the focus included.
+  const close = ({ focus = true } = {}) => {
+    if (!state.isOpen && !root.contains(document.activeElement)) {
+      return;
+    }
+    state.mark(false);
     input.value = "";
     render();
-    if (focus) opener.focus();
+    if (focus) opener?.focus();
+    else if (root.contains(document.activeElement)) {
+      document.activeElement.blur();
+    }
   };
 
-  // Closes search: the panel from 992 px, the bar below.
-  const close = (how) => (wide.matches ? hidePanel() : closeBar(how));
+  // From 992 px Esc and X close the results and leave the field where
+  // the focus is (see the top of this file).
+  const release = () => {
+    state.mark(false);
+    hidePanel();
+  };
 
   // Opens a result. A link to this same page and hash still moves to
   // it: the order page listens for the hash (order/restock.js).
@@ -231,7 +274,6 @@ export const wireSiteSearch = () => {
     const to = new URL(url, location.href);
 
     close({ focus: false });
-    if (wide.matches) input.blur();
     if (to.href === location.href && to.hash) {
       window.dispatchEvent(new HashChangeEvent("hashchange"));
 
@@ -248,7 +290,11 @@ export const wireSiteSearch = () => {
   input.addEventListener("click", () => {
     if (panel.hidden) render();
   });
-  input.addEventListener("input", render);
+  // Typing in a field Esc left open opens search again.
+  input.addEventListener("input", () => {
+    if (!state.isOpen) state.mark(true);
+    render();
+  });
   input.addEventListener("keydown", (e) => {
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
       e.preventDefault();
@@ -268,12 +314,8 @@ export const wireSiteSearch = () => {
     } else if (e.key === "Escape") {
       e.preventDefault();
       e.stopPropagation();
-      if (!wide.matches) closeBar();
-      else if (!panel.hidden) hidePanel();
-      else if (input.value) {
-        input.value = "";
-        render();
-      }
+      if (wide.matches && !panel.hidden) release();
+      else close();
     }
   });
 
@@ -286,49 +328,51 @@ export const wireSiteSearch = () => {
 
   clear.addEventListener("click", () => {
     input.value = "";
+    release();
     render();
     input.focus();
   });
-  cancel.addEventListener("click", () => closeBar());
-  opener?.addEventListener("click", () => (barOpen ? closeBar()
-    : openBar()));
+  cancel.addEventListener("click", () => close());
+  opener?.addEventListener("click", () => (state.isOpen ? close() : open()));
 
   // A tap on the scrim closes the bar, and lands nowhere else.
-  scrim?.addEventListener("click", () => closeBar({ focus: false }));
+  scrim?.addEventListener("click", () => close({ focus: false }));
 
-  // A press anywhere else closes it too: the page is still there to
-  // use from 992 px.
+  // A press anywhere else closes it too: from 992 px the page is still
+  // there to use.
   document.addEventListener("pointerdown", (e) => {
     if (root.contains(e.target) || opener?.contains(e.target)
       || e.target === scrim) return;
-    if (wide.matches) hidePanel();
-    else closeBar({ focus: false });
+    close({ focus: false });
   });
 
-  // From 992 px the panel closes as the focus leaves search.
+  // From 992 px the panel closes as the focus leaves search, which
+  // stays open; a field Esc left open empties as it folds away.
   root.addEventListener("focusout", (e) => {
-    if (wide.matches && e.relatedTarget && !root.contains(e.relatedTarget)) {
-      hidePanel();
-    }
+    if (!wide.matches || !e.relatedTarget
+      || root.contains(e.relatedTarget)) return;
+    hidePanel();
+    if (!state.isOpen) input.value = "";
   });
 
-  // Crossing 992 px puts the bar away.
-  wide.addEventListener("change", () => {
-    closeBar({ focus: false });
+  // Crossing 992 px puts search away.
+  onCrossing(wide, () => {
+    close({ focus: false });
     hidePanel();
   });
 
-  // Cmd or Ctrl K, a quiet shortcut.
+  // Cmd or Ctrl K, a quiet shortcut: it opens search, and closes the
+  // bar below 992 px.
   document.addEventListener("keydown", (e) => {
     if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== "k") return;
     e.preventDefault();
-    if (wide.matches) {
+    if (!state.isOpen) {
+      open();
+    } else if (wide.matches) {
       input.focus();
       input.select();
-    } else if (barOpen) {
-      closeBar();
     } else {
-      openBar();
+      close();
     }
   });
 };

@@ -203,11 +203,9 @@ test.describe("the header with scripts off (#565)", () => {
       await expect(header.getByRole("link", { name, exact: true }))
         .toBeVisible();
     }
-    // #402: the search field sits in the row from 992 px; below that
-    // the magnifier ("Search", a draft) stands in for it.
-    const search = page.viewportSize().width >= 992
-      ? header.getByRole("combobox", { name: /search/i })
-      : header.getByRole("button", { name: /search/i });
+    // #913: search is closed to the magnifier at every width.
+    const search = header
+      .getByRole("button", { name: /^(open |close )?search$/i });
 
     await expect(search).toBeVisible();
   });

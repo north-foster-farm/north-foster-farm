@@ -117,17 +117,23 @@ header {
 }
 
 // Relative, so the phone's account menu hangs from its right edge.
+// The gap is a variable, so search's closed field can give it back,
+// and the row may shrink below its contents, so search's open field
+// can shrink into a tight row (_search.scss).
 .site-actions {
+  --actions-gap: 0.75rem;
+
   position: relative;
   display: flex;
+  min-width: 0;
   align-items: center;
-  gap: 0.75rem;
+  gap: var(--actions-gap);
   height: 2.25rem;
 
   // At 320, signed in with a cart, the hen and the row's five controls
   // overran by a few pixels and wrapped (#303).
   @media (max-width: 359.98px) {
-    gap: 0.375rem;
+    --actions-gap: 0.375rem;
   }
 }
 
@@ -699,7 +705,7 @@ $nav-link-transition:
   }
 
   .site-actions {
-    gap: 0.5rem;
+    --actions-gap: 0.5rem;
   }
 
   .site-links .site-nav-link {
@@ -713,7 +719,7 @@ $nav-link-transition:
   }
 
   .site-actions {
-    gap: 0.875rem;
+    --actions-gap: 0.875rem;
   }
 
   .site-links {

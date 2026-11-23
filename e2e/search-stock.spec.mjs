@@ -61,19 +61,15 @@ const stubStock = (page, over) => page.route("**/api/stock",
     await route.fulfill({ response: res, json: body });
   });
 
-// Opens search as a customer would (the field from 992 px, the
-// magnifier below), types the query and waits for live stock, applied.
+// Opens search as a customer would (from the magnifier, at every
+// width, #913), types the query and waits for live stock, applied.
 // -> the product option for `sku`, which may be absent.
 const find = async (page, query, sku) => {
   const field = page.getByRole("combobox", { name: /search/i });
   const region = page.getByRole("search").filter({ has: field });
 
-  if (page.viewportSize().width >= 992) {
-    await field.click();
-  } else {
-    await page.getByRole("banner")
-      .getByRole("button", { name: /search/i }).click();
-  }
+  await page.getByRole("banner")
+    .getByRole("button", { name: /^(open |close )?search$/i }).click();
   await expect(field).toBeFocused();
   await field.fill(query);
   // The panel shows once the index is in and the query rendered, with

@@ -161,6 +161,7 @@
         "e2e/perk-revision.spec.mjs",
         "e2e/search.spec.mjs",
         "e2e/site-search.spec.mjs",
+        "e2e/header-search.spec.mjs",
         "e2e/search-panel-nav.spec.mjs",
         "e2e/search-stock.spec.mjs",
         "e2e/sign-in-order.spec.mjs",
@@ -199,6 +200,7 @@
         "e2e/overflow.spec.mjs",
         "e2e/search.spec.mjs",
         "e2e/site-search.spec.mjs",
+        "e2e/header-search.spec.mjs",
         "e2e/search-panel-nav.spec.mjs",
         "e2e/search-stock.spec.mjs",
         "e2e/sign-in-order.spec.mjs",
@@ -240,6 +242,7 @@
         "e2e/pricing.spec.mjs",
         "e2e/search.spec.mjs",
         "e2e/site-search.spec.mjs",
+        "e2e/header-search.spec.mjs",
         "e2e/search-panel-nav.spec.mjs",
         "e2e/search-stock.spec.mjs",
         "e2e/sign-in-order.spec.mjs",
@@ -280,6 +283,7 @@
         "e2e/rate-limit.spec.mjs",
         "e2e/search.spec.mjs",
         "e2e/site-search.spec.mjs",
+        "e2e/header-search.spec.mjs",
         "e2e/search-panel-nav.spec.mjs",
         "e2e/search-stock.spec.mjs",
         "e2e/sign-in-order.spec.mjs",
@@ -321,6 +325,7 @@
         "e2e/restock.spec.mjs",
         "e2e/search.spec.mjs",
         "e2e/site-search.spec.mjs",
+        "e2e/header-search.spec.mjs",
         "e2e/search-panel-nav.spec.mjs",
         "e2e/search-stock.spec.mjs",
         "e2e/skeletons.spec.mjs",
@@ -378,6 +383,7 @@
         "e2e/report-privacy.spec.mjs",
         "e2e/search.spec.mjs",
         "e2e/site-search.spec.mjs",
+        "e2e/header-search.spec.mjs",
         "e2e/search-panel-nav.spec.mjs",
         "e2e/search-stock.spec.mjs",
         "e2e/top-bar-places.spec.mjs",
@@ -480,6 +486,7 @@
         "e2e/scheduled-pickup.spec.mjs",
         "e2e/search.spec.mjs",
         "e2e/site-search.spec.mjs",
+        "e2e/header-search.spec.mjs",
         "e2e/search-panel-nav.spec.mjs",
         "e2e/search-stock.spec.mjs",
         "e2e/sign-in-order.spec.mjs",
@@ -583,6 +590,7 @@
         "e2e/scheduled-pickup.spec.mjs",
         "e2e/search.spec.mjs",
         "e2e/site-search.spec.mjs",
+        "e2e/header-search.spec.mjs",
         "e2e/search-panel-nav.spec.mjs",
         "e2e/search-stock.spec.mjs",
         "e2e/sign-in-order.spec.mjs",
@@ -678,6 +686,7 @@
         "e2e/scheduled-pickup.spec.mjs",
         "e2e/search.spec.mjs",
         "e2e/site-search.spec.mjs",
+        "e2e/header-search.spec.mjs",
         "e2e/search-panel-nav.spec.mjs",
         "e2e/search-stock.spec.mjs",
         "e2e/sign-in-order.spec.mjs",
@@ -737,6 +746,7 @@
         "e2e/overflow.spec.mjs",
         "e2e/search.spec.mjs",
         "e2e/site-search.spec.mjs",
+        "e2e/header-search.spec.mjs",
         "e2e/search-panel-nav.spec.mjs",
         "e2e/search-stock.spec.mjs",
         "e2e/wording.spec.mjs"
@@ -819,6 +829,7 @@
         "e2e/scheduled-pickup.spec.mjs",
         "e2e/search.spec.mjs",
         "e2e/site-search.spec.mjs",
+        "e2e/header-search.spec.mjs",
         "e2e/search-panel-nav.spec.mjs",
         "e2e/search-stock.spec.mjs",
         "e2e/sign-in-order.spec.mjs",
@@ -916,6 +927,7 @@
         "e2e/scheduled-pickup.spec.mjs",
         "e2e/search.spec.mjs",
         "e2e/site-search.spec.mjs",
+        "e2e/header-search.spec.mjs",
         "e2e/search-panel-nav.spec.mjs",
         "e2e/search-stock.spec.mjs",
         "e2e/top-bar-places.spec.mjs",
@@ -962,6 +974,7 @@
         "e2e/rate-limit.spec.mjs",
         "e2e/search.spec.mjs",
         "e2e/site-search.spec.mjs",
+        "e2e/header-search.spec.mjs",
         "e2e/search-panel-nav.spec.mjs",
         "e2e/search-stock.spec.mjs",
         "e2e/skeletons.spec.mjs",
@@ -1003,6 +1016,7 @@
         "e2e/restock.spec.mjs",
         "e2e/search.spec.mjs",
         "e2e/site-search.spec.mjs",
+        "e2e/header-search.spec.mjs",
         "e2e/search-panel-nav.spec.mjs",
         "e2e/search-stock.spec.mjs",
         "e2e/sign-in-order.spec.mjs",
@@ -1045,6 +1059,7 @@
         "e2e/restock.spec.mjs",
         "e2e/search.spec.mjs",
         "e2e/site-search.spec.mjs",
+        "e2e/header-search.spec.mjs",
         "e2e/search-panel-nav.spec.mjs",
         "e2e/search-stock.spec.mjs",
         "e2e/sign-in-order.spec.mjs",
@@ -1086,6 +1101,7 @@
         "e2e/overflow.spec.mjs",
         "e2e/search.spec.mjs",
         "e2e/site-search.spec.mjs",
+        "e2e/header-search.spec.mjs",
         "e2e/search-panel-nav.spec.mjs",
         "e2e/search-stock.spec.mjs",
         "e2e/wording.spec.mjs"
@@ -2088,6 +2104,7 @@
       "specs": [
         "e2e/search.spec.mjs",
         "e2e/site-search.spec.mjs",
+        "e2e/header-search.spec.mjs",
         "e2e/search-panel-nav.spec.mjs",
         "e2e/search-stock.spec.mjs"
       ]
@@ -2099,6 +2116,14 @@
       "specs": [
         "e2e/site-search.spec.mjs",
         "e2e/search-stock.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/header-search.spec.mjs"
+      ],
+      "specs": [
+        "e2e/header-search.spec.mjs"
       ]
     },
     {

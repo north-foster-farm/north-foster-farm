@@ -147,19 +147,14 @@ for (const width of WIDTHS) {
       await fits(page, width, "/order/, delivery");
     });
 
-    // #402: the field in the header row from 992 px, the magnifier's
-    // bar below.
+    // #402: search opens from the magnifier at every width (#913).
     test("search fits with results showing", async ({ page }) => {
       const field = page.getByRole("combobox", { name: /search/i });
       const region = page.getByRole("search").filter({ has: field });
 
       await page.goto("/");
-      if (width >= 992) {
-        await field.click();
-      } else {
-        await page.getByRole("banner")
-          .getByRole("button", { name: /search/i }).click();
-      }
+      await page.getByRole("banner")
+        .getByRole("button", { name: /^(open |close )?search$/i }).click();
       await expect(field).toBeFocused();
       await field.fill("chicken");
       await expect(region.getByRole("option").first()).toBeVisible();

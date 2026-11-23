@@ -35,7 +35,7 @@ const ui = (page) => {
     field,
     region,
     magnifier: page.getByRole("banner")
-      .getByRole("button", { name: /search/i }),
+      .getByRole("button", { name: /^(open |close )?search$/i }),
     options: region.getByRole("option"),
   };
 };
@@ -43,8 +43,8 @@ const ui = (page) => {
 const openSearch = async (page) => {
   const s = ui(page);
 
-  if (page.viewportSize().width >= 992) await s.field.click();
-  else await s.magnifier.click();
+  // From the magnifier at every width (#913).
+  await s.magnifier.click();
   await expect(s.field).toBeFocused();
 
   return s;
