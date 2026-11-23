@@ -14,7 +14,7 @@
 // nothing yet.
 import { execFileSync } from "node:child_process";
 import { join } from "node:path";
-import { LISTS, parseList, readLists } from "./lists.mjs";
+import { LIMITS, LISTS, parseList, readLists } from "./lists.mjs";
 import { atBase, changedLines, changeOf, touched } from "./change.mjs";
 
 const root = process.cwd();
@@ -44,7 +44,7 @@ const unlisted = (files) => {
   let out;
   try {
     out = execFileSync(join(root, "node_modules/.bin/eslint"),
-      ["--format", "json", "--no-warn-ignored", ...files], {
+      ["--format", "json", "--no-warn-ignored", "--", ...files], {
         "encoding": "utf8", "maxBuffer": 64 * 1024 * 1024,
         "env": { ...process.env, "NFF_QUALITY_UNLISTED": "1" },
       });
@@ -86,17 +86,42 @@ const gateVerdict = (change, files, [gate, entries]) => {
   };
 };
 
-const check = () => {
-  const change = changeOf();
+const GATES = Object.keys(LIMITS);
+
+// The list files themselves: only the four limits can have one, and
+// none is added once the frame is in place, that is once the base
+// has any of the four (provisional, for James). The change that first
+// writes the four, onto a base with none, switches the frame on.
+const listFaults = (change, lists) => {
+  const based = GATES.filter((gate) =>
+    atBase(change, `${LISTS}/${gate}.txt`) !== null);
+  return Object.keys(lists).flatMap((name) => {
+    const list = `${LISTS}/${name}.txt`;
+    if (!GATES.includes(name)) {
+      return [`${list}: only the four limits (${GATES.join(", ")}) ` +
+        `can have a legacy list, so ${name} stays on`];
+    }
+    if (based.length && !based.includes(name)) {
+      return [`${list}: added once the frame is in place, and a list ` +
+        "is never added, only shrunk"];
+    }
+    return [];
+  });
+};
+
+const check = (change) => {
   const files = new Set(touched(change));
-  const verdicts = Object.entries(readLists(root))
+  const lists = readLists(root);
+  const verdicts = Object.entries(lists)
+    .filter(([gate]) => GATES.includes(gate))
     .filter(([gate]) => atBase(change, `${LISTS}/${gate}.txt`) !== null)
     .map((list) => gateVerdict(change, files, list));
-  return [...verdicts.flatMap((v) => v.failures),
+  return [...listFaults(change, lists),
+    ...verdicts.flatMap((v) => v.failures),
     ...stalledFindings(change, verdicts.flatMap((v) => v.stalled))];
 };
 
-const failures = check();
+const failures = check(changeOf());
 for (const line of failures) console.error(line);
 if (failures.length) {
   console.error(`check:touched: ${failures.length} to fix`);

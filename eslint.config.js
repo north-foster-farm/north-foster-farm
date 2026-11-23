@@ -36,13 +36,16 @@ const correctness = [
   "radix",
 ];
 
-// The legacy lists (#782 c7075114694, section 2): each gate leaves out
-// the files on its list, and only that gate, until a change brings
-// one up and deletes its line. check:touched sets NFF_QUALITY_UNLISTED
-// to hold a stalled file's changed lines to the gate.
+// The legacy lists (#782 c7075114694, section 2; #791 c7106875053):
+// each of the four limits leaves out the files on its list, and only
+// that limit, until a change brings one up and deletes its line. A
+// list named for any other rule is never read (and check:touched
+// refuses it). check:touched sets NFF_QUALITY_UNLISTED to hold a
+// stalled file's changed lines to the gate.
 const legacy = () => (process.env.NFF_QUALITY_UNLISTED ? [] :
   Object.entries(readLists(__dirname))
-    .filter(([, entries]) => entries.length)
+    .filter(([gate, entries]) => Object.hasOwn(LIMITS, gate) &&
+      entries.length)
     .map(([gate, entries]) => ({
       // #782 c7075114694: the files not yet brought up to the gate.
       "files": entries.map((entry) => entry.path),

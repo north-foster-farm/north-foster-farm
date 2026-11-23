@@ -74,8 +74,20 @@ const blockFaults = (config, lines) => lines.flatMap((line, i) => {
     "no citation beside it (#<issue> c<comment id>)"];
 });
 
+// The block that reads the legacy lists is an exclusion too, and cites
+// its #791 entry within NEAR lines of the readLists call.
+const NEAR = 8;
+const listsFaults = (config, lines) => {
+  const at = lines.findLastIndex((line) => /readLists\s*\(/.test(line));
+  if (at < 0) return [];
+  const near = lines.slice(Math.max(0, at - NEAR), at + NEAR + 1);
+  if (near.some((line) => /#791 c\d+/.test(line))) return [];
+  return [`${config}:${at + 1}: the block that reads quality/legacy/ ` +
+    "cites no #791 c<id> beside it"];
+};
+
 export const configFaults = (root, tracked) => CONFIGS.flatMap((config) => {
   const lines = readFileSync(join(root, config), "utf8").split("\n");
   return [...ignoreFaults(config, lines, tracked),
-    ...blockFaults(config, lines)];
+    ...blockFaults(config, lines), ...listsFaults(config, lines)];
 });
