@@ -12,8 +12,8 @@
 // Provisional, on the readings the issue asks James to confirm:
 // - box 4 reads the hover shadow as "every thumbnail takes the
 //   stronger shadow the default one shows", so it holds every
-//   thumbnail to the shadow the default thumbnail takes on hover
-//   today, recorded below as LIFT;
+//   thumbnail's hover shadow to the default thumbnail's own (the
+//   farm's mark today, the new image after), and none to no shadow;
 // - box 7 reads "More from the farm" and "All news and updates" as
 //   one button, the one under the previews;
 // - box 9 is the "Learn more" eyebrow over "Farm news and updates"
@@ -39,9 +39,9 @@ import { expect, test } from "./support/order.mjs";
 const BUTTON = "All news and updates";
 const EASE = 400;
 
-// The hover shadow the default thumbnail (the farm's mark) takes on
-// the home page today, as Chromium computes $btn-lift-shadow.
-const LIFT = "rgba(0, 0, 0, 0.38) 0px 8px 18px -8px";
+// The default thumbnail, a post's with no picture of its own: the
+// farm's mark today, the image made from farm-news-default after.
+const DEFAULT = ".news-mark, img[src*='farm-news-default']";
 
 const desktopOnly = (info) => test.skip(info.project.name !== "desktop",
   "the desktop project measures the widths the box names");
@@ -194,15 +194,30 @@ test.describe("home news previews by width (#914)", () => {
     const previews = await previewsOf(band).all();
 
     expect(previews.length, "the previews show").toBeGreaterThan(0);
-    for (const [i, preview] of previews.entries()) {
+
+    const shadows = [];
+
+    for (const preview of previews) {
       const thumb = preview.locator(".news-thumb");
 
       await thumb.hover();
       await page.waitForTimeout(EASE);
-      expect(await thumb.evaluate((el) => getComputedStyle(el).boxShadow),
-        `preview ${i + 1}'s hover shadow`).toBe(LIFT);
+      shadows.push({
+        isDefault: await thumb.locator(DEFAULT).count() > 0,
+        shadow: await thumb.evaluate((el) => getComputedStyle(el).boxShadow),
+      });
       await page.mouse.move(0, 0);
+      await page.waitForTimeout(EASE);
     }
+
+    const standard = shadows.find((s) => s.isDefault);
+
+    expect(standard, "a preview with the default thumbnail").toBeTruthy();
+    expect(standard.shadow, "the default thumbnail lifts").not.toBe("none");
+    shadows.forEach((s, i) => {
+      expect(s.shadow, `preview ${i + 1}'s hover shadow, the default's`)
+        .toBe(standard.shadow);
+    });
   });
 
   test("The button is centered below 1200 px and left-aligned from "
