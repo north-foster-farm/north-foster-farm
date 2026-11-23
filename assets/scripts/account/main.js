@@ -595,8 +595,12 @@ class Account {
     this.showTab("orders");
     card.classList.add("is-linked");
     card.tabIndex = -1;
-    card.focus({ preventScroll: true });
-    card.scrollIntoView({ block: "center" });
+    // This runs inside the skeleton's render, while the region still
+    // hides its content: the focus waits until the region shows (#924).
+    queueMicrotask(() => {
+      card.focus({ preventScroll: true });
+      card.scrollIntoView({ block: "center" });
+    });
   }
 
   wire() {
