@@ -48,8 +48,8 @@
 // choice "drawn out" of the DOM watcher), not from a box.
 
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
+import { assertPure } from "./pure-module.mjs";
 
 import {
   barEdge, barTitle, inCatalog, pickSection,
@@ -191,18 +191,10 @@ describe("barTitle", () => {
 
 describe("design, phase 1", () => {
   it("keeps form/section-pick.mjs pure", () => {
-    const dom = new RegExp(`\\b(${[
+    assertPure(MODULE, { banned: [
       "document", "window", "getComputedStyle", "matchMedia",
       "requestAnimationFrame", "getBoundingClientRect", "performance",
       "Element", "Node",
-    ].join("|")})\\b`);
-    const code = readFileSync(MODULE, "utf8")
-      .replace(/\/\/.*$/gm, "")
-      .replace(/\/\*[\s\S]*?\*\//g, "");
-
-    assert.doesNotMatch(code, dom, "section-pick.mjs reaches the DOM");
-    for (const [, from] of code.matchAll(/\bfrom\s+["']([^"']+)["']/g)) {
-      assert.match(from, /\.mjs$/, `section-pick.mjs imports ${from}`);
-    }
+    ] });
   });
 });
