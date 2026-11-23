@@ -37,8 +37,14 @@
 //   either passes.
 //
 // Red is read, never written out: a color whose red channel is 150 or
-// more and at least 80 above its green and blue, as Bootstrap's danger
-// (220, 53, 69) is and the brand green is not.
+// more and at least 120 above its green and blue. The site's danger,
+// $danger #ec0b0b (236, 11, 11), clears it by 225 and Bootstrap's
+// (220, 53, 69) by 151, while the brand's orange #f7941e
+// (247, 148, 30), which borders the focused first radio James asked
+// for, falls short at 99, as the brand green does. The margin was 80
+// until the first run (45154915896) counted that orange as red. The
+// page's own danger (--bs-danger-rgb) is read too and must pass, so
+// the margin cannot drift past the site's red unseen.
 //
 // The desktop and phone projects run every test at 1500 and 390 px;
 // the box that names phone and desktop widths also walks both sizes
@@ -95,6 +101,18 @@ const lists = () => datesWith([
 const noPosts = (page) => page.route("**/api/orders", (route) => (
   route.request().method() === "POST" ? route.abort() : route.fallback()
 ));
+
+// The order form's draft and pending submission gone from this origin's
+// localStorage (their keys, nff-order-draft and nff-order-pending, are
+// in assets/scripts/order/draft.js), so the page opened next starts
+// with no day picked. Nothing else in storage is touched: the sign-in
+// keeps its own. The form saves on a change, not on unload, so the
+// draft stays gone through the next goto.
+const freshDraft = (page) => page.evaluate(() => {
+  for (const key of Object.keys(localStorage)) {
+    if (/^nff-order-(draft|pending)/.test(key)) localStorage.removeItem(key);
+  }
+});
 
 // A tap where the project has touch, a click elsewhere; forced, since
 // Proceed may be aria-disabled and still take the press (#706).
@@ -169,18 +187,31 @@ const placeOrder = async (order, who = {
 
 // Puts on the page a test whether a CSS color is red (see the header),
 // for the page-side helpers below; again after each navigation.
-const withRed = (page) => page.evaluate(() => {
-  window.e2eIsRed = (color) => {
-    const m = String(color).match(/rgba?\(([^)]*)\)/);
+const withRed = async (page) => {
+  const danger = await page.evaluate(() => {
+    window.e2eIsRed = (color) => {
+      const m = String(color).match(/rgba?\(([^)]*)\)/);
 
-    if (!m) return false;
+      if (!m) return false;
 
-    const [r, g, b, a = 1] = m[1].split(/[ ,/]+/).filter(Boolean)
-      .map(parseFloat);
+      const [r, g, b, a = 1] = m[1].split(/[ ,/]+/).filter(Boolean)
+        .map(parseFloat);
 
-    return a > 0.3 && r >= 150 && r - Math.max(g, b) >= 80;
-  };
-});
+      // 120, not 80: the brand's orange focus border is not red.
+      return a > 0.3 && r >= 150 && r - Math.max(g, b) >= 120;
+    };
+
+    const rgb = getComputedStyle(document.documentElement)
+      .getPropertyValue("--bs-danger-rgb").trim();
+
+    return rgb ? { rgb, red: window.e2eIsRed(`rgb(${rgb})`) } : null;
+  });
+
+  if (danger) {
+    expect(danger.red, `the page's danger (${danger.rgb}) reads as red`)
+      .toBe(true);
+  }
+};
 
 // The message as the page shows it now, or null: the deepest visible
 // element in the way's card (Pick-up days unless `which` says) whose
@@ -630,6 +661,9 @@ test.describe("the pick-up list's hint and error (#703, third revision)",
 
         for (const state of ["hint", "error"]) {
           await test.step(state, async () => {
+            // The hint step's pick is in the draft: start without it.
+            if (state === "error") await freshDraft(page);
+
             const order = await openPickups(page);
 
             await proceed(order);
@@ -744,6 +778,9 @@ test.describe("the Group orders date list's hint and error (#703, third " +
     async ({ page, baseURL }) => {
       for (const state of ["hint", "error"]) {
         await test.step(state, async () => {
+          // The hint step's pick is in the draft: start without it.
+          if (state === "error") await freshDraft(page);
+
           const order = await openGroup(page, baseURL);
 
           await proceed(order);
