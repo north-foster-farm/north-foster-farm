@@ -155,7 +155,7 @@ const inks = (page) => page.evaluate((SEARCH) => {
   const visible = (el) => {
     const box = el.getBoundingClientRect();
 
-    return box.width > 0 && box.height > 0
+    return box.width > 1 && box.height > 1
       && getComputedStyle(el).visibility !== "hidden";
   };
   const ink = (el) => {
@@ -191,7 +191,7 @@ const inks = (page) => page.evaluate((SEARCH) => {
   };
   const controls = [...banner.querySelectorAll("a, button")]
     .filter((el) => el !== brand && visible(el)
-      && !el.closest("[role='search'], search, .offcanvas:not(.show)")
+      && !el.closest("[role='search'], search")
       && (() => {
         const b = el.getBoundingClientRect();
         const mid = b.top + b.height / 2;
