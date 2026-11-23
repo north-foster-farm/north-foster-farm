@@ -16,10 +16,10 @@
 // farm's.
 
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
 import { maskPhone } from "../assets/scripts/order/form/phone.mjs";
+import { assertPure } from "./pure-module.mjs";
 
 const MODULE = new URL(
   "../assets/scripts/order/form/phone.mjs", import.meta.url
@@ -101,14 +101,8 @@ describe("maskPhone, deleting", () => {
 
 describe("design, phase 2", () => {
   it("keeps form/phone.mjs pure", () => {
-    const code = readFileSync(MODULE, "utf8")
-      .replace(/\/\/.*$/gm, "")
-      .replace(/\/\*[\s\S]*?\*\//g, "");
-
-    assert.doesNotMatch(code,
-      /\b(document|window|querySelector|addEventListener|Element)\b/);
-    for (const [, from] of code.matchAll(/\bfrom\s+["']([^"']+)["']/g)) {
-      assert.match(from, /\.mjs$/, `phone.mjs imports ${from}`);
-    }
+    assertPure(MODULE, { banned: [
+      "document", "window", "querySelector", "addEventListener", "Element",
+    ] });
   });
 });
