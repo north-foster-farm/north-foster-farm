@@ -5,7 +5,7 @@
 // One tree, flat (layouts/partials/order/cart.html): the slot, the
 // pane, its body (every part that gives way) and its foot (what never
 // does). The pane's state is four attributes cart/state.mjs decides
-// and cart/cart.js writes: data-placement (column, inline, floating),
+// and cart/fold.js writes: data-placement (column, inline, floating),
 // data-fold (open, closed), data-empty and data-share (way, code or
 // none). Everything each state shows is decided here, by width.
 
@@ -128,8 +128,8 @@ $cart-nudge-line: $cart-nudge-gap + $cart-nudge-size * $cart-line-height;
     // line to the lines, and a delivery fee it has takes one from
     // them, so the open sheet keeps to two thirds while the lines take
     // the rest. Still nothing measured: the rows' own hidden
-    // attributes, which cart.js already writes. A code's note, the
-    // perks and a paid order's sums are left out, as before.
+    // attributes, which cart/sums-view.js already writes. A code's
+    // note, the perks and a paid order's sums are left out, as before.
     --cart-less-discount: 0px;
     --cart-less-nudge: 0px;
     --cart-more-fee: 0px;
