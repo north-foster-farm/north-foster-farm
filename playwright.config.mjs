@@ -76,6 +76,7 @@ const stagingOnly = local ? ["**/gate.spec.mjs"] : [];
 // Criteria tests written before their fix, held out of every project
 // until it lands: deleting a spec's line turns it on.
 const held = [
+  "**/search-bar-width.spec.mjs",
 ];
 
 // Quarantined tests (e2e/quarantine.json, James's call each time) stay
