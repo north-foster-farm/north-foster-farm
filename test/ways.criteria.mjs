@@ -41,7 +41,6 @@
 //   creditNote(totals)  -> { text, hidden, covered }
 
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
 import terms from "../data/delivery.json" with { type: "json" };
@@ -58,6 +57,7 @@ import {
 import { dollars } from "../assets/scripts/order/lib/totals.mjs";
 import { zipInfo } from "../assets/scripts/order/lib/validate.mjs";
 import { instant } from "../assets/scripts/order/lib/zoned.mjs";
+import { assertPure } from "./pure-module.mjs";
 import {
   creditNote, groupCard, scheduledCard, windowsPlan, zipNote,
 } from "../assets/scripts/order/form/ways.mjs";
@@ -288,11 +288,10 @@ describe("creditNote, credit", () => {
 
 describe("design, phase 9", () => {
   it("keeps form/ways.mjs pure", () => {
-    const code = readFileSync(MODULE, "utf8")
-      .replace(/\/\/.*$/gm, "")
-      .replace(/\/\*[\s\S]*?\*\//g, "");
-
-    assert.doesNotMatch(code,
-      /(?<![.\w])(document|window)\.|\b(querySelector|Element)\b/);
+    assertPure(MODULE, {
+      banned: ["(?<![.\\w])document(?=\\.)", "(?<![.\\w])window(?=\\.)",
+        "querySelector", "Element"],
+      imports: null,
+    });
   });
 });
