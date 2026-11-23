@@ -7,7 +7,9 @@ const PATH = /^\/account\/orders\/([^/]+)\/?$/;
 export const orderFromLink = ({ pathname, search }) => {
   const query = new URLSearchParams(search).get("order");
 
-  if (query) return query.replace(/\/+$/, "");
+  // An id holds no slash: what follows one is the splat's trailing
+  // slash, or a query a redirect joined badly.
+  if (query) return query.split("/")[0];
 
   const found = PATH.exec(pathname);
 

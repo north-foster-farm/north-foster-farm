@@ -26,6 +26,11 @@ describe("orderFromLink", () => {
       "NFF-2611-ABCDEF");
   });
 
+  it("finds the id when a redirect joins a second query badly", () => {
+    assert.equal(at("/account/?order=NFF-2611-ABCDEF/?utm=mail"),
+      "NFF-2611-ABCDEF");
+  });
+
   it("still reads the id off the path where no rule runs", () => {
     assert.equal(at("/account/orders/NFF-2611-ABCDEF/"), "NFF-2611-ABCDEF");
     assert.equal(at("/account/orders/NFF%202611/"), "NFF 2611");
