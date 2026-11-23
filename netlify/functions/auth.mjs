@@ -298,6 +298,12 @@ export const handle = async (req, {
     // order, as the order handler does.
     const kept = member ? 0 : await creditBalance(stores, session.email, now);
 
+    // A live session asked for without its stamp gets the stamp back
+    // (#985): a late 401 from another tab can clear it just after a
+    // sign-in, which would leave the header signed in and the order
+    // form not. A cookie only; no record changes.
+    const restamp = hasStamp(req) ? {} : { "Set-Cookie": stampHeader(now) };
+
     // `owner`: the tag of this account's cart draft (#149).
     return json(200, {
       ...closed,
@@ -308,7 +314,7 @@ export const handle = async (req, {
       ...(member ? { member } : {}),
       ...(role ? { membership: true } : {}),
       ...(kept > 0 ? { credit: kept } : {}),
-    });
+    }, restamp);
   }
 
   return json(404, { error: "Not found." });
