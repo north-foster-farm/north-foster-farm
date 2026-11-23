@@ -14,12 +14,31 @@
 // rewrite dropped), and each project takes its own emails.
 
 import {
-  DROP, PINNED, REWRITTEN, asTokens, deleteToken, drop, els, emailPath,
-  getText, groupsOf, held, holding, idsOf, library, lone, mayReview, mine,
-  openEmail, openShelf, pick, saveRewrite, shownGroups, shownIds, signIn,
-  waiting,
+  asTokens, deleteToken, drop, els, emailPath, getText, groupsOf, held,
+  holding, idsOf, library, lone, mayReview, mine, openEmail, openShelf,
+  pick, saveRewrite, shownGroups, shownIds, signIn, waiting,
 } from "./support/library.mjs";
 import { expect, test } from "./support/order.mjs";
+
+// The shelf's groups: each audience and its heading, in the order shown.
+const GROUPS = [
+  ["customer", "To the customer"],
+  ["farm", "To the farm"],
+  ["list", "Farm news"],
+];
+// The heading of the sent mail's group, James's alone, left out of box 1.
+const SENT = "Sent, every session";
+const PINNED = " Pinned by the e2e suite.";
+const DROP = "Drop your rewrite and keep the current wording?";
+const REWRITTEN = "rewritten, to apply";
+
+// Puts back what a review test changed, and fails the test if it could
+// not. Soft, so a failure before it stays the one reported.
+const putBack = async (page, path) => {
+  const res = await page.request.delete(path);
+
+  expect.soft(res.ok(), `DELETE ${path}: ${res.status()}`).toBe(true);
+};
 
 test.describe("staging email library (#874)", () => {
   test.use({ hideToolbar: false });
@@ -33,8 +52,8 @@ test.describe("staging email library (#874)", () => {
 
       await expect(ui.box).toBeVisible();
       await expect(ui.search).toBeFocused();
-      expect(await shownGroups(page), path)
-        .toEqual(groupsOf(await library(page)));
+      expect(await shownGroups(page, SENT), path)
+        .toEqual(groupsOf(await library(page), GROUPS));
     }
   });
 
@@ -85,6 +104,9 @@ test.describe("staging email library (#874)", () => {
       .find((e) => !e.error && e.approval !== "rewritten");
     const html = await getText(page, emailPath(email));
     const text = await getText(page, `${emailPath(email)}?format=text`);
+    const body = html.search(/<body/i);
+
+    expect(body, "the email's HTML has a <body").toBeGreaterThanOrEqual(0);
 
     await ui.row(email.id).click();
     await expect(ui.name).toHaveText(email.name);
@@ -92,7 +114,7 @@ test.describe("staging email library (#874)", () => {
       .toBe(`#email=${encodeURIComponent(email.id)}`);
     await expect(ui.frame).toBeVisible();
     await expect.poll(() => ui.frame.getAttribute("srcdoc"))
-      .toContain(html.slice(html.search(/<body/i)));
+      .toContain(html.slice(body));
     await ui.view("text").click();
     await expect(ui.text).toBeVisible();
     await expect(ui.frame).toBeHidden();
@@ -106,7 +128,7 @@ test.describe("staging email library (#874)", () => {
     await expect(page.locator("#staging")).toBeVisible();
 
     const ui = els(page);
-    const opener = page.locator("main a[href]").first();
+    const opener = page.locator("main a[href]:visible").first();
 
     await opener.focus();
     await page.evaluate(() => { location.hash = "emails"; });
@@ -140,7 +162,7 @@ test.describe("staging email library (#874)", () => {
         await expect(ui.approve).toBeHidden();
         expect(await page.evaluate(() => window.pinned)).toBe(true);
       } finally {
-        await page.request.delete(`${emailPath(email)}/approval`);
+        await putBack(page, `${emailPath(email)}/approval`);
       }
     });
 
@@ -168,7 +190,7 @@ test.describe("staging email library (#874)", () => {
       const ui = await openEmail(page, email);
 
       try {
-        await saveRewrite(page, ui);
+        await saveRewrite(page, ui, PINNED);
         await expect(ui.editor).toBeHidden();
         await expect(ui.rewritten).toContainText(PINNED.trim());
         await expect(ui.view("rewrite"))
@@ -182,7 +204,7 @@ test.describe("staging email library (#874)", () => {
         await expect(ui.view("rewrite")).toBeHidden();
         await expect(ui.frame).toBeVisible();
       } finally {
-        await page.request.delete(`${emailPath(email)}/rewrite`);
+        await putBack(page, `${emailPath(email)}/rewrite`);
       }
     });
   });
