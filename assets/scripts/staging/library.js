@@ -15,60 +15,59 @@
 
 import { isBusy, onPress, whileBusy } from "../utils/busy-button.js";
 import { elementsOf } from "./library/elements.js";
-import {
-  leftOut, oneLine, partsOf, rewriteParts,
-} from "./library/parts.mjs";
+import { leftOut, oneLine, partsOf } from "./library/parts.mjs";
+import { mountReader } from "./library/reader.js";
+import { hashTarget } from "./library/review.mjs";
 import { grouped, wordsOf } from "./library/search.mjs";
 import {
-  badge, day, drawShelf as showShelf, drawSummary as showSummary,
+  day, drawShelf as showShelf, drawSummary as showSummary,
 } from "./library/shelf-view.js";
+import { initial, saved as withSaved } from "./library/state.mjs";
 import { fill, outOfToken } from "./library/tokens.js";
 
 // The toolbar's line on the library, for staging/main.js.
 export { tally } from "./library/search.mjs";
-
-// The email's own page, made to open its links outside the frame.
-const framed = (html) => html.replace(/<head>/i,
-  '<head><base target="_blank">');
 
 // `canReview` says whether this session may approve and rewrite: James
 // alone (#294); everyone else reads.
 export const mountLibrary = ({
   root, api, onOpen, canReview = () => false, canSeeSent = () => false,
 }) => {
-  let sent = [];
   const qs = (sel) => root.querySelector(sel);
   const el = elementsOf(root);
   const {
-    box, shelf, empty, search, reader, frame, textView, rewritten,
-    tokenTemplate, views, filters, review, editor,
+    box, shelf, empty, search, reader, tokenTemplate, filters, review,
+    editor,
   } = el;
-  let emails = null;
-  let current = null;
-  let view = "html";
-  let approval = "";
+  // The one record (library/state.mjs), and the getter and setter each
+  // part is handed. A setter draws nothing: the part that changed the
+  // record redraws what it changed.
+  let state = initial();
+  const get = () => state;
+  const set = (over) => {
+    state = { ...state, ...over };
+  };
   let loading = null;
-  let editing = false;
 
   // The shelf: the emails by audience, narrowed by the search and the
   // approval filter, and the sent mail for a session that may see it,
   // asked at each drawing.
   const drawShelf = () => showShelf(el, grouped({
-    emails, sent, words: wordsOf(search.value), approval,
-    canSeeSent: canSeeSent(),
-  }), current);
+    emails: state.emails, sent: state.sent, words: wordsOf(search.value),
+    approval: state.approval, canSeeSent: canSeeSent(),
+  }), state.current);
 
-  const drawSummary = () => showSummary(el, emails);
+  const drawSummary = () => showSummary(el, state.emails);
 
   const load = () => {
     loading = loading || api("/api/staging/emails").then(async ({
       ok, data,
     }) => {
-      emails = ok ? data.emails : [];
+      set({ emails: ok ? data.emails : [] });
       if (ok && canSeeSent()) {
         const got = await api("/api/staging/sent");
 
-        sent = got.ok ? got.data.messages : [];
+        set({ sent: got.ok ? got.data.messages : [] });
       }
       if (!ok) {
         empty.textContent = "The library could not be loaded.";
@@ -88,35 +87,12 @@ export const mountLibrary = ({
 
   // The caret kept out of a token while the editor is open.
   document.addEventListener("selectionchange",
-    () => outOfToken(editing, editor.form));
+    () => outOfToken(state.editing, editor.form));
 
   // --- The open email ------------------------------------------------
 
-  const drawView = async () => {
-    for (const b of views) {
-      b.setAttribute("aria-pressed", String(b.dataset.stagingView === view));
-    }
-    frame.hidden = editing || view !== "html";
-    textView.hidden = editing || view !== "text";
-    rewritten.hidden = editing || view !== "rewrite";
-    if (view === "rewrite") {
-      fill(tokenTemplate, rewritten, rewriteParts(current.rewrite));
-
-      return;
-    }
-
-    const id = current.id;
-    const path = `/api/staging/emails/${encodeURIComponent(id)}${
-      view === "text" ? "?format=text" : ""}`;
-    const { ok, data } = await api(path);
-
-    if (!current || current.id !== id) return;
-    if (view === "text") textView.textContent = ok ? data : "Not found.";
-    else frame.srcdoc = ok ? framed(data) : "<p>Not found.</p>";
-  };
-
   const drawReview = () => {
-    const e = current;
+    const e = state.current;
     const byCode = e.approvedBy === "code";
     const show = {
       approve: e.approval === "to approve",
@@ -127,7 +103,7 @@ export const mountLibrary = ({
 
     review.bar.hidden = !canReview() || byCode || !!e.error;
     for (const [name, on] of Object.entries(show)) {
-      review[name].hidden = !on || editing;
+      review[name].hidden = !on || state.editing;
     }
     review.rewrite.textContent = e.approval === "rewritten"
       ? "Edit the rewrite" : "Rewrite";
@@ -140,75 +116,28 @@ export const mountLibrary = ({
     review.error.hidden = true;
   };
 
-  const drawReader = () => {
-    qs("[data-staging-reader-name]").textContent = current.name;
-    qs("[data-staging-reader-when]").textContent = current.when;
-    qs("[data-staging-reader-subject]").textContent =
-      `Subject: ${current.subject}`;
-    badge(qs("[data-staging-reader-approval]"), current);
-
-    const note = qs("[data-staging-reader-note]");
-
-    note.textContent = current.note || "";
-    note.hidden = !current.note;
-
-    // A PDF the email carries (the packing slips), opened in a tab.
-    const files = current.attachments || [];
-    const holder = qs("[data-staging-reader-files]");
-
-    holder.replaceChildren(...files.flatMap((f, i) => {
-      const a = document.createElement("a");
-
-      a.href = f.url;
-      a.target = "_blank";
-      a.rel = "noopener";
-      a.textContent = f.filename;
-
-      return i ? [", ", a] : [a];
-    }));
-    qs("[data-staging-reader-attachments]").hidden = !files.length;
-
-    const mine = current.approval === "rewritten";
-
-    for (const b of views) {
-      if (b.dataset.stagingView === "rewrite") b.hidden = !mine;
-    }
-    if (!mine && view === "rewrite") view = "html";
-    drawReview();
-    drawView();
-  };
-
   const closeEditor = () => {
-    editing = false;
+    set({ editing: false });
     editor.form.hidden = true;
   };
 
-  const read = async (id) => {
-    await load();
-    closeEditor();
-    current = emails.find((e) => e.id === id) || null;
-    reader.hidden = !current;
-    box.classList.toggle("staging-reading", !!current);
-    drawShelf();
-    if (!current) return;
-    if (current.approval === "rewritten") view = "rewrite";
-    drawReader();
-    reader.focus();
-  };
+  // The reader (library/reader.js): read, the views, Back, Copy link.
+  const { read, drawReader, drawView } = mountReader({
+    el, qs, api, get, set, load, drawShelf, drawReview, closeEditor,
+  });
 
   // A review saved: the server's answer replaces the email everywhere
   // it shows, without a reload.
   const saved = (email) => {
-    emails = emails.map((e) => (e.id === email.id ? email : e));
-    if (current && current.id === email.id) current = email;
+    set(withSaved(state, email));
     drawSummary();
     drawShelf();
     drawReader();
   };
 
   const send = async (kind, method, body, errorEl) => {
-    const path = `/api/staging/emails/${encodeURIComponent(current.id)}/${
-      kind}`;
+    const path = `/api/staging/emails/${
+      encodeURIComponent(state.current.id)}/${kind}`;
     const { ok, data } = await api(path, { method, body });
 
     if (!ok) {
@@ -223,6 +152,7 @@ export const mountLibrary = ({
   };
 
   const openEditor = () => {
+    const { current } = state;
     const from = current.approval === "rewritten"
       ? current.rewrite : current.parts;
 
@@ -237,7 +167,7 @@ export const mountLibrary = ({
     }
     editor.dropped.hidden = true;
     editor.error.hidden = true;
-    editing = true;
+    set({ editing: true });
     editor.form.hidden = false;
     drawReview();
     drawView();
@@ -246,7 +176,8 @@ export const mountLibrary = ({
 
   // Which of the email's sample values the rewrite leaves out.
   const noteDropped = () => {
-    const gone = leftOut([...current.parts.subject, ...current.parts.text],
+    const { parts } = state.current;
+    const gone = leftOut([...parts.subject, ...parts.text],
       [...partsOf(editor.subject), ...partsOf(editor.text)]);
 
     editor.dropped.textContent = gone.length
@@ -255,13 +186,13 @@ export const mountLibrary = ({
   };
 
   onPress(review.approve, () => send("approval", "PUT",
-    { version: current.version }, review.error));
+    { version: state.current.version }, review.error));
   onPress(review.withdraw, () => send("approval",
     "DELETE", undefined, review.error));
   onPress(review.revert, async () => {
     // eslint-disable-next-line no-alert -- #791 c7102217150: pinned by e2e
     if (!confirm("Drop your rewrite and keep the current wording?")) return;
-    view = "html";
+    set({ view: "html" });
     await send("rewrite", "DELETE", undefined, review.error);
   });
   review.rewrite.addEventListener("click", openEditor);
@@ -279,12 +210,12 @@ export const mountLibrary = ({
 
     const subject = oneLine(partsOf(editor.subject));
     const ok = await whileBusy(button, send("rewrite", "PUT", {
-      version: current.version, subject, text: partsOf(editor.text),
+      version: state.current.version, subject, text: partsOf(editor.text),
     }, editor.error));
 
     if (ok) {
       closeEditor();
-      view = "rewrite";
+      set({ view: "rewrite" });
       drawReader();
     }
   });
@@ -308,7 +239,7 @@ export const mountLibrary = ({
     document.documentElement.classList.add("staging-library-open");
     load();
     if (id) read(id);
-    else if (current) reader.focus();
+    else if (state.current) reader.focus();
     else search.focus();
   };
 
@@ -322,11 +253,11 @@ export const mountLibrary = ({
     opener = null;
   };
 
+  // #email=<id> opens that email, #emails the shelf (library/review.mjs).
   const fromHash = () => {
-    const m = location.hash.match(/^#email=([^&]+)/);
+    const target = hashTarget(location.hash);
 
-    if (m) open(decodeURIComponent(m[1]));
-    else if (location.hash === "#emails") open();
+    if (target) open(target.id);
   };
 
   shelf.addEventListener("click", (ev) => {
@@ -347,50 +278,22 @@ export const mountLibrary = ({
     history.replaceState(null, "", a.getAttribute("href"));
     read(a.dataset.id);
   });
-  search.addEventListener("input", () => emails && drawShelf());
+  search.addEventListener("input", () => state.emails && drawShelf());
   filters.forEach((b) => {
     b.addEventListener("click", () => {
-      approval = b.dataset.stagingFilter;
+      set({ approval: b.dataset.stagingFilter });
       for (const f of filters) {
         f.setAttribute("aria-pressed", String(f === b));
       }
-      if (emails) drawShelf();
+      if (state.emails) drawShelf();
     });
-  });
-  views.forEach((b) => {
-    b.addEventListener("click", () => {
-      view = b.dataset.stagingView;
-      if (current && !editing) drawView();
-    });
-  });
-  qs("[data-staging-reader-back]").addEventListener("click", () => {
-    current = null;
-    closeEditor();
-    reader.hidden = true;
-    box.classList.remove("staging-reading");
-    history.replaceState(null, "", "#emails");
-    drawShelf();
-    search.focus();
-  });
-  qs("[data-staging-copy-link]").addEventListener("click", async (ev) => {
-    const link = `${location.origin}/#email=${encodeURIComponent(current.id)}`;
-    const b = ev.currentTarget;
-
-    try {
-      await navigator.clipboard.writeText(link);
-      b.textContent = "Copied";
-    } catch {
-      // eslint-disable-next-line no-alert -- #791 c7102217150: no new UI yet
-      prompt("The link to this email:", link);
-    }
-    setTimeout(() => { b.textContent = "Copy link"; }, 1200);
   });
   // The toolbar's button is a link that opens #emails in a new tab.
   for (const b of root.querySelectorAll("[data-staging-library-close]")) {
     b.addEventListener("click", close);
   }
   document.addEventListener("keydown", (ev) => {
-    if (ev.key === "Escape" && !box.hidden && !editing) close();
+    if (ev.key === "Escape" && !box.hidden && !state.editing) close();
   });
   window.addEventListener("hashchange", fromHash);
 
