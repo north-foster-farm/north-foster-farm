@@ -59,10 +59,19 @@ const groupOrdersAt = async (page, baseURL, now) => {
     await page.clock.install({ time: now });
     installed.add(page);
   }
+  const canned = dates();
+
   await signIn(page, baseURL, MEMBER, {
     now,
     lists: {
-      ...dates(), now: now.toISOString(),
+      ...canned, now: now.toISOString(),
+      // The canned Pick-up days are built for today, so a `now` days
+      // on would hold cutoffs already passed, which /api/dates never
+      // sends (lib/dates.mjs keeps a cutoff not before `now`). Kept,
+      // the page refreshes the lists a second after each one and takes
+      // `now` again from every answer, holding its clock there.
+      scheduled: canned.scheduled.filter((d) =>
+        now.getTime() <= Date.parse(d.cutoff)),
       delivery: deliveryDates(now, TERMS),
     },
   });
