@@ -21,13 +21,13 @@
 //   venmoCapture(payload, paypalOrderId)
 
 import { Card } from "./pay/card.js";
-import { paymentRequestOf } from "./pay/requests.mjs";
 import { loadScript } from "./pay/scripts.js";
 import { Section } from "./pay/section.js";
 import { endState } from "./pay/states.mjs";
 import { clickAllowed, shouldRestart } from "./pay/venmo-flow.mjs";
 import { venmoEnabled } from "./pay/venmo-gate.js";
-import { dollarsOf, tokenMessage, venmoRefusal } from "./pay/words.mjs";
+import { Wallets } from "./pay/wallets.js";
+import { venmoRefusal } from "./pay/words.mjs";
 import { crumb, reportError, reportUnavailable, sdk } from "./report.js";
 import { whileLoading } from "../utils/skeleton.js";
 
@@ -61,8 +61,6 @@ export class Payment {
     this.form = form;
     this.checkout = checkoutOf(form);
     this.payments = null;
-    this.request = null;
-    this.wallets = {};
     this.venmo = null;
     this.config = null;
     this.ready = false;
@@ -75,11 +73,20 @@ export class Payment {
     this.cardPart = new Card({
       root, section: this.section, checkout: this.checkout,
     });
+    // The payment request and the three wallets (pay/wallets.js).
+    this.walletsPart = new Wallets({
+      root, section: this.section, checkout: this.checkout,
+    });
   }
 
   // The attached card, or null.
   get card() {
     return this.cardPart.card;
+  }
+
+  // The wallets this browser offers, by method.
+  get wallets() {
+    return this.walletsPart.wallets;
   }
 
   get busy() {
@@ -224,15 +231,7 @@ export class Payment {
     crumb("square.ready");
 
     await this.cardPart.attach(this.payments);
-
-    this.request = this.payments.paymentRequest(paymentRequestOf(
-      this.form.amount(), this.form.contact.name
-    ));
-
-    await Promise.all([
-      this.initApplePay(), this.initGooglePay(), this.initCashAppPay(),
-    ]);
-    crumb("wallets.ready");
+    await this.walletsPart.attach(this.payments);
     this.showWallets();
   }
 
@@ -247,134 +246,16 @@ export class Payment {
     });
   }
 
-  // A wallet button pays the whole order on its own. The form is
-  // validated in the capture phase of the click, so an invalid form
-  // stops the sheet from opening and shows its errors instead.
-  guard(container) {
-    container.addEventListener("click", (e) => {
-      if (this.busy || !this.form.prepare()) {
-        e.stopPropagation();
-        e.preventDefault();
-      }
-    }, true);
-  }
-
-  async initApplePay() {
-    const button = qs(this.root, "[data-apple-pay]");
-
-    try {
-      const applePay = await this.payments.applePay(this.request);
-
-      this.wallets.applepay = applePay;
-      button.hidden = false;
-      button.addEventListener("click", () => {
-        // Tokenise inside the click: Safari refuses the sheet after
-        // an await.
-        const payload = this.busy ? null : this.form.prepare();
-
-        if (!payload) return;
-        this.finishWallet("applepay", applePay.tokenize(), payload);
-      });
-    } catch {
-      button.hidden = true;
-    }
-  }
-
-  async initGooglePay() {
-    const container = qs(this.root, "[data-google-pay]");
-
-    try {
-      const googlePay = await this.payments.googlePay(this.request);
-
-      await googlePay.attach(container, {
-        buttonColor: "black", buttonType: "long", buttonSizeMode: "fill",
-      });
-      this.wallets.googlepay = googlePay;
-      container.hidden = false;
-      this.guard(container);
-      container.addEventListener("click", () => {
-        const payload = this.form.prepare();
-
-        if (payload) {
-          this.finishWallet("googlepay", googlePay.tokenize(), payload);
-        }
-      });
-    } catch {
-      container.hidden = true;
-    }
-  }
-
-  async initCashAppPay() {
-    const container = qs(this.root, "[data-cash-app-pay]");
-
-    try {
-      const cashAppPay = await this.payments.cashAppPay(this.request, {
-        redirectURL: location.href.split("#")[0],
-        referenceId: this.form.referenceId(),
-      });
-
-      cashAppPay.addEventListener("ontokenization", (e) => {
-        const { tokenResult, error } = e.detail || {};
-        const payload = this.form.prepare();
-
-        if (error) {
-          reportError("cashapp.tokenize", error);
-          this.fail(error.message || "Cash App Pay didn't go through.");
-        } else if (payload) {
-          this.finishWallet("cashapp", Promise.resolve(tokenResult), payload);
-        }
-      });
-      await cashAppPay.attach(container, { shape: "semiround", width: "full" });
-      this.wallets.cashapp = cashAppPay;
-      container.hidden = false;
-      this.guard(container);
-    } catch {
-      container.hidden = true;
-    }
-  }
-
-  async finishWallet(method, tokenising, payload) {
-    crumb("pay.press");
-    this.setBusy(true);
-
-    try {
-      const result = await tokenising;
-
-      if (!result || result.status !== "OK") {
-        if (result && result.status === "Cancel") return;
-        // The status only: the SDK's own messages can quote the card.
-        reportError("wallet.tokenize", `${method}: ${
-          result ? result.status : "no result"}`);
-        this.fail(tokenMessage(result));
-
-        return;
-      }
-      this.clearError();
-      await this.form.pay(payload, { method, sourceId: result.token });
-    } catch (error) {
-      reportError("wallet.pay", error);
-      this.fail(error.message || "The payment didn't go through.");
-    } finally {
-      this.setBusy(false);
-    }
-  }
-
   // The card form's token (pay/card.js). -> { method, sourceId };
   // throws with a message for the customer.
   tokenizeCard(payload) {
     return this.cardPart.tokenize(payload);
   }
 
-  // The total changed: the wallets' sheets must show the new one.
+  // The total changed: the wallets' sheets must show the new one
+  // (pay/wallets.js).
   setAmount(cents) {
-    if (!this.request) return;
-    try {
-      this.request.update({
-        total: { amount: dollarsOf(cents), label: this.form.contact.name },
-      });
-    } catch {
-      // The old amount is refused by the server anyway.
-    }
+    this.walletsPart.setAmount(cents);
   }
 
   // --- Venmo --------------------------------------------------------
