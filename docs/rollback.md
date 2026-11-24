@@ -382,6 +382,12 @@ git log --grep '^Record-shape:' <old>..<new>
    code answered 404.
 5. Check `/api/health`, and run one card order in the style of the
    launch guide's live checks.
+6. **Rolled back past #787** (address records keyed by a hash)? The
+   older code wrote records at address keys, so run
+   `bin/nff --production customers rekey`, read its report, then
+   again with `--apply` (2026-11-22, #794). It is the same step the
+   release that first ships #787 runs right after its deploy, on
+   staging and then production.
 
 Republishing an older release deploy brings back its env snapshot.
 If an env var changed after it was built, redeploy (a new build, with

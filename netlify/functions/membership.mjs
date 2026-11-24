@@ -22,12 +22,12 @@
 
 import terms from "./lib/terms.mjs";
 import {
-  normalizeEmail, sameOrigin, sameSite, sessionFrom,
+  receivedEmail, sameOrigin, sameSite, sessionFrom,
 } from "./lib/auth.mjs";
 import { now as clock } from "./lib/clock.mjs";
 import { joinQr } from "./lib/groups.mjs";
 import { json, readJson } from "./lib/http.mjs";
-import { withLog } from "./lib/log.mjs";
+import { withLog } from "./lib/with-log.mjs";
 import { gate } from "./lib/maintenance.mjs";
 import {
   hostMembers, hostedBy, memberCode, memberCodeSvg, membershipView,
@@ -101,7 +101,7 @@ export const handle = async (req, {
   // The member's own code as a QR code (#131), for the tab and the key
   // tag. Only one already minted: the tab asks /api/membership first.
   if (path === "/api/membership/code" && req.method === "GET") {
-    if (!role.member) return NOTHING();
+    if (!role.member || role.byHost) return NOTHING();
 
     const code = await memberCode(stores, session.email, { now, mint: false });
 
@@ -115,7 +115,7 @@ export const handle = async (req, {
 
   // A member's own Leave group, with its confirmation on the page.
   if (path === "/api/membership/leave" && req.method === "POST") {
-    if (!role.member) return NOTHING();
+    if (!role.member || role.byHost) return NOTHING();
 
     const closed = await gate(stores);
 
@@ -151,10 +151,14 @@ export const handle = async (req, {
 
     if (closed) return closed;
 
-    const email = typeof body.email === "string"
-      ? normalizeEmail(body.email) : "";
+    // Decoded once, cleaned and checked (#758).
+    const email = receivedEmail(body.email);
 
-    if (!email) return json(400, { errors: { email: "Expected an email." } });
+    if (!email) {
+      return json(400, {
+        errors: { email: "Expected a valid email address." },
+      });
+    }
     if (email === session.email) {
       return json(422, { ok: false, message: SELF });
     }

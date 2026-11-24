@@ -92,7 +92,7 @@ describe("the countdown's other forms (#627)", () => {
       assert.equal(asked, 1);
 
       // The lists couldn't be had: it says so and tries again later.
-      await new Promise((done) => setImmediate(done));
+      await new Promise((done) => { setImmediate(done); });
       assert.equal(text.textContent,
         "We couldn't load the dates. Retrying…");
     });

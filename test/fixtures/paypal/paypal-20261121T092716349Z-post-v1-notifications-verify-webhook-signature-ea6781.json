@@ -1,0 +1,94 @@
+{
+  "_source": {
+    "service": "paypal",
+    "environment": "production",
+    "recorded": "2026-11-21",
+    "by": "bin/fixtures/record, scrubbed by bin/fixtures/scrub"
+  },
+  "status": 200,
+  "request": {
+    "method": "POST",
+    "path": "/v1/notifications/verify-webhook-signature",
+    "headers": {
+      "content-type": "application/json"
+    },
+    "body": {
+      "auth_algo": "SHA256withRSA",
+      "cert_url": "https://api.paypal.com/v1/notifications/certs/CERT-ID",
+      "transmission_id": "PAYPAL_TRANSMISSION_ID_2",
+      "transmission_sig": "SIGNATURE_2",
+      "transmission_time": "2026-11-21T09:27:12Z",
+      "webhook_id": "WEBHOOK_ID_1",
+      "webhook_event": {
+        "id": "WEBHOOK_EVENT_ID_2",
+        "event_version": "1.0",
+        "create_time": "2026-11-21T09:27:08.933Z",
+        "resource_type": "refund",
+        "resource_version": "2.0",
+        "event_type": "PAYMENT.CAPTURE.REFUNDED",
+        "summary": "A $ 5.0 USD capture payment was refunded",
+        "resource": {
+          "id": "REFUND_ID_1",
+          "amount": {
+            "currency_code": "USD",
+            "value": "5.00"
+          },
+          "note_to_payer": "North Foster Farm order CUSTOM_ID_1",
+          "seller_payable_breakdown": {
+            "gross_amount": {
+              "currency_code": "USD",
+              "value": "5.00"
+            },
+            "paypal_fee": {
+              "currency_code": "USD",
+              "value": "0.00"
+            },
+            "net_amount": {
+              "currency_code": "USD",
+              "value": "5.00"
+            },
+            "total_refunded_amount": {
+              "currency_code": "USD",
+              "value": "5.00"
+            }
+          },
+          "custom_id": "CUSTOM_ID_1",
+          "status": "COMPLETED",
+          "create_time": "2026-11-21T01:27:05-08:00",
+          "update_time": "2026-11-21T01:27:05-08:00",
+          "payer": {
+            "email_address": "customer@example.com",
+            "merchant_id": "MERCHANT_ID_1"
+          },
+          "links": [
+            {
+              "href": "https://api.paypal.com/v2/payments/refunds/REFUND_ID_1",
+              "rel": "self",
+              "method": "GET"
+            },
+            {
+              "href": "https://api.paypal.com/v2/payments/captures/CAPTURE_ID_1",
+              "rel": "up",
+              "method": "GET"
+            }
+          ]
+        },
+        "links": [
+          {
+            "href": "https://api.paypal.com/v1/notifications/webhooks-events/WEBHOOK_EVENT_ID_2",
+            "rel": "self",
+            "method": "GET"
+          },
+          {
+            "href": "https://api.paypal.com/v1/notifications/webhooks-events/WEBHOOK_EVENT_ID_2/resend",
+            "rel": "resend",
+            "method": "POST"
+          }
+        ]
+      }
+    }
+  },
+  "response": {
+    "verification_status": "SUCCESS"
+  }
+}

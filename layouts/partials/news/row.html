@@ -1,18 +1,10 @@
 {{/*
-  One post in the news list: its featured image on the left, or a
-  pale green card of the same shape with the farm's mark in it, the
-  same on every post (#222), then the date, title and description.
+  One post in the news list: its thumbnail on the left, its featured
+  image or the farm's default news picture (news/thumb.html, #914),
+  then the date, title and description.
 */}}
-{{ $featured := partial "news/featured.html" . }}
 <li class="news-item">
-  <a class="news-thumb" href="{{ .RelPermalink }}" tabindex="-1" aria-hidden="true">
-    {{ with $featured }}
-      {{ $thumb := .Fill "480x360 webp q80 Smart" }}
-      <img src="{{ $thumb.RelPermalink }}" width="{{ $thumb.Width }}" height="{{ $thumb.Height }}" alt="" loading="lazy" decoding="async">
-    {{ else }}
-      {{ partial "news/mark.html" . }}
-    {{ end }}
-  </a>
+  {{ partial "news/thumb.html" . }}
   <div class="news-item-body">
     <time class="news-date" datetime="{{ .Date.Format "2006-01-02" }}">
       {{ .Date | time.Format "January 2, 2006" }}

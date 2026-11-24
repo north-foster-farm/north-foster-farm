@@ -3,10 +3,18 @@
 // order (#253), and the page shows the order paid, with no failure
 // card and no error under the buttons (#159). PayPal's script is a
 // stand-in that presses the button itself, and /api/orders is
-// answered in the browser, so nothing reaches a processor.
+// answered in the browser, so nothing reaches a processor. The payment
+// it answers with is the capture PayPal made in James's live test
+// (test/fixtures/paypal/, #708), read as the server reads it.
 
+import { recorded } from "../netlify/functions/lib/fake.mjs";
+import { captureOf } from "../netlify/functions/lib/paypal.mjs";
 import { cannedDates } from "./support/canned.mjs";
 import { OrderPage, expect, test, uniqueEmail } from "./support/order.mjs";
+
+const CAPTURED = captureOf(recorded("paypal",
+  "paypal-20261121T090412024Z-post-v2-checkout-orders-order-id-3-capture-4e0f6a"
+).response);
 
 const PAYPAL = {
   clientId: "fake", env: "sandbox", hidden: false,
@@ -54,7 +62,10 @@ test("Venmo on an order already paid shows it paid", async ({ page }) => {
 
     return route.fulfill({ json: {
       orderId: "NFF-2610-QAPD", status: "paid",
-      totals: { subtotal: 700, discountAmount: 0, deliveryFee: 0, total: 700 },
+      totals: {
+        subtotal: CAPTURED.amount, discountAmount: 0, deliveryFee: 0,
+        total: CAPTURED.amount,
+      },
       fulfilment: body.fulfilment, lines: [],
       customer: { firstName: "Paid", name: "Paid Already", email },
       payment: { via: "venmo", method: "venmo" },

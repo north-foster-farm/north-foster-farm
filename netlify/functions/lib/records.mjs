@@ -30,6 +30,10 @@ import { createHash } from "node:crypto";
 import {
   HASHED_SESSION, deleteAuth, inBatches, pruneIndex,
 } from "./auth-records.mjs";
+import {
+  addressHash, deleteAddressed, dropOldForms, listAddressed, listLatest,
+  readAddressed,
+} from "./address-key.mjs";
 import { now as clock } from "./clock.mjs";
 
 export const OPEN = ["paid", "unpaid"];
@@ -50,7 +54,12 @@ const emailKey = (email) => String(email || "").trim().toLowerCase();
 
 export const orderKey = (id) => `order/${id}`;
 export const openKey = (id) => `open/${id}`;
-export const byEmailKey = (email, id) => `by-email/${emailKey(email)}/${id}`;
+// A customer's orders are indexed under the hash of their address
+// (lib/address-key.mjs, #758); an index entry from before the switch
+// may sit under the address itself, so a delete takes every form.
+export const byEmailKey = (email, id) => `by-email/${addressHash(email)}/${id}`;
+export const deleteByEmail = (stores, email, id) =>
+  deleteAddressed(stores.orders, "by-email", email, `/${id}`);
 export const byPaymentKey = (paymentId) => `by-payment/${paymentId}`;
 
 const stamp = (order, event, now, extra = {}) => ({
@@ -281,11 +290,9 @@ export const updateOrder = async (stores, id, change) => {
   throw new Error(`Order ${id} is being changed too fast to save.`);
 };
 
-// Moves an order to a new status with a history line, keeping the
-// open index in step. Returns the updated record, or null if unknown.
-export const setStatus = async (
-  stores, id, status, now = clock(), extra
-) => updateOrder(stores, id, (order) => {
+// The record moved to a new status with a history line, or the record
+// itself when the move is refused or already made.
+const toStatus = (order, status, now, extra) => {
   if (order.status === status) return order;
   // A cancel or a handover is never undone by a late write that still
   // thinks the order is paid, and only a paid order is handed over: the
@@ -309,7 +316,37 @@ export const setStatus = async (
   if (status === "fulfilled") patch.fulfilledAt = at;
 
   return stamp({ ...order, ...patch }, status, now, extra);
-});
+};
+
+// Moves an order to a new status with a history line, keeping the
+// open index in step. Returns the updated record, or null if unknown.
+export const setStatus = async (
+  stores, id, status, now = clock(), extra
+) => updateOrder(stores, id, (order) => toStatus(order, status, now, extra));
+
+// Like setStatus, saying whether this write made the move (`moved`), so
+// that of two writers who both see the new status, only the one that
+// wrote it does what follows: restocks, closes Square, sends notices.
+// `when`, if given, is asked of the record as the write finds it, and
+// the move is made only if it answers true. `before` is the status
+// the move was made from. -> { order, moved, before }.
+export const moveStatus = async (stores, id, status, now = clock(), {
+  extra, when,
+} = {}) => {
+  let moved = false;
+  let before = null;
+  const order = await updateOrder(stores, id, (found) => {
+    const next = when && !when(found)
+      ? found : toStatus(found, status, now, extra);
+
+    moved = next !== found;
+    before = found.status;
+
+    return next;
+  });
+
+  return { order, moved: !!order && moved, before };
+};
 
 // Any patch that is not a status change, with a history line. `patch`
 // may be a function of the record as it is when the write lands, for a
@@ -326,9 +363,10 @@ export const amendOrder = async (
 
 // A customer's orders, newest first.
 export const ordersFor = async (stores, email) => {
-  const keys = await stores.orders.list(`by-email/${emailKey(email)}/`);
+  const keys = await listAddressed(stores.orders, "by-email", email);
+  const ids = [...new Set(keys.map(({ key }) => key.split("/").pop()))];
   const orders = await Promise.all(
-    keys.map(({ key }) => stores.orders.get(`order/${key.split("/").pop()}`))
+    ids.map((id) => stores.orders.get(`order/${id}`))
   );
 
   return orders
@@ -365,7 +403,7 @@ export const deleteOrder = async (stores, id) => {
   await stores.orders.delete(orderKey(id));
   await stores.orders.delete(openKey(id));
   if (order.customer.email) {
-    await stores.orders.delete(byEmailKey(order.customer.email, id));
+    await deleteByEmail(stores, order.customer.email, id);
   }
   for (const paymentId of paymentIds(order)) {
     await stores.orders.delete(byPaymentKey(paymentId));
@@ -421,6 +459,44 @@ export const saveCheckout = async (stores, checkout) => {
   await indexCheckout(stores, checkout);
 
   return checkout;
+};
+
+// A stored checkout with `fields` set, where it lives now: the latest,
+// or an earlier attempt's archive. `checkout` may be stale: a new
+// attempt that started since it was read has moved it to its archive
+// and taken the latest slot. So the write is a swap on the key read,
+// made only while that key still holds this PayPal order, and when it
+// no longer does, the checkout is looked for where its PayPal order's
+// index points. -> the checkout as saved, or null when it is gone or
+// keeps changing (the jobs' backstop covers it then).
+export const markCheckout = async (stores, checkout, fields) => {
+  const { paypalOrderId } = checkout;
+  let holder = holderOf(checkout);
+
+  for (let tries = 0; tries < WRITE_TRIES; tries += 1) {
+    const found = await stores.orders.getTagged(checkoutKey(holder));
+    const stored = found && found.value;
+
+    if (stored && stored.paypalOrderId === paypalOrderId
+      && holderOf(stored) === holder) {
+      const marked = { ...stored, ...fields };
+
+      if (await stores.orders.swap(checkoutKey(holder), marked, found.etag)) {
+        return marked;
+      }
+      continue;
+    }
+
+    // Moved: its PayPal order's index says where to, if anywhere.
+    const ref = await stores.orders.get(byPayPalKey(paypalOrderId));
+    const moved = ref && ref.key === checkout.key
+      ? ref.holder || ref.key : null;
+
+    if (!moved || moved === holder) return null;
+    holder = moved;
+  }
+
+  return null;
 };
 
 // The latest checkout of a submission, or the one that made this
@@ -591,13 +667,25 @@ export const listMadeCustomers = async (stores) => {
 export const dropMadeCustomer = (stores, id) =>
   stores.orders.delete(madeCustomerKey(id));
 
-// Customers are keyed by lowercased email. Creating from an order
-// keeps what the order knows and never overwrites a chosen name,
-// phone, avatar or address.
-export const customerKey = (email) => `customer/${emailKey(email)}`;
+// Customers are keyed by the hash of their lowercased email
+// (lib/address-key.mjs, #758), the email kept in the record. Creating
+// from an order keeps what the order knows and never overwrites a
+// chosen name, phone, avatar or address.
+export const customerKey = (email) => `customer/${addressHash(email)}`;
 
 // The cart a signed-in customer carries across devices (#149).
-export const cartKey = (email) => `cart/${emailKey(email)}`;
+export const cartKey = (email) => `cart/${addressHash(email)}`;
+
+// A cart read by address: under its hashed key, or a key from before
+// the switch.
+export const getCartOf = (stores, email) =>
+  readAddressed(stores.customers, "cart", email);
+
+// The account page's help messages (account.mjs), one per id under
+// the hash of the customer's address (#758). One from before the
+// switch is found by listAddressed (lib/address-key.mjs).
+export const supportPrefix = (email) => `support/${addressHash(email)}/`;
+export const supportKey = (email, id) => `${supportPrefix(email)}${id}`;
 
 // Which account a browser's draft belongs to, without the email: the
 // browser tags its draft with this and scrubs a draft tagged for
@@ -620,8 +708,9 @@ export const reminderPrefs = (customer) => {
   return Object.fromEntries(REMINDERS.map((k) => [k, set[k] !== false]));
 };
 
+// Hashed key first, then the old keys (lib/address-key.mjs, #758).
 export const getCustomer = (stores, email) =>
-  stores.customers.get(customerKey(email));
+  readAddressed(stores.customers, "customer", email);
 
 // --- Consent to farm news, as a log (#273) -------------------------
 //
@@ -734,7 +823,7 @@ const customerRecord = async (stores, customer, { consent } = {}) => {
   // A record without a log is new, or from before the log: its log is
   // seeded from what is stored, not from the state being written.
   const stored = Array.isArray(customer.consent) ? null
-    : await stores.customers.get(customerKey(customer.email));
+    : await getCustomer(stores, customer.email);
   const log = Array.isArray(customer.consent) ? customer.consent
     : (stored ? consentLog(stored) : []);
   const last = log[log.length - 1];
@@ -753,6 +842,7 @@ export const saveCustomer = async (stores, customer, { consent } = {}) => {
   const record = await customerRecord(stores, customer, { consent });
 
   await stores.customers.set(customerKey(record.email), record);
+  await dropOldForms(stores.customers, "customer", record.email);
   await indexMemberId(stores, record);
 
   return record;
@@ -769,6 +859,7 @@ export const swapCustomer = async (stores, customer, etag, {
   const key = customerKey(record.email);
 
   if (!(await stores.customers.swap(key, record, etag))) return null;
+  await dropOldForms(stores.customers, "customer", record.email);
   await indexMemberId(stores, record);
 
   return record;
@@ -847,13 +938,15 @@ export const touchCustomer = async (
   }, { consent });
 };
 
-export const allCustomers = async (stores) => {
-  const keys = await stores.customers.list("customer/");
-  const customers = await Promise.all(
-    keys.map(({ key }) => stores.customers.get(key))
-  );
+// In address order, as when the key was the address, and one record
+// per address: a hashed record wins over an old twin (#758), which is
+// deleted and logged as `by` (#794: the CLI passes who ran it).
+export const allCustomers = async (stores, { by = "site" } = {}) => {
+  const customers = (await listLatest(stores.customers, "customer", { by }))
+    .map(({ value }) => value);
 
-  return customers.filter(Boolean);
+  return customers.filter(Boolean).sort((a, b) =>
+    (String(a.email) < String(b.email) ? -1 : 1));
 };
 
 export const deleteCustomer = async (stores, email) => {
@@ -864,6 +957,6 @@ export const deleteCustomer = async (stores, email) => {
   if (held && held.email === emailKey(email)) {
     await stores.customers.delete(memberIdKey(customer.memberId));
   }
-  await stores.customers.delete(customerKey(email));
-  await stores.customers.delete(cartKey(email));
+  await deleteAddressed(stores.customers, "customer", email);
+  await deleteAddressed(stores.customers, "cart", email);
 };

@@ -6,7 +6,7 @@
 //
 // A store holds JSON documents by key and can list keys by prefix.
 // Keys use "/" to build small indexes: `order/<id>`, `open/<id>`,
-// `by-email/<email>/<id>`.
+// `by-email/<hash>/<id>`, an address hashed (lib/address-key.mjs).
 //
 // `create(key, value)` writes only if the key is new and says whether
 // it did: Blobs' `onlyIfNew`, a conditional write the server decides,
@@ -25,8 +25,10 @@ import { ORDER_ID } from "./order-id.mjs";
 
 // `recordings` holds the PayPal recorder's window and records (#708,
 // lib/recorder.mjs): private, never backed up, and pruned after 7 days.
+// `invites` holds the farm's invite links (#718, lib/invites.mjs).
 export const STORES = [
   "orders", "customers", "auth", "stock", "jobs", "gate", "recordings",
+  "invites",
 ];
 
 // Netlify sets CONTEXT at build time only; a function sees nothing of
@@ -66,11 +68,12 @@ export const maskKey = (key) => {
 };
 
 // A conditional write (`onlyIfMatch` or `onlyIfNew`) -> whether the
-// store took it (#677). Blobs' client calls the write refused only on a
-// 412: any other refusal (a 409), or a 5xx it has stopped retrying,
-// comes back `modified: true` (@netlify/blobs 11.1.0, Store#setJSON).
-// The status it got is on the trace span a caller may pass it (its
-// typed `span` option), so a 200 is a write made. Any other answer is
+// store took it (#677). Blobs' client calls a 412 or a 409 refused and
+// throws a BlobsInternalError, carrying the status, on a 5xx it has
+// stopped retrying (@netlify/blobs 11.1.9, Store#setJSON); a 5xx is
+// caught here and settled like any other answer. The status it got is
+// on the trace span a caller may pass it (its typed `span` option), so
+// a 200 is a write made. Any other answer is
 // settled by reading the key back: this write's own value there means
 // the store took it and only the answer was lost (a 5xx after storing
 // it, or the 412 the client's retry of it met), so the caller does not
@@ -86,7 +89,14 @@ const conditional = async (blobs, key, value, condition) => {
     },
   };
 
-  await blobs.setJSON(key, value, { ...condition, span });
+  try {
+    await blobs.setJSON(key, value, { ...condition, span });
+  } catch (error) {
+    if (error.name !== "BlobsInternalError" || !(error.status >= 500)) {
+      throw error;
+    }
+    status = error.status;
+  }
   if (status === 200) return { made: true };
 
   const stored = await blobs.get(key, { type: "json" });
@@ -233,7 +243,28 @@ export const watchedFetch = (name, fetchImpl = null) =>
     }
   };
 
-export const stores = (env = process.env) => {
+// What Blobs still needs off Netlify -> the variables missing, in
+// order: [] when it is configured.
+export const blobsMissing = (env = process.env) => {
+  if (blobsConfigured(env)) return [];
+
+  return ["NETLIFY_SITE_ID", "NETLIFY_AUTH_TOKEN"]
+    .filter((key) => !env[key]);
+};
+
+// `{ memory: false }` refuses the memory fallback: the CLI under a
+// context flag, where a write that lands in memory reports success and
+// saves nothing (#713). It throws, naming what is missing, before any
+// store is made.
+export const stores = (env = process.env, options = {}) => {
+  const allowMemory = options.memory !== false;
+  const missing = blobsMissing(env);
+
+  if (!allowMemory && missing.length) {
+    throw new Error(`No ${missing.join(" or ")}: refusing memory stores, ` +
+      "which would lose every write.");
+  }
+
   const out = {};
 
   for (const name of STORES) {

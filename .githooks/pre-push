@@ -13,7 +13,7 @@ check="$(dirname "$0")/../bin/check-record-shape.mjs"
 zero=0000000000000000000000000000000000000000
 status=0
 
-while read -r local_ref local_sha remote_ref remote_sha; do
+while read -r _ local_sha remote_ref remote_sha; do
   case "$local_sha" in "$zero") continue ;; esac
 
   base="$remote_sha"

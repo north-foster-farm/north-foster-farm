@@ -11,7 +11,8 @@
 // while e2e is paused. docs/qa-launch.md, OP-02 and AR-13.
 
 import {
-  OrderPage, expect, pickupChosen, test, uniqueEmail,
+  OrderPage, expect, pickupChosen, placedList, placedRow, seriesStreet,
+  test, uniqueEmail,
 } from "./support/order.mjs";
 import {
   BACK_OFFICE_MISSING, backOffice, clearMail, closeOrder, deleteCustomer,
@@ -72,10 +73,12 @@ test.describe("a market order, moved to the drop site", () => {
       orderId = body.orderId;
       expect(orderId).toMatch(ORDER_ID);
 
-      const when = order.result.locator("[data-out='when']");
+      // The panel gives the market's street (#723).
+      const receiving = placedList(order.result, "Receiving your order");
 
-      await expect(when).toContainText(`at ${market.name}.`);
-      await expect(when).not.toContainText("the drop site");
+      await expect(placedRow(receiving, /pick-?\s?up address/i))
+        .toContainText(seriesStreet(market.series));
+      await expect(receiving).not.toContainText("the drop site");
 
       const record = await orderRecord(orderId);
 
@@ -109,12 +112,14 @@ test.describe("a market order, moved to the drop site", () => {
     await page.getByRole("button", { name: /^Change (delivery|pickup)$/ })
       .first().click();
 
-    const select = page.locator("[data-dates]");
+    // A radio per pickup in the pickup-days layout (#703).
+    const form = page.locator(".account-panel-form");
+    const radio = (value) => form.locator(`input[type='radio'][value='${
+      value}']`);
 
-    await expect(select).toHaveValue(chosen);
-    await expect(select.locator(`option[value='${drop.occurrence}']`))
-      .toHaveCount(1);
-    await select.selectOption(drop.occurrence);
+    await expect(radio(chosen)).toBeChecked();
+    await expect(radio(drop.occurrence)).toHaveCount(1);
+    await radio(drop.occurrence).check();
     await page.getByRole("button", { name: "Save changes" }).click();
     await expect(when).toContainText("at the drop site");
     await expect(when).not.toContainText(market.name);

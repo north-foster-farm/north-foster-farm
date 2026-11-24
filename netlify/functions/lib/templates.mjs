@@ -32,8 +32,8 @@ import {
 import { GUIDE, RUNBOOK_ALERTS } from "./alerts-guide.mjs";
 import { company } from "./company.mjs";
 import {
-  between, methodName, packingGroup, packingKind, pickupWindow, placeOf,
-  shortDay, streetAddress,
+  between, methodName, orderTypeName, packingGroup, packingKind,
+  pickupWindow, placeOf, shortDay, streetAddress,
 } from "./describe.mjs";
 import { now as clock } from "./clock.mjs";
 import {
@@ -426,7 +426,7 @@ const orderType = (order) => {
           `${company.address.state} ${company.address.zip}`,
       ];
 
-  return [p(`Order type: **${methodName(f.method)}**`), list(items)];
+  return [p(`Order type: **${orderTypeName(f)}**`), list(items)];
 };
 
 // The pickup window for a labelled line: "Thursday, October 8,
@@ -464,7 +464,7 @@ export const orderConfirmed = (order, {
   const blocks = [
     order.fulfilment.method === "onfarm"
       ? p(`Thanks, ${firstName(order.customer)}. We received your payment ` +
-        `of ${total}, and your pickup time is set. Your order is ` +
+        `of ${total}, and your pick-up time is set. Your order is ` +
         "confirmed.")
       : p(`Thanks, ${firstName(order.customer)}. Your payment of ${total} ` +
         "came through and your order is confirmed."),
@@ -681,7 +681,7 @@ export const missedDelivery = (order, {
         `Deliver it ${next}, for another ` +
           "delivery fee " +
           `of ${dollars(fee)}`,
-        "Have it ready for on-farm pickup or one of our pickup days, at " +
+        "Have it ready for on-farm pickup or one of our pick-up days, at " +
           "no charge",
         `Cancel it, and we'll refund ${items} for your items`,
       ]),
@@ -696,7 +696,7 @@ export const missedDelivery = (order, {
       p("Please choose what you'd like us to do:"),
       list([
         `Deliver it ${next}, at no extra charge`,
-        "Have it ready for on-farm pickup or one of our pickup days",
+        "Have it ready for on-farm pickup or one of our pick-up days",
         `Cancel it for a full refund of ${dollars(order.totals.total)}`,
       ]),
       p(`We'll hold your order until ${hold}. If you haven't chosen by ` +
@@ -736,7 +736,7 @@ export const movedDelivery = (order, {
     p(`${why}, so we've moved your delivery to ${when}, ${
       dayAfter(date, 0)}. You don't need to do anything.`),
     p(`If ${next ? when : "that day"} doesn't work for you, you can ` +
-      "choose another day, switch to on-farm pickup or one of our pickup " +
+      "choose another day, switch to on-farm pickup or one of our pick-up " +
       `days, or cancel for a full refund of ${dollars(order.totals.total)}, ` +
       "delivery fee included."),
   ];
@@ -839,7 +839,7 @@ export const addressDecision = (customer, decision, { links } = {}) => {
     }
   } else {
     blocks.push(p(`Unfortunately, ${where} is outside our delivery ` +
-      "area. On-farm pickup and our pickup days are open to everyone, " +
+      "area. On-farm pickup and our pick-up days are open to everyone, " +
       "with no minimum and no fee."));
   }
   blocks.push(customerFooter(links));
@@ -1335,7 +1335,7 @@ const farmOrderType = (order) => {
     const w = placeOf(order);
 
     // The customer reads "Scheduled pickup"; the farm reads which one.
-    return [p(`Order type: **${methodName(f.method)}**`), list([
+    return [p(`Order type: **${orderTypeName(f)}**`), list([
       `Pickup: ${w.name}`,
       `When: ${label(f.date)}${w.window ? `, between ${
         between(w.window)}` : ""}`,
@@ -1356,7 +1356,7 @@ const farmOrderType = (order) => {
 
   if (notes) items.push(`Notes: ${notes}`);
 
-  return [p(`Order type: **${methodName(f.method)}**`), list(items)];
+  return [p(`Order type: **${orderTypeName(f)}**`), list(items)];
 };
 
 // How the money came, for the farm: "$55 by Visa ending 4242", "$55
@@ -1604,9 +1604,30 @@ export const farmContactMessage = (message, { order = null, links } = {}) => {
 // rest. `links` gives them their Admin link (and, once the dashboard
 // shows them, the View order and View customer buttons).
 
-// "delivery on Thursday, October 8".
-const methodOn = (f) =>
-  `${methodName(f.method).toLowerCase()} on ${label(f.date)}`;
+// The kinds of place named as a common noun, which take "the": "the
+// North Scituate drop site", "the Thanksgiving Prep pop-up". A market
+// or a group's round is a proper name and takes none.
+const COMMON_PLACES = new Set(["drop-site", "pop-up"]);
+
+// The fulfillment by the farm's name for the place, the packing
+// email's (#790): "pickup at the farm", "pickup at Pawtucket Farmers
+// Market", "delivery". An occurrence gone from the data reads by its
+// id, "pickup ZZZZ-261121", since its place can't be known.
+const placeFor = (f) => {
+  if (f.method === "onfarm") return "pickup at the farm";
+  if (!isScheduled(f)) return methodName(f.method).toLowerCase();
+
+  const o = orderOccurrence(terms, f);
+
+  if (!o) return f.occurrence ? `pickup ${f.occurrence}` : "pickup";
+
+  const the = COMMON_PLACES.has(o.kind) ? "the " : "";
+
+  return `pickup at ${the}${packingGroup(f).place}`;
+};
+
+// "delivery on Thursday, October 8", "pickup at the farm on ...".
+const methodOn = (f) => `${placeFor(f)} on ${label(f.date)}`;
 
 const farmCard = (title, tag, blocks, links, { orderId, customer } = {}) => {
   const order = orderId ? orderAdminUrl(links, orderId) : null;
@@ -1685,6 +1706,17 @@ export const farmOrderCancelled = (order, customer, { links } = {}) => {
     links, { orderId: order.id }
   );
 };
+
+// A paid order refunded in full in Square or PayPal, not through the
+// CLI, and so closed here on its own (#775). `where` is "Square" or
+// "PayPal". Draft wording.
+export const farmRefundedClosed = (order, { where, links } = {}) =>
+  farmCard(`Canceled: ${order.id}, refunded in full`, "Order canceled", [
+    p(`Order ${order.id}, ${methodOn(order.fulfilment)}, was refunded in ` +
+      `full in ${where} without being canceled, so the site canceled it. Its ` +
+      "stock is back and it is off the pickup and delivery lists. The " +
+      "customer was not emailed. Don't pack it."),
+  ], links, { orderId: order.id });
 
 // A customer's change saved here but not in Square.
 export const farmSquareOutOfSync = (order, customer, { links } = {}) =>
@@ -1964,9 +1996,10 @@ export const rotationReminder = ({
   };
 };
 
-// Every morning at 8:00: the site's vital signs for the last day, then
-// whatever waits on the farm. Sent even when nothing does, so its
-// absence is a signal.
+// At 8:00: the site's vital signs for the last day, then whatever
+// waits on the farm. The jobs send it only on a morning
+// `morningReportNeeded` says has something to show (#697, 2026-11-21;
+// it went every morning before, so that its absence was a signal).
 // Each vital sign: the figure, and whether a healthy day looks like
 // this. GOOD is within limits, BAD outside them, PLAIN a number with
 // no limits, just worth knowing.
@@ -2006,6 +2039,29 @@ export const age = (iso, now) => {
 // and `bin/nff messages` lists them all (#167, security review).
 const MESSAGES_SHOWN = 30;
 
+// The schedule offers no windows, or stops short of where it must
+// reach. `schedule`: { last, until }, or null when it is not checked.
+const scheduleShort = (schedule) =>
+  !!schedule && (!schedule.last || schedule.last < schedule.until);
+
+// Whether a morning has anything for the farm: a vital sign outside
+// its healthy limits, or something that waits on the farm (a section
+// of the report below: a short schedule, reminders, archived items in
+// stock, what the Square sweep found, pickups to confirm, unanswered
+// messages). On a calm morning no report goes (#697, 2026-11-21).
+// Takes what `farmMorningReport` takes.
+export const morningReportNeeded = (stats, pickups, {
+  schedule = null, archived = [], messages = [], square = null,
+  reminders = [],
+} = {}) =>
+  VITALS.some(([, , judge]) => judge(stats) === BAD)
+  || scheduleShort(schedule)
+  || reminders.length > 0
+  || archived.length > 0
+  || !!(square && (square.open || square.profiles))
+  || pickups.length > 0
+  || messages.length > 0;
+
 export const farmMorningReport = (stats, pickups, {
   date, links, now = clock(), schedule = null, archived = [], messages = [],
   square = null, reminders = [],
@@ -2022,7 +2078,7 @@ export const farmMorningReport = (stats, pickups, {
 
   // The schedule running short is the farm's to fix, before the
   // next deploy fails on it (W11d). `schedule`: { last, until }.
-  if (schedule && (!schedule.last || schedule.last < schedule.until)) {
+  if (scheduleShort(schedule)) {
     blocks.push(
       heading("Pickup schedule"),
       p(`**${schedule.last
@@ -2149,7 +2205,9 @@ export const farmMorningReport = (stats, pickups, {
 
 // Every evening at 6:00: every order due tomorrow, by method, with
 // what the driver or the packer needs. The manifest the farm would
-// otherwise rebuild if anything broke overnight. Sent even when empty.
+// otherwise rebuild if anything broke overnight. The jobs send none
+// when nothing is due (#697; 2026-11-21: this said "Sent even when
+// empty").
 export const farmTomorrow = (orders, { date, links } = {}) => {
   const day = label(date);
   const title = `Tomorrow, ${day}: ${orders.length} order${

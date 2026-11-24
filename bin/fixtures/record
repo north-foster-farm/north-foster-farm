@@ -154,7 +154,7 @@ send() {
       request: $request, response: $response[0]}' > "$OUT"
   rm -f "$tmp.raw" "$tmp.err" "$tmp.body"
 
-  if [ "$want" != any ] && [ "${STATUS%${STATUS#?}}" != "$want" ]; then
+  if [ "$want" != any ] && [ "${STATUS%"${STATUS#?}"}" != "$want" ]; then
     flag="  <-- expected a ${want}xx"
     FAILED=$((FAILED + 1))
   fi
@@ -268,7 +268,7 @@ LONG="$(printf 'x%.0s' $(seq 1 64))"
 REFUSED=""
 for candidate in "fixture..$RUN@example.com" ".fixture-$RUN@example.com" \
   "fixture-$RUN.@example.com" "fixture-$RUN,x@example.com" \
-  "fixture-$RUN(x)@example.com" "fixture-$RUN[x]@example.com" \
+  "fixture-$RUN(x)@example.com" "fixture-${RUN}[x]@example.com" \
   "fixture-$RUN-$LONG@example.com" "fixture-$RUN@$LONG.com" \
   "fixture-$RUN@example.com."; do
   ARGS="$(jq -nc --arg locationId "$LOC" --arg email "$candidate" \
@@ -388,6 +388,50 @@ send fulfillment-cancel square "$CANCEL_REQUEST"
 # The same version a second time: stale.
 send order-update-stale-version square "$CANCEL_REQUEST" 4
 
+# ---- Pickups refunded in full, then their fulfillment cancelled -------
+# What Square answers cancelFulfillment for an order it refunded in
+# full (#775). refunded_cancel SUFFIX SOURCE_JSON REASON CANCEL WANT pays
+# a new pickup, refunds the whole payment as REASON says, waits for the
+# refund to finish (the close follows a finished one, as in
+# production), reads the order back and records the cancel as CANCEL.
+refunded_cancel() {
+  local suffix="$1" source="$2" reason="$3" cancel="$4" want="$5"
+  local order payment refund args
+
+  new_order "refunded-$suffix" pickup
+  order="$ORDER_ID"
+  pay "refund-$suffix" "$source"
+  payment="$(got .response.payment.id)"
+  args="$(margs --arg paymentId "$payment" --argjson amount "$ORDER_TOTAL" \
+    --arg key "$K-refund-full-$suffix" --arg reason "$reason")"
+  send "refund-create-full-$suffix" square "$(pick refund "$args" 0)"
+  refund="$(got .response.refund.id)"
+  for _ in 1 2 3 4 5 6; do
+    send "refund-get-full-$suffix" square "$(sq GET "/v2/refunds/$refund")"
+    [ "$(jq -r '.response.refund.status // empty' "$OUT")" = COMPLETED ] \
+      && break
+    sleep 2
+  done
+  send "order-get-refunded-full-$suffix" square \
+    "$(sq GET "/v2/orders/$order")"
+  args="$(margs --arg orderId "$order" \
+    --argjson current "$(jq -c .response.order "$OUT")")"
+  send "$cancel" square "$(pick cancel-fulfillment "$args" 0)" "$want"
+}
+
+# Paid by card and refunded in Square: the sandbox closes it (200).
+refunded_cancel card '{"sourceId": "cnon:card-nonce-ok"}' \
+  "Fixture full refund" fulfillment-cancel-refunded-card 2
+
+# A Venmo payment as the site records it on Square (an EXTERNAL
+# tender), refunded in PayPal and repeated on Square as the PayPal
+# webhook's refundOnSquare repeats it. Production refused this cancel
+# with a 400 on 2026-11-21 (NFF-2611-DT349B), but the sandbox closes
+# it (200, 2026-11-22), so the 400 is not reproduced.
+refunded_cancel external '{"external": {"source": "Venmo",
+  "sourceId": "FIXTURE-VENMO-2", "type": "SOCIAL"}}' \
+  "Refunded in PayPal" fulfillment-cancel-refunded-external 2
+
 # ---- A pickup paid in cash (the farm's own, #181) -----------------------
 new_order cash pickup
 pay cash '{"cash": true}'
@@ -475,6 +519,25 @@ send customer-update-reference square "$(pick set-member-reference \
   "$ARGS" 1 \
   | jq -c --arg c "$CUSTOMER_ID" '.path |= sub("__CUSTOMER_ID__"; $c)')"
 
+# ---- The customer read before an invite links it (#718) -----------------
+# GET /v2/customers/{id} has no body to build. First the profile with its
+# email address, then one made without any: the shape of a customer known
+# only to Square. That profile's create and delete are the recorder's own
+# and not kept.
+send customer-get square "$(sq GET "/v2/customers/$CUSTOMER_ID")"
+send customer-create-no-email square "$(jq -nc --arg v "$VERSION" \
+  --arg k "$K-no-email" \
+  '{method: "POST", path: "/v2/customers",
+    headers: {"Square-Version": $v, "Content-Type": "application/json"},
+    body: {idempotency_key: $k, given_name: "Given",
+      family_name: "Family"}}')"
+NO_EMAIL_ID="$(got .response.customer.id)"
+rm -f "$OUT"
+send customer-get-no-email square "$(sq GET "/v2/customers/$NO_EMAIL_ID")"
+send customer-delete-no-email square \
+  "$(sq DELETE "/v2/customers/$NO_EMAIL_ID")"
+rm -f "$OUT"
+
 # ---- The customer: renamed, deleted, deleted again ----------------------
 ARGS="$(margs --arg from "$EMAIL" --arg to "renamed-$EMAIL" \
   --argjson found true)"
@@ -499,7 +562,7 @@ if [ -n "$RS_TOKEN" ] && [ -n "$MAIL_FROM" ]; then
   ARGS="$(jq -nc --arg from "$MAIL_FROM" --arg replyTo "$MAIL_REPLY_TO" \
     --argjson message "$message" '$ARGS.named')"
   send resend-send resend "$(pick resend-send "$ARGS" 0)" 2
-  if [ "${STATUS%${STATUS#?}}" != "2" ]; then
+  if [ "${STATUS%"${STATUS#?}"}" != "2" ]; then
     # MAIL_FROM is not a sender the key may use; Resend's own may be.
     mv "$OUT" "$RAW/resend-send-refused.json"
     ARGS="$(jq -nc --arg from "onboarding@resend.dev" \
@@ -517,7 +580,8 @@ else
 fi
 
 echo
-echo "Recorded $(ls "$RAW"/*.json | wc -l | tr -d ' ') responses in"
+echo "Recorded $(find "$RAW" -maxdepth 1 -name '*.json' ! -name '.*' |
+  wc -l | tr -d ' ') responses in"
 echo "$RAW"
 if [ "$FAILED" -gt 0 ]; then
   echo "$FAILED answered with an unexpected class of status (flagged above);"

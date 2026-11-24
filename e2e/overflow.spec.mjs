@@ -147,15 +147,17 @@ for (const width of WIDTHS) {
       await fits(page, width, "/order/, delivery");
     });
 
+    // #402: search opens from the magnifier at every width (#913).
     test("search fits with results showing", async ({ page }) => {
-      const dialog = page.locator("#search-palette");
+      const field = page.getByRole("combobox", { name: /search/i });
+      const region = page.getByRole("search").filter({ has: field });
 
       await page.goto("/");
-      await page.locator("[data-search-open]:visible").first().click();
-      await expect(dialog).toHaveClass(/\bis-open\b/);
-      await dialog.locator("#search-palette-input").fill("chicken");
-      await expect(dialog.locator("#search-palette-list [role='option']")
-        .first()).toBeVisible();
+      await page.getByRole("banner")
+        .getByRole("button", { name: /^(open |close )?search$/i }).click();
+      await expect(field).toBeFocused();
+      await field.fill("chicken");
+      await expect(region.getByRole("option").first()).toBeVisible();
       await page.waitForTimeout(300);
       await fits(page, width, "search, results");
     });

@@ -2,7 +2,7 @@
 // production may hold one after #626: the record keeps
 // `fulfilment.delivery.toGroup` and the group's place as the address.
 // Shared by group-delivery-kept.test.mjs and
-// group-delivery-removal.criteria.mjs. The order is made as production
+// group-delivery-removal.test.mjs. The order is made as production
 // holds one, never placed with the option, so the tests hold whether or
 // not the server goes on accepting it on new orders.
 

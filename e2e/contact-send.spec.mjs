@@ -220,7 +220,7 @@ test.describe("contact messages (#140)", () => {
       expect(foreign.status()).toBe(403);
       expect(await contactMessages(email)).toHaveLength(before);
       // Give a stray send time to land, then look for it.
-      await new Promise((r) => setTimeout(r, 5_000));
+      await new Promise((r) => { setTimeout(r, 5_000); });
       expect((await outbox({ since })).filter(
         (m) => /Buy followers|From elsewhere/.test(m.text)
       )).toEqual([]);

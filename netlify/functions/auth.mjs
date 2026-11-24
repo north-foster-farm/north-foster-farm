@@ -11,20 +11,23 @@ import {
 } from "../../assets/scripts/utils/field-errors.mjs";
 import {
   clearCookieHeader, clearStampHeader, cookieHeader, createSession,
-  endSession, hasStamp, normalizeEmail, peekToken, publicCustomer,
+  endSession, hasStamp, peekToken, publicCustomer, receivedEmail,
   requestLink, safeNext, sameSite, sessionFrom, stampHeader, tokenEmail,
   verifyToken,
 } from "./lib/auth.mjs";
 import { getCart, saveCart } from "./lib/account.mjs";
 import { finishEmailChange } from "./lib/email-change.mjs";
 import { creditBalance } from "./lib/credit.mjs";
-import { groupOf, memberKeyOf, namedGroup } from "./lib/groups.mjs";
+import { buyingGroupOf, namedGroup } from "./lib/groups.mjs";
+import { finishInvite } from "./lib/invites.mjs";
 import { finishJoin } from "./lib/join.mjs";
 import { roleOf } from "./lib/membership.mjs";
-import { cartKey, cartOwner } from "./lib/records.mjs";
+import { deleteAddressed } from "./lib/address-key.mjs";
+import { cartOwner } from "./lib/records.mjs";
 import { now as clock, real } from "./lib/clock.mjs";
 import { json, noCopy, readJson } from "./lib/http.mjs";
-import { log, withLog } from "./lib/log.mjs";
+import { log } from "./lib/log.mjs";
+import { withLog } from "./lib/with-log.mjs";
 import {
   MESSAGE, gate, isAdminAddress, readState,
 } from "./lib/maintenance.mjs";
@@ -65,7 +68,7 @@ const carryCart = async (stores, email, cart, now) => {
     if (stored && stored.payload && (stored.payload.lines || []).length) {
       return;
     }
-    if (stored) await stores.customers.delete(cartKey(email));
+    if (stored) await deleteAddressed(stores.customers, "cart", email);
     await saveCart(stores, { email }, cart, { now });
   } catch (error) {
     log.warn({ event: "auth.cart-failed", error: error.message });
@@ -94,7 +97,10 @@ export const handle = async (req, {
     // An admin address may still ask for a link, so an admin with no
     // session can get in to test; the link goes only to that mailbox.
     const body = await readJson(req);
-    const admin = body && isAdminAddress(normalizeEmail(body.email), env);
+    // Decoded once, cleaned and checked (#758): "" when it fails, which
+    // requestLink refuses as invalid.
+    const email = (body && receivedEmail(body.email)) || "";
+    const admin = isAdminAddress(email, env);
     const closed = admin ? null : await gate(stores);
 
     if (closed) return closed;
@@ -107,7 +113,9 @@ export const handle = async (req, {
       return json(200, { ok: true });
     }
 
-    const result = await requestLink(stores, body, { now, env, mail });
+    const result = await requestLink(stores, { ...body, email }, {
+      now, env, mail,
+    });
 
     if (!result.ok && result.reason === "invalid") {
       return json(422, {
@@ -159,6 +167,15 @@ export const handle = async (req, {
       now, session: session.id,
     });
     await carryCart(stores, session.email, result.cart, now);
+
+    // A link from an invite page (#718) puts the invite's perk on the
+    // account if the invite is still open now, and uses it up; one it
+    // can't use signs in all the same.
+    if (result.invite) {
+      await finishInvite(stores, session.email, result.invite, {
+        now, env, fetchImpl,
+      });
+    }
 
     // A link from a group's sign-up page (#495) joins the group too,
     // and lands on Membership, or on the account when it joined none.
@@ -262,7 +279,9 @@ export const handle = async (req, {
     // A buying group's member (#471) sees their group and their
     // credit on the account page: the name as the farm set it, and
     // the balance in cents, read from the ledger now.
-    const group = groupOf(memberKeyOf(session.customer));
+    // A group's host is its member here too (#772).
+    const group = await buyingGroupOf(stores, session.customer,
+      session.email);
     const member = group
       ? {
         key: group.key,
@@ -279,6 +298,17 @@ export const handle = async (req, {
     // order, as the order handler does.
     const kept = member ? 0 : await creditBalance(stores, session.email, now);
 
+    // A live session asked for without its stamp gets the stamp back
+    // (#985): a late 401 from another tab can clear it just after a
+    // sign-in, which would leave the header signed in and the order
+    // form not. It ends with the session, which does not slide, so it
+    // lasts only the time the session has left. A cookie only; no
+    // record changes.
+    const left = Math.floor((session.expires - now.getTime()) / 1000);
+    const restamp = hasStamp(req)
+      ? {}
+      : { "Set-Cookie": stampHeader(now, { maxAge: left }) };
+
     // `owner`: the tag of this account's cart draft (#149).
     return json(200, {
       ...closed,
@@ -289,7 +319,7 @@ export const handle = async (req, {
       ...(member ? { member } : {}),
       ...(role ? { membership: true } : {}),
       ...(kept > 0 ? { credit: kept } : {}),
-    });
+    }, restamp);
   }
 
   return json(404, { error: "Not found." });

@@ -1,0 +1,62 @@
+{
+  "_source": {
+    "service": "paypal",
+    "environment": "production",
+    "recorded": "2026-11-21",
+    "by": "bin/fixtures/record, scrubbed by bin/fixtures/scrub"
+  },
+  "status": 201,
+  "request": {
+    "method": "POST",
+    "path": "/v2/checkout/orders",
+    "headers": {
+      "content-type": "application/json",
+      "paypal-request-id": "PAYPAL_REQUEST_ID_3"
+    },
+    "body": {
+      "intent": "CAPTURE",
+      "purchase_units": [
+        {
+          "reference_id": "CUSTOM_ID_1",
+          "custom_id": "CUSTOM_ID_1",
+          "description": "North Foster Farm order CUSTOM_ID_1",
+          "amount": {
+            "currency_code": "USD",
+            "value": "5.00"
+          }
+        }
+      ],
+      "application_context": {
+        "brand_name": "North Foster Farm",
+        "shipping_preference": "NO_SHIPPING",
+        "user_action": "PAY_NOW"
+      }
+    }
+  },
+  "response": {
+    "id": "ORDER_ID_3",
+    "status": "CREATED",
+    "links": [
+      {
+        "href": "https://api.paypal.com/v2/checkout/orders/ORDER_ID_3",
+        "rel": "self",
+        "method": "GET"
+      },
+      {
+        "href": "https://www.paypal.com/checkoutnow?token=ORDER_ID_3",
+        "rel": "approve",
+        "method": "GET"
+      },
+      {
+        "href": "https://api.paypal.com/v2/checkout/orders/ORDER_ID_3",
+        "rel": "update",
+        "method": "PATCH"
+      },
+      {
+        "href": "https://api.paypal.com/v2/checkout/orders/ORDER_ID_3/capture",
+        "rel": "capture",
+        "method": "POST"
+      }
+    ]
+  }
+}

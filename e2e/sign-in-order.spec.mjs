@@ -23,7 +23,20 @@ test.describe.configure({ retries: 0 });
 
 const SIGN_IN = "Your secure sign-in link to North Foster Farm";
 const PROMPT = "Have an account? Don't forget to sign in.";
-const PERK = "Free delivery";
+
+// Signed in with the perk: the free delivery badge carries it, lit and
+// with its info button, so the cart's perk line stays hidden (#717,
+// revised; qa on #752).
+const expectPerk = async (page) => {
+  const badge = page.locator("#order-cart [data-badge='free-delivery']");
+
+  await expect(page.locator("[data-cart-perks]")).toBeHidden();
+  await expect(badge).toHaveAttribute("data-on", "true");
+  await expect(page.locator("#order-cart li")
+    .filter({ has: page.locator("[data-badge='free-delivery']") })
+    .locator("button:not([data-badge]), [role='button']:not([data-badge])"))
+    .toHaveCount(1);
+};
 
 test.describe("signing in partway through an order (#521)", () => {
   test.skip(!backOffice().ready, BACK_OFFICE_MISSING);
@@ -101,7 +114,7 @@ test.describe("signing in partway through an order (#521)", () => {
       await expect(page.locator("#customer-email")).toHaveValue(email);
 
       // Priced with the perk, and the prompt gone.
-      await expect(page.locator("[data-cart-perks]")).toHaveText(PERK);
+      await expectPerk(page);
       await expect(order.fee).toHaveText("$0");
       await expect(page.locator("[data-signin-prompt]")).toBeHidden();
     });
@@ -123,7 +136,7 @@ test.describe("signing in partway through an order (#521)", () => {
       await page.bringToFront();
       await page.evaluate(() => window.dispatchEvent(new Event("focus")));
 
-      await expect(page.locator("[data-cart-perks]")).toHaveText(PERK);
+      await expectPerk(page);
       await expect(order.fee).toHaveText("$0");
       await expect(page.locator("[data-signin-prompt]")).toBeHidden();
       // What was typed here stays.
@@ -156,7 +169,7 @@ test.describe("signing in partway through an order (#521)", () => {
       await expect(order.qty("whole")).toHaveValue("3");
       await order.delivery();
       await order.firstDate("delivery");
-      await expect(page.locator("[data-cart-perks]")).toHaveText(PERK);
+      await expectPerk(page);
       await expect(order.fee).toHaveText("$0");
       await expect(page.locator("[data-signin-prompt]")).toBeHidden();
 

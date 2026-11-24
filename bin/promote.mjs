@@ -114,6 +114,9 @@ export const STAGING_E2E = {
   job: "e2e-staging", step: "Run",
 };
 
+/**
+ * @public bin/nff imports it; Knip reads no file without an extension.
+ */
 export const USAGE = `
   bin/nff promote staging|main [release/<name>] [--dry-run]
                                       fast-forward staging to next, or

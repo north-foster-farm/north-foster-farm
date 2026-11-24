@@ -24,11 +24,22 @@ export const between = (window) =>
 // own name for the place.
 export const methodName = (method) => ({
   delivery: "Delivery",
-  scheduled: "Pickup days",
-  scituate: "Pickup days",
-  market: "Pickup days",
+  scheduled: "Pick-up days",
+  scituate: "Pick-up days",
+  market: "Pick-up days",
   onfarm: "On-farm pickup",
 }[method] || method);
+
+// Whether a fulfilment is at a buying group's round (#749), by its
+// occurrence's series in the data.
+export const isGroupRound = (f) => isScheduled(f)
+  && (orderOccurrence(terms, f) || {}).kind === "group";
+
+// The order type as the customer reads it: a group's round is "Group
+// orders" (#749 item 10), past orders that read "Pick-up days"
+// included; every other order its method's name.
+export const orderTypeName = (f) => (isGroupRound(f) ? "Group orders"
+  : methodName(f.method));
 
 // "9 – 11 AM", "11 AM – 1 PM": a range the farm confirmed before W11d,
 // on the hour.

@@ -4,7 +4,9 @@
 // is paid by card and by Venmo without a single request leaving.
 
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync } from "node:fs";
+import {
+  mkdtempSync, readFileSync, readdirSync, rmSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, afterEach, beforeEach, describe, it } from "node:test";
@@ -79,8 +81,8 @@ const squareHost = () => async (url, { method }) => {
   const path = new URL(url).pathname;
   const answers = [
     [/^\/v2\/customers\/search$/, "customers-search-found"],
-    [/^\/v2\/customers\//, method === "DELETE"
-      ? "customer-delete" : "customer-update"],
+    [/^\/v2\/customers\//, { DELETE: "customer-delete",
+      GET: "customer-get" }[method] || "customer-update"],
     [/^\/v2\/orders\/[^/]+\/pay$/, "order-pay-zero"],
     [/^\/v2\/orders\/search$/, "orders-search-customer"],
     [/^\/v2\/locations$/, "locations-list"],
@@ -99,36 +101,36 @@ const squareHost = () => async (url, { method }) => {
   return reply("square", name);
 };
 
-const paypalHost = () => async (url) => {
+// PayPal as the real module meets it: James's live Venmo test
+// (test/fixtures/paypal, 2026-11-21), each answer found by what it
+// recorded, since the scrubber names the files. Two answers were never
+// recorded: the token (a secret), and a refund read (no `refunds check`
+// was run), which gets the refund's own answer, the same object.
+const PAYPAL_DIR = new URL("./fixtures/paypal/", import.meta.url);
+const paypalRecordings = () => readdirSync(PAYPAL_DIR)
+  .filter((f) => f.endsWith(".json"))
+  .map((f) => JSON.parse(readFileSync(new URL(f, PAYPAL_DIR), "utf8")))
+  .filter((r) => r.request && r.status >= 200 && r.status < 300);
+const paypalHost = () => async (url, { method = "GET" } = {}) => {
   const path = new URL(url).pathname;
-  const captured = {
-    id: "PPO", status: "COMPLETED", update_time: "2026-10-06T13:00:00Z",
-    purchase_units: [{
-      payments: {
-        captures: [{
-          id: "CAP", status: "COMPLETED", amount: { value: "55.00" },
-        }],
-      },
-    }],
-    payer: {
-      email_address: "pat@venmo", name: { given_name: "Pat", surname: "E" },
-    },
-  };
-  const answers = [
-    [/^\/v1\/oauth2\/token$/, { access_token: "T", expires_in: 3600 }],
-    [/^\/v1\/notifications\//, { verification_status: "SUCCESS" }],
-    [/^\/v2\/checkout\/orders$/, { id: "PPO" }],
-    [/^\/v2\/checkout\/orders\//, captured],
-    [/^\/v2\/payments\/captures\//, {
-      id: "RF", status: "COMPLETED", amount: { value: "1.00" },
-    }],
-    [/^\/v2\/payments\/refunds\//, {
-      id: "RF", status: "COMPLETED", amount: { value: "1.00" },
-    }],
-  ];
-  const [, data] = answers.find(([re]) => re.test(path));
 
-  return new Response(JSON.stringify(data), { status: 200 });
+  if (path === "/v1/oauth2/token") {
+    return new Response(JSON.stringify({ access_token: "T",
+      expires_in: 3600 }), { status: 200 });
+  }
+
+  const asked = /^\/v2\/payments\/refunds\//.test(path)
+    ? { method: "POST", re: /^\/v2\/payments\/captures\/[^/]+\/refund$/ }
+    : { method, re: new RegExp(`^${path
+      .replace(/(orders|captures)\/[^/]+/, "$1/[^/]+")}$`) };
+  const found = paypalRecordings().find((r) => r.request.method
+    === asked.method && asked.re.test(r.request.path)
+    && !(method === "GET" && r.response.status === "CREATED"));
+
+  assert.ok(found, `no recorded PayPal answer for ${method} ${path}`);
+
+  return new Response(JSON.stringify(found.response),
+    { status: found.status });
 };
 
 // Every call, with its arguments; `ids` are the vendor's own, or the
@@ -162,6 +164,7 @@ const SQUARE_CALLS = {
   searchOpenOrders: (o) => square.searchOpenOrders({
     before: new Date(),
   }, o),
+  customersByEmail: (o) => square.customersByEmail("a@example.com", o),
   renameCustomerEmail: (o) => square.renameCustomerEmail(
     "a@example.com", "b@example.com", o
   ),
@@ -169,6 +172,10 @@ const SQUARE_CALLS = {
     email: "customer@example.com", firstName: "Pat", lastName: "Fixture",
     phone: "",
   }, "NFM-ABCD-EFGH", o),
+  customerEmail: (o) => square.customerEmail("CUSTOMER_ID_1", o),
+  setCustomerEmail: (o) => square.setCustomerEmail(
+    "CUSTOMER_ID_1", "customer@example.com", o
+  ),
 };
 
 const PAYPAL_CALLS = {

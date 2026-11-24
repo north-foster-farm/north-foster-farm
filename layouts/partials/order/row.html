@@ -1,9 +1,10 @@
 {{/* One product row of order/catalog.html, from an item of
      order/groups.html or order/archived.html. An archived row carries
      `data-archived`: it stays hidden unless a paid order being
-     changed holds it (order/restock.js). */}}
+     changed holds it (order/restock.js). Its id, the SKU in lower
+     case, is where a search result links (#402). */}}
 {{ $id := printf "qty-%s" (.sku | lower) }}
-<li class="order-item" data-sku="{{ .sku }}" data-restock-label="{{ .restockLabel }}"{{ with .restock }} data-restock="{{ . }}"{{ end }} tabindex="-1"{{ if eq .restock "archived" }} data-archived{{ end }}{{ if .out }} data-out{{ with .restockLabel }} data-stock="out"{{ end }} hidden{{ end }}>
+<li class="order-item" id="{{ .sku | lower }}" data-sku="{{ .sku }}" data-restock-label="{{ .restockLabel }}"{{ with .restock }} data-restock="{{ . }}"{{ end }} tabindex="-1"{{ if eq .restock "archived" }} data-archived{{ end }}{{ if .out }} data-out{{ with .restockLabel }} data-stock="out"{{ end }} hidden{{ end }}>
   <span class="order-item-name{{ if .grade }} order-item-graded{{ end }}">
     {{- /* A grade goes before the name, "Grade A · Large", as the
          cart's grouped row and Square's name read it (James,

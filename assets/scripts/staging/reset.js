@@ -20,10 +20,11 @@
 
 export const STAY = ["staging.open"];
 
-// `bag` is a function: even reading window.localStorage can throw.
-const wipe = (bag) => {
+// `open` returns the storage: even reading window.localStorage can
+// throw.
+const wipe = (open) => {
   try {
-    bag = bag();
+    const bag = open();
 
     const keep = new Map(STAY.map((k) => [k, bag.getItem(k)]));
 

@@ -216,7 +216,6 @@
     height: 1px;
     margin: 0;
     overflow: hidden;
-    clip: rect(0 0 0 0);
     clip-path: inset(50%);
   }
 
@@ -320,6 +319,9 @@
     padding: 0.625rem 0.75rem 0.625rem 1rem;
     border: 1px solid var(--bs-border-color-translucent);
     border-radius: var(--order-radius);
+
+    // A search result's link lands it clear of the sticky bar (#402).
+    scroll-margin-top: calc(var(--order-topbar-h) + 0.75rem);
     background-color: var(--bs-body-bg);
     box-shadow: var(--order-shadow);
     outline: none;
@@ -573,15 +575,23 @@
     display: none;
   }
 
-  // The farm-news box closes the Place your order pane, under the
-  // agreement (#352; #228 had it under the email).
+  // The farm-news question heads a section of its own before Place
+  // your order, spaced as the legends are, with "pasture-raised" in
+  // italics and the primary green; the box is in its card below
+  // (James, 2026-11-21, #705's second revision; a card above the pane
+  // before it, #352 had them under the agreement, #228 under the
+  // email). The card's padding is the space around the box.
   .order-optin-title {
-    margin: 1.5rem 0 0.5rem;
-    text-align: center;
+    margin-bottom: 1rem;
+  }
+
+  .order-optin-stress {
+    font-style: italic;
+    color: var(--bs-primary);
   }
 
   .order-optin {
-    margin: 0.25rem 0 0;
+    margin: 0;
   }
 
   // Phones and tablets: the list is a plain column of hairline rows,
@@ -589,18 +599,13 @@
   // the cart is a distinct floating panel with an accent along its
   // top. From lg the cards, chevron and column layout come back.
   @media (max-width: 991.98px) {
-    & {
-      --order-topbar-h: 3.5rem;
-      --order-gutter: 1.25rem;
+    --order-topbar-h: 3.5rem;
+    --order-gutter: 1.25rem;
 
-      // A phone turned sideways: clear of the notch and the Dynamic
-      // Island (viewport-fit=cover), the bar still bleeding to the
-      // glass.
-      --order-edge-l: max(var(--order-gutter), env(safe-area-inset-left, 0px));
-      --order-edge-r: max(
-        var(--order-gutter), env(safe-area-inset-right, 0px)
-      );
-    }
+    // A phone turned sideways: clear of the notch and the Dynamic
+    // Island (viewport-fit=cover), the bar still bleeding to the glass.
+    --order-edge-l: max(var(--order-gutter), env(safe-area-inset-left, 0px));
+    --order-edge-r: max(var(--order-gutter), env(safe-area-inset-right, 0px));
 
     // Room at the sides, less of it on a phone.
     .order-page {
@@ -615,9 +620,7 @@
     }
 
     @media (max-width: 575.98px) {
-      & {
-        --order-gutter: 1rem;
-      }
+      --order-gutter: 1rem;
     }
 
     // 56px exactly, the name centered in it (O6); the total button
@@ -714,12 +717,14 @@
     max-width: 24rem;
   }
 
-  // The contact section and the last pane in a frame like the cart
+  // The contact fields and the last pane in a frame like the cart
   // pane's: its border, radius, padding and shadow (#352). The contact
-  // frame is the fieldset itself, so its heading and sign-in line sit
-  // inside with the fields (#666). Bootstrap floats a legend, which is
-  // what puts it inside the fieldset's padding and not on its border.
-  .order-details,
+  // card frames only the fields, its heading and sign-in line above it
+  // as Place your order's heading is above its pane (#704; #666 had
+  // them inside). The news opt-in's card, under its own heading, is
+  // framed the same (#705).
+  .order-details .order-contact-card,
+  .order-optin-section .order-optin-card,
   .order-confirm .order-pane {
     padding: 1rem var(--order-gutter);
     border: 1px solid var(--bs-border-color-translucent);
@@ -733,8 +738,10 @@
   }
 
   // The cart's shadow at each width: the lighter one alone from xl,
-  // below it the one off its back edge. The contact frame keeps the
-  // lighter one at every width, as the cards above it do (#666).
+  // below it the one off its back edge. The contact card keeps the
+  // lighter one at every width, as the cards above it do (#666). The
+  // opt-in card shares the pane's column and its shadow (#705).
+  .order-optin-section .order-optin-card,
   .order-confirm .order-pane {
     @media (max-width: 1199.98px) {
       box-shadow:
@@ -750,12 +757,17 @@
     clear: left;
   }
 
-  // The news opt-in closes the Place your order pane, under the agreement
-  // (#352), centered under its subheading like the button above: the
-  // box and its words as one line, wrapped to the words' width.
-  .order-confirm .order-optin {
+  // The same in Place your order, whose pane follows the legend: it
+  // stays clear of the heading whatever comes between (#705).
+  .order-confirm .order-pane {
+    clear: left;
+  }
+
+  // The news box and its words as one line, at the card's left edge,
+  // as in James's mockup (#705; centered from his cart pass,
+  // 2026-10-27).
+  .order-optin-section .order-optin {
     display: flex;
-    justify-content: center;
     gap: 0.5rem;
     margin-top: 0;
     padding-left: 0;
@@ -768,7 +780,7 @@
   }
 
   // "Prefer text or call?" is hidden until there is a phone number,
-  // and fades in when it appears (order-form.js showContact).
+  // and fades in when it appears (form/contact.js showContact).
   .order-contact-row {
     transition:
       opacity var(--order-base) ease,
@@ -845,7 +857,6 @@
   }
 
   // The contact row above sets its own padding, on purpose (#666).
-  // stylelint-disable-next-line no-descending-specificity
   .order-radios {
     display: flex;
     flex-wrap: wrap;
@@ -863,122 +874,6 @@
     flex-flow: column nowrap;
   }
 
-  // The scheduled pickups: a vertical list of radio cards, white until
-  // chosen (#323), in the secondary color so they read apart from the
-  // card's own (primary) radio. Each shows its day and hours, the
-  // pickup's name, and the address, one part to a line on a narrow
-  // card and written out on one line on a wide one.
-  .order-pickups {
-    display: grid;
-    gap: 0.5rem;
-    padding-top: 0.25rem;
-
-    &:focus {
-      outline: 0;
-    }
-
-    &.is-invalid {
-      border-radius: var(--order-radius);
-      outline: 1px solid var(--bs-form-invalid-border-color);
-      outline-offset: 0.25rem;
-    }
-  }
-
-  .order-pickup {
-    position: relative;
-    container-type: inline-size;
-    display: flex;
-    align-items: baseline;
-    gap: 0.625rem;
-    padding: 0.5rem 0.75rem;
-    border: 1px solid var(--bs-border-color);
-    border-radius: var(--order-radius);
-    background-color: var(--bs-white);
-    transition:
-      border-color var(--order-hover) ease,
-      background-color var(--order-hover) ease;
-
-    &:hover {
-      border-color: var(--bs-secondary);
-    }
-
-    &:has(> input:checked) {
-      border-color: var(--bs-secondary);
-      background-color: var(--bs-secondary-bg-subtle);
-    }
-
-    > .form-check-input {
-      flex: none;
-      margin: 0;
-      transform: translateY(0.15rem);
-
-      &:checked {
-        border-color: var(--bs-secondary);
-        background-color: var(--bs-secondary);
-      }
-
-      &:focus {
-        border-color: var(--bs-secondary);
-        box-shadow: 0 0 0 0.25rem rgb(var(--bs-secondary-rgb) / 25%);
-      }
-    }
-  }
-
-  .order-pickup-label {
-    display: flex;
-    flex: 1;
-    flex-wrap: wrap;
-    gap: 0 0.5rem;
-    cursor: pointer;
-
-    // The day's dot ends it, so the hours follow on its line.
-    > .order-pickup-date::after {
-      margin-left: 0.5rem;
-      color: var(--bs-secondary-color);
-      content: "·";
-    }
-
-    // Where the hours drop to their own row, the dot goes.
-    @container (max-width: 30rem) {
-      > .order-pickup-date::after {
-        display: none;
-      }
-    }
-  }
-
-  .order-pickup-date {
-    font-weight: bold;
-  }
-
-  .order-pickup-time {
-    white-space: nowrap;
-  }
-
-  .order-pickup-name,
-  .order-pickup-address {
-    flex-basis: 100%;
-  }
-
-  // The subtitle, small and secondary as on the Places cards.
-  .order-pickup-name {
-    color: var(--bs-secondary-color);
-    font-size: 0.875em;
-  }
-
-  .order-pickup-address {
-    display: flex;
-    flex-wrap: wrap;
-    color: var(--bs-secondary-color);
-
-    // Written out on as few lines as fit, the parts joined by commas.
-    // A part goes to the next line whole, so none breaks mid-phrase
-    // unless it is longer than a line (#439).
-    > span:not(:last-child)::after {
-      margin-right: 0.3em;
-      content: ",";
-    }
-  }
-
   // Fulfilment cards
 
   .order-methods {
@@ -992,12 +887,24 @@
     grid-template-rows: 0fr;
     transition: grid-template-rows var(--order-base) var(--order-ease);
 
-    // stylelint-disable-next-line no-descending-specificity
     > * {
       overflow: hidden;
       opacity: 0;
       transition: opacity var(--order-fast) ease 60ms;
     }
+  }
+
+  // With Group orders chosen, the other ways' fields are hidden, not
+  // only clipped, once their folds have closed (#749: Group orders
+  // shows none of Delivery's). Only then: a spec of Pick-up days
+  // (order-scheduled's `listed`) reads its clipped radios as on show
+  // while On-farm pickup is chosen.
+  .order-methods:has(#method-group:checked)
+    .order-method:not(:has(> #method-group)) .order-method-reveal > * {
+    visibility: hidden;
+    transition:
+      opacity var(--order-fast) ease 60ms,
+      visibility 0s linear var(--order-base);
   }
 
   .order-method {
@@ -1011,7 +918,6 @@
       background-color var(--order-hover) ease,
       box-shadow var(--order-hover) ease;
 
-    // stylelint-disable-next-line no-descending-specificity
     > .form-check-input {
       position: absolute;
       top: 1.1rem;
@@ -1033,6 +939,7 @@
       .order-method-reveal {
         grid-template-rows: 1fr;
 
+        // Group orders' hiding (above) never applies to a chosen way.
         > * {
           opacity: 1;
         }
@@ -1146,10 +1053,19 @@
     }
   }
 
+  // A list of dates' message brings its way's title into view, clear
+  // of the sticky bar, with the message under it (#703).
   .order-method-title {
     display: block;
     margin-bottom: 0.375rem;
     font-weight: bold;
+    scroll-margin-top: calc(var(--order-topbar-h) + 0.75rem);
+  }
+
+  // Group orders with no round open (#749 item 6): "· no open group
+  // order" after the title, in the text's own weight.
+  .order-method-closed {
+    font-weight: normal;
   }
 
   .order-method-facts {
@@ -1210,27 +1126,21 @@
   // The agreement: one plain sentence under the Pay button, smaller
   // than the page's text, for every way to get an order (#196, #274).
   .order-agree {
-    margin: 0.75rem 0 2rem;
+    margin: 0.75rem 0 0.5rem;
     font-size: 0.875rem;
-    text-align: center;
 
     a {
       text-decoration: underline;
     }
   }
 
-  // Pay and the agreement stand centered in the pane at every width,
-  // as a card's button does (James's cart pass, 2026-10-27; #274
-  // round 5 had them right on a phone and left from md). The notices
-  // around them keep the pane's full width.
+  // Pay spans the pane at every width, the agreement under it at the
+  // pane's left edge, as in James's mockup (#705; centered from his
+  // cart pass, 2026-10-27, and #274 round 5 before that had them right
+  // on a phone and left from md).
   .order-submit {
     display: flex;
     flex-direction: column;
-    align-items: center;
-
-    > :not(.btn) {
-      align-self: stretch;
-    }
   }
 
   // What the order says after the lapsed-time dialog, by Pay.
@@ -1249,9 +1159,10 @@
   }
 
   // The lapsed-time dialog (W11d): blocking, one column, the choices
-  // as a list of radios.
+  // as a list of radios. Wide enough on a desktop that a scheduled
+  // pickup's address fits on one line beside Copy and Map (#703).
   .order-lapsed {
-    width: min(32rem, calc(100vw - 2rem));
+    width: min(38rem, calc(100vw - 2rem));
     padding: 0;
     border: 0;
     border-radius: 0.75rem;
@@ -1305,7 +1216,7 @@
   }
 
   // Payment: the card form the SDK mounts, and the wallet buttons
-  // beside it. The states are set by scripts/order/pay.js.
+  // beside it. The states are set by scripts/order/pay/section.js.
 
   // A layer of its own: the vendors' iframes carry z-indexes far above
   // the page's, and loose in the page's stacking they drew over the
@@ -1428,7 +1339,6 @@
     border-radius: 4px;
 
     // The vendor's element, whatever it is.
-    // stylelint-disable-next-line no-descending-specificity
     > * {
       width: 100%;
       height: 100%;
@@ -1450,7 +1360,6 @@
       display: none;
     }
 
-    // stylelint-disable-next-line no-descending-specificity
     .order-pay-button[inert] {
       opacity: 0.45;
       filter: grayscale(1);
@@ -1650,15 +1559,39 @@
     margin-bottom: 1rem;
   }
 
+  // The check on an egg (#723): the figure's egg (_figure.scss), wide
+  // at the top and narrow at the foot, upright beside the headline.
   .order-result-mark {
     flex: none;
     display: grid;
     place-items: center;
     width: 2.5rem;
-    height: 2.5rem;
-    border-radius: 50%;
+    aspect-ratio: 3 / 4;
+    border-radius: 50% / 58% 58% 42% 42%;
     background-color: var(--bs-success);
     color: #fff;
+  }
+
+  // "Order summary" and "Receiving your order", each over its list.
+  .order-result-label {
+    margin-bottom: 0.375rem;
+    font-size: 1rem;
+    font-weight: bold;
+  }
+
+  .order-result-list {
+    margin-bottom: 1rem;
+    padding-left: 1.25rem;
+
+    li + li {
+      margin-top: 0.25rem;
+    }
+  }
+
+  // The Instagram line, after the questions line and quieter than it.
+  .order-result-follow {
+    font-size: 0.875rem;
+    color: var(--bs-secondary-color);
   }
 
   .order-result-failed {
@@ -1830,7 +1763,6 @@
 
   // The order page's contact row sets its own padding and line, on
   // purpose (#666).
-  // stylelint-disable-next-line no-descending-specificity
   .col-form-label {
     font-size: 0.875rem;
   }

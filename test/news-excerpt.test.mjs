@@ -187,8 +187,9 @@ describe("news excerpt, the site as built", { skip: !hasHugo }, () => {
     const intro = html
       .match(/<div class="[^"]*home-update-intro[\s\S]*?<\/h2>/);
 
-    assert.ok(intro, "the eyebrow and title before the card");
-    assert.match(intro[0], /<p class="home-eyebrow">Learn more<\/p>/);
+    // #914: a decorative bar in the eyebrow's place, no words.
+    assert.ok(intro, "the title before the card");
+    assert.doesNotMatch(intro[0], /Learn more/);
     assert.match(intro[0],
       /<h2 class="home-title">Farm news and updates<\/h2>/);
     assert.match(card(html).html, /<h3 class="news-header-title/);

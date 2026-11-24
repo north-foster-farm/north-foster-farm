@@ -154,6 +154,8 @@ const CASES = {
     customer(), { links }), true],
   farmSquareNotCompleted: [() => templates.farmSquareNotCompleted(order(),
     { links }), false],
+  farmRefundedClosed: [() => templates.farmRefundedClosed(order(),
+    { where: "Square", links }), false],
   farmReturnRequest: [() => templates.farmReturnRequest(order(), customer(),
     { id: "r1", reason: HOSTILE, skus: [HOSTILE] }, { links }), true],
   farmSupport: [() => templates.farmSupport(customer(), {
@@ -199,10 +201,10 @@ const CASES = {
     { date: "2026-10-08", links }), true],
 };
 
-// Helpers that return a phrase or a table, not a message.
+// Helpers that return a phrase, a table or a yes or no, not a message.
 const NOT_MESSAGES = [
-  "CANCEL_REASONS", "JOIN_NEWS", "age", "listBlocks", "optInPhrase",
-  "paymentPhrase", "summaryLine",
+  "CANCEL_REASONS", "JOIN_NEWS", "age", "listBlocks", "morningReportNeeded",
+  "optInPhrase", "paymentPhrase", "summaryLine",
 ];
 
 const messagesOf = (result) => (Array.isArray(result) ? result : [result]);

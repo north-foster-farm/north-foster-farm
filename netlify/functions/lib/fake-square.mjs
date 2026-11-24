@@ -1,9 +1,10 @@
 // SQUARE_ENV=fake (lib/fake.mjs): every call square.mjs makes to
 // Square, answered here with the same arguments and the same shapes,
-// and no request sent. The order is still built by square.mjs, so a
-// fault in it shows locally, and every answer is a recording of
-// Square's own (test/fixtures/square/, bin/fixtures/record) with the
-// request's values put in, read by the same code that reads Square's.
+// and no request sent. The order is still built by the driver's own
+// code (square-shapes.mjs, #964), so a fault in it shows locally,
+// and every answer is a recording of Square's own
+// (test/fixtures/square/, bin/fixtures/record) with the request's
+// values put in, read by the same code that reads Square's.
 // Nothing is written by hand but the values.
 //
 // It remembers what it has been told, in this process (forgetFake()
@@ -28,7 +29,7 @@ import { fakeId, recorded } from "./fake.mjs";
 import {
   DECLINE_MESSAGES, SquareError, buildChangeOrder, buildOrder, customerView,
   failure, paymentRecord, paymentView, refundRecord, replaceableReference,
-} from "./square.mjs";
+} from "./square-shapes.mjs";
 
 const cfg = (env) => ({
   locationId: env.SQUARE_LOCATION_ID || "FAKE-LOCATION", catalog: false,
@@ -53,7 +54,8 @@ export const forgetFake = () => {
 };
 
 // Square's refusal, from its recording: the SquareError square.mjs
-// throws for it. `change` may edit the recorded body (a decline's code).
+// throws for it, made by the same failure (square-shapes.mjs).
+// `change` may edit the recorded body (a decline's code).
 const refusal = (name, path, change = (body) => body) => {
   const { status, response } = answer(name);
 
@@ -444,12 +446,34 @@ export const inventoryCounts = async () => null;
 // No customers here to rename.
 export const renameCustomerEmail = async () => [];
 
+// The fake keeps no profiles, so no email finds one.
+export const customersByEmail = async () => [];
+
+// The read before an invite's PUT (#718). The fake keeps no profiles, so every
+// customer is the recorded one with no address (customer-get-no-email,
+// sandbox, 2026-11-21), the id asked about put in: an invite on the
+// fake always links.
+export const customerEmail = async (customerId) => {
+  const shape = answer("customer-get-no-email").response.customer;
+
+  return { customerId, email: shape.email_address || null };
+};
+
+// An invite's Square customer given the account's address (#718): the
+// recording of exactly that PUT (sandbox, 2026-10-29), with the id
+// asked about put in.
+export const setCustomerEmail = async (customerId) => {
+  const shape = answer("customer-update").response.customer;
+
+  return { customerId: customerView({ ...shape, id: customerId }).customerId };
+};
+
 // A member's code on their profile (#131). The fake keeps no profiles
 // but the references it has been told, by address, in this process: an
 // address it has not seen has no profile yet, so the first call makes
 // one and a second finds it unchanged. Each answer is a recording (a
 // made profile, or an updated one) with the request's values put in,
-// read by square.mjs's own customerView.
+// read by the driver's own customerView (square-shapes.mjs).
 //
 // The PUT here sends `reference_id` alone, so its answer is the
 // recording of exactly that request (recorded in the sandbox

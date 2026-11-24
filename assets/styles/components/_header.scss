@@ -36,6 +36,16 @@ header {
   min-height: var(--header-row);
 }
 
+// The main navigation: the logo and the links, laid out as if they
+// stood in the row themselves, with the row's gap between them. The
+// actions after it stay outside (layouts/partials/header/menu.html).
+.site-nav {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: inherit;
+}
+
 // The hen in its arc, and beside it the wordmark once there is room
 // for it at a size that reads. A phone shows the hen alone; the link's
 // name says the farm's. The logo never gives up its width: the links
@@ -107,17 +117,23 @@ header {
 }
 
 // Relative, so the phone's account menu hangs from its right edge.
+// The gap is a variable, so search's closed field can give it back,
+// and the row may shrink below its contents, so search's open field
+// can shrink into a tight row (_search.scss).
 .site-actions {
+  --actions-gap: 0.75rem;
+
   position: relative;
   display: flex;
+  min-width: 0;
   align-items: center;
-  gap: 0.75rem;
+  gap: var(--actions-gap);
   height: 2.25rem;
 
   // At 320, signed in with a cart, the hen and the row's five controls
   // overran by a few pixels and wrapped (#303).
   @media (max-width: 359.98px) {
-    gap: 0.375rem;
+    --actions-gap: 0.375rem;
   }
 }
 
@@ -558,8 +574,8 @@ $nav-link-transition:
   }
 }
 
-// The customer's chicken in place of "Account", smaller than on the
-// settings page (#238, #347).
+// The customer's chicken, with "Account" beside it from md up (#915),
+// smaller than on the settings page (#238, #347).
 .site-account-chick {
   width: 1.75rem;
   height: 1.75rem;
@@ -631,6 +647,24 @@ $nav-link-transition:
   }
 }
 
+// From md the slot keeps the place of the button with its word (#915),
+// so nothing moves when it shows. The bar over it while /api/me is
+// slow is as wide as the button was without the word, at the slot's
+// right beside the links: a link's width, never the row of icons'
+// (#322). That width is the chicken (1.75rem, .site-account-chick),
+// the link's gap (0.25rem), the caret (1em at the links' 0.8125rem,
+// .site-nav-caret), and the link's padding and 1px border each side:
+// calc(0.375rem - 1px) + 1px at md, calc(0.625rem - 1px) + 1px from lg
+// (.site-nav-link and its md and lg sizes, below).
+.site-account:not(.is-compact) > .skeleton-over {
+  left: auto;
+  width: calc(1.75rem + 0.25rem + 0.8125rem + 2 * 0.375rem);
+
+  @media (min-width: 992px) {
+    width: calc(1.75rem + 0.25rem + 0.8125rem + 2 * 0.625rem);
+  }
+}
+
 .site-account-menu {
   min-width: 11.5rem;
   margin-top: 0.5rem;
@@ -689,7 +723,7 @@ $nav-link-transition:
   }
 
   .site-actions {
-    gap: 0.5rem;
+    --actions-gap: 0.5rem;
   }
 
   .site-links .site-nav-link {
@@ -703,7 +737,7 @@ $nav-link-transition:
   }
 
   .site-actions {
-    gap: 0.875rem;
+    --actions-gap: 0.875rem;
   }
 
   .site-links {

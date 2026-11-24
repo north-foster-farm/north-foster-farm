@@ -10,6 +10,7 @@ import {
   FIXED, MAP, flush, log, scrub,
 } from "../netlify/functions/lib/log.mjs";
 import { shipLog } from "../bin/ship-log.mjs";
+import { logText } from "./log-text.mjs";
 
 const AXIOM = { AXIOM_TOKEN: "t", AXIOM_DATASET: "d", DEPLOY_ID: "dep" };
 
@@ -27,10 +28,14 @@ const axiom = () => {
 };
 
 // A small seeded generator, so a failure repeats.
-const random = (seed) => () => {
-  seed = (seed * 1103515245 + 12345) % 2147483648;
+const random = (seed) => {
+  let state = seed;
 
-  return seed / 2147483648;
+  return () => {
+    state = (state * 1103515245 + 12345) % 2147483648;
+
+    return state / 2147483648;
+  };
 };
 
 const KEYS = [
@@ -112,8 +117,10 @@ describe("a shipped log line", () => {
       });
 
       // The scrub ran first: no address or phone number made it.
-      assert.doesNotMatch(bodies[0], /example\.com/);
-      assert.doesNotMatch(bodies[0], /555 0142/);
+      // Every field but the timestamp the logger wrote: a `_time` a
+      // record replaced with text is read too (#999, #1005).
+      assert.doesNotMatch(logText(bodies[0]), /example\.com/);
+      assert.doesNotMatch(logText(bodies[0]), /555 0142/);
     });
 
   it("keeps a personal field removed inside the map", async (t) => {
@@ -137,6 +144,30 @@ describe("a shipped log line", () => {
     });
     assert.deepEqual(scrub({ customer: { email: "x" } }),
       { customer: "[removed]" });
+  });
+
+  // The random records above can draw `_time` as a key, and a caller's
+  // fields replace the logger's own timestamp, but seed 571 never puts
+  // customer text there as a plain string. This record does, so a
+  // scrub that skipped `_time` fails here (#999, #1005's QA review;
+  // log-clock.test.mjs runs it against such a scrub).
+  it("scrubs customer text a caller wrote as _time", async (t) => {
+    quiet(t);
+    await flush({ env: {} });
+    log.info({
+      event: "test.time", _time: "write to pat@example.com or 802 555 0142",
+    });
+
+    const { bodies, fetchImpl } = axiom();
+
+    await flush({ env: AXIOM, fetchImpl });
+
+    const [line] = JSON.parse(bodies[0]);
+
+    assert.equal(line.event, "test.time");
+    assert.equal(typeof line._time, "string");
+    assert.doesNotMatch(logText(bodies[0]), /example\.com/);
+    assert.doesNotMatch(logText(bodies[0]), /555 0142/);
   });
 
   it("ships a key named __proto__ as a field of the map", async (t) => {

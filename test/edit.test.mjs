@@ -13,9 +13,8 @@ import {
   amendOrder, getCheckout, getOrder, paymentsOf,
 } from "../netlify/functions/lib/records.mjs";
 import {
-  buildChangeOrder, cancelOrder as cancelSquareOrder,
+  buildChangeOrder, cancelOrder as cancelSquareOrder, SquareError,
 } from "../netlify/functions/lib/square.mjs";
-import { SquareError } from "../netlify/functions/lib/square.mjs";
 import { recorded } from "./recorded.mjs";
 import { getCounts, setCount } from "../netlify/functions/lib/stock.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";

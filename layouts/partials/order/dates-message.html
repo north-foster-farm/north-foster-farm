@@ -1,0 +1,14 @@
+{{/*
+  A list of dates' message, above its cards (#703, third revision;
+  Pick-up days and Group orders). Given the slot's id, which the list's
+  aria-describedby names. Hidden while the slot is empty. scripts/
+  order/errors.js sets data-error-mode: "hint" on Proceed to checkout,
+  plain text with the info icon, not announced; "error" on Place your
+  order, red with the error icon, the slot a role="alert", and the list
+  drawn with its red bar (_pickup-days.scss).
+*/}}
+<p class="order-dates-message" data-error-mode="hint">
+  <span class="order-dates-icon is-hint" aria-hidden="true">{{ partial "svg.html" "icons/info" }}</span>
+  <span class="order-dates-icon is-error" aria-hidden="true">{{ partial "svg.html" "icons/circle-x" }}</span>
+  <span class="invalid-feedback" id="{{ . }}" data-error-for="fulfilment.occurrence"></span>
+</p>

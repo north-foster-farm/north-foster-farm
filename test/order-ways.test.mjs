@@ -85,7 +85,7 @@ describe("order page Pickup or delivery cards", { skip: !hasHugo }, () => {
 
   it("has the three cards", () => {
     assert.deepEqual(cards.map((c) => c.title),
-      ["On-farm pickup", "Pickup days", "Delivery"]);
+      ["On-farm pickup", "Pick-up days", "Delivery"]);
   });
 
   it("reads as James wrote (#534)", () => {

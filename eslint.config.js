@@ -1,9 +1,60 @@
 const js = require("@eslint/js");
 const globals = require("globals");
 
+// The core rules beyond recommended that hold every script (#782, steps
+// 1 and 2 of the proposal): the 17 that found nothing on the code and
+// the nine small ones whose findings were fixed.
+const correctness = [
+  "array-callback-return",
+  "consistent-return",
+  "default-case-last",
+  "eqeqeq",
+  "guard-for-in",
+  "no-alert",
+  "no-duplicate-imports",
+  "no-eval",
+  "no-extend-native",
+  "no-implied-eval",
+  "no-inner-declarations",
+  "no-loop-func",
+  "no-new-func",
+  "no-new-wrappers",
+  "no-param-reassign",
+  "no-promise-executor-return",
+  "no-return-assign",
+  "no-self-compare",
+  "no-sequences",
+  "no-throw-literal",
+  "no-unmodified-loop-condition",
+  "no-unreachable-loop",
+  "no-unused-expressions",
+  "no-useless-assignment",
+  "prefer-promise-reject-errors",
+  "radix",
+];
+
 module.exports = [
+  // `npm run lint` reads the whole tree (#769); these folders are build
+  // output, run output or untracked notes, never source.
+  {
+    "ignores": [
+      ".ignored/",
+      ".netlify/",
+      "docs/example-projects/",
+      "docs/hugo-docs-source/",
+      "incidents/",
+      "netlify/edge-functions/",
+      "playwright-report/",
+      "public/",
+      "resources/",
+      "test-results/",
+    ],
+  },
   js.configs.recommended,
   {
+    "linterOptions": {
+      "reportUnusedDisableDirectives": "error",
+    },
     "languageOptions": {
       "ecmaVersion": "latest",
       "globals": {
@@ -79,6 +130,7 @@ module.exports = [
       "semi": ["error", "always"],
       "space-in-parens": "error",
       "spaced-comment": "error",
+      ...Object.fromEntries(correctness.map((rule) => [rule, "error"])),
     },
   },
   {
@@ -86,6 +138,7 @@ module.exports = [
     // snake_case.
     "files": [
       "netlify/functions/lib/square.mjs", "test/square.test.mjs",
+      "netlify/functions/lib/square-shapes.mjs",
       "netlify/functions/lib/paypal.mjs", "test/paypal.test.mjs",
       "netlify/functions/paypal-webhook.mjs", "test/checkout.test.mjs",
       "test/payments.test.mjs", "test/fake.test.mjs", "test/webhooks.test.mjs",

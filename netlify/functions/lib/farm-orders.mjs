@@ -51,7 +51,7 @@ import {
   validateOrder,
 } from "../../../assets/scripts/order/lib/validate.mjs";
 import { today } from "../../../assets/scripts/order/lib/zoned.mjs";
-import { orderId } from "../orders.mjs";
+import { orderId } from "./order-id.mjs";
 import { publicOrder } from "./account.mjs";
 import {
   METHODS, announceNew, attemptKey, nothingDue,
@@ -60,12 +60,15 @@ import { now as clock } from "./clock.mjs";
 import { completeInSquare } from "./complete.mjs";
 import { KEY } from "./edit.mjs";
 import {
-  groupOf, joinGroup, memberKeyOf, memberTerms, roundFor,
+  buyingGroupOf, hostsGroup, joinGroup, memberTerms, roundFor,
 } from "./groups.mjs";
 import { alert, mark } from "./health.mjs";
 import { retry } from "./http.mjs";
 import { log } from "./log.mjs";
 import { sendMail } from "./mail.mjs";
+import {
+  PENDING_MS, paymentPending, pendingKey,
+} from "./pay-pending.mjs";
 import { perkTypes } from "./perks.mjs";
 import { pickupSchedule } from "./pickups.mjs";
 import {
@@ -101,14 +104,11 @@ export const TENDERS = {
   },
 };
 
-// A pending payment's marker stands this long: a request that died
-// with the money taken is finished by the jobs' or the farm's hand
-// before then, and a stale marker never locks an order for good.
-export const PENDING_MS = 10 * 60_000;
+// A pending payment's marker, how long it stands and whether one does,
+// now in lib/pay-pending.mjs (#967), still read from here.
+export { PENDING_MS, paymentPending };
 
 const fail = (errors) => ({ ok: false, errors });
-
-const pendingKey = (id) => `pay-pending/${id}`;
 
 const line = (order, event, now, extra = {}) => [
   ...(order.history || []), { at: now.toISOString(), event, ...extra },
@@ -275,15 +275,6 @@ const recordOrAlert = async (stores, id, payment, event, {
   return { order: next, taken };
 };
 
-// Whether a payment of the order is under way: a fresh claim stands
-// (#181). The farm's cancel waits for it, so money is never taken on
-// an order being cancelled.
-export const paymentPending = async (stores, id, now = clock()) => {
-  const held = await stores.orders.get(pendingKey(id));
-
-  return !!held && now.getTime() - Date.parse(held.at) < PENDING_MS;
-};
-
 // What the farm's command says when the record refused the money.
 const refusedTender = (order, payment) => fail({
   order: `This order is ${order ? order.status : "gone"}, so the ` +
@@ -306,7 +297,7 @@ export const planFarmOrder = async (stores, body, {
   const b = body && typeof body === "object" ? body : {};
   const email = String((b.customer || {}).email || "").trim().toLowerCase();
   const customer = email ? await getCustomer(stores, email) : null;
-  const buying = group || groupOf(memberKeyOf(customer));
+  const buying = group || await buyingGroupOf(stores, customer, email);
   // The page drops a SKU it does not know; the farm typed it, so it
   // hears.
   const unknown = (Array.isArray(b.lines) ? b.lines : [])
@@ -360,6 +351,8 @@ export const planFarmOrder = async (stores, body, {
           round: roundFor(buying, terms, result.order.fulfilment.date),
           viaCode: false,
           ...(walkIn ? { walkIn: true } : {}),
+          ...(await hostsGroup(stores, result.order.customer.email,
+            buying.key) ? { byHost: true } : {}),
         }
         : null,
     },
@@ -438,8 +431,10 @@ export const createFarmOrder = async (stores, body, {
 
   await touchCustomer(stores, order.customer, now, { orderId: id });
   // A buying group's order makes its customer a member (#471), as a
-  // paid order with the code does.
-  if (order.group && order.group.key) {
+  // paid order with the code does; its host is one by the group's
+  // record (#772), never by an order: one tagged `byHost` when placed
+  // joins no one.
+  if (order.group && order.group.key && !order.group.byHost) {
     await joinGroup(stores, order.customer.email, order.group.key, {
       now, via: walkIn ? "walk-in" : "farm",
     });

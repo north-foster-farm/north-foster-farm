@@ -117,9 +117,6 @@ const plugins = [
         "role",
         "option",
         "aria-selected",
-        "data-search-qty-state",
-        "data-search-cart",
-        "full",
         "aria-pressed",
         "data-layer",
         // The map's list row and pin lit by each other (#214).
@@ -138,6 +135,13 @@ const plugins = [
         // Added to the built HTML after Hugo, by bin/orphans/wrap.mjs
         // (#303), so Hugo's stats may never see it.
         "text-nowrap",
+        // A list of dates' message (#703): a hint, or an error once an
+        // order is placed (scripts/order/errors.js), and the red bar
+        // its list takes inside a way's body.
+        "data-error-mode",
+        "hint",
+        "error",
+        "data-method-body",
       ];
     },
     safelist: {
@@ -162,19 +166,16 @@ const plugins = [
         "is-fading",
         "is-new",
         "is-ringed",
-        // The code field folding back (#532, view.mjs shutShare).
+        // The code field folding back (#532, view/share.js shutShare).
         "is-shutting",
         "is-ticked",
         // Square's card form adds it once the SDK renders (#388).
         "sq-card-message",
         // The account page marks the order an email linked to.
         "is-linked",
-        // The search palette's JavaScript: open, and a real photo.
+        // The site search's bar below 992 px, opened by its script
+        // (#402).
         "is-open",
-        "is-photo",
-        // Its result rows, built by the script (#267).
-        "search-palette-row-name",
-        "search-palette-row-price",
         // Applied by session.js: the header's account slot settles.
         "is-ready",
         "order-busy",

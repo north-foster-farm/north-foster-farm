@@ -2,7 +2,9 @@
 // of their group, and what its host sees besides. A member is the
 // customer whose record names the group; the host is the signed-in
 // email address the farm set as the group's host (`groups set
-// host=`). Anyone else is told nothing, not even that a group exists.
+// host=`), and sees the group as a member does besides (#772), though
+// no member list or count includes them unless their record names the
+// group. Anyone else is told nothing, not even that a group exists.
 //
 // Members see the group's name, its pickup place, how often its rounds
 // run, when the round being ordered for closes and when the next one
@@ -45,17 +47,20 @@ export const hostedGroups = async (stores, email) => {
 // Who the signed-in customer is to the groups, worked out separately
 // (James, 6458200999): { member, hosts }, where `member` is the group
 // they belong to or null and `hosts` every group they run, or null
-// when they are neither. A host who is not a member still runs the
-// group, and a member of one group can host another.
+// when they are neither. A member of one group can host another and
+// stays the first's member. A host in no group is a member of the one
+// they host (#772), derived and never written, so `byHost` marks it:
+// they have no record membership to leave.
 export const roleOf = async (stores, session) => {
   if (!session) return null;
 
-  const member = groupOf(memberKeyOf(session.customer));
+  const own = groupOf(memberKeyOf(session.customer));
   const hosts = await hostedGroups(stores, session.email);
+  const member = own || hosts[0] || null;
 
-  if (!member && hosts.length === 0) return null;
+  if (!member) return null;
 
-  return { member, hosts };
+  return { member, hosts, byHost: !own };
 };
 
 // The group a host's request names, when this address hosts it, or
@@ -239,7 +244,10 @@ export const membershipView = async (stores, role, {
   member: role.member
     ? {
       ...(await groupView(stores, role.member, { terms, now })),
-      code: email ? await memberCode(stores, email, { now, mint }) : null,
+      // A host's derived membership mints no code (#772): no write.
+      code: email && !role.byHost
+        ? await memberCode(stores, email, { now, mint }) : null,
+      ...(role.byHost ? { byHost: true } : {}),
     }
     : null,
   hosts: await Promise.all(role.hosts.map(async (g) => ({

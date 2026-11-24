@@ -118,8 +118,9 @@ const places = async (page) => {
 };
 
 // The view's width after one press of +: half of it, but never past
-// map.js's MAX_ZOOM of 5. Places frames its pins, so with the places
-// close together it opens near the cap, and + stops there (#282).
+// map/view.mjs's MAX_ZOOM of 5. Places frames its pins, so with the
+// places close together it opens near the cap, and + stops there
+// (#282).
 const MAX_ZOOM = 5;
 const zoomedIn = (width, whole) => Math.max(width / 2, whole / MAX_ZOOM);
 
@@ -451,7 +452,7 @@ test.describe("map (#138, #214)", () => {
       await expect(drop).toContainText(/Saturdays, 10:00 – 11:00 AM/);
       await expect(drop).toContainText(/Ongoing|Starting|to /);
       await expect(card.locator("a[href*='/order/']")).toHaveCount(0);
-      await expect(card.getByText("Shop for pickup")).toHaveCount(0);
+      await expect(card.getByText(/Shop for pick-?up/)).toHaveCount(0);
       await expect(card.locator("[data-series-dates]")).toHaveCount(0);
       // A market there, while its season runs, shares the card.
       const market = card.locator("[data-series='2MPW']");

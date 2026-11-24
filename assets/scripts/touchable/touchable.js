@@ -8,7 +8,7 @@ export class Touchable {
     document.addEventListener("DOMContentLoaded", () => {
       const touchables = DOM.all(Touchable.touchableClass) || [];
 
-      if (touchables.empty()) return;
+      if (touchables.length === 0) return;
 
       Touchable.addTouchListener(touchables);
       Touchable.addUntouchListener();

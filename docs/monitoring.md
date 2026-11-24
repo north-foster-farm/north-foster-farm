@@ -66,9 +66,11 @@ sees, so a dead page and a silent failure both reach the phone.
   `data` (see "The log in Axiom").
 - **Run ledger.** Each jobs run's report in the jobs store, two days
   kept; `bin/nff jobs history`. Needs nothing.
-- **Morning report.** 8:00 daily, always: the last day in numbers,
-  a warning if the pickup schedule runs short, then pickups waiting on
-  the customer. `FARM_NOTIFICATIONS_EMAIL`.
+- **Morning report.** 8:00 daily, only when a vital sign is outside
+  its healthy limits or something waits on the farm: the last day in
+  numbers, a warning if the pickup schedule runs short, then pickups
+  waiting on the customer. No email on a calm morning (2026-11-21,
+  #697: it went every morning before). `FARM_NOTIFICATIONS_EMAIL`.
 - **Tomorrow.** 18:00 daily: every order due tomorrow by method,
   with what to pack and where to leave it, and no email when nothing
   is due (2026-11-20, #697: it went every day before).
@@ -134,10 +136,12 @@ sees, so a dead page and a silent failure both reach the phone.
    - *Jobs*: period 15 minutes, grace 30 minutes. Its ping URL goes
      to Netlify as `HEALTHCHECKS_JOBS_URL`.
    - *Alerts*: period 1 day, grace 2 hours. Its ping URL goes to
-     Netlify as `HEALTHCHECKS_ALERT_URL`. The morning report pings it
-     well once a day; every alert posts to its `/fail` and then pings
-     it well. So it pages on every alert, and also if the morning
-     report itself stops.
+     Netlify as `HEALTHCHECKS_ALERT_URL`. The 8:00 jobs run pings it
+     well once a day, whether the morning report went or the morning
+     was calm and none did; every alert posts to its `/fail` and then
+     pings it well. So it pages on every alert, and also if the 8:00
+     run itself stops or its report fails to send (2026-11-21, #697:
+     the ping rode on the report going out, which went every day).
    - *Backup*: period 1 day, grace 2 hours. Its ping URL goes to
      Netlify as `HEALTHCHECKS_BACKUP_URL`, production only, since
      the nightly run is production's alone.
@@ -177,7 +181,7 @@ sees, so a dead page and a silent failure both reach the phone.
    nothing posts to Healthchecks. An HTTP POST to the *Alerts* check's
    `/fail` would push James's phone for a failed staging deploy, and a
    success ping on every deploy would satisfy the check's one-day
-   period and hide a morning report that stopped.
+   period and hide an 8:00 run that stopped.
 
    What that gives up: a failed production deploy does not buzz the
    phone. It is not an outage, since a failed build publishes nothing
@@ -188,8 +192,7 @@ sees, so a dead page and a silent failure both reach the phone.
    deploy whose `context` is not `production`, and posts `/fail` and
    then the success ping to `HEALTHCHECKS_ALERT_URL`, as `alert()`
    does. That gets a phone push for a failed production deploy only,
-   with staging kept off the phone and the morning report's watch
-   intact.
+   with staging kept off the phone and the 8:00 run's watch intact.
 5. Redeploy. `bin/nff health`, or a GET to `/api/health`, shows which
    pieces are configured under `log` and `heartbeat`.
 6. Prove the phone: `bin/nff --production alert test` (below), and
@@ -754,8 +757,11 @@ format is name, date (YYYY-MM-DD), environment, reason, who, split by
 makes the email say so. Each send is recorded in the jobs store under
 `rotation/<date>`, so a repeat run sends nothing.
 
-**Morning report**, 8:00: the site's vital signs for the last 24
-hours, each with the range a healthy day falls in (orders placed,
+**Morning report**, 8:00, only on a morning when a vital sign is
+outside its healthy limits or something below waits on the farm
+(`morningReportNeeded` in `lib/templates.mjs`; 2026-11-21, #697: it
+went every morning before, and a calm morning now sends nothing): the
+site's vital signs for the last 24 hours, each with the range a healthy day falls in (orders placed,
 paid by card or a wallet, paid by Venmo, payments declined,
 cancellations, refunds, open orders paid and not yet fulfilled, mail
 failures, jobs runs, errors and violations); a warning, with the
@@ -766,7 +772,8 @@ re-picked (W11d); then every message to the farm, from the contact
 page or the account page's help form, not yet marked answered, oldest
 first, with its age (#167). A message stays on the report every
 morning until `bin/nff messages done <id>`; `bin/nff messages` lists
-the same. This email also pings the *Alerts* check well.
+the same. The 8:00 run pings the *Alerts* check well whether or not
+the email went, and not when the email failed to send.
 
 **Tomorrow**, 18:00: every order due the next day, grouped delivery,
 drop site, on-farm, each with customer and phone, and for a

@@ -18,12 +18,15 @@ import { randomBytes } from "node:crypto";
 import {
   fieldError,
 } from "../../assets/scripts/utils/field-errors.mjs";
-import { normalizeEmail, sameSite, validEmail } from "./lib/auth.mjs";
+import {
+  normalizeEmail, receivedEmail, sameSite,
+} from "./lib/auth.mjs";
 import { now as clock, real } from "./lib/clock.mjs";
 import { alert, noteMail } from "./lib/health.mjs";
 import { json, readJson } from "./lib/http.mjs";
 import { limitExempt } from "./lib/limit-exempt.mjs";
-import { log, withLog } from "./lib/log.mjs";
+import { log } from "./lib/log.mjs";
+import { withLog } from "./lib/with-log.mjs";
 import { farmEmails, mailbox, sendMail } from "./lib/mail.mjs";
 import { getOrder } from "./lib/records.mjs";
 import { mailLinks } from "./lib/site.mjs";
@@ -57,16 +60,19 @@ const text = (value, max) =>
 // -> { ok: true, message } or { ok: false, errors }.
 export const validate = (body) => {
   const b = body && typeof body === "object" ? body : {};
+  const typed = text(b.email, 254);
+  // Decoded once, cleaned and checked (#758).
+  const email = receivedEmail(typed);
   const message = {
     name: text(b.name, 120),
-    email: normalizeEmail(text(b.email, 254)),
+    email: email || normalizeEmail(typed),
     orderId: text(b.orderId, 40).replace(/^#/, "").toUpperCase(),
     message: text(b.message, 4000),
   };
   const errors = {};
 
   if (!message.name) errors.name = "Tell us your name.";
-  if (!validEmail(message.email)) {
+  if (!email) {
     errors.email = fieldError("email", message.email);
   }
   if (!message.message) errors.message = "Write us a message first.";

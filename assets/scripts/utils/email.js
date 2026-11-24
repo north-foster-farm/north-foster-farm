@@ -36,6 +36,37 @@ export const looksLikeEmail = (value) => {
   return address.length <= MAX && ADDRESS.test(address);
 };
 
+// A control character: C0, DEL or C1.
+const control = (s) => [...s].some((c) => {
+  const code = c.codePointAt(0);
+
+  return code <= 0x1f || (code >= 0x7f && code <= 0x9f);
+});
+const ESCAPE = /%[0-9a-f]{2}/i;
+
+// An address as a function or the CLI receives it (#758): decoded
+// once, then normalized and validated -> the address, or null when it
+// fails. A value that is not a string, holds a control character, has
+// a malformed escape, or still holds an escape after one decode (an
+// address encoded twice) fails. Only for input: a stored address is
+// already decoded, and decoding it again could change it.
+export const receivedEmail = (value) => {
+  if (typeof value !== "string") return null;
+
+  let decoded;
+
+  try {
+    decoded = decodeURIComponent(value);
+  } catch {
+    return null;
+  }
+  if (control(decoded) || ESCAPE.test(decoded)) return null;
+
+  const address = normalizeEmail(decoded);
+
+  return looksLikeEmail(address) ? address : null;
+};
+
 // Whether a whole value may be an address, valid or not: one "@" and
 // no space once trimmed. For masking, where missing an address the
 // rule refuses would leave it in full.

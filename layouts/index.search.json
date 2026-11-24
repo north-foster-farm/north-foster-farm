@@ -1,0 +1,158 @@
+{{- /*
+  /search.json, the site search's index (#402): every entry the header's
+  search can find, written at build time. A page fetches it the first
+  time someone opens or focuses search (scripts/search/site-search.js),
+  never on load, and scripts/search/match.js matches on it.
+
+  Each entry has `kind`, `title` and `url`, and `words`, the synonyms or
+  keywords data/search.yaml gives it. The kinds:
+  - "product": every catalog item but an archived one, from
+    order/groups.html, to its row on the order page (order/row.html
+    gives each row its id), with its price and the catalog's stock;
+  - "section": a `##` or `###` heading of a page, with its first words;
+  - "page": a page, with its description;
+  - "town": a delivery town and its ZIPs, to the delivery area;
+  - "fact": a quick answer, the phone number, the email address and
+    the drop site;
+  - "news": a post, with its date and description.
+  The words shown in results are drafts for James.
+*/ -}}
+{{- $data := hugo.Data.search -}}
+{{- $keys := $data.pages | default dict -}}
+{{- $entries := slice -}}
+
+{{- /* Products. */ -}}
+{{- range partial "order/groups.html" . -}}
+  {{- $group := . -}}
+  {{- range .items -}}
+    {{- $entries = $entries | append (dict
+      "kind" "product"
+      "title" .name
+      "group" $group.short
+      "label" .row
+      "note" .note
+      "sku" .sku
+      "url" (printf "%s#%s" (relURL "order/") (.sku | lower))
+      "price" .price
+      "out" .out
+      "restock" .restockLabel
+      "words" (index $data.products $group.key | default "")
+    ) -}}
+  {{- end -}}
+{{- end -}}
+
+{{- /* Page sections: each heading, its anchor and its first 25 words,
+       read from the rendered page, since the policy prose uses
+       shortcodes. */ -}}
+{{- range slice "/about" "/accessibility" "/delivery-policy" "/privacy" -}}
+  {{- with site.GetPage . -}}
+    {{- $page := . -}}
+    {{- $parts := split (replaceRE `(<h[23] id=)` "\x00$1" .Content) "\x00" -}}
+    {{- range after 1 $parts -}}
+      {{- with findRESubmatch `^<h[23] id="([^"]+)"[^>]*>([\s\S]*?)</h[23]>([\s\S]*)$` . 1 -}}
+        {{- $m := index . 0 -}}
+        {{- $id := index $m 1 -}}
+        {{- $path := printf "%s#%s" $page.RelPermalink $id -}}
+        {{- $body := replaceRE `\s+` " " (index $m 3 | plainify | htmlUnescape) -}}
+        {{- $entries = $entries | append (dict
+          "kind" "section"
+          "title" (index $m 2 | plainify | htmlUnescape | strings.TrimSpace)
+          "page" $page.Title
+          "url" $path
+          "snippet" (delimit (first 25 (split (strings.TrimSpace $body) " ")) " ")
+          "words" (index $keys $path | default "")
+        ) -}}
+      {{- end -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
+{{- range $s := $data.sections -}}
+  {{- with site.GetPage $s.page -}}
+    {{- $entries = $entries | append (dict
+      "kind" "section"
+      "title" $s.title
+      "page" .Title
+      "url" (printf "%s#%s" .RelPermalink $s.anchor)
+      "words" ($s.words | default "")
+    ) -}}
+  {{- end -}}
+{{- end -}}
+
+{{- /* Pages. Not the 404 page, the staging pages or the forms only an
+       email links to. */ -}}
+{{- range slice "/order" "/about" "/contact" "/delivery-policy" "/news"
+  "/privacy" "/accessibility" "/account" "/login" -}}
+  {{- with site.GetPage . -}}
+    {{- $entries = $entries | append (dict
+      "kind" "page"
+      "title" .Title
+      "url" .RelPermalink
+      "snippet" (.Description | plainify | strings.TrimSpace)
+      "words" (index $keys .RelPermalink | default "")
+    ) -}}
+  {{- end -}}
+{{- end -}}
+
+{{- /* Delivery towns, each with its ZIPs, shortest name first, so a
+       town comes before any whose name holds its own (Providence,
+       then East Providence). */ -}}
+{{- $area := printf "%s#delivery-area" (relURL "delivery-policy/") -}}
+{{- $towns := slice -}}
+{{- range $state := hugo.Data.delivery.area.states -}}
+  {{- range .towns -}}
+    {{- $towns = $towns | append (dict
+      "kind" "town"
+      "title" (printf "%s, %s" .town $state.code)
+      "detail" (printf "We deliver here · %s" (delimit .zips ", "))
+      "zips" .zips
+      "url" $area
+      "by" (printf "%03d %s" (len .town) .town)
+    ) -}}
+  {{- end -}}
+{{- end -}}
+{{- range sort $towns "by" -}}
+  {{- $entries = $entries | append (dict
+    "kind" .kind "title" .title "detail" .detail "zips" .zips "url" .url
+  ) -}}
+{{- end -}}
+
+{{- /* Quick answers, from data. */ -}}
+{{- $facts := $data.facts | default dict -}}
+{{- with hugo.Data.company -}}
+  {{- $entries = $entries | append (dict
+    "kind" "fact"
+    "title" .phone.display
+    "detail" "Call the farm"
+    "url" (printf "tel:%s" .phone.plain)
+    "words" ($facts.phone | default "")
+  ) -}}
+  {{- $entries = $entries | append (dict
+    "kind" "fact"
+    "title" .email
+    "detail" "Email the farm"
+    "url" (printf "mailto:%s" .email)
+    "words" ($facts.email | default "")
+  ) -}}
+{{- end -}}
+{{- with (partial "scheduled-places.html" .).drop -}}
+  {{- $entries = $entries | append (dict
+    "kind" "fact"
+    "title" (printf "The drop site: %ss, %s" .day .window)
+    "detail" .place
+    "url" (printf "%s#pickup-days" (relURL "delivery-policy/"))
+    "words" ($facts.drop | default "")
+  ) -}}
+{{- end -}}
+
+{{- /* News, newest first. */ -}}
+{{- range (site.GetPage "/news").RegularPages -}}
+  {{- $entries = $entries | append (dict
+    "kind" "news"
+    "title" .Title
+    "date" (.Date.Format "January 2, 2006")
+    "url" .RelPermalink
+    "snippet" (.Description | plainify | strings.TrimSpace)
+  ) -}}
+{{- end -}}
+
+{{- dict "entries" $entries | jsonify -}}

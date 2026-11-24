@@ -3,6 +3,8 @@
 // same records and rules as the customer-facing functions, with the
 // farm's authority. bin/nff is the thin front.
 
+import { isDeepStrictEqual } from "node:util";
+
 import terms from "../../../data/delivery.json" with { type: "json" };
 import { dollars } from "../../../assets/scripts/order/lib/totals.mjs";
 import {
@@ -18,30 +20,38 @@ import {
 import { company } from "./company.mjs";
 import { DELIVERING, alert } from "./health.mjs";
 import { completeInSquare } from "./complete.mjs";
-import { holderOf } from "./amend.mjs";
-import { restoreCredit } from "./credit.mjs";
-import { audit, noteJoin } from "./group-log.mjs";
-import { GROUPS, groupOf, memberKeyOf } from "./groups.mjs";
+import { holderOf } from "./holder.mjs";
+import { perksOf } from "../../../assets/scripts/order/lib/perks.mjs";
+import { getLedger, mergeLedger, restoreCredit } from "./credit.mjs";
+import { audit, auditLog, noteJoin, refOf } from "./group-log.mjs";
+import {
+  GROUPS, getGroupRecord, groupOf, memberKeyOf, setGroupHost,
+} from "./groups.mjs";
+import {
+  HASHED, addressHash, listAddressed, segmentAddress,
+} from "./address-key.mjs";
 import { log } from "./log.mjs";
 import { devEmails, sendMail } from "./mail.mjs";
 import { maskEmail, maskIn } from "./mask.mjs";
 import * as newsApi from "./news.mjs";
 import {
-  customerEmailWithheld, recordRefund, sendForOrder,
+  customerEmailWithheld, notifyFarm, recordRefund, sendForOrder,
 } from "./payments.mjs";
 import * as paypalApi from "./paypal.mjs";
 import {
-  OPEN, allCustomers, allOrders, amendOrder, answerQuestion, byEmailKey,
-  cartKey, deleteCustomer, deleteOrder, dueOn, getCustomer, getOrder, keptFee,
-  listCheckouts, ordersFor, paidByHand, paidTotal, paymentRef, paymentsOf,
-  questionOpen, refundedTotal, saveCustomer, setStatus, settledRefunds,
+  OPEN, allCustomers, allOrders, amendOrder, answerQuestion, cartKey,
+  deleteByEmail, deleteCustomer, deleteOrder, dueOn, getCartOf, getCustomer,
+  getOrder, keptFee,
+  listCheckouts, moveStatus, ordersFor, paidByHand, paidTotal, paymentRef,
+  paymentsOf, questionOpen, refundedTotal, saveCustomer, setStatus,
+  settledRefunds, supportKey,
 } from "./records.mjs";
-import { paymentPending } from "./farm-orders.mjs";
+import { paymentPending } from "./pay-pending.mjs";
 import { mailLinks, orderUrlFor } from "./site.mjs";
 import * as squareApi from "./square.mjs";
 import {
-  addressDecision, age, devMailTest as devMailTestMessage, missedDelivery,
-  movedDelivery, orderCancelled, orderChanged, sessionsEnded,
+  addressDecision, age, devMailTest as devMailTestMessage, farmRefundedClosed,
+  missedDelivery, movedDelivery, orderCancelled, orderChanged, sessionsEnded,
 } from "./templates.mjs";
 import { lastInteraction, quietDue } from "./retention.mjs";
 import siteTerms from "./terms.mjs";
@@ -56,8 +66,11 @@ export { forgetCustomer };
 
 // Quiet accounts due their notice (#189, lib/retention.mjs), for
 // `bin/nff customers quiet`. Read only: the daily jobs act on them.
-export const quietCustomers = async (stores, now = new Date()) =>
-  (await allCustomers(stores)).filter((c) => quietDue(c, now))
+// An old twin the list cleans is logged as `by` (#794).
+export const quietCustomers = async (stores, now = new Date(), {
+  by = "site",
+} = {}) =>
+  (await allCustomers(stores, { by })).filter((c) => quietDue(c, now))
     .map((c) => ({
       email: c.email,
       lastInteraction: lastInteraction(c),
@@ -72,7 +85,8 @@ const need = (thing, what) => {
 
 // Customers
 
-export const listCustomers = (stores) => allCustomers(stores);
+export const listCustomers = (stores, { by = "site" } = {}) =>
+  allCustomers(stores, { by });
 
 export const showCustomer = async (stores, email) => ({
   customer: need(await getCustomer(stores, email), "customer"),
@@ -268,6 +282,282 @@ export const applyAudience = async (stores, rows, {
   return { dryRun, rows: done, counts };
 };
 
+// Neither a rename nor a merge goes ahead while a Venmo payment from
+// the address is under way: its order would land on an address that
+// is gone.
+const refuseVenmo = async (stores, email) => {
+  if ((await listCheckouts(stores)).some(
+    (c) => normalizeEmail(c.order && c.order.customer
+      && c.order.customer.email) === email
+  )) {
+    throw new Error(`A Venmo payment from ${email} is under way. Try ` +
+      "again once it has finished or lapsed (a day at most). Nothing " +
+      "changed.");
+  }
+};
+
+// Help messages moved under another address; one whose id the address
+// already holds keeps its own under the id with "~merged". One the
+// address already holds unchanged, under either id, is not written
+// again, so a rerun after a failed delete makes no copy. The address's
+// own are found under every form of its key (#758); a moved one goes
+// under the hashed key, naming the address it now sits under, as a
+// rename files it.
+const moveSupport = async (stores, support, email) => {
+  const same = (a, b) => !!a && JSON.stringify(a) === JSON.stringify(b);
+  const idOf = (key) => key.split("/").pop();
+  const keys = new Map((await listAddressed(stores.customers, "support",
+    email)).map(({ key }) => [idOf(key), key]));
+  const heldAs = (id) => (keys.has(id) ? stores.customers.get(keys.get(id))
+    : null);
+
+  for (const { key } of support) {
+    const id = idOf(key);
+    const stored = await stores.customers.get(key);
+    const message = stored && stored.email ? { ...stored, email } : stored;
+
+    if (!same(await heldAs(id), message)
+      && !same(await heldAs(`${id}~merged`), message)) {
+      await stores.customers.set(supportKey(email,
+        keys.has(id) ? `${id}~merged` : id), message);
+    }
+    await stores.customers.delete(key);
+  }
+};
+
+// An address's sessions end and its sign-in links are voided; its
+// unsubscribe and farm-news links name the new address.
+const moveAuth = async (stores, auth, email) => {
+  for (const { key, value } of auth) {
+    if (/^(session|token)\//.test(key)) {
+      await deleteAuth(stores, key, value);
+    } else {
+      await putAuth(stores, key, { ...value, email }, { before: value });
+    }
+  }
+};
+
+// A CLI address argument, cleaned and checked: the one email rule
+// (auth.mjs) rename and forget use.
+const address = (value) => {
+  const email = normalizeEmail(value);
+
+  if (!validEmail(email)) {
+    throw new Error(`"${value}" isn't an email address. Nothing changed.`);
+  }
+
+  return email;
+};
+
+// A perk the customer holds and that has not ended or been removed.
+const openPerk = (perk, day) => !perk.removedAt
+  && (!perk.end || perk.end >= day);
+
+// A perk as it stood when it was granted, to match a source's perk with
+// its moved copy: the merge mark aside, and its removal too, since
+// `perks remove` on either record between a crash and the rerun dates
+// one copy removed and leaves the other as it was (qa, PR #885).
+const unmarked = (perk) => {
+  const rest = { ...perk };
+
+  delete rest.mergedFrom;
+  delete rest.removedAt;
+  delete rest.removedBy;
+
+  return rest;
+};
+
+// One customer folded into another, from the CLI (#776): `from`'s
+// orders (their ids, statuses and money untouched), perks, credit,
+// help messages and links move onto `into`, which keeps everything of
+// its own; `from`'s buying group goes too when `into` has none, and
+// its cart when `into`'s is empty (a membership `into`'s own group
+// replaces is logged as removed), and `into` becomes the host of each
+// group `from` hosts. A rerun after a failure partway moves nothing
+// twice. `from`'s sessions end, its sign-in
+// links are voided, and its record goes. Resend keeps `into`'s
+// contact (or makes it from `from`'s, with its choice) and drops
+// `from`'s; Square loses `from`'s customer, found by its exact email,
+// while the moved orders keep the Square ids they name (Square is the
+// record for money). Refuses when `into` has no account or a Venmo
+// payment from `from` is under way. With `apply` false nothing is
+// written and Square and Resend are only read. One masked
+// customer.merged line per merge applied. -> the report.
+export const mergeCustomer = async (stores, from, into, {
+  apply = false, by = null, env = process.env, fetchImpl = globalThis.fetch,
+  square = squareApi, news = newsApi, now = new Date(),
+} = {}) => {
+  const source = address(from);
+  const target = address(into);
+
+  if (source === target) throw new Error("The two addresses are the same.");
+
+  const customer = need(await getCustomer(stores, source), "customer");
+  const keeper = await getCustomer(stores, target);
+
+  if (!keeper) {
+    throw new Error(`${target} has no account to merge into. Nothing ` +
+      "changed.");
+  }
+  await refuseVenmo(stores, source);
+
+  const orders = await ordersFor(stores, source);
+  const auth = await authRecordsFor(stores, source);
+  const support = await listAddressed(stores.customers, "support", source);
+  const ledger = await getLedger(stores, source);
+  const day = today(now, siteTerms.timeZone);
+  const held = new Set(perksOf(keeper).filter((p) => openPerk(p, day))
+    .map((p) => p.type));
+  // A perk the target already holds open is not doubled. Each moved
+  // perk is marked `mergedFrom`, the hash of the source's address, as
+  // moved grants are (lib/credit.mjs mergeLedger), and only a perk so
+  // marked counts as already moved: a rerun after a crash before the
+  // source's perks were cleared moves nothing twice (#793), while the
+  // target's own perk, never marked, is never mistaken for one that
+  // looks the same (security, PR #780).
+  const ref = refOf(source);
+  const moved = perksOf(keeper).filter((p) => p.mergedFrom === ref)
+    .map(unmarked);
+  const perks = perksOf(customer).filter((p) => !(openPerk(p, day)
+    && held.has(p.type))
+    && !moved.some((m) => isDeepStrictEqual(m, unmarked(p))));
+  const group = memberKeyOf(keeper) ? null : memberKeyOf(customer);
+  // The source's membership, when the target keeps a group of its own.
+  const dropped = group ? null : memberKeyOf(customer);
+  // The groups the source hosts: the host moves to the target.
+  const hosted = [];
+
+  for (const { key } of GROUPS) {
+    const record = await getGroupRecord(stores, key);
+
+    if (record && record.host === source) hosted.push(key);
+  }
+  const keeperCart = await getCartOf(stores, target);
+  const cart = !(keeperCart && keeperCart.payload)
+    ? await getCartOf(stores, source) : null;
+  const count = (prefix) => auth.filter((a) => a.key.startsWith(prefix))
+    .length;
+  const report = {
+    summary: `${source} is removed. Its records move to ${target}, which ` +
+      "is kept.",
+    apply, from: source, into: target, removed: source, kept: target,
+    orders: orders.map((o) => o.id),
+    perks: perks.length,
+    credit: ledger.entries.length,
+    supportMessages: support.length,
+    sessionsEnded: count("session/"),
+    signInLinksVoided: count("token/"),
+    linksRepointed: count("unsub/") + count("news/"),
+    group,
+    groupDropped: dropped,
+    hostOf: hosted,
+    cart: !!cart,
+  };
+  // The outside services are asked even on a dry run: reads only.
+  const outside = async (name, fn) => {
+    try {
+      report[name] = await fn();
+    } catch (error) {
+      report[name] = maskIn(maskIn(`not reached: ${error.message}`, source),
+        target);
+    }
+  };
+  const squareIds = async () => {
+    const ids = await square.customersByEmail(source, { env, fetchImpl });
+
+    if (apply) {
+      for (const id of ids) await square.deleteCustomer(id, { env, fetchImpl });
+    }
+
+    return ids.length;
+  };
+
+  if (!apply) {
+    await outside("resend", () => news.moveContact(source, target, {
+      env, fetchImpl,
+    }));
+    await outside("square", squareIds);
+
+    return report;
+  }
+
+  await saveCustomer(stores, {
+    ...keeper,
+    perks: [...perksOf(keeper),
+      ...perks.map((p) => ({ ...p, mergedFrom: ref }))],
+    ...(group ? { memberGroup: customer.memberGroup } : {}),
+  });
+  if (perksOf(customer).length) await saveCustomer(stores, {
+    ...customer, perks: [],
+  });
+  // The source's removal from its group is logged once: a rerun finds
+  // the entry it wrote, for this address, since the source joined.
+  const removalLogged = async (key) => {
+    const since = (customer.memberGroup && customer.memberGroup.joinedAt)
+      || "";
+
+    return (await auditLog(stores, key)).some((e) =>
+      e.action === "member.remove" && e.refs && e.refs.target === ref
+      && String(e.at) >= since);
+  };
+
+  if (group && !await removalLogged(group)) {
+    const fold = { role: "farm" };
+
+    await audit(stores, { group, by: fold, action: "member.remove",
+      target: source, before: { group }, after: { group: null }, now });
+    await audit(stores, { group, by: fold, action: "member.add",
+      target, before: { group: null }, after: { group }, now });
+  }
+  // A membership the target's own group replaces is a membership
+  // change, logged as `groups remove` logs one.
+  if (dropped && !await removalLogged(dropped)) {
+    await audit(stores, { group: dropped, by: { role: "farm" },
+      action: "member.remove", target: source, before: { group: dropped },
+      after: { group: null }, now });
+  }
+  // The same person hosts under the address that stays, so the round's
+  // reward reaches an account; logged as `groups set` logs it.
+  for (const key of hosted) {
+    const record = await setGroupHost(stores, key, target, { now });
+
+    await audit(stores, { group: key, by: { role: "farm" },
+      action: "host.set", target: record.host, before: { host: source },
+      after: { host: record.host }, now });
+  }
+  for (const order of orders) {
+    await amendOrder(stores, order.id, {
+      customer: { ...order.customer, email: target },
+    }, "customer merged", now);
+    await deleteByEmail(stores, source, order.id);
+  }
+  // The grants moved this run, which a rerun may make fewer.
+  report.credit = await mergeLedger(stores, source, target);
+  await moveSupport(stores, support, target);
+  await moveAuth(stores, auth, target);
+  if (cart) await stores.customers.set(cartKey(target), cart);
+  await deleteCustomer(stores, source);
+  await outside("resend", () => news.moveContact(source, target, {
+    env, fetchImpl, apply: true,
+  }));
+  await outside("square", squareIds);
+
+  log.info({
+    event: "customer.merged", by,
+    record: maskEmail(source), target: maskEmail(target),
+    orders: orders.length, perks: report.perks, credit: report.credit,
+    supportMessages: report.supportMessages,
+    sessionsEnded: report.sessionsEnded,
+    signInLinksVoided: report.signInLinksVoided,
+    linksRepointed: report.linksRepointed,
+    group: report.group, groupDropped: report.groupDropped,
+    hostOf: report.hostOf, cart: report.cart,
+    resend: report.resend, square: report.square,
+  });
+
+  return report;
+};
+
 // A customer's email changed, from the CLI (#238): the record, every
 // order and its index, support messages, unsubscribe and farm-news
 // links, the Resend contact and the Square customer move to the new
@@ -290,20 +580,14 @@ export const renameCustomer = async (stores, from, to, {
   if (await getCustomer(stores, next)) {
     throw new Error(`${next} already has an account. Nothing changed.`);
   }
-  if ((await listCheckouts(stores)).some(
-    (c) => normalizeEmail(c.order && c.order.customer
-      && c.order.customer.email) === old
-  )) {
-    throw new Error(`A Venmo payment from ${old} is under way. Try again ` +
-      "once it has finished or lapsed (a day at most).");
-  }
+  await refuseVenmo(stores, old);
 
   const orders = await ordersFor(stores, old);
   // Its sessions and links, from its index alone (#508): each names
   // the old address as its email or, a change link, as changeFrom.
   const auth = await authRecordsFor(stores, old);
 
-  const support = await stores.customers.list(`support/${old}/`);
+  const support = await listAddressed(stores.customers, "support", old);
   const count = (prefix) => auth.filter((a) => a.key.startsWith(prefix))
     .length;
   const report = {
@@ -339,11 +623,15 @@ export const renameCustomer = async (stores, from, to, {
     await amendOrder(stores, order.id, {
       customer: { ...order.customer, email: next },
     }, "email changed", now);
-    await stores.orders.delete(byEmailKey(old, order.id));
+    await deleteByEmail(stores, old, order.id);
   }
   for (const { key } of support) {
-    await stores.customers.set(`support/${next}/${key.split("/").pop()}`,
-      await stores.customers.get(key));
+    const message = await stores.customers.get(key);
+
+    await stores.customers.set(
+      `support/${addressHash(next)}/${key.split("/").pop()}`,
+      message && message.email ? { ...message, email: next } : message
+    );
     await stores.customers.delete(key);
   }
   for (const { key, value } of auth) {
@@ -362,7 +650,7 @@ export const renameCustomer = async (stores, from, to, {
     await stores.auth.set(`change-rate/${next}`, spent);
     await stores.auth.delete(`change-rate/${old}`);
   }
-  const cart = await stores.customers.get(cartKey(old));
+  const cart = await getCartOf(stores, old);
 
   if (cart) await stores.customers.set(cartKey(next), cart);
   await deleteCustomer(stores, old);
@@ -516,6 +804,51 @@ export const refundOrder = async (stores, id, {
     throw new Error(`The refund must be between $0.01 and ${dollars(left)}.`);
   }
 
+  const stamp = now.getTime();
+  const marker = { key: base || `refund-${id}-${stamp}`,
+    at: now.toISOString() };
+
+  // Marked as the CLI's before any processor is asked, so a webhook
+  // for this refund that beats the write below is not taken for one
+  // made elsewhere, which would close the order (#783).
+  await stores.orders.set(refundingKey(id), marker);
+
+  try {
+    return await refundPayments(stores, order, {
+      now, env, reason, square, paypal, fetchImpl, base, source, edit,
+      cents, payments, stamp,
+    });
+  } finally {
+    const held = await stores.orders.get(refundingKey(id));
+
+    if (held && held.key === marker.key && held.at === marker.at) {
+      await stores.orders.delete(refundingKey(id));
+    }
+  }
+};
+
+// A refund the CLI is making stands marked this long at most: one
+// that died midway never keeps a refund made elsewhere from closing
+// an order for good.
+export const REFUNDING_MS = 10 * 60_000;
+
+const refundingKey = (id) => `refunding/${id}`;
+
+// Whether the CLI is refunding the order this minute (refundOrder).
+const refunding = async (stores, id, now) => {
+  const held = await stores.orders.get(refundingKey(id));
+
+  return !!held && Math.abs(now.getTime() - Date.parse(held.at))
+    < REFUNDING_MS;
+};
+
+// The calls refundOrder makes, newest payment first, each recorded as
+// it is made. -> the order.
+const refundPayments = async (stores, order, {
+  now, env, reason, square, paypal, fetchImpl, base, source, edit, cents,
+  payments, stamp,
+}) => {
+  const { id } = order;
   // What each payment still holds: its amount less the refunds out of
   // it. A refund from before refunds named their payment came out of
   // the first.
@@ -524,7 +857,6 @@ export const refundOrder = async (stores, id, {
   const holds = (p) => p.amount - refunds
     .filter((r) => outOf(r) === paymentRef(p))
     .reduce((s, r) => s + (r.amount || 0), 0);
-  const stamp = now.getTime();
   let owed = cents;
   let saved = order;
 
@@ -597,6 +929,10 @@ const holdersToCancel = (order) => {
     holderOf(order), sq.oldFulfilmentOrderId, sq.squareOrderId,
   ])].filter(Boolean);
 };
+
+// Whether everything paid on the order has gone back.
+const refundedInFull = (order) => paidTotal(order) > 0
+  && refundedTotal(order) >= paidTotal(order);
 
 // Cancels the fulfillment on each holder of a cancelled order (#662).
 // One that fails stops none of the others: it is logged, and the
@@ -703,9 +1039,8 @@ export const cancelOrder = async (stores, id, {
     });
   }
 
-  const cancelled = await setStatus(stores, id, "cancelled", now, {
-    source,
-  });
+  const { order: cancelled, moved } = await moveStatus(stores, id,
+    "cancelled", now, { extra: { source } });
 
   // Lost to a close (the jobs' or the farm's): the order was handed
   // over, so nothing of a cancel follows, not Square, stock or email.
@@ -715,6 +1050,9 @@ export const cancelOrder = async (stores, id, {
       refundNow ? ", after its refund was made, so check it with " +
         "bin/nff orders show" : ""}.`);
   }
+  // Cancelled meanwhile by another writer (a customer's cancel, or a
+  // refund closed elsewhere), which did the rest: done once (#783).
+  if (!moved) return cancelled;
 
   if (!order.cancelRequested) await adjust(stores, order.lines, 1);
 
@@ -738,6 +1076,61 @@ export const cancelOrder = async (stores, id, {
         reason, reasonText, links: mailLinks(env),
       }), { mail, env, now });
   }
+
+  return getOrder(stores, id);
+};
+
+const WHERE = { square: "Square", paypal: "PayPal" };
+
+// A refund made elsewhere (Square's dashboard, PayPal) that brings an
+// unfulfilled order's refunds up to everything paid closes the order
+// as `orders cancel --no-refund` does (#775): cancelled, stock back,
+// its Square fulfillment closed, off every list. No money moves and
+// the customer is not emailed (James, 2026-11-21: Square's or PayPal's
+// own receipt tells them). The farm gets one notice, since someone
+// refunded the order without cancelling it. A fulfilled order, or one
+// partly refunded, is left as it is. `source` is the webhook that
+// recorded the refund. Safe to run again: only the run that cancels
+// the order does the rest. A refund the CLI is making is the CLI's
+// (refundOrder), and an unpaid order being paid this minute is left
+// as cancelOrder leaves it. -> the order.
+export const closeRefunded = async (stores, id, {
+  now = new Date(), env = process.env, mail = sendMail,
+  square = squareApi, fetchImpl, source,
+} = {}) => {
+  const order = await getOrder(stores, id);
+  const closes = (o) => OPEN.includes(o.status) && refundedInFull(o);
+
+  if (!order || !closes(order)) return order;
+  if (await refunding(stores, id, now)) return order;
+  if (order.status === "unpaid" && await paymentPending(stores, id, now)) {
+    return order;
+  }
+
+  // Decided on the record as the write finds it: a payment recorded
+  // since the read above keeps the order open.
+  const reason = "refunded in full";
+  const { order: cancelled, moved, before } = await moveStatus(stores, id,
+    "cancelled", now, { extra: { source, reason }, when: closes });
+
+  // Another writer got there first: a cancel, a close, or this same
+  // refund delivered twice at once.
+  if (!moved) return cancelled;
+
+  log.info({
+    event: "order.cancelled", id, by: source, field: "status",
+    before, after: "cancelled", reason,
+  });
+
+  if (!cancelled.cancelRequested) await adjust(stores, cancelled.lines, 1);
+
+  await cancelHolders(stores, cancelled, {
+    now, env, fetchImpl, mail, square, source,
+  });
+  await notifyFarm(stores, cancelled, "farmRefundedClosed",
+    farmRefundedClosed(cancelled, {
+      where: WHERE[source] || "Square", links: mailLinks(env),
+    }), { mail, env, now });
 
   return getOrder(stores, id);
 };
@@ -1006,7 +1399,7 @@ export const resolveReturn = async (stores, id, returnId, {
 // Messages
 
 // Every message to the farm, from the contact page (`messages/<id>`)
-// and the account page's help form (`support/<email>/<id>`), in one
+// and the account page's help form (`support/<hash>/<id>`), in one
 // shape, oldest first; only the open ones unless `all`. `order` is
 // whether the order number is one the writer placed, null when none
 // was given or when the help form sent it (it offers only the
@@ -1030,8 +1423,15 @@ export const listMessages = async (stores, { all = false } = {}) => {
     const m = await stores.customers.get(key);
 
     if (m) {
-      const email = key.slice("support/".length, key.lastIndexOf("/"));
-      const customer = await getCustomer(stores, email);
+      // The address is in the message; one written before #758 has it
+      // only in its key, and one moved by `customers rekey` in the
+      // record its hashed key also names.
+      const segment = key.slice("support/".length, key.lastIndexOf("/"));
+      const named = HASHED.test(segment)
+        ? await stores.customers.get(`customer/${segment}`) : null;
+      const email = m.email || (named && named.email)
+        || (HASHED.test(segment) ? "" : segmentAddress(segment));
+      const customer = email ? await getCustomer(stores, email) : null;
 
       found.push({
         id: m.id, from: "help", at: m.at, status: m.status,

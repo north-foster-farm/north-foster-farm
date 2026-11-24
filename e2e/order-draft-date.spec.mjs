@@ -15,7 +15,7 @@ const lastDate = (select) => select.locator("option").evaluateAll(
 );
 
 const delayDates = (page, ms) => page.route("**/api/dates", async (r) => {
-  await new Promise((done) => setTimeout(done, ms));
+  await new Promise((done) => { setTimeout(done, ms); });
   await r.continue();
 });
 
@@ -54,7 +54,7 @@ test.describe("a draft's date (#284)", () => {
       const lists = datesWith();
       const order = new OrderPage(page);
       const answer = async (route) => {
-        await new Promise((done) => setTimeout(done, delay));
+        await new Promise((done) => { setTimeout(done, delay); });
         await route.fulfill({ json: lists });
       };
 
@@ -88,7 +88,7 @@ test.describe("a draft's date (#284)", () => {
         .filter((e) => e.series === DROP.series).at(-1);
 
       await page.route("**/api/dates", async (route) => {
-        await new Promise((done) => setTimeout(done, delay));
+        await new Promise((done) => { setTimeout(done, delay); });
         await route.fulfill({ json: lists });
       });
       // The shape an older page saved: method `scituate`, a date.

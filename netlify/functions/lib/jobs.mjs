@@ -32,10 +32,14 @@
 //               whose payment never succeeded, is reported after a day,
 //               in the morning report too, and deleted unless the
 //               same kill switch is set (#236)
-//   morning     8:00 daily, always: the day in numbers, the on-farm
-//               orders within two days still waiting on the customer,
-//               a warning when the pickup schedule runs short, and the
-//               messages to the farm not yet marked answered
+//   morning     8:00 daily, only when a vital sign is outside its
+//               healthy limits or something waits on the farm: the day
+//               in numbers, the on-farm orders within two days still
+//               waiting on the customer, a warning when the pickup
+//               schedule runs short, and the messages to the farm not
+//               yet marked answered; no email on a calm morning, and
+//               the alert check pinged well either way (#697,
+//               2026-11-21; it went every morning before)
 //   tomorrow    18:00 daily: every order due tomorrow, by method, with
 //               what to pack and where it goes, and no email when
 //               nothing is due (#697, 2026-11-20; it went every day
@@ -75,12 +79,6 @@
 
 import terms from "./terms.mjs";
 import {
-  cutoffFor, isScheduled,
-} from "../../../assets/scripts/order/lib/dates.mjs";
-import {
-  cutoffOf as eveningBefore,
-} from "../../../assets/scripts/order/lib/events.mjs";
-import {
   coverUntil, parseSchedule,
 } from "../../../assets/scripts/order/lib/schedule.mjs";
 import {
@@ -97,6 +95,7 @@ import {
 } from "./forget.mjs";
 import { alert, escalate, ping, readCount, readMark } from "./health.mjs";
 import { now as clock } from "./clock.mjs";
+import { cutoffAt } from "./cutoff.mjs";
 import { log } from "./log.mjs";
 import { prune as pruneRecordings } from "./recorder.mjs";
 import { quietAccounts } from "./retention.mjs";
@@ -129,7 +128,7 @@ import * as squareApi from "./square.mjs";
 import { deletionsPaused } from "./square-pause.mjs";
 import { ORDER_ID } from "./square.mjs";
 import {
-  deliveryReminder, farmMorningReport, farmTomorrow,
+  deliveryReminder, farmMorningReport, farmTomorrow, morningReportNeeded,
 } from "./templates.mjs";
 
 const MINUTE = 60_000;
@@ -150,17 +149,9 @@ const reminded = (order) => sent(order, "deliveryReminder")
   && !(order.attempted
     && order.emails.deliveryReminder.at < order.attempted.at);
 
-// When a customer can no longer change or cancel an order themselves:
-// the delivery or drop-site cutoff, or midnight before an on-farm
-// pickup.
-export const cutoffAt = (order) => {
-  const { date, method } = order.fulfilment;
-
-  if (method === "delivery") return cutoffFor(date, terms);
-  if (isScheduled(order.fulfilment)) return eveningBefore(date, tz);
-
-  return instant(date, 0, 0, tz);
-};
+// When a customer can no longer change or cancel an order themselves,
+// now in lib/cutoff.mjs (#967), still read from here.
+export { cutoffAt };
 
 // Whether a customer's change may still land: before the cutoff, or
 // while the farm's question waits on them (lib/account.mjs's gate).
@@ -210,6 +201,9 @@ export const runJobs = async (stores, {
   // Those read every record, and on staging's stores ran the e2e call
   // past the function's 30 s (#516).
   orderIds = null,
+  // Who ran it: an old twin a list cleans is logged as them (#794).
+  // The CLI passes its user; the scheduled function leaves "site".
+  by = "site",
 } = {}) => {
   // Real time, for the member codes step's budget.
   const started = Date.now();
@@ -425,7 +419,7 @@ export const runJobs = async (stores, {
   report.scrubbed = (await step("retention",
     () => scrubDaily(stores, realNow))) || [];
   report.quiet = await step("quietAccounts",
-    () => quietDaily(stores, { env, mail, now: realNow }));
+    () => quietDaily(stores, { env, mail, now: realNow, by }));
   // Square's orders are shared data: the sweep reads the real time.
   report.squareOpen = (await step("squareSweep",
     () => squareDaily(stores, "open", realNow, () => sweepSquareOrders(
@@ -460,7 +454,7 @@ export const runJobs = async (stores, {
   // Farm news: once a day the audience in Resend and the records are
   // made to agree. Null when there is no audience to sync.
   report.audience = await step("audienceSync",
-    () => audienceSyncDaily(stores, { env, now, fetchImpl }));
+    () => audienceSyncDaily(stores, { env, now, fetchImpl, by }));
   report.refunds = await step("refundCheck",
     () => refundCheckDaily(stores, {
       env, mail, now, square, paypal, fetchImpl, fail,
@@ -487,7 +481,7 @@ export const runJobs = async (stores, {
   // Credit a submission spent a day ago and never settled goes back
   // to its member (lib/credit.mjs). Every run; nothing twice.
   report.creditSwept = (await step("creditSweep",
-    () => sweepStrandedCredit(stores, { now }))) || [];
+    () => sweepStrandedCredit(stores, { now, by }))) || [];
 
   const hidden = (await step("stockHidden", () =>
     stockHiddenDaily(stores, { env, now, catalogIndex, inventory })))
@@ -626,12 +620,12 @@ const scrubDaily = async (stores, now) => {
 // once (lib/retention.mjs). Never a deletion. At most QUIET_PER_RUN a
 // day; those left over, and a notice that failed, go the next day.
 // -> the counts, or null when this day has run.
-const quietDaily = async (stores, { env, mail, now }) => {
+const quietDaily = async (stores, { env, mail, now, by }) => {
   const key = `quiet/${today(now, tz)}`;
 
   if (await stores.jobs.get(key)) return null;
 
-  const r = await quietAccounts(stores, { env, mail, now });
+  const r = await quietAccounts(stores, { env, mail, now, by });
   const counts = {
     noticed: r.noticed.length, failed: r.failed.length, left: r.left,
   };
@@ -649,7 +643,7 @@ const quietDaily = async (stores, { env, mail, now }) => {
 // when nothing was done this run.
 const AUDIENCE_SYNC_HOUR = 5;
 
-const audienceSyncDaily = async (stores, { env, now, fetchImpl }) => {
+const audienceSyncDaily = async (stores, { env, now, fetchImpl, by }) => {
   if (!audienceConfigured(env)) return null;
   if (parts(now, tz).hour < AUDIENCE_SYNC_HOUR) return null;
 
@@ -657,7 +651,7 @@ const audienceSyncDaily = async (stores, { env, now, fetchImpl }) => {
 
   if (await stores.jobs.get(key)) return null;
 
-  const r = await syncAudience(stores, { env, now, fetchImpl });
+  const r = await syncAudience(stores, { env, now, fetchImpl, by });
 
   await stores.jobs.set(key, { at: now.toISOString() });
 
@@ -734,7 +728,8 @@ export const leftOpen = (o) => o.tenders === 0 && Boolean(o.siteVersion)
 
 // -> [{ squareOrderId, orderId, createdAt, total, cancelled, later?,
 // error? }], or null when Square is not configured. `cancel` unset
-// means unless the kill switch is set.
+// means unless the kill switch is set. `by` names who acted in the
+// line each cancel logs: the scheduled job unless the CLI says so.
 export const sweepSquareOrders = async (stores, {
   env = process.env,
   now = new Date(),
@@ -742,6 +737,7 @@ export const sweepSquareOrders = async (stores, {
   fetchImpl = globalThis.fetch,
   cancel,
   max = SQUARE_SWEEP_MAX,
+  by = "jobs",
 } = {}) => {
   if (!env.SQUARE_ACCESS_TOKEN || !env.SQUARE_LOCATION_ID) return null;
 
@@ -774,6 +770,15 @@ export const sweepSquareOrders = async (stores, {
         });
 
         item.cancelled = r.cancelled;
+        // A cancel is a change to a production record (#950,
+        // docs/security.md): one line for each, naming who acted.
+        if (r.cancelled) {
+          log.info({
+            event: "square.order_swept", by, orderId: o.referenceId,
+            squareOrderId: o.id, total: o.total,
+            before: { state: "OPEN" }, after: { state: "CANCELED" },
+          });
+        }
       } catch (error) {
         item.error = String((error && error.message) || error);
       }
@@ -1179,12 +1184,13 @@ export const funnel = async (stores, now, { since } = {}) => {
 
 // A once-a-day farm email, recorded in the jobs store under `key`
 // once it has gone (or once there was nothing to send). `build`
-// returns the message. With `always` the email goes even when `list`
-// is empty, so its absence means something. A mail failure leaves no
-// record, so the next run tries again. -> what `list` returned, or
-// null when nothing was done this run.
+// returns the message. No email goes when `list` is empty. A mail
+// failure leaves no record, so the next run tries again. `onDone`
+// runs once the day's work is done, sent or nothing to send, and
+// never after a failed send. -> what `list` returned, or null when
+// nothing was done this run.
 const dailyReport = async (stores, {
-  key, hour, list, build, onSent, always = false, env, mail, now,
+  key, hour, list, build, onDone, env, mail, now,
 }) => {
   const to = farmEmails(env);
 
@@ -1193,7 +1199,7 @@ const dailyReport = async (stores, {
 
   const items = await list();
 
-  if (items.length || always) {
+  if (items.length) {
     try {
       await mail({ to, idempotencyKey: key, ...build(items) }, { env });
     } catch (error) {
@@ -1205,8 +1211,8 @@ const dailyReport = async (stores, {
       // see a report that never went out.
       throw error;
     }
-    if (onSent) await onSent(items);
   }
+  if (onDone) await onDone(items);
   await stores.jobs.set(key, { at: now.toISOString(), count: items.length });
 
   return items;
@@ -1220,10 +1226,6 @@ export const pickupsDue = (orders, day) => orders.filter((o) =>
   && questionOpen(o)
   && o.fulfilment.date <= addDays(day, PICKUPS_REPORT_DAYS));
 
-// 8:00 daily, always: the day in numbers, then the pickups waiting
-// on a decision. Its going out well pings the alert channel's check,
-// so a morning without it is itself an alert. -> the pickup ids
-// reported this run.
 // How far the pickup schedule reaches, against how far it must.
 const coverage = (env, now) => {
   const { windows } = parseSchedule(env.PICKUP_SCHEDULE);
@@ -1234,6 +1236,14 @@ const coverage = (env, now) => {
   };
 };
 
+// 8:00 daily, only when needed (#697, 2026-11-21; it went every
+// morning before): the day in numbers, then what waits on the farm,
+// sent when a vital sign is outside its healthy limits or something
+// waits (`morningReportNeeded`). A calm morning sends nothing and is
+// still recorded as done. Either way the run pings the alert
+// channel's check well, so the check proves the 8:00 run happened,
+// not that an email went; a report that fails to send pings nothing.
+// -> the pickup ids reported this run.
 const morningReport = async (stores, {
   env, mail, now, fetchImpl, catalogIndex,
 }) => {
@@ -1241,28 +1251,31 @@ const morningReport = async (stores, {
   const sent = await dailyReport(stores, {
     key: `report/morning/${day}`,
     hour: PICKUPS_REPORT_HOUR,
-    always: true,
-    list: async () => [{
-      stats: await funnel(stores, now),
-      pickups: pickupsDue(await openOrders(stores), day),
-      archived: await archivedOnHand(stores, { catalogIndex, env }),
-      messages: await listMessages(stores),
-      square: {
-        ...await squareFinds(stores, day),
-        paused: await deletionsPaused(stores, env),
-      },
-    }],
-    build: ([{
-      stats, pickups, archived, messages, square,
-    }]) => farmMorningReport(stats, pickups, {
-      date: day, links: mailLinks(env), now, schedule: coverage(env, now),
-      archived, messages, square, reminders: remindersOn(day),
+    list: async () => {
+      const stats = await funnel(stores, now);
+      const pickups = pickupsDue(await openOrders(stores), day);
+      const rest = {
+        schedule: coverage(env, now),
+        archived: await archivedOnHand(stores, { catalogIndex, env }),
+        messages: await listMessages(stores),
+        square: {
+          ...await squareFinds(stores, day),
+          paused: await deletionsPaused(stores, env),
+        },
+        reminders: remindersOn(day),
+      };
+
+      return morningReportNeeded(stats, pickups, rest)
+        ? [{ stats, pickups, rest }] : [];
+    },
+    build: ([{ stats, pickups, rest }]) => farmMorningReport(stats, pickups, {
+      date: day, links: mailLinks(env), now, ...rest,
     }),
-    onSent: () => ping(env.HEALTHCHECKS_ALERT_URL, { ok: true, fetchImpl }),
+    onDone: () => ping(env.HEALTHCHECKS_ALERT_URL, { ok: true, fetchImpl }),
     env, mail, now,
   });
 
-  return sent ? sent[0].pickups.map((o) => o.id) : [];
+  return sent && sent.length ? sent[0].pickups.map((o) => o.id) : [];
 };
 
 // 18:00 daily: every order due tomorrow, by method, with what the

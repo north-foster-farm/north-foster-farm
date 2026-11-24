@@ -2,10 +2,10 @@
 // server on load, and the clock is anchored to the server's, so a
 // visitor's wrong clock cannot offer a closed date.
 
-import { mergeScheduled } from "./lib/group.mjs";
 import {
-  earliestCutoff, fallbackChoice, pickupParts, scheduledChoices, stillOpen,
+  earliestCutoff, fallbackChoice, scheduledChoices, stillOpen,
 } from "./lib/scheduled.mjs";
+import { drawPickupDays, drawRounds } from "./pickup-days.js";
 import { setKept } from "../utils/keep-together.mjs";
 import { clear, whileLoading } from "../utils/skeleton.js";
 
@@ -31,6 +31,29 @@ export const countdown = (days, hours, minutes) => {
   return `${parts[0]}, ${parts[1]}, and ${parts[2]}`;
 };
 
+// The count `remaining` ms before a cutoff, never "0 minutes": under a
+// minute is "1 minute". Delivery's countdown and Group orders' close
+// notice (#749) both, so the two never differ in form.
+const within = (remaining) => {
+  const minutes = Math.floor(remaining / 60_000);
+  const hours = Math.floor(remaining / HOUR);
+  const days = Math.floor(hours / 24);
+
+  return countdown(days, hours % 24,
+    Math.max(minutes % 60, days || hours ? 0 : 1));
+};
+
+// How often a count changes: each minute, each 10 s in the last hour.
+const every = (remaining) => (remaining < HOUR ? 10_000 : 60_000);
+
+// A notice's text. The last two words stay on one line ("November
+// 19."), as wrap.mjs keeps the built pages' (#627). A node outside a
+// document, as in the unit tests, takes the text as is.
+const write = (el, text) => {
+  if (el.ownerDocument) setKept(el, text);
+  else el.textContent = text;
+};
+
 export class DateLists {
   constructor(form, onChange) {
     this.form = form;
@@ -39,6 +62,9 @@ export class DateLists {
     this.lists = null;
     this.attempt = 0;
     this.timer = null;
+    // Delivery's cutoff the count last saw passed, so a group tick
+    // doesn't note it or refresh again (#957). New lists clear it.
+    this.passed = null;
     this.chip = form.querySelector("[data-countdown]");
     this.text = form.querySelector("[data-countdown-text]");
     this.regions = form.querySelectorAll("[data-dates-region]");
@@ -48,8 +74,12 @@ export class DateLists {
     this.occurrences = new Map();
     // A buying group's rounds (#471), from /api/group once its code is
     // accepted: /api/dates never lists them, so every load of the
-    // lists joins them back in.
+    // lists keeps them, as `lists.group`. They are Group orders'
+    // alone, never Pick-up days' (#749).
     this.extra = [];
+    // The series codes of the rounds the page knows: an entry of one
+    // goes to Group orders, whichever list it came in.
+    this.rounds = new Set();
     // A location by its code, for a pickup's address; the form sets it
     // from the model (data/locations.json).
     this.place = () => null;
@@ -91,9 +121,10 @@ export class DateLists {
   schedule() {
     const windows = ((this.lists && this.lists.onfarm) || []).flatMap((d) =>
       (d.windows || []).map((w) => ({ date: d.date, ...w })));
-    const lines = ((this.lists && this.lists.scheduled) || []).map((d) => ({
-      date: d.date, code: d.series, action: "pickup",
-    }));
+    const lines = [
+      ...((this.lists && this.lists.scheduled) || []),
+      ...((this.lists && this.lists.group) || []),
+    ].map((d) => ({ date: d.date, code: d.series, action: "pickup" }));
     const deliveries = ((this.lists && this.lists.delivery) || [])
       .map((d) => ({ date: d.date }));
 
@@ -144,13 +175,15 @@ export class DateLists {
     this.extra = stillOpen(this.extra, this.now().getTime());
     this.lists = {
       ...data,
-      scheduled: this.scheduled(mergeScheduled(data.scheduled, this.extra)),
+      scheduled: this.scheduled(this.notRounds(data.scheduled)),
+      group: this.scheduled(this.extra),
     };
 
     for (const select of this.form.querySelectorAll("[data-dates]")) {
       this.fill(select, this.lists[select.dataset.dates] || []);
     }
 
+    this.passed = null;
     this.tick();
     this.onChange();
   }
@@ -170,29 +203,39 @@ export class DateLists {
     return this.occurrences.get(id) || null;
   }
 
-  // A buying group's rounds (#471), joined to the scheduled list now
-  // and on every load after; `dropExtra` takes them out again when
-  // the code is dropped. The pickup chosen stays chosen.
-  addScheduled(entries) {
+  // The entries of a list that are not a group's rounds.
+  notRounds(list) {
+    return (list || []).filter((d) => !this.rounds.has(d.series));
+  }
+
+  // A buying group's rounds (#471), Group orders' list now and on
+  // every load after (#749); `series` is the group's series code, so a
+  // round in any other list goes there too. `dropExtra` takes them
+  // away again when the group comes off. The round chosen stays
+  // chosen.
+  addRounds(entries, series) {
+    if (series) this.rounds.add(series);
+    for (const e of entries || []) this.rounds.add(e.series);
     this.setExtra(entries || []);
   }
 
   dropExtra() {
+    this.rounds.clear();
     this.setExtra([]);
   }
 
   setExtra(entries) {
-    const gone = new Set(this.extra.map((e) => e.occurrence));
-
     this.extra = stillOpen(entries, this.now().getTime());
     if (!this.lists) return;
 
-    const base = this.lists.scheduled.filter((d) => !gone.has(d.occurrence));
-
-    this.lists.scheduled = this.scheduled(mergeScheduled(base, this.extra));
-    this.fill(this.form.querySelector("[data-dates='scheduled']"),
-      this.lists.scheduled);
-    this.watchClosing();
+    this.lists.scheduled = this.notRounds(this.lists.scheduled);
+    this.lists.group = this.scheduled(this.extra);
+    for (const method of ["scheduled", "group"]) {
+      this.fill(this.form.querySelector(`[data-dates='${method}']`),
+        this.lists[method]);
+    }
+    // The rounds' refresh, and Group orders' close notice (#749).
+    this.tick();
     this.onChange();
   }
 
@@ -210,17 +253,22 @@ export class DateLists {
     if (this.lists) this.fill(select, this.lists[method] || []);
   }
 
-  // The occurrence id of the pickup chosen, "" while none is.
-  scheduledValue() {
-    const box = this.form.querySelector("[data-dates='scheduled']");
+  // The occurrence id of the pickup chosen, "" while none is; `method`
+  // "group" for Group orders' round.
+  scheduledValue(method = "scheduled") {
+    const box = this.form.querySelector(`[data-dates='${method}']`);
     const on = box && box.querySelector("input:checked");
 
     return on ? on.value : "";
   }
 
-  // Chooses a pickup in the list, if it is there.
+  // Chooses a pickup in the list, if it is there: a group's round in
+  // Group orders', any other in Pick-up days'.
   choose(value) {
-    const box = this.form.querySelector("[data-dates='scheduled']");
+    const round = this.rounds.has(String(value).split("-")[0]);
+    const box = this.form.querySelector(
+      `[data-dates='${round ? "group" : "scheduled"}']`
+    );
     const radio = box && Array.from(box.querySelectorAll("input"))
       .find((input) => input.value === value);
 
@@ -229,8 +277,8 @@ export class DateLists {
     return Boolean(radio);
   }
 
-  // The scheduled pickups as a vertical list of radios, one line each,
-  // from the template (#tpl-pickup). Nothing is chosen but what the
+  // The scheduled pickups as radio cards grouped under their dates
+  // (#703, pickup-days.js). Nothing is chosen but what the
   // customer chose, or a draft or link named; a draft's closed
   // occurrence of the old drop site falls to that series' next.
   fillPickups(box, list) {
@@ -245,7 +293,7 @@ export class DateLists {
       const none = document.createElement("p");
 
       none.className = "order-windows-none";
-      none.textContent = "No pickup days are open right now.";
+      none.textContent = "No pick-up days are open right now.";
       box.appendChild(none);
 
       return;
@@ -255,34 +303,37 @@ export class DateLists {
     const pick = kept ? current
       : series && (fallbackChoice(list, series) || {}).value;
 
-    for (const entry of list) {
-      const node = document.getElementById("tpl-pickup").content
-        .cloneNode(true);
-      const input = node.querySelector("input");
-      const label = node.querySelector("label");
-      const parts = pickupParts(entry, this.place(entry.location));
+    drawPickupDays(box, list, {
+      place: (code) => this.place(code),
+      name: "scheduled.date",
+      id: "scheduled",
+      pick: pick || "",
+    });
+  }
 
-      input.id = `scheduled-${entry.value.toLowerCase()}`;
-      input.value = entry.value;
-      input.checked = entry.value === pick;
-      label.htmlFor = input.id;
-      label.querySelector(".order-pickup-date").textContent = parts.date;
-      label.querySelector(".order-pickup-time").textContent = parts.time;
-      label.querySelector(".order-pickup-name").textContent = parts.name;
+  // Group orders' rounds as their cards (#749, pickup-days.js
+  // drawRounds). Nothing is chosen but what the customer chose, or a
+  // draft or a change named. With none open the card can't be chosen,
+  // and says so on its heading (order-form.js renderGroupCard).
+  fillRounds(box, list) {
+    const current = box.dataset.want || this.scheduledValue("group");
 
-      const address = label.querySelector(".order-pickup-address");
-
-      for (const line of parts.address) {
-        const part = document.createElement("span");
-
-        part.textContent = line;
-        address.appendChild(part);
-      }
-      box.appendChild(node);
-    }
+    delete box.dataset.want;
+    drawRounds(box, list, {
+      place: (code) => this.place(code),
+      name: "group.date",
+      id: "group",
+      pick: list.some((d) => d.value === current) ? current : "",
+    });
   }
 
   fill(select, offered) {
+    if (!select) return;
+    if (select.dataset.dates === "group") {
+      this.fillRounds(select, offered);
+
+      return;
+    }
     if (select.dataset.dates === "scheduled") {
       this.fillPickups(select, offered);
 
@@ -320,25 +371,30 @@ export class DateLists {
   }
 
   // The 409 answer carries a fresh list for the way that went stale.
+  // A scheduled list holds a member's rounds too: they go to Group
+  // orders, the rest to Pick-up days (#749).
   replace(method, list) {
     const select = this.form.querySelector(`[data-dates="${method}"]`);
-    const fresh = method === "scheduled" ? this.scheduled(list) : list;
+    const rounds = (list || []).filter((d) => this.rounds.has(d.series));
+    const fresh = method === "group"
+      ? this.scheduled(rounds)
+      : method === "scheduled" ? this.scheduled(this.notRounds(list)) : list;
 
+    if (method === "group") this.extra = rounds;
     if (this.lists) this.lists[method] = fresh;
     if (select) this.fill(select, fresh);
-    if (method === "delivery" && this.lists) this.tick();
-    if (method === "scheduled") this.watchClosing();
+    if (method === "delivery") this.passed = null;
+    if ((method === "delivery" || method === "group") && this.lists) {
+      this.tick();
+    }
+    if (method === "scheduled" || method === "group") this.watchClosing();
     this.onChange();
   }
 
   note(text, urgency = "") {
     if (!this.chip) return;
 
-    // The last two words stay on one line ("November 19."), as wrap.mjs
-    // keeps the built pages' (#627). A node outside a document, as in
-    // the unit tests, takes the text as is.
-    if (this.text.ownerDocument) setKept(this.text, text);
-    else this.text.textContent = text;
+    write(this.text, text);
     if (urgency) {
       this.chip.dataset.urgency = urgency;
     } else {
@@ -354,7 +410,9 @@ export class DateLists {
   watchClosing() {
     clearTimeout(this.closing);
 
-    const at = this.lists && earliestCutoff(this.lists.scheduled);
+    const at = this.lists && earliestCutoff([
+      ...this.lists.scheduled, ...(this.lists.group || []),
+    ]);
 
     if (at === null || at === undefined) return;
 
@@ -365,40 +423,53 @@ export class DateLists {
     }, Math.min(wait, MAX_WAIT));
   }
 
+  // Both counts, Delivery's and Group orders', on one timer, run again
+  // as soon as either changes.
   tick() {
     clearTimeout(this.timer);
     this.watchClosing();
 
-    if (!this.chip || !this.lists) return;
+    if (!this.lists) return;
+
+    const waits = [this.noteGroup(), this.noteDelivery()]
+      .filter((wait) => wait !== null);
+
+    if (waits.length) {
+      this.timer = setTimeout(() => this.tick(), Math.min(...waits));
+    }
+  }
+
+  // Delivery's countdown; -> how long until it changes, or null.
+  noteDelivery() {
+    if (!this.chip) return null;
 
     const next = this.lists.delivery[0];
 
     if (!next) {
       this.note("Delivery ordering is closed right now.");
 
-      return;
+      return null;
     }
 
     const remaining = Date.parse(next.cutoff) - this.now().getTime();
 
     if (remaining < 0) {
       // The cutoff passed while the page was open: refresh the lists
-      // so the closed date leaves the select without a reload.
+      // so the closed date leaves the select without a reload. Once
+      // per cutoff: a group tick, or a code accepted, leaves the note
+      // and the refresh or its retry alone until new lists come.
+      if (this.passed === next.cutoff) return null;
+      this.passed = next.cutoff;
       this.note("That cutoff just passed. Updating dates…");
       this.refresh().then((ok) => ok || this.retryLater());
 
-      return;
+      return null;
     }
 
-    const minutes = Math.floor(remaining / 60_000);
-    const hours = Math.floor(remaining / HOUR);
-    const days = Math.floor(hours / 24);
     let urgency = "";
-    let every = 60_000;
 
     if (remaining < HOUR) {
       urgency = "last";
-      every = 10_000;
     } else if (remaining < 6 * HOUR) {
       urgency = "soon";
     }
@@ -406,9 +477,32 @@ export class DateLists {
     // The day by its date, written as the select writes it (its first
     // option's label, no year), so a later day picked from a draft
     // can't seem to be the one counted down to (#627).
-    this.note(`Order within ${countdown(days, hours % 24,
-      Math.max(minutes % 60, days || hours ? 0 : 1))} for delivery on ${
+    this.note(`Order within ${within(remaining)} for delivery on ${
       next.label}.`, urgency);
-    this.timer = setTimeout(() => this.tick(), every);
+
+    return every(remaining);
+  }
+
+  // Group orders' close notice (#749, James, 2026-11-23): Delivery's
+  // countdown to the earliest round's cutoff, "Order within 12 days,
+  // 20 hours, and 26 minutes to join the current group order on
+  // Sunday, December 6.", hidden with no round open. The card comes
+  // in once a group's code is accepted, so the notice is looked for
+  // each time, and the card writes it as it renders (order-form.js
+  // renderGroupCard). -> how long until it changes, or null.
+  noteGroup() {
+    const close = this.form.querySelector("[data-group-close]");
+    const round = this.lists && (this.lists.group || [])[0];
+    const remaining = round && round.cutoff
+      ? Date.parse(round.cutoff) - this.now().getTime() : -1;
+    const text = remaining < 0 ? "" : `Order within ${within(remaining)
+    } to join the current group order on ${round.label}.`;
+
+    if (close) {
+      if (close.textContent !== text) write(close, text);
+      close.hidden = !text;
+    }
+
+    return text ? every(remaining) : null;
   }
 }

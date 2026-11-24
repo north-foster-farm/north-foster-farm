@@ -1,39 +1,49 @@
-import { current, indexCatalog } from "./lib/catalog.mjs";
-import { buildModel } from "./lib/events.mjs";
+import { current } from "./lib/catalog.mjs";
 import { bookedDay, cutoffFor, keptDelivery } from "./lib/dates.mjs";
-import { moneyOn } from "./lib/money-on.mjs";
 import {
-  draftOccurrence, dropSeriesCode, fulfilmentDate, locationCount,
+  draftOccurrence, locationCount,
   locationsLabel,
 } from "./lib/scheduled.mjs";
-import { groupFromQuery, withPlaces } from "./lib/group.mjs";
-import { perkEffects } from "./lib/perks.mjs";
+import {
+  nextRoundOpens, roundsWhen, withPlaces,
+} from "./lib/group.mjs";
 import { postedDelivery } from "./lib/posted.mjs";
-import { linkedMethod, withoutParam } from "./lib/query.mjs";
-import { showing } from "./lib/sections.mjs";
-import { sentence } from "./lib/sentence.mjs";
 import { summarize } from "./lib/summary.mjs";
+import { computeTotals, dollars } from "./lib/totals.mjs";
 import {
-  computeTotals, dollars, lockOn, meetsMinimum, toCents,
-} from "./lib/totals.mjs";
-import {
-  disallowedFor, normalizeCode, phoneOk, validateOrder, zipInfo,
+  disallowedFor, normalizeCode, validateOrder, zipInfo,
 } from "./lib/validate.mjs";
 import {
   pickupTimes, windowLabel,
 } from "./lib/schedule.mjs";
-import { label, today } from "./lib/zoned.mjs";
+import { label } from "./lib/zoned.mjs";
 import { Cart, JOKE_CODE } from "./cart/cart.js";
+import { drawTerms } from "./cart/perk-label.js";
 import { celebrate } from "./celebrate.js";
 import { DateLists } from "./date-lists.js";
 import { Draft } from "./draft.js";
 import { Errors } from "./errors.js";
+import {
+  formatPhone, prefill, showContact, wirePhone,
+} from "./form/contact.js";
+import { all, pulse, qs } from "./form/dom.js";
+import { Links } from "./form/links.js";
+import { createStore, initialState } from "./form/order-state.mjs";
+import { editIdFrom, pageData } from "./form/page-data.mjs";
+import {
+  amountDue, checkOptions, lockOf, perkTypesOf, pricesOn, rulesOf,
+  totalsArgs,
+} from "./form/pricing.mjs";
+import { pickupAt } from "./form/placed.mjs";
+import { showFailed, showLocked, showPlaced } from "./form/result.js";
+import { watchSections } from "./form/section-spy.js";
 import { Lapsed } from "./lapsed.js";
 import { Payment } from "./pay.js";
 import { Pending } from "./pending.js";
 import { crumb } from "./report.js";
 import { wireSwitch } from "./restock.js";
 import { Stock } from "./stock.js";
+import { wireStockNudges } from "./stock-nudges.js";
 import { Submitter } from "./submit.js";
 import { announceCart } from "../cart-badge/announce.js";
 import { confirmJoin } from "../group/join-dialog.js";
@@ -45,13 +55,30 @@ import { forget, me } from "../session/session.js";
 import { watchSignIn } from "../session/watch.js";
 import { api } from "../utils/api.js";
 import { setBusy as spin } from "../utils/busy-button.js";
-import { looksLikeEmail } from "../utils/email.js";
 import { setWhole } from "../utils/keep-together.mjs";
 import { whileLoading } from "../utils/skeleton.js";
 
 // A send that can't get through is tried once more this soon, while
 // the page still shows it being placed, and then not again (#154).
 const RETRY_DELAY = 3000;
+
+// The longest the ?add= scroll waits for the first stock answer,
+// counted from the page's load (#892; the coordinator's provisional
+// figure of 2026-11-22, for James to change).
+const ADD_SCROLL_CAP_MS = 5000;
+
+// When the ?add= scroll may start: 300 ms on, then once the first
+// stock answer has hidden what it hides, so the page doesn't shift
+// under the scroll, but no later than ADD_SCROLL_CAP_MS after the
+// page loaded: the stock script may keep trying for a minute.
+const afterStock = async (stock) => {
+  await new Promise((resolve) => { setTimeout(resolve, 300); });
+
+  const left = Math.max(0, ADD_SCROLL_CAP_MS - performance.now());
+  const capped = new Promise((resolve) => { setTimeout(resolve, left); });
+
+  await Promise.race([stock.ready(), capped]).catch(() => {});
+};
 
 // The customer's details and delivery address: what signing out (or a
 // scrub of another account's draft) takes out of the draft (#149).
@@ -65,41 +92,6 @@ const sha256 = async (text) => {
     (b) => b.toString(16).padStart(2, "0")).join("");
 };
 
-const qs = (root, selector) => root.querySelector(selector);
-const all = (root, selector) => Array.from(root.querySelectorAll(selector));
-
-// Restart a CSS animation by re-applying its class.
-const pulse = (el, className) => {
-  el.classList.remove(className);
-  void el.offsetWidth;
-  el.classList.add(className);
-};
-
-// Brings the rail's lit link into view inside whatever box scrolls the
-// rail, never the page. scrollIntoView moved Chromium's Tab starting
-// point to the link, so on load the first Tab skipped the skip link
-// for the link after it (#291).
-const keepInRail = (link) => {
-  let box = link.parentElement;
-
-  while (box && box !== document.body) {
-    const { overflowY } = getComputedStyle(box);
-
-    const scrolls = /auto|scroll/.test(overflowY);
-
-    if (scrolls && box.scrollHeight > box.clientHeight) break;
-    box = box.parentElement;
-  }
-  if (!box || box === document.body) return;
-
-  const a = link.getBoundingClientRect();
-  const b = box.getBoundingClientRect();
-  const by = a.top < b.top ? a.top - b.top
-    : a.bottom > b.bottom ? a.bottom - b.bottom : 0;
-
-  if (by) box.scrollBy({ top: by, behavior: "smooth" });
-};
-
 export class OrderForm {
   static init() {
     document.addEventListener("DOMContentLoaded", () => {
@@ -109,85 +101,70 @@ export class OrderForm {
     });
   }
 
-  // The prices in force today in the farm's zone, so the 1 January
-  // changes (data/delivery.json, money.changes) arrive with the day;
-  // an order being changed keeps those of the day it was placed.
+  // The prices in force (form/pricing.mjs pricesOn).
   get money() {
-    const placed = this.editing && this.editing.placed;
+    return pricesOn({ money: this.state.terms.money, ...this.pricedOn() });
+  }
 
-    return moneyOn(this.terms.money, today(
-      placed ? new Date(placed) : this.dates.now(), this.terms.timeZone
-    ));
+  // The clock and the day a change was placed, which the prices, the
+  // member price and the checks are read by.
+  pricedOn() {
+    return {
+      now: this.dates.now(),
+      placed: this.state.editing && this.state.editing.placed,
+      timeZone: this.state.terms.timeZone,
+    };
   }
 
   constructor(form) {
-    const data = JSON.parse(document.getElementById("order-data").textContent);
+    const page = pageData(
+      JSON.parse(document.getElementById("order-data").textContent)
+    );
 
     this.form = form;
-    this.catalog = data.catalog;
-    this.aliases = data.aliases || {};
-    // The scheduled pickups the page validates against, built as the
-    // functions build them (lib/events.mjs).
-    this.terms = {
-      ...data.terms, model: buildModel(data.locations, data.series),
-    };
-    // The drop site's series code (data/series.json), for the old
-    // ?method=scituate link and a draft saved before scheduled pickup.
-    this.dropSeries = dropSeriesCode(this.terms.model);
-    this.drop = this.terms.model.series
-      .find((s) => s.code === this.dropSeries) || {};
-    this.contact = data.contact;
-    // Discount codes, by hash; the plain codes stay on the server.
-    this.codes = data.codes || [];
-    this.code = null;
-    // A pass the farm issued (#182): its code, once /api/pass says it
-    // lifts the delivery minimum, and whether it waives the delivery
-    // fee too. The server checks it again. To the customer it is a
-    // discount code like any other.
-    this.pass = null;
-    this.passFee = false;
-    // A buying group (#471): what /api/group said its code unlocks
-    // (the name, the lock, its place and series), and the code itself
-    // when one was typed or linked, so the order carries it; null for
-    // a member signed in, whose account the server knows. The page
-    // embeds nothing of a group, so its places are folded into the
-    // model from the answer (`raw` is what the page embeds).
-    this.raw = { locations: data.locations, series: data.series };
-    this.member = null;
-    this.groupCode = null;
-    // Group codes the customer has said Join to (#495, decision 5): a
-    // draft's, and any confirmed here. Applied again, they don't ask.
-    this.joinConfirmed = new Set();
-    // A draft's pickup at a round the lists lack until the group is
-    // unlocked, chosen then.
-    this.wantedOccurrence = null;
-    // A member's credit, in cents, from /api/group when signed in: it
-    // comes off the total by itself, and the server reads the ledger
-    // again.
-    this.credit = 0;
-    this.index = indexCatalog(this.catalog);
-    this.errors = new Errors(form);
-    // /order/?edit=<id> changes a paid order (startEdit): its own draft,
-    // so the cart the header reads is left alone, and its own endpoint.
-    const edit = new URLSearchParams(location.search).get("edit") || "";
+    this.buildPage(page);
+    // The order's state, one record (form/order-state.mjs).
+    this.store = createStore({ ...initialState(), terms: page.terms });
+    this.buildEdit(form);
+    this.buildStock(form);
+    this.buildCart(form);
+    this.buildParts();
+  }
 
-    this.editId = /^[A-Za-z0-9-]{1,32}$/.test(edit) ? edit : null;
-    this.editing = null;
+  // What the page embeds, fixed after load (form/page-data.mjs), and
+  // /order/?edit=<id>, which changes a paid order (startEdit).
+  buildPage(page) {
+    this.catalog = page.catalog;
+    this.aliases = page.aliases;
+    this.dropSeries = page.dropSeries;
+    this.drop = page.drop;
+    this.contact = page.contact;
+    this.codes = page.codes;
+    this.raw = page.raw;
+    this.index = page.index;
+    this.editId = editIdFrom(location.search);
+  }
+
+  // A change to a paid order has its own draft, so the cart the header
+  // reads is left alone, and its own endpoint.
+  buildEdit(form) {
+    this.errors = new Errors(form);
     this.draft = new Draft(this.editId ? { name: `nff-edit-${this.editId}` }
       : {});
     this.dates = new DateLists(form, () => this.refresh());
-    this.dates.place = (code) => this.terms.model.location(code);
-    // A pickup time to select once its day's windows are drawn: a
-    // restored draft's, or the dialog's.
-    this.wantedWindow = null;
+    this.dates.place = (code) => this.state.terms.model.location(code);
     this.lapsed = new Lapsed(document.getElementById("order-lapsed"), {
       onUse: (choice) => this.useLapsed(choice),
       onOther: (method) => this.otherWay(method),
+      place: (code) => this.state.terms.model.location(code),
     });
     this.submitter = new Submitter(this.editId
       ? { url: `/api/account/orders/${this.editId}/edit` }
       : {});
     this.saveButton = document.getElementById("order-save");
+  }
+
+  buildStock(form) {
     this.stock = new Stock(form, {
       onChange: (notice) => this.stockMoved(notice),
       setQty: (input, n) => this.setQty(input, n),
@@ -195,9 +172,13 @@ export class OrderForm {
       onLock: () => this.refresh(),
       nameOf: (sku) => this.index.get(sku)?.lineName,
     });
+    wireStockNudges(form, this.stock);
     this.stockNotice = document.getElementById("order-stock");
-    // The cart owns its pane; the form tells it what to show and hears
-    // back what the customer did in it (docs/cart.md 4.1).
+  }
+
+  // The cart owns its pane; the form tells it what to show and hears
+  // back what the customer did in it (docs/cart.md 4.1).
+  buildCart(form) {
     this.cart = new Cart(document.getElementById("order-cart"), {
       form,
       bar: document.querySelector(".order-topbar"),
@@ -205,26 +186,38 @@ export class OrderForm {
       onClear: () => this.clear(),
       onWay: (method) => this.pickWay(method),
       onCode: () => this.applyCode(),
-      onCheckout: () => this.toPickup(),
+      onCheckout: () => this.proceed(),
+      // Stock not known: the notice comes into view, as for Pay.
+      onBlocked: (reason) => {
+        if (reason === "locked") this.stock.warn();
+      },
     });
     // A change to a paid order keeps the prices of its day.
     if (!this.editId) this.cart.setMoney(this.money);
+  }
+
+  buildParts() {
     this.result = document.getElementById("order-result");
     this.pending = new Pending(document.getElementById("order-pending"));
+    // The links into the page: ?method, ?series, ?add, ?group
+    // (form/links.js).
+    this.links = new Links(this, { afterStock });
     this.submitButton = document.getElementById("order-submit");
     this.payment = new Payment(document.getElementById("payment"), this);
     this.busy = false;
     // The quantity box with focus, which refresh() keeps open.
     this.typing = null;
-    // The signed-in customer's discount group, from /api/me. The server
-    // applies it again from the session; this only shows it.
-    this.group = null;
-    // The signed-in customer's perks (#514), from /api/me: [{ type,
-    // start, end }]. The server reads them again from the record.
-    this.perks = [];
-    // Whether /api/me said so: the thank-you card then leaves out the
-    // line about the account the order made (#114).
-    this.isSignedIn = false;
+  }
+
+  // The order's state as it is now (form/order-state.mjs).
+  get state() {
+    return this.store.get();
+  }
+
+  // A new record, with `patch` over the one before. Draws nothing: the
+  // caller calls refresh() as before.
+  update(patch) {
+    this.store.set({ ...this.store.get(), ...patch });
   }
 
   async start() {
@@ -265,17 +258,12 @@ export class OrderForm {
       if (e.key === this.draft.name) this.syncLines();
     });
 
-    this.methodFromQuery();
-    this.addFromQuery();
+    this.links.methodFromQuery();
+    this.links.addFromQuery();
     this.dates.load();
-    // /order/?group=<code>: a buying group's link (#471) puts its code
-    // in the box, and applyCode tries it as a typed one would be.
-    const linked = groupFromQuery(location.search);
-
-    this.clearQuery("group");
-    if (linked) this.cart.setCodeValue(linked);
-    // A code that came by the link, not typed, for the join log (#495).
-    this.groupLinked = !!linked;
+    // A code that came by the link (links.js), not typed, for the join
+    // log (#495).
+    this.update({ groupLinked: this.links.groupFromLink() });
     this.applyCode({ quiet: true });
     this.refresh();
     this.stock.start();
@@ -289,7 +277,12 @@ export class OrderForm {
       ? all(this.form, "[data-prefill-region]")
       : [];
 
-    whileLoading(fields, me, { render: (who) => this.signedIn(who) });
+    const asked = me();
+
+    whileLoading(fields, () => asked, { render: (who) => this.signedIn(who) });
+    // No stamp yet a live session (#985): the same answer still fills
+    // the form; signedIn() takes only a signed-in one.
+    if (!fields.length) asked.then((who) => this.signedIn(who), () => {});
 
     // Signed in since in another tab, or in this one after Back
     // (#521): the perks, the group and the credit apply before Pay, or
@@ -302,7 +295,7 @@ export class OrderForm {
     }, {
       key: this.draft.name,
       onSignOut: () => {
-        if (this.isSignedIn) location.reload();
+        if (this.state.signedIn) location.reload();
       },
     });
   }
@@ -310,39 +303,50 @@ export class OrderForm {
   signedIn(who) {
     if (!who.signedIn || !who.customer) return;
 
-    this.isSignedIn = true;
+    this.update({ signedIn: true });
     // "Have an account?" (#521) goes by the session alone.
     this.hideSignInPrompt();
 
     const group = who.customer.discountGroup || null;
 
-    if (group && group !== this.group) {
-      this.group = group;
+    if (group && group !== this.state.group) {
+      this.update({ group });
       this.refresh();
     }
 
     const perks = Array.isArray(who.customer.perks) ? who.customer.perks : [];
+    // A buying group's member has the group's line with the perks
+    // (#717, revised).
+    const member = who.member || null;
 
     // A change keeps the perks its order was priced with (startEdit), so
     // the account's own are not laid over them.
-    if (!this.editing && (perks.length || this.perks.length)) {
-      this.perks = perks;
-      this.cart.setPerks(perks);
+    if (!this.state.editing
+      && (perks.length || this.state.perks.length || member
+        || this.state.shownMember)) {
+      this.update({ perks });
+      this.update({ shownMember: member });
+      this.cart.setPerks(perks, { member });
+      // The Delivery choice's fee and minimum, as the account has them.
+      for (const tip of this.state.termTips) tip.stop();
+      this.update({ termTips: drawTerms(perks, this.form) });
       this.refresh();
     }
     // A buying group's member (#471) needs no code: the account's
-    // group is asked for, and its pickup and prices follow.
-    if (who.customer.memberGroup && !this.member && !this.editing) {
+    // group is asked for, and its pickup and prices follow. Its host is
+    // a member by /api/me's `member` alone, with no `memberGroup` (#772).
+    if ((who.customer.memberGroup || who.member) && !this.state.member
+      && !this.state.editing) {
       this.applyGroup("").catch(() => {});
     }
     // Credit kept after leaving a group (#495): it comes off any order
     // signed in, as the server takes it.
-    this.ownCredit = Number(who.credit) || 0;
-    if (this.ownCredit && !this.member && !this.editing) {
-      this.credit = this.ownCredit;
+    this.update({ ownCredit: Number(who.credit) || 0 });
+    if (this.state.ownCredit && !this.state.member && !this.state.editing) {
+      this.update({ credit: this.state.ownCredit });
       this.refresh();
     }
-    this.prefill(who.customer);
+    prefill(this.form, who.customer, () => this.draft.save(this.collect()));
   }
 
   hideSignInPrompt() {
@@ -384,14 +388,14 @@ export class OrderForm {
 
     // A fee a missed delivery kept paid for that trip: it counts toward
     // nothing now (#193).
-    this.editing = {
+    this.update({ editing: {
       id: order.id, held: sum(order.payments) - sum(order.refunds),
       kept: order.keptFee || 0, keptDate: order.keptDate || null,
       placed: order.submittedAt,
       // The delivery day the order holds, which its change may keep
       // though the farm has since moved that week (#643).
       booked: bookedDay(order),
-    };
+    } });
     this.keepBooked();
     for (const line of order.lines) {
       this.stock.held[line.sku] = line.qty;
@@ -411,18 +415,18 @@ export class OrderForm {
     // (#284); the edit keeps the record's whatever is sent.
     if (who && who.signedIn === false) forget();
 
-    this.group = customer.discountGroup || null;
+    this.update({ group: customer.discountGroup || null });
     // The perks the order was priced with that the account still holds,
     // as the server prices the change (lib/edit.mjs). With no answer
     // from /api/me, those of the order; the server has the last word.
     const holds = Array.isArray(customer.perks)
       ? customer.perks.map((p) => p.type) : null;
 
-    this.perks = ((order.totals && order.totals.perks) || [])
+    this.update({ perks: ((order.totals && order.totals.perks) || [])
       .filter((type) => !holds || holds.includes(type))
-      .map((type) => ({ type }));
-    this.pass = order.pass || null;
-    this.passFee = !!(order.pass && order.passWaivesFee);
+      .map((type) => ({ type })) });
+    this.update({ pass: order.pass || null });
+    this.update({ passFee: !!(order.pass && order.passWaivesFee) });
 
     const saved = this.draft.load();
 
@@ -449,6 +453,8 @@ export class OrderForm {
     this.saveButton.addEventListener("click", (e) => this.submit(e));
 
     this.dates.load();
+    // A member's change is offered the group's rounds (#749).
+    if (customer.memberGroup || (who && who.member)) this.editRounds();
     this.applyCode({ quiet: true });
     this.refresh();
     this.stock.start();
@@ -461,15 +467,16 @@ export class OrderForm {
   // it stays: a refresh of the lists must never put another day in
   // its place, and the server then refuses the change in its own words.
   keepBooked() {
-    const { booked } = this.editing;
+    const { booked } = this.state.editing;
 
     if (!booked) return;
 
-    const cutoff = cutoffFor(booked, this.terms).getTime();
+    const cutoff = cutoffFor(booked, this.state.terms).getTime();
 
     this.dates.shown = (method, list) => method === "delivery"
       ? keptDelivery(list, booked,
-        new Date(Math.min(this.dates.now().getTime(), cutoff)), this.terms)
+        new Date(Math.min(this.dates.now().getTime(), cutoff)),
+        this.state.terms)
       : list;
   }
 
@@ -477,11 +484,12 @@ export class OrderForm {
   // server refuses any change then (lib/account.mjs canChange), so the
   // page sends it for that refusal rather than offer other days.
   bookedClosed(payload) {
-    const booked = this.editing && this.editing.booked;
+    const booked = this.state.editing && this.state.editing.booked;
 
     return Boolean(booked) && payload.fulfilment.method === "delivery"
       && payload.fulfilment.date === booked
-      && this.dates.now().getTime() > cutoffFor(booked, this.terms).getTime();
+      && this.dates.now().getTime()
+        > cutoffFor(booked, this.state.terms).getTime();
   }
 
   // A line the paid order holds. An archived one's row shows, and its
@@ -501,9 +509,9 @@ export class OrderForm {
   // for the payment section. The cart shows what is paid and the
   // difference (cart.js renderEdit).
   renderEdit(total) {
-    if (!this.editing) return;
+    if (!this.state.editing) return;
 
-    const { held, kept } = this.editing;
+    const { held, kept } = this.state.editing;
     const diff = total - (held - kept);
 
     this.payment.root.hidden = diff <= 0;
@@ -544,68 +552,66 @@ export class OrderForm {
     this.quietMethod = false;
   }
 
-  // Proceed to checkout: to Pickup or delivery, its legend focused.
-  toPickup() {
-    const target = document.getElementById("pickup");
+  // Proceed to checkout (#706): to the next thing the order still
+  // needs, in the page's order. The way's own fields first, with their
+  // messages, the same for all three ways; then Contact information,
+  // with its messages; then Payment, until the card is entered (or
+  // nothing is left to pay); then Place your order. The cart says why
+  // when the button cannot go on, and never calls this.
+  async proceed() {
+    const check = this.check(this.collect());
+    const errors = check.ok ? {} : check.errors;
+    const only = (test) => Object.fromEntries(
+      Object.entries(errors).filter(([key]) => test(key))
+    );
+    const way = only((key) => /^(fulfilment|onfarm|delivery)\./.test(key));
+    const contact = only((key) => key.startsWith("customer."));
 
-    target.scrollIntoView({ behavior: "smooth", block: "start" });
-    qs(target, "legend").focus({ preventScroll: true });
+    if (Object.keys(way).length) {
+      this.showErrors(way, { hint: true });
+
+      return;
+    }
+    if (Object.keys(contact).length) {
+      this.showErrors(contact);
+
+      return;
+    }
+    if (!await this.payment.complete()) {
+      this.goTo(document.getElementById("payment"), "legend");
+
+      return;
+    }
+
+    const place = [this.submitButton, this.saveButton]
+      .find((button) => !button.hidden && !button.disabled);
+
+    this.goTo(document.getElementById("confirm"), place || "legend");
   }
 
-  // Name, email and phone from the customer's record, filled in as
-  // ordinary fields.
-  prefill(customer) {
-    let any = false;
-
-    for (const input of all(this.form, "[data-prefill]")) {
-      const value = customer[input.dataset.prefill];
-
-      if (!value) continue;
-      if (!input.value) input.value = value;
-      any = true;
-    }
-    this.formatPhone();
-
-    this.showContact();
-    if (any) this.draft.save(this.collect());
+  // The errors on the page, brought into view: the first field focused,
+  // or, for a group with no focus of its own (the pickup times) or a
+  // list of dates (#703), its first choice. `options` go to Errors.
+  showErrors(errors, options) {
+    this.errors.show(errors, {
+      ...options,
+      focusIn: (field) => {
+        if (field.hasAttribute("data-dates")
+          || document.activeElement !== field) {
+          qs(field, "input:not([disabled])")?.focus({ preventScroll: true });
+        }
+      },
+    });
   }
 
-  // The phone number as "(xxx) xxx-xxxx" while it is typed. A
-  // deletion that lands on a bracket or a dash takes the digit before
-  // it too, so backspace never fights the mask. A leading 1 is dropped.
-  formatPhone(deleting = false) {
-    const input = qs(this.form, "[data-field='customer.phone']");
-    const raw = input.value;
-    let digits = raw.replace(/\D/g, "");
+  // A section brought into view, smoothly, and `focus` focused in it: a
+  // selector or an element. The focus moves first: WebKit ends a smooth
+  // scroll early when the focus moves during it (#1013).
+  goTo(section, focus) {
+    const el = typeof focus === "string" ? qs(section, focus) : focus;
 
-    if (digits.length === 11 && digits.startsWith("1")) {
-      digits = digits.slice(1);
-    }
-    if (deleting && /\D$/.test(raw)) digits = digits.slice(0, -1);
-    digits = digits.slice(0, 10);
-
-    const out = digits.length <= 3 ? (digits ? `(${digits}` : "")
-      : digits.length <= 6 ? `(${digits.slice(0, 3)}) ${digits.slice(3)}`
-        : `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
-
-    if (out !== raw) input.value = out;
-  }
-
-  // "Prefer text or call?" shows once the phone number is one we could
-  // use, and fades in when it appears.
-  showContact() {
-    const row = qs(this.form, "[data-contact-row]");
-    const phone = qs(this.form, "[data-field='customer.phone']");
-    const on = phoneOk(phone.value.trim());
-
-    if (row.dataset.shown === String(on)) return;
-    row.dataset.shown = String(on);
-    if (on) {
-      row.classList.add("is-entering");
-      requestAnimationFrame(() => requestAnimationFrame(() => {
-        row.classList.remove("is-entering");
-      }));
-    }
+    el.focus({ preventScroll: true });
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
   }
 
   wire() {
@@ -639,14 +645,7 @@ export class OrderForm {
       this.revalidate(e.target);
     });
 
-    const phone = qs(this.form, "[data-field='customer.phone']");
-
-    phone.addEventListener("input", (e) => {
-      this.formatPhone((e.inputType || "").startsWith("delete"));
-      this.showContact();
-    });
-    this.formatPhone();
-    this.showContact();
+    wirePhone(this.form);
 
     // The rail's Cart link, the header's cart link and #order-cart in
     // the URL bring the cart into view and focus it at every width
@@ -662,140 +661,7 @@ export class OrderForm {
     });
     if (location.hash === "#order-cart") this.cart.show();
 
-    this.watchSections();
-  }
-
-  // The section on screen, named in three places: the sidebar's
-  // outline from lg up, the phone's sticky bar below lg, and the total
-  // bar from lg to xl. Bootstrap's spy only hears sections crossing a
-  // band, so a fast scroll left a stale name, and the last section,
-  // too short to reach the band, never lit (#204). This asks where
-  // each section is on every frame the page moves.
-  watchSections() {
-    const nav = document.getElementById("order-nav");
-    const catalog = document.getElementById("order-catalog");
-    const titles = all(document, "[data-topbar-title]");
-    const bars = all(document, ".order-topbar, .order-total-bar");
-    const heading = document.querySelector(".page-heading h1");
-    const wide = window.matchMedia("(min-width: 992px)");
-    const xl = window.matchMedia("(min-width: 1200px)");
-    const sections = all(nav, "a")
-      .map((link) => ({
-        link, target: document.querySelector(link.hash),
-      }))
-      .filter(({ target }) => target);
-    // Each category's link, by its section; the catalog's rows, top to
-    // bottom.
-    const cats = new Map(sections
-      .filter(({ target }) => target.classList.contains("order-cat"))
-      .map(({ link, target }) => [target, link]));
-    const rows = all(catalog, ".order-item");
-    const cartHeading = document.getElementById("order-cart-heading");
-    let shown = null;
-    let tick = null;
-
-    // Mark the link and its parent in the outline (Catalog, over a
-    // category).
-    const mark = (link) => {
-      const parent = link.closest(".order-side-sub")
-        ?.closest(".nav-item").querySelector(":scope > .nav-link");
-
-      for (const a of all(nav, ".nav-link")) {
-        a.classList.toggle("active", a === link || a === parent);
-      }
-      if (wide.matches) keepInRail(link);
-    };
-
-    const update = () => {
-      tick = null;
-
-      // A section is current once its top reaches the lower edge of
-      // whichever bar is stuck at the top, less a little so a jump to
-      // it lands inside it. The floating cart is at the foot of the
-      // screen, not at its place in the page, so it counts only once
-      // settled. From xl it is a column stuck beside the others and
-      // never counts.
-      const column = xl.matches;
-
-      // The phone bar casts its shadow only once stuck; at rest it
-      // lies flat under the header (O5).
-      for (const bar of bars) {
-        if (bar.classList.contains("order-topbar")) {
-          bar.dataset.stuck = String(bar.getBoundingClientRect().top <= 0.5);
-        }
-      }
-
-      const edge = bars.reduce((low, bar) => {
-        const r = bar.getBoundingClientRect();
-
-        return bar.offsetParent && getComputedStyle(bar).opacity !== "0"
-          && r.top <= 1 ? Math.max(low, r.bottom) : low;
-      }, 0);
-      const line = edge + 24;
-      const end = window.innerHeight + window.scrollY
-        >= document.documentElement.scrollHeight - 2;
-      let current = null;
-      let best = -Infinity;
-
-      for (const { link, target } of sections) {
-        if (target.dataset.stuck === "true") continue;
-        if (column && target.id === "order-cart") continue;
-        // Settled, the cart begins at its heading, above the pane.
-        const top = (target.id === "order-cart" ? cartHeading : target)
-          .getBoundingClientRect().top;
-
-        // On a tie the later link wins: a category over the catalog.
-        // At the foot of the page the last section on screen wins,
-        // since it may be too short ever to reach the line.
-        if ((top <= line || (end && top < window.innerHeight))
-          && (top >= best || end)) {
-          best = top;
-          current = link;
-        }
-      }
-
-      // Within the catalog, the category is the one whose rows are
-      // under the bar: the first row with more than a sliver showing
-      // below its edge names it. A section's top crossing the line
-      // named it too late, after the gap above its heading, while the
-      // rows under the bar were already its own (#274), and the last
-      // few pixels of a row kept its section named over the next
-      // one's heading and rows (#561).
-      if (current && (current.hash === `#${catalog.id}`
-        || cats.has(document.querySelector(current.hash)))) {
-        const row = rows.find((el) => showing(el.getBoundingClientRect(),
-          edge));
-
-        if (row && row.getBoundingClientRect().top < window.innerHeight) {
-          current = cats.get(row.closest(".order-cat")) || current;
-        }
-      }
-
-      if (current && current !== shown) mark(current);
-      shown = current || shown;
-
-      const name = current
-        ? current.dataset.heading || current.textContent.trim()
-        : heading ? heading.textContent.trim() : "";
-      // A category's name in the bar carries the double chevron.
-      const cat = !!current && current.hash.startsWith("#cat-");
-
-      for (const title of titles) {
-        // Below lg the bar drops the page name: it shows a category's
-        // name or nothing (#327).
-        const text = !cat && title.closest(".order-topbar") ? "" : name;
-
-        if (title.textContent !== text) title.textContent = text;
-        title.parentElement.toggleAttribute("data-cat", cat);
-      }
-    };
-    const onScroll = () => {
-      if (tick === null) tick = requestAnimationFrame(update);
-    };
-
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll);
-    update();
+    watchSections();
   }
 
   changed() {
@@ -804,119 +670,6 @@ export class OrderForm {
     // A change after a payment attempt began means the next attempt
     // must not reuse that attempt's keys (the order may differ).
     this.draft.touch();
-  }
-
-  // /order/?method=onfarm (or scheduled, delivery) chooses that way, as
-  // a click on its card would: the home page's off-season band and the
-  // map's pin cards. ?method=scheduled&series=<code> also chooses that
-  // series' next date once the lists come, and the old
-  // ?method=scituate the drop site series'. The link wins over a
-  // restored draft's way. An unknown value is ignored. The query is
-  // cleared, as ?add= is.
-  methodFromQuery() {
-    const radios = all(this.form, "[name='method']");
-    const link = linkedMethod(
-      location.search, radios.map((radio) => radio.value), this.dropSeries
-    );
-
-    this.clearQuery("method");
-    this.clearQuery("series");
-    if (!link) return;
-
-    this.wantedSeries = link.series;
-    if (link.method === this.method()) {
-      this.chooseSeries();
-
-      return;
-    }
-
-    radios.find((radio) => radio.value === link.method).checked = true;
-    this.draft.save(this.collect());
-  }
-
-  // A linked series' next date, chosen on the picker once its list is
-  // here. A series the list lacks (closed, or none open) leaves the
-  // picker as it was.
-  chooseSeries() {
-    const lists = this.dates.lists;
-
-    if (!this.wantedSeries || !lists) return;
-
-    const first = lists.scheduled.find((c) => c.series === this.wantedSeries);
-
-    this.wantedSeries = null;
-    if (!first || this.method() !== "scheduled") return;
-    this.dates.choose(first.value);
-    this.draft.save(this.collect());
-  }
-
-  clearQuery(name) {
-    if (!new URLSearchParams(location.search).has(name)) return;
-
-    history.replaceState(null, "", `${location.pathname}${
-      withoutParam(location.search, name)}${location.hash}`);
-  }
-
-  // /order/?add=SKU:qty,SKU:qty puts those items in the cart: the
-  // "Add again" links on the account page, and anything else that
-  // wants to. Unknown or sold-out SKUs are named, not added; a live
-  // stock check right after brings any quantity down if it must. The
-  // query is cleared so a reload does not add again.
-  addFromQuery() {
-    const params = new URLSearchParams(location.search);
-    const raw = params.get("add");
-
-    if (!raw) return;
-
-    const added = [];
-    const missing = [];
-    let unknown = false;
-
-    for (const part of raw.split(",")) {
-      const [given, qtyText] = part.split(":");
-      const sku = current(given || "", this.aliases);
-      const input = qs(this.form, `[data-qty="${CSS.escape(sku || "")}"]`);
-      const qty = Math.min(99, Math.max(1, parseInt(qtyText, 10) || 1));
-
-      // A row out of stock is on the page to say when it is back, not
-      // to be added (#267).
-      if (!input || input.closest("[data-out]")) {
-        const item = this.index.get(sku);
-
-        // Named, never a raw SKU.
-        if (item) missing.push(item.lineName);
-        else unknown = true;
-        continue;
-      }
-      this.setQty(input, Math.min(99, this.qty(input) + qty));
-      added.push(`${qty} × ${this.index.get(sku).lineName}`);
-    }
-
-    const notice = document.getElementById("order-added");
-    const bits = [];
-
-    if (added.length) {
-      bits.push(sentence(`Added to your cart: ${added.join(", ")}`));
-    }
-    if (missing.length) {
-      bits.push(sentence(`Not available: ${missing.join(", ")}`));
-    }
-    // Draft wording.
-    if (unknown) {
-      bits.push("Some items from that order have changed. Please add " +
-        "them again.");
-    }
-    notice.textContent = bits.join(" ");
-    notice.hidden = !bits.length;
-    notice.classList.toggle("alert-warning", !added.length);
-    notice.classList.toggle("alert-success", added.length > 0);
-
-    this.clearQuery("add");
-
-    if (added.length) {
-      this.draft.save(this.collect());
-      setTimeout(() => this.cart.show({ smooth: true }), 300);
-    }
   }
 
   // Stock changed under the cart: quantities were already brought into
@@ -979,10 +732,20 @@ export class OrderForm {
   }
 
 
-  method() {
+  // The way chosen, as its card's radio names it: onfarm, scheduled,
+  // delivery or group (#749).
+  way() {
     const checked = qs(this.form, "[name='method']:checked");
 
     return checked ? checked.value : "";
+  }
+
+  // The way as the order is priced and posted: Group orders is a
+  // pickup day at the group's round, as the server stores one.
+  method() {
+    const way = this.way();
+
+    return way === "group" ? "scheduled" : way;
   }
 
   lines() {
@@ -998,24 +761,30 @@ export class OrderForm {
     }));
   }
 
+  // The order's totals (form/pricing.mjs totalsArgs).
   totals() {
-    return computeTotals({
+    const s = this.state;
+
+    return computeTotals(totalsArgs({
       lines: this.lines(),
       method: this.method(),
       index: this.index,
       money: this.money,
-      group: this.group,
-      code: this.code,
+      group: s.group,
+      code: s.code,
       lock: this.lock(),
-      zipStatus: this.zipStatus(),
-      waiveFee: !!this.pass && this.passFee,
-      credit: this.editing ? 0 : this.credit,
+      zip: qs(this.form, "[data-field='delivery.zip']").value,
+      area: s.terms.area,
+      pass: s.pass,
+      passFee: s.passFee,
+      editing: s.editing,
+      credit: s.credit,
       perks: this.perkTypes(),
-    });
+    }));
   }
 
   // Looks the typed code up by its hash. A known one becomes
-  // `this.code` and shows in the totals; the joke starts its clock;
+  // `this.state.code` and shows in the totals; the joke starts its clock;
   // anything else is ignored by the server, and the cart's note says
   // so (cart.js codeResult).
   async applyCode({ quiet = false } = {}) {
@@ -1026,16 +795,16 @@ export class OrderForm {
 
     this.cart.setCodeValue(typed);
     // Apply pressed: whatever is on now was typed.
-    if (!quiet) this.groupLinked = false;
+    if (!quiet) this.update({ groupLinked: false });
 
     // Apply with the field empty takes the code off again, and a pass
     // with it; a change keeps the pass its order was placed with.
     if (!typed) {
       this.cart.stopJoke();
-      this.code = null;
-      if (!this.editing) {
-        this.pass = null;
-        this.passFee = false;
+      this.update({ code: null });
+      if (!this.state.editing) {
+        this.update({ pass: null });
+        this.update({ passFee: false });
       }
       this.cart.codeResult();
       this.refresh();
@@ -1044,7 +813,7 @@ export class OrderForm {
     }
 
     if (typed === JOKE_CODE) {
-      this.code = null;
+      this.update({ code: null });
       this.cart.startJoke();
       accepted("Code applied.");
       this.refresh();
@@ -1057,7 +826,9 @@ export class OrderForm {
 
     if (found) {
       this.cart.stopJoke();
-      this.code = { code: typed, label: found.label, off: found.off };
+      this.update({
+        code: { code: typed, label: found.label, off: found.off },
+      });
       accepted(`Code applied: $${found.off} off.`);
       this.refresh();
 
@@ -1066,7 +837,7 @@ export class OrderForm {
 
     // A buying group's code (#471): the server says what it unlocks.
     // Only its own shape, six characters or more, is worth a request.
-    const member = this.editing || typed.length < 6
+    const member = this.state.editing || typed.length < 6
       ? { ok: false }
       : await this.applyGroup(typed);
 
@@ -1092,13 +863,14 @@ export class OrderForm {
       return;
     }
 
-    const pass = this.editing ? { ok: false } : await this.applyPass(typed);
+    const pass = this.state.editing
+      ? { ok: false } : await this.applyPass(typed);
 
     // James's wording (6333286808, and on #182 since): the minimum is
     // the live one from data/delivery.json; a code that waives the fee
     // says only "Applied.", as the fee cell already shows $0.
     if (pass.ok) {
-      accepted(this.passFee ? "Applied."
+      accepted(this.state.passFee ? "Applied."
         : "Applied: this order can be delivered under the " +
           `$${this.money.deliveryMinimum} minimum.`);
     } else if (!quiet) {
@@ -1116,7 +888,7 @@ export class OrderForm {
 
   // Asks the server whether a typed code is a pass (#182). Only the
   // pass shape, eight letters and digits, is worth a request.
-  // -> { ok, message? }; an accepted one becomes `this.pass`.
+  // -> { ok, message? }; an accepted one becomes `this.state.pass`.
   async applyPass(value) {
     const raw = String(value || "").replace(/[^A-Z0-9]/gi, "").toUpperCase();
 
@@ -1131,8 +903,8 @@ export class OrderForm {
     ).catch(() => ({ ok: false, data: null }));
 
     if (ok) {
-      this.pass = code;
-      this.passFee = !!(data && data.waivesFee);
+      this.update({ pass: code });
+      this.update({ passFee: !!(data && data.waivesFee) });
     }
 
     // `limited`: the server's rate limit answered, not the pass.
@@ -1142,8 +914,8 @@ export class OrderForm {
   // Takes a pass the server refused off the order and says why by the
   // code box, as a code refused on Apply would.
   dropPass(message) {
-    this.pass = null;
-    this.passFee = false;
+    this.update({ pass: null });
+    this.update({ passFee: false });
     this.cart.codeResult({ text: message });
     this.refresh();
   }
@@ -1162,13 +934,15 @@ export class OrderForm {
     const already = !!(data && data.already);
     const elsewhere = !!(data && data.elsewhere);
     const asks = found && !!code && !already && !elsewhere
-      && !this.joinConfirmed.has(normalizeCode(code));
+      && !this.state.joinConfirmed.has(normalizeCode(code));
 
     if (asks) {
       if (!(await confirmJoin(data.group.name))) {
         return { ok: false, declined: true };
       }
-      this.joinConfirmed.add(normalizeCode(code));
+      this.update({ joinConfirmed: new Set([
+        ...this.state.joinConfirmed, normalizeCode(code),
+      ]) });
     }
     if (found) this.unlockGroup(data, code || null);
 
@@ -1181,31 +955,49 @@ export class OrderForm {
   // pickup list, its member prices set the totals, and the order carries
   // the code (or, for a member signed in, nothing: the server knows).
   unlockGroup(data, code) {
-    this.member = data.group;
-    this.groupCode = code;
-    this.credit = Number(data.credit) || 0;
-    this.terms = withPlaces(this.terms, this.raw, data.group);
-    this.dates.addScheduled(data.dates || []);
-    if (this.wantedOccurrence && this.dates.choose(this.wantedOccurrence)) {
-      this.wantedOccurrence = null;
-    }
-    this.refresh();
+    this.update({ member: data.group });
+    this.update({ groupCode: code });
+    this.update({ credit: Number(data.credit) || 0 });
+    this.offerRounds(data);
     this.draft.save(this.collect());
   }
 
-  // The member price while it holds (#471): through its last
-  // day, by the day the order is for, the day it is placed or, for a
-  // change, was, as `money` chooses the prices in force. The server
-  // works it out the same way, so the totals agree.
+  // The group's place and series join the model and its rounds Group
+  // orders (#749). A draft's or a paid order's round, waiting for
+  // them, is chosen there, under Group orders.
+  offerRounds(data) {
+    this.update({ roundGroup: data.group });
+    this.update({ terms: withPlaces(this.state.terms, this.raw, data.group) });
+    this.dates.addRounds(data.dates || [], data.group.series);
+
+    const wanted = this.state.wantedOccurrence;
+
+    this.refresh();
+    if (wanted && String(wanted).startsWith(`${data.group.series}-`)) {
+      // Chosen now if the lists are here, or as they come (want).
+      this.update({ wantedOccurrence: null });
+      this.dates.want("group", wanted);
+      qs(this.form, "#method-group").checked = true;
+      this.refresh();
+    } else if (wanted && this.dates.choose(wanted)) {
+      this.update({ wantedOccurrence: null });
+    }
+  }
+
+  // A change to a member's paid order (#749): the group's rounds are
+  // offered under Group orders, as on a new order, while the prices and
+  // credit stay as the order has them (startEdit).
+  async editRounds() {
+    const { ok, data } = await api("/api/group", {
+      method: "POST", body: {},
+    }).catch(() => ({ ok: false, data: null }));
+
+    if (ok && data && data.group) this.offerRounds(data);
+  }
+
+  // The member price while it holds (form/pricing.mjs lockOf).
   lock() {
-    if (!this.member || !this.member.lock) return null;
-
-    const placed = this.editing && this.editing.placed;
-    const day = today(placed ? new Date(placed) : this.dates.now(),
-      this.terms.timeZone);
-
-    return lockOn({ ...this.member.lock, through: this.member.lockThrough },
-      day);
+    return lockOf({ member: this.state.member, ...this.pricedOn() });
   }
 
   // A member's credit in the payment section (#471): what it covers
@@ -1245,42 +1037,38 @@ export class OrderForm {
   // applied it): the group comes off, its pickup with it, and the
   // words go by the code box, as for a pass.
   dropGroup(message) {
-    this.member = null;
-    this.groupCode = null;
-    this.credit = this.ownCredit || 0;
-    this.terms = withPlaces(this.terms, this.raw);
+    this.update({ member: null });
+    this.update({ roundGroup: null });
+    this.update({ groupCode: null });
+    this.update({ credit: this.state.ownCredit || 0 });
+    this.update({ terms: withPlaces(this.state.terms, this.raw) });
     this.dates.dropExtra();
-    this.cart.codeResult({ text: message });
+    if (message) this.cart.codeResult({ text: message });
     this.refresh();
     this.draft.save(this.collect());
   }
 
-  // The money rules the page holds the order to: a pass or a perk
-  // (#514) lifts the delivery minimum, and nothing else.
+  // A group's round refused as the customer isn't in the group (#749
+  // item 9): Group orders comes off, as the account no longer offers
+  // it, and the words go by Pay, where the customer is. Under a field
+  // they would go at the next revalidate, whose check has no such
+  // error.
+  notMember(errors) {
+    this.dropGroup();
+    this.payment.fail(errors["fulfilment.method"]);
+  }
+
+  // The money rules the page holds the order to (form/pricing.mjs
+  // rulesOf).
   rules() {
-    return this.pass || perkEffects(this.perkTypes()).minimum
-      ? { ...this.money, deliveryMinimum: 0 } : this.money;
+    return rulesOf({
+      money: this.money, pass: this.state.pass, perks: this.perkTypes(),
+    });
   }
 
-  // The signed-in customer's perk types (#514), from /api/me; while
-  // changing an order, the ones it was priced with.
+  // The customer's perk types (form/pricing.mjs perkTypesOf).
   perkTypes() {
-    return this.perks.map((p) => p.type);
-  }
-
-
-  // The delivery ZIP's status, for the outside-area fee. Null unless
-  // delivery is chosen, so the fee shows the moment it applies.
-  zipStatus() {
-    if (this.method() !== "delivery") return null;
-
-    return zipInfo(
-      qs(this.form, "[data-field='delivery.zip']").value, this.terms.area
-    ).status;
-  }
-
-  eligible(totals) {
-    return meetsMinimum(totals, this.rules());
+    return perkTypesOf(this.state.perks);
   }
 
   // Everything derived from the current field values.
@@ -1289,8 +1077,10 @@ export class OrderForm {
     // First: an empty list unchooses scheduled pickup, and the rest
     // reads the way that leaves.
     this.renderScheduledCard();
+    this.renderGroupCard();
 
     const method = this.method();
+    const way = this.way();
     const totals = this.totals();
 
     this.renderWindows();
@@ -1311,7 +1101,7 @@ export class OrderForm {
     }
 
     for (const body of all(this.form, "[data-method-body]")) {
-      body.toggleAttribute("inert", body.dataset.methodBody !== method);
+      body.toggleAttribute("inert", body.dataset.methodBody !== way);
     }
 
     // Delivery needs a phone for the driver; the rest can do without.
@@ -1335,13 +1125,20 @@ export class OrderForm {
       totals, method, money: this.rules(), count, lines, index: this.index,
     });
 
+    // The cart's switch has the three ways everyone has; Group orders,
+    // chosen on its card, is named on the switch's button (#749).
+    const way = this.way();
+
     this.cart.render(s, {
-      method,
+      method: way,
       ways: {
         scheduled: !!this.dates.lists && this.dates.lists.scheduled.length > 0,
+        name: way === "group" ? "Group orders" : "",
       },
-      edit: this.editing ? { ...this.editing, total: totals.total } : null,
+      edit: this.state.editing
+        ? { ...this.state.editing, total: totals.total } : null,
       locked: !!(this.stock && this.stock.locked),
+      down: !!(this.stock && this.stock.down),
       adding: !!this.adding,
     });
     this.total = totals.total;
@@ -1350,7 +1147,7 @@ export class OrderForm {
     this.renderEdit(totals.total);
     // The header's Order link shows the same count; a change to a paid
     // order is not the cart.
-    if (!this.editing) announceCart(count);
+    if (!this.state.editing) announceCart(count);
 
     const short = qs(this.form, "[data-delivery-short]");
 
@@ -1385,13 +1182,83 @@ export class OrderForm {
     qs(this.form, "[data-scheduled-none]").hidden = !none;
     radio.disabled = none;
     if (none && radio.checked) qs(this.form, "#method-onfarm").checked = true;
-    this.chooseSeries();
+    this.links.chooseSeries();
+  }
+
+  // The Group orders card (#749): shown only while a group's rounds
+  // are offered, its When and Where from the group's series and place
+  // in the model, never typed into the page. A round open: "Every
+  // other Sunday, 8:30 – 9:00 AM" and the earliest round's orders-close
+  // line atop its body. None open: "· no open group order" on its
+  // heading, the day the next opens (or "Not currently scheduled") for
+  // its When, and it can't be chosen. Until the lists come it reads as
+  // open, its body saying "Loading group orders…".
+  renderGroupCard() {
+    const g = this.state.roundGroup;
+    let wrap = qs(this.form, "[data-group-way]");
+
+    if (!g) {
+      if (wrap) {
+        if (qs(wrap, "#method-group").checked) {
+          qs(this.form, "#method-onfarm").checked = true;
+        }
+        wrap.remove();
+      }
+
+      return;
+    }
+    if (!wrap) {
+      const tpl = document.getElementById("tpl-group-way");
+
+      if (!tpl) return;
+      qs(this.form, ".order-methods").appendChild(tpl.content.cloneNode(true));
+      wrap = qs(this.form, "[data-group-way]");
+      if (this.dates.lists) {
+        this.dates.fill(qs(wrap, "[data-dates='group']"),
+          this.dates.lists.group || []);
+      }
+    }
+
+    const radio = qs(wrap, "#method-group");
+
+    const lists = this.dates.lists;
+    const rounds = lists ? lists.group || [] : null;
+    const open = rounds ? rounds.length > 0 : true;
+    const { model, timeZone } = this.state.terms;
+    const series = g.series && model.seriesOf(g.series);
+    const loc = model.location(g.location);
+    const title = qs(wrap, ".order-method-title");
+    const when = open && series ? roundsWhen(series)
+      : nextRoundOpens(series, this.dates.now(), timeZone);
+    const where = loc ? loc.short || [loc.name, loc.city]
+      .filter(Boolean).join(", ") : "";
+    const set = (el, text) => {
+      if (el.textContent !== text) el.textContent = text;
+    };
+
+    const heading = `Group orders${open ? "" : " · no open group order"}`;
+
+    if (title.textContent !== heading) title.textContent = "Group orders";
+    if (title.textContent !== heading) {
+      const note = document.createElement("span");
+
+      note.className = "order-method-closed";
+      note.textContent = " · no open group order";
+      title.appendChild(note);
+    }
+    set(qs(wrap, "[data-group-when]"), when);
+    set(qs(wrap, "[data-group-where]"), where);
+    // The close notice, Delivery's countdown to the round's cutoff
+    // (#749), is the date lists' to write and keep counting.
+    this.dates.noteGroup();
+    radio.disabled = !open;
+    if (!open && radio.checked) qs(this.form, "#method-onfarm").checked = true;
   }
 
   // The chosen pickup day's windows, one radio each, from the farm's
   // schedule (W11d), each on its own line with its times in full
   // (#616). The time chosen carries over to a new day that has it;
-  // otherwise the day's first is chosen.
+  // otherwise none is chosen until the customer chooses one (#706).
   renderWindows() {
     const box = qs(this.form, "[data-windows]");
     const select = qs(this.form, "[data-dates='onfarm']");
@@ -1404,12 +1271,11 @@ export class OrderForm {
     const windows = day ? day.windows : [];
     const key = `${select.value} ${windows.map((w) => w.id).join(" ")}`;
 
-    if (box.dataset.key === key && !this.wantedWindow) return;
+    if (box.dataset.key === key && !this.state.wantedWindow) return;
 
     const checked = qs(box, "input:checked");
-    const current = this.wantedWindow || (checked && checked.value);
-    const pick = windows.some((w) => w.id === current) ? current
-      : windows[0] && windows[0].id;
+    const current = this.state.wantedWindow || (checked && checked.value);
+    const pick = windows.some((w) => w.id === current) ? current : null;
 
     box.dataset.key = key;
     box.textContent = "";
@@ -1417,7 +1283,7 @@ export class OrderForm {
       const none = document.createElement("p");
 
       none.className = "order-windows-none";
-      none.textContent = lists ? "No pickup times on this day."
+      none.textContent = lists ? "No pick-up times on this day."
         : "Loading times…";
       box.appendChild(none);
     }
@@ -1434,7 +1300,7 @@ export class OrderForm {
       setWhole(text, windowLabel(w));
       box.appendChild(node);
     }
-    if (lists) this.wantedWindow = null;
+    if (lists) this.update({ wantedWindow: null });
   }
 
   // The dialog's choice, put on the form; the customer pays again with
@@ -1442,24 +1308,30 @@ export class OrderForm {
   useLapsed({ method, date, window }) {
     const select = qs(this.form, `[data-dates="${method}"]`);
     const status = document.querySelector("[data-lapsed-status]");
-    const place = method === "scheduled" && this.pickupAt({ occurrence: date });
+    // A group's round (#749) is a pickup at its place, as a pickup
+    // day's is.
+    const pickup = method === "scheduled" || method === "group";
+    const place = pickup
+      && pickupAt({ occurrence: date }, this.placedCtx());
 
-    if (method === "scheduled") this.dates.choose(date);
+    if (pickup) this.dates.choose(date);
     else if (select) select.value = date;
-    if (window) this.wantedWindow = window;
+    if (window) this.update({ wantedWindow: window });
     this.refresh();
     this.errors.clear();
     this.draft.save(this.collect());
 
-    const chosen = method === "scheduled" && this.dates.occurrence(date);
+    const chosen = pickup && this.dates.occurrence(date);
     const day = label(chosen ? chosen.date : date);
     const times = window && windowLabel(pickupTimes({ window }));
 
     if (status) {
-      status.textContent = `${method === "onfarm"
-        ? `Pickup is now ${day}, ${times}`
-        : method === "scheduled" ? `Pickup is now ${day}, ${place}`
-          : `Delivery is now ${day}`}. Pay again to place your order.`;
+      // A round by its date as the group lists it (#761, 1b).
+      status.textContent = `${method === "group"
+        ? `Your group order is now for ${(chosen && chosen.label) || day}`
+        : method === "onfarm" ? `Pickup is now ${day}, ${times}`
+          : pickup ? `Pickup is now ${day}, ${place}`
+            : `Delivery is now ${day}`}. Pay again to place your order.`;
       status.hidden = false;
     }
 
@@ -1481,17 +1353,23 @@ export class OrderForm {
 
   // A 409: what was chosen lapsed. The fresh list goes on the form and
   // the dialog offers it (U1, U3).
-  lapse(stored, dates) {
-    const method = stored;
-    const list = method === "scheduled" ? this.dates.scheduled(dates) : dates;
+  // `way` is the form's: a group's round lapsed is offered the group's
+  // rounds still open (#749), a pickup day the other pickups.
+  lapse(way, dates) {
+    const method = way;
 
     this.dates.replace(method, dates);
+
+    const lists = this.dates.lists;
+    const list = ["scheduled", "group"].includes(method)
+      ? (lists && lists[method]) || this.dates.scheduled(dates) : dates;
+
     this.lapsed.open(method, list, this.submitButton.hidden ? null
       : this.submitButton);
   }
 
   revealMethod() {
-    const body = qs(this.form, `[data-method-body="${this.method()}"]`);
+    const body = qs(this.form, `[data-method-body="${this.way()}"]`);
 
     if (!body) return;
 
@@ -1508,14 +1386,14 @@ export class OrderForm {
   renderZipNote() {
     const zip = qs(this.form, "[data-field='delivery.zip']");
     const note = qs(this.form, "[data-zip-note]");
-    const info = zipInfo(zip.value, this.terms.area);
+    const info = zipInfo(zip.value, this.state.terms.area);
     const bad = disallowedFor(this.lineDetails(), info.state);
 
     note.classList.remove("text-danger-emphasis");
 
     if (info.status === "outside") {
       note.textContent = "That's outside our delivery area. On-farm pickup " +
-        "and our pickup days are open to everyone.";
+        "and our pick-up days are open to everyone.";
       note.classList.add("text-danger-emphasis");
     } else if (info.status === "unlisted") {
       note.textContent = "A little outside our usual area: delivery is " +
@@ -1553,11 +1431,13 @@ export class OrderForm {
 
       return el.value;
     };
+    // Group orders posts as a pickup day at its round (#749).
+    const chosen = this.way();
     const way = this.method();
     const dateSelect = qs(this.form, `[data-dates="${way}"]`);
     // Scheduled pickup stores its occurrence, which holds the date; the
     // picker's value is the occurrence id.
-    const picked = way === "scheduled" ? this.dates.scheduledValue()
+    const picked = way === "scheduled" ? this.dates.scheduledValue(chosen)
       : dateSelect ? dateSelect.value : "";
 
     return {
@@ -1592,14 +1472,15 @@ export class OrderForm {
           notes: value("delivery.notes"),
         }),
       },
-      code: this.code
-        ? this.code.code
+      code: this.state.code
+        ? this.state.code.code
         : normalizeCode(qs(this.form, "[data-field='code']").value),
-      pass: this.pass,
+      pass: this.state.pass,
       // A buying group's code (#471), when one was typed or linked.
-      groupCode: this.groupCode,
+      groupCode: this.state.groupCode,
       // Whether that code came by the group's link (#495).
-      ...(this.groupCode && this.groupLinked ? { groupLink: true } : {}),
+      ...(this.state.groupCode && this.state.groupLinked
+        ? { groupLink: true } : {}),
       claimedTotal: this.totals().total,
       website: qs(this.form, "[name='website']").value,
     };
@@ -1678,25 +1559,28 @@ export class OrderForm {
     set("customer.lastName", c.lastName);
     set("customer.email", c.email);
     set("customer.phone", c.phone);
-    this.formatPhone();
+    formatPhone(this.form);
     set("customer.contact", c.contact);
     set("code", payload.code);
     // A saved draft's pass is asked about again: it may be gone.
-    if (payload.pass && !this.editing) {
+    if (payload.pass && !this.state.editing) {
       this.applyPass(payload.pass).then(() => this.refresh());
     }
     // So is a buying group's code (#471): replaced since, it is gone,
     // and the pickup it unlocked with it.
     // Said Join to when it went on the draft: not asked again.
-    if (payload.groupCode && !this.editing) {
-      this.joinConfirmed.add(normalizeCode(payload.groupCode));
+    if (payload.groupCode && !this.state.editing) {
+      this.update({ joinConfirmed: new Set([
+        ...this.state.joinConfirmed, normalizeCode(payload.groupCode),
+      ]) });
       this.applyGroup(payload.groupCode).catch(() => {});
     }
 
     for (const line of payload.lines || []) {
       // A saved cart may predate a rename; a paid order being changed
       // never does (its SKUs are all known, or it can't be changed).
-      const sku = this.editing ? line.sku : current(line.sku, this.aliases);
+      const sku = this.state.editing
+        ? line.sku : current(line.sku, this.aliases);
       const input = qs(this.form, `[data-qty="${CSS.escape(sku)}"]`);
 
       if (input) this.setQty(input, line.qty);
@@ -1708,13 +1592,13 @@ export class OrderForm {
 
     if (way) set("fulfilment.method", way);
     // The radios are drawn from the lists when they come.
-    this.wantedWindow = o.window || null;
+    this.update({ wantedWindow: o.window || null });
 
     // A draft saved with the group's delivery ticked (#471, parked in
     // #626) holds the group's place, which is no longer offered: it
     // comes back as an ordinary delivery with the address to type.
     // A paid order being changed keeps its own address.
-    const ticked = d.toGroup === true && !this.editing;
+    const ticked = d.toGroup === true && !this.state.editing;
 
     for (const key of [
       "address1", "address2", "town", "zip", "cooler", "notes",
@@ -1728,20 +1612,24 @@ export class OrderForm {
       this.dates.want(way, draftOccurrence(f, this.dropSeries),
         f.method === "scituate" ? this.dropSeries : "");
       // A round of a buying group is not in the lists until the group
-      // is unlocked (#471); it is chosen then.
-      this.wantedOccurrence = f.occurrence || null;
+      // is unlocked (#471); it is chosen then, under Group orders
+      // (#749), or now, if the group's rounds are here already.
+      this.update({ wantedOccurrence: f.occurrence || null });
+      if (f.occurrence && this.state.roundGroup
+        && f.occurrence.startsWith(`${this.state.roundGroup.series}-`)) {
+        this.dates.want("group", f.occurrence);
+        set("fulfilment.method", "group");
+      }
     } else if (way && f.date) {
       this.dates.want(way, f.date);
     }
-    this.showContact();
+    showContact(this.form);
   }
 
   // What the payment section asks of the form (pay.js).
 
   amount() {
-    return this.editing
-      ? Math.max(0, (this.total || 0) - this.editing.held + this.editing.kept)
-      : this.total || 0;
+    return amountDue({ total: this.total, editing: this.state.editing });
   }
 
   referenceId() {
@@ -1766,7 +1654,8 @@ export class OrderForm {
       phone: c.phone,
       address1: d.address1 || "", address2: d.address2 || "",
       town: d.town || "", zip: d.zip || "",
-      state: d.zip ? (zipInfo(d.zip, this.terms.area).state || {}).code : "",
+      state: d.zip
+        ? (zipInfo(d.zip, this.state.terms.area).state || {}).code : "",
     };
   }
 
@@ -1774,17 +1663,24 @@ export class OrderForm {
   // its key and attempt, or null after showing the errors. Nothing
   // asynchronous: a wallet must tokenise inside its click.
   check(payload) {
-    return validateOrder(payload, {
-      index: this.index, terms: this.terms, now: this.dates.now(),
-      placed: this.editing && this.editing.placed,
-      group: this.group, code: this.code, schedule: this.dates.schedule(),
-      // As lib/edit.mjs passes it (#643).
-      keptDate: (this.editing && this.editing.booked) || null,
-      lock: this.lock(),
-      credit: this.editing ? 0 : this.credit,
-      waive: { minimum: !!this.pass, fee: !!this.pass && this.passFee },
-      perks: this.perkTypes(),
-    });
+    const s = this.state;
+    const check = validateOrder(payload, checkOptions({
+      index: this.index, terms: s.terms, now: this.dates.now(),
+      editing: s.editing, group: s.group, code: s.code,
+      schedule: this.dates.schedule(), lock: this.lock(), credit: s.credit,
+      pass: s.pass, passFee: s.passFee, perks: this.perkTypes(),
+    }));
+
+    // Group orders posts as a pickup day (#749), so a missing round
+    // comes back as a missing day; it is said as a round (#761, 2b).
+    const round = payload.fulfilment.occurrence;
+
+    if (!check.ok && check.errors && this.way() === "group" && !round
+      && check.errors["fulfilment.occurrence"]) {
+      check.errors["fulfilment.occurrence"] = "Choose a group order date.";
+    }
+
+    return check;
   }
 
   // Once errors are showing, each change clears the ones it fixes and
@@ -1830,7 +1726,7 @@ export class OrderForm {
       // Only the day or time lapsed: the dialog. Before the lists have
       // come there is nothing to offer, so the errors say it.
       if (check.status === 409 && this.dates.lists) {
-        this.lapse(payload.fulfilment.method, check.dates);
+        this.lapse(this.way(), check.dates);
 
         return null;
       }
@@ -1881,7 +1777,7 @@ export class OrderForm {
       const again = this.check(payload);
 
       if (!again.ok && again.status === 409 && !this.bookedClosed(payload)) {
-        this.lapse(payload.fulfilment.method, again.dates);
+        this.lapse(this.way(), again.dates);
 
         return null;
       }
@@ -1934,9 +1830,16 @@ export class OrderForm {
       || "We couldn't start the Venmo payment.");
   }
 
-  venmoCapture(payload, paypalOrderId) {
+  // `restart`: the capture after the Venmo sheet was reopened on the
+  // same PayPal order (#721). The payload is the one the PayPal order
+  // was made from, so its attempt is that order's. -> the outcome.
+  venmoCapture(payload, paypalOrderId, { restart = false } = {}) {
     return this.deliver({
-      ...payload, payment: { method: "venmo", stage: "capture", paypalOrderId },
+      ...payload,
+      payment: {
+        method: "venmo", stage: "capture", paypalOrderId,
+        ...(restart ? { restart: true } : {}),
+      },
     });
   }
 
@@ -1964,7 +1867,7 @@ export class OrderForm {
 
     if (!payload) return;
     // A change with nothing more to pay: no payment at all.
-    if (this.editing && this.amount() <= 0) {
+    if (this.state.editing && this.amount() <= 0) {
       await this.deliver(payload);
 
       return;
@@ -1994,6 +1897,7 @@ export class OrderForm {
 
   // A send that can't get through goes once more, under the same keys,
   // so it can't pay twice. If that one can't either, it stops.
+  // -> the outcome, already acted on.
   async deliver(payload) {
     this.setBusy(true);
     this.draft.markAttempted();
@@ -2001,7 +1905,7 @@ export class OrderForm {
     let outcome = await this.submitter.send(payload);
 
     if (outcome.kind === "retry") {
-      await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY));
+      await new Promise((resolve) => { setTimeout(resolve, RETRY_DELAY); });
       outcome = await this.submitter.send(payload);
     }
 
@@ -2014,24 +1918,27 @@ export class OrderForm {
       break;
     case "retry":
       // Draft wording.
-      this.fail(payload, "We couldn't reach our payment system.");
+      showFailed(this.resultView(), payload,
+        "We couldn't reach our payment system.");
       break;
     default:
       this.settle(outcome, payload);
     }
+
+    return outcome;
   }
 
   // The order is paid: the draft goes, and the page says so.
   paid(data, payload) {
     this.draft.clearPending();
     this.draft.clear();
-    if (this.editing) {
+    if (this.state.editing) {
       location.assign("/account/#orders");
 
       return;
     }
     announceCart(0);
-    this.succeed(data, payload);
+    showPlaced(this.resultView(), data, payload);
   }
 
   // Every answer but success and retry: the customer decides again.
@@ -2065,7 +1972,10 @@ export class OrderForm {
       }
       break;
     case "stale":
-      this.lapse(payload.fulfilment.method, outcome.dates);
+      this.lapse(this.way(), outcome.dates);
+      break;
+    case "notMember":
+      this.notMember(outcome.errors);
       break;
     case "declined":
       // The next try is a new attempt: fresh keys for the processor.
@@ -2080,11 +1990,12 @@ export class OrderForm {
       this.payment.fail(outcome.message);
       break;
     default:
-      if (outcome.locked && this.editing) {
-        this.locked(outcome.message);
+      if (outcome.locked && this.state.editing) {
+        showLocked(this.resultView(), outcome.message,
+          `Order ${this.state.editing.id}`, () => this.draft.clear());
         break;
       }
-      this.fail(payload, outcome.message);
+      showFailed(this.resultView(), payload, outcome.message);
     }
   }
 
@@ -2111,215 +2022,37 @@ export class OrderForm {
 
   // The cart says the total; the button says what it does.
   submitLabel() {
-    qs(this.submitButton, ".busy-button-idle").textContent = this.editing
+    qs(this.submitButton, ".busy-button-idle").textContent = this.state.editing
       // Draft wording.
       ? `Pay ${dollars(this.amount())} and save`
       : "Place your order";
   }
 
-  // One line saying when and where, the sentence people screenshot.
-  when(fulfilment) {
-    const f = fulfilment;
-    const date = fulfilmentDate(f, (id) => this.dates.occurrence(id));
-    const day = date ? label(date) : "";
-
-    if (f.method === "delivery" && f.delivery) {
-      return `${day}, delivered to ${f.delivery.address1}.`;
-    }
-    if (f.method === "scituate" || f.method === "scheduled") {
-      return `${day}, ${this.pickupAt(f)}.`;
-    }
-    if (f.method === "onfarm" && f.onfarm) {
-      const times = pickupTimes(f.onfarm);
-
-      return `${day}, ${times ? windowLabel(times) : ""}, at the farm.`;
-    }
-
-    return day;
-  }
-
-  // "10:00 – 11:00 AM, at the drop site" or "9:00 AM – 1:00 PM, at
-  // Foster Farmers’ Market": the occurrence's own hours and name, from
-  // the lists (one that has since left them is still remembered). A
-  // draft saved before scheduled pickup (`scituate`) reads as the drop
-  // site's did; an occurrence the page cannot name, as "the pickup you
-  // chose".
-  pickupAt(f) {
-    if (f.method === "scituate") {
-      return `${this.drop.window}, at the drop site`;
-    }
-
-    const entry = this.dates.occurrence(f.occurrence);
-
-    if (!entry) return "at the pickup you chose";
-
-    const place = entry.series === this.dropSeries
-      ? "the drop site" : entry.name;
-
-    return `${entry.window}, at ${place}`;
-  }
-
-  summaryText(payload) {
-    const totals = this.totals();
-    const lines = payload.lines.map((line) => {
-      const item = this.index.get(line.sku);
-
-      return `${line.qty} × ${item.groupLabel}, ${item.label} ` +
-        `(${dollars(line.qty * toCents(item.price))})`;
-    });
-
-    return [
-      `${payload.customer.firstName} ${payload.customer.lastName} ` +
-        `<${payload.customer.email}>`,
-      this.when(payload.fulfilment),
-      ...lines,
-      `Total ${dollars(totals.total)}`,
-    ].join("\n");
-  }
-
-  finish(node) {
-    this.pending.hide();
-    this.result.textContent = "";
-    this.result.appendChild(node);
-    this.result.hidden = false;
-    this.result.scrollIntoView({ block: "start", behavior: "smooth" });
-  }
-
-  succeed(data, payload) {
-    const node = document.getElementById("order-success").content
-      .cloneNode(true);
-    const fill = (name, text) => {
-      const el = qs(node, `[data-out="${name}"]`);
-
-      if (el) el.textContent = text;
+  // What the placed panel's words read from the page
+  // (form/placed.mjs), as it is now.
+  placedCtx() {
+    return {
+      occurrence: (id) => this.dates.occurrence(id),
+      drop: this.drop,
+      dropSeries: this.dropSeries,
+      deliveryWindow: this.state.terms.delivery
+        && this.state.terms.delivery.window,
+      location: (id) => this.state.terms.model.location(id),
     };
-
-    if (data) {
-      fill("name", data.customer.firstName || data.customer.name);
-      fill("email", data.customer.email);
-      fill("total", dollars(data.totals.total));
-      fill("orderId", data.orderId);
-      fill("how", this.paidWith(data.payment));
-      fill("when", this.when(data.fulfilment));
-
-      const account = qs(node, "[data-out='account']");
-
-      if (account) account.hidden = this.isSignedIn;
-
-      const receipt = qs(node, "[data-out='receiptUrl']");
-
-      if (data.payment && data.payment.receiptUrl) {
-        receipt.href = data.payment.receiptUrl;
-      } else {
-        receipt.parentElement.hidden = true;
-      }
-    } else {
-      // Dropped silently by the server: show nothing that could be
-      // used to probe the filter, just a plain thank-you.
-      fill("name", payload.customer.firstName);
-      qs(node, "[data-out='details']").hidden = true;
-    }
-
-    this.form.hidden = true;
-    this.finish(node);
   }
 
-  // "Visa ending 4242", "Apple Pay", "Venmo".
-  paidWith(payment) {
-    const p = payment || {};
-    const wallets = {
-      applepay: "Apple Pay", googlepay: "Google Pay", cashapp: "Cash App Pay",
-      venmo: "Venmo",
+  // What the result panels draw on (form/result.js).
+  resultView() {
+    return {
+      form: this.form,
+      pending: this.pending,
+      result: this.result,
+      contact: this.contact,
+      ctx: this.placedCtx(),
+      signedIn: this.state.signedIn,
+      group: this.state.roundGroup,
+      item: (sku) => this.index.get(sku),
+      total: () => this.totals().total,
     };
-
-    if (wallets[p.method]) return wallets[p.method];
-
-    const brand = String(p.brand || "card").toLowerCase()
-      .replace(/_/g, " ")
-      .replace(/\b\w/g, (ch) => ch.toUpperCase());
-
-    return p.last4 ? `${brand} ending ${p.last4}` : brand;
-  }
-
-  // The farm's own address and number in a card, from the page's
-  // data; only a plain address or number becomes a link. The address
-  // goes into the link encoded, so the one email rule is enough (#678).
-  contactLinks(node, subject, body) {
-    const mail = qs(node, "[data-out='mailto']");
-    const phone = qs(node, "[data-out='phone']");
-
-    if (looksLikeEmail(this.contact.email)) {
-      const tail = body ? `&body=${encodeURIComponent(body)}` : "";
-
-      mail.href = `mailto:${encodeURIComponent(this.contact.email)}` +
-        `?subject=${encodeURIComponent(subject)}${tail}`;
-    }
-    mail.textContent = this.contact.email;
-    if (/^\+?\d+$/.test(this.contact.phone.plain)) {
-      phone.href = `tel:${this.contact.phone.plain}`;
-    }
-    phone.textContent = this.contact.phone.display;
-  }
-
-  // A change the server refused: the order can no longer be changed
-  // (#643). Nothing went wrong on our end, so no summary to send and
-  // no word to the farm.
-  locked(message) {
-    const node = document.getElementById("order-locked").content
-      .cloneNode(true);
-
-    qs(node, "[data-out='message']").textContent = message;
-    this.contactLinks(node, `Order ${this.editing.id}`);
-    this.draft.clear();
-    this.finish(node);
-  }
-
-  fail(payload, message) {
-    const node = document.getElementById("order-failed").content
-      .cloneNode(true);
-    const text = this.summaryText(payload);
-    const copy = qs(node, "[data-out='copy']");
-
-    qs(node, "[data-out='message']").textContent = message;
-    qs(node, "[data-out='summary']").textContent = text;
-    this.contactLinks(node, "Order from the website", text);
-
-    copy.addEventListener("click", async () => {
-      try {
-        await navigator.clipboard.writeText(text);
-        copy.textContent = "Copied";
-        setTimeout(() => { copy.textContent = "Copy summary"; }, 2000);
-      } catch {
-        copy.textContent = "Select the text above to copy it";
-      }
-    });
-
-    // The key, never the payload: it holds the customer's details, and
-    // the console is read by whoever sits down at the machine (#258).
-    console.error(JSON.stringify({
-      event: "order.undeliverable",
-      idempotencyKey: payload && payload.meta && payload.meta.idempotencyKey,
-    }));
-    // Tell the farm a checkout could not complete. A beacon survives
-    // the page being closed; nothing here can fail the customer.
-    try {
-      const beacon = JSON.stringify({
-        kind: "checkout.failed",
-        message,
-        method: payload.fulfilment && payload.fulfilment.method,
-        page: location.pathname,
-      });
-
-      if (!navigator.sendBeacon || !navigator.sendBeacon("/api/health",
-        new Blob([beacon], { type: "application/json" }))) {
-        fetch("/api/health", {
-          method: "POST", body: beacon, keepalive: true,
-          headers: { "Content-Type": "application/json" },
-        }).catch(() => {});
-      }
-    } catch {
-      // The failure itself is already on screen.
-    }
-    this.finish(node);
   }
 }

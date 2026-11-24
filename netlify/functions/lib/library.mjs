@@ -770,7 +770,9 @@ export const library = [
   },
   {
     id: "farm-morning-report", name: "Morning report",
-    when: "Every day at 8:00", audience: F, tags: ["report", "pickup"],
+    when: "At 8:00, on a morning with a vital sign outside its limits or " +
+      "something waiting on the farm", audience: F,
+    tags: ["report", "pickup"],
     build: (links) => t.farmMorningReport({
       placed: 4, paidByCard: 3, paidByVenmo: 1, declined: 0, cancelled: 0,
       refunded: 0, open: 6, mailFailures: 0, runs: 96, jobErrors: 0,

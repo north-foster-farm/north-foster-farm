@@ -298,7 +298,7 @@ test.describe("a scheduled pickup on the account page", () => {
       const when = page.locator("[data-out='when']").first();
 
       await expect(when).toContainText(
-        `Pickup days, ${m.label}, 10:00 AM – 12:00 PM, at Canned Market`
+        `Pick-up days, ${m.label}, 10:00 AM – 12:00 PM, at Canned Market`
       );
       await expect(when).not.toContainText("scheduled,");
       await expect(when).not.toContainText("scituate");
@@ -332,16 +332,26 @@ test.describe("a scheduled pickup on the account page", () => {
     await page.getByRole("button", { name: /^Change (delivery|pickup)$/ })
       .first().click();
 
-    const select = page.locator("[data-dates]");
+    // Each a radio in the pickup-days layout (#703), the booked one
+    // chosen, under its day's heading.
+    const form = page.locator(".account-panel-form");
+    const radio = (d) => form.locator(`input[type='radio'][value='${
+      d.occurrence}']`);
+    const booked = form.locator(
+      `.order-pickup:has(input[value='${m.occurrence}'])`
+    );
 
-    await expect(select).toHaveValue(m.occurrence);
+    await expect(radio(m)).toBeChecked();
     for (const d of dates().scheduled) {
-      await expect(select.locator(`option[value='${d.occurrence}']`))
-        .toHaveCount(1);
+      await expect(radio(d)).toHaveCount(1);
     }
-    await expect(select.locator(`option[value='${m.occurrence}']`))
-      .toHaveText(`${m.label}, ${m.window}, at Canned Market`);
-    await select.selectOption(drop.occurrence);
+    await expect(form.locator(
+      `.order-pickup-day:has(input[value='${m.occurrence}'])`
+    ).getByRole("heading")).toHaveText(m.label);
+    await expect(booked.locator(".order-pickup-time")).toHaveText(m.window);
+    await expect(booked.locator(".order-pickup-name"))
+      .toContainText("Canned Market");
+    await radio(drop).check();
     await page.getByRole("button", { name: "Save changes" }).click();
 
     expect(posted.method).toBe("scheduled");
@@ -382,7 +392,7 @@ test.describe("a scheduled pickup on the account page", () => {
       await page.goto("/account/#address");
 
       await expect(page.locator("body")).toContainText(
-        "On-farm pickup and our pickup days are open to everyone."
+        "On-farm pickup and our pick-up days are open to everyone."
       );
     });
 });

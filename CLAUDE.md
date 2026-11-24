@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-North Foster Farm website - a static site built with Hugo (v0.164.0) and hosted on Netlify. The site uses Bootstrap 5.3.3, custom SCSS styling, and vanilla JavaScript with ES modules.
+North Foster Farm website - a static site built with Hugo (v0.170.0) and hosted on Netlify. The site uses Bootstrap 5.3.9, custom SCSS styling, and vanilla JavaScript with ES modules.
 
 ## Working rules for agents (James, 2026-10-25)
 
@@ -63,6 +63,12 @@ decisions James made on GitHub. The issue numbers point to the source.
     email link (a sign-in, join, new email address or Farm news
     link); the contact form, which sends a message, is the exception
     and says "Sending" (James, 2026-11-18, #558);
+  - "pick-up", hyphenated, when it modifies another word ("Pick-up
+    days", "pick-up time", "pick-up location"), and "pickup", one
+    word, as the noun ("On-farm pickup", "pickup or delivery"); "Pick-up
+    days" names the days in the aggregate and "Pick-up day" one day.
+    Identifiers, keys, classes, ids, URLs and log events keep "pickup"
+    (James, 2026-11-21, #737; `test/pickup-hyphen.test.mjs`);
   - an approved wording applies everywhere the same text appears;
   - step-by-step instructions only for what the reader may not know
     how to do, never for the obvious ("choose, say how you want it,
@@ -118,14 +124,17 @@ npm start
 # Start server bound to local IP (requires /etc/hosts configuration)
 npm run start:bind
 
-# Run linters
-npm run lint                # All linters
-npm run lint:scripts        # ESLint for JS files
-npm run lint:styles         # Stylelint for SCSS
+# Run linters over every tracked file (#782); a warning fails them
+npm run lint                # lint:code, then test:gates (CI runs this)
+npm run lint:code           # The three linters below
+npm run lint:shell          # ShellCheck, every tracked shell script
+npm run lint:scripts        # ESLint, every tracked script
+npm run lint:styles         # Stylelint, every tracked stylesheet
+npm run test:gates          # The gates' own tests: what lint reads
 
-# Lint and the unit tests; CI runs the same as `lint-and-test`, and
-# the pre-commit hook in .githooks/ (set up by `npm install`) runs it
-# before every commit
+# lint:code and the unit tests; the pre-commit hook in .githooks/ (set
+# up by `npm install`) runs it before every commit, and CI's
+# `lint-and-test` runs `npm run lint` and `npm test`
 npm run check
 
 # Production build. NETLIFY ONLY -- do not run this locally.
@@ -141,7 +150,7 @@ To check a production build locally, run the linters and then
 
 ### Node
 
-Node 24.22.1, pinned in `.nvmrc`, the only pin (#504). GitHub's
+Node 24.22.3, pinned in `.nvmrc`, the only pin (#504). GitHub's
 workflows set Node up from it and Netlify reads it.
 `npm run check:node` (`bin/check-node.mjs`) fails on any other Node and
 runs first in `npm run check` and every Netlify build, and
@@ -195,7 +204,8 @@ Configuration is environment-specific using Hugo's layered config system:
 Key Hugo settings:
 - Uses Hugo Pipes for asset processing
 - Mounts `hugo_stats.json` to assets for PurgeCSS
-- Requires extended Hugo >= 0.164.0
+- Requires Hugo >= 0.164.0 (0.170.0 dropped the extended edition;
+  any edition from 0.170 on builds the site)
 - Timezone: America/New_York
 
 ### Directory Structure
@@ -233,7 +243,7 @@ docs/              # Runbooks and design notes
 - Template metrics and debug output enabled
 
 **Production** (`bin/prod` + `hugo --gc`):
-1. Installs Dart Sass v1.79.5 to `node_modules/.bin` (all `bin/prod`
+1. Installs Dart Sass v1.108.2 to `node_modules/.bin` (all `bin/prod`
    does; lint and tests run in GitHub Actions)
 2. Hugo processes SCSS via Dart Sass Embedded
 3. PostCSS runs autoprefixer and PurgeCSS
@@ -242,7 +252,7 @@ docs/              # Runbooks and design notes
 
 ### Styling Architecture
 
-Bootstrap 5.3.3 forms the foundation with extensive customization:
+Bootstrap 5.3.9 forms the foundation with extensive customization:
 - Custom variables in `_variables.scss` override Bootstrap defaults
 - Component styles organized by feature in `components/`
 - Utility classes extend Bootstrap utilities
@@ -295,7 +305,10 @@ Deployment configured in `netlify.toml`:
   CI's `build` job repeats the Hugo build, `check:grid`, `check:schema`,
   `check:fresh` and `check:news` on every push, so a template error
   shows on the commit.
-- Hugo version: 0.164.0 (pinned); Node 24.22.1 from `.nvmrc` (see
+- Hugo version: 0.170.0, held exactly in `netlify.toml` and the CI
+  action, because Netlify installs only a named version and CI
+  checks the tarball's SHA-256; raise both to each new release
+  once it clears the 7-day cooldown. Node 24.22.3 from `.nvmrc` (see
   Node above; `NODE_VERSION` is gone from `netlify.toml`)
 - Deploy previews and branch deploys (`staging`) build
   drafts/future/expired content and run `bin/install-gate.mjs`
@@ -315,7 +328,9 @@ Site data stored in JSON files under `data/`, plus
 - **Sass**: Production builds require Dart Sass (auto-installed by `bin/prod`)
 - **Images**: Use Hugo's image processing in templates; originals go in `assets/images/`
 - **Content**: Markdown files in `content/` are processed by Hugo
-- **Linting**: Must pass ESLint (JS) and Stylelint (SCSS) before
+- **Linting**: Must pass ShellCheck, ESLint (JS) and Stylelint (SCSS
+  and CSS) over every tracked file, with no warning and no unused
+  disable directive (2026-11-22, #782), before
   promotion to `staging` and `main`, which require `lint-and-test`;
   Netlify itself runs no lint (2026-11-01, #494: this said "before
   deployment", which a branch deploy never checked)

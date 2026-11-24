@@ -110,7 +110,7 @@ part updates faster than another.
 
 1. **Exact versions.** No `^` or `~` in any `package.json`; `.npmrc`
    sets `save-exact=true`. Lockfiles are committed and CI installs
-   with `npm ci`. `.nvmrc` alone pins Node 24.22.1 (held by
+   with `npm ci`. `.nvmrc` alone pins Node 24.22.3 (held by
    `check:node` and `devEngines`), and `HUGO_VERSION` pins Hugo. Actions are pinned to full commit SHAs
    with the version in a comment, and so is the e2e container image,
    by index digest (#556; Dependabot cannot bump it, and a test holds
@@ -143,7 +143,10 @@ part updates faster than another.
    every new package. Before adding one, post a short proposal: the
    package, its version and license, how well it's maintained, what it
    replaces, and why it beats hand-rolling. Don't add it until James
-   approves. Approved packages are pinned. The proposal and the pull
+   approves. Approved packages run their latest stable release, held
+   at an older one only for a compelling, written reason (James,
+   2026-11-21, #778; this said "Approved packages are pinned";
+   corrected 2026-11-22). The proposal and the pull
    request that adds the package also state how big its own
    dependency tree is. No automation checks this.
 
@@ -151,18 +154,18 @@ Where installing a patched version would pull in young transitive
 packages, adopt an older patched version, or hold the transitive one
 with `overrides` in `package.json`.
 
-Overrides in force:
-
-- `minimatch` 11.0.3 and its new dependency
-  `@isaacs/nonrecursive-glob-match` 1.0.3 (#522, 2026-11-06), for
-  GHSA-g3hv-75wg-m249. ESLint 10.8.0 asks for minimatch 10, which
-  has no patched release. Drop both once ESLint's own range takes a
-  patched minimatch.
+Overrides in force: none. The last, minimatch 11.0.3 for
+GHSA-g3hv-75wg-m249 (#522), went on 2026-11-22, once ESLint 10.15.0
+asked for the patched minimatch ^11.0.5 itself.
 
 ## Remediation runs on events, not deadlines
 
-- A pinned version may run indefinitely while it has no known
-  vulnerability. Being out of date is never a reason to update.
+- A package moves to each stable release once it clears the 7-day
+  cooldown. Holding one below its latest needs a compelling, written
+  reason (James, 2026-11-21, #778; point 5 above). Corrected
+  2026-11-23: this said a pinned version could run indefinitely while
+  it had no known vulnerability, and that being out of date was never
+  a reason to update.
 - The `audit` CI job runs `npm audit` over every lockfile and the
   GitHub advisory database over the Actions in use. It fails while a
   finding has neither a fix in the lockfile nor a recorded exception.

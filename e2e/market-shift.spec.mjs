@@ -67,8 +67,11 @@ const holdDates = async (page) => {
     arrived = resolve;
   });
 
-  await page.route("**/api/dates", (route) => {
-    if (json) return route.fulfill({ json });
+  await page.route("**/api/dates", async (route) => {
+    if (json) {
+      await route.fulfill({ json });
+      return;
+    }
     held.push(route);
     arrived();
   });

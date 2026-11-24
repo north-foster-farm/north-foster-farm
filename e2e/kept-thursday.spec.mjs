@@ -16,7 +16,8 @@
 
 import { readFileSync } from "node:fs";
 
-import { CUSTOMER, ORDER, dates } from "./support/canned.mjs";
+import { dates } from "./support/canned.mjs";
+import { paidDelivery, signedInWith } from "./support/paid-order.mjs";
 import { SKU, expect, stockApplied, test } from "./support/order.mjs";
 import { deliveryDates } from "../assets/scripts/order/lib/dates.mjs";
 import { parseSchedule } from "../assets/scripts/order/lib/schedule.mjs";
@@ -34,24 +35,7 @@ const BEFORE_CUTOFF = ny("2026-12-09", 11, 58);
 const AFTER_CUTOFF = ny("2026-12-09", 12, 3);
 
 // $56 of eggs and the $5 fee, for delivery on Thursday the 10th.
-const ON_KEPT = {
-  ...ORDER,
-  id: "NFF-2612-QA43",
-  submittedAt: "2026-12-01T14:00:00.000Z",
-  paidAt: "2026-12-01T14:00:05.000Z",
-  lines: [{ ...ORDER.lines[0], qty: 8, lineTotal: 56 }],
-  totals: { subtotal: 5600, discountAmount: 0, deliveryFee: 500,
-    total: 6100 },
-  fulfilment: {
-    method: "delivery", date: KEPT, state: "agreed", onfarm: null,
-    delivery: { address1: "1 Main St", town: "Foster", zip: "02825",
-      cooler: "Porch" },
-  },
-  payments: [{ ...ORDER.payments[0], at: "2026-12-01T14:00:05.000Z",
-    amount: 6100 }],
-  keptFee: 0,
-  keptDate: null,
-};
+const ON_KEPT = paidDelivery("NFF-2612-QA43", KEPT);
 
 // /api/dates at `now` with the move. No pickups: their canned days
 // follow today's date, not this clock, and a pickup whose cutoff is
@@ -76,18 +60,7 @@ const setUp = async (page, context, baseURL, now) => {
   const clock = { now };
   const sent = [];
 
-  await context.addCookies([{
-    name: "nff_signed_in", value: "1", url: baseURL,
-  }]);
-  await page.route("**/api/me", (route) => route.fulfill({
-    json: { signedIn: true, customer: CUSTOMER },
-  }));
-  await page.route("**/api/account/orders", (route) => route.fulfill({
-    json: { orders: [ON_KEPT] },
-  }));
-  await page.route("**/api/account/cart", (route) => route.fulfill({
-    json: { ok: true, cart: null },
-  }));
+  await signedInWith(page, context, baseURL, [ON_KEPT]);
   await page.route("**/api/dates",
     (route) => route.fulfill({ json: answer(clock.now) }));
   await page.route(`**/api/account/orders/${ON_KEPT.id}/*`,
@@ -183,35 +156,35 @@ test.describe("an order on a replaced Thursday, on the order page (#643)",
     // today (order-form.js fail, #order-failed).
     test("says the order can no longer be changed, after its cutoff",
       async ({ page, context, baseURL }) => {
-      await page.clock.install({ time: BEFORE_CUTOFF });
+        await page.clock.install({ time: BEFORE_CUTOFF });
 
-      const { clock, sent } = await setUp(page, context, baseURL,
-        BEFORE_CUTOFF);
-      // The page's first stock load has to land before the clock jumps.
-      // page.clock fakes AbortSignal.timeout too, so a load still in
-      // flight during runFor is aborted at once, with its backoff and
-      // every retry, and the page shuts behind the stock notice. The
-      // real staging /api/stock is often slower than reaching runFor
-      // (run 44766787153, attempts 2 and 3, desktop).
-      const stock = page.waitForResponse("**/api/stock");
+        const { clock, sent } = await setUp(page, context, baseURL,
+          BEFORE_CUTOFF);
+        // The page's first stock load has to land before the clock jumps.
+        // page.clock fakes AbortSignal.timeout too, so a load still in
+        // flight during runFor is aborted at once, with its backoff and
+        // every retry, and the page shuts behind the stock notice. The
+        // real staging /api/stock is often slower than reaching runFor
+        // (run 44766787153, attempts 2 and 3, desktop).
+        const stock = page.waitForResponse("**/api/stock");
 
-      await openEdit(page);
-      await stock;
-      await stockApplied(page);
-      await fewerEggs(page);
-      // The page stays open past noon on the 9th.
-      clock.now = AFTER_CUTOFF;
-      await page.clock.runFor(AFTER_CUTOFF - BEFORE_CUTOFF);
-      await page.locator("#order-save").click();
+        await openEdit(page);
+        await stock;
+        await stockApplied(page);
+        await fewerEggs(page);
+        // The page stays open past noon on the 9th.
+        clock.now = AFTER_CUTOFF;
+        await page.clock.runFor(AFTER_CUTOFF - BEFORE_CUTOFF);
+        await page.locator("#order-save").click();
 
-      await expect(page.locator(
-        "#order-result .order-result-failed [data-out='message']",
-      )).toHaveText("This order can't be changed any more.");
-      await expect(page.locator("#order-lapsed"),
-        "no days are offered that the server would refuse").toBeHidden();
-      expect(datesSent(sent).filter((date) => date !== KEPT),
-        "no other day was sent in its place").toEqual([]);
-    });
+        await expect(page.locator(
+          "#order-result .order-result-failed [data-out='message']",
+        )).toHaveText("This order can't be changed any more.");
+        await expect(page.locator("#order-lapsed"),
+          "no days are offered that the server would refuse").toBeHidden();
+        expect(datesSent(sent).filter((date) => date !== KEPT),
+          "no other day was sent in its place").toEqual([]);
+      });
   });
 
 test.describe("an order on a replaced Thursday, in the account (#643)",

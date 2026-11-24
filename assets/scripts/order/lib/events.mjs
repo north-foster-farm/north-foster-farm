@@ -83,9 +83,12 @@ const hours = (opens, closes) => {
   };
 };
 
-// The place line a location gives under a series' name.
+// The place line a location gives under a series' name, the place's
+// name said once where the series has the same (#749 item 11: "The
+// Village Family Fitness, 53 Venturi Ave, Warwick").
 const placeOf = (loc, name) => [
-  name, loc.name !== loc.street && loc.name, loc.street, loc.city,
+  name, loc.name !== loc.street && loc.name !== name && loc.name,
+  loc.street, loc.city,
 ].filter(Boolean).join(", ");
 
 // The series with their location's facts folded in, and lookups.

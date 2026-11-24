@@ -25,6 +25,9 @@
 //                                             is the account's address
 
 import {
+  fieldError,
+} from "../../assets/scripts/utils/field-errors.mjs";
+import {
   cancelOrder, changeOrder, getCart, listOrders, requestReturn, saveAddress,
   saveCart, sendSupport, updateProfile,
 } from "./lib/account.mjs";
@@ -32,12 +35,13 @@ import { now as clock } from "./lib/clock.mjs";
 import { editOrder } from "./lib/edit.mjs";
 import { payOrder } from "./lib/farm-orders.mjs";
 import {
-  clearCookieHeader, clearStampHeader, publicCustomer, sameSite, sessionFrom,
+  clearCookieHeader, clearStampHeader, publicCustomer, receivedEmail,
+  sameSite, sessionFrom,
 } from "./lib/auth.mjs";
 import { requestEmailChange } from "./lib/email-change.mjs";
 import { forgetCustomer } from "./lib/forget.mjs";
 import { json, readJson } from "./lib/http.mjs";
-import { withLog } from "./lib/log.mjs";
+import { withLog } from "./lib/with-log.mjs";
 import { gate } from "./lib/maintenance.mjs";
 import { leaving, leavingChange, noteInteraction } from "./lib/retention.mjs";
 import { scopeOf } from "./lib/stock-pins.mjs";
@@ -165,8 +169,16 @@ export const handle = async (req, {
   }
 
   if (req.method === "POST" && path === "/api/account/email") {
-    return answer(await requestEmailChange(stores, customer, body.email,
-      opts));
+    // Decoded once, cleaned and checked (#758).
+    const email = receivedEmail(body.email);
+
+    if (!email) {
+      return json(422, {
+        errors: { email: fieldError("email", body.email) },
+      });
+    }
+
+    return answer(await requestEmailChange(stores, customer, email, opts));
   }
 
   if (req.method === "POST" && path === "/api/account/support") {

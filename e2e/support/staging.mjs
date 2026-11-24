@@ -13,7 +13,9 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { MACHINE_COOKIE } from "../../netlify/functions/lib/gate.mjs";
+import {
+  COOKIE as GATE_COOKIE, MACHINE_COOKIE,
+} from "../../netlify/functions/lib/gate.mjs";
 import { SCOPE_COOKIE } from "../../netlify/functions/lib/stock-pins.mjs";
 import { countCall } from "./calls.mjs";
 import { challengeError, isChallenge } from "./challenge.mjs";
@@ -51,15 +53,25 @@ const env = {
 // the deploy's own secrets would (the maintenance rehearsal).
 export const stagingEnv = (name) => env[name] || "";
 
-// Forget the visitor's cookies, the way a signed-out browser does,
+// Forget the site's cookies, the way a signed-out browser does,
 // but keep the staging gate's machine cookie: clearing it too sends
 // the next request to the gate's sign-in page, not to the site. The
 // test's stock scope stays too (#507), so its pins still apply.
-export const clearSession = async (context) => {
-  const scope = (await context.cookies())
-    .filter((c) => c.name === SCOPE_COOKIE);
+//
+// Only the site's own cookies go, the nff_ ones, as a real sign-out
+// drops them. Netlify's own stay: clearing them made each pass of a
+// loop look like a new visitor from one address, and Netlify's bot
+// challenge answered 403 (staging run 45105183530, qa's triage on
+// #729, cause 2). The gate's two cookies stay as well.
+const KEPT = new Set([SCOPE_COOKIE, GATE_COOKIE, MACHINE_COOKIE]);
 
-  await context.clearCookies();
+export const clearSession = async (context) => {
+  const site = (await context.cookies())
+    .filter((c) => c.name.startsWith("nff_") && !KEPT.has(c.name));
+
+  for (const { name, domain, path } of site) {
+    await context.clearCookies({ name, domain, path });
+  }
 
   const host = new URL(BASE_URL).hostname;
 
@@ -69,7 +81,80 @@ export const clearSession = async (context) => {
       path: "/", httpOnly: true, secure: true, sameSite: "Lax",
     }]);
   }
-  if (scope.length) await context.addCookies(scope);
+};
+
+// The account functions' requests a faked sign-in leaves unanswered,
+// answered at the browser context. A test signs in by adding a
+// made-up nff_signed_in stamp and routing the requests the page makes
+// by name; any other request to /api/account/* reaches the deploy
+// with that stamp and no session, and is answered 401 with a
+// Set-Cookie that clears the stamp (#149), so the page reads as signed
+// out. At the context the answer outlives page.unrouteAll, so it also
+// catches what the last page sends as it is left: cart-sync's keepalive
+// PUT of /api/account/cart on pagehide, whose 401 could otherwise land
+// after the next sign-in's stamp and clear that. A page's own route
+// wins over this. With `on` false it is taken away, for a signed-out
+// test, whose requests should meet the deploy.
+const ACCOUNT_API = /\/api\/account(?:[/?#]|$)/;
+
+export const answerAccount = async (context, on = true) => {
+  await context.unroute(ACCOUNT_API);
+  if (on) {
+    await context.route(ACCOUNT_API, (route) => route.fulfill({
+      json: { ok: true },
+    }));
+  }
+};
+
+// The staging toolbar's requests, answered 403 so it neither asks for
+// a token nor polls (the hideToolbar fixture in support/order.mjs). A
+// page.unrouteAll drops it, so leavePage puts it back.
+export const stubToolbar = (page) => page.route("**/api/staging/**",
+  (route) => route.fulfill({
+    status: 403,
+    contentType: "application/json",
+    body: JSON.stringify({ error: "Stubbed by the QA suite." }),
+  }));
+
+// Leaves the page signed out: the site's cookies go FIRST, then the
+// page. A page left with a cart save pending sends it on pagehide as a
+// keepalive PUT (session/cart-sync.js). Carrying a made-up stamp and no
+// session, it is answered 401 with a Set-Cookie that clears the stamp,
+// and on staging that answer lands after the next sign-in has set its
+// own: the order form then reads as signed out (#729, runs 45161671452
+// and 45168515763; gone in 45177401056 once the stamp went first).
+// With no stamp, cart-sync sends nothing. `unroute` drops the page's
+// routes too, the toolbar's stub put back.
+export const leavePage = async (page, { unroute = true } = {}) => {
+  await clearSession(page.context());
+  await page.goto("about:blank");
+  if (unroute) {
+    await page.unrouteAll({ behavior: "ignoreErrors" });
+    await stubToolbar(page);
+  }
+};
+
+let fakeStamps = 0;
+
+// A made-up sign-in, the one way every spec signs in without a real
+// session: leavePage, account requests answered at the context
+// (answerAccount), a new stamp, then `routes`, each [url, answer] with
+// answer a JSON body or a route handler. Each sign-in takes a new
+// stamp, `prefix` and a count, so the session's cache (session/
+// cache.js) never answers with the last sign-in's account.
+export const fakeSignIn = async (page, baseURL, {
+  prefix, routes, unroute = true,
+}) => {
+  await leavePage(page, { unroute });
+  await answerAccount(page.context());
+  fakeStamps += 1;
+  await page.context().addCookies([
+    { name: "nff_signed_in", value: `${prefix}${fakeStamps}`, url: baseURL },
+  ]);
+  for (const [url, answer] of routes) {
+    await page.route(url, typeof answer === "function" ? answer
+      : (route) => route.fulfill({ json: answer }));
+  }
 };
 
 // Whether the back office can be reached from here.
@@ -112,7 +197,7 @@ export const op = async (name, args = {}, {
       });
     } catch (error) {
       if (attempt < tries) {
-        await new Promise((r) => setTimeout(r, 2_000 * attempt));
+        await new Promise((r) => { setTimeout(r, 2_000 * attempt); });
         continue;
       }
       if (allowFail) return null;
@@ -124,7 +209,7 @@ export const op = async (name, args = {}, {
 
     if (res.ok) return res.json();
     if (attempt < tries && TRANSIENT.has(res.status)) {
-      await new Promise((r) => setTimeout(r, 2_000 * attempt));
+      await new Promise((r) => { setTimeout(r, 2_000 * attempt); });
       continue;
     }
     if (allowFail) return null;
@@ -168,7 +253,7 @@ export const waitForMail = async ({
     const hit = (await outbox({ since })).find(matches);
 
     if (hit) return hit;
-    await new Promise((r) => setTimeout(r, 2_000));
+    await new Promise((r) => { setTimeout(r, 2_000); });
   }
   throw new Error(`No email to ${to} matching ${subject} within ${
     timeout / 1000}s`);

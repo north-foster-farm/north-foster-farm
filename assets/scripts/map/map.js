@@ -36,115 +36,36 @@
 //
 // Wording is a draft for James (#138, #214).
 
-import { siteNow } from "../clock/now.js";
+import { Camera } from "./camera.js";
+import { drawTag, drawTip, standOn } from "./draw.js";
 import { clearance, fit } from "./fit.mjs";
-
-const MAX_ZOOM = 5;
-
-// Pins stand this tall on screen at any zoom and any width; the shape
-// is drawn 45 units tall and 30 wide.
-const PIN_PX = 38;
-const PIN_UNITS = 45;
-const PIN_WIDTH_PX = PIN_PX * 30 / PIN_UNITS;
-
-// Places frames its pins with a pin's height to spare, and never closer
-// than a town: one pin alone is shown at this zoom (#214).
-const FIT_PAD_PX = PIN_PX;
-const FIT_MAX_ZOOM = 4;
-
-// Below this zoom, a nudged pin stands this far aside, in screen
-// pixels, so two places that meet at the whole map can both be tapped.
-const NUDGE_BELOW = 2;
-const NUDGE_PX = 14;
+import { partsOf } from "./parts.js";
+import { schedule, watchSeasons } from "./schedule.js";
+import { expire, number } from "./seasons.js";
+import { hashTarget } from "./seasons.mjs";
+import { MARGIN, inFrame } from "./stand.mjs";
+import { tagFacts, toneOf, zipOf } from "./tag.mjs";
+import { FIT_MAX_ZOOM, FIT_PAD_PX, PIN_PX, pannedBy } from "./view.mjs";
 
 // A pointer that moves further than this is dragging, not tapping.
 const SLOP = 6;
 
-// How far the tag and the cards keep from the frame's edges.
-const MARGIN = 8;
-
-// The ZIP a shape stands for. The markup writes it after a "z": the
-// minifier reads a bare "02825" in an SVG as a number and drops its
-// leading zero.
-const zipOf = (area) => area.dataset.zip.slice(1);
-
-const toneOf = (area) => {
-  if (area.classList.contains("is-ours")) return "ok";
-  if (area.classList.contains("is-away")) return "wait";
-  return "no";
-};
-
-const easeOut = (t) => 1 - (1 - t) ** 3;
-
-// Today on the visitor's clock, moved by the staging toolbar's
-// (clock/now.js), to compare with the dates in the markup. Only
-// forward: what the build left out, or this removed, stays gone.
-const today = () => {
-  const d = new Date(siteNow());
-  const pad = (n) => String(n).padStart(2, "0");
-
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-};
-
-// What has ended goes: a series on a card, a link, a row in the list,
-// a pin. A card left without links loses their heading.
-const expire = (map) => {
-  const day = today();
-  const gone = (el) => el.dataset.until && el.dataset.until < day;
-
-  for (const el of map.querySelectorAll(".map-places [data-until]")) {
-    if (gone(el)) el.remove();
-  }
-  for (const links of map.querySelectorAll(".map-card-links")) {
-    if (links.querySelector("a")) continue;
-    links.previousElementSibling.remove();
-    links.remove();
-  }
-  for (const pin of map.querySelectorAll("[data-map-pin]")) {
-    if (gone(pin)) pin.remove();
-  }
-};
-
-// The numbers on the rows and the pins, in the order of the list: a
-// place that has ended, or is filtered out, leaves no gap.
-const number = (map) => {
-  const rows = [...map.querySelectorAll(
-    "li:not([hidden]) > [data-map-show]"
-  )];
-  const numbers = new Map(rows.map((row, i) => [row.dataset.mapShow, i + 1]));
-
-  for (const el of map.querySelectorAll("[data-map-show], [data-map-pin]")) {
-    const n = numbers.get(el.dataset.mapShow || el.dataset.mapPin);
-
-    if (n) el.querySelector("[data-map-num], .map-pin-num").textContent = n;
-  }
-};
+// A shape's ZIP and tone (tag.mjs), read from the markup.
+const zipAt = (area) => zipOf(area.dataset.zip);
+const toneAt = (area) => toneOf([...area.classList]);
 
 const wire = (map) => {
+  // What has ended goes, and the rest are numbered (seasons.js).
   expire(map);
   number(map);
 
-  const frame = map.querySelector("[data-map-frame]");
-  const svg = map.querySelector("[data-map-svg]");
-  const drop = map.querySelector("[data-map-drop]");
-  const dropAt = map.querySelector("[data-map-drop-at]");
-  const tag = map.querySelector("[data-map-drop-tag]");
-  const zoomIn = map.querySelector("[data-map-zoom='in']");
-  const zoomOut = map.querySelector("[data-map-zoom='out']");
-  const reset = map.querySelector("[data-map-zoom='reset']");
-  const tabs = [...map.querySelectorAll("[data-map-layer]")];
+  // The elements, found once (parts.js).
+  const parts = partsOf(map);
+  const { frame, svg, drop, dropAt, tag, tabs, list, picks, towns, form } =
+    parts;
   let pins = [...map.querySelectorAll("[data-map-pin]")];
   const pinOf = (n) => map.querySelector(`[data-map-pin="${n}"]`);
-  const list = map.querySelector(".map-places");
-  const picks = [...map.querySelectorAll("[data-map-pick]")];
-  const towns = [...map.querySelectorAll("[data-map-town]")];
-  const form = map.querySelector("[data-zip-check]");
-  const full = svg.viewBox.baseVal;
-  const W = full.width;
-  const H = full.height;
-  let view = { x: 0, y: 0, w: W, h: H };
   let open = null;
-  let tween = 0;
   // The ZIP the dropped pin stands on.
   let picked = null;
 
@@ -168,235 +89,28 @@ const wire = (map) => {
   let startPoint = null;
   let startSpread = 0;
 
-  // The view: the viewBox, and everything that must keep its size on
-  // screen whatever the zoom (pins, the dropped pin and its tag).
+  const layer = () => map.dataset.layer;
 
-  const zoom = () => W / view.w;
+  // The camera: the view, its moves and its draw (camera.js). It reads
+  // the pins held now, and after each draw the tag stands again.
+  const camera = new Camera(parts, {
+    pins: () => pins,
+    layer,
+    drawn: () => placeTag(),
+  });
 
-  const clamp = (v) => {
-    const w = Math.min(W, Math.max(W / MAX_ZOOM, v.w));
-    const h = w * (H / W);
-
-    return {
-      w,
-      h,
-      x: Math.min(W - w, Math.max(0, v.x)),
-      y: Math.min(H - h, Math.max(0, v.y)),
-    };
-  };
-
-  // The layer's own view: the whole state on Delivery; on Places the
-  // box of the pins, a pin's height of room around each, at no more
-  // than a town's zoom.
-  const home = () => {
-    const whole = { x: 0, y: 0, w: W, h: H };
-    const shown = pins.filter((p) => !p.hasAttribute("hidden"));
-
-    if (layer() !== "places" || !shown.length) return whole;
-
-    const width = svg.getBoundingClientRect().width || W;
-    const height = width * H / W;
-    const xs = shown.map((p) => Number(p.dataset.x));
-    const ys = shown.map((p) => Number(p.dataset.y));
-    const spanX = Math.max(...xs) - Math.min(...xs);
-    const spanY = Math.max(...ys) - Math.min(...ys);
-    // The room a pin takes on screen, and its margin, which come out of
-    // the view's width: solve for the width that holds the pins' span
-    // plus those pixels.
-    const roomX = PIN_WIDTH_PX + 2 * (FIT_PAD_PX + NUDGE_PX);
-    const roomY = PIN_PX + 2 * FIT_PAD_PX;
-    const wideX = spanX / Math.max(0.05, 1 - roomX / width);
-    const wideY = spanY / Math.max(0.05, 1 - roomY / height) * W / H;
-    const w = Math.max(W / FIT_MAX_ZOOM, wideX, wideY);
-    const units = w / width;
-
-    return clamp({
-      w,
-      h: w * H / W,
-      x: (Math.min(...xs) + Math.max(...xs)) / 2 - w / 2,
-      // The pins stand above their tips: the box is higher by half a pin.
-      y: (Math.min(...ys) + Math.max(...ys)) / 2 - PIN_PX / 2 * units
-        - w * H / W / 2,
-    });
-  };
-
-  // A point in map units on screen, in pixels from the frame's corner.
-  const onScreen = (x, y) => {
-    const box = svg.getBoundingClientRect();
-
-    return {
-      x: (x - view.x) / view.w * box.width,
-      y: (y - view.y) / view.h * box.height,
-      width: box.width,
-      height: box.height,
-    };
-  };
-
-  // Above a point where there is room, else below it, never past an
-  // edge: an element over the map, "lift" pixels above its tip.
-  const stand = (el, at, lift) => {
-    const w = el.offsetWidth;
-    const h = el.offsetHeight;
-    const left = Math.max(MARGIN, Math.min(at.width - w - MARGIN,
-      at.x - w / 2));
-    const above = at.y - lift - 6 - h;
-    const top = Math.max(MARGIN, Math.min(at.height - h - MARGIN,
-      above >= MARGIN ? above : at.y + MARGIN));
-
-    el.style.left = `${left}px`;
-    el.style.top = `${top}px`;
-  };
-
-  // The zoom stands over the map's top right: an element that would
-  // cover it moves aside, left of it where there is room, else under.
-  const clearZoom = (el) => {
-    const f = frame.getBoundingClientRect();
-    const z = map.querySelector(".map-zoom").getBoundingClientRect();
-    const [zl, zr, zt, zb] = [z.left - f.left, z.right - f.left,
-      z.top - f.top, z.bottom - f.top];
-    const [w, h] = [el.offsetWidth, el.offsetHeight];
-    const left = parseFloat(el.style.left);
-    const top = parseFloat(el.style.top);
-
-    if (left + w <= zl || left >= zr || top + h <= zt || top >= zb) return;
-    if (zl - w - 6 >= MARGIN) el.style.left = `${zl - w - 6}px`;
-    else el.style.top = `${zb + 6}px`;
-  };
-
+  // The dropped pin's tag over its pin and clear of the zoom
+  // (stand.mjs, draw.js), hidden while its pin is out of the frame.
   const placeTag = () => {
     if (tag.hidden || !dropAt.dataset.x) return;
 
-    const at = onScreen(Number(dropAt.dataset.x), Number(dropAt.dataset.y));
+    const at = camera.onScreen(Number(dropAt.dataset.x),
+      Number(dropAt.dataset.y));
 
-    tag.style.visibility = at.x < 0 || at.x > at.width || at.y < 0
-      || at.y > at.height ? "hidden" : "";
-    stand(tag, at, PIN_PX);
-    clearZoom(tag);
+    tag.style.visibility = inFrame(at) ? "" : "hidden";
+    standOn(tag, at, { lift: PIN_PX, frame,
+      zoom: map.querySelector(".map-zoom") });
   };
-
-  // True at the layer's own view, where the globe has nothing to do.
-  const atHome = () => {
-    const h = home();
-
-    return Math.abs(h.w - view.w) < 0.5 && Math.abs(h.x - view.x) < 0.5
-      && Math.abs(h.y - view.y) < 0.5;
-  };
-
-  const apply = () => {
-    const k = zoom();
-    const width = svg.getBoundingClientRect().width || W;
-    const units = view.w / width;
-    const s = (PIN_PX / PIN_UNITS * units).toFixed(4);
-    const nudged = k < NUDGE_BELOW;
-
-    svg.setAttribute("viewBox", `${view.x} ${view.y} ${view.w} ${view.h}`);
-    for (const pin of pins) {
-      const dx = nudged ? Number(pin.dataset.nudge || 0) * NUDGE_PX * units
-        : 0;
-
-      pin.setAttribute("transform", `translate(${Number(pin.dataset.x) + dx} `
-        + `${pin.dataset.y}) scale(${s})`);
-    }
-    if (dropAt.dataset.x) {
-      dropAt.setAttribute("transform",
-        `translate(${dropAt.dataset.x} ${dropAt.dataset.y}) scale(${s})`);
-    }
-    zoomIn.disabled = k >= MAX_ZOOM - 0.01;
-    zoomOut.disabled = k <= 1.01;
-    reset.hidden = atHome();
-    // Zoomed in, a drag pans the map; at full size it scrolls the page.
-    svg.style.touchAction = k > 1.01 ? "none" : "pan-y";
-    placeTag();
-  };
-
-  const go = (target, animate = true) => {
-    const to = clamp(target);
-
-    cancelAnimationFrame(tween);
-    if (!animate || matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      view = to;
-      apply();
-      return;
-    }
-
-    const from = { ...view };
-    const start = performance.now();
-    const step = (now) => {
-      const t = easeOut(Math.min(1, (now - start) / 220));
-
-      view = {
-        x: from.x + (to.x - from.x) * t,
-        y: from.y + (to.y - from.y) * t,
-        w: from.w + (to.w - from.w) * t,
-        h: from.h + (to.h - from.h) * t,
-      };
-      apply();
-      if (t < 1) tween = requestAnimationFrame(step);
-    };
-
-    tween = requestAnimationFrame(step);
-  };
-
-  // Zoom by a factor about a point in map units.
-  const zoomAbout = (factor, px, py, animate) => {
-    const w = view.w / factor;
-    const h = view.h / factor;
-
-    go({
-      w,
-      h,
-      x: px - (px - view.x) / factor,
-      y: py - (py - view.y) / factor,
-    }, animate);
-  };
-
-  // A point on screen in map units.
-  const toMap = (clientX, clientY) => {
-    const box = svg.getBoundingClientRect();
-
-    return {
-      x: view.x + (clientX - box.left) / box.width * view.w,
-      y: view.y + (clientY - box.top) / box.height * view.h,
-    };
-  };
-
-  const centre = () => ({ x: view.x + view.w / 2, y: view.y + view.h / 2 });
-
-  zoomIn.addEventListener("click", () => {
-    const c = centre();
-
-    zoomAbout(2, c.x, c.y, true);
-  });
-  zoomOut.addEventListener("click", () => {
-    const c = centre();
-
-    zoomAbout(0.5, c.x, c.y, true);
-  });
-  reset.addEventListener("click", () => go(home()));
-
-  // A trackpad pinch arrives as the wheel with ctrl held.
-  svg.addEventListener("wheel", (e) => {
-    if (!e.ctrlKey && !e.metaKey) return;
-    e.preventDefault();
-
-    const p = toMap(e.clientX, e.clientY);
-
-    zoomAbout(Math.exp(-e.deltaY * 0.01), p.x, p.y, false);
-  }, { passive: false });
-
-  // A double tap is two taps: picking towns quickly must not zoom.
-  let touched = false;
-
-  svg.addEventListener("pointerdown", (e) => {
-    touched = e.pointerType === "touch";
-  });
-  svg.addEventListener("dblclick", (e) => {
-    e.preventDefault();
-    if (touched) return;
-    const p = toMap(e.clientX, e.clientY);
-
-    zoomAbout(2, p.x, p.y, true);
-  });
 
   // The list beside the map ends where the map does, and scrolls. On a
   // phone it sits below the map and the page scrolls instead.
@@ -417,8 +131,6 @@ const wire = (map) => {
   addEventListener("resize", fitList);
 
   // Layers.
-
-  const layer = () => map.dataset.layer;
 
   // Pins are Tab stops only where they show: Safari still stops on
   // the ones Delivery hides with display: none.
@@ -444,9 +156,9 @@ const wire = (map) => {
     }
     if (name === "delivery") close();
     hideTip();
-    go(home());
+    camera.go(camera.home());
     fitList();
-    apply();
+    camera.apply();
   }
 
   for (const [i, t] of tabs.entries()) {
@@ -531,12 +243,14 @@ const wire = (map) => {
 
   // A pin out of view, or too near an edge to show, is brought in.
   const bringIn = (pin) => {
-    const at = onScreen(Number(pin.dataset.x), Number(pin.dataset.y));
+    const at = camera.onScreen(Number(pin.dataset.x), Number(pin.dataset.y));
     const edge = PIN_PX / 2;
 
     if (at.x > edge && at.x < at.width - edge && at.y > PIN_PX + MARGIN
       && at.y < at.height - MARGIN) return;
-    go({
+    const { view } = camera;
+
+    camera.go({
       ...view,
       x: Number(pin.dataset.x) - view.w / 2,
       y: Number(pin.dataset.y) - view.h / 2,
@@ -567,7 +281,9 @@ const wire = (map) => {
       left: FIT_PAD_PX,
     };
 
-    go(fit(bb, box, clearance(box, covers, base), { w: W, h: H },
+    const { W, H } = camera.size;
+
+    camera.go(fit(bb, box, clearance(box, covers, base), { w: W, h: H },
       FIT_MAX_ZOOM));
   };
 
@@ -633,96 +349,32 @@ const wire = (map) => {
     rowOf(n)?.focus();
   });
 
-  // What ends while the page is open leaves the list and the map, and
-  // Places frames the pins that remain.
-  document.addEventListener("visibilitychange", () => {
-    if (document.hidden) return;
-
+  // What ends while the page is open leaves the list and the map
+  // (schedule.js), and Places frames the pins that remain.
+  watchSeasons(map, (remaining) => {
     const before = pins.length;
 
-    expire(map);
-    pins = [...map.querySelectorAll("[data-map-pin]")];
-    number(map);
+    pins = remaining;
     if (open && !open.isConnected) {
       open = null;
       pressed(null);
       outline(null);
     }
-    if (pins.length !== before && layer() === "places") go(home());
+    if (pins.length !== before && layer() === "places") {
+      camera.go(camera.home());
+    }
   });
 
-  // The schedule, read at view time (/api/events: what the farm
-  // attends).
-  const rows = () => (list
-    ? [...list.querySelectorAll(".map-key-list > li")] : []);
-
-  // The locations by the next date the farm attends: the farm first,
-  // those with a date in /api/events in its order, the rest as built.
-  const arrange = (events) => {
-    const ul = list.querySelector(".map-key-list");
-    const at = (li) => {
-      const i = events.findIndex((e) => e.location === li.dataset.location);
-
-      return i < 0 ? events.length : i;
-    };
-    const items = rows();
-    const sorted = [...items].sort((a, b) => {
-      if (!a.dataset.location || !b.dataset.location) {
-        return (a.dataset.location ? 1 : 0) - (b.dataset.location ? 1 : 0);
-      }
-
-      return at(a) - at(b) || items.indexOf(a) - items.indexOf(b);
-    });
-
-    ul.append(...sorted);
-  };
-
-  async function schedule() {
-    if (!list) return;
-
-    let events;
-
-    try {
-      const res = await fetch("/api/events", { cache: "no-store" });
-      const data = res.ok ? await res.json() : null;
-
-      events = data && Array.isArray(data.events) ? data.events : null;
-    } catch {
-      events = null;
-    }
-    if (!events) return;
-    arrange(events);
-    number(map);
-    if (layer() === "places") go(home());
-  }
-
-  // The tag: the town, what we deliver there and the price. "el" is
-  // the dropped pin's tag or the pointer's.
-  const fill = (el, area) => {
-    const tone = toneOf(area);
-    const fee = Number(tag.dataset.fee)
-      + (tone === "wait" ? Number(tag.dataset.extra) : 0);
-    const has = {
-      eggs: tone !== "no",
-      hen: tone !== "no" && !area.classList.contains("is-eggs"),
-    };
-    const [town, eggs, hen, price, none] = [
-      ".map-tag-town", ".map-tag-icon:nth-of-type(1)",
-      ".map-tag-icon:nth-of-type(2)", ".map-tag-fee", ".map-tag-none",
-    ].map((s) => el.querySelector(s));
-
-    town.textContent = area.dataset.town || zipOf(area);
-    price.textContent = tone === "no" ? "" : `$${fee}`;
-    price.hidden = tone === "no";
-    none.hidden = tone !== "no";
-    for (const [icon, on] of [[eggs, has.eggs], [hen, has.hen]]) {
-      icon.classList.toggle("is-off", !on);
-      if (el === tag) icon.dataset.on = on;
-    }
-    const link = el.querySelector(".map-tag-link");
-
-    if (link) link.hidden = tone !== "no";
-  };
+  // The tag: the town, what we deliver there and the price (tag.mjs,
+  // draw.js). "el" is the dropped pin's tag or the pointer's.
+  const fill = (el, area) => drawTag(el, tagFacts({
+    town: area.dataset.town,
+    zip: zipAt(area),
+    tone: toneAt(area),
+    eggsOnly: area.classList.contains("is-eggs"),
+    fee: Number(tag.dataset.fee),
+    extra: Number(tag.dataset.extra),
+  }), { mark: el === tag });
 
   // The tag beside the pointer, over a town, with a mouse.
 
@@ -734,25 +386,16 @@ const wire = (map) => {
     const area = layer() === "delivery" && e.pointerType === "mouse"
       && e.target.closest("[data-zip]");
 
-    if (!area || dragging || zipOf(area) === picked) {
+    if (!area || dragging || zipAt(area) === picked) {
       hideTip();
       return;
     }
 
     const box = frame.getBoundingClientRect();
-    const x = e.clientX - box.left;
-    const y = e.clientY - box.top;
 
     fill(tip, area);
     tip.hidden = false;
-    tip.style.left = `${x + 14}px`;
-    tip.style.top = `${y + 14}px`;
-    if (x + 14 + tip.offsetWidth > box.width - MARGIN) {
-      tip.style.left = `${x - 14 - tip.offsetWidth}px`;
-    }
-    if (y + 14 + tip.offsetHeight > box.height - MARGIN) {
-      tip.style.top = `${y - 14 - tip.offsetHeight}px`;
-    }
+    drawTip(tip, { x: e.clientX - box.left, y: e.clientY - box.top }, box);
   });
   svg.addEventListener("pointerleave", hideTip);
 
@@ -785,12 +428,12 @@ const wire = (map) => {
 
     const area = target.closest("[data-zip]");
 
-    if (!area || zipOf(area) === picked) {
+    if (!area || zipAt(area) === picked) {
       if (picked) check("", "");
       return;
     }
     hideTip();
-    check(zipOf(area), toneOf(area));
+    check(zipAt(area), toneAt(area));
   };
 
   // Drags and pinches, from pointer events so mouse, pen and touch
@@ -810,7 +453,7 @@ const wire = (map) => {
   svg.addEventListener("pointerdown", (e) => {
     if (e.pointerType === "mouse" && e.button !== 0) return;
     pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    startView = { ...view };
+    startView = camera.view;
     startPoint = { x: e.clientX, y: e.clientY };
     dragging = false;
     if (pointers.size === 2) startSpread = spread();
@@ -821,15 +464,15 @@ const wire = (map) => {
     pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
     const box = svg.getBoundingClientRect();
-    const perPixel = view.w / box.width;
+    const perPixel = camera.view.w / box.width;
 
     if (pointers.size === 2) {
       dragging = true;
       const m = middle();
       const factor = spread() / startSpread;
-      const p = toMap(m.x, m.y);
+      const p = camera.toMap(m.x, m.y);
 
-      zoomAbout(factor, p.x, p.y, false);
+      camera.zoomAbout(factor, p.x, p.y, false);
       startSpread = spread();
       return;
     }
@@ -838,14 +481,12 @@ const wire = (map) => {
     const dy = e.clientY - startPoint.y;
 
     if (!dragging && Math.hypot(dx, dy) < SLOP) return;
-    if (zoom() <= 1.01) return;
+    if (camera.zoom() <= 1.01) return;
     if (!dragging) svg.setPointerCapture(e.pointerId);
     dragging = true;
-    go({
-      ...startView,
-      x: startView.x - dx * perPixel,
-      y: startView.y - dy * perPixel,
-    }, false);
+    // The drag's pixels in the units of the view showing, as before
+    // pannedBy, which reads them from the view it moves.
+    camera.go(pannedBy(startView, { dx, dy }, startView.w / perPixel), false);
   });
 
   const up = (e) => {
@@ -859,7 +500,7 @@ const wire = (map) => {
         dragging = false;
       });
     } else {
-      startView = { ...view };
+      startView = camera.view;
       const [rest] = [...pointers.values()];
 
       startPoint = rest;
@@ -904,7 +545,7 @@ const wire = (map) => {
     drop.getBoundingClientRect();
     drop.removeAttribute("hidden");
     tag.hidden = false;
-    apply();
+    camera.apply();
   });
 
   // "See pickup spots", on a map with the Places layer; on one without,
@@ -916,15 +557,15 @@ const wire = (map) => {
     tabs.find((t) => t.dataset.mapLayer === "places").focus();
   });
 
-  // #places opens the Places layer. #places-scheduled is the older
-  // link, from when Places had a filter, and opens plain Places too;
-  // #place-… opens that place's card.
+  // #places and #places-scheduled open the Places layer, #place-… that
+  // place's card (hashTarget, seasons.mjs).
   const follow = () => {
-    const hash = decodeURIComponent(location.hash.slice(1));
+    const target = hashTarget(decodeURIComponent(location.hash.slice(1)),
+      tabs.length > 0);
 
-    if (!tabs.length || !hash.startsWith("place")) return;
-    const pin = hash.startsWith("places") ? null
-      : map.querySelector(`[data-map-slug="${CSS.escape(hash)}"]`);
+    if (!target) return;
+    const pin = target.slug && map.querySelector(
+      `[data-map-slug="${CSS.escape(target.slug)}"]`);
 
     setLayer("places");
     if (pin) show(pin.dataset.mapPin);
@@ -973,10 +614,13 @@ const wire = (map) => {
     settled(toField);
   });
   addEventListener("load", toField);
-  addEventListener("resize", apply);
-  apply();
+  // The first draw, and one on each resize (camera.js).
+  camera.start();
   follow();
-  schedule();
+  // The list by the next date the farm attends (schedule.js).
+  schedule(map, list, () => {
+    if (layer() === "places") camera.go(camera.home());
+  });
 };
 
 export const wireMaps = () => {

@@ -1,0 +1,282 @@
+// The pickup-days layout (#703): the order page's Pickup days card,
+// the lapsed dialog and the account's Change pickup share it, so it
+// stands outside `.order` (partials/order/pickup-days.html). Each date
+// heads its pickups, which sit flush under it (James's revision,
+// 2026-11-21: the indent cost too much room on a phone). A pickup is
+// a radio card, white until chosen (#323), in the secondary color so
+// it reads apart from the card's own (primary) radio. Narrow,
+// its address is street then city, with Copy and Map below; wide, the
+// address is one line with Copy and Map to its right.
+
+// The red bar down a list of dates on an error (#703, third revision).
+$order-pickups-bar: 3px;
+
+// No outline or ring around the list in any state (James's staging
+// look, 2026-11-23): its message says what is missing, above it
+// (partials/order/dates-message.html).
+.order-pickups {
+  display: grid;
+  gap: 1.25rem;
+  padding-top: 0.25rem;
+
+  &:focus {
+    outline: 0;
+  }
+}
+
+// On the order page, a list with nothing chosen when the order is
+// placed takes a thin red bar down its left, in the gutter beside the
+// cards, so nothing moves when it shows. Clear until then.
+[data-method-body] .order-pickups {
+  margin-left: calc(-1 * (#{$order-pickups-bar} + 0.5rem));
+  padding-left: 0.5rem;
+  border-left: $order-pickups-bar solid transparent;
+
+  &.is-invalid {
+    border-left-color: var(--bs-form-invalid-color);
+  }
+}
+
+// A list of dates' message, under the way's title and above the cards:
+// a quiet hint with the info icon on Proceed to checkout, red with the
+// error icon on Place your order (scripts/order/errors.js). Hidden
+// while it says nothing.
+.order-dates-message {
+  display: flex;
+  gap: 0.375rem;
+  align-items: center;
+  margin: 0 0 0.75rem;
+  font-size: $form-feedback-font-size;
+  color: var(--bs-secondary-color);
+
+  &:has(> .invalid-feedback:empty) {
+    display: none;
+  }
+
+  &[data-error-mode="error"] {
+    color: var(--bs-form-invalid-color);
+  }
+
+  .invalid-feedback {
+    width: auto;
+    margin: 0;
+    font-size: inherit;
+    color: inherit;
+  }
+}
+
+.order-dates-icon {
+  display: inline-flex;
+  flex: none;
+
+  svg {
+    width: 1.125em;
+    height: 1.125em;
+  }
+}
+
+.order-dates-message[data-error-mode="hint"] .is-error,
+.order-dates-message[data-error-mode="error"] .is-hint {
+  display: none;
+}
+
+.order-pickup-day {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.order-pickup-day-heading {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: bold;
+  line-height: 1.5;
+}
+
+// The width the cards' query reads.
+.order-pickup-list {
+  container-type: inline-size;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.order-pickup {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.5rem 0.625rem;
+  padding: 0.625rem 0.875rem;
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius);
+  background-color: var(--bs-white);
+  transition:
+    border-color 70ms ease,
+    background-color 70ms ease;
+
+  &:hover {
+    border-color: var(--bs-secondary);
+  }
+
+  &:has(> input:checked) {
+    border-color: var(--bs-secondary);
+    background-color: var(--bs-secondary-bg-subtle);
+  }
+
+  // Centered on the name's line.
+  > .form-check-input {
+    margin: 0.125rem 0 0;
+
+    &:checked {
+      border-color: var(--bs-secondary);
+      background-color: var(--bs-secondary);
+    }
+
+    &:focus {
+      border-color: var(--bs-secondary);
+      box-shadow: 0 0 0 0.25rem rgb(var(--bs-secondary-rgb) / 25%);
+    }
+  }
+}
+
+// Three groups, the name, the time and the address (James's revisions,
+// 2026-11-21): the name in the date heading's font, the rest smaller
+// than it but larger than the method card's When, Where and Cost, set
+// tighter than the page's lines, with more space between the groups
+// than inside one. The time sits closer to the name than to the
+// address.
+.order-pickup-label {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  font-size: 0.875rem;
+  line-height: 1.3;
+  cursor: pointer;
+}
+
+.order-pickup-name {
+  margin-bottom: 0.375rem;
+  font-family: $headings-font-family;
+  font-size: 1rem;
+  font-weight: $headings-font-weight;
+  line-height: 1.25;
+}
+
+.order-pickup-time {
+  margin-bottom: 0.625rem;
+}
+
+// The address group, the place name, the street and the town line,
+// has one line height. Each part's wrapped lines sit closer than the
+// next part, so a long name or street reads as one line.
+.order-pickup-place,
+.order-pickup-address {
+  color: var(--bs-secondary-color);
+  line-height: 1.25;
+}
+
+.order-pickup-place,
+.order-pickup-street {
+  margin-bottom: 0.1875rem;
+}
+
+.order-pickup-street,
+.order-pickup-city {
+  display: block;
+}
+
+.order-pickup-actions {
+  display: flex;
+  flex-wrap: wrap;
+  grid-column: 2;
+  gap: 0.5rem 0.75rem;
+
+  // Further from the address than the card's row gap alone (James's
+  // second revision).
+  margin-top: 0.375rem;
+
+  // Unfilled, so a chosen card's tint shows through: not the white
+  // face outline buttons have elsewhere (_global.scss, #339). A press
+  // tints them. Between a btn-sm and the first revision's in height
+  // (James's second revision), the icon before the word.
+  .btn {
+    --bs-btn-bg: transparent;
+    --bs-btn-hover-bg: transparent;
+    --bs-btn-active-bg: color-mix(in srgb, currentcolor 12%, transparent);
+    --bs-btn-padding-x: 0.625rem;
+    --bs-btn-padding-y: 0.3125rem;
+    --bs-btn-font-size: 0.875rem;
+    --bs-btn-line-height: 1.25;
+
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3125rem;
+  }
+}
+
+.order-pickup-icon {
+  flex: none;
+  width: 1em;
+  height: 1em;
+}
+
+// Copy's change to "Copied" and back (#703), as the fitted busy button
+// changes face (_busy-button.scss): the width eases, pinned by
+// order/pickup-days.js, the word clipped while the button is narrower,
+// and the old word fades out in the ghost over the new one fading in.
+.order-pickup-actions .order-pickup-copy {
+  position: relative;
+  overflow: hidden;
+  white-space: nowrap;
+  transition: $btn-transition, width 0.3s ease-in-out;
+}
+
+.order-pickup-copy-text,
+.order-pickup-copy-ghost {
+  transition: opacity 0.25s ease;
+}
+
+.order-pickup-copy-ghost {
+  position: absolute;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .order-pickup-actions .order-pickup-copy,
+  .order-pickup-copy-text,
+  .order-pickup-copy-ghost {
+    transition: none;
+  }
+}
+
+@container (min-width: 28rem) {
+  .order-pickup {
+    grid-template-columns: auto auto 1fr;
+  }
+
+  // The address on one line, street then city; where both don't fit,
+  // the city goes to the next line whole, as far below the street as
+  // a part is below the one before it, so a wrapped street still reads
+  // as one line.
+  .order-pickup-address {
+    display: flex;
+    flex-wrap: wrap;
+    row-gap: 0.1875rem;
+  }
+
+  .order-pickup-street {
+    margin-bottom: 0;
+  }
+
+  .order-pickup-street::after {
+    margin-right: 0.3em;
+    content: ",";
+  }
+
+  // Beside the address's line, the last of the label.
+  .order-pickup-actions {
+    flex-wrap: nowrap;
+    grid-column: 3;
+    grid-row: 1;
+    align-self: end;
+    margin: 0 0 -0.2rem 0.75rem;
+  }
+}

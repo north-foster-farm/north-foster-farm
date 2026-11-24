@@ -119,24 +119,31 @@ for (const { name, path, block } of PAGES) {
 }
 
 test.describe("the order page's farm news opt-in (#391)", () => {
-  const block = "#confirm [data-farm-list-block]";
+  // Its own card above the Place your order pane since James's
+  // revision (#705, 2026-11-21), so it is the block in main, wherever
+  // the card sits; the footer's is outside main.
+  const block = "main [data-farm-list-block]";
 
-  test("shows, subheading and box, to a visitor with no flag",
+  // The question replaced the subheading Farm News and updates (#705).
+  const question = (page) => page.locator(block)
+    .getByText("Interested in pasture-raised news and updates?",
+      { exact: true });
+
+  test("shows, question and box, to a visitor with no flag",
     async ({ page }) => {
       await page.goto("/order/");
       await expect(page.locator(block)).toBeVisible();
-      await expect(page.locator(`${block} h3`))
-        .toHaveText("Farm News and updates");
+      await expect(question(page)).toBeVisible();
       await expect(page.locator("#customer-marketing")).toBeVisible();
     });
 
-  test("hides, subheading and box, once this browser has joined",
+  test("hides, question and box, once this browser has joined",
     async ({ page }) => {
       await page.addInitScript(() => localStorage.setItem("nff-news",
         "joined"));
       await page.goto("/order/");
       await expect(page.locator(block)).toBeHidden();
-      await expect(page.locator(`${block} h3`)).toBeHidden();
+      await expect(question(page)).toBeHidden();
     });
 
   test("hides for a signed-in customer on the list and sends no yes",

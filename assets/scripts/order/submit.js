@@ -8,6 +8,7 @@
 //                                        again
 //   { kind: "invalid", errors, stock }   fix and resubmit
 //   { kind: "stale", dates }             date closed, fresh list attached
+//   { kind: "notMember", errors }        a group's round, not a member
 //   { kind: "busy", message }            too many tries to place it;
 //                                        wait, then try again
 //   { kind: "retry" }                    transient, safe to try again
@@ -66,6 +67,11 @@ export class Submitter {
     }
     if (res.status === 409 && data.errors && data.errors.payment) {
       return { kind: "checkout", message: data.errors.payment };
+    }
+    // A group's round ordered by one who isn't in the group (#749):
+    // the words go on the form, and Group orders comes off.
+    if (res.status === 409 && data.notMember) {
+      return { kind: "notMember", errors: data.errors || {} };
     }
     if (res.status === 409) return { kind: "stale", dates: data.dates || [] };
     if (res.status === 422 || res.status === 400) {

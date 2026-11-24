@@ -218,12 +218,15 @@ inbox hears.
       minutes and the three HTTP checks up.
 - [ ] Axiom shows a `jobs.run` line every 15 minutes and an
       `order.paid` line for each order placed.
-- [ ] 8:00: "Morning report: <today>" arrives every day, numbers first
+- [ ] 8:00: "Morning report: <today>" arrives on a morning with a
+      vital sign outside its limits or something waiting on the farm,
+      and not on a calm one (2026-11-21, #697: it arrived every day),
+      numbers first
       (placed, by card, by Venmo, declined, cancelled, refunded, open,
       mail failures, runs, errors, violations), then pickups (or "No
       pickups waiting on the customer.", as `lib/templates.mjs` words
-      it; 2026-11-01, #494). It pings the *Alerts* check
-      well; that check is green after 8:00.
+      it; 2026-11-01, #494). The 8:00 run pings the *Alerts* check
+      well either way; that check is green after 8:00.
 - [ ] 18:00: "Tomorrow, <date>: N orders" arrives on every day with
       an order due the next day, grouped
       delivery, then one heading per scheduled occurrence ("<series

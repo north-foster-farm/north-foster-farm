@@ -14,7 +14,7 @@ test.describe("walkthrough of 2026-10-24", () => {
     async ({ page }) => {
       await page.goto("/");
 
-      const more = page.getByRole("link", { name: "More from the farm" });
+      const more = page.getByRole("link", { name: "All news and updates" });
 
       await more.scrollIntoViewIfNeeded();
       expect(await background(more)).toBe(WHITE);

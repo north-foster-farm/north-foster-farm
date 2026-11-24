@@ -18,14 +18,15 @@ const store = (storage) => {
 };
 
 // -> the token, from the address or from this tab's storage, or "".
-export const takeToken = ({ location, history, storage }) => {
+// `key` is the tab's slot: the invite page (#718) keeps its own.
+export const takeToken = ({ location, history, storage, key = KEY }) => {
   const url = new URL(location.href);
   const fromUrl = url.searchParams.get("t");
   const kept = store(storage);
 
   if (fromUrl === null) {
     try {
-      return (kept && kept.getItem(KEY)) || "";
+      return (kept && kept.getItem(key)) || "";
     } catch {
       return "";
     }
@@ -35,7 +36,7 @@ export const takeToken = ({ location, history, storage }) => {
   history.replaceState(history.state, "",
     `${url.pathname}${url.search}${url.hash}`);
   try {
-    if (kept) kept.setItem(KEY, fromUrl);
+    if (kept) kept.setItem(key, fromUrl);
   } catch {
     // Kept in the page only.
   }
@@ -51,11 +52,11 @@ export const takeToken = ({ location, history, storage }) => {
 export const tokenDead = (status) => status === 404 || status === 429;
 
 // Once the token is spent or found dead, the tab forgets it.
-export const dropToken = ({ storage }) => {
+export const dropToken = ({ storage, key = KEY }) => {
   try {
     const kept = store(storage);
 
-    if (kept) kept.removeItem(KEY);
+    if (kept) kept.removeItem(key);
   } catch {
     // Nothing kept.
   }

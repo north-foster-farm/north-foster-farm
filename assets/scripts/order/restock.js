@@ -29,6 +29,45 @@ const remember = (on) => {
   }
 };
 
+// The row a search result links to, /order/#<sku in lower case>
+// (#402), until it is in view: brought there, with Full catalog chosen
+// when only that shows it. It is held until live stock first answers,
+// since stock can hide a row after load (order/stock.js, settle()).
+let wanted = null;
+
+const reveal = (form) => {
+  const row = wanted;
+
+  if (!row) return;
+
+  const all = form.querySelector("[data-show][value='all']");
+
+  if (row.hidden && row.dataset.restockLabel && all && !all.checked) {
+    // Not remembered: the customer did not choose it.
+    all.checked = true;
+    showRows(form, false);
+
+    return;
+  }
+  if (!row.hidden) {
+    row.scrollIntoView({ block: "center" });
+    row.focus({ preventScroll: true });
+  }
+};
+
+const want = (form) => {
+  const id = decodeURIComponent(location.hash.slice(1));
+
+  wanted = id ? form.querySelector(`.order-item[id="${CSS.escape(id)}"]`)
+    : null;
+  reveal(form);
+};
+
+// Live stock has answered: the row stays where it is from now on.
+export const settle = () => {
+  wanted = null;
+};
+
 // Shows and hides rows for the choice, then a category left with no
 // row, and its link in the sidebar.
 export const showRows = (form, only = inStockOnly()) => {
@@ -50,6 +89,7 @@ export const showRows = (form, only = inStockOnly()) => {
     group.hidden = empty;
     if (link) link.closest(".nav-item").hidden = empty;
   }
+  reveal(form);
 };
 
 // Wires the two radios. -> a function that says whether In stock is
@@ -69,11 +109,14 @@ export const wireSwitch = (form) => {
     radio.addEventListener("input", (e) => e.stopPropagation());
     radio.addEventListener("change", (e) => {
       e.stopPropagation();
+      settle();
       remember(only());
       showRows(form, only());
     });
   }
   showRows(form, only());
+  want(form);
+  window.addEventListener("hashchange", () => want(form));
 
   return only;
 };

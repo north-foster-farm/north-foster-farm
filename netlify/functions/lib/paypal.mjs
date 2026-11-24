@@ -18,6 +18,12 @@ import * as fake from "./fake-paypal.mjs";
 import { MONEY_FLOOR_MS, timedFetch, timedOut } from "./http.mjs";
 import { cliRecordings, recorder } from "./recorder.mjs";
 import { onNetlify, stores } from "./store.mjs";
+import {
+  PayPalError, captureOf, orderOf, refundOf,
+} from "./paypal-shapes.mjs";
+
+// The shapes live in paypal-shapes.mjs (#964); the seam keeps them.
+export { PayPalError, captureOf, orderOf, refundOf };
 
 const HOSTS = {
   live: "https://api-m.paypal.com",
@@ -31,21 +37,6 @@ export const paypalEnv = (env = process.env) => {
 
   return env.PAYPAL_ENV === FAKE ? FAKE : "sandbox";
 };
-
-export class PayPalError extends Error {
-  constructor(message, {
-    retryable = false, status = 0, detail = null, declined = false,
-    code = null,
-  } = {}) {
-    super(message);
-    this.name = "PayPalError";
-    this.retryable = retryable;
-    this.status = status;
-    this.detail = detail;
-    this.declined = declined;
-    this.code = code;
-  }
-}
 
 // What the farm can do about a refusal PayPal names, by its issue.
 export const ISSUE_ADVICE = {
@@ -323,29 +314,6 @@ export const createOrder = async (order, key, {
   return { paypalOrderId: data.id };
 };
 
-const captureOf = (data) => {
-  const unit = (data.purchase_units || [])[0] || {};
-  const capture = ((unit.payments || {}).captures || [])[0] || null;
-  const payer = data.payer || {};
-  const name = payer.name || {};
-
-  return capture
-    ? {
-      paypalOrderId: data.id,
-      paypalCaptureId: capture.id,
-      status: capture.status,
-      amount: capture.amount
-        ? Math.round(Number(capture.amount.value) * 100)
-        : null,
-      payer: {
-        email: payer.email_address || null,
-        name: [name.given_name, name.surname].filter(Boolean).join(" ")
-          || null,
-      },
-    }
-    : null;
-};
-
 export const getOrder = async (paypalOrderId, {
   env = process.env,
   fetchImpl = globalThis.fetch,
@@ -362,11 +330,7 @@ export const getOrder = async (paypalOrderId, {
       recordings: recordingsFor(env, recordings) }
   );
 
-  return {
-    status: data.status,
-    updatedAt: data.update_time || data.create_time || null,
-    capture: captureOf(data),
-  };
+  return orderOf(data);
 };
 
 // Takes the money the customer approved. An order already captured
@@ -439,11 +403,7 @@ export const refundCapture = async ({
     }, { fetchImpl, now, requestId: `${key}-refund`,
       recordings: recordingsFor(env, recordings) });
 
-  return {
-    paypalRefundId: data.id,
-    status: data.status,
-    amount: data.amount ? Math.round(Number(data.amount.value) * 100) : amount,
-  };
+  return refundOf(data, amount);
 };
 
 // One refund, by id, for the check that every refund settled (#215).
@@ -461,11 +421,7 @@ export const getRefund = async (paypalRefundId, {
     null, { fetchImpl, now, method: "GET",
       recordings: recordingsFor(env, recordings) });
 
-  return {
-    paypalRefundId: data.id,
-    status: data.status,
-    amount: data.amount ? Math.round(Number(data.amount.value) * 100) : 0,
-  };
+  return refundOf(data, 0);
 };
 
 // PayPal signs each webhook delivery; the verification is a call back

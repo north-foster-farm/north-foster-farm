@@ -35,9 +35,9 @@
 import { randomUUID } from "node:crypto";
 
 import thresholds from "../../../data/breaker.json" with { type: "json" };
-import { ping } from "./health.mjs";
 import { timedFetch } from "./http.mjs";
 import { log } from "./log.mjs";
+import { ping } from "./ping.mjs";
 import { resendAllowed, resendRefusal } from "./resend-guard.mjs";
 
 export const STATE = "breaker/state";
@@ -59,7 +59,7 @@ const dayKey = (date) => date.toISOString().slice(0, 10);
 const recipients = (message) =>
   (Array.isArray(message.to) ? message.to : [message.to]).filter(Boolean);
 
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const sleep = (ms) => new Promise((resolve) => { setTimeout(resolve, ms); });
 
 // -> the state document while tripped, else null.
 export const readState = (stores) => stores.jobs.get(STATE);

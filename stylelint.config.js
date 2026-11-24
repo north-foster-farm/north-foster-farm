@@ -1,5 +1,21 @@
 module.exports = {
   "extends": "stylelint-config-standard-scss",
+  // `npm run lint` reads every stylesheet in the tree (#769); these
+  // folders are build output or untracked notes, never source.
+  "ignoreFiles": [
+    ".ignored/**",
+    ".netlify/**",
+    "docs/example-projects/**",
+    "docs/hugo-docs-source/**",
+    "playwright-report/**",
+    "public/**",
+    "resources/**",
+    "test-results/**",
+  ],
+  // A disable that suppresses nothing, or names a rule that is not on,
+  // is an error (#782).
+  "reportNeedlessDisables": true,
+  "reportInvalidScopeDisables": true,
   "plugins": [
     "stylelint-scss",
   ],

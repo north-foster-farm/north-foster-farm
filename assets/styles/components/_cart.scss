@@ -5,13 +5,13 @@
 // One tree, flat (layouts/partials/order/cart.html): the slot, the
 // pane, its body (every part that gives way) and its foot (what never
 // does). The pane's state is four attributes cart/state.mjs decides
-// and cart/cart.js writes: data-placement (column, inline, floating),
+// and cart/fold.js writes: data-placement (column, inline, floating),
 // data-fold (open, closed), data-empty and data-share (way, code or
 // none). Everything each state shows is decided here, by width.
 
 // No height is measured by script and written back. The browser lays
 // the pane out from these rules alone: the room comes from three raw
-// inputs cart/view.mjs relays from the visual viewport (--cart-vis,
+// inputs cart/view/keyboard.js relays from the visual viewport (--cart-vis,
 // --cart-gap, --cart-kb) and the top bar's foot (--cart-bar, from the
 // bar's resting place and scrollY, never a rect); the order in which
 // the parts give way is flex: the lines shrink first, down to three
@@ -62,7 +62,7 @@ $cart-nudge-line: $cart-nudge-gap + $cart-nudge-size * $cart-line-height;
   // The closed sheet: its padding, the total row, the foot and one
   // nudge line (182px measured at 390px, about 8px more since the
   // closed total row kept its padding, #559), set a little under that.
-  // cart/view.mjs reads it for the lift-off threshold until it has
+  // cart/view/placement.js reads it for the lift-off threshold until it has
   // measured the closed pane itself, and it must never exceed the
   // real closed height, or the settle and lift-off thresholds overlap.
   --cart-closed-h: 11rem;
@@ -128,8 +128,8 @@ $cart-nudge-line: $cart-nudge-gap + $cart-nudge-size * $cart-line-height;
     // line to the lines, and a delivery fee it has takes one from
     // them, so the open sheet keeps to two thirds while the lines take
     // the rest. Still nothing measured: the rows' own hidden
-    // attributes, which cart.js already writes. A code's note, the
-    // perks and a paid order's sums are left out, as before.
+    // attributes, which cart/sums-view.js already writes. A code's
+    // note, the perks and a paid order's sums are left out, as before.
     --cart-less-discount: 0px;
     --cart-less-nudge: 0px;
     --cart-more-fee: 0px;
@@ -182,7 +182,7 @@ $cart-nudge-line: $cart-nudge-gap + $cart-nudge-size * $cart-line-height;
 
     // The rail's Cart link rings the whole pane (#337): the pill's
     // green ring, on a layer of its own so the pane keeps its shadow.
-    // cart/view.mjs ringCart sets the class and takes it off.
+    // cart/view/cues.js ringCart sets the class and takes it off.
     &::after {
       position: absolute;
       inset: -1px;
@@ -767,7 +767,7 @@ $cart-nudge-line: $cart-nudge-gap + $cart-nudge-size * $cart-line-height;
 
   // Shut, the row shows its two buttons; open, one side takes the
   // whole row. The code field folds back the way it came, the opening
-  // run backwards (cart.js shutCode, view.mjs shutShare).
+  // run backwards (cart/share-row.js shutCode, view/share.js shutShare).
   .order-cart-ways,
   .order-cart-code {
     display: none;
@@ -844,7 +844,7 @@ $cart-nudge-line: $cart-nudge-gap + $cart-nudge-size * $cart-line-height;
 
   .order-cart-body .btn {
     --bs-btn-focus-box-shadow: inset 0 0 0 #{$btn-focus-width}
-      rgba(var(--bs-btn-focus-shadow-rgb), 0.5);
+      rgb(var(--bs-btn-focus-shadow-rgb), 0.5);
   }
 
   .order-cart-body .order-badge:focus-visible {
@@ -880,6 +880,16 @@ $cart-nudge-line: $cart-nudge-gap + $cart-nudge-size * $cart-line-height;
     .order-cart-next {
       flex: 0 0 auto;
     }
+  }
+
+  // It cannot go on, so it looks disabled, as Bootstrap draws one, but
+  // still takes the press to say why (#706, cart/checkout.js).
+  .order-cart-next[aria-disabled="true"] {
+    border-color: var(--bs-btn-disabled-border-color);
+    color: var(--bs-btn-disabled-color);
+    background-color: var(--bs-btn-disabled-bg);
+    opacity: var(--bs-btn-disabled-opacity);
+    cursor: default;
   }
 
   .order-cart-nudge {
@@ -932,7 +942,7 @@ $cart-nudge-line: $cart-nudge-gap + $cart-nudge-size * $cart-line-height;
 
   // Once the pane has shut itself, or on a later Add, the pill pulses
   // to say where the cart went: three pairs the first time (#278),
-  // once after (cart/view.mjs pulsePill times them).
+  // once after (cart/view/cues.js pulsePill times them).
   .order-cart-toggle[data-pulse="once"] {
     animation: order-pill 520ms var(--order-ease);
   }
@@ -941,9 +951,17 @@ $cart-nudge-line: $cart-nudge-gap + $cart-nudge-size * $cart-line-height;
     animation: order-pill-teach 4400ms linear;
   }
 
+  // The way's button pulses as the pill does while Proceed to checkout
+  // says a delivery is short of the minimum (#706), its own colors
+  // kept.
+  .order-cart-way[data-pulse="teach"] {
+    animation: order-pill-way 4400ms linear;
+  }
+
   // Reduced motion: no pulse, a still emphasis for a moment. More
   // specific than the global rule, which would cut it to 1ms.
   @media (prefers-reduced-motion: reduce) {
+    .order-cart-way[data-pulse],
     .order-cart-toggle[data-pulse] {
       animation: none !important;
       background-color: var(--bs-primary-bg-subtle);
@@ -1038,12 +1056,12 @@ $cart-nudge-line: $cart-nudge-gap + $cart-nudge-size * $cart-line-height;
   }
 
   // On the sheet the pane's padding and borders ease with its parts,
-  // on their clock (cart/view.mjs moveParts, #559 round 3), so they
+  // on their clock (cart/view/move.js moveParts, #559 round 3), so they
   // are not eased here. Where the floating sheet rests eases instead: a
   // change in the safe area or the toolbar's gap while the page
   // scrolled moved a minimized pane 23px in one frame (James's phone,
   // 2026-11-12). The keyboard still moves it at once (data-keyboard,
-  // view.mjs watchKeyboard). Disabled, Proceed to checkout fades
+  // view/keyboard.js watchKeyboard). Disabled, Proceed to checkout fades
   // rather than turning pale in one frame (the clear).
   @media #{$cart-sheet} {
     .order-cart {
@@ -1555,6 +1573,23 @@ $teach-starts: 0, 400, 1800, 2200, 3600, 4000;
   }
 }
 
+// The same pulses on the way's button (#706), without the pill's
+// background.
+@keyframes order-pill-way {
+  @each $start in $teach-starts {
+    #{math.percentage(math.div($start, $teach-ms))},
+    #{math.percentage(math.div($start + 400, $teach-ms))} {
+      box-shadow: 0 0 0 0 transparent;
+      transform: scale(1);
+    }
+
+    #{math.percentage(math.div($start + 160, $teach-ms))} {
+      box-shadow: $pill-ring;
+      transform: scale(1.06);
+    }
+  }
+}
+
 // The total's flash on a change: the success green on white.
 @keyframes order-bump {
   0%,
@@ -1566,5 +1601,93 @@ $teach-starts: 0, 400, 1800, 2200, 3600, 4000;
     transform: scale(1.07);
     color: var(--order-flash);
     text-shadow: var(--order-flash-glow);
+  }
+}
+
+// A customer's perks as pricing labels (#717), in the cart note and
+// the account page's "Your pricing" row (order/cart/perk-label.js,
+// partials/order/perk-label.html).
+.perk-info {
+  // In rem, so the button is the same size and shape wherever it
+  // sits, the delivery terms included (#717, revised).
+  --perk-info-size: 1.0625rem;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: -0.375rem -0.125rem;
+  padding: 0.375rem;
+  border: 0;
+  background: none;
+  line-height: 1;
+  color: var(--bs-primary);
+
+  // On the text's center line wherever it sits (#717, revised): the
+  // icon's bottom rests on the baseline, inline or as a flex item
+  // aligned on it, then drops by half its height less the height of
+  // Aller's center line above the baseline, 0.36em of the text's size.
+  // A translate, so it moves the same in both layouts.
+  vertical-align: baseline;
+  translate: 0 calc(var(--perk-info-size) / 2 - 0.36em);
+
+  .perk-info-icon {
+    width: var(--perk-info-size);
+    height: var(--perk-info-size);
+  }
+
+  // On the home page's dark band, the band's own color.
+  .ways & {
+    color: inherit;
+  }
+
+  // Clear of the free delivery badge's italic last letter.
+  .order-cart-badges & {
+    margin-left: 0.125rem;
+  }
+}
+
+// The standalone perks on one line, between the discount badges'
+// dots (.order-cart-badges).
+.perk-labels {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  .perk-label + .perk-label::before {
+    content: "·";
+    padding: 0 0.325rem;
+    color: var(--bs-breadcrumb-divider-color, var(--bs-secondary-color));
+  }
+
+  .order-cart-code-note & {
+    justify-content: center;
+  }
+}
+
+// A bundle's parts, as bullets in its tooltip, each on one line.
+// The tooltip's class starts "tooltip" so PurgeCSS keeps it.
+.tooltip-perk {
+  --bs-tooltip-max-width: 16rem;
+}
+
+.perk-parts {
+  margin: 0;
+  padding-left: 1rem;
+  line-height: 1.3;
+  text-align: start;
+  white-space: nowrap;
+}
+
+// A tooltip's lines, each on its own and centered: the delivery terms,
+// the member line's and the free delivery badge's (#717, revised).
+.perk-lines {
+  display: block;
+  line-height: 1.3;
+  text-align: center;
+
+  > span {
+    display: block;
   }
 }

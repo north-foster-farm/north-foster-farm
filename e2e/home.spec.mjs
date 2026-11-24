@@ -64,7 +64,7 @@ test.describe("home", () => {
       await expect(steps).toHaveCount(4);
       await expect(how.locator(".how-step-copy")).toHaveText([
         "Browse what we have in stock, or check out our whole catalog.",
-        "Pick up on our farm, at one of our pickup days, or get it "
+        "Pick up on our farm, at one of our pick-up days, or get it "
           + "delivered to your door.",
         "Sign in with your email address and update your order, pickup, "
           + "or delivery.",
@@ -436,8 +436,9 @@ test.describe("home", () => {
   });
 
   // #136: the newest post lives at /news/<slug>/. Since #537 the home
-  // page shows its excerpt, under the band's eyebrow and title, with
-  // "Continue reading" to the rest.
+  // page shows its excerpt, under the band's title, with "Continue
+  // reading" to the rest. Since #914 a decorative bar takes the
+  // eyebrow's place (home-news-layout.spec.mjs).
   test.describe("home news section (#136, #537)", () => {
     const POST = "/news/three-quarters-of-the-way/";
 
@@ -447,7 +448,6 @@ test.describe("home", () => {
       const band = page.locator(".home-update");
       const card = page.locator(".home-update-card");
 
-      await expect(band.locator(".home-eyebrow")).toHaveText("Learn more");
       await expect(band.getByRole("heading", { level: 2 }))
         .toHaveText("Farm news and updates");
       await expect(card.locator(".news-header-link"))
@@ -476,11 +476,12 @@ test.describe("home", () => {
       await expect(card.getByRole("heading", { level: 4, name: "Spring" }))
         .toHaveCSS("font-size", "19.2px");
 
-      // The archive button closes the post, below the card in the
-      // section (#483): the small outline one, found by its name, since
-      // the sign-up above it has "news" in its own.
+      // The archive button, in the section under the thumbnails since
+      // #566 (#483): the small outline one, found by its name, since
+      // the card's sign-up has "news" in its own; named "All news and
+      // updates" since #914.
       const news = page.locator(".home-update")
-        .getByRole("link", { name: "More from the farm" });
+        .getByRole("link", { name: "All news and updates" });
 
       await expect(news).toHaveClass(/btn-outline/);
       await expect(news).toHaveAttribute("href", /\/news\/$/);
@@ -761,12 +762,12 @@ test.describe("home", () => {
         cost: "No minimum, no fee", cta: "Shop for pickup",
       },
       {
-        method: "scheduled", name: "Pickup days",
+        method: "scheduled", name: "Pick-up days",
         when: "Saturdays, 10:00 – 11:00 AM",
         line: "Order in advance and get your order at any upcoming " +
           "market, pop-up, or drop site",
         where: "46 Institute Ln, N Scituate, RI",
-        cost: "No minimum, no fee", cta: "Shop for pickup days",
+        cost: "No minimum, no fee", cta: "Shop for pick-up days",
       },
       {
         method: "delivery", name: "Delivery",

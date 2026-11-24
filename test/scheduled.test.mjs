@@ -3,8 +3,8 @@ import { describe, it } from "node:test";
 
 import {
   addressLines, draftOccurrence, dropOnly, dropSeriesCode, fallbackChoice,
-  fulfilmentDate, locationCount, locationsLabel, occurrenceId, pickupName,
-  pickupParts, placeNames, placesFact, scheduledChoice, whereLine,
+  fulfilmentDate, locationCount, locationsLabel, occurrenceId, pickupCard,
+  pickupName, placeNames, placesFact, scheduledChoice, whereLine,
 } from "../assets/scripts/order/lib/scheduled.mjs";
 
 const drop = {
@@ -216,15 +216,15 @@ describe("a pickup as its card's parts", () => {
     city: "North Scituate", state: "RI", zip: "02857",
   };
 
-  it("gives the day, the hours, the subtitle and the address", () => {
-    assert.deepEqual(pickupParts(drop, green), {
-      date: "Saturday, October 24",
-      time: "10:00 – 11:00 AM",
-      name: "North Scituate · Drop site",
-      address: [
-        "46 Institute Lane", "North Scituate, RI 02857",
-      ],
-    });
+  // The day is its group's heading since #703 (pickupDays).
+  it("gives the hours, the subtitle and the address", () => {
+    const card = pickupCard(scheduledChoice(drop), green);
+
+    assert.equal(card.time, "10:00 – 11:00 AM");
+    assert.equal(card.name, "North Scituate · Drop site");
+    assert.equal(card.place, "");
+    assert.equal(card.street, "46 Institute Lane");
+    assert.equal(card.city, "North Scituate, RI 02857");
   });
 
   it("names the town once (#439)", () => {
@@ -249,6 +249,9 @@ describe("a pickup as its card's parts", () => {
   });
 
   it("has no address for a place it does not know", () => {
-    assert.deepEqual(pickupParts(drop).address, []);
+    const card = pickupCard(scheduledChoice(drop));
+
+    assert.deepEqual([card.place, card.street, card.city, card.copy],
+      ["", "", "", ""]);
   });
 });

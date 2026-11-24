@@ -55,11 +55,11 @@ test.describe("policies", () => {
 
       const main = page.locator("main");
 
-      await expect(main.getByRole("heading", { name: "Pickup days" }))
+      await expect(main.getByRole("heading", { name: "Pick-up days" }))
         .toBeVisible();
 
       const text = await main.innerText();
-      const section = text.slice(text.indexOf("Pickup days"));
+      const section = text.slice(text.indexOf("Pick-up days"));
 
       expect(section).toMatch(/the drop site, a market or a pop-up/);
       expect(section).toMatch(/Saturdays from\s+10:00 to 11:00 AM/);
@@ -68,7 +68,7 @@ test.describe("policies", () => {
       expect(section).toMatch(/no minimum or fee/i);
       expect(section).not.toMatch(
         /Farmers?\W{0,8}s? Market|9:00 AM|Tilted Barn/i);
-      expect(text).toMatch(/Pickup days:\s+11:59 PM the day before/);
+      expect(text).toMatch(/Pick-up days:\s+11:59 PM the day before/);
     });
 
   // #426: a money change still ahead (data/delivery.json

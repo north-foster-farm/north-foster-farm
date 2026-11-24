@@ -191,7 +191,7 @@ export const endPass = (stores, code, {
   revoke = false, now = new Date(),
 } = {}) =>
   swapPass(stores, passCodeOf(code), (stored) => (
-    stored.email == null ? null : {
+    (stored.email ?? null) === null ? null : {
       ...stored,
       email: null,
       revokedAt: revoke && !passEnded(stored, now)

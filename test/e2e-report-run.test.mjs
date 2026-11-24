@@ -243,10 +243,8 @@ describe("bin/nff e2e records its run (#647 acceptance criteria)",
     it("1. with an executable ~/.bin/report_run present, bin/nff e2e "
       + "<spec> records one e2e run: running at the start, then passed "
       + "or failed matching the command's exit status", async (t) => {
-      for (const [outcome, code, state] of [
-        ["passed", 0, "passed"], ["failed", 1, "failed"],
-      ]) {
-        await t.test(`a run that ${outcome}`, () => {
+      const run = ([outcome, code, state]) =>
+        t.test(`a run that ${outcome}`, () => {
           const w = world({ outcome, reportRun: "executable" });
           const r = w.nff(SPEC);
 
@@ -258,6 +256,11 @@ describe("bin/nff e2e records its run (#647 acceptance criteria)",
               "recorded against the folder it was run from");
           }
         });
+
+      for (const row of [
+        ["passed", 0, "passed"], ["failed", 1, "failed"],
+      ]) {
+        await run(row);
       }
     });
 

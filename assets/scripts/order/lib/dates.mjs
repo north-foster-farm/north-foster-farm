@@ -152,6 +152,32 @@ export const farmScheduledDates = (now, terms, count = Infinity) => {
 export const occurrenceFor = (terms, id) =>
   resolveOccurrence(terms.model, id);
 
+// The hour, in the farm's zone on a round's own day, until which a
+// buying group's round still takes orders after its cutoff (#749 item
+// 8, James, 2026-11-21): a member paying as it closes is not turned
+// away.
+export const GROUP_GRACE_HOUR = 6;
+
+// The round `id` names, as the list gave it, while it is in its grace:
+// past its cutoff, not past GROUP_GRACE_HOUR on its day, of a group
+// `terms.groups` names, and the round on offer when it closed. null
+// otherwise.
+export const graceRound = (now, terms, schedule, id) => {
+  const o = resolveOccurrence(terms.model, id);
+  const s = o && terms.model.seriesOf(o.series);
+
+  if (!s || !s.group || !(terms.groups || []).includes(s.group)) return null;
+
+  const cutoff = eveningBefore(o.date, terms.timeZone);
+  const until = instant(o.date, GROUP_GRACE_HOUR, 0, terms.timeZone);
+  const at = now.getTime();
+
+  if (at <= cutoff.getTime() || at > until.getTime()) return null;
+
+  return scheduledDates(cutoff, terms, schedule)
+    .find((d) => d.occurrence === id) || null;
+};
+
 // Whether an order's fulfilment is a scheduled pickup, in the model's
 // shape or in the Stage 1 shape (`scituate`, or `market` and a site)
 // that the migration has not yet rewritten.

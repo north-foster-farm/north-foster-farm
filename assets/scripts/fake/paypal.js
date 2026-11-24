@@ -1,18 +1,27 @@
 // A stand-in for PayPal's JS SDK, for PAYPAL_ENV=fake in local
 // development (netlify/functions/lib/fake.mjs). It offers what the
-// order page uses (assets/scripts/order/pay.js): one Venmo button that
-// runs the page's onClick, createOrder and onApprove in order, as
+// order page uses (assets/scripts/order/pay/venmo.js): one Venmo button
+// that runs the page's onClick, createOrder and onApprove in order, as
 // PayPal's does once the customer approves in the Venmo app, with no
 // app and no popup. Published at /scripts/fake-paypal.js by a local
 // `hugo server` only (layouts/partials/fake-sdks.html).
+//
+// actions.restart() is PayPal's answer to a capture refused with
+// INSTRUMENT_DECLINED: it reopens the Venmo sheet on the same order,
+// and once the customer picks another funding source, onApprove runs
+// again with the same order id. Here the customer approves at once.
 
 const Buttons = (options) => {
   let button = null;
   let disabled = false;
+  let approved = null;
 
   const actions = {
     resolve: async () => true,
     reject: async () => false,
+    restart: async () => {
+      if (approved) await options.onApprove({ ...approved }, actions);
+    },
     enable: () => {
       disabled = false;
       if (button) button.disabled = false;
@@ -37,7 +46,8 @@ const Buttons = (options) => {
 
       const orderID = await options.createOrder(data, actions);
 
-      await options.onApprove({ ...data, orderID }, actions);
+      approved = { ...data, orderID };
+      await options.onApprove({ ...approved }, actions);
     } catch (error) {
       if (options.onError) options.onError(error);
     }

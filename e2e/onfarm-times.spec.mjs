@@ -243,6 +243,9 @@ test.describe("on-farm pickup times (#616)", () => {
 
       const order = await openOn(page, days()[0]);
 
+      // The page chooses no time (#706), and its own check would stop
+      // the order before the 409.
+      await order.pickupTime();
       await order.contact({ email: "lapsed@example.com" });
       await order.openCard();
       await order.card();

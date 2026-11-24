@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { describe, it } from "node:test";
 
 import {
@@ -238,8 +238,12 @@ describe("the report's allowlist and scrubber (#258)", () => {
   });
 
   it("names only the places the code reports from", () => {
-    const pay = readFileSync(new URL("../assets/scripts/order/pay.js",
-      import.meta.url), "utf8");
+    const order = new URL("../assets/scripts/order/", import.meta.url);
+    const parts = new URL("pay/", order);
+    const pay = [new URL("pay.js", order), ...readdirSync(parts)
+      .filter((name) => /\.m?js$/.test(name))
+      .map((name) => new URL(name, parts))]
+      .map((url) => readFileSync(url, "utf8")).join("\n");
     const used = [...pay.matchAll(
       /report(?:Error|Unavailable)\("([^"]+)"/g)].map((m) => m[1]);
 

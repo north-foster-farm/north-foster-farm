@@ -1,0 +1,19 @@
+{{/*
+  A post's preview on the home page (#566): its thumbnail, as on the
+  news page (news/thumb.html), then its title, as its own page heads
+  it, and its date, together so they center on the thumbnail beside
+  them below lg (#914).
+*/}}
+{{ $title := .Title }}
+{{ with .Params.heading }}{{ $title = . | safeHTML }}{{ end }}
+<article class="home-news-preview" data-news-preview>
+  {{ partial "news/thumb.html" . }}
+  <div class="home-news-preview-text">
+    <h3 class="home-news-preview-title">
+      <a class="home-news-preview-link" href="{{ .RelPermalink }}">{{ $title }}</a>
+    </h3>
+    <time class="news-date" datetime="{{ .Date.Format "2006-01-02" }}">
+      {{- .Date | time.Format "January 2, 2006" -}}
+    </time>
+  </div>
+</article>

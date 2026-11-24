@@ -27,6 +27,7 @@
 // records need it. It loses the name, email, phone, street address, the
 // notes and anything else the customer wrote.
 
+import { listAddressed } from "./address-key.mjs";
 import { normalizeEmail } from "./auth.mjs";
 import { authRecordsFor, deleteAuth } from "./auth-records.mjs";
 import { namingKeys, scrubbed } from "./group-log.mjs";
@@ -35,7 +36,7 @@ import { maskEmail, maskIn } from "./mask.mjs";
 import * as newsApi from "./news.mjs";
 import { endPass, passEnded } from "./passes.mjs";
 import {
-  OPEN, allOrders, byEmailKey, deleteCustomer, getCustomer, getOrder,
+  OPEN, allOrders, deleteByEmail, deleteCustomer, getCustomer, getOrder,
   listCheckouts, ordersFor, paymentsOf, updateOrder,
 } from "./records.mjs";
 import * as squareApi from "./square.mjs";
@@ -113,7 +114,7 @@ const scrub = async (stores, order, event, now) => {
     ...scrubOrder(fresh, now),
     history: [...(fresh.history || []), { at: now.toISOString(), event }],
   }));
-  if (email) await stores.orders.delete(byEmailKey(email, order.id));
+  if (email) await deleteByEmail(stores, email, order.id);
 
   return next;
 };
@@ -251,7 +252,7 @@ export const forgetCustomer = async (stores, rawEmail, {
     if (await stores.auth.get(key)) auth.push(key);
   }
 
-  const support = (await stores.customers.list(`support/${email}/`))
+  const support = (await listAddressed(stores.customers, "support", email))
     .map(({ key }) => key);
   const messages = [];
 

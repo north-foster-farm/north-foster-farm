@@ -11,6 +11,8 @@
 //   rate/<email>            { times: [...] }             link requests
 //   rate/join/<email>       { times: [...] }    join-link requests, kept
 //                           apart so they never stop a sign-in (#495)
+//   rate/invite/<email>     { times: [...] }    invite-link requests, the
+//                           same (#718)
 //
 // Links and sessions are written and deleted through lib/auth-records,
 // which keeps each one's index key under its address (#508).
@@ -35,7 +37,7 @@ import {
 } from "../../../assets/scripts/order/lib/perks.mjs";
 import { today } from "../../../assets/scripts/order/lib/zoned.mjs";
 import {
-  looksLikeEmail, normalizeEmail,
+  looksLikeEmail, normalizeEmail, receivedEmail,
 } from "../../../assets/scripts/utils/email.js";
 
 const MINUTE = 60_000;
@@ -43,9 +45,6 @@ const MINUTE = 60_000;
 // The lifetimes the privacy policy and the emails state, from
 // data/accounts.json (Q21b).
 export const LINK_TTL = accounts.signInLinkMinutes * MINUTE;
-// A link the farm puts in an email the customer may not open for
-// days, such as "Pick a new time" after a denied pickup window.
-export const LONG_LINK_TTL = accounts.orderLinkDays * 24 * 60 * MINUTE;
 export const SESSION_TTL = accounts.sessionDays * 24 * 60 * MINUTE;
 export const LINKS_PER_WINDOW = 3;
 export const LINK_WINDOW = 15 * MINUTE;
@@ -55,7 +54,7 @@ export const AUTOPLAY = ["on", "off"];
 
 // The one email rule (assets/scripts/utils/email.js, #678), under the
 // names this module's callers use.
-export { normalizeEmail };
+export { normalizeEmail, receivedEmail };
 
 export const validEmail = (email) => looksLikeEmail(email);
 
@@ -135,6 +134,7 @@ export const requestLink = async (stores, { email, next, cart }, {
   ttl = LINK_TTL,
   changeFrom = null,
   join = null,
+  invite = null,
 } = {}) => {
   const address = normalizeEmail(email);
 
@@ -144,9 +144,10 @@ export const requestLink = async (stores, { email, next, cart }, {
     // Real time: a tester's clock must not reopen the limit. A group's
     // sign-up page counts in its own bucket: anyone with the QR code
     // can ask for links to an address, and that must never use up the
-    // owner's sign-in links (#495).
+    // owner's sign-in links (#495). An invite page's, the same (#718).
     const at = real(now).getTime();
-    const bucket = join ? `rate/join/${address}` : `rate/${address}`;
+    const bucket = join ? `rate/join/${address}`
+      : invite ? `rate/invite/${address}` : `rate/${address}`;
     const limited = await hit(stores, bucket, at, {
       windowMs: LINK_WINDOW, max: LINKS_PER_WINDOW,
     });
@@ -155,8 +156,9 @@ export const requestLink = async (stores, { email, next, cart }, {
   }
 
   const token = secret();
-  // A change of address or a group's sign-up carries no cart.
-  const carried = changeFrom || join ? null : carryOf(cart);
+  // A change of address, a group's sign-up or an invite carries no
+  // cart.
+  const carried = changeFrom || join || invite ? null : carryOf(cart);
 
   await putAuth(stores, `token/${hash(token)}`, {
     email: address,
@@ -167,6 +169,10 @@ export const requestLink = async (stores, { email, next, cart }, {
     // A group's sign-up page (#495): following the link joins the
     // group, by lib/join.mjs. Its `group` is the key, never the token.
     ...(join ? { join: join.record } : {}),
+    // An invite (#718): its id and the hash of its token, never the
+    // token. Following the link gives the perk if the invite is still
+    // open then (lib/invites.mjs finishInvite).
+    ...(invite ? { invite } : {}),
     ...(carried ? { cart: carried } : {}),
   });
 
@@ -216,6 +222,7 @@ const tokenResult = (found) => ({
   next: found.next || "/account/",
   changeFrom: found.changeFrom || null,
   ...(found.join ? { join: found.join } : {}),
+  ...(found.invite ? { invite: found.invite } : {}),
   ...(found.cart ? { cart: found.cart } : {}),
 });
 
@@ -312,7 +319,9 @@ export const cookieFrom = (req) => {
   return match ? match[1] : null;
 };
 
-// -> { id, email, customer } for a live session on the request, else null.
+// -> { id, email, customer, via, expires } for a live session on the
+// request, else null. `expires` is when it ends (ms since the epoch),
+// so a stamp put back can end with it (#985).
 export const sessionFrom = async (stores, req, { now = clock() } = {}) => {
   const id = cookieFrom(req);
 
@@ -330,7 +339,10 @@ export const sessionFrom = async (stores, req, { now = clock() } = {}) => {
 
   const customer = await ensureCustomer(stores, session.email, now);
 
-  return { id, email: session.email, customer, via: session.via };
+  return {
+    id, email: session.email, customer, via: session.via,
+    expires: session.expires,
+  };
 };
 
 export const endSession = async (stores, id) => {

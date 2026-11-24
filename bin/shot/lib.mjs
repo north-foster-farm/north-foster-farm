@@ -35,6 +35,9 @@ Everything here is public and stays in git history. Never add an image
 that shows customer data or anything from production.
 `;
 
+/**
+ * @public bin/gh-shot imports it; Knip reads no file without an extension.
+ */
 export const USAGE = `Usage:
   bin/gh-shot [--issue N] [--alt text] [--repo owner/name]
               [--any-repo] FILE...
@@ -206,6 +209,9 @@ function api(path, { method = "GET", body } = {}, run = gh) {
   return result.stdout ? JSON.parse(result.stdout) : null;
 }
 
+/**
+ * @public bin/gh-shot imports it; Knip reads no file without an extension.
+ */
 export function currentRepo() {
   const result = gh(["repo", "view", "--json", "nameWithOwner",
     "-q", ".nameWithOwner"]);

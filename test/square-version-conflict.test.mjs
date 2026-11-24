@@ -138,14 +138,8 @@ const FUNCTIONS = [
   },
 ];
 
-const thrown = async (promise) => {
-  try {
-    await promise;
-  } catch (error) {
-    return error;
-  }
-  assert.fail("it throws");
-};
+const thrown = (promise) => Promise.resolve(promise)
+  .then(() => assert.fail("it throws"), (error) => error);
 
 const versionOf = (request) => request.body.order.version;
 const methods = (requests) => requests.map((r) => r.method);

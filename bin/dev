@@ -4,7 +4,7 @@ set -eo pipefail
 
 if [ -n "$HUGO_BIND_TO_IP" ]; then
   bindToIP=""
-  services="$(networksetup -listallnetworkservices | grep -v "*")"
+  services="$(networksetup -listallnetworkservices | grep -vF "*")"
 
   while read -r service; do
     ip="$( \

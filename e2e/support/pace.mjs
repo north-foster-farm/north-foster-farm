@@ -26,5 +26,5 @@ export const paceMs = (baseURL) => (isLocal(baseURL) ? 0 : PACE_MS);
 export const pace = async (baseURL) => {
   const ms = paceMs(baseURL);
 
-  if (ms) await new Promise((r) => setTimeout(r, ms));
+  if (ms) await new Promise((r) => { setTimeout(r, ms); });
 };

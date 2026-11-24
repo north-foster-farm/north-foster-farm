@@ -4,8 +4,9 @@
   "images/lily.jpg"), or else the post's first figure, or the poster
   of its first video, whichever comes first. A cut-out figure
   (frame="false") is passed over, since it does not crop to a
-  thumbnail. Returns false when the post has none; its row then shows
-  a leaf.
+  thumbnail. Returns false when the post has none, and its thumbnail
+  then takes a stand-in. (2026-11-23: this said "a leaf", which the
+  rows have not shown since #222.)
 */}}
 {{ $src := .Params.featured }}
 {{ if not $src }}

@@ -2,9 +2,11 @@
 // starts from a fresh browser context, so the draft in localStorage
 // never leaks between tests, and with its own stock pins (#507).
 
+import { readFileSync } from "node:fs";
+
 import { recorded } from "../../netlify/functions/lib/fake.mjs";
 import { test as base, expect } from "./counted.mjs";
-import { orderLimitHeaders } from "./staging.mjs";
+import { orderLimitHeaders, stubToolbar } from "./staging.mjs";
 import { PLENTY, stockFixtures } from "./stock.mjs";
 
 // SKUs and prices from data/catalog.json (price list 2026-v9). The
@@ -34,7 +36,7 @@ const setFold = async (cart, fold) => {
 };
 
 // Waits for the pane's height ease to end, and on a phone for its
-// parts' own eases (cart/view.mjs moveParts, #559), so a measurement
+// parts' own eases (cart/view/move.js moveParts, #559), so a measurement
 // after a fold, a render or a settle sees the pane at rest.
 export const paneStill = (cart) => expect.poll(
   () => cart.evaluate((el) => el.getAnimations().length
@@ -113,11 +115,7 @@ export const test = base.extend({
       // token and sends the request again without reading the first
       // answer, so the page never reaches "networkidle". Answered
       // here with a 403 it neither asks nor waits.
-      await page.route("**/api/staging/**", (route) => route.fulfill({
-        status: 403,
-        contentType: "application/json",
-        body: JSON.stringify({ error: "Stubbed by the QA suite." }),
-      }));
+      await stubToolbar(page);
       await page.addInitScript(() => {
         document.addEventListener("DOMContentLoaded", () => {
           const style = document.createElement("style");
@@ -153,11 +151,6 @@ export { expect };
 // 40632954855). Call these once the answer has come.
 export const stockApplied = (page) => expect(
   page.locator("#order-catalog")
-).not.toHaveAttribute("data-load", /./);
-
-// The same for the search palette's own read of /api/stock.
-export const searchStockApplied = (page) => expect(
-  page.locator("#search-palette .search-palette-body")
 ).not.toHaveAttribute("data-load", /./);
 
 // Which payment drivers are the fakes here: none on any Netlify deploy,
@@ -210,6 +203,37 @@ export const pickupChosen = (page) => page.locator(
   "#scheduled-pickups input:checked"
 );
 
+// The order placed panel's lists (#723): the list after a section's
+// label ("Order summary", "Receiving your order"), and its one row
+// whose label matches `name` ("Order number", /pick-?up address/i).
+export const placedList = (card, name) => card
+  .getByText(new RegExp(`^\\s*${name}:?\\s*$`, "i"))
+  .locator("xpath=(following::ul | following::ol)[1]");
+export const placedRow = (list, name) => list.locator("li")
+  .filter({ hasText: name });
+
+const readJson = (name) => JSON.parse(readFileSync(
+  new URL(`../../data/${name}.json`, import.meta.url), "utf8"
+));
+
+// A place's street as a pattern: in full ("46 Institute Lane") or as
+// the first part of its short form ("46 Institute Ln").
+export const streetOf = (place) => {
+  const escape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const forms = [place.street, (place.short || "").split(",")[0]]
+    .filter(Boolean);
+
+  return new RegExp(forms.map(escape).join("|"));
+};
+
+// A series' street, from data/series.json and data/locations.json.
+export const seriesStreet = (code) => {
+  const series = readJson("series").series.find((s) => s.code === code);
+
+  return streetOf(readJson("locations").locations
+    .find((l) => l.code === series.location));
+};
+
 export class OrderPage {
   constructor(page) {
     this.page = page;
@@ -250,8 +274,9 @@ export class OrderPage {
     // Not the whole `load` (#506): on staging one goto sat 45 s without
     // it. The page has no images or third-party tags, and fetch() never
     // holds `load`, but with one category shown the pay section is
-    // within pay.js's 600 px margin, so Square's and PayPal's sandbox
-    // SDK scripts go in before `load` and hold it while they crawl.
+    // within pay/loader.js's 600 px margin, so Square's and PayPal's
+    // sandbox SDK scripts go in before `load` and hold it while they
+    // crawl.
     // What the tests need is the form wired, which order-form.js does
     // on DOMContentLoaded and the enabled date below proves, and the
     // site's own fonts in, so layout measures are final.
@@ -280,19 +305,74 @@ export class OrderPage {
   // the tests, before they press a row's buttons.
   // Until the page stops scrolling: a smooth scroll the page started
   // (choosing a method scrolls to its date) would override ours.
-  async scrollSettled() {
-    await this.page.evaluate(() => new Promise((done) => {
+  // Settled is scrollY unchanged for 10 frames, or, where frames stop
+  // coming (WebKit can stop requestAnimationFrame for a page that is
+  // not in front), for a second by the clock. It waited on frames
+  // alone, with no bound, and hung to the 120 s test timeout in long
+  // iphone runs (checkout-go:300, cart-motion:1128). Past `limit` it
+  // fails, naming itself, the last scrollY values and the frames seen.
+  async scrollSettled({ limit = 15_000 } = {}) {
+    const run = this.page.evaluate((bound) => new Promise((done) => {
+      const STILL_FRAMES = 10;
+      const STILL_MS = 1_000;
+      const start = performance.now();
+      const values = [Math.round(scrollY)];
       let last = scrollY;
+      let since = start;
       let still = 0;
-      const tick = () => {
-        still = scrollY === last ? still + 1 : 0;
+      let frames = 0;
+      let raf = 0;
+      let poll = 0;
+      const finish = (ok) => {
+        cancelAnimationFrame(raf);
+        clearInterval(poll);
+        done({ ok, values: values.slice(-8), frames });
+      };
+      const moved = () => {
+        if (scrollY === last) return false;
         last = scrollY;
-        if (still >= 10) done();
-        else requestAnimationFrame(tick);
+        since = performance.now();
+        values.push(Math.round(scrollY));
+
+        return true;
+      };
+      const tick = () => {
+        frames += 1;
+        still = moved() ? 0 : still + 1;
+        if (still >= STILL_FRAMES) finish(true);
+        else raf = requestAnimationFrame(tick);
       };
 
-      requestAnimationFrame(tick);
-    }));
+      poll = setInterval(() => {
+        if (moved()) still = 0;
+
+        const now = performance.now();
+
+        if (now - since >= STILL_MS) finish(true);
+        else if (now - start >= bound) finish(false);
+      }, 100);
+      raf = requestAnimationFrame(tick);
+    }), limit);
+    // The page's own timers may be throttled too: a bound from here.
+    // A late failure of the page's answer, after the bound, is dropped.
+    run.catch(() => {});
+    let timer;
+    const guard = new Promise((resolve, reject) => {
+      timer = setTimeout(() => reject(new Error(
+        `scrollSettled: no answer from the page in ${limit + 5_000} ms`
+      )), limit + 5_000);
+    });
+    let got;
+
+    try {
+      got = await Promise.race([run, guard]);
+    } finally {
+      clearTimeout(timer);
+    }
+    if (!got.ok) {
+      throw new Error(`scrollSettled: scrollY never settled in ${limit} ms `
+        + `(last values ${got.values.join(", ")}; ${got.frames} frames)`);
+    }
   }
 
   // Scroll first: a cart that settled below opens in full. The scroll
@@ -329,6 +409,11 @@ export class OrderPage {
     await this.scrollSettled();
     await this.page.locator(`label[for='method-${value}']`).click();
     await expect(this.page.locator(`#method-${value}`)).toBeChecked();
+    // Choosing a way runs revealMethod(), which after 240 ms
+    // smooth-scrolls its first field into view; let that start and end
+    // before the next step, or a tap lands just ahead of it (qa, #910).
+    await this.page.waitForTimeout(300);
+    await this.scrollSettled();
   }
 
   async contact({ first = "QA", last = "Tester", email, phone } = {}) {
@@ -338,7 +423,8 @@ export class OrderPage {
     if (phone) await this.page.locator("#customer-phone").fill(phone);
   }
 
-  // The first offered date for the chosen method.
+  // The first offered date for the chosen method; on the farm, its
+  // first time too, which the page no longer chooses (#706).
   async firstDate(method) {
     const select = this.page.locator(`#${method}-date`);
 
@@ -349,8 +435,20 @@ export class OrderPage {
     );
 
     await select.selectOption(value);
+    if (method === "onfarm") await this.pickupTime();
 
     return value;
+  }
+
+  // The chosen day's first on-farm time, chosen as a customer would:
+  // none is chosen until one is (#706).
+  async pickupTime() {
+    const first = this.page.locator(
+      "[data-windows] [name='onfarm.window']"
+    ).first();
+
+    await first.check();
+    await expect(first).toBeChecked();
   }
 
   // Chooses scheduled pickup and the first occurrence of a series

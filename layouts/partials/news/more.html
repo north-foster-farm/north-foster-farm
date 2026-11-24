@@ -1,0 +1,11 @@
+{{/*
+  The way back to the archive, quieter than the shop buttons (#483):
+  at the foot of a post, and under the home page's previews (#566).
+  The home page names it in its own words (#914): pass a dict with a
+  `label`; a post keeps "More from the farm".
+*/}}
+{{ $label := "More from the farm" }}
+{{ if reflect.IsMap . }}
+  {{ with .label }}{{ $label = . }}{{ end }}
+{{ end }}
+<a class="btn btn-outline-primary btn-sm" href="{{ relURL "news/" }}">{{ $label }}</a>

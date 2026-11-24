@@ -39,7 +39,7 @@ test.describe("order page", () => {
 
     await order.open();
     await expect(page.locator(".order-method-title")).toHaveText([
-      "On-farm pickup", "Pickup days", "Delivery",
+      "On-farm pickup", "Pick-up days", "Delivery",
     ]);
     await expect(page.locator("#method-onfarm")).toBeChecked();
   });
@@ -54,14 +54,17 @@ test.describe("order page", () => {
           "Pickup or delivery", "Contact information", "Payment",
           "Place your order",
         ]);
-      // Farm news closes the Place your order pane, after the agreement
-      // (#352).
-      expect(await page.locator("#confirm").evaluate((el) => {
-        const agree = el.querySelector(".order-agree");
-        const optin = el.querySelector(".order-optin");
+      // Farm news is in its own card directly above the Place your
+      // order pane, so above Pay (#705, James's revision of
+      // 2026-11-21; the top of the pane until then, and it closed the
+      // pane, after the agreement, from #352). The full order is
+      // e2e/place-order-pane.spec.mjs, the card e2e/optin-card.spec.mjs.
+      expect(await page.evaluate(() => {
+        const optin = document.getElementById("customer-marketing");
+        const pay = document.getElementById("order-submit");
 
-        return Boolean(optin?.querySelector("#customer-marketing")) &&
-          Boolean(agree.compareDocumentPosition(optin) &
+        return Boolean(optin && pay) &&
+          Boolean(optin.compareDocumentPosition(pay) &
             Node.DOCUMENT_POSITION_FOLLOWING);
       })).toBe(true);
     });
@@ -115,16 +118,31 @@ test.describe("order page", () => {
     await expect(order.count).toHaveText("0 items");
   });
 
+  // Clicks the wings line's remove icon in a settled cart. The icon is
+  // in full view first, so the click needs no scroll of its own.
+  const removeWings = async (order) => {
+    const remove = order.cart.getByRole("button", {
+      name: "Remove Wings, 1.0 – 1.9 lbs from your cart",
+    });
+
+    await expect(remove).toBeInViewport({ ratio: 1 });
+    await remove.click();
+    await expect(order.qty("wings")).toHaveValue("0");
+  };
+
   test("the remove icon on a cart line takes every unit out",
     async ({ page }) => {
       const order = new OrderPage(page);
 
       await order.open({ eggs: 3, wings: 2 });
       await expect(order.count).toHaveText("5 items");
-      await order.cart.getByRole("button", {
-        name: "Remove Wings, 1.0 – 1.9 lbs from your cart",
-      }).click();
-      await expect(order.qty("wings")).toHaveValue("0");
+      // On a phone the cart is still easing in when open returns, and
+      // the click's own scroll to reach the line is a page scroll,
+      // which folds the floating cart and hides the line (#559; run
+      // 45187196088, #998). Settle it open first, as the next test
+      // does.
+      await settleCart(order);
+      await removeWings(order);
       await expect(order.count).toHaveText("3 items");
       await expect(order.subtotal).toHaveText("$21");
     });
@@ -162,15 +180,7 @@ test.describe("order page", () => {
       // field is still the one the click blurs.
       await settleCart(order);
       await expect(order.zip).toBeFocused();
-
-      const remove = order.cart.getByRole("button", {
-        name: "Remove Wings, 1.0 – 1.9 lbs from your cart",
-      });
-
-      // In full view, so the click needs no scroll of its own.
-      await expect(remove).toBeInViewport({ ratio: 1 });
-      await remove.click();
-      await expect(order.qty("wings")).toHaveValue("0");
+      await removeWings(order);
       await expect(order.count).toHaveText("1 item");
     });
 
@@ -214,37 +224,29 @@ test.describe("order page", () => {
     await expect(order.total).toHaveText("$45");
   });
 
-  test("Proceed to checkout takes the customer to Pickup or delivery",
-    async ({ page }) => {
-      const order = new OrderPage(page);
-
-      await order.open({ wings: 5 });
-      await expect(order.next).toBeEnabled();
-      await order.next.click();
-      await expect(page.locator("#pickup legend")).toBeFocused();
-      await expect(page.locator("#pickup legend")).toBeInViewport();
-    });
-
   // From the keyboard at 1280 the cart is a column and Pickup or
-  // delivery far below the foot. The legend's focus matches
-  // :focus-visible, and the keyboard's lift of #549 must not cut the
-  // smooth scroll short and leave it at the foot (#549 qa).
-  test("Enter on Proceed at 1280 brings Pickup or delivery to the top",
+  // delivery far below the foot. The keyboard's lift of #549 must not
+  // cut the smooth scroll short and leave it at the foot (#549 qa).
+  // With no pickup time chosen, Proceed goes to the on-farm times
+  // (#706; e2e/checkout-go.spec.mjs holds where it goes).
+  test("Enter on Proceed at 1280 brings the pickup time into view",
     async ({ page }) => {
       await page.setViewportSize({ width: 1280, height: 900 });
 
       const order = new OrderPage(page);
-      const legend = page.locator("#pickup legend");
+      const message = page.locator("[data-error-for='onfarm.window']");
 
       await order.open({ wings: 5 });
       await expect(order.cart).toHaveAttribute("data-placement", "column");
       await expect(order.next).toBeEnabled();
       await order.next.focus();
       await page.keyboard.press("Enter");
-      await expect(legend).toBeFocused();
-      await expect.poll(() => legend.evaluate(
-        (el) => Math.round(el.getBoundingClientRect().top)
-      ), { timeout: 5_000 }).toBeLessThan(300);
+      await expect(message).toHaveText("Please select a pick-up time.");
+      await expect.poll(() => message.evaluate((el) => {
+        const r = el.getBoundingClientRect();
+
+        return r.top >= 0 && r.bottom <= innerHeight;
+      }), { timeout: 5_000 }).toBe(true);
     });
 
   test("the site's own scripts log no errors", async ({ page, baseURL }) => {

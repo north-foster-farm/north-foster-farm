@@ -7,12 +7,12 @@
 //
 // Production's way, from main: on the order page every open pickup is
 // a radio in #scheduled-pickups, all shown at once, none chosen until
-// the customer chooses; the lapsed dialog lists the fresh pickups as
-// radios labelled "<day>: <name>, <town>, <window>"; Change pickup
-// moves a scheduled pickup with the day select, [data-dates]. The
-// specs restored to their pre-picker expectations (order-scheduled,
-// scheduled-pickup, order-draft-date, account, group-credit) hold the
-// rest of production's behavior.
+// the customer chooses. Since #703 the lapsed dialog and Change pickup
+// list their pickups the same way, grouped under their dates
+// (e2e/pickup-days.spec.mjs holds that layout). The specs restored to
+// their pre-picker expectations (order-scheduled, scheduled-pickup,
+// order-draft-date, account, group-credit) hold the rest of
+// production's behavior.
 //
 // The picker's markers, any of which means it shipped: its root
 // [data-picker] and parts [data-picker-*] (the week strip
@@ -66,8 +66,8 @@ test.describe("the picker out of next (#617)", () => {
     await noPicker(page, page.locator("body"));
   });
 
-  test("the lapsed dialog offers scheduled pickups as production does, " +
-    "with no picker", async ({ page }) => {
+  test("the lapsed dialog offers every fresh scheduled pickup, with no " +
+    "picker", async ({ page }) => {
     const lists = payable();
 
     await cannedScheduled(page, lists);
@@ -96,15 +96,13 @@ test.describe("the picker out of next (#617)", () => {
     for (const radio of await choices.all()) {
       await expect(radio).toBeVisible();
     }
-    await expect(dialog.locator("label")).toHaveText(
-      lists.scheduled.map((d) =>
-        `${d.label}: ${DROP.name}, ${DROP.town}, ${DROP.window}`)
-    );
+    expect(await choices.evaluateAll((inputs) => inputs.map((i) => i.value)))
+      .toEqual(lists.scheduled.map((d) => d.occurrence));
     await noPicker(page, dialog);
   });
 
-  test("Change pickup offers scheduled pickups as production does, " +
-    "with no picker", async ({ page, context, baseURL }) => {
+  test("Change pickup offers every open scheduled pickup, with no " +
+    "picker", async ({ page, context, baseURL }) => {
     const m = dates().scheduled.find((d) => d.series === CANNED.market);
     const order = {
       ...ORDER_SCHEDULED,
@@ -134,15 +132,17 @@ test.describe("the picker out of next (#617)", () => {
       .first().click();
 
     const form = page.locator(".account-panel-form");
-    const select = form.locator("select[data-dates]");
 
-    // The day select, the booked pickup chosen, an option for each.
-    await expect(select).toBeVisible();
-    await expect(select).toHaveValue(m.occurrence);
+    // A radio for each, all shown at once, the booked pickup chosen.
     for (const d of dates().scheduled) {
-      await expect(select.locator(`option[value='${d.occurrence}']`))
-        .toHaveCount(1);
+      const radio = form.locator(`input[type='radio'][value='${
+        d.occurrence}']`);
+
+      await expect(radio).toHaveCount(1);
+      await expect(radio).toBeVisible();
     }
+    await expect(form.locator(`input[value='${m.occurrence}']`))
+      .toBeChecked();
     await noPicker(page, form);
   });
 

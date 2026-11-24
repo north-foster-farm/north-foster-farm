@@ -164,7 +164,7 @@ itemizes the line" (both projects).
   1. Press Add on Eggs, Large.
   2. Fold the cart if it floats over the row, then press "One more".
 - **Assert:** The row's stepper is active with 1, then 2. The cart has
-  one group "Eggs" with one line "Large", "2 × $7", "$14". Count "2
+  one group "Eggs" with one line "Grade A · Large", "2 × $7", "$14". Count "2
   items", Subtotal $14, Delivery fee +$5, Total $19.
 - **Teardown:** None.
 
@@ -245,7 +245,7 @@ added and clears the query" (both projects).
 - **Test:**
   1. Open the link.
 - **Assert:** The notice reads "Added to your cart: 2 × Eggs, Grade A
-  Large. Not available: Eggs, Grade A Medium." Eggs, Large reads
+  · Large. Not available: Eggs, Grade A · Medium." Eggs, Large reads
   2. The URL is
   `/order/` with no query.
 - **Teardown:** None.
@@ -524,15 +524,15 @@ Manual on staging: the stock counts are shared by everyone using
 staging, so a test that sets them would disturb other runs.
 Automated with a stubbed `/api/stock`: `order-page.spec.mjs`, "a
 product whose count reaches 0 loses its row, and its category when
-empty", `search.spec.mjs`, "a product whose count reaches 0 shows its
-restock label", and every rule in `restock.spec.mjs` (both projects).
+empty", and every rule in `restock.spec.mjs` (both projects).
 
 - **Scenario:** The page shows "N left" at five or fewer and clamps
   the cart. With Show on "In stock", the default, it hides sold-out
   rows (and a category left empty, with its sidebar link); on "Full
   catalog" it shows them greyed with their restock label, not
-  addable. Search shows them with their label whatever Show says
-  (#267).
+  addable. Search lists them with their label whatever Show says, from
+  /api/stock once it answers, and a result for one opens Full catalog
+  (#402).
 - **Setup:** Pick an unused SKU, for example `NFF-CHK-DRM-15-99`
   (`seasonal`, spring). `bin/nff --staging stock set
   NFF-CHK-DRM-15-99 3`.
@@ -551,9 +551,8 @@ restock label", and every rule in `restock.spec.mjs` (both projects).
   price; every egg says "Grade A"; Feet say "Returning soon" where Add
   goes and keep their price; Cornish Hens and Ground
   Chicken, archived, have no section or sidebar link. Step 4: the
-  row hides again. Search lists both drumsticks, this one "Back in
-  spring" with Add off; Sweet Italian Sausage says "On hiatus";
-  "Cornish" finds nothing.
+  row hides again. Search lists both drumsticks, with no Add; Sweet
+  Italian Sausage says "On hiatus"; "Cornish" finds no product.
 - **Teardown:** `bin/nff --staging stock set NFF-CHK-DRM-15-99 none`.
   Choose Show "In stock" again.
 
@@ -1138,9 +1137,10 @@ by paying (W11d)". Tagged `@regression`.
   3. Reload `/order/`.
 - **Assert:** `/api/orders` answers 200. "Thank you, Card. Your order is
   placed."; "$7" paid with "Visa ending 1111"; the email; an order
-  number like `NFF-2609-AB2C`; the when line "<day>, <window>, at the
-  farm.";
-  a receipt link to Square; no cart count on the header's Order link
+  number like `NFF-2609-AB2C`; under "Receiving your order" (#723),
+  Order type "On-farm pickup", the farm's street as the Pick-up
+  address, and Date and time "<day>, <window>"; a receipt link to
+  Square; no cart count on the header's Order link
   (AR-29). `bin/nff --staging orders show <id>`:
   `status` paid, `payment.via` square, `method` card, `last4` 1111,
   `square.squareOrderId` set, `fulfilment.state` agreed, `total`
@@ -1894,8 +1894,8 @@ the field".
 - **Setup:** Home page.
 - **Test:**
   1. Type `not-an-email`; press Sign me up.
-- **Assert:** "Enter a valid email address, like you@example.com." (the
-  wording since #141); no request sent.
+- **Assert:** "Please enter a valid email address." (the wording since
+  #390); no request sent.
 - **Teardown:** None.
 
 ### FN-03 The news page has the sign-up
@@ -2373,7 +2373,7 @@ three cases. The real function (c47e66d) is AR-15 and AR-16.
   order page linked; the form sits directly below; the honeypot is
 hidden and out of the tab
   order. On a phone the form sits under the ways. Empty: "Tell us your
-  name.", "Enter your email address, so we can answer.", "Write us a
+  name.", "Please enter an email address.", "Write us a
   message first.", Name focused, nothing sent. A bad address is named
   and its error clears once put right. The post carries name, message,
   an empty `orderId` and an empty `website`; the button shows the egg
@@ -2464,11 +2464,11 @@ so nobody is added; FN-01 covers the real sign-up.
   1. Press Sign me up empty; submit `nope` and `you@farm`; type a
      valid address.
   2. Submit a valid address while the answer is held; press again.
-- **Assert:** Nothing under the field at rest. "Enter your email
-  address." when empty; "Enter a valid email address, like
-  you@example.com." with the field marked invalid and focused for both
-  bad addresses; the mark clears once the address is valid. While
-  held: `data-state="busy"`, "Sending" and the egg spinner faded in,
+- **Assert:** Nothing under the field at rest. "Please enter an email
+  address." when empty; "Please enter a valid email address." with the
+  field marked invalid and focused for both bad addresses; the mark
+  clears once the address is valid. While held: `data-state="busy"`,
+  "Sending" and the egg spinner faded in,
   "Sign me up" faded out, the button's width unchanged, the line under
   the field empty, and the second press sends nothing. Then the
   "Check your email: click the link we sent you to join." answer at
@@ -2511,67 +2511,75 @@ footer and on the order page".
   links the delivery policy. `/delivery-policy/` loads.
 - **Teardown:** None.
 
-### AR-20 The search palette opens and closes (#142)
+### AR-20 The site search opens and closes (#402)
 
-Automated: `search.spec.mjs`, "cmd/ctrl K opens it, arrows move,
-Escape closes to the button", "the button opens it; a click outside,
-or Esc, closes it", "it reopens right after it closes" and "words
-people use find the products, and nonsense says so". Passed on
-staging 2026-09-25; the reopen, since bec5681.
+Automated: `site-search.spec.mjs`, boxes 1 to 5 and 9, and
+`search.spec.mjs`, "it reopens right after it closes" (both projects).
+The palette it replaced (#142) is gone.
 
-- **Scenario:** Command or Control K, from any page.
-- **Setup:** Home page.
+- **Scenario:** From 992 px a light field in the header row, its
+  results in a panel under it; below that the magnifier opens a bar
+  under the header, with Cancel, over a scrim.
+- **Setup:** `/about/` at 1280, then at 390.
 - **Test:**
-  1. Press Control K; type "wing"; arrow down; Tab twelve times;
-     Escape.
-  2. Open with the search button; click outside (on a phone, press
-     Esc).
-  3. Open, Escape, and press Control K again 250 ms later.
-  4. Search "egg", "breast", "drumstick", "whole", then "zzz".
-- **Assert:** Focus in the combobox; the button's `aria-expanded` is
-  true; the first match is selected and named by
-  `aria-activedescendant`, and its card shows its group and price; the
-  arrow moves both. Tab never reaches the page behind (a modal dialog
-  hands focus to the browser's own controls after its last field,
-  which is acceptable). Escape or a click outside closes it and focus
-  returns to the button. It reopens at once. Each word finds its
-  group; "zzz" says "Nothing matches “zzz”. Try eggs, whole, breast or
-  wings." with no card.
+  1. At 1280, click the field; type "wing"; arrow down; Escape; type
+     again; press X; type again; click the page.
+  2. Press Control K.
+  3. At 390, tap the magnifier; tap Cancel; open it again and tap the
+     dimmed page; open it again and press Escape.
+  4. Open it, Escape, and open it again 250 ms later.
+- **Assert:** At 1280 there is no magnifier; the panel opens under
+  the field, grouped Products then Pages, the page beside it neither
+  hidden nor dimmed; ArrowDown marks a row (`aria-selected`, named by
+  `aria-activedescendant`) while focus stays in the field; Escape, X
+  and a click on the page each close the panel. Control K puts the
+  focus in the field. At 390 the bar sits full width under the header
+  with the field focused and Cancel beside it, over a scrim that dims
+  the page; Cancel, a tap on the scrim and Escape close it, Escape
+  handing the focus back to the magnifier. It reopens at once. The
+  index, `/search.json`, loads once, on the first open.
 - **Teardown:** None.
 
-### AR-21 Add to cart from the palette (#142)
+### AR-21 What search finds (#402)
 
-Automated: `search.spec.mjs`, "add from any page, and the order page
-has it", "on the order page it fills the row and the cart at once" and
-"stock arriving late keeps the quantity chosen". Passed on staging
-2026-09-25; the last, since 6745a35 (#162).
+Automated: `test/search-index.test.mjs` (the index and the matcher),
+and `site-search.spec.mjs`, boxes 5 and 7.
 
-- **Scenario:** A product added from search lands in the order page's
-  cart.
-- **Setup:** A fresh browser.
+- **Scenario:** Search answers what people ask a farm site, and a
+  result goes where the answer is. There is no Add: the cart lives on
+  the order page.
+- **Setup:** `/about/` at 1280.
 - **Test:**
-  1. On `/about/`, search "eggs"; press One more; Add to cart; open
-     `/order/`.
-  2. On `/order/?add=` 1 wing, search "wings"; Enter; Escape.
-  3. With `/api/stock` held, search "eggs", press One more, then let
-     the stock answer.
-- **Assert:** "Large", "In stock"; "Added 2 × Eggs, Grade A Large. 2
-  items in your cart." and the button reads "Added · 2 in cart"; the order page
-  shows 2 eggs, "2 items", $14. On the order page the wings row reads
-  2, "2 items", $20. The late stock answer leaves the quantity at 2.
+  1. Search "eggs", "wings", "pickup", "delivery", "Foster", "02825",
+     "refund", "cancel", "hours", "where", "contact", "phone" and
+     "order status".
+  2. Search "delivary" and "chiken".
+  3. Search "medium eggs" and choose Eggs, Medium.
+  4. Search "wings" and press Enter.
+  5. Search "zzqx".
+- **Assert:** Each query leads with its answer: the eggs, the Wings
+  items, the drop site and the pick-up sections, the delivery
+  sections, "Foster, RI" to the delivery area, Refunds, Changing or
+  canceling an order, Where to find us or On-farm pickup or Contact,
+  the phone number, and Your account. A typo finds what the word
+  finds. Eggs, Medium opens `/order/#nff-chk-egg-md` with Full catalog
+  chosen and the row in view; Enter opens the first Wings row. "zzqx"
+  stays in the field, says "Nothing matches “zzqx”." and offers Order,
+  Delivery policy and Contact.
 - **Teardown:** None.
 
-### AR-22 The palette on a phone (#142)
+### AR-22 Search's accessibility (#402)
 
-Automated: `search.spec.mjs`, "on a phone it is a full-screen sheet"
-(both projects); the combobox attributes are checked in AR-20.
+Automated: `site-search.spec.mjs`, box 9, and `keyboard.spec.mjs`,
+"Escape closes search".
 
-- **Scenario:** A full-screen sheet with the combobox pattern.
-- **Setup:** 390 by 664.
+- **Scenario:** The field is an ARIA 1.2 combobox.
+- **Setup:** `/about/` at 1280 with a screen reader.
 - **Test:**
-  1. Open search from the nav; search "egg".
-- **Assert:** The dialog covers the screen; the card and its Add
-  button are on screen.
+  1. Tab to the field; type "eggs"; arrow down twice.
+- **Assert:** The field is announced as a combobox; "9 results" is
+  read once the results show; each group is read by its name, and each
+  row with its name and its price and stock, or its page.
 - **Teardown:** None.
 
 ### AR-23 The news page (#143)
@@ -2714,7 +2722,7 @@ with the split Order button of a8e6e52.
   1. Open `/`.
   2. `/order/?add=` 3 eggs and 2 wings; open `/about/`; on a phone,
      open the menu; clear storage and reload.
-  3. On `/about/`, add 2 eggs from search.
+  3. Skipped since #402: search has no Add.
   4. With 1 egg on `/order/`, open `/about/` in a second tab; press
      One more in the first.
   5. With 2 eggs, open `/about/`; press the cart half.
@@ -2724,7 +2732,7 @@ with the split Order button of a8e6e52.
   page and on `/about/`, where the cart half reads "Your cart, 5
   items" and the disc is `aria-hidden`; "5" in the phone menu; Order
   keeps its width when the cart empties and the cart half goes.
-  Search's add shows "2" at once; the second tab goes from "1" to "2"
+  The second tab goes from "1" to "2"
   with no reload. The cart half lands on `/order/#order-cart`, the
   cart in view, with "2 items". Blocked storage shows no badge and no
   page error; a placed order leaves no badge.
@@ -2775,8 +2783,9 @@ market order". Tagged `@regression`. The picker is also
 - **Assert:** The list is one radio per open occurrence, by date, each
   "<day>, <hours>, <place>, <town>"; none is chosen until the customer
   chooses; the cart's way reads "Scheduled pickup: <day>, <hours>, at
-  <market>". 200. The when line ends "at <market name>." and never
-  says "the drop site". `orders show <id>`: `fulfilment.method`
+  <market>". 200. Under "Receiving your order" (#723), the Pick-up
+  address is the market's street, and nothing says "the drop site".
+  `orders show <id>`: `fulfilment.method`
   `scheduled`, `occurrence` the id chosen, `date` that day,
   `state` agreed. Outbox: "Your order is confirmed" naming the market;
   the farm's "New order <id>" with the market in its subject.
@@ -2808,8 +2817,10 @@ the drop site's pay is `payment.spec.mjs`.
 - **Setup:** 1 egg, its next Saturday.
 - **Test:**
   1. Choose Scheduled pickup and the drop site's day; pay.
-- **Assert:** The when line "<day>, 10:00 – 11:00 AM, at the drop site."
-  (never "Scituate drop site"). No reminder is sent for a scheduled
+- **Assert:** Under "Receiving your order" (#723), Order type "Pickup
+  days", the drop site's street as the Pick-up address, and Date and
+  time "<day>, 10:00 – 11:00 AM"; never "Scituate drop site". No
+  reminder is sent for a scheduled
   pickup, and the order closes the day after its date.
 - **Teardown:** As PY-01.
 

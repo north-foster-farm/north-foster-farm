@@ -107,9 +107,13 @@ That flag is the coarse switch. On top of it the `stock` store keeps a
 count of packs per SKU (`counts`), set by the CLI and moved by orders:
 down when an order is paid, back up when it is cancelled. `GET
 /api/stock` gives every item's `{ inStock, available }`; the page asks
-on load, on return to the tab, every two minutes and before paying,
-marks rows out of stock, shows "N left" at five or fewer, clamps the
-cart and says so. The order handler checks the same counts and
+on load, as the customer adds, changes a quantity or opens the cart,
+on return to the tab, once a minute and before paying, never more
+than once in 15 seconds and not at all after five minutes without
+input (#908, `order/stock.js`). It marks rows out of stock, shows "N
+left" at five or fewer, clamps the cart and says so in an alert.
+Search reads the same answers: through the page's reader here, and
+on every focus of its field elsewhere. The order handler checks the same counts and
 answers `422` with `lines.<sku>` errors plus the fresh `stock`.
 
 Square's count wins (#267, James, 6304555099). Every sale, on the
@@ -306,6 +310,25 @@ Square as a zero order, with no payment on the record.
 holds the Friends and Fam amounts, and the Square order's metadata
 carries `perk`.
 
+A customer the farm knows only from Square gets a perk through an
+invite link (#718): `bin/nff invite add <perk>` prints a single-use
+link to /invite/, open 14 days or until the perk's `--end` passes,
+whichever comes first, which James sends himself. The page
+asks for an email address and mails a sign-in link there; following
+it puts the perk on that account, new or existing, if the invite is
+still open at that moment, and uses it up. The link is the proof, so
+a typed address still grants nothing (#521). `--square <id>` puts the
+account's address on that Square customer when the invite is used,
+so the site's orders find the profile, and keeps the id on the record
+as `squareCustomerId`. It reads the customer first and writes only
+when Square has no address there or already has the account's: a
+forwarded link never takes over someone else's profile, and logs
+`invite.square-skipped` instead (security on #733, 2026-11-21).
+Invites live in the `invites` store (`lib/invites.mjs`), each with
+only a hash of its token; `invite list` and `invite revoke` manage
+them, and the list says "used, nothing added" for an invite spent by
+someone who already held the perk.
+
 A buying group's member price (#471, `priceLock` in `data/groups.json`)
 is not a discount today: the member prices are the retail prices of
 the day they were set. A member pays the lower of the member price
@@ -497,10 +520,42 @@ refused rather than charged.
 
 ## The page
 
+`scripts/order/order-form.js` draws on small modules in
+`scripts/order/form/` (2026-11-23, #815, the first phase of
+`docs/refactors/order-form.md`): `qs`, `all` and `pulse` in
+`dom.js`; the phone field's mask in the pure `phone.mjs`, and the
+field with its "Prefer text or call?" row in `contact.js` (2026-11-23,
+#816); the links into the page, `?method=`, `?series=`, `?add=` and
+`?group=`, in `links.js`, with `?add=`'s parsing and notice in the pure
+`add-query.mjs` (2026-11-23, #817); the result panels, the order
+placed, a checkout that could not complete and a change the server
+refused, in `result.js`, with their words and the beacon's record in
+the pure `placed.mjs` (2026-11-23, #818); what the page embeds,
+read once, in the pure `page-data.mjs`, and the order's state as
+one record in the pure `order-state.mjs` (2026-11-23, #819); what
+prices the order, the prices of the day, the member price, the money
+rules, the totals' arguments, the amount due and the checks' options,
+in the pure `pricing.mjs` (2026-11-23, #820); and the section spy,
+which names the section on screen in the sidebar's outline, the
+phone's bar and the total bar, in
+`section-spy.js` (`watchSections`, `keepInRail`), with its choice of
+section drawn out into the pure `section-pick.mjs`.
+
 `scripts/order/pay.js` owns the payment section
-(`layouts/partials/order/payment.html`). It fetches
-`/api/checkout/config` and loads the SDKs once the section is near
-the screen or focused: Square's from `web.squarecdn.com` (sandbox:
+(`layouts/partials/order/payment.html`), with its parts in
+`scripts/order/pay/`: `section.js` writes the section's state,
+`scripts.js` loads the SDKs' scripts and `venmo-gate.js` keeps
+the Venmo dark launch (2026-11-23, #868), and `card.js` attaches
+Square's card form, waits for its fields' word and tokenizes it,
+asking the form only through the `checkout` port `pay.js` builds
+(2026-11-23, #869), and `wallets.js` holds the payment request and
+Apple Pay, Google Pay and Cash App Pay, guards each press and keeps
+the request's total current, through the same port (2026-11-23,
+#870), and `venmo.js` holds PayPal's Venmo button, its six callbacks
+and its restart, through the same port (2026-11-23, #871), and
+`loader.js` fetches `/api/checkout/config`, starts the parts and
+sets the state the section ends in (2026-11-23, #872). The SDKs load
+once the section is near the screen or focused: Square's from `web.squarecdn.com` (sandbox:
 `sandbox.web.squarecdn.com`), PayPal's from `www.paypal.com/sdk/js`
 with `enable-funding=venmo`, `disable-funding=paylater,card,credit`
 and, in the sandbox, `buyer-country=US`. The card fields are Square's
@@ -764,7 +819,7 @@ Orders are persisted in Netlify Blobs (`netlify/functions/lib/store.mjs`
 is the seam; memory off Netlify) once the money is in, with the Square
 ids and the payment, and a customer record is created or touched by
 email. `lib/records.mjs` owns the documents and the indexes:
-`order/<id>`, `by-email/<email>/<id>`, `open/<id>` for orders the jobs
+`order/<id>`, `by-email/<hash>/<id>`, `open/<id>` for orders the jobs
 still watch (paid), `by-payment/<id>` from the Square payment id and
 the PayPal capture id, for the refund webhooks, and `checkout/<key>`
 with `by-paypal/<id>` for Venmo payments in flight. Statuses: paid,
@@ -838,9 +893,10 @@ wallet or Venmo payment goes out, so the dialog usually comes before
 a wallet opens. A Venmo payment the jobs finish after its time left
 the schedule stands, and alerts the farm (`pickup.lapsed`).
 
-A customer record (`customer/<email>`) keeps the name, phone, avatar,
-pricing group, delivery address and `reminders`, with one reminder
-email, `{ delivery }`, as a boolean; a key that is missing means on,
+A customer record (`customer/<hash>`, base64url SHA-256 of its
+address, #758) keeps the name, phone, avatar, pricing group,
+delivery address and `reminders`, with one reminder email,
+`{ delivery }`, as a boolean; a key that is missing means on,
 so records from before the setting existed behave as they did
 (`REMINDERS` and `reminderPrefs(customer)` in `lib/records.mjs`; a
 `payment` key from the unpaid era may still be on a record, and
@@ -1112,7 +1168,7 @@ function) and calls `lib/jobs.mjs`, which decides in
 | 18:00 the day before a delivery        | cooler reminder             |
 | the day after fulfillment               | `fulfilled`, and complete in Square |
 | every run                              | checkouts older than a day swept |
-| 8:00 daily, always                     | "Morning report"            |
+| 8:00 daily, when a vital sign is off or something waits on the farm (#697, 2026-11-21) | "Morning report" |
 | 18:00 daily, when an order is due tomorrow | "Tomorrow", the manifest |
 | once a day from 5:00                   | farm-news audience sync     |
 | every run                              | invariants, ledger, heartbeat |
@@ -1168,7 +1224,7 @@ Settings, Help) rendered from `GET /api/me` and
   by the CLI. Changing only the drop-off details keeps the decision.
 - Returns: a request on a paid or fulfilled order, recorded under
   `order.returns` and emailed to the farm.
-- Support: stored under `support/<email>/<id>` in the customers store
+- Support: stored under `support/<hash>/<id>` in the customers store
   and emailed to the farm, who replies by email.
 - Settings: first and last name (kept in parts, as the order form
   takes them; `name` is rebuilt from them), phone, avatar, the farm
@@ -1224,7 +1280,10 @@ flag it reads `.env`, linked locally
 to `.env.development`, and acts on the `dev-` stores: only
 `--production` reaches production's records, whatever a file holds.
 The commands below act on production when given `--production`.
-Without the Netlify pair it runs against memory and says so; without
+With no flag and no Netlify pair it runs against memory and says so.
+A context flag never does: with no env file for that context, or no
+`NETLIFY_SITE_ID` in it, the command stops, names what is missing and
+says to run it from the main checkout (#713). Without
 a mail driver it logs every email to the terminal instead of sending
 it, and says that too. `bin/nff` with no arguments prints the commands:
 customers (list, show, set, delete), address (approve, deny), orders
@@ -1405,8 +1464,11 @@ Flags that take a value accept both `--reason "..."` and
   submission already paid is answered with its record before
   anything else, so a new attempt after a lost answer never charges
   again. Ids
-  from before had four characters and stay valid: nothing parses the
-  tail.
+  from before had four characters and stay valid: `ORDER_ID` and the
+  Square profile's `SITE_REFERENCE` take both lengths, from
+  `ID_LENGTH` in `lib/order-id.mjs` (2026-11-23, #937: this said
+  nothing parses the tail, but those two did, at four only, so the
+  sweep and the drift check missed every six-character id).
 
 ## History
 

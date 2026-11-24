@@ -1,6 +1,6 @@
 // No browser error report carries the customer (#258). The order form
-// is filled with a fake customer, then every failure in pay.js's
-// table (#246) is forced, plus an uncaught throw and rejection, and
+// is filled with a fake customer, then every failure in pay.js's and
+// pay/'s table (#246) is forced, plus an uncaught throw and rejection, and
 // every POST to /api/health is caught in the browser and read. The
 // test fails if any of the fake values appears in one. Square's and
 // PayPal's scripts are stand-ins served here, and the beacons never

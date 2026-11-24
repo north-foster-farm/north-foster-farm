@@ -129,9 +129,9 @@ const XL = { width: 1440, height: 900 };
 // showing under the bar: more than half of it, or more than 48px of a
 // tall one, and never 8px or less (lib/sections.mjs, #561).
 const walk = (page) => page.evaluate(async () => {
-  const frames = () => new Promise((done) => requestAnimationFrame(
-    () => requestAnimationFrame(done)
-  ));
+  const frames = () => new Promise((done) => {
+    requestAnimationFrame(() => requestAnimationFrame(done));
+  });
   const catalog = document.getElementById("order-catalog");
   // Rows that show: an archived line is in the catalog, hidden, at the
   // end, and measuring it put the end above the top.
@@ -266,43 +266,79 @@ for (const width of [375, 390, 576, 768]) {
   });
 }
 
-// Checkout's alignment: Pay, its agreement and the news opt-in stand
-// centered in the pane at every width (James's cart pass, 2026-10-27;
-// #274 round 5 had them right on a phone and left from md).
-test("Pay, its agreement and the opt-in sit centered at every width",
-  async ({ page }) => {
-    const order = new OrderPage(page);
+// Checkout's alignment: the news box starts at the left edge of its
+// card, and Pay's agreement at the pane's, at every width, as in
+// James's mockup on #705 (centered from his cart pass, 2026-10-27,
+// until then; the question and the box were in the pane until his
+// revision of 2026-11-21 gave them a card of their own above it). His
+// second revision that day made the question a section heading over
+// the card, so it starts where the Place your order heading does. That
+// Pay spans the pane is e2e/place-order-pane.spec.mjs.
+test("the question starts with the Place your order heading, the " +
+  "opt-in at its card's left, the agreement at the pane's, at every " +
+  "width", async ({ page }) => {
+  const order = new OrderPage(page);
 
-    for (const size of [PHONE, MD]) {
-      await page.setViewportSize(size);
-      await order.open({ eggs: 1 });
+  for (const size of [PHONE, MD]) {
+    await page.setViewportSize(size);
+    await order.open({ eggs: 1 });
 
-      const seen = await page.locator("#confirm").evaluate((el) => {
-        const pay = el.querySelector("#order-submit");
+    const seen = await page.evaluate(() => {
+      const pay = document.getElementById("order-submit");
+      const tick = document.getElementById("customer-marketing");
+      const framed = (el) => {
+        let node = el.parentElement;
 
-        pay.hidden = false;
+        while (node && getComputedStyle(node).boxShadow === "none") {
+          node = node.parentElement;
+        }
 
-        const mid = (r) => (r.left + r.right) / 2;
-        const box = el.querySelector(".order-submit").getBoundingClientRect();
-        const centered = (node) => Math.abs(
-          mid(node.getBoundingClientRect()) - mid(box)
-        ) < 2;
+        return node;
+      };
+      const pane = framed(pay);
+      const card = framed(tick);
+      const edge = (frame) => {
+        const c = getComputedStyle(frame);
 
-        return {
-          pay: centered(pay),
-          optin: centered(el.querySelector(".order-optin")),
-          agree: getComputedStyle(el.querySelector(".order-agree")).textAlign,
-          title: getComputedStyle(el.querySelector(".order-optin-title"))
-            .textAlign,
-        };
-      });
+        return frame.getBoundingClientRect().left
+          + parseFloat(c.borderLeftWidth) + parseFloat(c.paddingLeft);
+      };
+      const words = (node) => {
+        const range = document.createRange();
 
-      expect(seen.pay, `${size.width}px`).toBe(true);
-      expect(seen.optin, `${size.width}px`).toBe(true);
-      expect(seen.agree, `${size.width}px`).toBe("center");
-      expect(seen.title, `${size.width}px`).toBe("center");
+        range.selectNodeContents(node);
+
+        return Math.min(...[...range.getClientRects()]
+          .filter((r) => r.width > 0).map((r) => r.left));
+      };
+      const byText = (root, text) => [...root.querySelectorAll("*")]
+        .filter((n) => n.textContent.replace(/\s+/g, " ").trim() === text)
+        .at(-1);
+
+      // The question heads its own section, so it starts where the
+      // Place your order heading does.
+      const place = [...document.querySelectorAll("main *")]
+        .filter((n) => n.textContent.replace(/\s+/g, " ").trim()
+          === "Place your order" && !n.closest("a, button"))
+        .at(-1);
+
+      return {
+        question: Math.abs(words(byText(document.querySelector("main"),
+          "Interested in pasture-raised news and updates?"))
+          - words(place)),
+        optin: Math.abs(tick.getBoundingClientRect().left - edge(card)),
+        agree: Math.abs(words(byText(pane,
+          "By placing an order you agree to our delivery policy."))
+          - edge(pane)),
+      };
+    });
+
+    for (const [part, off] of Object.entries(seen)) {
+      expect(off, `${size.width}px: the ${part}'s offset from where ` +
+        "it starts").toBeLessThanOrEqual(1);
     }
-  });
+  }
+});
 
 test("every date dropdown is as wide as the fields", async ({ page }) => {
   const order = new OrderPage(page);

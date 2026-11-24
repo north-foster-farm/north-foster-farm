@@ -1,0 +1,8 @@
+{
+  "path": ["../assets/styles"],
+  "format": ["scss", "css"],
+  "threshold": 0.8,
+  "reporters": ["console", "threshold"],
+  "noTips": true,
+  "failOnEmpty": true
+}

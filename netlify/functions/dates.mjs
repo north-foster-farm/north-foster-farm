@@ -6,7 +6,7 @@ import terms from "./lib/terms.mjs";
 import { allDates } from "../../assets/scripts/order/lib/dates.mjs";
 import { now as clock } from "./lib/clock.mjs";
 import { json } from "./lib/http.mjs";
-import { withLog } from "./lib/log.mjs";
+import { withLog } from "./lib/with-log.mjs";
 import { pickupSchedule } from "./lib/pickups.mjs";
 
 export default withLog("dates", async () =>

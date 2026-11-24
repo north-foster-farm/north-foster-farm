@@ -84,7 +84,7 @@ export const timedFetch = async (fetchImpl, url, init, {
 export const retry = async (fn, {
   attempts = 3,
   delays = [500, 1500],
-  sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+  sleep = (ms) => new Promise((resolve) => { setTimeout(resolve, ms); }),
   until = 0,
 } = {}) => {
   let last;

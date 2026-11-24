@@ -1,8 +1,10 @@
 #!/bin/sh
-# Lint and the unit tests before every commit: the same command as
-# CI's lint-and-test, under the same env -i, so a commit that would
-# turn CI red stops here. `npm install` points git at this folder
-# (the prepare script). `git commit --no-verify` skips it; CI does not.
+# Lint and the unit tests before every commit: CI's lint-and-test runs
+# the same, under the same env -i, so a commit that would turn CI red
+# stops here. CI's lint also runs the gates' own tests (npm run
+# test:gates), which this leaves out for their time (#782). `npm
+# install` points git at this folder (the prepare script). `git commit
+# --no-verify` skips it; CI does not.
 #
 # It checks the working tree, not only what is staged.
 

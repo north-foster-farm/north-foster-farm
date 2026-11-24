@@ -15,7 +15,8 @@ import { runsSince } from "./lib/jobs.mjs";
 import { json, readJson } from "./lib/http.mjs";
 import { clientDetail } from "./lib/client-report.mjs";
 import { alert, readMark } from "./lib/health.mjs";
-import { log, withLog } from "./lib/log.mjs";
+import { log } from "./lib/log.mjs";
+import { withLog } from "./lib/with-log.mjs";
 import { openOrders } from "./lib/records.mjs";
 import { deployContext, stores as defaultStores } from "./lib/store.mjs";
 

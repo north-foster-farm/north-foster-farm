@@ -198,10 +198,10 @@ export const QUIET_PER_RUN = 50;
 // -> { due, noticed, failed, left } (addresses; `left` is a count).
 export const quietAccounts = async (stores, {
   env = process.env, mail = sendMail, now = clock(), apply = true,
-  limit = QUIET_PER_RUN, only = null,
+  limit = QUIET_PER_RUN, only = null, by = "site",
 } = {}) => {
-  const due = (await allCustomers(stores)).filter((c) => quietDue(c, now)
-    && (!only || only.includes(c.email)))
+  const due = (await allCustomers(stores, { by }))
+    .filter((c) => quietDue(c, now) && (!only || only.includes(c.email)))
     .sort((a, b) => (lastInteraction(a) < lastInteraction(b) ? -1 : 1));
   const report = {
     due: due.map((c) => c.email), noticed: [], failed: [],

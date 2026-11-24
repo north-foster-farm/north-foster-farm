@@ -1,6 +1,7 @@
 // A member's credit (#471): signed in, the account page shows the
 // group and the balance; on the order page the credit comes off by
-// itself and, covering the order, places it with nothing charged.
+// itself and, covering the order, places it with nothing charged, at a
+// round chosen under Group orders (#749).
 // Runs on the local build with fake payments and on staging against
 // the real Square sandbox, where the zero-pay call is the real one
 // (fakes audit, 6426321360): the back office makes the member, grants
@@ -13,6 +14,9 @@ import {
   BACK_OFFICE_MISSING, backOffice, clearSession, op, teardown,
 } from "./support/staging.mjs";
 import { followLink } from "./support/request-error.mjs";
+import {
+  GROUP_ORDERS, choose, pick, radioValues,
+} from "./support/vff.mjs";
 
 const GROUP = "vff";
 const SERIES = "36TS";
@@ -59,11 +63,19 @@ test.describe("a member's credit (#471)", () => {
 
       const order = new OrderPage(page);
 
-      await order.open({ whole: 3 }, { method: "scheduled" });
-      // The account's group unlocks the gym with no code.
-      await expect.poll(async () => (await pickupValues(page))
+      await order.open({ whole: 3 });
+      // The account's group unlocks its rounds with no code, under
+      // Group orders (#749; under Pick-up days until then).
+      const group = await choose(order, GROUP_ORDERS);
+
+      await expect.poll(async () => (await radioValues(group))
         .some((v) => v.startsWith(`${SERIES}-`))).toBe(true);
-      await order.scheduled(SERIES);
+      const round = (await radioValues(group))
+        .find((v) => v.startsWith(`${SERIES}-`));
+
+      await pick(page, group.locator(`input[value='${round}']`));
+      expect(await pickupValues(page))
+        .not.toContainEqual(expect.stringMatching(`^${SERIES}-`));
       await order.contact({ first: "Credit", email });
 
       // $55 of credit covers it: nothing to pay, no card.

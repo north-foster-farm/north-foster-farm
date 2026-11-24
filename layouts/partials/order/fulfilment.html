@@ -39,7 +39,7 @@
       <div class="order-method-reveal" data-method-body="onfarm" inert>
         <div class="order-method-body order-hform">
           <div class="row">
-            <label class="col-sm-4 col-form-label" for="onfarm-date">Pickup day</label>
+            <label class="col-sm-4 col-form-label" for="onfarm-date">Pick-up day</label>
             <div class="col-sm-8 skeleton-slot" data-dates-region>
               {{ partial "skeleton.html" (dict "over" true "fit" "field") }}
               <select class="form-select" id="onfarm-date" name="onfarm.date" data-dates="onfarm" data-field="fulfilment.date" disabled aria-describedby="err-onfarm-date">
@@ -50,7 +50,7 @@
             </div>
           </div>
           <div class="row">
-            <span class="col-sm-4 col-form-label" id="onfarm-window-label">Pickup time</span>
+            <span class="col-sm-4 col-form-label" id="onfarm-window-label">Pick-up time</span>
             <div class="col-sm-8 skeleton-slot" data-dates-region>
               {{ partial "skeleton.html" (dict "over" true) }}
               {{ partial "skeleton/status.html" (dict "quiet" true) }}
@@ -89,7 +89,7 @@
         {{ $dropStart := time.AsTime $drop.start $terms.timeZone }}
         {{ $dropEnd := $dropStart.AddDate 0 0 1 }}
         <span class="d-flex flex-wrap align-items-baseline column-gap-2">
-          <span class="order-method-title" id="method-scheduled-title">Pickup days</span>
+          <span class="order-method-title" id="method-scheduled-title">Pick-up days</span>
           <span class="badge rounded-pill bg-success-subtle text-success-emphasis" data-hide-from="{{ $dropEnd.Format "2006-01-02T15:04:05-07:00" }}"{{ if le $dropEnd.Unix now.Unix }} hidden data-expiry="hid"{{ end }}>Starting {{ $dropStart.Format "January 2" }}</span>
         </span>
         {{/* Where counts the locations and links to the Places list.
@@ -104,32 +104,28 @@
           <dd>No minimum, no fee</dd>
         </dl>
       </label>
-      <p class="order-method-warn" data-scheduled-none role="status" hidden>No pickup days are open right now.</p>
+      <p class="order-method-warn" data-scheduled-none role="status" hidden>No pick-up days are open right now.</p>
       <div class="order-method-reveal" data-method-body="scheduled" inert>
         <div class="order-method-body order-hform">
           <div class="row">
-            {{/* One radio card per pickup: date and time, the pickup's
-                 name, then its address (date-lists.js fillPickups, from
-                 the template below). Nothing is chosen until the customer does. */}}
-            <span class="col-12 col-form-label" id="scheduled-label">Pickup day</span>
+            {{/* One radio card per pickup, grouped under its date
+                 (#703): the pickup's name, its hours, then its address,
+                 with Copy and Map (date-lists.js fillPickups, from the
+                 templates of order/pickup-days.html, which the lapsed
+                 dialog shares). Nothing is chosen until the customer does. */}}
             <div class="col-12 skeleton-slot" data-dates-region>
               {{ partial "skeleton.html" (dict "over" true) }}
               {{ partial "skeleton/status.html" (dict "quiet" true) }}
+              {{/* Named for the radio group only: the date headings
+                   follow the rule straight away, as James's mockups
+                   draw it (#703). Inside the column, since a row's
+                   children are columns only (check:grid G2). */}}
+              <span class="visually-hidden" id="scheduled-label">Pick-up day</span>
+              {{ partial "order/dates-message.html" "err-scheduled-date" }}
               <div class="order-pickups" id="scheduled-pickups" role="radiogroup" aria-labelledby="scheduled-label" aria-describedby="err-scheduled-date" tabindex="-1" data-field="fulfilment.occurrence" data-dates="scheduled">
                 <p class="order-windows-none">Loading pickups&hellip;</p>
               </div>
-              <template id="tpl-pickup">
-                <div class="order-pickup">
-                  <input class="form-check-input" type="radio" name="scheduled.date">
-                  <label class="order-pickup-label">
-                    <span class="order-pickup-date"></span>
-                    <span class="order-pickup-time"></span>
-                    <span class="order-pickup-name"></span>
-                    <span class="order-pickup-address"></span>
-                  </label>
-                </div>
-              </template>
-              <div class="invalid-feedback" id="err-scheduled-date" data-error-for="fulfilment.occurrence"></div>
+              {{ partial "order/pickup-days.html" . }}
               {{ partial "skeleton/status.html" (dict "failed" "We couldn't load the dates.") }}
             </div>
           </div>
@@ -147,7 +143,8 @@
           <dt>Where</dt>
           <dd>Check our delivery area {{ partial "order/map-link.html" "map" }}</dd>
           <dt>Cost</dt>
-          <dd>${{ $money.deliveryMinimum }} minimum, ${{ $money.deliveryFee }} delivery fee</dd>
+          {{/* Adapted to a signed-in account's perks (#717). */}}
+          <dd data-delivery-terms data-fee="{{ $money.deliveryFee }}" data-minimum="{{ $money.deliveryMinimum }}">${{ $money.deliveryMinimum }} minimum, ${{ $money.deliveryFee }} delivery fee</dd>
         </dl>
       </label>
       <p class="order-method-warn" data-delivery-short data-error-for="delivery.minimum" role="status" hidden></p>
@@ -211,6 +208,50 @@
         </div>
       </div>
     </div>
+
+    {{/* Group orders (#749): a buying group's rounds, for its members
+         alone. The page carries nothing of a group (#471), so the card
+         stays hidden, its When and Where empty, until /api/group
+         answers for a member; order-form.js renderGroupCard fills them
+         from the group's series and place. Its radio posts as a pickup
+         day, at the round's occurrence. The orders-close line is the
+         first thing its body shows, as Delivery's is, above the round
+         cards and in none (#749 item 5); the body is the reveal's one
+         child, so it carries `data-method-body`. The card is a
+         template, put among the ways only while a group's rounds are
+         offered, so no one else's page holds a fourth way. Its list
+         shares the occurrence's error with Pick-up days' (errors.js
+         marks the visible one), so a missing round rings it too. */}}
+    <template id="tpl-group-way">
+    <div class="order-method" data-group-way>
+      <input class="form-check-input" type="radio" name="method" id="method-group" value="group" data-field="fulfilment.method" aria-labelledby="method-group-title">
+      <label class="order-method-label" for="method-group">
+        <span class="order-method-title" id="method-group-title">Group orders</span>
+        <dl class="order-method-facts">
+          <dt>When</dt>
+          <dd data-group-when></dd>
+          <dt>Where</dt>
+          <dd data-group-where></dd>
+          <dt>Cost</dt>
+          <dd>No minimum, no fee</dd>
+        </dl>
+      </label>
+      <div class="order-method-reveal">
+        <div class="order-method-body order-hform" data-method-body="group" inert>
+          <p class="zip-note zip-note-strong order-countdown" data-group-close hidden></p>
+          <div class="row">
+            <div class="col-12">
+              <span class="visually-hidden" id="group-label">Group order date</span>
+              {{ partial "order/dates-message.html" "err-group-date" }}
+              <div class="order-pickups" id="group-pickups" role="radiogroup" aria-labelledby="group-label" aria-describedby="err-group-date" tabindex="-1" data-field="fulfilment.occurrence" data-dates="group">
+                <p class="order-windows-none">Loading group orders&hellip;</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    </template>
 
   </div>
 </fieldset>

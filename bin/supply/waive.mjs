@@ -11,6 +11,9 @@ import {
 } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 
+/**
+ * @public bin/nff imports it; Knip reads no file without an extension.
+ */
 export const USAGE = `
   bin/nff supply waive <package> <version> --advisory GHSA-..
       --reason "..." [--file <waivers.json>]

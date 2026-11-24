@@ -191,12 +191,20 @@ test.describe("top bar and the schedule (#313)", () => {
   test.skip(!EVENT || !EVENT.popUp,
     "no pop-up ahead in data/series.json; these cover a pop-up");
 
-  const events = (list) => (route) => route.fulfill({
-    json: { now: new Date().toISOString(), events: list },
-  });
+  const events = (list, now = new Date().toISOString()) => (route) =>
+    route.fulfill({ json: { now, events: list } });
+
+  // The schedule judges a pop-up only inside its window, by the `now`
+  // /api/events answers with (schedule.js). Noon the day before the
+  // pop-up puts it there whatever today's date (#760): from a real
+  // now it may lie beyond the two weeks and read from the build.
+  const eve = (date) => new Date(Date.parse(`${date}T12:00:00Z`) - 864e5)
+    .toISOString().slice(0, 10);
+  const nearby = EVENT
+    && `${eve(EVENT.date)}T12:00:00${offset(eve(EVENT.date))}`;
 
   test("a pop-up the schedule skips is left out", async ({ page }) => {
-    await page.route("**/api/events", events([]));
+    await page.route("**/api/events", events([], nearby));
     await page.goto("/");
     await expect(bar(page)).toHaveCount(0);
 

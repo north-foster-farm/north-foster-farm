@@ -3,7 +3,6 @@
 import Dropdown from "bootstrap/js/dist/dropdown.js";
 import "bootstrap/js/dist/offcanvas.js";
 
-import { Extensions } from "./extensions/extensions.js";
 import { wireCartBadge } from "./cart-badge/cart-badge.js";
 import { Copyright } from "./copyright/copyright.js";
 import { wireDotLists } from "./dot-list/dot-list.js";
@@ -11,7 +10,7 @@ import { followClock } from "./expiry/expiry.js";
 import { wireHeroVideo } from "./hero/hero.js";
 import { wireFarmList } from "./news/farm-list.js";
 import { wireSchedule } from "./schedule/schedule.js";
-import { wireSearch } from "./search/palette.js";
+import { wireSiteSearch } from "./search/site-search.js";
 import { followAccount } from "./video/follow.js";
 import { wireVideos } from "./video/video.js";
 import { wireCartSync } from "./session/cart-sync.js";
@@ -19,7 +18,6 @@ import { Session } from "./session/session.js";
 import { retireTopBar } from "./top-bar/top-bar.js";
 import { Touchable } from "./touchable/touchable.js";
 
-Extensions.apply();
 Copyright.setYear();
 // The date rules, at the site's clock (clock/now.js, #568): the real
 // time, or on staging the toolbar's.
@@ -110,6 +108,6 @@ document.addEventListener("DOMContentLoaded", () => {
   wireDotLists();
   wireVideos();
   wireHeroVideo();
-  wireSearch();
+  wireSiteSearch();
   hoverMenus();
 });

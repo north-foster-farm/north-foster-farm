@@ -18,8 +18,6 @@
 //   503 transient failure, safe to retry     502 permanent
 //   429 too many tries from one address      204 dropped (honeypot)
 
-import { createHash } from "node:crypto";
-
 import catalog from "../../data/catalog.json" with { type: "json" };
 import terms from "./lib/terms.mjs";
 import discountCodes from "../../data/discount-codes.json" with {
@@ -30,7 +28,7 @@ import { perkEffects } from "../../assets/scripts/order/lib/perks.mjs";
 import { lockOn } from "../../assets/scripts/order/lib/totals.mjs";
 import { validateOrder } from "../../assets/scripts/order/lib/validate.mjs";
 import { fieldError } from "../../assets/scripts/utils/field-errors.mjs";
-import { parts, today } from "../../assets/scripts/order/lib/zoned.mjs";
+import { today } from "../../assets/scripts/order/lib/zoned.mjs";
 import { saveCart } from "./lib/account.mjs";
 import { sessionFrom } from "./lib/auth.mjs";
 import {
@@ -43,13 +41,14 @@ import {
 } from "./lib/credit.mjs";
 import { json, ORDER_BUDGET_MS, readJson } from "./lib/http.mjs";
 import { alert, count } from "./lib/health.mjs";
-import { log, withLog } from "./lib/log.mjs";
+import { log } from "./lib/log.mjs";
+import { withLog } from "./lib/with-log.mjs";
 import { sendMail } from "./lib/mail.mjs";
 import { gate } from "./lib/maintenance.mjs";
 import { DECLINE_MESSAGES as PAYPAL_DECLINES } from "./lib/paypal.mjs";
 import {
-  INVALID_CODE, findGroupByCode, groupCodeOf, groupOf, memberKeyOf,
-  memberTerms, roundFor,
+  INVALID_CODE, NOT_MEMBER, buyingGroupOf, findGroupByCode, groupCodeOf,
+  hostsGroup, memberTerms, roundFor, roundGroupOf,
 } from "./lib/groups.mjs";
 import {
   PASS_MESSAGES, getPass, holdPass, passCodeOf, passProblem, releasePass,
@@ -57,6 +56,7 @@ import {
 } from "./lib/passes.mjs";
 import { PAYMENTS_OFF, paymentsOff } from "./lib/payments.mjs";
 import { perkTypes } from "./lib/perks.mjs";
+import { ID_LENGTH, orderId } from "./lib/order-id.mjs";
 import { pickupSchedule } from "./lib/pickups.mjs";
 import {
   getOrder, orderForSubmission, paymentsOf, reserveOrderId, submissionKey,
@@ -89,28 +89,10 @@ const rateLimited = (ip, now) => {
   return recent.length > RATE.max;
 };
 
-// Human-readable, and the same for every retry of one submission:
-// `NFF-YYMM-` and six letters and digits, about a billion a month.
-// Ids before #253 had four, and stay valid everywhere (an id is only
-// ever looked up whole). `draw` is the nth candidate, for when an
-// earlier one is taken (lib/records.mjs, reserveOrderId).
-export const ID_LENGTH = 6;
-
-export const orderId = (key, now, draw = 0) => {
-  const p = parts(now, terms.timeZone);
-  const yymm = `${String(p.year).slice(2)}${String(p.month).padStart(2, "0")}`;
-  const hash = createHash("sha256")
-    .update(draw ? `${key}#${draw}` : key)
-    .digest("hex");
-  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let tail = "";
-
-  for (let i = 0; i < ID_LENGTH; i++) {
-    tail += alphabet[parseInt(hash.slice(i * 2, i * 2 + 2), 16) % 32];
-  }
-
-  return `NFF-${yymm}-${tail}`;
-};
+// An order's id, drawn in lib/order-id.mjs since #968 so the libraries
+// need not import this function. Re-exported for the tests and older
+// importers.
+export { ID_LENGTH, orderId };
 
 // What the page shows once the order is paid: the payment just taken.
 // Only ever this submission's own record (checked by `own` first).
@@ -293,10 +275,26 @@ export const handle = async (req, {
   const groupCode = groupCodeOf(payload.groupCode);
   const buying = groupCode
     ? await findGroupByCode(stores, groupCode)
-    : (session ? groupOf(memberKeyOf(session.customer)) : null);
+    : (session
+      ? await buyingGroupOf(stores, session.customer, session.email)
+      : null);
 
   if (groupCode && !buying) {
     return json(422, { errors: { groupCode: INVALID_CODE } });
+  }
+
+  // A group's round is its members' alone (#749): to anyone else,
+  // one removed since the page loaded among them, it is refused
+  // before anything is priced or charged, and the page takes Group
+  // orders away.
+  const fulfilment = payload.fulfilment || {};
+  const round = fulfilment.method === "scheduled"
+    ? roundGroupOf(fulfilment.occurrence) : null;
+
+  if (round && (!buying || buying.key !== round)) {
+    return json(409, {
+      errors: { "fulfilment.method": NOT_MEMBER }, notMember: true,
+    });
   }
   // Credit (#471) spends only when signed in: the account
   // is what says the credit is theirs. As much as the order needs
@@ -454,6 +452,10 @@ export const handle = async (req, {
         // The code came by the group's link, not typed: the join log's
         // path (#495). Only ever true, so other tags are as they were.
         ...(groupCode && payload.groupLink === true ? { viaLink: true } : {}),
+        // Placed by the group's host (#772): a member by the group's
+        // record, so paying it joins no one, whoever hosts by then.
+        ...(await hostsGroup(stores, result.order.customer.email,
+          buying.key) ? { byHost: true } : {}),
       }
       : null,
     // Whose credit the order spends (security review, 6425904452):
@@ -584,8 +586,9 @@ export const handle = async (req, {
           });
         }
 
+        // The capture after the page restarted the Venmo sheet (#721).
         return own(await announce(await finishVenmo(stores, order, {
-          key, attempt, paypalOrderId,
+          key, attempt, paypalOrderId, restart: payment.restart === true,
         }, options)));
       }
 
@@ -618,6 +621,7 @@ export const handle = async (req, {
     if (declined) {
       log.info({
         event: "payment.declined", id: order.id, method, code, attempt,
+        ...(payment.restart === true ? { restart: true } : {}),
       });
       await count(stores, "declined", now);
 

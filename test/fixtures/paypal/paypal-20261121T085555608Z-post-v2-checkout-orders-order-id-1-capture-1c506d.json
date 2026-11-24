@@ -1,0 +1,41 @@
+{
+  "_source": {
+    "service": "paypal",
+    "environment": "production",
+    "recorded": "2026-11-21",
+    "by": "bin/fixtures/record, scrubbed by bin/fixtures/scrub"
+  },
+  "status": 422,
+  "request": {
+    "method": "POST",
+    "path": "/v2/checkout/orders/ORDER_ID_1/capture",
+    "headers": {
+      "content-type": "application/json",
+      "paypal-request-id": "PAYPAL_REQUEST_ID_2"
+    },
+    "body": {}
+  },
+  "response": {
+    "name": "UNPROCESSABLE_ENTITY",
+    "details": [
+      {
+        "issue": "INSTRUMENT_DECLINED",
+        "description": "The instrument presented  was either declined by the processor or bank, or it can't be used for this payment."
+      }
+    ],
+    "message": "The requested action could not be performed, semantically incorrect, or failed business validation.",
+    "debug_id": "DEBUG_ID_1",
+    "links": [
+      {
+        "href": "https://developer.paypal.com/api/rest/reference/orders/v2/errors/#INSTRUMENT_DECLINED",
+        "rel": "information_link",
+        "method": "GET"
+      },
+      {
+        "href": "https://www.paypal.com/checkoutnow?token=ORDER_ID_1",
+        "rel": "redirect",
+        "method": "GET"
+      }
+    ]
+  }
+}

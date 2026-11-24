@@ -1,25 +1,21 @@
-// What the palette may offer of a product, from the live stock
-// /api/stock returns: { sku: { inStock, available } }, or null before
-// it answers, when the build's stock stands in: `out`, the catalog's
-// own word on the product (#267).
+// What a product result says of its stock (#402), the one place search
+// reads stock. Live stock wins: /api/stock, fetched as search first
+// opens (site-search.js), passed here as `live` ({ sku: { inStock } };
+// James, 2026-11-21, as the palette did, #267, #492). Until it
+// answers, or if it fails, the index's word stands: the catalog's
+// `inStock` as /search.json carries it.
 
-export const MAX = 99;
+// -> { out, label }: whether the product is out of stock, and what its
+// result says ("In stock", or its restock label, "Back in spring").
+export const stockOf = (entry, live = null) => {
+  const known = live && live[entry.sku];
+  const out = known ? known.inStock === false : !!entry.out;
 
-export const soldOut = (stock, sku, out = false) => (stock && stock[sku]
-  ? stock[sku].inStock === false : !!out);
-
-// -> how many are left, or null if the farm doesn't count them.
-const left = (stock, sku) => {
-  const n = stock && stock[sku] ? stock[sku].available : null;
-
-  return typeof n === "number" ? n : null;
+  return { out, label: out ? entry.restock : "In stock" };
 };
 
-// -> how many more can go in a cart that holds `have` already.
-export const room = (stock, sku, have, out = false) => {
-  if (soldOut(stock, sku, out)) return 0;
-
-  const n = left(stock, sku);
-
-  return Math.max(0, Math.min(MAX, n === null ? MAX : n) - have);
-};
+// -> whether a product is listed: one out of stock with no restock
+// label is hidden on the order page at either choice, so search leaves
+// it out too, as the palette did.
+export const listed = (entry, live = null) => (
+  !stockOf(entry, live).out || !!entry.restock);

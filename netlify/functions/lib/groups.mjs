@@ -9,8 +9,11 @@
 //
 // Membership is on the customer record as `memberGroup`, set when an
 // order placed with the code is paid, or by `customers set
-// member=<key>`. A member signed in needs no code: the account knows
-// the group. A member not signed in types it, or follows the link
+// member=<key>`. A group's host is its member too wherever membership
+// grants something, derived from the group record (#772,
+// `buyingGroupOf`), but never written onto their record or listed. A
+// member signed in needs no code: the account knows the group. A
+// member not signed in types it, or follows the link
 // `/order/?group=<code>`, which the page reads and takes off the
 // address.
 
@@ -27,6 +30,7 @@ import {
 import {
   addDays, today,
 } from "../../../assets/scripts/order/lib/zoned.mjs";
+import { normalizeEmail } from "../../../assets/scripts/utils/email.js";
 import { noteJoin } from "./group-log.mjs";
 import { log } from "./log.mjs";
 import { newPassCode } from "./passes.mjs";
@@ -45,6 +49,20 @@ export const groupKey = (key) => `group/${key}`;
 // Every code that fails says only this (James, 6424477473): nothing
 // of whether a code exists, or what it would unlock.
 export const INVALID_CODE = "That code isn't valid.";
+
+// What a customer in no group, or no longer in this one, is told when
+// they order at its round (#749 item 9, James, 2026-11-21).
+export const NOT_MEMBER = "We couldn't complete your group order. " +
+  "Please try again.";
+
+// The group whose round an occurrence id names ("36TS-261122"), by
+// its series in data/series.json, or null for any other pickup.
+export const roundGroupOf = (occurrence) => {
+  const code = String(occurrence || "").split("-")[0];
+  const s = seriesData.series.find((x) => x.code === code);
+
+  return (s && s.group) || null;
+};
 
 // What the customer typed, as compared: upper case, letters and
 // digits. A code shorter than six characters is not worth a lookup.
@@ -106,7 +124,7 @@ export const setGroupHost = async (stores, key, email, {
   };
   const record = {
     ...stored,
-    host: email ? String(email).trim().toLowerCase() : null,
+    host: email ? normalizeEmail(email) || null : null,
     hostSetAt: now.toISOString(),
   };
 
@@ -393,7 +411,8 @@ export const buyingFor = async (stores, order) => {
   const tagged = groupOf(order.group && order.group.key);
   const customer = await getCustomer(stores, order.customer.email);
 
-  return offeredGroup(tagged, groupOf(memberKeyOf(customer)));
+  return offeredGroup(tagged,
+    await buyingGroupOf(stores, customer, order.customer.email));
 };
 
 // The group whose price lock a change keeps: the order's tag's, member
@@ -414,11 +433,43 @@ export const retag = (order, group, terms, date) => {
   };
 };
 
-// The customer's group key from their record, or null.
+// The customer's group key from their record, or null. Lists and
+// counts of members read this alone.
 export const memberKeyOf = (customer) => (customer && customer.memberGroup
   && typeof customer.memberGroup === "object"
   ? customer.memberGroup.id || null
   : null);
+
+// The first group whose record names this address its host, or null.
+export const hostedKeyOf = async (stores, email) => {
+  const address = normalizeEmail(email);
+
+  if (!address) return null;
+  for (const g of GROUPS) {
+    const record = await getGroupRecord(stores, g.key);
+
+    if (record && record.host
+      && normalizeEmail(record.host) === address) return g.key;
+  }
+
+  return null;
+};
+
+// Whether this address is the group's host now.
+export const hostsGroup = async (stores, email, key) => {
+  const record = await getGroupRecord(stores, key);
+
+  return !!(record && record.host && normalizeEmail(email)
+    && normalizeEmail(record.host) === normalizeEmail(email));
+};
+
+// The group whose membership grants apply (#772): the record's, else
+// the group this address hosts, derived from the group's `host` and
+// never written onto the customer. A member of one group who hosts
+// another stays in the first, and a former host keeps only the record's.
+export const buyingGroupOf = async (stores, customer, email) =>
+  groupOf(memberKeyOf(customer)
+    || await hostedKeyOf(stores, email || (customer && customer.email)));
 
 // Marks the customer a member of the group, once: a paid order with
 // the code, or the CLI. -> the record, or null when there is none to

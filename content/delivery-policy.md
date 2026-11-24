@@ -1,7 +1,7 @@
 ---
 description: >
   How ordering from North Foster Farm works: delivery days, cutoffs,
-  minimums, fees, our delivery area, on-farm pickup, pickup days,
+  minimums, fees, our delivery area, on-farm pickup, pick-up days,
   changes, cancellations, and refunds.
 slug: "delivery-policy"
 title: "Delivery policy"
@@ -36,7 +36,7 @@ your items come to {{< terms "waived-at" >}} or more.
 
 {{% bulk-tiers %}}
 
-Bulk discounts apply to every order, pickup orders included. The
+Bulk discounts apply to every order, pick-up orders included. The
 highest tier you reach applies, automatically.
 Discounts never combine: if more than one applies, your order takes
 whichever saves you more.
@@ -69,7 +69,7 @@ We email you a reminder the evening before.
 If we can't make it due to unforeseen circumstances, such as
 inclement weather, we'll notify you via email and postpone your
 delivery until the following {{< terms "day" >}}. Alternatively, you
-can choose to pick up your order at the farm or on one of our pickup
+can choose to pick up your order at the farm or on one of our pick-up
 days, or cancel your order for a full refund.
 
 You don't need to be home. If there's no cooler where you told us, we
@@ -77,7 +77,7 @@ can't get to that spot, or we can't find your address as you gave it,
 we'll try to reach you by phone, text or the doorbell. If we can't
 reach you, we won't leave your order. You can choose to have it
 delivered the following {{< terms "day" >}}, pick it up at the farm or on
-one of our pickup days, or cancel your order for a refund of your items. We
+one of our pick-up days, or cancel your order for a refund of your items. We
 hold your order for {{< terms "hold" >}} while you choose a new way to
 get your order. If you haven't chosen after {{< terms "hold" >}}, we
 cancel your order, refund your items, and send you an email to confirm
@@ -114,9 +114,9 @@ order. If we can't accommodate your pick-up appointment, we'll cancel
 your order, refund it in full, and send you an email to confirm the
 cancellation.
 
-## Pickup days
+## Pick-up days {#pickup-days}
 
-On pickup days, you pick up your order at a place and a time we set:
+On pick-up days, you pick up your order at a place and a time we set:
 the drop site, a market or a pop-up. There is no minimum or fee.
 
 **The drop site** in {{< terms "town" "drop" >}} runs on
@@ -137,12 +137,12 @@ You can order for a pickup through the end of next week. Order by
 
 Sign in with the email address you ordered with. We email you a link
 to sign in. There's no password. Your account page lets you change
-the day, your pickup time, where we'll find your cooler, and your
+the day, your pick-up time, where we'll find your cooler, and your
 notes, or cancel the order, until the cutoff:
 
 - **Delivery:** {{< cutoff "delivery" >}}, the day before your
   {{< terms "day" >}}.
-- **Pickup days:** 11:59 PM the day before your pickup.
+- **Pick-up days:** 11:59 PM the day before your pickup.
 - **On-farm pickup:** 11:59 PM the day before your pickup.
 
 To change what's in an order, cancel it and place a new one. After the

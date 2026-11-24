@@ -9,14 +9,24 @@
   "private": true,
   "browserslist": "defaults",
   "scripts": {
-    "lint": "npm run lint:scripts && npm run lint:styles",
-    "lint:scripts": "eslint 'assets/scripts/**/*.{js,mjs}' 'netlify/**/*.mjs' 'test/**/*.mjs' 'e2e/**/*.mjs' 'bin/grid/*.mjs' 'bin/orphans/*.mjs' 'bin/logos/*.mjs' 'bin/facts/*.mjs' 'bin/fixtures/*.mjs' bin/fixtures/scrub 'bin/schema/*.mjs' 'bin/fresh/*.mjs' 'bin/maps/*.mjs' 'plugins/**/*.js' bin/check-schedule.mjs bin/check-events.mjs bin/confirm.mjs bin/ship-log.mjs bin/check-news.mjs bin/check-places.mjs bin/check-env.mjs bin/install-gate.mjs bin/gate.mjs bin/members.mjs bin/check-record-shape.mjs bin/dated-pages.mjs bin/check-rotation-log.mjs bin/staging-jobs-summary.mjs bin/schedule-env.mjs bin/dev-schedule.mjs bin/dev-functions.mjs 'bin/env/*.mjs' 'bin/supply/*.mjs' 'bin/svg/*.mjs' bin/gate-logo.mjs svgo.config.mjs 'bin/audit/*.mjs' 'bin/codeql/*.mjs' 'bin/e2e/*.mjs' bin/promote.mjs bin/redeploy.mjs bin/completion.mjs bin/e2e-summary.mjs 'bin/postcss/*.js' 'bin/shot/*.mjs' bin/gh-shot bin/nff *.config.js playwright.config.mjs",
-    "lint:styles": "stylelint assets/styles/**/*.scss",
+    "lint": "npm run lint:code && npm run test:gates && npm run test:analysis",
+    "lint:code": "npm run lint:shell && npm run lint:scripts && npm run lint:styles && npm run lint:copies && npm run lint:unused",
+    "lint:shell": "node bin/lint-shell.mjs",
+    "lint:scripts": "eslint --max-warnings 0 .",
+    "lint:styles": "stylelint --max-warnings 0 \"**/*.{scss,css}\"",
+    "lint:unused": "knip --no-progress",
+    "lint:copies": "npm run lint:copies:source && npm run lint:copies:tests && npm run lint:copies:styles && npm run lint:copies:templates",
+    "lint:copies:source": "jscpd -c .jscpd/source.json",
+    "lint:copies:tests": "jscpd -c .jscpd/tests.json",
+    "lint:copies:styles": "jscpd -c .jscpd/styles.json",
+    "lint:copies:templates": "jscpd -c .jscpd/templates.json",
     "start": "bin/dev",
     "start:bind": "HUGO_BIND_TO_IP=true bin/dev",
     "start:functions": "node bin/dev-functions.mjs",
-    "test": "node --import ./test/setup.mjs --test \"test/**/*.test.mjs\"",
-    "check": "npm run check:node && npm run check:places && npm run lint && npm test",
+    "test": "node --import ./test/setup.mjs --test \"test/**/!(quality-analysis|quality-knip|quality-ceilings).test.mjs\"",
+    "test:analysis": "node --import ./test/setup.mjs --test-concurrency=1 --test test/quality-analysis.test.mjs test/quality-knip.test.mjs test/quality-ceilings.test.mjs",
+    "test:gates": "node --import ./test/setup.mjs --test test/quality-gates.gates.mjs",
+    "check": "npm run check:node && npm run check:places && npm run lint:code && npm test",
     "build:orphans": "node bin/orphans/wrap.mjs public",
     "check:grid": "node bin/grid/check.mjs public",
     "check:schema": "node bin/schema/check.mjs public",
@@ -40,33 +50,31 @@
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
-    "@fullhuman/postcss-purgecss": "8.0.0",
-    "@playwright/test": "1.62.1",
+    "@fullhuman/postcss-purgecss": "9.1.0",
+    "@playwright/test": "1.65.1",
     "autoprefixer": "10.6.2",
-    "eslint": "10.14.0",
+    "eslint": "10.15.0",
     "globals": "17.14.0",
-    "postcss": "8.5.32",
+    "jscpd": "5.4.3",
+    "knip": "6.45.1",
+    "postcss": "8.5.33",
     "postcss-cli": "12.0.0",
-    "stylelint": "16.26.1",
-    "stylelint-config-standard-scss": "13.1.0",
-    "stylelint-scss": "6.14.0",
+    "stylelint": "18.0.0",
+    "stylelint-config-standard-scss": "18.0.0",
+    "stylelint-scss": "7.5.0",
     "svgo": "4.1.0"
   },
   "dependencies": {
-    "@netlify/blobs": "11.1.0",
+    "@netlify/blobs": "11.1.9",
     "age-encryption": "0.3.1",
-    "bootstrap": "5.3.3",
+    "bootstrap": "5.3.9",
     "qrcode-generator": "2.0.4"
   },
   "devEngines": {
     "runtime": {
       "name": "node",
-      "version": "24.22.1",
+      "version": "24.22.3",
       "onFail": "error"
     }
-  },
-  "overrides": {
-    "minimatch": "11.0.3",
-    "@isaacs/nonrecursive-glob-match": "1.0.3"
   }
 }

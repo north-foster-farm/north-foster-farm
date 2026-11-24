@@ -1,0 +1,13 @@
+{{/*
+  What the header's cart count needs on every page
+  (scripts/cart-badge/count.js): the SKUs of every product but an
+  archived one, from the order page's own list (order/groups.html), and
+  the renames a saved cart may predate. A saved line whose SKU is not
+  here is not counted (#322). The search palette carried this until
+  #402.
+*/}}
+{{ $skus := slice }}
+{{ range partial "order/groups.html" . }}
+  {{ range .items }}{{ $skus = $skus | append .sku }}{{ end }}
+{{ end }}
+<script type="application/json" data-cart-catalog data-aliases='{{ hugo.Data.skuAliases | default dict | jsonify }}'>{{ $skus | jsonify | safeJS }}</script>

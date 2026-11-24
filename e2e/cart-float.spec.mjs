@@ -302,9 +302,9 @@ test.describe("the tablet's panel", () => {
     };
 
     pane.querySelector("[data-cart-toggle]").click();
-    await new Promise((done) => requestAnimationFrame(
-      () => requestAnimationFrame(done)
-    ));
+    await new Promise((done) => {
+      requestAnimationFrame(() => requestAnimationFrame(done));
+    });
 
     return {
       was,
@@ -371,9 +371,9 @@ test.describe("the tablet's panel", () => {
       // Presses the pill and measures two frames into the ease.
       const pressAndMeasure = () => order.cart.evaluate(async (pane) => {
         pane.querySelector("[data-cart-toggle]").click();
-        await new Promise((done) => requestAnimationFrame(
-          () => requestAnimationFrame(done)
-        ));
+        await new Promise((done) => {
+          requestAnimationFrame(() => requestAnimationFrame(done));
+        });
 
         const r = pane.querySelector("[data-part='total']")
           .getBoundingClientRect();

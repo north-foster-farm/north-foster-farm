@@ -400,7 +400,7 @@ test.describe("loading skeletons (#271)", () => {
       }, true);
     });
     await page.route("**/api/dates", async (route) => {
-      if (!tried) await new Promise((r) => setTimeout(r, 500));
+      if (!tried) await new Promise((r) => { setTimeout(r, 500); });
 
       return route.fulfill(tried
         ? json(dates())
@@ -457,22 +457,6 @@ test.describe("loading skeletons (#271)", () => {
       await expect.poll(() => page.locator(".news-years .news-item").count())
         .toBeGreaterThan(before);
     });
-
-  test("search: the stock badges wait under bars", async ({ page }) => {
-    const release = await hold(page, "**/api/stock", STOCK);
-
-    await page.goto("/about/");
-    await page.locator("[data-search-open]").click();
-
-    const body = page.locator(".search-palette-body");
-    const price = page.locator(".search-palette-row-price").first();
-
-    await loading(body);
-    await expect(price.locator(".skeleton")).toBeVisible();
-    release();
-    await settled(body);
-    await expect(price).toHaveText(/^\$/);
-  });
 
   test("the bars are still when motion is reduced", async ({ page }) => {
     await page.emulateMedia({ reducedMotion: "reduce" });

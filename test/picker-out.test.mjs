@@ -8,20 +8,15 @@
 // `parked/pickup-picker` and leave `next`: they import the modules
 // this file says are gone. The browser's side (no week strip, no
 // picker markup, styles or scripts) is e2e/picker-out.spec.mjs.
+//
+// Its test of production's lapsed line ("<day>: <name>, <town>,
+// <window>") went with #703: the lapsed dialog shows the pickup-days
+// layout now (e2e/pickup-days.spec.mjs).
 
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-
-import { scheduleFor } from "../bin/dev-schedule.mjs";
-import terms from "../netlify/functions/lib/terms.mjs";
-import { allDates } from "../assets/scripts/order/lib/dates.mjs";
-import { parseSchedule } from "../assets/scripts/order/lib/schedule.mjs";
-import {
-  scheduledChoice,
-} from "../assets/scripts/order/lib/scheduled.mjs";
-import { instant } from "../assets/scripts/order/lib/zoned.mjs";
 
 const ROOT = new URL("..", import.meta.url).pathname;
 
@@ -50,35 +45,5 @@ describe("the picker out of next (#617)", () => {
       assert.doesNotMatch(readFileSync(join(ROOT, path), "utf8"), uses,
         path);
     }
-  });
-
-  // Restored from main (test/scheduled.test.mjs and
-  // test/pawtucket.test.mjs there): production's lapsed dialog labels
-  // each scheduled pickup with this line. The places as `next` names
-  // them (North Scituate, #541; Pawtucket, #544).
-  it("a scheduled choice reads as production's lapsed line", () => {
-    const drop = {
-      occurrence: "VFVQ-261024", date: "2026-10-24",
-      label: "Saturday, October 24", series: "VFVQ", name: "Drop site",
-      town: "North Scituate", window: "10:00 – 11:00 AM",
-    };
-
-    assert.equal(scheduledChoice(drop).text,
-      "Saturday, October 24: Drop site, North Scituate, 10:00 – 11:00 AM");
-
-    const { windows, lines } = parseSchedule(
-      scheduleFor("2026-11-01", "2027-05-01")
-    );
-    const now = instant("2026-11-11", 9, 0, "America/New_York");
-    const [market, popup] = allDates(now, terms,
-      Object.assign(windows, { lines })).scheduled
-      .filter((d) => ["H3TQ", "W9MF"].includes(d.series))
-      .map(scheduledChoice);
-
-    assert.equal(market.text,
-      `${market.label}: Pawtucket Farmers Market, Pawtucket, ` +
-      "12:00 – 4:00 PM");
-    assert.equal(popup.text,
-      `${popup.label}: Thanksgiving Prep, Pawtucket, 12:00 – 5:00 PM`);
   });
 });

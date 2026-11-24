@@ -12,7 +12,7 @@
 //   429 too many tries from one address
 
 import { json } from "./lib/http.mjs";
-import { withLog } from "./lib/log.mjs";
+import { withLog } from "./lib/with-log.mjs";
 import {
   PASS_MESSAGES, getPass, passCodeOf, passProblem, waivesFee,
 } from "./lib/passes.mjs";

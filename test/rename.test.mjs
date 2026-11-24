@@ -10,6 +10,7 @@ import { renameCustomerEmail } from "../netlify/functions/lib/square.mjs";
 import {
   getCustomer, getOrder, ordersFor, saveCheckout, saveCustomer, saveOrder,
 } from "../netlify/functions/lib/records.mjs";
+import { addressHash } from "../netlify/functions/lib/address-key.mjs";
 import { testStores } from "../netlify/functions/lib/store.mjs";
 import { resendFake } from "./resend-fixture.mjs";
 
@@ -130,11 +131,13 @@ describe("customers rename (#238)", () => {
     assert.equal((await stores.auth.get("unsub/u1")).email, NEW);
     assert.equal((await stores.auth.get("news/n1")).email, NEW);
     assert.equal(await stores.customers.get(`support/${OLD}/m1`), null);
-    assert.deepEqual(await stores.customers.get(`support/${NEW}/m1`),
+    assert.deepEqual(
+      await stores.customers.get(`support/${addressHash(NEW)}/m1`),
       { message: "Hi" });
     // The cart carried across devices goes with it (#149).
     assert.equal(await stores.customers.get(`cart/${OLD}`), null);
-    assert.deepEqual(await stores.customers.get(`cart/${NEW}`),
+    assert.deepEqual(
+      await stores.customers.get(`cart/${addressHash(NEW)}`),
       { payload: null, savedAt: 1 });
     assert.deepEqual(calls.filter(([, , , apply]) => apply).map(([s]) => s),
       ["resend", "square"]);

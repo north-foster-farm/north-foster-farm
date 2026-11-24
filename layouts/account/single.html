@@ -1,5 +1,7 @@
 {{ define "main" }}
-  {{ $data := dict "avatars" hugo.Data.avatars "terms" hugo.Data.delivery "series" (partial "lib/public-places.html" .).series }}
+  {{ $public := partial "lib/public-places.html" . }}
+  {{/* The public places' addresses, for Change pickup's cards (#703). */}}
+  {{ $data := dict "avatars" hugo.Data.avatars "terms" hugo.Data.delivery "series" $public.series "locations" $public.locations }}
   {{/* The chickens' sprite comes with the header on every page. */}}
   <section class="{{ .Type }}">
     <script type="application/json" id="account-data">{{ $data | jsonify | safeJS }}</script>
@@ -258,7 +260,8 @@
                   </div>
                   <div class="col-12" id="prof-group-row" hidden>
                     <span class="form-label d-block">Your pricing</span>
-                    <p class="mb-0" id="prof-group"></p>
+                    <div id="prof-group"></div>
+                    {{ partial "order/perk-label.html" . }}
                   </div>
                 </div>
               </section>
@@ -608,17 +611,32 @@
     <form class="account-panel-form" novalidate>
       <p class="account-panel-title">Change this pickup</p>
       <div class="row g-3">
-        <div class="col-md-6">
-          <label class="form-label"><span data-dates-label>Pickup day</span>
+        <div class="col-md-6" data-day>
+          <label class="form-label">Pick-up day
             <select class="form-select" name="date" data-dates></select>
           </label>
           <div class="invalid-feedback" data-error-for="date"></div>
+        </div>
+        {{/* A scheduled pickup moves in the order page's layout, every
+             open pickup grouped under its date (#703, the templates
+             of order/pickup-days.html below), drawn by main.js. */}}
+        <div class="col-12" data-scheduled>
+          <span class="visually-hidden" data-pickups-label>Pick-up day</span>
+          <div class="order-pickups" role="radiogroup" data-field="occurrence" tabindex="-1" data-pickups></div>
+          <div class="invalid-feedback" data-error-for="occurrence"></div>
+        </div>
+        {{/* A buying group's round order moves among the group's open
+             rounds, the order page's Group orders cards (#749, #762),
+             never among the pick-up days. */}}
+        <div class="col-12" data-group hidden>
+          <span class="visually-hidden" data-rounds-label>Group order date</span>
+          <div class="order-pickups" role="radiogroup" data-field="occurrence" tabindex="-1" data-rounds></div>
           <div class="invalid-feedback" data-error-for="occurrence"></div>
         </div>
         <div class="col-md-6" data-onfarm>
           {{/* The chosen day's times from the farm's schedule (W11d),
                drawn by main.js from the template below. */}}
-          <span class="form-label d-block">Pickup time</span>
+          <span class="form-label d-block">Pick-up time</span>
           <div data-windows></div>
           <template id="tpl-change-window">
             <label class="d-block"><input class="form-check-input" type="radio" name="window"> <span></span></label>
@@ -638,6 +656,7 @@
       </div>
     </form>
   </template>
+  {{ partial "order/pickup-days.html" . }}
 
   <template id="tpl-return">
     <form class="account-panel-form" novalidate>

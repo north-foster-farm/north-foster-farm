@@ -10,9 +10,9 @@ export const FIRST_DELAYS = [2_000, 5_000, 15_000];
 // One attempt gives up after this.
 export const ATTEMPT_MS = 5_000;
 // How often a page that is shut asks again, and how often an open one
-// refreshes.
+// checks in the background: once a minute (#908, James's rule 2).
 export const SHUT_EVERY = 30_000;
-export const OPEN_EVERY = 2 * 60_000;
+export const OPEN_EVERY = 60_000;
 
 const wait = (ms) => new Promise((resolve) => {
   setTimeout(resolve, ms);

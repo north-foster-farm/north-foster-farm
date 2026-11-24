@@ -23,7 +23,7 @@ Tuesday, November 17.
 ## Pick up your order there
 
 You can order online and pick up at the market, any Tuesday or at any
-of the pop-ups below. Under Pickup days on [the order page](/order/),
+of the pop-ups below. Under Pick-up days on [the order page](/order/),
 choose the day, and your order will be packed and waiting for you at
 our table.
 

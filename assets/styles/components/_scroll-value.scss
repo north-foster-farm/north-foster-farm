@@ -1,0 +1,15 @@
+// A value a script fills in, such as an email address, that may be too
+// long for its line (#754), in a wrapper that also holds the sentence's
+// closing "?" or ".", so the mark sits right after the value however it
+// wraps. The value breaks where the browser may break a line, after a
+// hyphen, and one with no such point stays whole and scrolls sideways
+// inside the wrapper, so neither its container nor the page does. An
+// inline element can't scroll, hence inline-block. Its baseline is the
+// box's bottom edge once it scrolls, so it sits on the line's bottom
+// instead.
+.scroll-value {
+  display: inline-block;
+  max-width: 100%;
+  overflow: auto hidden;
+  vertical-align: bottom;
+}

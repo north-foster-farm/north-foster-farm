@@ -140,7 +140,6 @@ export const knownFacts = () => {
   const a = "data/accounts.json";
   const accounts = json(a);
   add("sign-in link", a, `${accounts.signInLinkMinutes} minutes`);
-  add("order link", a, `${accounts.orderLinkDays} days`);
   add("session", a, `${accounts.sessionDays} days`);
   add("session cache", a, `${accounts.sessionCacheMinutes} minutes`);
   add("news invite", a, `${accounts.newsInviteDays} days`);

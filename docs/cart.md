@@ -305,9 +305,19 @@ issues. Wording below is today's, approved under #400.
   and the server has never heard of it.
 - **Stock.** `stock.js` lowers or removes lines when stock changes and
   the notice over the catalog says so (`stock-notice.mjs`); a locked
-  stock gate disables Proceed to checkout.
-- **Proceed to checkout** scrolls to Pickup or delivery and focuses its
-  legend; disabled when empty, locked, or delivery under the minimum.
+  stock gate stops Proceed to checkout.
+- **Proceed to checkout** (#706) goes to the next thing the order
+  needs: the way's own fields with their messages ("Please select a
+  pickup time." on the farm, which chooses no time by itself), then
+  Contact information with its messages, then Payment until the card
+  is entered, then Place your order (`order-form.js` proceed). Empty,
+  stock locked, or a delivery under the minimum, it looks disabled
+  (`aria-disabled`, never `disabled`) and a press says why in a
+  tooltip; under the minimum the pane opens too and the way's button
+  pulses as the pill does (`checkout.js`; 2026-11-23, #854: this
+  said `cart.js` wireCheckout). (2026-11-21: this
+  said it always went to the Pickup or delivery legend and was
+  disabled.)
 - **The first Add of a browser session** (sessionStorage) opens the
   floating pane on the new line, shuts it after `TEACH_DWELL` (3500 ms)
   and pulses the pill in three pairs; a tap, focus or key in the pane
@@ -383,6 +393,60 @@ submission. The contract between them:
   `onWay(method)`, `onCode(text)`, `onCheckout()`.
 - The code field, the way picks, the badges, the pill, the joke row
   and the bars' readouts are the cart's.
+- `Cart` draws on small modules beside it in `cart/`
+  (2026-11-22, #851, the first phase of docs/refactors/cart.md):
+  `whyOf`, the reason Proceed cannot go on, with its words, in
+  `why.mjs`; the joke's code, rate, label and amount in `joke.mjs`
+  (`cart.js` still exports `JOKE_CODE`) and its row in `joke-row.js`;
+  `firstAdd` in `first-add.js`; and `qs`, `all`, `pulse`, `say` and
+  `reduced` in `dom.js`.
+- And the drawing (2026-11-22, #852): the lines in `lines-view.js`
+  (`drawItems`, `dropRows`); the readouts, the sums, a paid order's
+  money, the shared row's switch and the nudge in `sums-view.js`;
+  and what a render decides in `plan.mjs`: `changed`, whether it
+  moves the pane; `readoutLabels`; `editMoney`; `wayButtons`;
+  `passedBy`, whether the bars' readouts take over; and `tierKeys`
+  and `deliveryTip`, the day's money for the badges.
+- And the badges (2026-11-22, #853): `Badges` in `badges.js` holds
+  the badges' tooltips and the perks', wires them, draws which are
+  lit and celebrates one that lights, and takes the form's
+  `setMoney` and `setPerks`, which `Cart` passes on. `Cart` asks it
+  to shut its tooltips (`shutTips`) when the pane folds, settles or
+  scrolls, and on Escape.
+- And Proceed to checkout and Clear cart (2026-11-23, #854):
+  `CheckoutButton` in `checkout.js` holds why Proceed cannot go on,
+  its tooltip and the reason it shows, and sets the button from each
+  render (`setWhy`); `ClearCart` in `clear.js` holds Clear cart's two
+  presses and words. `Cart` asks the one to shut its tooltip on a
+  scroll or Escape and the other whether it is asking.
+- And the shared row and the code (2026-11-23, #855): `ShareRow` in
+  `share-row.js` wires the row's two toggles, a pick, a tap or focus
+  away and Apply, folds the row (`shutRow`, `shutCode`) and draws the
+  code's note. `Cart` keeps the form's `codeResult`, `codeValue` and
+  `setCodeValue` and passes them on, and asks the row to fold on
+  Escape; the row reads and sets the view state through `Fold`
+  (2026-11-23, #856: this said through `Cart`).
+- And folding (2026-11-23, #856): `Fold` in `fold.js` holds the view
+  state and writes it to the pane (`apply`, with the pill's word from
+  `plan.mjs`'s `pillWord`), runs every change of size through the
+  view's motion (`motion`, `fold`, `open`, `close`, `toggle`), opens a
+  side of the shared row (`setShare`), keeps the scroll rule (`busy`,
+  `scrolled`), marks the cart passed and owns the watchers. `Added` in
+  `added.js` gives an Add its live line, the first Add's lesson
+  (`TEACH_DWELL`) and the strip.
+  `escapeStep` in `escape.mjs` names which part takes an Escape, in
+  the order the pane has always kept: a tooltip, Clear cart's
+  question, the shared row, then the fold.
+- And the root (2026-11-23, #857, the last phase): `Cart` builds the
+  parts (`build`), wires them in the old order, orders the Escape
+  (`escape`, the shared row's step and its focus in `ShareRow`'s
+  `escape`) and one render: the readouts and Proceed's reason, then
+  `moves`, `draw` inside `ease` when the pane moves (the badges once
+  `Fold`'s `stilled` resolves, for the latest render only) or
+  `settle` when it does not. `Added` wires its own `keepOpen`
+  listeners. `cart.js` meets every limit of #782. `TEACH_DWELL` is
+  `added.js`'s own: nothing imported it from `cart.js` (2026-11-23,
+  #857: phase 6 left a re-export there).
 - Draft, sync and the header badge stay in `draft.js`, `cart-sync.mjs`,
   `session/cart-sync.js` and `cart-badge/*`, unchanged in shape. The
   cart announces nothing itself; `OrderForm` keeps `announceCart`.
@@ -456,8 +520,9 @@ to CSS. Its surface, which the Cart class imports:
   its lines drawn for it. The items list keeps the larger of its two
   sizes while the lines ease, so the edge uncovers or covers it and
   never squeezes it, and its arrows and fades are set inside the change
-  (`Cart.motion`). Everything that changes a part's size is set inside
-  `apply`, the nudge among them (2026-11-12, #559: it was set after the
+  (`Fold.motion`, 2026-11-23, #856: this said `Cart.motion`).
+  Everything that changes a part's size is set inside `apply`, the
+  nudge among them (2026-11-12, #559: it was set after the
   sizes were read, and its line snapped). The body is held at its end
   while it overflows, so the total row stays on the foot, but not under
   the keyboard, and not once anything else scrolls it (2026-11-12,
@@ -493,6 +558,44 @@ to CSS. Its surface, which the Cart class imports:
   `revealLine(list, row)`, `clearFocusUnder(pane, bar)` -> dispose.
 - Pure and unit tested: `toPx(value, rootFont)`, `restOf({ margin,
   gap, kb })` and `moreShown({ top, height, full })`.
+- The pure parts live in `cart/view/` (2026-11-22, #843: they were
+  in `view.mjs` itself), which `view.mjs` re-exports, so the class
+  and the tests import from it alone: `COLUMN`, `SHORT` and `SHEET`
+  in `queries.mjs`; `toPx` and `restOf` in `units.mjs`; the move's
+  clock (`MOVE_MS`, `MOVE_ID`), its keyframes (`moveFrames`,
+  `fadeFrames`, `paneFrames`, `pillFadeFrames`, `WORD_FRAMES`) and
+  what decides them (`liftShift`, `moves`, `wordsAt`, `FADE_OUT`,
+  `FADE_IN`) in `frames.mjs`; `OWN_MS` and `ownScroll` in
+  `own-scroll.mjs`; `moreShown` in `more.mjs`. The design of the
+  split is `docs/refactors/cart-view.md`.
+- The viewport's watchers live there too (2026-11-22, #844), each in
+  its own module: `watchKeyboard` in `keyboard.js`, `watchPlacement`
+  in `placement.js`, `watchScroll` in `scroll.js`, and what they read
+  and write of the styles (`reduced`, `rootFont`, `prop`, `setProp`)
+  in `style.js`. Two pure rules came out of them: `scrollKey`, which
+  keys scroll the page, in `own-scroll.mjs`, and `closedHeight`, the
+  lift-off threshold's closed height, in `plan.mjs`.
+- So do the rest of the view's parts but the sheet's motion
+  (2026-11-22, #845): `watchList` and `revealLine` in `list.js`;
+  `pulsePill`, `ringCart` and `showAdded` in `cues.js`; `teach` in
+  `teach.js`; `clearFocusUnder` and `focusAfterScroll`, which share
+  one `WeakSet`, in `focus.js`; `shutShare` in `share.js`;
+  `animateFold` in `fold.js`. Three pure rules came out of them:
+  `glideSpan` and `glideAt`, the glide's length and curve, in
+  `more.mjs`, and `focusRoom`, the band a focused control is kept
+  within, in `plan.mjs`.
+- And the sheet's motion (2026-11-22, #846), after which `view.mjs`
+  held no code of its own: `moveParts` and `moving` in `move.js`, as its
+  steps in their order (read, take over, apply, plan, start, finish);
+  what it measures (`movers`, `sizeOf`, `chromeOf`, `pillOf`,
+  `outerHeight`) in `measure.js`; `movePill` in `pill.js`;
+  `swapWords` and `wordsOf` in `words.js`. What it decides, pure, is
+  in `plan.mjs`: `movePlan`, the parts that move and the height each
+  holds its scroller at; `pillMoves`; `lifting`; and `holds`, whether
+  the body stays held at its end.
+- `view.mjs` is the door (2026-11-22, #847): one `export … from` line
+  for each module in `cart/view/`, and nothing else. A new part of
+  the view goes in a module there, and the door gains a line.
 
 ### 4.2 Structure
 

@@ -11,6 +11,8 @@
     "layouts/partials/staging-toolbar.html",
     "layouts/partials/staging/**",
     "layouts/partials/search/**",
+    "layouts/partials/cart-catalog.html",
+    "layouts/index.search.json",
     "layouts/partials/debug/**",
     "layouts/partials/skeleton.html",
     "layouts/partials/skeleton/**",
@@ -75,7 +77,6 @@
     "assets/scripts/touchable/**",
     "assets/scripts/clock/**",
     "assets/scripts/copyright/**",
-    "assets/scripts/extensions/**",
     "assets/scripts/expiry/**",
     "assets/scripts/dot-list/**",
     "assets/scripts/schedule/**",
@@ -143,9 +144,14 @@
         "e2e/cart-badge.spec.mjs",
         "e2e/cart-sync.spec.mjs",
         "e2e/favicon.spec.mjs",
+        "e2e/footer-seam.spec.mjs",
         "e2e/footer.spec.mjs",
         "e2e/gate.spec.mjs",
         "e2e/home.spec.mjs",
+        "e2e/home-news.spec.mjs",
+        "e2e/info-align.spec.mjs",
+        "e2e/map-camera.spec.mjs",
+        "e2e/tooltip-center.spec.mjs",
         "e2e/keyboard.spec.mjs",
         "e2e/map-link.spec.mjs",
         "e2e/map.spec.mjs",
@@ -153,14 +159,25 @@
         "e2e/news-footer.spec.mjs",
         "e2e/news.spec.mjs",
         "e2e/overflow.spec.mjs",
+        "e2e/perk-revision.spec.mjs",
         "e2e/search.spec.mjs",
+        "e2e/site-search.spec.mjs",
+        "e2e/header-account-label.spec.mjs",
+        "e2e/header-search.spec.mjs",
+        "e2e/search-bar-width.spec.mjs",
+        "e2e/search-panel-nav.spec.mjs",
+        "e2e/search-stock.spec.mjs",
+        "e2e/stock-follow.spec.mjs",
         "e2e/sign-in-order.spec.mjs",
         "e2e/skip-link.spec.mjs",
         "e2e/staging-toolbar.spec.mjs",
         "e2e/top-bar-places.spec.mjs",
         "e2e/top-bar.spec.mjs",
         "e2e/walkthrough-2026-10-24.spec.mjs",
-        "e2e/wording.spec.mjs"
+        "e2e/wording.spec.mjs",
+        "e2e/market-address.spec.mjs",
+        "e2e/home-news-layout.spec.mjs",
+        "e2e/map-legend.spec.mjs"
       ],
       "pages": [
         "/"
@@ -178,21 +195,32 @@
         "e2e/footer.spec.mjs",
         "e2e/gate.spec.mjs",
         "e2e/home.spec.mjs",
+        "e2e/home-news.spec.mjs",
         "e2e/keyboard.spec.mjs",
         "e2e/llms.spec.mjs",
+        "e2e/map-camera.spec.mjs",
         "e2e/map-link.spec.mjs",
         "e2e/map.spec.mjs",
         "e2e/news-footer.spec.mjs",
         "e2e/news.spec.mjs",
         "e2e/overflow.spec.mjs",
         "e2e/search.spec.mjs",
+        "e2e/site-search.spec.mjs",
+        "e2e/header-account-label.spec.mjs",
+        "e2e/header-search.spec.mjs",
+        "e2e/search-bar-width.spec.mjs",
+        "e2e/search-panel-nav.spec.mjs",
+        "e2e/search-stock.spec.mjs",
+        "e2e/stock-follow.spec.mjs",
         "e2e/sign-in-order.spec.mjs",
         "e2e/skip-link.spec.mjs",
         "e2e/staging-toolbar.spec.mjs",
         "e2e/top-bar-places.spec.mjs",
         "e2e/top-bar.spec.mjs",
         "e2e/walkthrough-2026-10-24.spec.mjs",
-        "e2e/wording.spec.mjs"
+        "e2e/wording.spec.mjs",
+        "e2e/home-news-layout.spec.mjs",
+        "e2e/map-legend.spec.mjs"
       ],
       "pages": [
         "/"
@@ -213,7 +241,9 @@
         "e2e/footer.spec.mjs",
         "e2e/gate.spec.mjs",
         "e2e/home.spec.mjs",
+        "e2e/home-news.spec.mjs",
         "e2e/keyboard.spec.mjs",
+        "e2e/map-camera.spec.mjs",
         "e2e/map-link.spec.mjs",
         "e2e/map.spec.mjs",
         "e2e/news-footer.spec.mjs",
@@ -222,13 +252,22 @@
         "e2e/policies.spec.mjs",
         "e2e/pricing.spec.mjs",
         "e2e/search.spec.mjs",
+        "e2e/site-search.spec.mjs",
+        "e2e/header-account-label.spec.mjs",
+        "e2e/header-search.spec.mjs",
+        "e2e/search-bar-width.spec.mjs",
+        "e2e/search-panel-nav.spec.mjs",
+        "e2e/search-stock.spec.mjs",
+        "e2e/stock-follow.spec.mjs",
         "e2e/sign-in-order.spec.mjs",
         "e2e/skip-link.spec.mjs",
         "e2e/staging-toolbar.spec.mjs",
         "e2e/top-bar-places.spec.mjs",
         "e2e/top-bar.spec.mjs",
         "e2e/walkthrough-2026-10-24.spec.mjs",
-        "e2e/wording.spec.mjs"
+        "e2e/wording.spec.mjs",
+        "e2e/home-news-layout.spec.mjs",
+        "e2e/map-legend.spec.mjs"
       ],
       "pages": [
         "/",
@@ -249,7 +288,9 @@
         "e2e/footer.spec.mjs",
         "e2e/gate.spec.mjs",
         "e2e/home.spec.mjs",
+        "e2e/home-news.spec.mjs",
         "e2e/keyboard.spec.mjs",
+        "e2e/map-camera.spec.mjs",
         "e2e/map-link.spec.mjs",
         "e2e/map.spec.mjs",
         "e2e/news-footer.spec.mjs",
@@ -257,6 +298,13 @@
         "e2e/overflow.spec.mjs",
         "e2e/rate-limit.spec.mjs",
         "e2e/search.spec.mjs",
+        "e2e/site-search.spec.mjs",
+        "e2e/header-account-label.spec.mjs",
+        "e2e/header-search.spec.mjs",
+        "e2e/search-bar-width.spec.mjs",
+        "e2e/search-panel-nav.spec.mjs",
+        "e2e/search-stock.spec.mjs",
+        "e2e/stock-follow.spec.mjs",
         "e2e/sign-in-order.spec.mjs",
         "e2e/skeletons.spec.mjs",
         "e2e/skip-link.spec.mjs",
@@ -264,7 +312,8 @@
         "e2e/top-bar-places.spec.mjs",
         "e2e/top-bar.spec.mjs",
         "e2e/walkthrough-2026-10-24.spec.mjs",
-        "e2e/wording.spec.mjs"
+        "e2e/wording.spec.mjs",
+        "e2e/home-news-layout.spec.mjs"
       ],
       "pages": [
         "/",
@@ -278,6 +327,7 @@
       "specs": [
         "e2e/about.spec.mjs",
         "e2e/account.spec.mjs",
+        "e2e/account-orders-pinned.spec.mjs",
         "e2e/busy-buttons.spec.mjs",
         "e2e/buttons.spec.mjs",
         "e2e/cart-badge.spec.mjs",
@@ -294,13 +344,21 @@
         "e2e/overflow.spec.mjs",
         "e2e/restock.spec.mjs",
         "e2e/search.spec.mjs",
+        "e2e/site-search.spec.mjs",
+        "e2e/header-account-label.spec.mjs",
+        "e2e/header-search.spec.mjs",
+        "e2e/search-bar-width.spec.mjs",
+        "e2e/search-panel-nav.spec.mjs",
+        "e2e/search-stock.spec.mjs",
+        "e2e/stock-follow.spec.mjs",
         "e2e/skeletons.spec.mjs",
         "e2e/skip-link.spec.mjs",
         "e2e/staging-toolbar.spec.mjs",
         "e2e/top-bar-places.spec.mjs",
         "e2e/top-bar.spec.mjs",
         "e2e/walkthrough-2026-10-24.spec.mjs",
-        "e2e/wording.spec.mjs"
+        "e2e/wording.spec.mjs",
+        "e2e/market-address.spec.mjs"
       ],
       "pages": [
         "/about/"
@@ -314,6 +372,7 @@
       "specs": [
         "e2e/footer.spec.mjs",
         "e2e/keyboard.spec.mjs",
+        "e2e/map-camera.spec.mjs",
         "e2e/map-link.spec.mjs",
         "e2e/map.spec.mjs",
         "e2e/overflow.spec.mjs",
@@ -340,6 +399,7 @@
         "e2e/footer.spec.mjs",
         "e2e/keyboard.spec.mjs",
         "e2e/llms.spec.mjs",
+        "e2e/map-camera.spec.mjs",
         "e2e/map-link.spec.mjs",
         "e2e/map.spec.mjs",
         "e2e/overflow.spec.mjs",
@@ -347,6 +407,13 @@
         "e2e/pricing.spec.mjs",
         "e2e/report-privacy.spec.mjs",
         "e2e/search.spec.mjs",
+        "e2e/site-search.spec.mjs",
+        "e2e/header-account-label.spec.mjs",
+        "e2e/header-search.spec.mjs",
+        "e2e/search-bar-width.spec.mjs",
+        "e2e/search-panel-nav.spec.mjs",
+        "e2e/search-stock.spec.mjs",
+        "e2e/stock-follow.spec.mjs",
         "e2e/top-bar-places.spec.mjs",
         "e2e/top-bar.spec.mjs",
         "e2e/wording.spec.mjs"
@@ -363,11 +430,14 @@
         "layouts/partials/order/**",
         "assets/scripts/order/**",
         "assets/styles/components/_order.scss",
+        "assets/styles/components/_pickup-days.scss",
         "assets/styles/components/_cart.scss"
       ],
       "specs": [
+        "e2e/account-rounds.spec.mjs",
         "e2e/account-tabs.spec.mjs",
         "e2e/account.spec.mjs",
+        "e2e/account-orders-pinned.spec.mjs",
         "e2e/archived-edit.spec.mjs",
         "e2e/buttons.spec.mjs",
         "e2e/cart-a11y.spec.mjs",
@@ -383,7 +453,8 @@
         "e2e/cart-tip.spec.mjs",
         "e2e/cart-way.spec.mjs",
         "e2e/catalog-visibility.spec.mjs",
-        "e2e/contact-heading.spec.mjs",
+        "e2e/checkout-go.spec.mjs",
+        "e2e/contact-card.spec.mjs",
         "e2e/contact-send.spec.mjs",
         "e2e/contact.spec.mjs",
         "e2e/countdown-date.spec.mjs",
@@ -394,36 +465,66 @@
         "e2e/favicon.spec.mjs",
         "e2e/footer.spec.mjs",
         "e2e/forms.spec.mjs",
+        "e2e/group-close-notice.spec.mjs",
         "e2e/group-code.spec.mjs",
         "e2e/group-credit.spec.mjs",
         "e2e/group-delivery-removed.spec.mjs",
+        "e2e/group-orders.spec.mjs",
+        "e2e/host-member.spec.mjs",
+        "e2e/info-align.spec.mjs",
         "e2e/kept-thursday.spec.mjs",
         "e2e/keyboard.spec.mjs",
         "e2e/maintenance-bar.spec.mjs",
         "e2e/maintenance.spec.mjs",
+        "e2e/map-camera.spec.mjs",
         "e2e/map-link.spec.mjs",
         "e2e/map.spec.mjs",
         "e2e/missed-delivery.spec.mjs",
         "e2e/news-hide.spec.mjs",
         "e2e/onfarm-times.spec.mjs",
+        "e2e/optin-card.spec.mjs",
+        "e2e/optin-section.spec.mjs",
         "e2e/order-draft-date.spec.mjs",
         "e2e/order-layout.spec.mjs",
+        "e2e/order-locked.spec.mjs",
         "e2e/order-page.spec.mjs",
         "e2e/order-scheduled.spec.mjs",
+        "e2e/order-topbar-scroll.spec.mjs",
         "e2e/overflow.spec.mjs",
         "e2e/pay-focus.spec.mjs",
         "e2e/payment-stacking.spec.mjs",
         "e2e/payment.spec.mjs",
+        "e2e/perk-label.spec.mjs",
+        "e2e/perk-revision.spec.mjs",
+        "e2e/tooltip-center.spec.mjs",
         "e2e/picker-out.spec.mjs",
+        "e2e/pickup-copy-anim.spec.mjs",
+        "e2e/pickup-days-revision-2.spec.mjs",
+        "e2e/pickup-days-revision.spec.mjs",
+        "e2e/pickup-days-status.spec.mjs",
+        "e2e/pickup-days.spec.mjs",
+        "e2e/pickup-hint.spec.mjs",
         "e2e/pickup-horizon.spec.mjs",
+        "e2e/place-order-pane.spec.mjs",
+        "e2e/placed-overflow.spec.mjs",
+        "e2e/placed-panel.spec.mjs",
+        "e2e/placed-signed-in.spec.mjs",
         "e2e/pricing.spec.mjs",
         "e2e/rate-limit.spec.mjs",
         "e2e/recovery.spec.mjs",
         "e2e/remove-icon.spec.mjs",
         "e2e/report-privacy.spec.mjs",
         "e2e/restock.spec.mjs",
+        "e2e/round-card-ring.spec.mjs",
         "e2e/scheduled-pickup.spec.mjs",
         "e2e/search.spec.mjs",
+        "e2e/site-search.spec.mjs",
+        "e2e/header-account-label.spec.mjs",
+        "e2e/header-search.spec.mjs",
+        "e2e/search-bar-width.spec.mjs",
+        "e2e/search-panel-nav.spec.mjs",
+        "e2e/search-stock.spec.mjs",
+        "e2e/stock-follow.spec.mjs",
         "e2e/sign-in-order.spec.mjs",
         "e2e/skeletons.spec.mjs",
         "e2e/skip-link.spec.mjs",
@@ -434,9 +535,15 @@
         "e2e/top-bar.spec.mjs",
         "e2e/typed-address.spec.mjs",
         "e2e/venmo-paid.spec.mjs",
+        "e2e/venmo-restart.spec.mjs",
         "e2e/wallets.spec.mjs",
         "e2e/window-label.spec.mjs",
-        "e2e/wording.spec.mjs"
+        "e2e/wording.spec.mjs",
+        "e2e/order-kept.spec.mjs",
+        "e2e/cart-add-scroll.spec.mjs",
+        "e2e/cart-total-keyboard.spec.mjs",
+        "e2e/cart-stock-scroll.spec.mjs",
+        "e2e/stamp-restore.spec.mjs"
       ],
       "pages": [
         "/order/"
@@ -447,8 +554,10 @@
         "content/order.md"
       ],
       "specs": [
+        "e2e/account-rounds.spec.mjs",
         "e2e/account-tabs.spec.mjs",
         "e2e/account.spec.mjs",
+        "e2e/account-orders-pinned.spec.mjs",
         "e2e/archived-edit.spec.mjs",
         "e2e/buttons.spec.mjs",
         "e2e/cart-a11y.spec.mjs",
@@ -464,7 +573,8 @@
         "e2e/cart-tip.spec.mjs",
         "e2e/cart-way.spec.mjs",
         "e2e/catalog-visibility.spec.mjs",
-        "e2e/contact-heading.spec.mjs",
+        "e2e/checkout-go.spec.mjs",
+        "e2e/contact-card.spec.mjs",
         "e2e/contact-send.spec.mjs",
         "e2e/contact.spec.mjs",
         "e2e/countdown-date.spec.mjs",
@@ -475,37 +585,59 @@
         "e2e/favicon.spec.mjs",
         "e2e/footer.spec.mjs",
         "e2e/forms.spec.mjs",
+        "e2e/group-close-notice.spec.mjs",
         "e2e/group-code.spec.mjs",
         "e2e/group-credit.spec.mjs",
         "e2e/group-delivery-removed.spec.mjs",
+        "e2e/group-orders.spec.mjs",
         "e2e/kept-thursday.spec.mjs",
         "e2e/keyboard.spec.mjs",
         "e2e/llms.spec.mjs",
         "e2e/maintenance-bar.spec.mjs",
         "e2e/maintenance.spec.mjs",
+        "e2e/map-camera.spec.mjs",
         "e2e/map-link.spec.mjs",
         "e2e/map.spec.mjs",
         "e2e/missed-delivery.spec.mjs",
         "e2e/news-hide.spec.mjs",
         "e2e/onfarm-times.spec.mjs",
+        "e2e/optin-card.spec.mjs",
+        "e2e/optin-section.spec.mjs",
         "e2e/order-draft-date.spec.mjs",
         "e2e/order-layout.spec.mjs",
+        "e2e/order-locked.spec.mjs",
         "e2e/order-page.spec.mjs",
         "e2e/order-scheduled.spec.mjs",
+        "e2e/order-topbar-scroll.spec.mjs",
         "e2e/overflow.spec.mjs",
         "e2e/pay-focus.spec.mjs",
         "e2e/payment-stacking.spec.mjs",
         "e2e/payment.spec.mjs",
         "e2e/picker-out.spec.mjs",
+        "e2e/pickup-copy-anim.spec.mjs",
+        "e2e/pickup-days-revision-2.spec.mjs",
+        "e2e/pickup-days-revision.spec.mjs",
+        "e2e/pickup-days-status.spec.mjs",
+        "e2e/pickup-days.spec.mjs",
+        "e2e/pickup-hint.spec.mjs",
         "e2e/pickup-horizon.spec.mjs",
+        "e2e/place-order-pane.spec.mjs",
         "e2e/pricing.spec.mjs",
         "e2e/rate-limit.spec.mjs",
         "e2e/recovery.spec.mjs",
         "e2e/remove-icon.spec.mjs",
         "e2e/report-privacy.spec.mjs",
         "e2e/restock.spec.mjs",
+        "e2e/round-card-ring.spec.mjs",
         "e2e/scheduled-pickup.spec.mjs",
         "e2e/search.spec.mjs",
+        "e2e/site-search.spec.mjs",
+        "e2e/header-account-label.spec.mjs",
+        "e2e/header-search.spec.mjs",
+        "e2e/search-bar-width.spec.mjs",
+        "e2e/search-panel-nav.spec.mjs",
+        "e2e/search-stock.spec.mjs",
+        "e2e/stock-follow.spec.mjs",
         "e2e/sign-in-order.spec.mjs",
         "e2e/skeletons.spec.mjs",
         "e2e/skip-link.spec.mjs",
@@ -531,8 +663,10 @@
         "assets/styles/components/_group-join.scss"
       ],
       "specs": [
+        "e2e/account-rounds.spec.mjs",
         "e2e/account-tabs.spec.mjs",
         "e2e/account.spec.mjs",
+        "e2e/account-orders-pinned.spec.mjs",
         "e2e/archived-edit.spec.mjs",
         "e2e/buttons.spec.mjs",
         "e2e/cart-a11y.spec.mjs",
@@ -548,7 +682,8 @@
         "e2e/cart-tip.spec.mjs",
         "e2e/cart-way.spec.mjs",
         "e2e/catalog-visibility.spec.mjs",
-        "e2e/contact-heading.spec.mjs",
+        "e2e/checkout-go.spec.mjs",
+        "e2e/contact-card.spec.mjs",
         "e2e/contact-send.spec.mjs",
         "e2e/contact.spec.mjs",
         "e2e/countdown-date.spec.mjs",
@@ -563,12 +698,15 @@
         "e2e/keyboard.spec.mjs",
         "e2e/maintenance-bar.spec.mjs",
         "e2e/maintenance.spec.mjs",
+        "e2e/map-camera.spec.mjs",
         "e2e/map-link.spec.mjs",
         "e2e/map.spec.mjs",
         "e2e/membership.spec.mjs",
         "e2e/missed-delivery.spec.mjs",
         "e2e/news-hide.spec.mjs",
         "e2e/onfarm-times.spec.mjs",
+        "e2e/optin-card.spec.mjs",
+        "e2e/optin-section.spec.mjs",
         "e2e/order-draft-date.spec.mjs",
         "e2e/order-layout.spec.mjs",
         "e2e/order-page.spec.mjs",
@@ -578,15 +716,30 @@
         "e2e/payment-stacking.spec.mjs",
         "e2e/payment.spec.mjs",
         "e2e/picker-out.spec.mjs",
+        "e2e/pickup-copy-anim.spec.mjs",
+        "e2e/pickup-days-revision-2.spec.mjs",
+        "e2e/pickup-days-revision.spec.mjs",
+        "e2e/pickup-days-status.spec.mjs",
+        "e2e/pickup-days.spec.mjs",
+        "e2e/pickup-hint.spec.mjs",
         "e2e/pickup-horizon.spec.mjs",
+        "e2e/place-order-pane.spec.mjs",
         "e2e/pricing.spec.mjs",
         "e2e/rate-limit.spec.mjs",
         "e2e/recovery.spec.mjs",
         "e2e/remove-icon.spec.mjs",
         "e2e/report-privacy.spec.mjs",
         "e2e/restock.spec.mjs",
+        "e2e/round-card-ring.spec.mjs",
         "e2e/scheduled-pickup.spec.mjs",
         "e2e/search.spec.mjs",
+        "e2e/site-search.spec.mjs",
+        "e2e/header-account-label.spec.mjs",
+        "e2e/header-search.spec.mjs",
+        "e2e/search-bar-width.spec.mjs",
+        "e2e/search-panel-nav.spec.mjs",
+        "e2e/search-stock.spec.mjs",
+        "e2e/stock-follow.spec.mjs",
         "e2e/sign-in-order.spec.mjs",
         "e2e/skeletons.spec.mjs",
         "e2e/skip-link.spec.mjs",
@@ -622,6 +775,19 @@
     },
     {
       "paths": [
+        "layouts/invite/**",
+        "assets/scripts/invite/**",
+        "content/invite.md"
+      ],
+      "specs": [
+        "e2e/invite-page.spec.mjs"
+      ],
+      "pages": [
+        "/invite/"
+      ]
+    },
+    {
+      "paths": [
         "content/join.md"
       ],
       "specs": [
@@ -630,6 +796,13 @@
         "e2e/membership.spec.mjs",
         "e2e/overflow.spec.mjs",
         "e2e/search.spec.mjs",
+        "e2e/site-search.spec.mjs",
+        "e2e/header-account-label.spec.mjs",
+        "e2e/header-search.spec.mjs",
+        "e2e/search-bar-width.spec.mjs",
+        "e2e/search-panel-nav.spec.mjs",
+        "e2e/search-stock.spec.mjs",
+        "e2e/stock-follow.spec.mjs",
         "e2e/wording.spec.mjs"
       ],
       "pages": [
@@ -644,14 +817,17 @@
         "assets/styles/components/_account.scss"
       ],
       "specs": [
+        "e2e/account-rounds.spec.mjs",
         "e2e/account-tabs.spec.mjs",
         "e2e/account.spec.mjs",
+        "e2e/account-orders-pinned.spec.mjs",
         "e2e/busy-buttons.spec.mjs",
         "e2e/cancel-order.spec.mjs",
         "e2e/cart-sync.spec.mjs",
         "e2e/group-credit.spec.mjs",
         "e2e/group-delivery-removed.spec.mjs",
         "e2e/history-download.spec.mjs",
+        "e2e/info-align.spec.mjs",
         "e2e/keep-together.spec.mjs",
         "e2e/kept-thursday.spec.mjs",
         "e2e/keyboard.spec.mjs",
@@ -661,8 +837,19 @@
         "e2e/membership.spec.mjs",
         "e2e/missed-delivery.spec.mjs",
         "e2e/onfarm-times.spec.mjs",
+        "e2e/order-link-shape.spec.mjs",
+        "e2e/order-locked.spec.mjs",
         "e2e/overflow.spec.mjs",
+        "e2e/perk-label.spec.mjs",
+        "e2e/perk-revision.spec.mjs",
+        "e2e/tooltip-center.spec.mjs",
         "e2e/picker-out.spec.mjs",
+        "e2e/pickup-copy-anim.spec.mjs",
+        "e2e/pickup-days-revision-2.spec.mjs",
+        "e2e/pickup-days-revision.spec.mjs",
+        "e2e/pickup-days-status.spec.mjs",
+        "e2e/pickup-days.spec.mjs",
+        "e2e/round-card-ring.spec.mjs",
         "e2e/scheduled-pickup.spec.mjs",
         "e2e/sign-in-order.spec.mjs",
         "e2e/skeletons.spec.mjs",
@@ -681,6 +868,7 @@
       "specs": [
         "e2e/account-tabs.spec.mjs",
         "e2e/account.spec.mjs",
+        "e2e/account-orders-pinned.spec.mjs",
         "e2e/busy-buttons.spec.mjs",
         "e2e/cancel-order.spec.mjs",
         "e2e/cart-sync.spec.mjs",
@@ -695,9 +883,17 @@
         "e2e/membership-layout.spec.mjs",
         "e2e/membership.spec.mjs",
         "e2e/missed-delivery.spec.mjs",
+        "e2e/order-locked.spec.mjs",
         "e2e/overflow.spec.mjs",
         "e2e/scheduled-pickup.spec.mjs",
         "e2e/search.spec.mjs",
+        "e2e/site-search.spec.mjs",
+        "e2e/header-account-label.spec.mjs",
+        "e2e/header-search.spec.mjs",
+        "e2e/search-bar-width.spec.mjs",
+        "e2e/search-panel-nav.spec.mjs",
+        "e2e/search-stock.spec.mjs",
+        "e2e/stock-follow.spec.mjs",
         "e2e/sign-in-order.spec.mjs",
         "e2e/skeletons.spec.mjs",
         "e2e/sku-alias.spec.mjs",
@@ -714,6 +910,7 @@
       "specs": [
         "e2e/account-tabs.spec.mjs",
         "e2e/account.spec.mjs",
+        "e2e/account-orders-pinned.spec.mjs",
         "e2e/busy-buttons.spec.mjs",
         "e2e/cancel-order.spec.mjs",
         "e2e/cart-sync.spec.mjs",
@@ -753,6 +950,7 @@
       ],
       "specs": [
         "e2e/account.spec.mjs",
+        "e2e/account-orders-pinned.spec.mjs",
         "e2e/busy-buttons.spec.mjs",
         "e2e/contact-send.spec.mjs",
         "e2e/edit-order-date.spec.mjs",
@@ -761,6 +959,7 @@
         "e2e/header-chick.spec.mjs",
         "e2e/keyboard.spec.mjs",
         "e2e/login-layout.spec.mjs",
+        "e2e/login-warning.spec.mjs",
         "e2e/maintenance-bar.spec.mjs",
         "e2e/overflow.spec.mjs",
         "e2e/scheduled-pickup.spec.mjs",
@@ -778,6 +977,7 @@
       ],
       "specs": [
         "e2e/account.spec.mjs",
+        "e2e/account-orders-pinned.spec.mjs",
         "e2e/busy-buttons.spec.mjs",
         "e2e/contact-send.spec.mjs",
         "e2e/edit-order-date.spec.mjs",
@@ -791,6 +991,13 @@
         "e2e/overflow.spec.mjs",
         "e2e/scheduled-pickup.spec.mjs",
         "e2e/search.spec.mjs",
+        "e2e/site-search.spec.mjs",
+        "e2e/header-account-label.spec.mjs",
+        "e2e/header-search.spec.mjs",
+        "e2e/search-bar-width.spec.mjs",
+        "e2e/search-panel-nav.spec.mjs",
+        "e2e/search-stock.spec.mjs",
+        "e2e/stock-follow.spec.mjs",
         "e2e/top-bar-places.spec.mjs",
         "e2e/top-bar.spec.mjs",
         "e2e/wording.spec.mjs"
@@ -834,6 +1041,13 @@
         "e2e/overflow.spec.mjs",
         "e2e/rate-limit.spec.mjs",
         "e2e/search.spec.mjs",
+        "e2e/site-search.spec.mjs",
+        "e2e/header-account-label.spec.mjs",
+        "e2e/header-search.spec.mjs",
+        "e2e/search-bar-width.spec.mjs",
+        "e2e/search-panel-nav.spec.mjs",
+        "e2e/search-stock.spec.mjs",
+        "e2e/stock-follow.spec.mjs",
         "e2e/skeletons.spec.mjs",
         "e2e/top-bar-places.spec.mjs",
         "e2e/top-bar.spec.mjs",
@@ -858,16 +1072,28 @@
         "e2e/footer.spec.mjs",
         "e2e/gate.spec.mjs",
         "e2e/home.spec.mjs",
+        "e2e/home-news.spec.mjs",
         "e2e/keyboard.spec.mjs",
+        "e2e/map-camera.spec.mjs",
         "e2e/map-link.spec.mjs",
         "e2e/map.spec.mjs",
         "e2e/news-footer.spec.mjs",
         "e2e/news-hide.spec.mjs",
         "e2e/news-page.spec.mjs",
         "e2e/news.spec.mjs",
+        "e2e/optin-card.spec.mjs",
+        "e2e/optin-section.spec.mjs",
         "e2e/overflow.spec.mjs",
+        "e2e/place-order-pane.spec.mjs",
         "e2e/restock.spec.mjs",
         "e2e/search.spec.mjs",
+        "e2e/site-search.spec.mjs",
+        "e2e/header-account-label.spec.mjs",
+        "e2e/header-search.spec.mjs",
+        "e2e/search-bar-width.spec.mjs",
+        "e2e/search-panel-nav.spec.mjs",
+        "e2e/search-stock.spec.mjs",
+        "e2e/stock-follow.spec.mjs",
         "e2e/sign-in-order.spec.mjs",
         "e2e/skeletons.spec.mjs",
         "e2e/skip-link.spec.mjs",
@@ -875,7 +1101,8 @@
         "e2e/top-bar-places.spec.mjs",
         "e2e/top-bar.spec.mjs",
         "e2e/walkthrough-2026-10-24.spec.mjs",
-        "e2e/wording.spec.mjs"
+        "e2e/wording.spec.mjs",
+        "e2e/home-news-layout.spec.mjs"
       ],
       "pages": [
         "/",
@@ -894,8 +1121,10 @@
         "e2e/footer.spec.mjs",
         "e2e/gate.spec.mjs",
         "e2e/home.spec.mjs",
+        "e2e/home-news.spec.mjs",
         "e2e/keyboard.spec.mjs",
         "e2e/llms.spec.mjs",
+        "e2e/map-camera.spec.mjs",
         "e2e/map-link.spec.mjs",
         "e2e/map.spec.mjs",
         "e2e/news-footer.spec.mjs",
@@ -905,6 +1134,13 @@
         "e2e/overflow.spec.mjs",
         "e2e/restock.spec.mjs",
         "e2e/search.spec.mjs",
+        "e2e/site-search.spec.mjs",
+        "e2e/header-account-label.spec.mjs",
+        "e2e/header-search.spec.mjs",
+        "e2e/search-bar-width.spec.mjs",
+        "e2e/search-panel-nav.spec.mjs",
+        "e2e/search-stock.spec.mjs",
+        "e2e/stock-follow.spec.mjs",
         "e2e/sign-in-order.spec.mjs",
         "e2e/skeletons.spec.mjs",
         "e2e/skip-link.spec.mjs",
@@ -912,7 +1148,8 @@
         "e2e/top-bar-places.spec.mjs",
         "e2e/top-bar.spec.mjs",
         "e2e/walkthrough-2026-10-24.spec.mjs",
-        "e2e/wording.spec.mjs"
+        "e2e/wording.spec.mjs",
+        "e2e/home-news-layout.spec.mjs"
       ],
       "pages": [
         "/",
@@ -942,6 +1179,13 @@
         "e2e/llms.spec.mjs",
         "e2e/overflow.spec.mjs",
         "e2e/search.spec.mjs",
+        "e2e/site-search.spec.mjs",
+        "e2e/header-account-label.spec.mjs",
+        "e2e/header-search.spec.mjs",
+        "e2e/search-bar-width.spec.mjs",
+        "e2e/search-panel-nav.spec.mjs",
+        "e2e/search-stock.spec.mjs",
+        "e2e/stock-follow.spec.mjs",
         "e2e/wording.spec.mjs"
       ],
       "pages": [
@@ -1015,6 +1259,14 @@
     },
     {
       "paths": [
+        "e2e/account-rounds.spec.mjs"
+      ],
+      "specs": [
+        "e2e/account-rounds.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
         "e2e/account-tabs.spec.mjs"
       ],
       "specs": [
@@ -1026,7 +1278,16 @@
         "e2e/account.spec.mjs"
       ],
       "specs": [
-        "e2e/account.spec.mjs"
+        "e2e/account.spec.mjs",
+        "e2e/account-orders-pinned.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/account-orders-pinned.spec.mjs"
+      ],
+      "specs": [
+        "e2e/account-orders-pinned.spec.mjs"
       ]
     },
     {
@@ -1067,6 +1328,30 @@
       ],
       "specs": [
         "e2e/cart-a11y.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/cart-add-scroll.spec.mjs"
+      ],
+      "specs": [
+        "e2e/cart-add-scroll.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/cart-stock-scroll.spec.mjs"
+      ],
+      "specs": [
+        "e2e/cart-stock-scroll.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/cart-total-keyboard.spec.mjs"
+      ],
+      "specs": [
+        "e2e/cart-total-keyboard.spec.mjs"
       ]
     },
     {
@@ -1135,6 +1420,62 @@
     },
     {
       "paths": [
+        "e2e/group-close-notice.spec.mjs"
+      ],
+      "specs": [
+        "e2e/group-close-notice.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/group-orders.spec.mjs"
+      ],
+      "specs": [
+        "e2e/group-orders.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/host-member.spec.mjs"
+      ],
+      "specs": [
+        "e2e/host-member.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/perk-label.spec.mjs"
+      ],
+      "specs": [
+        "e2e/perk-label.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/perk-revision.spec.mjs"
+      ],
+      "specs": [
+        "e2e/perk-revision.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/info-align.spec.mjs"
+      ],
+      "specs": [
+        "e2e/info-align.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/tooltip-center.spec.mjs"
+      ],
+      "specs": [
+        "e2e/tooltip-center.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
         "e2e/cart-one.spec.mjs"
       ],
       "specs": [
@@ -1167,10 +1508,10 @@
     },
     {
       "paths": [
-        "e2e/contact-heading.spec.mjs"
+        "e2e/contact-card.spec.mjs"
       ],
       "specs": [
-        "e2e/contact-heading.spec.mjs"
+        "e2e/contact-card.spec.mjs"
       ]
     },
     {
@@ -1263,6 +1604,18 @@
     },
     {
       "paths": [
+        "bin/orphans/wrap.mjs",
+        "layouts/partials/email-confirm.html",
+        "layouts/contact/single.html",
+        "assets/styles/components/_scroll-value.scss",
+        "e2e/orphan-email.spec.mjs"
+      ],
+      "specs": [
+        "e2e/orphan-email.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
         "e2e/fake-payments.spec.mjs"
       ],
       "specs": [
@@ -1283,6 +1636,14 @@
       ],
       "specs": [
         "e2e/favicon.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/footer-seam.spec.mjs"
+      ],
+      "specs": [
+        "e2e/footer-seam.spec.mjs"
       ]
     },
     {
@@ -1359,10 +1720,34 @@
     },
     {
       "paths": [
+        "e2e/home-news.spec.mjs"
+      ],
+      "specs": [
+        "e2e/home-news.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/home-news-layout.spec.mjs"
+      ],
+      "specs": [
+        "e2e/home-news-layout.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
         "e2e/home.spec.mjs"
       ],
       "specs": [
         "e2e/home.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/invite-page.spec.mjs"
+      ],
+      "specs": [
+        "e2e/invite-page.spec.mjs"
       ]
     },
     {
@@ -1379,6 +1764,14 @@
       ],
       "specs": [
         "e2e/kept-thursday.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/order-locked.spec.mjs"
+      ],
+      "specs": [
+        "e2e/order-locked.spec.mjs"
       ]
     },
     {
@@ -1411,6 +1804,14 @@
       ],
       "specs": [
         "e2e/login-layout.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/login-warning.spec.mjs"
+      ],
+      "specs": [
+        "e2e/login-warning.spec.mjs"
       ]
     },
     {
@@ -1438,6 +1839,22 @@
         "e2e/map-link.spec.mjs",
         "e2e/map.spec.mjs",
         "e2e/top-bar-places.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/map-camera.spec.mjs"
+      ],
+      "specs": [
+        "e2e/map-camera.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/map-legend.spec.mjs"
+      ],
+      "specs": [
+        "e2e/map-legend.spec.mjs"
       ]
     },
     {
@@ -1475,6 +1892,14 @@
     },
     {
       "paths": [
+        "e2e/market-address.spec.mjs"
+      ],
+      "specs": [
+        "e2e/market-address.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
         "e2e/missed-delivery.spec.mjs"
       ],
       "specs": [
@@ -1515,6 +1940,14 @@
     },
     {
       "paths": [
+        "e2e/order-kept.spec.mjs"
+      ],
+      "specs": [
+        "e2e/order-kept.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
         "e2e/order-draft-date.spec.mjs"
       ],
       "specs": [
@@ -1531,6 +1964,14 @@
     },
     {
       "paths": [
+        "e2e/order-topbar-scroll.spec.mjs"
+      ],
+      "specs": [
+        "e2e/order-topbar-scroll.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
         "e2e/order-page.spec.mjs"
       ],
       "specs": [
@@ -1539,10 +1980,65 @@
     },
     {
       "paths": [
+        "e2e/checkout-go.spec.mjs"
+      ],
+      "specs": [
+        "e2e/checkout-go.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
         "e2e/onfarm-times.spec.mjs"
       ],
       "specs": [
         "e2e/onfarm-times.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/place-order-pane.spec.mjs"
+      ],
+      "specs": [
+        "e2e/place-order-pane.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/round-card-ring.spec.mjs"
+      ],
+      "specs": [
+        "e2e/round-card-ring.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/support/vff.mjs"
+      ],
+      "specs": [
+        "e2e/account-rounds.spec.mjs",
+        "e2e/group-close-notice.spec.mjs",
+        "e2e/group-code.spec.mjs",
+        "e2e/group-credit.spec.mjs",
+        "e2e/group-orders.spec.mjs",
+        "e2e/host-member.spec.mjs",
+        "e2e/pickup-hint.spec.mjs",
+        "e2e/round-card-ring.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/optin-card.spec.mjs"
+      ],
+      "specs": [
+        "e2e/optin-card.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/optin-section.spec.mjs"
+      ],
+      "specs": [
+        "e2e/optin-section.spec.mjs"
       ]
     },
     {
@@ -1567,6 +2063,59 @@
       ],
       "specs": [
         "e2e/order-scheduled.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/pickup-copy-anim.spec.mjs"
+      ],
+      "specs": [
+        "e2e/pickup-copy-anim.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/pickup-days.spec.mjs"
+      ],
+      "specs": [
+        "e2e/pickup-copy-anim.spec.mjs",
+        "e2e/pickup-days-revision-2.spec.mjs",
+        "e2e/pickup-days-revision.spec.mjs",
+        "e2e/pickup-days-status.spec.mjs",
+        "e2e/pickup-days.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/pickup-days-revision-2.spec.mjs"
+      ],
+      "specs": [
+        "e2e/pickup-days-revision-2.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/pickup-days-revision.spec.mjs"
+      ],
+      "specs": [
+        "e2e/pickup-days-revision-2.spec.mjs",
+        "e2e/pickup-days-revision.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/pickup-hint.spec.mjs"
+      ],
+      "specs": [
+        "e2e/pickup-hint.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/pickup-days-status.spec.mjs"
+      ],
+      "specs": [
+        "e2e/pickup-days-status.spec.mjs"
       ]
     },
     {
@@ -1694,7 +2243,73 @@
         "e2e/search.spec.mjs"
       ],
       "specs": [
-        "e2e/search.spec.mjs"
+        "e2e/search.spec.mjs",
+        "e2e/site-search.spec.mjs",
+        "e2e/header-account-label.spec.mjs",
+        "e2e/header-search.spec.mjs",
+        "e2e/search-bar-width.spec.mjs",
+        "e2e/search-panel-nav.spec.mjs",
+        "e2e/search-stock.spec.mjs",
+        "e2e/stock-follow.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/site-search.spec.mjs"
+      ],
+      "specs": [
+        "e2e/site-search.spec.mjs",
+        "e2e/search-stock.spec.mjs",
+        "e2e/stock-follow.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/header-account-label.spec.mjs"
+      ],
+      "specs": [
+        "e2e/header-account-label.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/header-search.spec.mjs"
+      ],
+      "specs": [
+        "e2e/header-search.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/search-bar-width.spec.mjs"
+      ],
+      "specs": [
+        "e2e/search-bar-width.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/search-panel-nav.spec.mjs"
+      ],
+      "specs": [
+        "e2e/search-panel-nav.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/search-stock.spec.mjs"
+      ],
+      "specs": [
+        "e2e/search-stock.spec.mjs",
+        "e2e/stock-follow.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/stock-follow.spec.mjs"
+      ],
+      "specs": [
+        "e2e/stock-follow.spec.mjs"
       ]
     },
     {
@@ -1731,10 +2346,26 @@
     },
     {
       "paths": [
+        "e2e/stamp-restore.spec.mjs"
+      ],
+      "specs": [
+        "e2e/stamp-restore.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
         "e2e/square-fulfilment.spec.mjs"
       ],
       "specs": [
         "e2e/square-fulfilment.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/staging-library.spec.mjs"
+      ],
+      "specs": [
+        "e2e/staging-library.spec.mjs"
       ]
     },
     {
@@ -1792,6 +2423,14 @@
       ],
       "specs": [
         "e2e/venmo-paid.spec.mjs"
+      ]
+    },
+    {
+      "paths": [
+        "e2e/venmo-restart.spec.mjs"
+      ],
+      "specs": [
+        "e2e/venmo-restart.spec.mjs"
       ]
     },
     {

@@ -18,10 +18,11 @@
 import {
   fieldError,
 } from "../../assets/scripts/utils/field-errors.mjs";
-import { sameSite } from "./lib/auth.mjs";
+import { receivedEmail, sameSite } from "./lib/auth.mjs";
 import { now as clock } from "./lib/clock.mjs";
 import { json, readJson } from "./lib/http.mjs";
-import { log, withLog } from "./lib/log.mjs";
+import { log } from "./lib/log.mjs";
+import { withLog } from "./lib/with-log.mjs";
 import { sendMail } from "./lib/mail.mjs";
 import { gate } from "./lib/maintenance.mjs";
 import { confirmSubscribe, subscribe, unsubscribe } from "./lib/news.mjs";
@@ -63,7 +64,16 @@ export const handle = async (req, {
 
     if (!body) return json(400, { errors: { body: "Expected JSON." } });
 
-    const r = await subscribe(stores, body, {
+    // Decoded once, cleaned and checked (#758).
+    const email = receivedEmail(body.email);
+
+    if (!email) {
+      return json(422, {
+        errors: { email: fieldError("email", body.email) },
+      });
+    }
+
+    const r = await subscribe(stores, { ...body, email }, {
       now, env, mail, page: fromPage(req),
     });
 

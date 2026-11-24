@@ -203,7 +203,10 @@ test.describe("the header with scripts off (#565)", () => {
       await expect(header.getByRole("link", { name, exact: true }))
         .toBeVisible();
     }
-    await expect(header.getByRole("button", { name: "Search products" }))
-      .toBeVisible();
+    // #913: search is closed to the magnifier at every width.
+    const search = header
+      .getByRole("button", { name: /^(open |close )?search$/i });
+
+    await expect(search).toBeVisible();
   });
 });

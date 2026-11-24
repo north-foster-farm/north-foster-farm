@@ -3,6 +3,7 @@
 // might read is pinned by a test. Money is integer cents.
 
 import { short } from "./catalog.mjs";
+import { perkEffects } from "./perks.mjs";
 import { dollars, meetsMinimum, toCents } from "./totals.mjs";
 
 // Badges in the order they are shown. Each is on or off, never a
@@ -25,10 +26,12 @@ export const badges = (totals, money) => {
     });
   }
 
+  // Lit too for an account whose perks lift the fee, so it shows the
+  // free delivery the perk line no longer repeats (#717, revised).
   list.push({
     key: "free-delivery",
     label: "Free delivery",
-    on: s >= toCents(money.feeWaivedAt),
+    on: s >= toCents(money.feeWaivedAt) || perkEffects(totals.perks).fee,
   });
 
   return list;
@@ -95,6 +98,14 @@ export const deliveryShort = (totals, money) => {
 
   return totals.subtotal === 0 ? need : `${need} Add ${dollars(gap)} more.`;
 };
+
+// Why Proceed to checkout cannot go on for a delivery short of the
+// minimum (#706): the minimum and the current order, the goods after
+// discounts, without the delivery fee. James's wording, lightly fixed.
+export const minimumTip = (totals, money) => "Delivery orders have a " +
+  `${dollars(toCents(money.deliveryMinimum))} minimum (current order is ` +
+  `${dollars(totals.subtotal - totals.discountAmount)}). Please add more ` +
+  "to your cart or choose a different pick-up option.";
 
 // The fee cell: nothing outside delivery or on an empty cart, the
 // fee, "$0" when a farm-issued code waived it (#182), or "Free".
@@ -164,4 +175,6 @@ export const summarize = ({ totals, method, money, count, lines, index }) => ({
   nudgeTone: method === "delivery" && !meetsMinimum(totals, money)
     ? "warn" : "",
   deliveryShort: method === "delivery" ? deliveryShort(totals, money) : "",
+  minimumTip: method === "delivery" && !meetsMinimum(totals, money)
+    ? minimumTip(totals, money) : "",
 });

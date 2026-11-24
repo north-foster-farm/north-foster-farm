@@ -1,7 +1,8 @@
 // A buying group's credit (#471): stored value the farm grants a
 // member, the host reward or a share of it (lib/rounds.mjs), spent on
 // a later order alongside member pricing. It is the site's own, in
-// the customers store under `credit/<email>`, never Square's: a
+// the customers store under `credit/<hashed email>` (#758), never
+// Square's: a
 // ledger of grants, each with what has been spent of it, so the
 // books show every dollar and where it went.
 //
@@ -14,11 +15,19 @@
 import {
   instant, parts,
 } from "../../../assets/scripts/order/lib/zoned.mjs";
+import {
+  addressHash, deleteAddressed, dropOldForms, findAddressed, listLatest,
+} from "./address-key.mjs";
+import { refOf } from "./group-log.mjs";
 import { getOrder } from "./records.mjs";
 
 const emailOf = (value) => String(value || "").trim().toLowerCase();
 
-export const creditKey = (email) => `credit/${emailOf(email)}`;
+export const creditKey = (email) => `credit/${addressHash(email)}`;
+
+// Every form of a ledger's key, old ones included (#758).
+export const deleteLedger = (stores, email) =>
+  deleteAddressed(stores.customers, "credit", email);
 
 // When a grant made at `now` expires: 11:59 PM on 31 December of the
 // same year, or, for a grant made in December, of the following year
@@ -31,9 +40,12 @@ export const yearEnd = (now, timeZone) => {
     .toISOString();
 };
 
-export const getLedger = async (stores, email) =>
-  (await stores.customers.get(creditKey(email)))
-  || { email: emailOf(email), entries: [] };
+// Under its hashed key, or a key from before the switch (#758).
+export const getLedger = async (stores, email) => {
+  const found = await findAddressed(stores.customers, "credit", email);
+
+  return found ? found.value : { email: emailOf(email), entries: [] };
+};
 
 export const spentOf = (entry) =>
   (entry.spent || []).reduce((s, x) => s + x.amount, 0);
@@ -68,13 +80,20 @@ const swapLedger = async (stores, email, change) => {
 
   for (let i = 0; i < SWAPS; i++) {
     const found = await stores.customers.getTagged(key);
-    const ledger = found ? found.value : { email: emailOf(email), entries: [] };
+    // A ledger still under its old key (#758) is the one to change; the
+    // change is created at the hashed key, which reads take first.
+    const old = found ? null
+      : await findAddressed(stores.customers, "credit", email);
+    const ledger = found ? found.value
+      : (old ? old.value : { email: emailOf(email), entries: [] });
     const next = change(ledger);
 
     if (!next) return ledger;
-    if (!found) {
-      if (await stores.customers.create(key, next)) return next;
-    } else if (await stores.customers.swap(key, next, found.etag)) {
+    if (found ? await stores.customers.swap(key, next, found.etag)
+      : await stores.customers.create(key, next)) {
+      // The hashed ledger replaces any old one (#758, qa on #787).
+      await dropOldForms(stores.customers, "credit", email);
+
       return next;
     }
   }
@@ -102,6 +121,55 @@ export const grantCredit = async (stores, email, {
       }],
     }
   ));
+};
+
+// One customer's grants added to another's, for `bin/nff customers
+// merge` (#776): each keeps its amount, spends and expiry, and the
+// source's ledger goes. A grant whose id the target already holds
+// keeps its own under the id with "~merged" (or "~merged-2" and on,
+// when that is taken too). Each moved grant is marked `mergedFrom`,
+// the hash of the source's address (group-log.mjs's refOf), and only
+// a grant so marked with the source's id counts as already moved, so
+// a rerun after a failed delete moves nothing twice, while the
+// target's own grant, never marked, is never mistaken for one: two
+// members' equal shares of one round match on every value (security,
+// PR #780). -> how many moved.
+export const mergeLedger = async (stores, from, into) => {
+  const { entries } = await getLedger(stores, from);
+  const ref = refOf(from);
+  let moved = 0;
+
+  if (!entries.length) return 0;
+  await swapLedger(stores, into, (ledger) => {
+    const ids = new Set(ledger.entries.map((e) => e.id));
+    const done = new Set(ledger.entries.filter((e) => e.mergedFrom === ref)
+      .map((e) => e.mergedId));
+    const adding = entries.filter((e) => !done.has(e.id));
+    const free = (id) => {
+      let next = `${id}~merged`;
+
+      for (let n = 2; ids.has(next); n += 1) next = `${id}~merged-${n}`;
+
+      return next;
+    };
+    const placed = adding.map((e) => {
+      const id = ids.has(e.id) ? free(e.id) : e.id;
+
+      ids.add(id);
+
+      return { ...e, id, mergedFrom: ref, mergedId: e.id };
+    });
+
+    moved = adding.length;
+
+    return !adding.length ? null : {
+      ...ledger, entries: [...ledger.entries, ...placed],
+    };
+  });
+  // Every form of its key, one from before #758 included.
+  await deleteLedger(stores, from);
+
+  return moved;
 };
 
 // What an order still holds of a ledger, across its grants: its
@@ -266,17 +334,18 @@ export const STRANDED_MS = 24 * 60 * 60_000;
 // would have retried, then a closed tab; security re-review,
 // 6426747224): the spend stays on the ledger for an order id that
 // has no record. Once it is a day old it goes back, so the member
-// loses nothing. For the jobs; every ledger is read.
+// loses nothing. For the jobs; every ledger is read, and an old twin
+// cleaned on the way is logged as `by` (#794).
 // -> [{ email, orderId, restored }]
 export const sweepStrandedCredit = async (stores, {
-  now = new Date(),
+  now = new Date(), by = "site",
 } = {}) => {
-  const keys = await stores.customers.list("credit/");
   const out = [];
 
-  for (const { key } of keys) {
-    const ledger = await stores.customers.get(key);
-
+  // One ledger per address: a hashed one wins over an old twin (#758).
+  for (const { value: ledger } of await listLatest(
+    stores.customers, "credit", { by }
+  )) {
     if (!ledger || !Array.isArray(ledger.entries)) continue;
 
     const since = new Map();

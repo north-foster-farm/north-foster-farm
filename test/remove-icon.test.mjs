@@ -123,8 +123,8 @@ describe("the remove control's icon (icons/circle-x.svg)", () => {
     ].join("")));
   });
 
-  it("keeps its accessible name (cart.js)", () => {
-    assert.ok(read("assets/scripts/order/cart/cart.js").includes(
+  it("keeps its accessible name (lines-view.js)", () => {
+    assert.ok(read("assets/scripts/order/cart/lines-view.js").includes(
       '"aria-label", `Remove ${item.lineName} from your cart`'
     ));
   });

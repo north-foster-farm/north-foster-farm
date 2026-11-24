@@ -1,39 +1,74 @@
 // GET /api/stock: what can be bought right now, for every catalog
-// item. The page asks on load, on return to the tab and before it
-// submits, so a cart never holds what just sold out. Each read also
+// item. The page asks on load, as the customer shops, once a minute
+// and before it submits, so a cart never holds what just sold out
+// (#908; order/stock.js has the rhythm). Each read also
 // tells the farm, once a day, of an archived product stock has on
 // hand (#267).
 //
 // Square's counts come from a snapshot no older than 15 s
 // (lib/stock.mjs, SNAPSHOT), and in production one address may ask
-// 120 times in ten minutes, about one every 5 s, before a 429. The
-// page then keeps what it had, and the order check still reads
-// Square fresh. Staging has no limit: the QA suite's browsers share
-// one address and send no token with the page's own fetch.
+// 240 times in ten minutes before a 429 (#908, James's rule 6): five
+// tabs of one household at the page's busiest rhythm. The page then
+// keeps what it had, and the order check still reads Square fresh.
+// The check right before paying (?final=1) is counted apart, so
+// browsing never blocks a payment, under a cap of its own, so the
+// flag is no way around the limit. Staging has no limit: the QA
+// suite's browsers share one address and send no token with the
+// page's own fetch.
 
 import { now as clock, real } from "./lib/clock.mjs";
 import { json } from "./lib/http.mjs";
-import { withLog } from "./lib/log.mjs";
+import { withLog } from "./lib/with-log.mjs";
 import {
   archivedInStock, availability, liveCounts,
 } from "./lib/stock.mjs";
-import { applyPins, scopeOf } from "./lib/stock-pins.mjs";
+import {
+  SCOPE_COOKIE, applyPins, pinsAllowed, scopeOf,
+} from "./lib/stock-pins.mjs";
 import { deployContext, stores as defaultStores } from "./lib/store.mjs";
 
-// Per-instance, best effort, as /api/orders.
-const RATE = { windowMs: 10 * 60_000, max: 120 };
-const hits = new Map();
+// Per-instance, best effort, as /api/orders. One bucket for browsing,
+// one for the checks before paying.
+const WINDOW_MS = 10 * 60_000;
+const BROWSING = { max: 240, hits: new Map() };
+const PAYING = { max: 60, hits: new Map() };
 
-const rateLimited = (ip, now) => {
+const rateLimited = (ip, now, bucket) => {
   if (!ip) return false;
 
-  const recent = (hits.get(ip) || []).filter((t) => now - t < RATE.windowMs);
+  const recent = (bucket.hits.get(ip) || [])
+    .filter((t) => now - t < WINDOW_MS);
 
   recent.push(now);
-  hits.set(ip, recent);
+  bucket.hits.set(ip, recent);
 
-  return recent.length > RATE.max;
+  return recent.length > bucket.max;
 };
+
+// The check right before paying asks with ?final=1 (order/stock.js).
+// Any query carrying final at all, in any form, is taken as one, so
+// none of them is answered from the edge (#994, security's read).
+const paying = (req) => new URL(req.url).searchParams.has("final");
+
+// The browsing answer, kept at Netlify's edge for the 15 seconds of
+// the server's own Square snapshot (#908, James's rule 7), so a repeat
+// inside them runs no function. Each edge node keeps its own copy;
+// durable shares one across them, which cuts the runs but does not
+// promise a single one. Browsers keep nothing (json()'s no-store), and
+// the check before paying is never answered from the edge. The key is
+// only the final flag, and a stock pin's cookie where pins are allowed
+// (staging's tests): elsewhere a cookie would only make misses. A query
+// string of any other parameter shares the one answer instead of making
+// its own (#994; Netlify's caching overview, "Cache key variation").
+const PINNED = `query=final,cookie=${SCOPE_COOKIE}`;
+const edgeFor = (req, env) => (paying(req) ? {} : {
+  "Netlify-CDN-Cache-Control": "public, durable, s-maxage=15",
+  "Netlify-Vary": pinsAllowed(env) ? PINNED : "query=final",
+});
+
+// Whether this ask is over its bucket's limit.
+const limited = (req, ip, now) =>
+  rateLimited(ip, now, paying(req) ? PAYING : BROWSING);
 
 export const handle = async (req, {
   stores = defaultStores(),
@@ -49,7 +84,7 @@ export const handle = async (req, {
   after = (work) => work,
 } = {}) => {
   if (deployContext(env) === "production"
-    && rateLimited(ip, real(now).getTime())) {
+    && limited(req, ip, real(now).getTime())) {
     return new Response(JSON.stringify({
       message: "We've checked stock too many times from here. Wait a " +
         "few minutes and try again.",
@@ -58,7 +93,7 @@ export const handle = async (req, {
       headers: {
         "Content-Type": "application/json",
         "Cache-Control": "no-store",
-        "Retry-After": String(RATE.windowMs / 1000),
+        "Retry-After": String(WINDOW_MS / 1000),
       },
     });
   }
@@ -82,7 +117,7 @@ export const handle = async (req, {
     env, mail, now, catalogIndex, counts,
   }));
 
-  return json(200, { at: now.toISOString(), items });
+  return json(200, { at: now.toISOString(), items }, edgeFor(req, env));
 };
 
 export default withLog("stock", async (req, context) =>

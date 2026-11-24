@@ -59,7 +59,7 @@ export const mountNav = ({ root, onSection = () => {} }) => {
     onSection(current());
   };
 
-  for (const a of links) {
+  links.forEach((a) => {
     a.addEventListener("click", (ev) => {
       const section = pane.querySelector(a.hash);
 
@@ -79,7 +79,7 @@ export const mountNav = ({ root, onSection = () => {} }) => {
       section.focus({ preventScroll: true });
       onSection(a.hash.slice(1));
     });
-  }
+  });
   toggle.addEventListener("click", () => {
     const open = !panel.classList.contains("staging-nav-open");
 

@@ -89,6 +89,7 @@
   background: var(--stg-bg);
   box-shadow: 0 6px 24px var(--stg-shadow);
   overflow: hidden;
+
   /* Bootstrap gives the active nav item z-index 2. Without a stacking
      context of its own, that item drew over the open libraries. */
   isolation: isolate;
@@ -222,10 +223,6 @@ a.staging-sha:hover {
   outline-offset: -2px;
 }
 
-.staging-pane > section:focus:not(:focus-visible) {
-  outline: none;
-}
-
 .staging-pane > section + section {
   margin-top: 1.25rem;
   padding-top: 1rem;
@@ -236,6 +233,10 @@ a.staging-sha:hover {
    marks it current. */
 .staging-pane > section:last-of-type {
   min-height: 85%;
+}
+
+.staging-pane > section:focus:not(:focus-visible) {
+  outline: none;
 }
 
 .staging-pane section[hidden],
@@ -286,6 +287,7 @@ a.staging-sha:hover {
     box-shadow: 4px 0 16px var(--stg-shadow);
     visibility: hidden;
     transform: translateX(-100%);
+
     /* Hidden only once it has slid away. */
     transition: transform 0.2s ease, visibility 0s linear 0.2s;
   }

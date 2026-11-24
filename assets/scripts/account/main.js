@@ -3,13 +3,16 @@
 // customer typed can become markup. Sections are tabs keyed by the
 // URL hash.
 
-import { mergeScheduled } from "../order/lib/group.mjs";
-import { perkSentence } from "../order/lib/perks.mjs";
+import { drawPerks } from "../order/cart/perk-label.js";
+import {
+  scheduledChoice, scheduledChoices,
+} from "../order/lib/scheduled.mjs";
 import {
   pickupTimes, windowLabel,
 } from "../order/lib/schedule.mjs";
 import { dollars } from "../order/lib/totals.mjs";
 import { forgetCustomer } from "../order/draft.js";
+import { drawPickupDays, drawRounds } from "../order/pickup-days.js";
 import { label } from "../order/lib/zoned.mjs";
 import { forgetJoined, remember } from "../news/hide.js";
 import { forget, showChick, signOut } from "../session/session.js";
@@ -36,6 +39,7 @@ import {
   rounds,
 } from "./lib/membership.mjs";
 import { showMembership } from "./lib/membership-tab.mjs";
+import { orderFromLink } from "./lib/order-link.mjs";
 import { watchTabs } from "./tabs-more.js";
 
 const qs = (root, selector) => root.querySelector(selector);
@@ -98,7 +102,9 @@ const when = (order) => {
   const p = order.pickup;
 
   if (p) {
-    return `${METHOD.scheduled}, ${day}${p.gone ? "" : `, ${at(p)}`}`;
+    // A group's round reads as a Group order (#749 item 10).
+    return `${p.group ? METHOD.group : METHOD.scheduled}, ${day}${
+      p.gone ? "" : `, ${at(p)}`}`;
   }
 
   return `${METHOD[f.method] || f.method}, ${day}`;
@@ -107,15 +113,6 @@ const when = (order) => {
 const placed = (iso) => new Date(iso).toLocaleDateString("en-US", {
   month: "short", day: "numeric", year: "numeric",
 });
-
-// The emails about one order link to /account/orders/<id>/, which
-// netlify.toml rewrites to this page. The session says whose order it
-// is, so the path carries nothing but the id.
-const orderFromPath = () => {
-  const found = /^\/account\/orders\/([^/]+)\/?$/.exec(location.pathname);
-
-  return found ? decodeURIComponent(found[1]) : "";
-};
 
 // The order page takes ?add=SKU:qty,... and puts those in the cart.
 const addUrl = (lines) => `/order/?add=${encodeURIComponent(
@@ -130,6 +127,9 @@ class Account {
 
     this.avatars = data.avatars;
     this.terms = data.terms;
+    // The public places, for a scheduled pickup's address; a buying
+    // group's own place joins them from /api/group (dateList).
+    this.locations = data.locations || [];
     dropSeries = ((data.series || []).find((x) => x.kind === "drop-site")
       || {}).code || "";
     this.app = document.getElementById("account-app");
@@ -244,7 +244,8 @@ class Account {
     watchTabs(qs(document, "[data-tabs-wrap]"));
     // The banner names the group, so it waits for the pane.
     pane.then(() => this.joined());
-    this.openOrder(orderFromPath());
+    // The session says whose order it is; the link carries only the id.
+    this.openOrder(orderFromLink(location));
     this.emailChanged();
     this.confirmChange();
   }
@@ -432,12 +433,14 @@ class Account {
   }
 
   // A member's own Leave group (#495), asked first. Gone, the page
-  // starts again without the tab.
+  // starts again without the tab. A host who is a member only by
+  // hosting (#772) has nothing to leave.
   renderLeave(view) {
     const box = this.ownParts[1];
+    const leaves = view.member && !view.member.byHost;
 
-    box.hidden = !view.member;
-    if (!view.member || this.leaveWired) return;
+    box.hidden = !leaves;
+    if (!leaves || this.leaveWired) return;
     this.leaveWired = true;
 
     const open = document.getElementById("mem-leave");
@@ -592,8 +595,12 @@ class Account {
     this.showTab("orders");
     card.classList.add("is-linked");
     card.tabIndex = -1;
-    card.focus({ preventScroll: true });
-    card.scrollIntoView({ block: "center" });
+    // This runs inside the skeleton's render, while the region still
+    // hides its content: the focus waits until the region shows (#924).
+    queueMicrotask(() => {
+      card.focus({ preventScroll: true });
+      card.scrollIntoView({ block: "center" });
+    });
   }
 
   wire() {
@@ -879,10 +886,15 @@ class Account {
   // Field errors from the API, next to the fields of one form. A form
   // that saves itself does not pull the focus back to the error.
   showErrors(form, errors, { focus = true } = {}) {
+    // A key with a slot in more than one part (a pickup's occurrence,
+    // under Pick-up days or Group orders) is shown in the visible one.
+    const shown = (selector) => all(form, selector)
+      .find((el) => !el.closest("[hidden]")) || qs(form, selector);
+
     this.clearErrors(form);
     for (const [key, message] of Object.entries(errors || {})) {
-      const slot = qs(form, `[data-error-for="${key}"]`);
-      const field = qs(form, `[data-field="${key}"], [name="${key}"]`);
+      const slot = shown(`[data-error-for="${key}"]`);
+      const field = shown(`[data-field="${key}"], [name="${key}"]`);
 
       if (slot) {
         write(slot, message);
@@ -974,7 +986,7 @@ class Account {
       tone = "wait";
     } else if (a && a.status === "denied") {
       text = "We can't deliver to this address. On-farm pickup and " +
-        "our pickup days are open to everyone.";
+        "our pick-up days are open to everyone.";
       tone = "no";
     }
     write(status, text);
@@ -1012,25 +1024,23 @@ class Account {
     const group = c.discountGroup && groups[c.discountGroup];
     const row = document.getElementById("prof-group-row");
 
-    // And the customer's perks (#514), one line each: fragments with no
-    // end punctuation, so each takes its own line.
+    // And the customer's perks (#514) as pricing labels, each keeping
+    // its end date beside it (#717, James: the cart shows none), after
+    // a buying group's member line (#717, revised).
+    const place = document.getElementById("prof-group");
     const perks = Array.isArray(c.perks) ? c.perks : [];
-    const lines = [
-      ...group ? [`${group.label}: ${group.percent}% off, whenever that ` +
-        "beats the bulk discount."] : [],
-      ...perks.map(perkSentence),
-    ];
 
-    row.hidden = !lines.length;
-    document.getElementById("prof-group").replaceChildren(
-      ...lines.map((text) => {
-        const line = document.createElement("span");
+    for (const tip of this.perkTips || []) tip.stop();
+    this.perkTips = drawPerks(place, perks, {
+      dates: true, member: this.member,
+    });
+    if (group) {
+      const line = el("span", "d-block", `${group.label}: ` +
+        `${group.percent}% off, whenever that beats the bulk discount.`);
 
-        line.className = "d-block";
-        write(line, text);
-
-        return line;
-      }));
+      place.prepend(line);
+    }
+    row.hidden = !place.childElementCount;
   }
 
   async saveAddress() {
@@ -1353,7 +1363,7 @@ class Account {
     }
 
     if (q && !q.answeredAt && q.kind === "window") {
-      write(pickup, "We can't make that pickup time" +
+      write(pickup, "We can't make that pick-up time" +
         `${q.reason ? `: ${q.reason}` : "."} Please choose another day and ` +
         "time with Change pickup, or cancel the order.");
       pickup.hidden = false;
@@ -1527,21 +1537,30 @@ class Account {
     p.hidden = true;
   }
 
+  // A location by its code, or null.
+  place(code) {
+    return this.locations.find((l) => l.code === code) || null;
+  }
+
   async dateList(method) {
     if (!this.dates) {
       const { ok, data } = await api("/api/dates");
 
       this.dates = ok ? data : {};
-      // A buying group's member (#471) may move a pickup to the
-      // group's round, which /api/dates never lists: the account's
-      // group is asked for it.
-      if (ok && this.customer && this.customer.memberGroup) {
+      // A buying group's member (#471) moves a round order among the
+      // group's open rounds, which /api/dates never lists: the
+      // account's group is asked for them. They are Group orders'
+      // (#749, #762), never among the pick-up days. A host is a member
+      // that /api/me names but the record never does (#772).
+      if (ok && this.customer && (this.customer.memberGroup || this.member)) {
         const mine = await api("/api/group", { method: "POST", body: {} })
           .catch(() => ({ ok: false, data: null }));
 
         if (mine.ok && mine.data && mine.data.dates) {
-          this.dates.scheduled = mergeScheduled(this.dates.scheduled,
-            mine.data.dates);
+          this.dates.group = mine.data.dates;
+          this.roundSeries = mine.data.group && mine.data.group.series;
+          this.locations = [...this.locations,
+            ...((mine.data.group || {}).places || {}).locations || []];
         }
       }
     }
@@ -1557,34 +1576,38 @@ class Account {
     const form = qs(node, "form");
     const select = qs(form, "[data-dates]");
     const scheduled = !!order.pickup;
-    const dates = await this.dateList(
-      scheduled ? "scheduled" : order.fulfilment.method
-    );
-    // A scheduled pickup chooses an occurrence: any open date at any
-    // place. The others choose a date.
-    const keyOf = (d) => (scheduled ? d.occurrence : d.date);
-    const textOf = (d) => (scheduled
-      ? `${d.label}, ${at(d)}` : d.label);
-    const held = scheduled ? order.pickup.occurrence : order.fulfilment.date;
+    // A round order changes among the group's rounds (#762).
+    const round = scheduled && !!order.pickup.group;
+    const list = round ? "[data-rounds]" : "[data-pickups]";
+    const dates = await this.dateList(round ? "group"
+      : scheduled ? "scheduled" : order.fulfilment.method);
 
-    if (scheduled) qs(form, "[data-dates-label]").textContent = "Pickup day";
-    for (const d of dates) {
-      const option = document.createElement("option");
+    // A scheduled pickup chooses an occurrence, any open date at any
+    // place, in the order page's layout (#703). The others choose a
+    // date.
+    if (scheduled) {
+      this.drawPickups(form, order, dates, round);
+    } else {
+      const held = order.fulfilment.date;
 
-      option.value = keyOf(d);
-      option.textContent = textOf(d);
-      select.appendChild(option);
+      for (const d of dates) {
+        const option = document.createElement("option");
+
+        option.value = d.date;
+        option.textContent = d.label;
+        select.appendChild(option);
+      }
+      if (!dates.some((d) => d.date === held)) {
+        const option = document.createElement("option");
+
+        option.value = held;
+        option.textContent = `${when(order).replace(
+          `${METHOD.scheduled}, `, ""
+        )} (as booked)`;
+        select.prepend(option);
+      }
+      select.value = held;
     }
-    if (!dates.some((d) => keyOf(d) === held)) {
-      const option = document.createElement("option");
-
-      option.value = held;
-      option.textContent = `${when(order).replace(
-        `${METHOD.scheduled}, `, ""
-      )} (as booked)`;
-      select.prepend(option);
-    }
-    select.value = held;
     qs(form, "[name='notes']").value = order.notes || "";
 
     if (isDelivery) {
@@ -1597,6 +1620,9 @@ class Account {
       for (const part of all(form, "[data-onfarm]")) {
         part.hidden = order.fulfilment.method !== "onfarm";
       }
+      qs(form, "[data-day]").hidden = scheduled;
+      qs(form, "[data-scheduled]").hidden = !scheduled || round;
+      qs(form, "[data-group]").hidden = !round;
       if (order.fulfilment.method === "onfarm") {
         const draw = () => this.drawWindows(form, order, dates, select.value);
 
@@ -1615,7 +1641,8 @@ class Account {
 
       if (scheduled) {
         body.method = "scheduled";
-        body.occurrence = select.value;
+        body.occurrence = (qs(form, `${list} input:checked`)
+          || {}).value || "";
       } else {
         body.date = select.value;
       }
@@ -1647,7 +1674,38 @@ class Account {
     });
 
     this.panel(card).appendChild(node);
-    select.focus();
+    (scheduled ? qs(form, `${list} input:checked`) : select).focus();
+  }
+
+  // Every open scheduled pickup as the order page shows it, grouped
+  // under its date (#703, order/pickup-days.js), the booked one
+  // chosen. A booked pickup no longer open is offered too, marked as
+  // booked, so the notes can change without moving it. A round order
+  // (`round`) offers the group's open rounds instead, under Group
+  // orders, as the order page does (#749, #762); a pickup never does.
+  drawPickups(form, order, dates, round = false) {
+    const p = order.pickup;
+    const f = order.fulfilment;
+    const held = p.occurrence || f.occurrence;
+    const part = round ? "rounds" : "pickups";
+    const box = qs(form, `[data-${part}]`);
+    const name = qs(form, `[data-${part}-label]`);
+    const id = `change-${order.id}`;
+    const choices = scheduledChoices(round ? dates
+      : dates.filter((d) => d.series !== this.roundSeries));
+
+    if (!choices.some((d) => d.value === held)) {
+      choices.push(scheduledChoice({
+        occurrence: held, date: f.date, label: label(f.date),
+        series: p.series, name: p.name, location: p.location,
+        window: [p.window, "(as booked)"].filter(Boolean).join(" "),
+      }));
+    }
+    name.id = `${id}-label`;
+    box.setAttribute("aria-labelledby", name.id);
+    (round ? drawRounds : drawPickupDays)(box, choices, {
+      place: (code) => this.place(code), name: "occurrence", id, pick: held,
+    });
   }
 
   // The chosen day's pickup times, from the farm's schedule (W11d),

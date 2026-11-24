@@ -17,9 +17,9 @@ export const accountUrlFor = (env = process.env) =>
   (env.ACCOUNTS_ENABLED === "true" ? `${siteUrl(env)}/account/` : null);
 
 // One order on the account pages, for the emails that are about that
-// order. Null until accounts are on, like accountUrlFor. The path is
-// served by the account page through a rewrite in netlify.toml; the
-// session says whose order it is, so nothing but the id is in it.
+// order. Null until accounts are on, like accountUrlFor. netlify.toml
+// sends the path on to /account/?order=<id> with a redirect (#924);
+// the session says whose order it is, so nothing but the id is in it.
 // The account page's settings tab, where a customer turns the payment
 // reminders off. Null until accounts are on.
 export const settingsUrlFor = (env) =>

@@ -38,6 +38,9 @@ const line = (state) => (state
   ? `TRIPPED ${state.at}: ${state.reason} ${JSON.stringify(state.detail)}`
   : "Not tripped.");
 
+/**
+ * @public bin/nff imports it; Knip reads no file without an extension.
+ */
 export const breakerCommand = async (action, {
   stores, flags, out, root, now = new Date(),
 }) => {

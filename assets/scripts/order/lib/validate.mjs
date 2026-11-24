@@ -4,7 +4,7 @@
 
 import { archived } from "./catalog.mjs";
 import {
-  cutoffFor, datesFor, isDeliveryDay, occurrenceFor,
+  cutoffFor, datesFor, graceRound, isDeliveryDay, occurrenceFor,
 } from "./dates.mjs";
 import { legacyOccurrence } from "./events.mjs";
 import { moneyOn } from "./money-on.mjs";
@@ -14,7 +14,7 @@ import { today } from "./zoned.mjs";
 import {
   enterField, fieldError,
 } from "../../utils/field-errors.mjs";
-import { looksLikeEmail, normalizeEmail } from "../../utils/email.js";
+import { normalizeEmail, receivedEmail } from "../../utils/email.js";
 
 export const METHODS = ["onfarm", "scheduled", "delivery"];
 export const CONTACT = ["text", "call"];
@@ -134,7 +134,10 @@ export const validateOrder = (payload, {
   const name = [firstName, lastName].filter(Boolean).join(" ");
   // Normalized before it is checked, so the record and Square carry
   // the address without a trailing period (#678).
-  const email = normalizeEmail(text(customer.email, 254));
+  // Decoded once, cleaned and checked first (#758).
+  const typed = text(customer.email, 254);
+  const checked = receivedEmail(typed);
+  const email = checked || normalizeEmail(typed);
   const phone = text(customer.phone, 40);
   const contact = text(customer.contact, 10);
   // The farm-news box. Only a ticked box means anything: it opts the
@@ -145,7 +148,7 @@ export const validateOrder = (payload, {
     errors["customer.firstName"] = "Please enter your first name.";
   }
   if (!lastName) errors["customer.lastName"] = "Please enter your last name.";
-  if (!looksLikeEmail(email)) {
+  if (!checked) {
     errors["customer.email"] = fieldError("email", email);
   }
   // Delivery needs a phone for the driver; pickup and the drop site
@@ -248,14 +251,15 @@ export const validateOrder = (payload, {
     const f = fulfilment.onfarm || {};
     const window = text(f.window, 20);
 
-    if (!window) errors["onfarm.window"] = "Choose a pickup time.";
+    // James's wording (#706), as Proceed to checkout shows it.
+    if (!window) errors["onfarm.window"] = "Please select a pick-up time.";
     out.onfarm = { window };
   }
 
   // Nothing is chosen for the customer: a scheduled pickup without its
   // occurrence is incomplete, like an on-farm pickup without its time.
   if (method === "scheduled" && posted === "scheduled" && !occurrence) {
-    errors["fulfilment.occurrence"] = "Choose a pickup day and place.";
+    errors["fulfilment.occurrence"] = "Choose a pick-up day and place.";
   }
 
   if (method === "delivery") {
@@ -267,7 +271,7 @@ export const validateOrder = (payload, {
     } else if (!meetsMinimum(totals, money)) {
       errors["delivery.minimum"] =
         `Delivery requires $${money.deliveryMinimum} or more after ` +
-        "discounts. On-farm pickup and our pickup days have no " +
+        "discounts. On-farm pickup and our pick-up days have no " +
         "minimum.";
     }
 
@@ -318,6 +322,10 @@ export const validateOrder = (payload, {
     // customer's own edit of it, though no longer offered to choose.
     const holding = method === "scheduled" && occurrence === kept
       ? occurrenceFor(terms, occurrence) : null;
+    // A buying group's round takes orders until 6:00 AM after its
+    // cutoff (#749): a member paying as it closes is not turned away.
+    const grace = method === "scheduled" && !farm && occurrence
+      ? graceRound(now, terms, schedule, occurrence) : null;
     // So does a delivery Thursday the schedule has since replaced, until
     // its cutoff (#640): a placed order's date never moves by itself.
     const replaced = method === "delivery" && keptDate && date === keptDate
@@ -325,7 +333,7 @@ export const validateOrder = (payload, {
       && now.getTime() <= cutoffFor(date, terms).getTime();
     const day = method === "scheduled"
       ? (dates.find((d) => d.occurrence === occurrence)
-        || (holding && { date: holding.date }))
+        || (holding && { date: holding.date }) || grace)
       : dates.find((d) => d.date === date) || (replaced && { date });
     // A date sent with an occurrence must be the occurrence's own.
     const mismatch = method === "scheduled" && day && date
@@ -343,7 +351,7 @@ export const validateOrder = (payload, {
         status,
         errors: {
           ...errors,
-          "onfarm.window": "That pickup time is no longer available.",
+          "onfarm.window": "That pick-up time is no longer available.",
         },
         dates,
       };

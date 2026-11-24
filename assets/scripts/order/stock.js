@@ -1,6 +1,6 @@
-// Keeps the product list honest while the page is open: asks
-// /api/stock on load, when the tab comes back, when the network
-// returns, every couple of minutes, and right before a submission.
+// Asks /api/stock on load, as the customer shops, once a minute and
+// right before paying (#908: nudge(), read() and their rhythm are in
+// stock-follow.js), to keep the product list honest while it is open.
 // Stock is not optional (#333): the first load retries with a backoff,
 // then shuts adding and paying behind a notice, keeps asking every 30
 // seconds and opens again on the first good answer (lib/stock-gate.mjs).
@@ -10,15 +10,19 @@
 // and the customer is told.
 
 import { clear, whileLoading } from "../utils/skeleton.js";
-import { showRows } from "./restock.js";
+import { settle, showRows } from "./restock.js";
 import { ATTEMPT_MS, StockGate, withBackoff } from "./lib/stock-gate.mjs";
 import { stockNotice } from "./lib/stock-notice.mjs";
 import { syncSchema } from "./schema.js";
+import { StockFollower } from "./stock-follow.js";
 
 // The first load may retry for about half a minute.
 const FIRST_GIVE_UP_MS = 60_000;
 
 export class Stock {
+  nudge = () => this.follow.nudge();
+  read = () => this.follow.read();
+
   // `onChange(notice)` is called after the cart changed under the
   // customer, with a sentence to show. `setQty(input, n)` is the
   // form's own setter, so the row's state follows. `inStockOnly()`
@@ -40,6 +44,7 @@ export class Stock {
     this.nameOf = nameOf || (() => null);
     this.items = null;
     this.timer = null;
+    this.follow = new StockFollower(this);
     // Packs a paid order being changed (?edit=) already holds: they
     // count as available, so a line that sold out since can stay.
     this.held = {};
@@ -47,10 +52,7 @@ export class Stock {
 
   start() {
     this.loading = this.first();
-    document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "visible") this.refresh();
-    });
-    window.addEventListener("online", () => this.refresh());
+    this.follow.listen();
     const retry = this.callout
       && this.callout.querySelector("[data-stock-retry]");
 
@@ -64,14 +66,11 @@ export class Stock {
     this.schedule();
   }
 
-  // The next look: every 30 seconds while shut, else every two
-  // minutes, counted from the last one.
+  // The next look in the background: every 30 seconds while shut, else
+  // every minute, from the last check (stock-follow.js decides).
   schedule() {
     clearTimeout(this.timer);
-    this.timer = setTimeout(async () => {
-      if (document.visibilityState === "visible") await this.refresh();
-      else this.schedule();
-    }, this.gate.every);
+    this.timer = setTimeout(() => this.follow.tick(), this.gate.every);
   }
 
   // The first answer: the Add buttons wait under their skeletons
@@ -104,9 +103,10 @@ export class Stock {
     return this.loading;
   }
 
-  // -> { sku: state }, or null.
-  async fetchItems() {
-    const res = await fetch("/api/stock", {
+  // -> { sku: state }, or null; ?final=1 for the check before paying.
+  async fetchItems({ final = false } = {}) {
+    this.follow.rhythm.asked();
+    const res = await fetch(final ? "/api/stock?final=1" : "/api/stock", {
       cache: "no-store",
       signal: typeof AbortSignal.timeout === "function"
         ? AbortSignal.timeout(ATTEMPT_MS) : undefined,
@@ -196,7 +196,7 @@ export class Stock {
     let items;
 
     try {
-      items = await this.fetchItems();
+      items = await this.fetchItems({ final });
     } catch {
       items = null;
     }
@@ -281,6 +281,7 @@ export class Stock {
     }
 
     showRows(this.form, this.inStockOnly());
+    settle();
 
     if (changed.length) this.onChange(stockNotice(changed));
   }

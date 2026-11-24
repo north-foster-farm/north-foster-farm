@@ -1,0 +1,59 @@
+{{/* The pickup-days layout (#703), one for every place a customer
+     chooses a scheduled pickup: the order page's Pickup days card, the
+     lapsed dialog and the account's Change pickup (James: "one layout
+     for this purpose, not two"). Each date is a group under its day
+     and date; each pickup a radio card of its name, hours, place name
+     and address, with Copy and Map beside it, outside the radio's
+     label so neither chooses it. order/pickup-days.js draws them from
+     these templates, which the page carries once. */}}
+<template id="tpl-pickup-day">
+  <div class="order-pickup-day" role="group">
+    <h3 class="order-pickup-day-heading"></h3>
+    <div class="order-pickup-list"></div>
+  </div>
+</template>
+<template id="tpl-pickup">
+  <div class="order-pickup">
+    <input class="form-check-input" type="radio">
+    <label class="order-pickup-label">
+      <span class="order-pickup-name"></span>
+      <span class="order-pickup-time"></span>
+      <span class="order-pickup-place"></span>
+      <span class="order-pickup-address"><span class="order-pickup-street"></span><span class="order-pickup-city"></span></span>
+    </label>
+    <span class="order-pickup-actions">
+      {{/* Each with its icon before its word (#703 revision): Lucide's
+           copy, and Map the same Tabler external-link the "(map)"
+           links show (order/map-link.html). Copy's word is a span of
+           its own, so "Copied" leaves the icon alone; the ghost after
+           it, empty at rest, holds the word it leaves while that fades
+           out. */}}
+      <button type="button" class="btn btn-sm btn-outline-primary order-pickup-copy">{{ partial "svg.html" (dict "src" "icons/copy" "class" "order-pickup-icon" "aria-hidden" "true") }}<span class="order-pickup-copy-text">Copy</span><span class="order-pickup-copy-ghost" aria-hidden="true"></span></button>
+      <span class="visually-hidden order-pickup-copied" role="status"></span>
+      <a class="btn btn-sm btn-outline-primary order-pickup-map" target="_blank" rel="noopener">{{ partial "svg.html" (dict "src" "icons/external-link" "class" "order-pickup-icon" "aria-hidden" "true") }}Map<span class="visually-hidden"> (opens in a new tab)</span></a>
+    </span>
+  </div>
+</template>
+{{/* A buying group's round (#749 item 5), in tpl-pickup's order
+     (James's staging review, 2026-11-21): its date as the title, its
+     hours, then the place and its address as one block, with Copy and
+     no Map (the place is private). The order page's Group orders, the
+     lapsed dialog and the account's Change pickup draw it, by
+     pickup-days.js drawRounds. */}}
+<template id="tpl-round">
+  <div class="order-pickup">
+    <input class="form-check-input" type="radio">
+    <label class="order-pickup-label">
+      <span class="order-pickup-name"></span>
+      <span class="order-pickup-time"></span>
+      <span class="order-pickup-place"></span>
+      <span class="order-pickup-address"><span class="order-pickup-street"></span><span class="order-pickup-city"></span></span>
+    </label>
+    <span class="order-pickup-actions">
+      {{/* The same Copy as tpl-pickup's, its ghost included. */}}
+      <button type="button" class="btn btn-sm btn-outline-primary order-pickup-copy">{{ partial "svg.html" (dict "src" "icons/copy" "class" "order-pickup-icon" "aria-hidden" "true") }}<span class="order-pickup-copy-text">Copy</span><span class="order-pickup-copy-ghost" aria-hidden="true"></span></button>
+      <span class="visually-hidden order-pickup-copied" role="status"></span>
+      <a class="btn btn-sm btn-outline-primary order-pickup-map" target="_blank" rel="noopener">{{ partial "svg.html" (dict "src" "icons/external-link" "class" "order-pickup-icon" "aria-hidden" "true") }}Map<span class="visually-hidden"> (opens in a new tab)</span></a>
+    </span>
+  </div>
+</template>

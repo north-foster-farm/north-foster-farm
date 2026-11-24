@@ -1,0 +1,8 @@
+{
+  "path": ["../assets/scripts", "../netlify", "../bin", "../plugins"],
+  "format": ["javascript"],
+  "threshold": 0.77,
+  "reporters": ["console", "threshold"],
+  "noTips": true,
+  "failOnEmpty": true
+}

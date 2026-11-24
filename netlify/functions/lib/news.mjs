@@ -22,9 +22,9 @@ import { log } from "./log.mjs";
 import { sendMail } from "./mail.mjs";
 import { maskEmail } from "./mask.mjs";
 import { resendAllowed, resendRefusal } from "./resend-guard.mjs";
-import { creditKey } from "./credit.mjs";
+import { readAddressed } from "./address-key.mjs";
 import {
-  SCHEMA_DEFAULTS, allCustomers, cartKey, consentLog, deleteCustomer,
+  SCHEMA_DEFAULTS, allCustomers, consentLog, deleteCustomer,
   getCustomer, ordersFor, saveCustomer,
 } from "./records.mjs";
 import { customerEmailWithheld } from "./payments.mjs";
@@ -542,6 +542,8 @@ export const importSubscribers = async (stores, rows, {
 export const sendOwedWelcomes = async (stores, {
   email = null,
   dryRun = false,
+  // Who ran it, for an old twin the list cleans (#794).
+  by = "site",
   now = clock(),
   env = process.env,
   mail = sendMail,
@@ -554,7 +556,7 @@ export const sendOwedWelcomes = async (stores, {
   const holding = (c) => c && c.welcome && c.welcome.state !== "sent";
   const candidates = named
     ? [await getCustomer(stores, named)]
-    : await allCustomers(stores);
+    : await allCustomers(stores, { by });
   const owing = candidates.filter(holding)
     .sort((a, b) => a.email.localeCompare(b.email));
 
@@ -669,8 +671,8 @@ export const removeImported = async (stores, email, {
 
   if (imported && importMade(customer)
     && !(await ordersFor(stores, address)).length
-    && !await stores.customers.get(creditKey(address))
-    && !await stores.customers.get(cartKey(address))) {
+    && !await readAddressed(stores.customers, "credit", address)
+    && !await readAddressed(stores.customers, "cart", address)) {
     report.outcome = "deleted";
   } else {
     if (imported) report.cleared.push("marketing");
@@ -862,6 +864,8 @@ export const syncAudience = async (stores, {
   now = clock(),
   pace = 550,
   dryRun = false,
+  // Who ran it, for an old twin the list cleans (#794).
+  by = "site",
 } = {}) => {
   if (!audienceConfigured(env)) return { ok: false, reason: "unconfigured" };
 
@@ -882,7 +886,7 @@ export const syncAudience = async (stores, {
   const contactPath = (email) =>
     `/audiences/${id}/contacts/${encodeURIComponent(email)}`;
 
-  for (const c of await allCustomers(stores)) {
+  for (const c of await allCustomers(stores, { by })) {
     const email = normalizeEmail(c.email);
     const contact = byEmail.get(email);
     const consented = c.marketing === true;
@@ -1025,6 +1029,10 @@ export const removeContact = async (email, {
 // name reaches Resend only this way. `contacts` is the audience, when
 // the caller has listed it already. -> "renamed", "none" or
 // "unconfigured"; with `apply` false nothing is written.
+/**
+ * @public admin.mjs calls it as news.renameContact, through the module
+ * passed in as a parameter, which Knip cannot follow.
+ */
 export const renameContact = async (email, { firstName, lastName }, {
   env = process.env,
   fetchImpl = globalThis.fetch,

@@ -23,14 +23,15 @@ import {
 import {
   phoneOk, zipInfo,
 } from "../../../assets/scripts/order/lib/validate.mjs";
+import { addressHash, dropOldForms } from "./address-key.mjs";
 import { cancelOrder as cancelAndRefund } from "./admin.mjs";
-import { holderOf } from "./amend.mjs";
-import { placeOf } from "./describe.mjs";
+import { holderOf } from "./holder.mjs";
+import { isGroupRound, placeOf } from "./describe.mjs";
 import {
-  groupOf, memberKeyOf, memberTerms, offeredGroup, retag,
+  buyingGroupOf, groupOf, memberTerms, offeredGroup, retag,
 } from "./groups.mjs";
 import { AUTOPLAY } from "./auth.mjs";
-import { cutoffAt } from "./jobs.mjs";
+import { cutoffAt } from "./cutoff.mjs";
 import { now as clock } from "./clock.mjs";
 import { farmEmails, mailbox, sendMail } from "./mail.mjs";
 import { alert, noteMail } from "./health.mjs";
@@ -40,8 +41,9 @@ import { notifyFarm, sendForOrder } from "./payments.mjs";
 import * as paypalApi from "./paypal.mjs";
 import { pickupSchedule } from "./pickups.mjs";
 import {
-  REMINDERS, amendOrder, answerQuestion, cartKey, cartOwner, dueOn, getOrder,
-  keptFee, ordersFor, paidByHand, paidTotal, paymentRef, paymentsOf,
+  REMINDERS, amendOrder, answerQuestion, cartKey, cartOwner, dueOn,
+  getCartOf, getOrder, keptFee, ordersFor, paidByHand, paidTotal, paymentRef,
+  paymentsOf,
   questionOpen, refundedTotal, reminderPrefs, saveCustomer, settledRefunds,
 } from "./records.mjs";
 import { mailLinks, orderUrlFor } from "./site.mjs";
@@ -111,6 +113,9 @@ const pickupOf = (order) => {
     name, place, window, occurrence: occurrence || null,
     series: site || null,
     gone: !orderOccurrence(terms, f),
+    // A buying group's round (#749): the account reads it as a Group
+    // order.
+    group: isGroupRound(f),
   };
 };
 
@@ -339,8 +344,8 @@ export const planChange = (order, changes, {
     const to = c.method !== undefined ? text(c.method, 20) : method;
 
     if (!wasScheduled || !isScheduled({ method: to })) {
-      errors.method = "Only an order for a pickup day can move to " +
-        "another pickup day.";
+      errors.method = "Only an order for a pick-up day can move to " +
+        "another pick-up day.";
     } else if (c.occurrence !== undefined) {
       target = text(c.occurrence, 20);
     } else {
@@ -411,7 +416,7 @@ export const planChange = (order, changes, {
     if (w) {
       f.onfarm = { window: w.id, from: w.from, to: w.to };
     } else {
-      errors["onfarm.window"] = "That pickup time isn't available.";
+      errors["onfarm.window"] = "That pick-up time isn't available.";
     }
   }
 
@@ -526,7 +531,7 @@ export const changeOrder = async (stores, customer, id, changes, {
   }
 
   const plan = planChange(order, changes, {
-    now, env, member: groupOf(memberKeyOf(customer)),
+    now, env, member: await buyingGroupOf(stores, customer),
   });
 
   if (plan.errors) return fail(422, plan.errors);
@@ -676,7 +681,7 @@ export { cartOwner };
 // copy, or null when it has never had one, and the account's tag.
 export const getCart = async (stores, customer) => ({
   ok: true,
-  cart: (await stores.customers.get(cartKey(customer.email))) || null,
+  cart: (await getCartOf(stores, customer.email)) || null,
   owner: cartOwner(customer.email),
 });
 
@@ -708,7 +713,7 @@ export const saveCart = async (stores, customer, body, {
   }
 
   const key = cartKey(customer.email);
-  const stored = await stores.customers.get(key);
+  const stored = await getCartOf(stores, customer.email);
   const at = Math.min(savedAt, now.getTime());
 
   if (stored && stored.savedAt >= at) {
@@ -718,6 +723,7 @@ export const saveCart = async (stores, customer, body, {
   const cart = { payload: b.payload ? cartOf(b.payload) : null, savedAt: at };
 
   await stores.customers.set(key, cart);
+  await dropOldForms(stores.customers, "cart", customer.email);
 
   return { ok: true, cart, kept: true, owner };
 };
@@ -774,8 +780,10 @@ export const sendSupport = async (stores, customer, request, {
 
   const id = shortId();
 
-  await stores.customers.set(`support/${customer.email}/${id}`, {
-    id, at: now.toISOString(), subject, message, orderId, status: "open",
+  // Under the hashed address (#758), the address in the message.
+  await stores.customers.set(`support/${addressHash(customer.email)}/${id}`, {
+    id, at: now.toISOString(), email: customer.email, subject, message,
+    orderId, status: "open",
   });
   await tellFarm(stores, "farmSupport", {
     replyTo: mailbox(customer.name, customer.email),

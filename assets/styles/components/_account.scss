@@ -844,6 +844,20 @@
   text-align: center;
 }
 
+// A failed link's warning sits over the form, as wide as it, its words
+// from the bar at its left (#756).
+.login .login-notice {
+  max-width: 28rem;
+  margin-inline: auto;
+  text-align: start;
+}
+
+// The invite page keeps its words left, so its form starts at the
+// same edge rather than centered (#718).
+.login .invite-form {
+  margin-inline: 0;
+}
+
 // A buying group's Membership tab (#495, #602: direction C of the #599
 // review, as James revised it). Three levels and no more: the group's
 // name in the account email's type with its address as one small gray
