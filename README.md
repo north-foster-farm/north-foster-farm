@@ -249,10 +249,12 @@ command quoted here had fallen behind `netlify.toml`, #494.)
 
 Work lands on `next`, which does not build. Promotion is a
 fast-forward push, never a merge: `staging` moves to a `next` commit
-that passed its checks, and `main` to a `staging` commit James has
-OKed, from a release branch since the launch (`docs/staging.md`).
-When each moves is the #502 rule in "Promoting to staging and e2e" in
-`docs/cloud-lanes.md`. The `LGTM` label merges only pull
+that passed its checks, and `main` to a release branch at the
+`staging` commit James has OKed (`docs/staging.md`; 2026-11-22: this
+implied the launch's merge-commit release branch). When each moves
+is the #502 rule in "Promoting to staging and e2e" in
+`docs/cloud-lanes.md`, and a release's steps are in
+`docs/rollback.md`. The `LGTM` label merges only pull
 requests into `next`: it waits for the check on the labeled head,
 rebase-merges that exact head, then runs `ci.yml` on `next`, since the
 rebased commits are new. A pull request into `staging` or `main` is

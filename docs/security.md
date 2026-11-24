@@ -281,7 +281,8 @@ this said three rulesets, none with a bypass actor):
   `linear history: next, staging` (2026-11-18, #612: this said linear
   history on `next` and `staging` only, so that `main` could take a
   release branch's merge; since James's rule of 2026-11-18 `main`
-  moves only by a fast-forward from `staging`).
+  takes no merge, and since 2026-11-22 it moves by a fast-forward to
+  a plain release branch at a commit `staging` was held at).
 - `updates: admins only (next, staging, main)` (25783412): the
   "restrict updates" rule, with the repository's Admin role as its
   one bypass actor (always), so only an admin's push moves the three
@@ -304,6 +305,16 @@ SHAs, which breaks both the fast-forward and the rule that a passed
 check belongs to its SHA. So:
 
 - **Branch to `next`:** rebase onto `next`, then push the fast-forward.
+- **A release to `main`** (James, 2026-11-22): promote
+  fast-forwards `main` to `release/<name>`, a plain branch at the
+  commit `staging` was held at, with the checks of the next bullet
+  and the approval read from the release pull request. `main` is
+  never pushed by hand. The rule is "Releasing to `main`" in
+  `docs/cloud-lanes.md` and the steps are in `docs/rollback.md`.
+  Promote cannot do this yet: #902 (promote main moves main to a
+  release branch, whether staging is at the cut or has moved on).
+  As built it serves only where `staging`'s head is the commit to
+  ship, as in a hotfix.
 - **`next` to `staging`, `staging` to `main`:** `bin/nff promote
   staging|main [--dry-run]` pushes that commit and nothing else. It
   refuses a non-fast-forward and a commit without every check the
@@ -328,10 +339,13 @@ check belongs to its SHA. So:
   API (`stagingSuite` in `bin/promote.mjs`). A run that stood down for
   a newer deploy also ends green, but runs no spec, so it does not
   count.
-- **A release branch to `main`:** no longer used (2026-11-18, #612):
+- **A release branch's merge commit to `main`:** no longer used
+  (2026-11-18, #612):
   linear history now covers `main`, which refuses the merge this
   describes, and a hotfix takes `next`, `staging` and `main` instead
-  ("Hotfix" in `docs/cloud-lanes.md`). The code is still in
+  ("Hotfix" in `docs/cloud-lanes.md`). The plain release branch of
+  the release bullet above is another thing, and this code refuses
+  it until #902 is built (2026-11-22). The code is still in
   `bin/promote.mjs`. `bin/nff promote main release/<name>`
   (James, 2026-10-26) takes `main` one step by a merge commit, so that
   every staging commit stays reachable from `main`. It is still a
@@ -346,10 +360,12 @@ check belongs to its SHA. So:
   the branch at this commit. A rebuilt branch is a new commit, so the
   checks and the label start again. The name must match
   `release/[a-z0-9-]+`. `main`'s ruleset allows this because linear
-  history is required on `next` and `staging` only. Once `main` holds
-  a release merge, that commit is on `main` alone, so `staging` is no
-  fast-forward of `main` and plain `promote main` refuses: every later
-  release, a hotfix included, is a release branch too.
+  history was then required on `next` and `staging` only. Once `main`
+  held a release merge, that commit was on `main` alone, so `staging`
+  was no fast-forward of `main` and plain `promote main` refused:
+  every later release, a hotfix included, had to be a release branch
+  too. `staging` has since taken those merges, and `main` is again
+  its ancestor (2026-11-22: this read as the present rule).
 
 **There is no pull-request rule on `main`.** It would reject the
 fast-forward, and the only way past it is a bypass for the one account

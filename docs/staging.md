@@ -158,8 +158,16 @@ and the full e2e suite that gates `main`, is the #502 rule in
 "Promoting to staging and e2e" in `docs/cloud-lanes.md` (2026-11-01:
 the copy here moved there, #494). None of the three ever
 takes a merge commit or a rebase-merge, and `main` moves only by a
-fast-forward from `staging`: promotion moves a branch to a SHA already
-checked, so the commit that ships is the commit that was tested. A
+fast-forward to a release branch at the commit `staging` was held
+at: promotion moves a branch to a SHA already checked, so the commit
+that ships is the commit that was tested ("Releasing to `main`" in
+`docs/cloud-lanes.md`; 2026-11-22: this said a fast-forward from
+`staging`, whose head a release no longer has to be). `staging` is
+held at that commit, the cut, until the release branch exists. It is
+rewritten in two cases: `bin/nff hotfix start` and `finish` set
+aside and rebuild the work above `main`, and a rebase puts it onto a
+`main` that got ahead of it, which waits for a guarded command
+("When `main` is ahead of `staging`" in `docs/rollback.md`). A
 hotfix rides the same road ("Hotfix" in `docs/cloud-lanes.md`).
 
 Four rulesets enforce it (`docs/security.md`). Only one has a bypass
@@ -173,8 +181,13 @@ since James's rule of 2026-11-18 it covers all three and `main` takes
 no merge). `staging` and `main` also require `lint-and-test`,
 `supply-chain` and `codeql`, so a push to a commit with no passing
 check is refused. `next` requires no check, so the lanes can push to
-it. `bin/nff promote staging|main` makes the two promotions and
+it. `bin/nff promote staging` moves `staging` to `next`'s head and
 refuses anything that is not a fast-forward of a commit that passed.
+`bin/nff promote main` moves `main`, and nothing else ever does. As
+built it goes only to `staging`'s head, so a release, which goes to
+a release branch, waits for #902 (promote main moves main to a
+release branch, whether staging is at the cut or has moved on;
+2026-11-22: this said promote makes both promotions as it stands).
 
 With branch deploys allowed for it on Netlify, `staging` has the
 stable address `staging--north-foster-farm.netlify.app` (the

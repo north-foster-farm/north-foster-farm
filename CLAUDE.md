@@ -48,7 +48,12 @@ decisions James made on GitHub. The issue numbers point to the source.
   candidate, and `main` takes only the commit it passed on, after
   James's OK (2026-11-01: the copy that stood here moved there, #494;
   2026-11-02, #519: once per candidate, not per push, after Netlify's
-  Functions overage).
+  Functions overage). A release is cut on `staging`: it is held at
+  the cut until the full run has passed and the release branch
+  exists (James, 2026-11-23), landings go to `next` only, and
+  `bin/nff promote` moves `main` to a release branch at that commit,
+  never a push by hand ("Releasing to `main`" there, the steps in
+  `docs/rollback.md`; James, 2026-11-22: added).
 - **Customer copy follows the #400 house rules:**
   - no semicolons and no em dashes in prose;
   - a fragment used as a label, badge, row heading or row value never

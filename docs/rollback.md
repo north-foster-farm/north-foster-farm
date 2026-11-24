@@ -32,10 +32,15 @@ for every release.)
    order record, as in the daily payments check
    (`docs/daily-check.md`), and refund each where it was taken.
 3. **Fix on `next`**, let it reach `staging`, check it there, then the
-   coordinator releases it to `main` after James's go, as a release
-   branch (`bin/nff promote main release/<name>`, below). The usual
-   path applies, including `lint-and-test` (2026-11-01, #494: this
-   said `main` is fast-forwarded, the flow before the launch merge).
+   coordinator releases it to `main` after James's go, by "Releasing
+   to `main`" below: the fix's commit is the cut. The usual path
+   applies, including `lint-and-test` (2026-11-22: this said the fix
+   goes as a merge commit, `bin/nff promote main release/<name>`,
+   which linear history on `main` has refused since 2026-11-18).
+   "Releasing to `main`" stops at step 7 until #902 lands, and
+   whether a fix ships by it or by "Hotfix" in `docs/cloud-lanes.md`
+   meanwhile falls under the open question on the hotfix path (entry
+   9 of "Where the current flow conflicts" there).
 4. **Check production** with the live checks on #237 (the launch
    guide's, which is no longer a file),
    then turn maintenance off (`bin/nff --production maintenance off`)
@@ -58,6 +63,218 @@ blocker.
 
 A wrong word or a layout fault needs no maintenance mode; fix it
 forward and say nothing.
+
+## Releasing to `main`
+
+This runbook is written by hand until #904 (Generate the release
+runbook from the promote script, checked in CI) is built. From then
+the steps are declared once in the promote script, this section is
+generated from them, and CI fails when the two differ.
+
+A release is cut on `staging` (James, 2026-11-22, on pull requests
+#729, "Release: order page refresh, quieter inbox, guard", and #889,
+"Document the hand-rolled release process"): `staging` is held at a
+cut until the full e2e run has passed there and a release branch has
+been put at that commit, after James has looked, and
+`bin/nff promote` moves `main` to it on his go (James, 2026-11-23:
+"Really the release is blocked until a release branch exists and the
+full e2e suite passes."). `main` is never pushed by hand. The rule is
+"Releasing to `main`" in `docs/cloud-lanes.md`. The coordinator runs
+these steps.
+
+Steps 7 and 8 need tools that are not built ("Not built yet" in
+`docs/cloud-lanes.md`). Where a step says so, the release stops
+there and the coordinator tells James. No by-hand command stands in
+for a missing tool. Step 2's plain push of `staging` to a cut below
+`next`'s head is the one move by hand, by design, and bounded ("Not
+built yet" in `docs/cloud-lanes.md`).
+
+`<cut>` is the release commit's full SHA, `<name>` the release
+branch's short name (lowercase letters, digits and hyphens) and
+`<version>` the release's version. `gh` fills `{owner}` and `{repo}`
+itself in a checkout of this repository, so each command runs as
+written.
+
+1. **See that `staging` holds `main`.**
+   ```
+   git fetch origin
+   git merge-base --is-ancestor origin/main origin/staging; echo $?
+   ```
+   Pass: `0`. On `1`, `main` is ahead: "When `main` is ahead of
+   `staging`" below, then start again here.
+2. **Put `staging` at the cut and hold it.** The cut is a landing
+   boundary: a commit that was `next`'s head once a landing finished,
+   so it carries its own checks. When it is `next`'s head, `bin/nff
+   promote staging`. When it lies below, a plain fast-forward of
+   `staging`:
+   ```
+   gh api 'repos/{owner}/{repo}/commits/<cut>/check-runs' \
+     --paginate --jq '.check_runs[]
+     | select(.conclusion == "success") | .name' | sort -u
+   git push origin <cut>:refs/heads/staging
+   ```
+   Pass: before the push, the first command lists `lint-and-test`,
+   `supply-chain`, `codeql`, `build` and `record-shape`, the five
+   `promote staging` requires; after it,
+   `curl -s https://staging--north-foster-farm.netlify.app/version.json`
+   names `<cut>`. Until step 6 nothing else is pushed to `staging`:
+   landings go to `next` only. James is not asked to look yet.
+3. **Run the full suite on the cut.**
+   ```
+   git push origin <cut>:refs/heads/e2e/staging-full --force
+   gh run list --workflow e2e-staging.yml --branch e2e/staging-full \
+     --commit <cut>
+   gh run view <run> --json jobs --jq '.jobs[]
+     | select(.name == "e2e-staging") | .steps[]
+     | select(.name == "Run") | .conclusion'
+   ```
+   Pass: the run ended in success and the last command prints
+   `success`. A run that stood down because `staging` had moved also
+   ends green, with `Run` skipped, and does not count. Whether a run
+   whose every failure is exempt under point 7 of "Promoting to
+   staging and e2e" in `docs/cloud-lanes.md` counts as passed is not
+   settled: it is James's open question. `promote` counts it so
+   today.
+
+   On a failure, without asking James: classify it, fix it through
+   `next`, move the cut up to a landing boundary that includes the
+   fix (step 2 again), and run the suite on the new cut (point 5
+   there). Pause landings on `next` only if it moves too fast for
+   `staging` to settle. Tell James only if the run still fails after
+   a couple of tries.
+4. **Ask James for his visual checks,** only once step 3 has passed.
+   Pass: his word that the cut is fit to ship.
+5. **Create the release branch and its pull request.**
+   ```
+   git push origin <cut>:refs/heads/release/<name>
+   gh pr create --base main --head release/<name> \
+     --title "Release <version>: <what ships>" --body-file <file>
+   ```
+   It is the only pull request into `main`. The body lists, as `#N`
+   with its title, every pull request at or below the cut that `main`
+   lacks, then the steps to run after the deploy. Request James's
+   review, with a comment that says what he is approving. Pass: `git
+   rev-parse origin/release/<name>` prints `<cut>`, and `gh pr checks
+   <pr>` shows `release-audit` green.
+6. **Let `staging` move on.** The branch now holds the cut, so
+   `bin/nff promote staging` takes the landings that waited. Pass:
+   `git merge-base --is-ancestor <cut> origin/staging; echo $?`
+   prints `0`.
+7. **On James's go, promote moves `main`.** His go is the `LGTM`
+   label on the release pull request and his word that production
+   may take it.
+   ```
+   bin/nff promote main release/<name> --dry-run
+   bin/nff promote main release/<name>
+   ```
+   **Not built: #902** (promote main moves main to a release branch,
+   whether staging is at the cut or has moved on). Today the command
+   demands a merge commit and refuses a plain branch, and bare
+   `bin/nff promote main` reads its approval from a `staging` into
+   `main` pull request, which a release no longer has. Until #902
+   lands, the release stops here and the coordinator tells James.
+
+   Promote refuses unless, on `<cut>`:
+   - `main` can fast-forward to it;
+   - `lint-and-test`, `supply-chain`, `codeql`, `build` and
+     `release-audit` are green, and the audit it runs again finds no
+     newer advisory;
+   - the release pull request's head is `<cut>` and its `LGTM` is
+     newer than the branch's last push;
+   - the full run of step 3 passed while `<cut>` was `staging`'s
+     head, or every failure is exempt, or James listed each under
+     `## Failing tests shipped past` in the pull request's body
+     before he labeled it (point 7 of "Promoting to staging and
+     e2e").
+
+   It logs `promote.exemptions` or `promote.override` when a failed
+   run ships. Say which in a comment on the release pull request
+   too, with the run and each test.
+
+   Pass: `git rev-parse origin/main` prints `<cut>`, GitHub shows the
+   release pull request as merged, and once Netlify has built,
+   `curl -s https://www.northfosterfarm.com/version.json` names
+   `<cut>`.
+8. **Tag and finish.** Promote tags `<cut>` with the release's
+   version and deletes `release/<name>`: the tag keeps the commit,
+   and marks what shipped for the ranges "Rolling back" reads.
+   **Not built: #903** (Tag every release with a CalVer version)
+   for the tag, and #902 above for the deletion. Then run the
+   after-deploy steps the pull request lists and the live checks on
+   #237 (the post-deploy checklist). Promote files each flaky test
+   of the full run in the open "Next release" milestone, as `Flaky
+   e2e test: <spec> › <title>`, or comments on the open issue there
+   that names it. Pass: `git ls-remote --tags origin <version>`
+   prints `<cut>`, `git ls-remote --heads origin release/<name>`
+   prints nothing, every after-deploy step and live check is ticked
+   where it is listed, and every flaky test has an open issue.
+
+### Versions
+
+Every release is tagged CalVer, `YYYY.MINOR.MICRO` (James,
+2026-11-22): `2026.1`, then `2026.2`. Micro is left off until
+needed: a hotfix on `2026.5` is `2026.5.1`. The count resets each
+January, so the first release of 2027 is `2027.1`. The tag is on the
+released commit and never moves.
+
+### When `main` is ahead of `staging`
+
+`bin/nff hotfix` leaves `next`, `staging` and `main` at one commit,
+so this arises only when `main` took a commit some other way. Then
+`staging` is rebased onto `main` and force-pushed, `next` and the
+lanes with it, and every check and the full run start again on the
+new commits.
+
+The coordinator does this with a guarded command and does not wait
+for James's okay: it stops landings on `next`, runs the command and
+tells James (James, 2026-11-22). **Not built: #890** (A guarded
+command to rebase staging onto main inside the ruleset window).
+The window is never opened by hand, so until #890 lands the
+coordinator stops when step 1 above prints `1` and tells James. A
+hand-made window has none of the guards of `window()` in
+`bin/hotfix.mjs`: a session that stops between the narrowing and the
+restore leaves `next` and `staging` open to force-pushes and
+deletion, and nothing reports it.
+
+What the command must achieve, in order:
+
+1. **Both branches are rebuilt** in a clean checkout: `staging` onto
+   `main`, then `next`'s own commits onto the rebuilt `staging`. No
+   conflict is left, the range holds no merge, and the rebuilt `next`
+   differs from the old one only by what `main` added.
+2. **`next` is force-pushed to the rebuilt `staging`,** inside a
+   window on the "no force-push or deletion" ruleset (25361439), with
+   the rebuilt `next` kept on a spare branch. `staging` cannot go
+   first: the "required checks" ruleset takes only a commit whose
+   checks passed, and those run on a push to `next`. Afterward `git
+   rev-parse origin/next` prints the rebuilt `staging`'s SHA and the
+   ruleset reads back whole.
+3. **`lint-and-test`, `supply-chain` and `codeql` pass** on that
+   commit on `next`.
+4. **`staging` is force-pushed to the same commit,** inside a second
+   window, which is why the window is needed twice. Afterward
+   `origin/staging` is that commit and the ruleset reads back whole.
+5. **`next` is fast-forwarded** to the rebuilt `next` and the spare
+   branch deleted. Afterward `main` is an ancestor of `staging`, and
+   `staging` of `next`.
+6. **Every lane rebases** onto `next`, the use is logged, and the
+   release starts again at step 1 above, since every commit id has
+   changed.
+
+What it must do around each force-push, as `window()` and its
+preflight do:
+
+- refuse unless the live ruleset covers exactly `next`, `staging` and
+  `main`, with its no force-push and no deletion rules, and unless no
+  saved copy is left from an earlier run;
+- save its copy without overwriting one, in the git common directory
+  under hotfix's own filename (`nff-hotfix-ruleset-25361439.json`),
+  so a later `bin/nff hotfix` refuses while the file is there;
+- restore the ruleset on exit and on INT, TERM and HUP;
+- read the whole ruleset back, every guarded field, and delete the
+  saved copy only once it matches.
+
+Only the coordinator runs it.
 
 ## A bad dependency: two cases
 
@@ -103,8 +320,8 @@ manual steps.
 
 | | Publish a previous deploy | Revert on `next` and promote |
 | --- | --- | --- |
-| What happens | Netlify serves an older atomic deploy: its HTML, its functions, its schedule | A new commit on `next` undoes the release; it is promoted to `staging` and `main`, and Netlify builds and publishes it |
-| Live in | Seconds once the call is made (Netlify: "instantaneous") | Green checks on `next`, the full e2e suite on `staging`, James's approval, two promotions and a build: a few minutes once he approves and the suite has passed (#502, 2026-10-28) |
+| What happens | Netlify serves an older atomic deploy: its HTML, its functions, its schedule | A new commit on `next` undoes the release; it goes to `staging` and is released to `main`, and Netlify builds and publishes it |
+| Live in | Seconds once the call is made (Netlify: "instantaneous") | Green checks on `next`, the full e2e suite on `staging`, James's approval, the release steps and a build: a few minutes once he approves and the suite has passed (#502, 2026-10-28) |
 | Env vars | The values set when that deploy was built (see below) | The values set now |
 | Survives the next push | Only if auto publishing is locked | Yes |
 | Needs | The deploy still to exist (30 days on this plan) | git, and GitHub Actions up |
@@ -408,8 +625,8 @@ records beside the new shape meanwhile
 `next`, `staging` and `main` take only fast-forwards, with linear
 history and no bypass (`docs/security.md`). A revert committed on
 `main` would leave it holding a commit `staging` lacks, and the next
-promotion could no longer fast-forward. So the revert lands on
-`next` and is promoted like any release: the same CI, the same
+release would first have to rebase `staging` onto it. So the revert
+lands on `next` and is released like any other: the same CI, the same
 required checks and James's approval for `main`, nothing skipped. A
 revert that touches a lockfile must also pass the `supply-chain`
 cooldown, so pinning back to an older version does.
@@ -426,35 +643,26 @@ git -C <site> push origin revert-release:next
 ```
 
 The push to `next` starts CI. Once `lint-and-test`, `supply-chain`,
-`codeql`, `build` and `record-shape` are green on it, promote:
+`codeql`, `build` and `record-shape` are green on it, release it by
+"Releasing to `main`" above, with the revert's commit as the cut.
+`main` moves only after the full e2e suite has passed against
+`staging` on that commit and James's `LGTM` is on the release pull
+request.
 
-```
-bin/nff promote staging
-bin/nff promote main
-```
+**`main` takes a plain release branch, never a merge** (2026-11-22:
+this said every release since the launch goes as a merge commit,
+`bin/nff promote main release/<name>`). The first three releases
+were such merges. Linear history has covered `main` since 2026-11-18,
+`staging` now holds those merges, and `main` is again an ancestor of
+`staging`. To undo the launch
+itself, put one commit on `next` that restores the tree of the launch
+merge's first parent (`ff6270cf`), carry it through `staging`, and
+release it the same way. Resetting `main` to that first parent
+instead needs the `no force-push` ruleset off, which only James can
+do, and it republishes the invoice checkout beside records the new
+code wrote, which the fix-forward rule above exists to avoid.
 
-`promote main` refuses until James's `LGTM` is on the open
-staging-to-main pull request, put on after the revert reached
-`staging`, and until the full e2e suite has passed against `staging`
-on the revert's own commit (point 7 of "Promoting to staging and
-e2e" in `docs/cloud-lanes.md`). If no
-such pull request is open, the first run opens it and stops.
-
-**Since the launch merge, `main` is promoted from a release branch.**
-The launch put a merge commit on `main` alone, and the linear-history rule
-keeps it off `staging`, so `staging` is no fast-forward of `main` any
-more and plain `promote main` refuses. Every later release, a revert
-included, goes as `release/<name>` (first parent `main`, second parent
-the `staging` commit, same tree) and `bin/nff promote main
-release/<name>`; see `docs/security.md`. To undo the launch itself,
-put one commit on `next` that restores the first parent's tree
-(`ff6270cf`), carry it through `staging`, and release it that way.
-Resetting `main` to that first parent instead needs the `no
-force-push` ruleset off, which only James can do, and it republishes
-the invoice checkout beside records the new code wrote, which the
-fix-forward rule above exists to avoid.
-
-If auto publishing is locked, the promotion to `main` builds but does
+If auto publishing is locked, the push to `main` builds but does
 not publish: unlock, or publish the new deploy. To go forward again,
 revert the revert the same way.
 

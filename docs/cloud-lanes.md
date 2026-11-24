@@ -267,16 +267,22 @@ that kept the full suite for one final run on a frozen commit. Points
 that had James wait for the full suite before looking. Points 2, 4 and
 5 changed on 2026-11-02 (#519): Netlify restricted the account for
 Functions overages, so the full suite runs against `staging` once per
-release candidate, where it had run after every push. This section is
+release candidate, where it had run after every push. Points 1, 2,
+4, 5 and 7 changed on 2026-11-22 for releases cut on `staging`
+("Releasing to `main`" below). This section is
 the rule's one home: `CLAUDE.md`, `README.md`, `docs/staging.md`,
 `docs/security.md`, `docs/qa-launch.md` and `docs/rollback.md` link
 here instead of restating it (2026-11-01, #494).
 
 1. **Once `next` is green, push to `staging`.** Don't wait to batch,
-   and don't wait to be asked.
+   and don't wait to be asked. The one exception: while `staging` is
+   held at a release cut, landings go to `next` only, until the
+   release branch exists (2026-11-22: this had no exception).
 2. **Ping James right away.** He looks at `staging` without waiting
-   for the suite. The suite gates the promotion to production, not
-   his look at `staging`.
+   for the suite. The exception is a release cut: he is asked for
+   its visual checks only once the full run has passed on it
+   (2026-11-22: this had no exception, and said the suite gates
+   production, not his look at `staging`).
 3. **e2e on `next`: only the specs the new code is expected to touch
    directly.** Name them in the lane report or the landing comment and
    run them by name on a lane branch: `bin/nff e2e` chooses and
@@ -284,20 +290,29 @@ here instead of restating it (2026-11-01, #494).
    hand-composed `gh workflow run e2e.yml --ref <branch> -f
    specs="..."`).
 4. **One full staging run per release candidate, not one per push**
-   (#519). A release candidate is the `staging` commit meant for
-   `main`: the release's work has landed and James has looked at it.
-   Push its sha to `e2e/staging-full`. A push to `staging` that is not
-   a candidate takes no full run. No `--repeat-each` against `staging`
-   without James's OK. Sharding a staging run (#503) is on hold until
+   (#519). A release candidate is the cut: the `staging` commit meant
+   for `main`, a landing boundary with the release's work at or below
+   it. Push its sha to `e2e/staging-full` as soon as `staging` serves
+   it. The run comes first: James is asked to look only once it
+   passes (2026-11-22: a candidate was a commit James had already
+   looked at). A push to `staging` that is not a candidate takes no
+   full run. No `--repeat-each` against `staging` without James's OK.
+   Sharding a staging run (#503) is on hold until
    its cost is known, since running in parallel makes no fewer calls:
    each run writes its count of function calls (see "The e2e suite
    against staging").
-5. **A failure on staging:** triage it, fix it in `next`, rerun the
-   affected specs on `next`, push the fix to `staging` and rerun only
-   what failed there (`e2e/staging`). The fixed commit is the new
-   candidate and takes its one full run before `main` (point 7).
-   `staging` is always fixed forward, never reverted. Tell James what
-   failed and why.
+5. **A failure on staging:** triage it, fix it in `next` and rerun the
+   affected specs on `next`. The fix lands on top of whatever `next`
+   took while the cut was held. Without asking, the cut moves up to
+   the fix's landing boundary, so the new cut holds all of it and
+   everything under it must be releasable. Landings on `next` pause
+   only if `next` moves too fast for `staging` to settle. Push the
+   new cut to `staging` and rerun only what failed there
+   (`e2e/staging`). It is the new candidate and takes its one full
+   run before James is asked to look (point 7). `staging` is always
+   fixed forward, never reverted. Tell James only if it still fails
+   after a couple of tries (2026-11-22: this took the fix to be the
+   next commit on `staging`, and told James of every failure).
 6. **A newer push to `staging` supersedes an older full run.** The
    older run is meant to stand down at its next safe point, between
    specs and never inside one, with its teardown and the sweep of the
@@ -308,7 +323,11 @@ here instead of restating it (2026-11-01, #494).
    end. Building the rest is James's change to make in `.github/`.
 7. **Production is promoted only from the exact commit the full suite
    passed on,** and only after James OKs `staging`. A green run on an
-   earlier commit doesn't count once a later fix lands. `bin/nff
+   earlier commit doesn't count once a later fix lands. What follows
+   is what promote enforces for `staging`'s head today, and must
+   enforce for a release branch at the cut once #902 (promote main
+   moves main to a release branch, whether staging is at the cut or
+   has moved on) is built (2026-11-22). `bin/nff
    promote main` refuses a commit (for a release branch, its staging
    parent) that is not the head of a successful run of the E2E staging
    workflow on `e2e/staging-full` whose specs ran. The one exception
@@ -368,15 +387,215 @@ here instead of restating it (2026-11-01, #494).
    `staging` takes exactly that commit, so a landing then would make
    the second `finish` refuse. See "Hotfix" below.
 
+## Releasing to `main`
+
+Releases are cut on `staging` (James, 2026-11-22, on pull requests
+#729, "Release: order page refresh, quieter inbox, guard", and #889,
+"Document the hand-rolled release process"). `main` and `staging`
+stay linear and no merge commit is made.
+
+1. **If `main` is ahead of `staging`,** the coordinator rebases
+   `staging` onto it, and `next` and the lanes with it, using the
+   guarded command: landings stopped, James told, no wait for his
+   okay. The commit ids change, so every check and the full e2e run
+   come after the rebase. The window on the "no force-push or
+   deletion" ruleset is never opened by hand.
+2. **`staging` is held at the release cut,** a landing boundary,
+   until the full e2e run has passed on that commit while it is
+   `staging`'s head and the release branch exists (point 5). James,
+   2026-11-23: "Really the release is blocked until a release branch
+   exists and the full e2e suite passes." While a cut is held,
+   landings go to `next` only.
+3. **After a failed full run** the coordinator classifies it, fixes
+   it through `next`, moves the cut up to include the fix and reruns,
+   without asking. It pauses landings on `next` only if `next` moves
+   too fast for `staging` to settle, and tells James only if still
+   stuck after a couple of tries.
+4. **James is asked for his visual checks only once the run is
+   green.**
+5. **A release branch, `release/<name>`, is then created at that
+   commit,** with the release pull request from it into `main`, the
+   only pull request into `main`. It lists, as `#N`, what it ships.
+   Once the branch exists, `staging` is free to move on.
+6. **`bin/nff promote` moves `main` to the release branch on James's
+   go,** which is the `LGTM` label on the release pull request plus
+   his word, whether `staging` still stands at the cut or has moved
+   on. `main` is never pushed by hand. Netlify deploys `main` as
+   ever.
+7. **Every release is tagged** CalVer, `YYYY.MINOR.MICRO` (`2026.1`,
+   `2026.2`; `2026.5.1` for a hotfix on `2026.5`). The count resets
+   each January and micro is left off until needed. The release
+   branch is deleted after the release, and the tag keeps the commit.
+
+The cut is a commit that was `next`'s head once a landing finished.
+Work still under review may sit above it on `next`. The commands,
+each with its pass condition, are "Releasing to `main`" in
+`docs/rollback.md`.
+
+## Not built yet
+
+The process needs four things the tools lack (2026-11-22). Where a
+release reaches one, it stops and the coordinator tells James: no
+by-hand command stands in for a missing tool. The one move by hand is
+by design: step 2 of the runbook pushes `staging` to a cut below
+`next`'s head. It is bounded: the rulesets still force a
+fast-forward and the three required checks, the pre-push hook runs,
+the check lookup before it reads checks as `promote` does, and
+`staging` is not production.
+
+- **The guarded rebase** of `staging`, `next` and the lanes onto a
+  `main` that got ahead: #890 (A guarded command to rebase staging
+  onto main inside the ruleset window).
+- **Promote moving `main` to a release branch,** reading the
+  approval from the release pull request and deleting the branch
+  afterward: #902 (promote main moves main to a release branch,
+  whether staging is at the cut or has moved on). Until it lands no
+  release can reach `main` by this process.
+- **Version tags:** #903 (Tag every release with a CalVer version).
+- **The generated runbook:** the release steps declared once in the
+  promote script, the runbook written from them, and CI failing when
+  the committed doc differs: #904 (Generate the release runbook from
+  the promote script, checked in CI). Until then the runbook in
+  `docs/rollback.md` is written by hand.
+
+Open, and James's to settle: how the release now waiting ships, and
+what version it takes. #729 (Release: order page refresh, quieter
+inbox, guard) is a `staging` into `main` pull request, opened before
+these rulings, and no release has a tag yet.
+
+## Where the current flow conflicts
+
+The tools were built for `main` moving to `staging`'s head. Each
+entry says what the process above does instead and which issue, if
+any, closes the gap. Checked against `next` at `598af95e` on
+2026-11-22.
+
+1. **`bin/nff promote main` cannot move `main` to a release
+   branch.** Bare, it moves `main` to `staging`'s head. With
+   `release/<name>` it demands a merge commit (`releaseShape` in
+   `bin/promote.mjs`: two parents), which linear history has refused
+   since 2026-11-18, so a plain branch at the cut is turned away.
+   #902 makes it take a one-parent release branch at a commit
+   `staging` was held at, with every guard it has now: the
+   fast-forward, the green checks, the audit re-run, the approval,
+   the full run, its exemptions or override, and the flaky tests.
+2. **Promote reads its approval from a `staging` into `main` pull
+   request, and opens one when none is open** (`pullRequest` in
+   `bin/promote.mjs`). The process has only the release pull
+   request, whose head stays put once `staging` moves on, so
+   `release-audit` and the `LGTM` sit on the cut. #902 moves the
+   approval there. Until then bare `promote main` still opens a
+   `staging` into `main` pull request, which is how a hotfix ships
+   (entry 9).
+3. **`bin/nff promote staging` moves `staging` only to `next`'s
+   head.** A cut below it is a plain fast-forward push of `staging`,
+   with the checks promote reads (`lint-and-test`, `supply-chain`,
+   `codeql`, `build`, `record-shape`) looked up first. The "required
+   checks" ruleset refuses a commit that is not a landing boundary,
+   since only a head that was pushed to `next` has runs. While a cut
+   is held, nobody runs `promote staging`: it would move the cut.
+4. **There is no release pull request until the release branch
+   exists,** which is after James's visual checks. Until then
+   nothing lists what the release ships, and James's status line,
+   which counts the `#N` a release pull request lists, has none to
+   read. Where the cut and the request for his visual checks are
+   posted meanwhile is not settled.
+5. **`e2e-staging.yml` fits, and is why the cut is held.** It runs
+   the specs only once the staging site serves the commit pushed to
+   `e2e/staging-full`, and stands down, green with its specs skipped,
+   when `staging`'s head is another commit. A full run on the cut can
+   only pass while the cut is `staging`'s head.
+6. **Points 1, 2, 4 and 5 of "Promoting to staging and e2e" assumed
+   `staging` follows `next`** push by push, with James looking
+   before the suite ran and a fix that was the next commit. They are
+   reworded: landings go to `next` only while a cut is held, the
+   full run passes before James is asked to look, and after a
+   failure the cut moves up to the fix without asking.
+7. **Nothing opens the force-push window by itself.** It lives
+   inside `bin/hotfix.mjs`: `hotfix start` and the first `finish`
+   narrow ruleset 25361439 to `main`, push and restore it. `start`
+   refuses unless `next` and `staging` both contain `main`, so it
+   cannot serve when `main` is ahead. The rebase needs the same
+   narrowing twice, because the "required checks" ruleset lets
+   `staging` take only a commit whose checks passed on a push to
+   `next`. #890 builds the command, and what it must do is in "When
+   `main` is ahead of `staging`" in `docs/rollback.md`.
+8. **A force-pushed `staging` breaks bare promote's approval
+   dating.** `bin/nff promote main` dates the `LGTM` against `push`
+   activity on `staging` (`PUSH_TYPES`), and GitHub records a
+   force-push apart, so after a rebase it finds no push for the
+   commit and refuses. A release branch is dated by its own activity
+   (`RELEASE_PUSH_TYPES`), so #902 ends this for a release. A comment
+   in `bin/promote.mjs` still says `staging` is only ever
+   fast-forwarded.
+9. **"Hotfix" said `main` moves only by a fast-forward from
+   `staging`.** It moves to a commit `staging` held while it was
+   tested, which is the same promise. The hotfix commands keep
+   `staging` at the hotfix's commit until `main` has it, so bare
+   `bin/nff promote main` serves there today and `main` never gets
+   ahead. Whether a hotfix takes a release branch and a release
+   pull request once #902 lands is not settled; its version is
+   `YYYY.MINOR.MICRO` either way.
+10. **The Record-shape checks need nothing.** The pre-push hook
+    checks a rebased `staging` from its merge base with
+    `origin/next`, and CI's `record-shape` falls back to
+    `origin/main` when the old tip is gone. Either range holds the
+    trailers the commits already carried.
+11. **`proven-on-next.yml` fits a cut and not a rebase.** A push of
+    the cut to `staging` or `main` skips the jobs `next` passed at
+    that commit. A rebased commit has no run on `next`, which is why
+    the rebase goes through `next` first.
+12. **`release-audit.yml` and `lgtm-automerge.yml` fit.** The first
+    runs on any pull request into `main`, so it runs on the release
+    branch's. The second skips every pull request into `main`, so
+    the `LGTM` there merges nothing. Opening the release pull request
+    also starts `ci.yml` and `codeql.yml` on the cut once more, which
+    costs one run and blocks nothing.
+13. **`prod-audit.yml` is untouched.** It audits the commit the live
+    home page names, however `main` got there.
+14. **After-deploy steps ride on the release pull request.** The one
+    on #729 (run `bin/nff --production customers rekey` right after
+    the deploy that ships hashed address keys) sits in the body of a
+    `staging` into `main` pull request and goes wherever James sends
+    that release ("Not built yet"). The live checks stay on #237,
+    the post-deploy checklist.
+15. **Nothing tags a release or names its version.** No tag exists,
+    and `package.json` says `1.0.0`. `RELEASE_BRANCH` in
+    `bin/promote.mjs` allows no dot, so a branch cannot be named for
+    its version (`release/2026.1`) as the code stands. #903 builds
+    the tag.
+16. **Nothing deletes a release branch,** and the first three stayed
+    as markers of what shipped. The tag takes that job (#902, #903).
+17. **The runbook is prose beside the script,** and the two drifted:
+    until 2026-11-22 the docs sent a release through a merge commit
+    that linear history had barred four days earlier. #904
+    generates it.
+18. **Code text that still describes the merge release.** The header
+    comment, `USAGE` and the refusal hint in `bin/promote.mjs`, and
+    the body promote writes for a new `staging` into `main` pull
+    request, all read as before. They are #902's to change.
+19. **The workspace rule on the release pull request.** The
+    workspace's own `CLAUDE.md`, beside this repository and the
+    dashboard's, said (James, 2026-11-18): "The release pull request
+    is `staging` into `main` and lists, as `#N`, what it ships."
+    James retired it on 2026-11-22 (#889, "Document the hand-rolled
+    release process", point 11): the release pull request is
+    `release/<name>` into `main` (point 5 of "Releasing to `main`"),
+    and the standing `staging` into `main` pull request is dropped.
+    That file is outside this repository, so it is not changed here.
+    It already carries the change, dated 2026-11-22.
+
 ## Hotfix
 
-`main` moves only by a fast-forward from `staging` (James,
-2026-11-18), so a hotfix takes the road every change takes: `next`,
-then `staging`, then `main`. The commit that reaches `main` is the
-one that was tested, never a copy of it.
+`main` moves only by a fast-forward to a commit `staging` held while
+it was tested (James, 2026-11-18; 2026-11-22: this said "from
+`staging`", before releases took a release branch), so a hotfix takes
+the road every change takes: `next`, then `staging`, then `main`. The
+commit that reaches `main` is the one that was tested, never a copy
+of it.
 
 When `staging` is fit to release, a hotfix needs nothing special. It
-lands on `next` by its pull request and is promoted with the rest.
+lands on `next` by its pull request and is released with the rest.
 
 When `staging` holds work not fit to release, two commands set that
 work aside and bring it back (#612). Both take `--dry-run`, which
@@ -394,6 +613,11 @@ prints the plan and changes nothing.
    `--yes=no` is refused before anything runs.
 2. The hotfix lands on `next` by its pull request and goes to
    `staging` and `main` by `bin/nff promote`, with the usual checks.
+   `staging` stays at the hotfix's commit until `finish`, so bare
+   `promote main` serves here, with the approval on the `staging`
+   into `main` pull request it opens for the hotfix. Its version is
+   the release's with a micro added, `2026.5.1` on `2026.5`
+   ("Releasing to `main`" above; 2026-11-22).
 3. `bin/nff hotfix finish` refuses until `main` has moved and `next`,
    `staging` and `main` are one commit. It rebuilds the placeholders
    on `main` in the checkout it runs in, stopping on a conflict with
@@ -487,7 +711,9 @@ Push staging's sha to `e2e/staging-full` (`git push origin
 and `.github/workflows/e2e-staging.yml` waits for Netlify to serve that
 commit, then runs every spec. That is the one run per release
 candidate (point 4), and the one production is promoted from: it must
-have passed on that exact commit (point 7). A push to `e2e/staging`
+have passed on that exact commit (point 7), which is why `staging` is
+held at the cut until it has and the release branch exists
+(2026-11-22; James, 2026-11-23). A push to `e2e/staging`
 instead runs every spec not on `e2e/staging-passing.txt`, for a quick
 rerun of what failed while the fix is on its way. The run's summary
 lists the failed specs and the passed ones as `spec sha date` lines:
